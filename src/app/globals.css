@@ -1,26 +1,187 @@
 @import "tailwindcss";
 
+/* ============================================================
+   Stint Design Tokens
+   Semantic color system inspired by Liv's token architecture.
+   3 themes: light (default), dark, high-contrast.
+   ============================================================ */
+
 :root {
-  --background: #ffffff;
-  --foreground: #171717;
+  /* Surfaces */
+  --surface: #f9fafb;
+  --surface-raised: #ffffff;
+  --surface-inset: #f3f4f6;
+  --surface-overlay: rgba(17, 24, 39, 0.5);
+
+  /* Content (text) */
+  --content: #111827;
+  --content-secondary: #4b5563;
+  --content-muted: #9ca3af;
+  --content-inverse: #ffffff;
+
+  /* Borders */
+  --edge: #e5e7eb;
+  --edge-muted: #f3f4f6;
+
+  /* Accent (blue) */
+  --accent: #2563eb;
+  --accent-hover: #1d4ed8;
+  --accent-soft: #dbeafe;
+  --accent-text: #1e40af;
+
+  /* Focus */
+  --focus-ring: #3b82f6;
+
+  /* Hover */
+  --hover: #f3f4f6;
+
+  /* Status: Success */
+  --success: #059669;
+  --success-soft: #d1fae5;
+
+  /* Status: Warning */
+  --warning: #d97706;
+  --warning-soft: #fef3c7;
+
+  /* Status: Error / Destructive */
+  --error: #dc2626;
+  --error-soft: #fee2e2;
+
+  /* Status: Info */
+  --info: #2563eb;
+  --info-soft: #dbeafe;
 }
 
+[data-theme="dark"] {
+  --surface: #0f172a;
+  --surface-raised: #1e293b;
+  --surface-inset: #0f172a;
+  --surface-overlay: rgba(0, 0, 0, 0.6);
+
+  --content: #f1f5f9;
+  --content-secondary: #94a3b8;
+  --content-muted: #64748b;
+  --content-inverse: #0f172a;
+
+  --edge: #334155;
+  --edge-muted: #1e293b;
+
+  --accent: #3b82f6;
+  --accent-hover: #60a5fa;
+  --accent-soft: #1e3a5f;
+  --accent-text: #93c5fd;
+
+  --focus-ring: #3b82f6;
+  --hover: #334155;
+
+  --success: #34d399;
+  --success-soft: #064e3b;
+
+  --warning: #fbbf24;
+  --warning-soft: #78350f;
+
+  --error: #f87171;
+  --error-soft: #7f1d1d;
+
+  --info: #60a5fa;
+  --info-soft: #1e3a5f;
+}
+
+[data-theme="high-contrast"] {
+  --surface: #ffffff;
+  --surface-raised: #ffffff;
+  --surface-inset: #f3f4f6;
+  --surface-overlay: rgba(0, 0, 0, 0.7);
+
+  --content: #000000;
+  --content-secondary: #1f2937;
+  --content-muted: #374151;
+  --content-inverse: #ffffff;
+
+  --edge: #000000;
+  --edge-muted: #6b7280;
+
+  --accent: #1d4ed8;
+  --accent-hover: #1e40af;
+  --accent-soft: #bfdbfe;
+  --accent-text: #1e3a8a;
+
+  --focus-ring: #1d4ed8;
+  --hover: #e5e7eb;
+
+  --success: #047857;
+  --success-soft: #a7f3d0;
+
+  --warning: #b45309;
+  --warning-soft: #fde68a;
+
+  --error: #b91c1c;
+  --error-soft: #fecaca;
+
+  --info: #1d4ed8;
+  --info-soft: #bfdbfe;
+}
+
+/* Map tokens to Tailwind utilities */
 @theme inline {
-  --color-background: var(--background);
-  --color-foreground: var(--foreground);
+  /* Surfaces */
+  --color-surface: var(--surface);
+  --color-surface-raised: var(--surface-raised);
+  --color-surface-inset: var(--surface-inset);
+  --color-surface-overlay: var(--surface-overlay);
+
+  /* Content */
+  --color-content: var(--content);
+  --color-content-secondary: var(--content-secondary);
+  --color-content-muted: var(--content-muted);
+  --color-content-inverse: var(--content-inverse);
+
+  /* Borders */
+  --color-edge: var(--edge);
+  --color-edge-muted: var(--edge-muted);
+
+  /* Accent */
+  --color-accent: var(--accent);
+  --color-accent-hover: var(--accent-hover);
+  --color-accent-soft: var(--accent-soft);
+  --color-accent-text: var(--accent-text);
+
+  /* Focus */
+  --color-focus-ring: var(--focus-ring);
+
+  /* Hover */
+  --color-hover: var(--hover);
+
+  /* Status */
+  --color-success: var(--success);
+  --color-success-soft: var(--success-soft);
+  --color-warning: var(--warning);
+  --color-warning-soft: var(--warning-soft);
+  --color-error: var(--error);
+  --color-error-soft: var(--error-soft);
+  --color-info: var(--info);
+  --color-info-soft: var(--info-soft);
+
+  /* Fonts */
   --font-sans: var(--font-geist-sans);
   --font-mono: var(--font-geist-mono);
 }
 
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
-  }
+/* Base styles */
+body {
+  background: var(--surface);
+  color: var(--content);
+  font-family: var(--font-sans), system-ui, -apple-system, sans-serif;
 }
 
-body {
-  background: var(--background);
-  color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+/* Text size scaling */
+html[data-text-size="compact"] { font-size: 14px; }
+html[data-text-size="regular"] { font-size: 16px; }
+html[data-text-size="large"] { font-size: 18px; }
+
+/* Print styles */
+@media print {
+  aside, nav, .no-print { display: none !important; }
+  body { background: white; color: black; }
+  main { padding: 0; margin: 0; max-width: 100%; }
 }

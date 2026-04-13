@@ -1,1 +1,282 @@
 @AGENTS.md
+
+# CLAUDE.md — Stint
+
+> **Dual-tool project**: This repo uses both Claude Code and Cursor. This file (`CLAUDE.md`) is for Claude Code. Cursor reads `.cursorrules`. Both files enforce identical conventions — if you update one, update the other.
+
+## Project overview
+
+Stint is a time-tracking and invoicing app for a solo consultant. Built with Next.js 16 (App Router), Supabase (Postgres + Auth + RLS), and Tailwind CSS 4. Deployed free on Vercel + Supabase Cloud.
+
+## Project structure
+
+```
+src/
+├── app/
+│   ├── layout.tsx              — root layout
+│   ├── login/page.tsx          — auth
+│   ├── (dashboard)/            — authenticated route group
+│   │   ├── layout.tsx          — sidebar layout
+│   │   ├── page.tsx            — dashboard
+│   │   ├── clients/            — client list + [id] detail
+│   │   ├── projects/           — project list + [id] detail
+│   │   ├── time-entries/       — time entry list + [id] edit
+│   │   ├── timer/              — active timer + quick entry
+│   │   ├── invoices/           — invoice list + new + [id] detail
+│   │   ├── reports/            — reporting dashboard
+│   │   └── settings/           — user/business settings
+│   ├── auth/callback/route.ts  — Supabase auth callback
+│   └── docs/                   — in-app documentation (deployed with app)
+├── components/                 — shared UI components
+├── hooks/                      — shared React hooks
+├── lib/
+│   ├── supabase/               — browser client, server client, middleware
+│   ├── i18n/                   — next-intl config + locale files
+│   └── utils/                  — invoice calculations, formatting, etc.
+├── __tests__/                  — integration tests
+└── types/                      — shared TypeScript types
+supabase/
+└── migrations/                 — SQL migration files
+docs/                           — project documentation (also served in-app)
+```
+
+## Tooling
+
+- **npm** — package manager
+- **TypeScript strict mode** — zero `any` usage, ever
+- **Vitest** — unit and integration tests, >90% coverage enforced
+- **Playwright** — E2E tests for critical flows
+- **ESLint flat config** — Next.js recommended + TypeScript strict
+- **next-intl** — internationalization (all user-facing strings)
+
+## Code conventions
+
+### TypeScript — strict, no exceptions
+
+- `strict: true` with `noUncheckedIndexedAccess` enabled. Never loosen it.
+- No `any` — use `unknown` and narrow, or define a proper type.
+- No `@ts-ignore` or `@ts-expect-error` — fix the type instead.
+- No `eslint-disable` comments — fix the lint issue.
+- No non-null assertions (`!`) unless the value is guaranteed by a preceding check within the same scope.
+- Prefer `interface` for object shapes, `type` for unions/intersections.
+- Explicit return types on exported functions and server actions.
+- Handle all error cases — no swallowed catches, no empty `catch {}` blocks.
+- Use `import type` for type-only imports.
+
+### File organization
+
+- Co-locate tests with source: `actions.test.ts` next to `actions.ts`
+- Co-locate page-specific components with their route: `clients/new-client-form.tsx`
+- Shared components go in `src/components/`
+- Shared hooks go in `src/hooks/`
+- Types shared across features go in `src/types/`
+
+### Naming conventions
+
+- SQL/Supabase columns: `snake_case` (PostgreSQL convention)
+- TypeScript interfaces and variables: `camelCase`
+- React components and files: `PascalCase` for components, `kebab-case` for filenames
+- Server actions: `verbNounAction` (e.g., `createClientAction`, `archiveClientAction`)
+
+## Design system
+
+### Token architecture
+
+All colors use semantic CSS custom properties defined in `globals.css` with 3 themes: **light** (default), **dark**, **high-contrast**. Theme is applied via `data-theme` attribute on `<html>`.
+
+**Token naming** — use Tailwind utilities mapped from tokens, never raw hex values:
+
+| Category | Tokens | Usage |
+|----------|--------|-------|
+| Surfaces | `bg-surface`, `bg-surface-raised`, `bg-surface-inset` | Page bg, cards, table headers |
+| Content | `text-content`, `text-content-secondary`, `text-content-muted` | Primary text, secondary, disabled |
+| Borders | `border-edge`, `border-edge-muted` | Card borders, dividers |
+| Accent | `bg-accent`, `text-accent`, `bg-accent-soft`, `text-accent-text` | Primary actions, active nav, links |
+| Status | `text-success`, `bg-success-soft`, `text-error`, etc. | Feedback states |
+| Interaction | `bg-hover`, `ring-focus-ring` | Hover states, focus rings |
+
+### Form field styling
+
+**MANDATORY: Use shared styles from `src/lib/form-styles.ts`.** Never inline form field classes.
+
+- `inputClass` — text inputs and selects
+- `textareaClass` — textareas
+- `searchInputClass` — search fields (with left padding for icon)
+- `labelClass` — field labels
+- `buttonPrimaryClass`, `buttonSecondaryClass`, `buttonDangerClass`, `buttonGhostClass` — buttons
+- `kbdClass` — keyboard shortcut badges
+
+### Icons
+
+**Lucide icons only** — no other icon sets. Import from `lucide-react`.
+
+- Default size: 20px in nav/sidebar, 24px in page headers, 16px inline with button text, 14px in compact contexts
+- Always paired with text (redundant visual encoding)
+
+### Theme provider
+
+- `useTheme()` from `@/components/theme-provider` — get/set current theme
+- Anti-flash script in `<head>` applies theme before hydration
+- Storage key: `stint-theme` in localStorage
+
+### Typography
+
+- Primary: Geist Sans (via `next/font/google`)
+- Monospace: Geist Mono — used for monetary values, rates, durations
+- Table headers: `text-xs font-semibold uppercase tracking-wider text-content-muted`
+- Page titles: `text-2xl font-bold text-content` with icon
+
+## Supabase patterns
+
+- **Server Components**: use `createClient()` from `@/lib/supabase/server`
+- **Client Components**: use `createClient()` from `@/lib/supabase/client`
+- **Server Actions**: use `createClient()` from `@/lib/supabase/server`, always verify `auth.getUser()` first
+- **RLS handles authorization** — every table has `user_id`, every policy scopes to `auth.uid() = user_id`
+- **Never bypass RLS** — no service role key in the client app
+
+## Testing — MANDATORY
+
+- **>90% coverage target** on unit and integration tests — enforced via Vitest coverage thresholds
+- **Unit tests**: Vitest, co-located with source (`*.test.ts` next to `*.ts`)
+- **Integration tests**: Vitest + real Supabase queries where possible, mocked Supabase client for unit tests
+- **E2E tests**: Playwright for critical flows (auth, create client, track time, generate invoice)
+- **Every new file must have a corresponding test file** — no exceptions
+- **Tests must be meaningful** — test behavior, not implementation. Test error paths, edge cases, and boundary conditions, not just happy paths
+- **No untested code gets committed** — run tests before declaring work complete
+
+## Security — MANDATORY
+
+- **MFA support from day one** — Supabase Auth MFA (TOTP) must be configurable in user settings
+- **Short-lived sessions** — respect Supabase default token expiration
+- **No secrets in code** — use environment variables via `.env.local` (gitignored). Flag any hardcoded secrets immediately
+- **Never use string interpolation in queries** — always use Supabase client's parameterized methods
+- **Validate at system boundaries** — all user input validated before database operations (server actions validate with Zod or equivalent)
+- **CORS / auth defaults must be restrictive** — fail closed, never fail open
+- **GitHub tokens** (stored in `user_settings.github_token`) must be treated as secrets — never log, never return in list queries, only return to the owning user in the settings page
+
+### Security audit trail
+
+When a security issue is discovered:
+1. Log it in `docs/security/SECURITY_AUDIT_LOG.md` with severity, date, description, and risk
+2. Fix it — security issues take priority over feature work
+3. Update the log entry with the resolution and commit hash
+4. Never delete entries — the log is append-only
+
+## Redundant visual encoding — MANDATORY
+
+**Every meaningful UI element must communicate through at least 2 of 3 visual channels: icon, text, and color.** Never rely on a single channel alone.
+
+- **Section headers**: icon + text label (always)
+- **Status indicators**: color + text (never color alone) — e.g., invoice status shows a colored dot AND the word "Paid"
+- **Action buttons**: icon + text — e.g., `[+ Add Client]`, `[▶ Start Timer]`
+- **Error / warning / success states**: color + icon + text (all 3)
+- **Timer state**: color (green=running, gray=stopped) + icon (play/pause) + text ("Running" / "Stopped")
+
+This ensures accessibility for colorblind users and provides clear communication at a glance.
+
+## Keyboard shortcuts — MANDATORY
+
+**Every primary action on a page must have a keyboard shortcut with a visible indicator.**
+
+- **Primary actions** (New Client, Start Timer, Save) → single key (`N`) or modifier combo (`Cmd+S`)
+- **Visual indicator** → show the shortcut as a `<kbd>` badge on or next to the button
+- **kbd style** → use `kbdClass` from `@/lib/form-styles`
+- **Activation rules** → shortcuts only fire when no text input is focused (except Cmd/Ctrl combos), no modal is open
+- **Search focus** → `/` key focuses the search/filter field on any list page
+- **Standard combos** → `Cmd+S` = save, `Cmd+Enter` = submit, `Escape` = close/cancel, `N` = new item
+- **Timer** → `Space` to start/stop timer (when no input focused)
+
+## Internationalization (i18n) — MANDATORY
+
+**Every user-facing string must use translation keys.** No hardcoded text in components.
+
+- **Library**: `next-intl` — server components use `getTranslations()`, client components use `useTranslations()`
+- **Locale files**: `src/lib/i18n/locales/{locale}/{namespace}.json`
+- **Default locales**: `en` (English), `es` (Spanish)
+- **Namespaces**: `common` (shared: nav, buttons, statuses), `auth`, `clients`, `projects`, `time`, `invoices`, `settings`, `reports`
+- **When adding a new page or component:**
+  1. Add English strings to the appropriate namespace file in `src/lib/i18n/locales/en/`
+  2. Add Spanish translations to the corresponding file in `src/lib/i18n/locales/es/`
+  3. Use `t("key")` in the component — never hardcode user-facing text
+- **What gets translated**: Navigation, labels, buttons, placeholders, error messages, status text, table headers
+- **What does NOT get translated**: User-entered data (client names, project names), currency symbols (locale-aware formatting instead)
+- **Pattern for server components**: `const t = await getTranslations("namespace");`
+- **Pattern for client components**: `const t = useTranslations("namespace");`
+
+## Popups & overlays — MANDATORY
+
+**Three patterns, choose by task complexity:**
+
+- **Inline expansion** (default): Form expands in-place, no overlay. Use for 1–3 field quick actions (add client, quick time entry).
+- **Dropdown panel**: Positioned panel from trigger button. Use for forms needing more space (new project, template picker).
+- **Centered modal**: Full overlay, dimmed backdrop. Use ONLY for destructive/irreversible confirmations (archive client, void invoice) or complex multi-step forms (MFA setup, invoice generation).
+
+**Rules:**
+- Default to inline expansion. Only escalate when justified.
+- Every overlay must be dismissible via Escape.
+- No nested modals — use inline state changes within the same modal.
+
+## Unsaved changes guard — MANDATORY
+
+**Any page with user-editable data must warn before navigation.**
+
+- Use a `useUnsavedChanges(hasChanges)` hook
+- Triggers the browser's native "Leave page?" confirmation on navigate/close/refresh
+- Required on: client edit, project edit, settings page, invoice editor, manual time entry form
+
+## Search & input feedback — MANDATORY
+
+**Every search/filter field must show clear feedback for all states:**
+
+- **Typing (< min chars)** → hint: "Type at least 2 characters"
+- **Loading** → spinner or "Searching..."
+- **Results found** → show results
+- **No results** → "No results for '{query}'"
+- **Error** → "Search unavailable" with retry
+- **Empty query** → placeholder describing what can be searched
+
+## Documentation — MANDATORY
+
+> **This is not optional.** Every piece of work must be documented before it is considered complete.
+
+### Documentation is deployed with the app
+
+Documentation lives in `docs/` AND is served as an in-app `/docs` route so it's always accessible alongside the running application. This includes:
+- Technical architecture docs
+- API/data model reference
+- User guides
+- Security documentation
+
+### When you build, modify, or add anything
+
+- **New features**: Create or update a doc in `docs/`, update `docs/README.md` index
+- **Database changes**: Update `docs/DATABASE_SCHEMA.md`
+- **New environment variables**: Update `.env.example`
+- **Security changes**: Update `docs/security/SECURITY_AUDIT_LOG.md`
+- **Infrastructure changes**: Update `CONTRIBUTING.md` and any affected docs
+
+### What "documented" means
+
+- A developer who wasn't in this conversation can understand what was built and why
+- Architecture decisions are recorded — not just code
+- The docs index links to every document
+
+## Proactive development — MANDATORY
+
+- **Fix issues as you find them** — do not defer, do not leave TODOs. If you encounter a bug, type error, lint issue, or security concern while working on something else, fix it immediately.
+- **Be proactive** — if you see a better approach while implementing, take it. Don't ask for permission to improve code quality.
+- **No TODO comments** — either fix it now or create a tracked issue. `// TODO` is not a plan.
+- **No partial implementations** — every feature you touch must be complete, tested, documented, and localized before moving on.
+
+## Code generation rules (Claude Code + Cursor)
+
+> **Keep in sync**: These rules are duplicated in `.cursorrules`. If you modify rules here, update `.cursorrules` to match.
+
+- **All code must be TypeScript strict mode** — no `any`, no `@ts-ignore`
+- **All code must pass ESLint** — run lint before considering any code complete
+- **All code must have tests** — every new `.ts` file needs a `.test.ts` file
+- **>90% test coverage** — enforced via Vitest coverage thresholds
+- **Tests must be meaningful** — test behavior, not implementation
+- **All user-facing strings must use i18n** — no hardcoded text
+- **All interactive elements must have keyboard shortcuts** where applicable
+- **All status/state UI must use redundant visual encoding** (2+ channels)

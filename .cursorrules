@@ -1,0 +1,90 @@
+# Cursor Rules — Stint
+
+> These rules are identical to `CLAUDE.md`. If you update one, update the other.
+
+## Project
+
+Stint is a time-tracking and invoicing app. Next.js 16 (App Router) + Supabase + Tailwind CSS 4. Deployed on Vercel.
+
+## TypeScript — strict, no exceptions
+
+- `strict: true` + `noUncheckedIndexedAccess`. Never loosen.
+- No `any` — use `unknown` and narrow, or define a proper type.
+- No `@ts-ignore`, `@ts-expect-error`, or `eslint-disable`.
+- No non-null assertions (`!`) unless guarded in the same scope.
+- Explicit return types on exported functions and server actions.
+- Handle all error cases — no swallowed catches.
+- Use `import type` for type-only imports.
+
+## File organization
+
+- Co-locate tests: `actions.test.ts` next to `actions.ts`
+- Co-locate page components with routes: `clients/new-client-form.tsx`
+- Shared components in `src/components/`, hooks in `src/hooks/`, types in `src/types/`
+
+## Naming
+
+- SQL columns: `snake_case`
+- TypeScript: `camelCase` for variables/interfaces
+- Components: `PascalCase`, filenames: `kebab-case`
+- Server actions: `verbNounAction`
+
+## Supabase
+
+- Server Components: `createClient()` from `@/lib/supabase/server`
+- Client Components: `createClient()` from `@/lib/supabase/client`
+- Server Actions: always verify `auth.getUser()` first
+- RLS handles authorization — never bypass it
+
+## Testing (>90% coverage)
+
+- Vitest for unit + integration, Playwright for E2E
+- Every new file needs a test file — no exceptions
+- Test behavior, not implementation. Cover error paths and edge cases.
+
+## Security
+
+- MFA support (TOTP) from day one
+- No secrets in code — env vars only
+- No string interpolation in queries — use parameterized methods
+- Validate all user input in server actions
+- GitHub tokens are secrets — never log or return in list queries
+
+## Redundant visual encoding (MANDATORY)
+
+Every meaningful UI element uses 2+ of: icon, text, color.
+- Status: color + text (never color alone)
+- Buttons: icon + text
+- Errors/warnings/success: color + icon + text
+
+## Keyboard shortcuts (MANDATORY)
+
+- Every primary action has a shortcut with visible `<kbd>` badge
+- `/` focuses search, `N` = new item, `Cmd+S` = save, `Escape` = cancel
+- `Space` = start/stop timer (when no input focused)
+
+## i18n (MANDATORY)
+
+- `next-intl` — every user-facing string uses `t("key")`
+- Locales: `en`, `es` in `src/lib/i18n/locales/{locale}/{namespace}.json`
+- Server: `getTranslations()`, Client: `useTranslations()`
+- No hardcoded text in components
+
+## Overlays
+
+- Default: inline expansion (1-3 fields)
+- Dropdown panel: forms needing more space
+- Modal: destructive confirmations or complex multi-step only
+- All overlays dismissible via Escape. No nested modals.
+
+## Documentation (MANDATORY)
+
+- Docs deployed with the app at `/docs` route
+- Every feature must be documented before complete
+- Update docs index, schema docs, and .env.example as needed
+
+## Proactive development
+
+- Fix issues immediately — no TODOs, no deferring
+- Every feature: complete, tested, documented, localized
+- Be proactive about improvements
