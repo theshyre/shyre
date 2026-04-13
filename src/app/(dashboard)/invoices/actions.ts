@@ -17,7 +17,7 @@ export async function createInvoiceAction(formData: FormData): Promise<void> {
   const orgId = formData.get("organization_id") as string;
   const { userId } = await validateOrgAccess(orgId);
 
-  const client_id = formData.get("client_id") as string;
+  const client_id = (formData.get("client_id") as string) || null;
   const notes = (formData.get("notes") as string) || null;
   const due_date = (formData.get("due_date") as string) || null;
   const taxRateStr = formData.get("tax_rate") as string;
@@ -34,8 +34,8 @@ export async function createInvoiceAction(formData: FormData): Promise<void> {
   const nextNum = settings?.invoice_next_num ?? 1;
   const defaultRate = settings?.default_rate ? Number(settings.default_rate) : 0;
 
-  // Get unbilled time entries for this client's projects
-  const { data: entries } = await supabase
+  // Get unbilled time entries — filter by client if specified, otherwise all org entries
+  let query = supabase
     .from("time_entries")
     .select("id, description, duration_min, project_id, projects(name, hourly_rate, client_id, clients(default_rate))")
     .eq("organization_id", orgId)
@@ -44,21 +44,29 @@ export async function createInvoiceAction(formData: FormData): Promise<void> {
     .not("end_time", "is", null)
     .not("duration_min", "is", null);
 
-  // Filter to entries belonging to this client's projects
-  const clientEntries = (entries ?? []).filter((e) => {
-    const proj = e.projects;
-    if (!proj || typeof proj !== "object") return false;
-    if (!("client_id" in proj)) return false;
-    return (proj as { client_id: string }).client_id === client_id;
-  });
+  const { data: entries } = await query;
 
-  if (clientEntries.length === 0) {
-    throw new Error("No unbilled time entries found for this client.");
+  // Filter entries based on client selection
+  let filteredEntries;
+  if (client_id) {
+    // Client invoice: only entries from this client's projects
+    filteredEntries = (entries ?? []).filter((e) => {
+      const proj = e.projects;
+      if (!proj || typeof proj !== "object" || !("client_id" in proj)) return false;
+      return (proj as { client_id: string | null }).client_id === client_id;
+    });
+  } else {
+    // Org-wide invoice: all unbilled entries (including internal projects)
+    filteredEntries = entries ?? [];
+  }
+
+  if (filteredEntries.length === 0) {
+    throw new Error("No unbilled time entries found.");
   }
 
   // Build line items
   const lineItems: (LineItemResult & { time_entry_id: string })[] =
-    clientEntries.map((entry) => {
+    filteredEntries.map((entry) => {
       const projRaw = entry.projects;
       const proj = projRaw && typeof projRaw === "object" && "name" in projRaw
         ? (projRaw as unknown as {
@@ -89,7 +97,7 @@ export async function createInvoiceAction(formData: FormData): Promise<void> {
   const totals = calculateInvoiceTotals(lineItems, taxRate);
   const invoiceNumber = generateInvoiceNumber(prefix, nextNum);
 
-  // Create invoice
+  // Create invoice (client_id may be null for org-only invoices)
   const { data: invoice, error: invoiceError } = await supabase
     .from("invoices")
     .insert({
@@ -133,7 +141,6 @@ export async function createInvoiceAction(formData: FormData): Promise<void> {
   await supabase
     .from("time_entries")
     .update({ invoiced: true, invoice_id: invoice.id })
-    .eq("organization_id", orgId)
     .in("id", entryIds);
 
   // Increment invoice number
@@ -151,7 +158,9 @@ export async function updateInvoiceStatusAction(
   formData: FormData
 ): Promise<void> {
   const supabase = await createClient();
-  const { data: { user } } = await supabase.auth.getUser();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
   if (!user) redirect("/login");
 
   const id = formData.get("id") as string;

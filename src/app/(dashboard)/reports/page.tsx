@@ -64,7 +64,7 @@ export default async function ReportsPage({
       clients: { name: string; default_rate: number | null } | null;
     } | null;
 
-    const clientName = proj?.clients?.name ?? "Unknown";
+    const clientName = proj?.clients?.name ?? "Internal";
     const projectName = proj?.name ?? "Unknown";
     const mins = entry.duration_min ?? 0;
     const isBillable = entry.billable ?? false;

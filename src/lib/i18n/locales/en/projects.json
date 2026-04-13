@@ -5,10 +5,12 @@
   "saveProject": "Save Project",
   "saveChanges": "Save Changes",
   "noProjects": "No projects yet. Add one above to get started.",
+  "internal": "Internal",
   "fields": {
     "name": "Name",
     "description": "Description",
     "client": "Client",
+    "internalProject": "None (internal project)",
     "hourlyRate": "Hourly Rate ($/hr)",
     "budgetHours": "Budget Hours",
     "githubRepo": "GitHub Repo",

@@ -69,9 +69,9 @@ export function NewProjectForm({
           <input name="name" required className={inputClass} />
         </div>
         <div>
-          <label className={labelClass}>{t("fields.client")} *</label>
-          <select name="client_id" required className={selectClass}>
-            <option value="">{t("fields.client")}</option>
+          <label className={labelClass}>{t("fields.client")}</label>
+          <select name="client_id" className={selectClass}>
+            <option value="">{t("fields.internalProject")}</option>
             {clients.map((c) => (
               <option key={c.id} value={c.id}>
                 {c.name}

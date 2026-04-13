@@ -43,9 +43,9 @@ export function NewInvoiceForm({
 
         <div className="grid gap-4 sm:grid-cols-2">
           <div>
-            <label className={labelClass}>{t("selectClient")} *</label>
-            <select name="client_id" required className={selectClass}>
-              <option value="">{t("selectClient")}</option>
+            <label className={labelClass}>{t("selectClient")}</label>
+            <select name="client_id" className={selectClass}>
+              <option value="">All (org-wide)</option>
               {clients.map((c) => (
                 <option key={c.id} value={c.id}>
                   {c.name}

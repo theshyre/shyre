@@ -5,10 +5,12 @@
   "saveProject": "Guardar Proyecto",
   "saveChanges": "Guardar Cambios",
   "noProjects": "Aún no hay proyectos. Agrega uno arriba para comenzar.",
+  "internal": "Interno",
   "fields": {
     "name": "Nombre",
     "description": "Descripción",
     "client": "Cliente",
+    "internalProject": "Ninguno (proyecto interno)",
     "hourlyRate": "Tarifa por hora ($/hr)",
     "budgetHours": "Horas presupuestadas",
     "githubRepo": "Repositorio GitHub",
