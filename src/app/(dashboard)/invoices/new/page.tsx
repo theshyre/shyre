@@ -1,0 +1,39 @@
+import { createClient } from "@/lib/supabase/server";
+import { getTranslations } from "next-intl/server";
+import { FileText } from "lucide-react";
+import { NewInvoiceForm } from "./new-invoice-form";
+
+export default async function NewInvoicePage(): Promise<React.JSX.Element> {
+  const supabase = await createClient();
+  const t = await getTranslations("invoices");
+
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+
+  const { data: clients } = await supabase
+    .from("clients")
+    .select("id, name, default_rate")
+    .eq("archived", false)
+    .order("name");
+
+  const { data: settings } = await supabase
+    .from("user_settings")
+    .select("invoice_prefix, invoice_next_num, tax_rate, default_rate")
+    .eq("user_id", user?.id ?? "")
+    .single();
+
+  return (
+    <div>
+      <div className="flex items-center gap-3">
+        <FileText size={24} className="text-accent" />
+        <h1 className="text-2xl font-bold text-content">{t("createInvoice")}</h1>
+      </div>
+
+      <NewInvoiceForm
+        clients={clients ?? []}
+        defaultTaxRate={settings?.tax_rate ? Number(settings.tax_rate) : 0}
+      />
+    </div>
+  );
+}

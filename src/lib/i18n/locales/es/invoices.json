@@ -1,0 +1,66 @@
+{
+  "title": "Facturas",
+  "newInvoice": "Nueva Factura",
+  "createInvoice": "Crear Factura",
+  "noInvoices": "Aún no hay facturas. Crea una a partir de registros de tiempo no facturados.",
+  "selectClient": "Selecciona un cliente",
+  "selectClientDescription": "Elige un cliente para ver sus registros de tiempo no facturados.",
+  "unbilledTime": "Registros de Tiempo No Facturados",
+  "noUnbilledTime": "No hay registros de tiempo no facturados para este cliente.",
+  "lineItems": "Elementos de Línea",
+  "generateLineItems": "Generar Elementos de Línea",
+  "fields": {
+    "invoiceNumber": "Número de Factura",
+    "issuedDate": "Fecha de Emisión",
+    "dueDate": "Fecha de Vencimiento",
+    "notes": "Notas",
+    "notesPlaceholder": "Términos de pago, notas al cliente...",
+    "subtotal": "Subtotal",
+    "taxRate": "Tasa de Impuesto (%)",
+    "taxAmount": "Impuesto",
+    "total": "Total"
+  },
+  "lineItem": {
+    "description": "Descripción",
+    "hours": "Horas",
+    "rate": "Tarifa",
+    "amount": "Monto"
+  },
+  "actions": {
+    "downloadPdf": "Descargar PDF",
+    "markSent": "Marcar como Enviada",
+    "markPaid": "Marcar como Pagada",
+    "markVoid": "Anular Factura"
+  },
+  "status": {
+    "draft": "Borrador",
+    "sent": "Enviada",
+    "paid": "Pagada",
+    "overdue": "Vencida",
+    "void": "Anulada"
+  },
+  "table": {
+    "invoiceNumber": "Factura #",
+    "client": "Cliente",
+    "issuedDate": "Emitida",
+    "dueDate": "Vencimiento",
+    "total": "Total",
+    "status": "Estado"
+  },
+  "pdf": {
+    "invoice": "FACTURA",
+    "billTo": "Facturar a",
+    "from": "De",
+    "date": "Fecha",
+    "dueDate": "Fecha de Vencimiento",
+    "description": "Descripción",
+    "qty": "Cant",
+    "rate": "Tarifa",
+    "amount": "Monto",
+    "subtotal": "Subtotal",
+    "tax": "Impuesto",
+    "total": "Total",
+    "notes": "Notas",
+    "thankYou": "Gracias por su preferencia."
+  }
+}

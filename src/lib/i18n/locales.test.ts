@@ -6,6 +6,7 @@ import enDashboard from "./locales/en/dashboard.json";
 import enProjects from "./locales/en/projects.json";
 import enTime from "./locales/en/time.json";
 import enSettings from "./locales/en/settings.json";
+import enInvoices from "./locales/en/invoices.json";
 import esCommon from "./locales/es/common.json";
 import esAuth from "./locales/es/auth.json";
 import esClients from "./locales/es/clients.json";
@@ -13,6 +14,7 @@ import esDashboard from "./locales/es/dashboard.json";
 import esProjects from "./locales/es/projects.json";
 import esTime from "./locales/es/time.json";
 import esSettings from "./locales/es/settings.json";
+import esInvoices from "./locales/es/invoices.json";
 
 function getKeyPaths(obj: Record<string, unknown>, prefix = ""): string[] {
   const keys: string[] = [];
@@ -35,6 +37,7 @@ const namespaces = [
   { name: "projects", en: enProjects, es: esProjects },
   { name: "time", en: enTime, es: esTime },
   { name: "settings", en: enSettings, es: esSettings },
+  { name: "invoices", en: enInvoices, es: esInvoices },
 ] as const;
 
 describe("locale file consistency", () => {

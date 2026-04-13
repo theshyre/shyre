@@ -1,0 +1,66 @@
+{
+  "title": "Invoices",
+  "newInvoice": "New Invoice",
+  "createInvoice": "Create Invoice",
+  "noInvoices": "No invoices yet. Create one from unbilled time entries.",
+  "selectClient": "Select a client",
+  "selectClientDescription": "Choose a client to see their unbilled time entries.",
+  "unbilledTime": "Unbilled Time Entries",
+  "noUnbilledTime": "No unbilled time entries for this client.",
+  "lineItems": "Line Items",
+  "generateLineItems": "Generate Line Items",
+  "fields": {
+    "invoiceNumber": "Invoice Number",
+    "issuedDate": "Issue Date",
+    "dueDate": "Due Date",
+    "notes": "Notes",
+    "notesPlaceholder": "Payment terms, notes to client...",
+    "subtotal": "Subtotal",
+    "taxRate": "Tax Rate (%)",
+    "taxAmount": "Tax",
+    "total": "Total"
+  },
+  "lineItem": {
+    "description": "Description",
+    "hours": "Hours",
+    "rate": "Rate",
+    "amount": "Amount"
+  },
+  "actions": {
+    "downloadPdf": "Download PDF",
+    "markSent": "Mark as Sent",
+    "markPaid": "Mark as Paid",
+    "markVoid": "Void Invoice"
+  },
+  "status": {
+    "draft": "Draft",
+    "sent": "Sent",
+    "paid": "Paid",
+    "overdue": "Overdue",
+    "void": "Void"
+  },
+  "table": {
+    "invoiceNumber": "Invoice #",
+    "client": "Client",
+    "issuedDate": "Issued",
+    "dueDate": "Due",
+    "total": "Total",
+    "status": "Status"
+  },
+  "pdf": {
+    "invoice": "INVOICE",
+    "billTo": "Bill To",
+    "from": "From",
+    "date": "Date",
+    "dueDate": "Due Date",
+    "description": "Description",
+    "qty": "Qty",
+    "rate": "Rate",
+    "amount": "Amount",
+    "subtotal": "Subtotal",
+    "tax": "Tax",
+    "total": "Total",
+    "notes": "Notes",
+    "thankYou": "Thank you for your business."
+  }
+}

@@ -3,7 +3,7 @@ import { getRequestConfig } from "next-intl/server";
 export default getRequestConfig(async () => {
   const locale = "en";
 
-  const [common, auth, clients, dashboard, projects, time, settings] =
+  const [common, auth, clients, dashboard, projects, time, settings, invoices] =
     await Promise.all([
       import(`./locales/${locale}/common.json`),
       import(`./locales/${locale}/auth.json`),
@@ -12,6 +12,7 @@ export default getRequestConfig(async () => {
       import(`./locales/${locale}/projects.json`),
       import(`./locales/${locale}/time.json`),
       import(`./locales/${locale}/settings.json`),
+      import(`./locales/${locale}/invoices.json`),
     ]);
 
   return {
@@ -24,6 +25,7 @@ export default getRequestConfig(async () => {
       projects: projects.default,
       time: time.default,
       settings: settings.default,
+      invoices: invoices.default,
     },
   };
 });
