@@ -1,32 +1,42 @@
 import { createClient } from "@/lib/supabase/server";
-import { getOrgContext } from "@/lib/org-context";
+import { getUserOrgs } from "@/lib/org-context";
 import { getTranslations } from "next-intl/server";
 import Link from "next/link";
 import { Users } from "lucide-react";
+import { OrgFilter } from "@/components/OrgFilter";
 import { NewClientForm } from "./new-client-form";
 import { ArchiveButton } from "./archive-button";
 
-export default async function ClientsPage(): Promise<React.JSX.Element> {
+export default async function ClientsPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ org?: string }>;
+}): Promise<React.JSX.Element> {
   const supabase = await createClient();
-  const { orgId } = await getOrgContext();
+  const orgs = await getUserOrgs();
+  const { org: selectedOrgId } = await searchParams;
   const t = await getTranslations("clients");
   const tc = await getTranslations("common");
 
-  const { data: clients } = await supabase
+  let query = supabase
     .from("clients")
     .select("*")
-    .eq("organization_id", orgId)
     .eq("archived", false)
     .order("name");
+  if (selectedOrgId) query = query.eq("organization_id", selectedOrgId);
+  const { data: clients } = await query;
+
+  const orgName = (orgId: string) => orgs.find(o => o.id === orgId)?.name ?? "\u2014";
 
   return (
     <div>
       <div className="flex items-center gap-3">
         <Users size={24} className="text-accent" />
         <h1 className="text-2xl font-bold text-content">{t("title")}</h1>
+        <OrgFilter orgs={orgs} selectedOrgId={selectedOrgId ?? null} />
       </div>
 
-      <NewClientForm />
+      <NewClientForm orgs={orgs} />
 
       {clients && clients.length > 0 ? (
         <div className="mt-6 overflow-hidden rounded-lg border border-edge bg-surface-raised">
@@ -35,6 +45,9 @@ export default async function ClientsPage(): Promise<React.JSX.Element> {
               <tr className="border-b border-edge bg-surface-inset">
                 <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider text-content-muted">
                   {tc("table.name")}
+                </th>
+                <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider text-content-muted">
+                  Org
                 </th>
                 <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider text-content-muted">
                   {tc("table.email")}
@@ -60,6 +73,9 @@ export default async function ClientsPage(): Promise<React.JSX.Element> {
                     >
                       {client.name}
                     </Link>
+                  </td>
+                  <td className="px-4 py-3 text-content-secondary text-xs">
+                    {orgName(client.organization_id)}
                   </td>
                   <td className="px-4 py-3 text-content-secondary">
                     {client.email || "—"}

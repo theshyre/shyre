@@ -1,33 +1,24 @@
 import { createClient } from "@/lib/supabase/server";
-import { cookies } from "next/headers";
 import { redirect } from "next/navigation";
 
-export interface OrgContext {
-  orgId: string;
-  orgName: string;
-  orgSlug: string;
-  isPersonalOrg: boolean;
+export interface UserContext {
   userId: string;
   userEmail: string;
-  role: "owner" | "admin" | "member";
+  displayName: string;
 }
 
 export interface OrgListItem {
   id: string;
   name: string;
   slug: string;
-  role: string;
-  isPersonal: boolean;
+  role: "owner" | "admin" | "member";
 }
 
-const ORG_COOKIE = "stint-org-id";
-
 /**
- * Get the current organization context for the authenticated user.
- * Reads org ID from cookie, falling back to the user's first org.
+ * Get the authenticated user's context (identity, not org-scoped).
  * Redirects to /login if not authenticated.
  */
-export async function getOrgContext(): Promise<OrgContext> {
+export async function getUserContext(): Promise<UserContext> {
   const supabase = await createClient();
   const {
     data: { user },
@@ -35,59 +26,16 @@ export async function getOrgContext(): Promise<OrgContext> {
 
   if (!user) redirect("/login");
 
-  const cookieStore = await cookies();
-  const storedOrgId = cookieStore.get(ORG_COOKIE)?.value;
-
-  // Try stored org first, then fall back to first membership
-  let membership;
-
-  if (storedOrgId) {
-    const { data } = await supabase
-      .from("organization_members")
-      .select("organization_id, role, organizations(id, name, slug, is_personal)")
-      .eq("user_id", user.id)
-      .eq("organization_id", storedOrgId)
-      .single();
-    membership = data;
-  }
-
-  if (!membership) {
-    const { data } = await supabase
-      .from("organization_members")
-      .select("organization_id, role, organizations(id, name, slug, is_personal)")
-      .eq("user_id", user.id)
-      .order("joined_at", { ascending: true })
-      .limit(1)
-      .single();
-    membership = data;
-  }
-
-  if (!membership) {
-    redirect("/login");
-  }
-
-  const org =
-    membership.organizations &&
-    typeof membership.organizations === "object" &&
-    "id" in membership.organizations
-      ? (membership.organizations as unknown as {
-          id: string;
-          name: string;
-          slug: string;
-          is_personal: boolean;
-        })
-      : null;
-
-  if (!org) redirect("/login");
+  const { data: profile } = await supabase
+    .from("user_profiles")
+    .select("display_name")
+    .eq("user_id", user.id)
+    .single();
 
   return {
-    orgId: org.id,
-    orgName: org.name,
-    orgSlug: org.slug,
-    isPersonalOrg: org.is_personal,
     userId: user.id,
     userEmail: user.email ?? "",
-    role: membership.role as "owner" | "admin" | "member",
+    displayName: profile?.display_name ?? user.email?.split("@")[0] ?? "User",
   };
 }
 
@@ -104,7 +52,7 @@ export async function getUserOrgs(): Promise<OrgListItem[]> {
 
   const { data } = await supabase
     .from("organization_members")
-    .select("role, organizations(id, name, slug, is_personal)")
+    .select("role, organizations(id, name, slug)")
     .eq("user_id", user.id)
     .order("joined_at", { ascending: true });
 
@@ -114,21 +62,54 @@ export async function getUserOrgs(): Promise<OrgListItem[]> {
         m.organizations &&
         typeof m.organizations === "object" &&
         "id" in m.organizations
-          ? (m.organizations as unknown as {
-              id: string;
-              name: string;
-              slug: string;
-              is_personal: boolean;
-            })
+          ? (m.organizations as unknown as { id: string; name: string; slug: string })
           : null;
       if (!org) return null;
       return {
         id: org.id,
         name: org.name,
         slug: org.slug,
-        role: m.role,
-        isPersonal: org.is_personal,
+        role: m.role as "owner" | "admin" | "member",
       };
     })
     .filter((x): x is NonNullable<typeof x> => x !== null);
+}
+
+/**
+ * Get all org IDs the current user belongs to.
+ */
+export async function getUserOrgIds(): Promise<string[]> {
+  const orgs = await getUserOrgs();
+  return orgs.map((o) => o.id);
+}
+
+/**
+ * Validate that the current user has access to a specific org.
+ * Returns the user's role if they have access, throws if they don't.
+ */
+export async function validateOrgAccess(
+  orgId: string
+): Promise<{ userId: string; role: "owner" | "admin" | "member" }> {
+  const supabase = await createClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+
+  if (!user) redirect("/login");
+
+  const { data: membership } = await supabase
+    .from("organization_members")
+    .select("role")
+    .eq("user_id", user.id)
+    .eq("organization_id", orgId)
+    .single();
+
+  if (!membership) {
+    throw new Error("You do not have access to this organization.");
+  }
+
+  return {
+    userId: user.id,
+    role: membership.role as "owner" | "admin" | "member",
+  };
 }

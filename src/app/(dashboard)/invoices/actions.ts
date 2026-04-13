@@ -1,7 +1,7 @@
 "use server";
 
 import { createClient } from "@/lib/supabase/server";
-import { getOrgContext } from "@/lib/org-context";
+import { validateOrgAccess } from "@/lib/org-context";
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import {
@@ -14,7 +14,8 @@ import type { LineItemResult } from "@/lib/invoice-utils";
 
 export async function createInvoiceAction(formData: FormData): Promise<void> {
   const supabase = await createClient();
-  const { orgId, userId } = await getOrgContext();
+  const orgId = formData.get("organization_id") as string;
+  const { userId } = await validateOrgAccess(orgId);
 
   const client_id = formData.get("client_id") as string;
   const notes = (formData.get("notes") as string) || null;
@@ -150,7 +151,8 @@ export async function updateInvoiceStatusAction(
   formData: FormData
 ): Promise<void> {
   const supabase = await createClient();
-  const { orgId } = await getOrgContext();
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user) redirect("/login");
 
   const id = formData.get("id") as string;
   const status = formData.get("status") as string;
@@ -158,7 +160,6 @@ export async function updateInvoiceStatusAction(
   const { error } = await supabase
     .from("invoices")
     .update({ status })
-    .eq("organization_id", orgId)
     .eq("id", id);
 
   if (error) throw new Error(error.message);

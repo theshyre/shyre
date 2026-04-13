@@ -8,6 +8,8 @@ import {
   selectClass,
   buttonPrimaryClass,
 } from "@/lib/form-styles";
+import { OrgSelector } from "@/components/OrgSelector";
+import type { OrgListItem } from "@/lib/org-context";
 import { createInvoiceAction } from "../actions";
 import { FileText } from "lucide-react";
 
@@ -20,9 +22,11 @@ interface ClientOption {
 export function NewInvoiceForm({
   clients,
   defaultTaxRate,
+  orgs,
 }: {
   clients: ClientOption[];
   defaultTaxRate: number;
+  orgs: OrgListItem[];
 }): React.JSX.Element {
   const t = useTranslations("invoices");
 
@@ -31,6 +35,7 @@ export function NewInvoiceForm({
       action={createInvoiceAction}
       className="mt-6 space-y-4"
     >
+      <OrgSelector orgs={orgs} />
       <div className="rounded-lg border border-edge bg-surface-raised p-4 space-y-4">
         <p className="text-sm text-content-secondary">
           {t("selectClientDescription")}

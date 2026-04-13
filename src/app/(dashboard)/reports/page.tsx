@@ -1,8 +1,9 @@
 import { createClient } from "@/lib/supabase/server";
-import { getOrgContext } from "@/lib/org-context";
+import { getUserOrgs } from "@/lib/org-context";
 import { getTranslations } from "next-intl/server";
 import { BarChart3 } from "lucide-react";
 import { formatCurrency } from "@/lib/invoice-utils";
+import { OrgFilter } from "@/components/OrgFilter";
 
 interface ClientSummary {
   name: string;
@@ -22,26 +23,35 @@ interface ProjectSummary {
   revenue: number;
 }
 
-export default async function ReportsPage(): Promise<React.JSX.Element> {
+export default async function ReportsPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ org?: string }>;
+}): Promise<React.JSX.Element> {
   const supabase = await createClient();
-  const { orgId } = await getOrgContext();
+  const orgs = await getUserOrgs();
+  const { org: selectedOrgId } = await searchParams;
   const t = await getTranslations("reports");
 
   // Fetch all time entries with project and client info
-  const { data: entries } = await supabase
+  let entriesQuery = supabase
     .from("time_entries")
     .select("duration_min, billable, projects(name, hourly_rate, clients(name, default_rate))")
-    .eq("organization_id", orgId)
     .not("end_time", "is", null)
     .not("duration_min", "is", null);
+  if (selectedOrgId) entriesQuery = entriesQuery.eq("organization_id", selectedOrgId);
+  const { data: entries } = await entriesQuery;
 
-  // Get org's default rate
-  const { data: settings } = await supabase
-    .from("organization_settings")
-    .select("default_rate")
-    .eq("organization_id", orgId)
-    .single();
-  const defaultRate = settings?.default_rate ? Number(settings.default_rate) : 0;
+  // Get org's default rate (use selected org's settings if filtered, otherwise 0)
+  let defaultRate = 0;
+  if (selectedOrgId) {
+    const { data: settings } = await supabase
+      .from("organization_settings")
+      .select("default_rate")
+      .eq("organization_id", selectedOrgId)
+      .single();
+    defaultRate = settings?.default_rate ? Number(settings.default_rate) : 0;
+  }
 
   // Aggregate by client
   const clientMap = new Map<string, ClientSummary>();
@@ -122,6 +132,7 @@ export default async function ReportsPage(): Promise<React.JSX.Element> {
       <div className="flex items-center gap-3">
         <BarChart3 size={24} className="text-accent" />
         <h1 className="text-2xl font-bold text-content">{t("title")}</h1>
+        <OrgFilter orgs={orgs} selectedOrgId={selectedOrgId ?? null} />
       </div>
 
       {/* Summary cards */}

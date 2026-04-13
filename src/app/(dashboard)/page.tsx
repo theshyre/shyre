@@ -1,5 +1,5 @@
 import { createClient } from "@/lib/supabase/server";
-import { getOrgContext } from "@/lib/org-context";
+import { getUserContext } from "@/lib/org-context";
 import { getTranslations } from "next-intl/server";
 import Link from "next/link";
 import {
@@ -17,7 +17,7 @@ import { buttonPrimaryClass, kbdClass } from "@/lib/form-styles";
 
 export default async function DashboardPage(): Promise<React.JSX.Element> {
   const supabase = await createClient();
-  const { userEmail, orgName, orgId } = await getOrgContext();
+  const { userEmail } = await getUserContext();
   const t = await getTranslations("dashboard");
   const tc = await getTranslations("common");
 
@@ -32,41 +32,41 @@ export default async function DashboardPage(): Promise<React.JSX.Element> {
       supabase
         .from("time_entries")
         .select("duration_min")
-        .eq("organization_id", orgId)
+
         .gte("start_time", todayStart)
         .not("end_time", "is", null),
       supabase
         .from("time_entries")
         .select("duration_min")
-        .eq("organization_id", orgId)
+
         .gte("start_time", weekStart)
         .not("end_time", "is", null),
       supabase
         .from("time_entries")
         .select("id")
-        .eq("organization_id", orgId)
+
         .is("end_time", null),
       supabase
         .from("time_entries")
         .select("duration_min")
-        .eq("organization_id", orgId)
+
         .eq("invoiced", false)
         .eq("billable", true)
         .not("end_time", "is", null),
       supabase
         .from("clients")
         .select("id")
-        .eq("organization_id", orgId)
+
         .eq("archived", false),
       supabase
         .from("projects")
         .select("id")
-        .eq("organization_id", orgId)
+
         .eq("status", "active"),
       supabase
         .from("time_entries")
         .select("id, description, start_time, end_time, duration_min, projects(name)")
-        .eq("organization_id", orgId)
+
         .order("start_time", { ascending: false })
         .limit(5),
     ]);

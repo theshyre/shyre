@@ -9,6 +9,8 @@ import {
   buttonPrimaryClass,
   kbdClass,
 } from "@/lib/form-styles";
+import { OrgSelector } from "@/components/OrgSelector";
+import type { OrgListItem } from "@/lib/org-context";
 import {
   startTimerAction,
   stopTimerAction,
@@ -29,9 +31,11 @@ interface RunningEntry {
 export function TimerStartForm({
   projects,
   running,
+  orgs,
 }: {
   projects: ProjectOption[];
   running: RunningEntry | null;
+  orgs: OrgListItem[];
 }): React.JSX.Element {
   const t = useTranslations("time.timer");
   const tf = useTranslations("time.fields");
@@ -71,6 +75,7 @@ export function TimerStartForm({
       action={startTimerAction}
       className="mt-6 space-y-4 rounded-lg border border-edge bg-surface-raised p-6"
     >
+      <OrgSelector orgs={orgs} />
       <div className="grid gap-4 sm:grid-cols-2">
         <div>
           <label className={labelClass}>{tf("project")} *</label>

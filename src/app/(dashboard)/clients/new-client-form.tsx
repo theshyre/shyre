@@ -12,9 +12,11 @@ import {
   buttonPrimaryClass,
   buttonSecondaryClass,
 } from "@/lib/form-styles";
+import { OrgSelector } from "@/components/OrgSelector";
+import type { OrgListItem } from "@/lib/org-context";
 import { createClientAction } from "./actions";
 
-export function NewClientForm(): React.JSX.Element {
+export function NewClientForm({ orgs }: { orgs: OrgListItem[] }): React.JSX.Element {
   const [open, setOpen] = useState(false);
   const t = useTranslations("clients");
   const tc = useTranslations("common");
@@ -46,6 +48,7 @@ export function NewClientForm(): React.JSX.Element {
       }}
       className="mt-4 space-y-3 rounded-lg border border-edge bg-surface-raised p-4"
     >
+      <OrgSelector orgs={orgs} />
       <div className="grid gap-3 sm:grid-cols-2">
         <div>
           <label className={labelClass}>{t("fields.name")} *</label>

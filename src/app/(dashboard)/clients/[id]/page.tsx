@@ -1,5 +1,4 @@
 import { createClient } from "@/lib/supabase/server";
-import { getOrgContext } from "@/lib/org-context";
 import { getTranslations } from "next-intl/server";
 import { notFound } from "next/navigation";
 import { FolderKanban } from "lucide-react";
@@ -12,13 +11,11 @@ export default async function ClientDetailPage({
 }): Promise<React.JSX.Element> {
   const { id } = await params;
   const supabase = await createClient();
-  const { orgId } = await getOrgContext();
   const t = await getTranslations("clients");
 
   const { data: client } = await supabase
     .from("clients")
     .select("*")
-    .eq("organization_id", orgId)
     .eq("id", id)
     .single();
 
@@ -27,7 +24,6 @@ export default async function ClientDetailPage({
   const { data: projects } = await supabase
     .from("projects")
     .select("*")
-    .eq("organization_id", orgId)
     .eq("client_id", id)
     .order("created_at", { ascending: false });
 

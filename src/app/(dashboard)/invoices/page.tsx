@@ -1,21 +1,30 @@
 import { createClient } from "@/lib/supabase/server";
-import { getOrgContext } from "@/lib/org-context";
+import { getUserOrgs } from "@/lib/org-context";
 import { getTranslations } from "next-intl/server";
 import Link from "next/link";
 import { FileText, Plus } from "lucide-react";
 import { buttonPrimaryClass } from "@/lib/form-styles";
 import { formatCurrency } from "@/lib/invoice-utils";
+import { OrgFilter } from "@/components/OrgFilter";
 
-export default async function InvoicesPage(): Promise<React.JSX.Element> {
+export default async function InvoicesPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ org?: string }>;
+}): Promise<React.JSX.Element> {
   const supabase = await createClient();
-  const { orgId } = await getOrgContext();
+  const orgs = await getUserOrgs();
+  const { org: selectedOrgId } = await searchParams;
   const t = await getTranslations("invoices");
 
-  const { data: invoices } = await supabase
+  let query = supabase
     .from("invoices")
     .select("*, clients(name)")
-    .eq("organization_id", orgId)
     .order("created_at", { ascending: false });
+  if (selectedOrgId) query = query.eq("organization_id", selectedOrgId);
+  const { data: invoices } = await query;
+
+  const orgName = (orgId: string) => orgs.find(o => o.id === orgId)?.name ?? "\u2014";
 
   return (
     <div>
@@ -23,6 +32,7 @@ export default async function InvoicesPage(): Promise<React.JSX.Element> {
         <div className="flex items-center gap-3">
           <FileText size={24} className="text-accent" />
           <h1 className="text-2xl font-bold text-content">{t("title")}</h1>
+          <OrgFilter orgs={orgs} selectedOrgId={selectedOrgId ?? null} />
         </div>
         <Link href="/invoices/new" className={buttonPrimaryClass}>
           <Plus size={16} />
@@ -37,6 +47,9 @@ export default async function InvoicesPage(): Promise<React.JSX.Element> {
               <tr className="border-b border-edge bg-surface-inset">
                 <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider text-content-muted">
                   {t("table.invoiceNumber")}
+                </th>
+                <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider text-content-muted">
+                  Org
                 </th>
                 <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider text-content-muted">
                   {t("table.client")}
@@ -72,6 +85,9 @@ export default async function InvoicesPage(): Promise<React.JSX.Element> {
                       >
                         {inv.invoice_number}
                       </Link>
+                    </td>
+                    <td className="px-4 py-3 text-content-secondary text-xs">
+                      {orgName(inv.organization_id)}
                     </td>
                     <td className="px-4 py-3 text-content-secondary">
                       {clientName}

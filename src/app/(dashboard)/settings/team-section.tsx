@@ -97,6 +97,7 @@ export function TeamSection({
             </h2>
           </div>
           <form action={updateOrgNameAction} className="flex gap-3 items-end">
+            <input type="hidden" name="org_id" value={orgId} />
             <div className="flex-1">
               <label className={labelClass}>Organization Name</label>
               <input
@@ -140,8 +141,9 @@ export function TeamSection({
               await inviteMemberAction(formData);
               setInviteOpen(false);
             }}
-            className="flex gap-3 items-end border-b border-edge pb-4 mb-4"
+            className="flex gap-3 items-end border-b border-edge pb-4 mb-4 flex-wrap"
           >
+            <input type="hidden" name="org_id" value={orgId} />
             <div className="flex-1">
               <label className={labelClass}>Email</label>
               <input
@@ -215,6 +217,7 @@ export function TeamSection({
                 </div>
                 {isAdmin && !isSelf && member.role !== "owner" && (
                   <form action={removeMemberAction}>
+                    <input type="hidden" name="org_id" value={orgId} />
                     <input type="hidden" name="member_id" value={member.id} />
                     <input
                       type="hidden"
@@ -266,6 +269,7 @@ export function TeamSection({
                   </div>
                   {isAdmin && (
                     <form action={revokeInviteAction}>
+                      <input type="hidden" name="org_id" value={orgId} />
                       <input
                         type="hidden"
                         name="invite_id"

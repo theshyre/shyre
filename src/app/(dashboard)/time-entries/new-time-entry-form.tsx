@@ -13,6 +13,8 @@ import {
   buttonSecondaryClass,
 } from "@/lib/form-styles";
 import { GitHubIssuePicker } from "@/components/GitHubIssuePicker";
+import { OrgSelector } from "@/components/OrgSelector";
+import type { OrgListItem } from "@/lib/org-context";
 import { createTimeEntryAction } from "./actions";
 
 interface ProjectOption {
@@ -23,8 +25,10 @@ interface ProjectOption {
 
 export function NewTimeEntryForm({
   projects,
+  orgs,
 }: {
   projects: ProjectOption[];
+  orgs: OrgListItem[];
 }): React.JSX.Element {
   const [open, setOpen] = useState(false);
   const [selectedProjectId, setSelectedProjectId] = useState("");
@@ -64,6 +68,7 @@ export function NewTimeEntryForm({
       }}
       className="mt-4 space-y-3 rounded-lg border border-edge bg-surface-raised p-4"
     >
+      <OrgSelector orgs={orgs} />
       <div className="grid gap-3 sm:grid-cols-2">
         <div>
           <label className={labelClass}>{t("fields.project")} *</label>

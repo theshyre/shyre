@@ -1,12 +1,14 @@
 "use server";
 
 import { createClient } from "@/lib/supabase/server";
-import { getOrgContext } from "@/lib/org-context";
+import { validateOrgAccess } from "@/lib/org-context";
+import { redirect } from "next/navigation";
 import { revalidatePath } from "next/cache";
 
 export async function createTimeEntryAction(formData: FormData): Promise<void> {
   const supabase = await createClient();
-  const { orgId, userId } = await getOrgContext();
+  const orgId = formData.get("organization_id") as string;
+  const { userId } = await validateOrgAccess(orgId);
 
   const project_id = formData.get("project_id") as string;
   const description = (formData.get("description") as string) || null;
@@ -34,7 +36,8 @@ export async function createTimeEntryAction(formData: FormData): Promise<void> {
 
 export async function updateTimeEntryAction(formData: FormData): Promise<void> {
   const supabase = await createClient();
-  const { orgId } = await getOrgContext();
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user) redirect("/login");
 
   const id = formData.get("id") as string;
   const description = (formData.get("description") as string) || null;
@@ -53,7 +56,6 @@ export async function updateTimeEntryAction(formData: FormData): Promise<void> {
       billable,
       github_issue,
     })
-    .eq("organization_id", orgId)
     .eq("id", id);
 
   if (error) throw new Error(error.message);
@@ -63,11 +65,12 @@ export async function updateTimeEntryAction(formData: FormData): Promise<void> {
 
 export async function deleteTimeEntryAction(formData: FormData): Promise<void> {
   const supabase = await createClient();
-  const { orgId } = await getOrgContext();
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user) redirect("/login");
 
   const id = formData.get("id") as string;
 
-  const { error } = await supabase.from("time_entries").delete().eq("organization_id", orgId).eq("id", id);
+  const { error } = await supabase.from("time_entries").delete().eq("id", id);
 
   if (error) throw new Error(error.message);
   revalidatePath("/time-entries");
@@ -75,7 +78,8 @@ export async function deleteTimeEntryAction(formData: FormData): Promise<void> {
 
 export async function startTimerAction(formData: FormData): Promise<void> {
   const supabase = await createClient();
-  const { orgId, userId } = await getOrgContext();
+  const orgId = formData.get("organization_id") as string;
+  const { userId } = await validateOrgAccess(orgId);
 
   const project_id = formData.get("project_id") as string;
   const description = (formData.get("description") as string) || null;
@@ -97,14 +101,14 @@ export async function startTimerAction(formData: FormData): Promise<void> {
 
 export async function stopTimerAction(formData: FormData): Promise<void> {
   const supabase = await createClient();
-  const { orgId } = await getOrgContext();
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user) redirect("/login");
 
   const id = formData.get("id") as string;
 
   const { error } = await supabase
     .from("time_entries")
     .update({ end_time: new Date().toISOString() })
-    .eq("organization_id", orgId)
     .eq("id", id);
 
   if (error) throw new Error(error.message);

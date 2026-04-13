@@ -61,10 +61,12 @@ export function SettingsForm({
   orgSettings,
   userSettings,
   role,
+  orgId,
 }: {
   orgSettings: OrgSettings | null;
   userSettings: UserSettings | null;
   role: string;
+  orgId: string;
 }): React.JSX.Element {
   const t = useTranslations("settings");
   const { theme, setTheme } = useTheme();
@@ -85,6 +87,7 @@ export function SettingsForm({
         }}
         className="space-y-6"
       >
+        <input type="hidden" name="organization_id" value={orgId} />
         <section className="rounded-lg border border-edge bg-surface-raised p-4 space-y-3">
           <div className="flex items-center gap-2 mb-2">
             <Building2 size={18} className="text-accent" />

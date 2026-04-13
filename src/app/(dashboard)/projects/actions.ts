@@ -1,12 +1,14 @@
 "use server";
 
 import { createClient } from "@/lib/supabase/server";
-import { getOrgContext } from "@/lib/org-context";
+import { validateOrgAccess } from "@/lib/org-context";
+import { redirect } from "next/navigation";
 import { revalidatePath } from "next/cache";
 
 export async function createProjectAction(formData: FormData): Promise<void> {
   const supabase = await createClient();
-  const { orgId, userId } = await getOrgContext();
+  const orgId = formData.get("organization_id") as string;
+  const { userId } = await validateOrgAccess(orgId);
 
   const name = formData.get("name") as string;
   const client_id = formData.get("client_id") as string;
@@ -35,7 +37,8 @@ export async function createProjectAction(formData: FormData): Promise<void> {
 
 export async function updateProjectAction(formData: FormData): Promise<void> {
   const supabase = await createClient();
-  const { orgId } = await getOrgContext();
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user) redirect("/login");
 
   const id = formData.get("id") as string;
   const name = formData.get("name") as string;
@@ -50,7 +53,6 @@ export async function updateProjectAction(formData: FormData): Promise<void> {
   const { error } = await supabase
     .from("projects")
     .update({ name, description, hourly_rate, budget_hours, github_repo, status })
-    .eq("organization_id", orgId)
     .eq("id", id);
 
   if (error) throw new Error(error.message);

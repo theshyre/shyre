@@ -1,29 +1,31 @@
 "use server";
 
 import { createClient } from "@/lib/supabase/server";
-import { getOrgContext } from "@/lib/org-context";
+import { validateOrgAccess } from "@/lib/org-context";
+import { redirect } from "next/navigation";
 import { revalidatePath } from "next/cache";
 
 export async function inviteMemberAction(formData: FormData): Promise<void> {
   const supabase = await createClient();
-  const ctx = await getOrgContext();
+  const orgId = formData.get("org_id") as string;
+  const { userId, role } = await validateOrgAccess(orgId);
 
-  if (ctx.role !== "owner" && ctx.role !== "admin") {
+  if (role !== "owner" && role !== "admin") {
     throw new Error("Only owners and admins can invite members.");
   }
 
   const email = formData.get("email") as string;
-  const role = (formData.get("role") as string) || "member";
+  const inviteRole = (formData.get("role") as string) || "member";
 
-  if (role !== "admin" && role !== "member") {
+  if (inviteRole !== "admin" && inviteRole !== "member") {
     throw new Error("Invalid role. Must be admin or member.");
   }
 
   const { error } = await supabase.from("organization_invites").insert({
-    organization_id: ctx.orgId,
+    organization_id: orgId,
     email,
-    role,
-    invited_by: ctx.userId,
+    role: inviteRole,
+    invited_by: userId,
   });
 
   if (error) {
@@ -33,30 +35,25 @@ export async function inviteMemberAction(formData: FormData): Promise<void> {
     throw new Error(error.message);
   }
 
-  // In a production app, you'd send an email here with the invite link.
-  // For now, the invite token can be shared manually or we can add
-  // email sending via Supabase Edge Functions later.
-
   revalidatePath("/settings");
 }
 
 export async function removeMemberAction(formData: FormData): Promise<void> {
   const supabase = await createClient();
-  const ctx = await getOrgContext();
+  const orgId = formData.get("org_id") as string;
+  const { userId, role } = await validateOrgAccess(orgId);
 
-  if (ctx.role !== "owner" && ctx.role !== "admin") {
+  if (role !== "owner" && role !== "admin") {
     throw new Error("Only owners and admins can remove members.");
   }
 
   const memberId = formData.get("member_id") as string;
   const memberUserId = formData.get("member_user_id") as string;
 
-  // Can't remove yourself
-  if (memberUserId === ctx.userId) {
+  if (memberUserId === userId) {
     throw new Error("You cannot remove yourself.");
   }
 
-  // Can't remove the owner
   const { data: member } = await supabase
     .from("organization_members")
     .select("role")
@@ -78,9 +75,10 @@ export async function removeMemberAction(formData: FormData): Promise<void> {
 
 export async function revokeInviteAction(formData: FormData): Promise<void> {
   const supabase = await createClient();
-  const ctx = await getOrgContext();
+  const orgId = formData.get("org_id") as string;
+  const { role } = await validateOrgAccess(orgId);
 
-  if (ctx.role !== "owner" && ctx.role !== "admin") {
+  if (role !== "owner" && role !== "admin") {
     throw new Error("Only owners and admins can revoke invites.");
   }
 
@@ -97,9 +95,10 @@ export async function revokeInviteAction(formData: FormData): Promise<void> {
 
 export async function updateOrgNameAction(formData: FormData): Promise<void> {
   const supabase = await createClient();
-  const ctx = await getOrgContext();
+  const orgId = formData.get("org_id") as string;
+  const { role } = await validateOrgAccess(orgId);
 
-  if (ctx.role !== "owner") {
+  if (role !== "owner") {
     throw new Error("Only the owner can rename the organization.");
   }
 
@@ -108,7 +107,7 @@ export async function updateOrgNameAction(formData: FormData): Promise<void> {
   const { error } = await supabase
     .from("organizations")
     .update({ name })
-    .eq("id", ctx.orgId);
+    .eq("id", orgId);
 
   if (error) throw new Error(error.message);
   revalidatePath("/settings");
