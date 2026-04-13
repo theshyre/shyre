@@ -10,7 +10,16 @@
     "invoices": "Invoices",
     "reports": "Reports",
     "organizations": "Organizations",
-    "settings": "Settings"
+    "settings": "Settings",
+    "adminErrors": "Error Log",
+    "adminUsers": "Users",
+    "adminOrgs": "All Organizations"
+  },
+  "navSections": {
+    "track": "Track",
+    "manage": "Manage",
+    "setup": "Setup",
+    "admin": "Admin"
   },
   "actions": {
     "save": "Save",

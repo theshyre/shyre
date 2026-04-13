@@ -31,7 +31,7 @@ async function writeErrorLog(
     const appError = toAppError(error);
     const supabase = createAdminClient();
 
-    await supabase.from("error_logs").insert({
+    const { error: insertError } = await supabase.from("error_logs").insert({
       error_code: appError.code,
       message: appError.message,
       user_message_key: appError.userMessageKey,
@@ -43,9 +43,14 @@ async function writeErrorLog(
       stack_trace: appError.stack ?? null,
       severity: appError.severity,
     });
+
+    if (insertError) {
+      console.error("[logger] Failed to insert error log:", insertError);
+      console.error("[logger] Original error:", appError.message, appError.code);
+    }
   } catch (logErr) {
     // Logger must never throw — fall back to console
-    console.error("[logger] Failed to write error log:", logErr);
+    console.error("[logger] Exception in writeErrorLog:", logErr);
     console.error("[logger] Original error:", error);
   }
 }

@@ -6,46 +6,22 @@ import { validateOrgAccess } from "@/lib/org-context";
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 
-function slugify(name: string): string {
-  return name
-    .toLowerCase()
-    .replace(/[^a-z0-9]+/g, "-")
-    .replace(/^-|-$/g, "")
-    .slice(0, 50);
-}
-
 export async function createOrgAction(formData: FormData): Promise<void> {
-  return runSafeAction(formData, async (formData, { supabase, userId }) => {
+  return runSafeAction(formData, async (formData, { supabase }) => {
     const name = formData.get("org_name") as string;
     if (!name || name.trim().length === 0) {
       throw new Error("Organization name is required.");
     }
 
-    const baseSlug = slugify(name);
-    const slug = `${baseSlug}-${Date.now().toString(36)}`;
+    // Atomic creation via SECURITY DEFINER function — handles RLS correctly
+    const { error } = await supabase.rpc("create_organization", {
+      org_name: name.trim(),
+    });
 
-    const org = assertSupabaseOk(
-      await supabase
-        .from("organizations")
-        .insert({ name: name.trim(), slug, is_personal: false })
-        .select("id")
-        .single()
-    )!;
-
-    assertSupabaseOk(
-      await supabase
-        .from("organization_members")
-        .insert({ organization_id: org.id, user_id: userId, role: "owner" })
-    );
-
-    assertSupabaseOk(
-      await supabase
-        .from("organization_settings")
-        .insert({ organization_id: org.id })
-    );
+    if (error) throw new Error(error.message);
 
     revalidatePath("/");
-    redirect("/");
+    redirect("/organizations");
   }, "createOrgAction") as unknown as void;
 }
 

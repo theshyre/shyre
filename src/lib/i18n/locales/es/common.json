@@ -10,7 +10,16 @@
     "invoices": "Facturas",
     "reports": "Informes",
     "organizations": "Organizaciones",
-    "settings": "Configuración"
+    "settings": "Configuración",
+    "adminErrors": "Registro de Errores",
+    "adminUsers": "Usuarios",
+    "adminOrgs": "Todas las Organizaciones"
+  },
+  "navSections": {
+    "track": "Registrar",
+    "manage": "Gestionar",
+    "setup": "Configuración",
+    "admin": "Administrador"
   },
   "actions": {
     "save": "Guardar",

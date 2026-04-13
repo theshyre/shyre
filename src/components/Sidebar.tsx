@@ -14,9 +14,9 @@ import {
   BarChart3,
   Settings,
   LogOut,
-  User,
   Building2,
   Shield,
+  AlertTriangle,
 } from "lucide-react";
 import type { ComponentType } from "react";
 import Timer from "./Timer";
@@ -27,16 +27,48 @@ interface NavItem {
   icon: ComponentType<{ size?: number }>;
 }
 
-const nav: NavItem[] = [
-  { labelKey: "dashboard", href: "/", icon: LayoutDashboard },
-  { labelKey: "timer", href: "/timer", icon: Clock },
-  { labelKey: "timeEntries", href: "/time-entries", icon: List },
-  { labelKey: "clients", href: "/clients", icon: Users },
-  { labelKey: "projects", href: "/projects", icon: FolderKanban },
-  { labelKey: "invoices", href: "/invoices", icon: FileText },
-  { labelKey: "reports", href: "/reports", icon: BarChart3 },
-  { labelKey: "organizations", href: "/organizations", icon: Building2 },
-  { labelKey: "settings", href: "/settings", icon: Settings },
+interface NavSection {
+  titleKey?: string;
+  items: NavItem[];
+}
+
+/**
+ * Nav grouped into sections:
+ * - Track: daily work
+ * - Manage: ongoing records
+ * - Setup: infrequent configuration
+ */
+const sections: NavSection[] = [
+  {
+    titleKey: "navSections.track",
+    items: [
+      { labelKey: "dashboard", href: "/", icon: LayoutDashboard },
+      { labelKey: "timer", href: "/timer", icon: Clock },
+      { labelKey: "timeEntries", href: "/time-entries", icon: List },
+    ],
+  },
+  {
+    titleKey: "navSections.manage",
+    items: [
+      { labelKey: "clients", href: "/clients", icon: Users },
+      { labelKey: "projects", href: "/projects", icon: FolderKanban },
+      { labelKey: "invoices", href: "/invoices", icon: FileText },
+      { labelKey: "reports", href: "/reports", icon: BarChart3 },
+    ],
+  },
+  {
+    titleKey: "navSections.setup",
+    items: [
+      { labelKey: "organizations", href: "/organizations", icon: Building2 },
+      { labelKey: "settings", href: "/settings", icon: Settings },
+    ],
+  },
+];
+
+const adminItems: NavItem[] = [
+  { labelKey: "adminErrors", href: "/admin/errors", icon: AlertTriangle },
+  { labelKey: "adminUsers", href: "/admin/users", icon: Users },
+  { labelKey: "adminOrgs", href: "/admin/organizations", icon: Building2 },
 ];
 
 interface SidebarProps {
@@ -63,6 +95,11 @@ export default function Sidebar({
     router.refresh();
   }
 
+  function isItemActive(href: string): boolean {
+    if (href === "/") return pathname === "/";
+    return pathname.startsWith(href);
+  }
+
   return (
     <aside className="flex h-full w-64 flex-col border-r border-edge bg-surface-raised">
       {/* User identity */}
@@ -80,46 +117,69 @@ export default function Sidebar({
         </div>
       </div>
 
-      <nav className="flex-1 space-y-1 px-3 py-3">
-        {nav.map((item) => {
-          const isActive =
-            item.href === "/"
-              ? pathname === "/"
-              : pathname.startsWith(item.href);
-          const Icon = item.icon;
-          return (
-            <Link
-              key={item.href}
-              href={item.href}
-              className={`flex items-center gap-3 rounded-lg px-3 py-2 text-sm font-medium transition-colors ${
-                isActive
-                  ? "bg-accent-soft text-accent-text"
-                  : "text-content-secondary hover:bg-hover hover:text-content"
-              }`}
-            >
-              <Icon size={20} />
-              {t(`nav.${item.labelKey}`)}
-            </Link>
-          );
-        })}
-
-        {isAdmin && (
-          <Link
-            href="/admin/errors"
-            className={`flex items-center gap-3 rounded-lg px-3 py-2 text-sm font-medium transition-colors ${
-              pathname.startsWith("/admin")
-                ? "bg-accent-soft text-accent-text"
-                : "text-content-secondary hover:bg-hover hover:text-content"
-            }`}
-          >
-            <Shield size={20} />
-            Admin
-            {(unresolvedErrorCount ?? 0) > 0 && (
-              <span className="ml-auto inline-flex h-5 min-w-5 items-center justify-center rounded-full bg-error text-content-inverse text-[10px] font-bold px-1">
-                {unresolvedErrorCount}
-              </span>
+      <nav className="flex-1 overflow-y-auto px-3 py-3 space-y-5">
+        {sections.map((section, idx) => (
+          <div key={idx} className="space-y-1">
+            {section.titleKey && (
+              <h3 className="px-3 text-[10px] font-semibold uppercase tracking-wider text-content-muted mb-1">
+                {t(section.titleKey)}
+              </h3>
             )}
-          </Link>
+            {section.items.map((item) => {
+              const Icon = item.icon;
+              const isActive = isItemActive(item.href);
+              return (
+                <Link
+                  key={item.href}
+                  href={item.href}
+                  className={`flex items-center gap-3 rounded-lg px-3 py-2 text-sm font-medium transition-colors ${
+                    isActive
+                      ? "bg-accent-soft text-accent-text"
+                      : "text-content-secondary hover:bg-hover hover:text-content"
+                  }`}
+                >
+                  <Icon size={18} />
+                  {t(`nav.${item.labelKey}`)}
+                </Link>
+              );
+            })}
+          </div>
+        ))}
+
+        {/* Admin section — only visible to system admins */}
+        {isAdmin && (
+          <div className="space-y-1 pt-3 border-t border-edge">
+            <h3 className="px-3 text-[10px] font-semibold uppercase tracking-wider text-warning mb-1 flex items-center gap-1">
+              <Shield size={10} />
+              {t("navSections.admin")}
+            </h3>
+            {adminItems.map((item) => {
+              const Icon = item.icon;
+              const isActive = isItemActive(item.href);
+              const showBadge =
+                item.href === "/admin/errors" &&
+                (unresolvedErrorCount ?? 0) > 0;
+              return (
+                <Link
+                  key={item.href}
+                  href={item.href}
+                  className={`flex items-center gap-3 rounded-lg px-3 py-2 text-sm font-medium transition-colors ${
+                    isActive
+                      ? "bg-accent-soft text-accent-text"
+                      : "text-content-secondary hover:bg-hover hover:text-content"
+                  }`}
+                >
+                  <Icon size={18} />
+                  {t(`nav.${item.labelKey}`)}
+                  {showBadge && (
+                    <span className="ml-auto inline-flex h-5 min-w-5 items-center justify-center rounded-full bg-error text-content-inverse text-[10px] font-bold px-1">
+                      {unresolvedErrorCount}
+                    </span>
+                  )}
+                </Link>
+              );
+            })}
+          </div>
         )}
       </nav>
 
@@ -132,7 +192,7 @@ export default function Sidebar({
           onClick={handleSignOut}
           className="flex items-center gap-3 rounded-lg px-3 py-2 text-sm font-medium text-content-muted hover:bg-hover hover:text-content transition-colors w-full"
         >
-          <LogOut size={20} />
+          <LogOut size={18} />
           {t("actions.signOut")}
         </button>
       </div>
