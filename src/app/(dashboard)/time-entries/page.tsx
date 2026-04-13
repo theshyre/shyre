@@ -17,7 +17,7 @@ export default async function TimeEntriesPage(): Promise<React.JSX.Element> {
 
   const { data: projects } = await supabase
     .from("projects")
-    .select("id, name")
+    .select("id, name, github_repo")
     .eq("status", "active")
     .order("name");
 

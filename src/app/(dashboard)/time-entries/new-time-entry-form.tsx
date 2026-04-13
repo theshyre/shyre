@@ -10,11 +10,13 @@ import {
   buttonPrimaryClass,
   buttonSecondaryClass,
 } from "@/lib/form-styles";
+import { GitHubIssuePicker } from "@/components/GitHubIssuePicker";
 import { createTimeEntryAction } from "./actions";
 
 interface ProjectOption {
   id: string;
   name: string;
+  github_repo: string | null;
 }
 
 export function NewTimeEntryForm({
@@ -23,8 +25,13 @@ export function NewTimeEntryForm({
   projects: ProjectOption[];
 }): React.JSX.Element {
   const [open, setOpen] = useState(false);
+  const [selectedProjectId, setSelectedProjectId] = useState("");
+  const [issueNumber, setIssueNumber] = useState<number | null>(null);
   const t = useTranslations("time");
   const tc = useTranslations("common");
+
+  const selectedProject = projects.find((p) => p.id === selectedProjectId);
+  const linkedRepo = selectedProject?.github_repo ?? null;
 
   if (!open) {
     return (
@@ -43,13 +50,24 @@ export function NewTimeEntryForm({
       action={async (formData) => {
         await createTimeEntryAction(formData);
         setOpen(false);
+        setSelectedProjectId("");
+        setIssueNumber(null);
       }}
       className="mt-4 space-y-3 rounded-lg border border-edge bg-surface-raised p-4"
     >
       <div className="grid gap-3 sm:grid-cols-2">
         <div>
           <label className={labelClass}>{t("fields.project")} *</label>
-          <select name="project_id" required className={selectClass}>
+          <select
+            name="project_id"
+            required
+            className={selectClass}
+            value={selectedProjectId}
+            onChange={(e) => {
+              setSelectedProjectId(e.target.value);
+              setIssueNumber(null);
+            }}
+          >
             <option value="">{t("fields.project")}</option>
             {projects.map((p) => (
               <option key={p.id} value={p.id}>
@@ -79,15 +97,26 @@ export function NewTimeEntryForm({
           <label className={labelClass}>{t("fields.endTime")}</label>
           <input name="end_time" type="datetime-local" className={inputClass} />
         </div>
-        <div>
-          <label className={labelClass}>{t("fields.githubIssue")}</label>
-          <input
-            name="github_issue"
-            type="number"
-            min="1"
-            className={inputClass}
-          />
-        </div>
+        {linkedRepo ? (
+          <div>
+            <label className={labelClass}>{t("fields.githubIssue")}</label>
+            <GitHubIssuePicker
+              repo={linkedRepo}
+              value={issueNumber}
+              onChange={setIssueNumber}
+            />
+          </div>
+        ) : (
+          <div>
+            <label className={labelClass}>{t("fields.githubIssue")}</label>
+            <input
+              name="github_issue"
+              type="number"
+              min="1"
+              className={inputClass}
+            />
+          </div>
+        )}
         <div className="flex items-end pb-1">
           <label className="flex items-center gap-2 text-sm font-medium text-content cursor-pointer">
             <input
