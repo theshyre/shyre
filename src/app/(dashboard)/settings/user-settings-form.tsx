@@ -10,6 +10,7 @@ import {
   Moon,
   Monitor,
   Eye,
+  Upload,
 } from "lucide-react";
 import { MfaSetup } from "@/components/MfaSetup";
 import { useFormAction } from "@/hooks/use-form-action";
@@ -163,6 +164,20 @@ export function UserSettingsForm({
           />
         </section>
       </form>
+
+      {/* Import */}
+      <a
+        href="/settings/import"
+        className="flex items-center gap-3 rounded-lg border border-edge bg-surface-raised p-4 hover:bg-hover transition-colors"
+      >
+        <Upload size={20} className="text-accent" />
+        <div>
+          <p className="text-sm font-medium text-content">Import Data</p>
+          <p className="text-xs text-content-muted">
+            Import from Harvest or other services
+          </p>
+        </div>
+      </a>
     </div>
   );
 }
