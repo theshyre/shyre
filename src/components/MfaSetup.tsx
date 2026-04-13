@@ -97,7 +97,7 @@ export function MfaSetup(): React.JSX.Element {
 
       // Build URI in the format iOS expects:
       // otpauth://totp/{issuer}:{account}?secret=...&issuer={issuer}
-      const issuer = "stint.malcom.io";
+      const issuer = "malcom.io";
       const rewrittenUri =
         `otpauth://totp/${encodeURIComponent(issuer)}:${encodeURIComponent(email)}` +
         `?secret=${secret}&issuer=${encodeURIComponent(issuer)}` +
