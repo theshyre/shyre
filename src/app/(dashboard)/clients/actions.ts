@@ -1,6 +1,6 @@
 "use server";
 
-import { safeAction } from "@/lib/safe-action";
+import { runSafeAction } from "@/lib/safe-action";
 import { assertSupabaseOk } from "@/lib/errors";
 import { validateOrgAccess } from "@/lib/org-context";
 import { revalidatePath } from "next/cache";
@@ -18,61 +18,67 @@ function extractAddress(formData: FormData, prefix: string): string | null {
   return serializeAddress(address);
 }
 
-export const createClientAction = safeAction(async (formData, { supabase }) => {
-  const orgId = formData.get("organization_id") as string;
-  const { userId } = await validateOrgAccess(orgId);
+export async function createClientAction(formData: FormData): Promise<void> {
+  return runSafeAction(formData, async (formData, { supabase }) => {
+    const orgId = formData.get("organization_id") as string;
+    const { userId } = await validateOrgAccess(orgId);
 
-  const name = formData.get("name") as string;
-  const email = (formData.get("email") as string) || null;
-  const address = extractAddress(formData, "address");
-  const notes = (formData.get("notes") as string) || null;
-  const rateStr = formData.get("default_rate") as string;
-  const default_rate = rateStr ? parseFloat(rateStr) : null;
+    const name = formData.get("name") as string;
+    const email = (formData.get("email") as string) || null;
+    const address = extractAddress(formData, "address");
+    const notes = (formData.get("notes") as string) || null;
+    const rateStr = formData.get("default_rate") as string;
+    const default_rate = rateStr ? parseFloat(rateStr) : null;
 
-  assertSupabaseOk(
-    await supabase.from("clients").insert({
-      organization_id: orgId,
-      user_id: userId,
-      name,
-      email,
-      address,
-      notes,
-      default_rate,
-    })
-  );
+    assertSupabaseOk(
+      await supabase.from("clients").insert({
+        organization_id: orgId,
+        user_id: userId,
+        name,
+        email,
+        address,
+        notes,
+        default_rate,
+      })
+    );
 
-  revalidatePath("/clients");
-}, "createClientAction");
+    revalidatePath("/clients");
+  }, "createClientAction") as unknown as void;
+}
 
-export const updateClientAction = safeAction(async (formData, { supabase }) => {
-  const id = formData.get("id") as string;
-  const name = formData.get("name") as string;
-  const email = (formData.get("email") as string) || null;
-  const address = extractAddress(formData, "address");
-  const notes = (formData.get("notes") as string) || null;
-  const rateStr = formData.get("default_rate") as string;
-  const default_rate = rateStr ? parseFloat(rateStr) : null;
+export async function updateClientAction(formData: FormData): Promise<void> {
+  return runSafeAction(formData, async (formData, { supabase }) => {
+    const id = formData.get("id") as string;
+    const name = formData.get("name") as string;
+    const email = (formData.get("email") as string) || null;
+    const address = extractAddress(formData, "address");
+    const notes = (formData.get("notes") as string) || null;
+    const rateStr = formData.get("default_rate") as string;
+    const default_rate = rateStr ? parseFloat(rateStr) : null;
 
-  assertSupabaseOk(
-    await supabase
-      .from("clients")
-      .update({ name, email, address, notes, default_rate })
-      .eq("id", id)
-  );
+    assertSupabaseOk(
+      await supabase
+        .from("clients")
+        .update({ name, email, address, notes, default_rate })
+        .eq("id", id)
+    );
 
-  revalidatePath("/clients");
-  revalidatePath(`/clients/${id}`);
-}, "updateClientAction");
+    revalidatePath("/clients");
+    revalidatePath(`/clients/${id}`);
+  }, "updateClientAction") as unknown as void;
+}
 
-export const archiveClientAction = safeAction(async (formData, { supabase }) => {
-  const id = formData.get("id") as string;
+export async function archiveClientAction(formData: FormData): Promise<void> {
+  return runSafeAction(formData, async (formData, { supabase }) => {
+    const id = formData.get("id") as string;
 
-  assertSupabaseOk(
-    await supabase
-      .from("clients")
-      .update({ archived: true })
-      .eq("id", id)
-  );
+    assertSupabaseOk(
+      await supabase
+        .from("clients")
+        .update({ archived: true })
+        .eq("id", id)
+    );
 
-  revalidatePath("/clients");
-}, "archiveClientAction");
+    revalidatePath("/clients");
+  }, "archiveClientAction") as unknown as void;
+}
