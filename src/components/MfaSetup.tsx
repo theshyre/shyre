@@ -53,7 +53,8 @@ export function MfaSetup(): React.JSX.Element {
 
     const { data, error: err } = await supabase.auth.mfa.enroll({
       factorType: "totp",
-      friendlyName: "Stint Authenticator",
+      friendlyName: "Stint",
+      issuer: "stint.malcom.io",
     });
 
     if (err) {
