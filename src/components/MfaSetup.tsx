@@ -5,7 +5,15 @@ import { useTranslations } from "next-intl";
 import { useRouter } from "next/navigation";
 import { QRCodeSVG } from "qrcode.react";
 import { createClient } from "@/lib/supabase/client";
-import { Shield, CheckCircle, XCircle, Loader2 } from "lucide-react";
+import {
+  Shield,
+  CheckCircle,
+  XCircle,
+  Loader2,
+  Download,
+  Copy,
+  KeyRound,
+} from "lucide-react";
 import {
   inputClass,
   labelClass,
@@ -13,8 +21,12 @@ import {
   buttonSecondaryClass,
   buttonDangerClass,
 } from "@/lib/form-styles";
+import {
+  generateBackupCodes,
+  formatCodesForDownload,
+} from "@/lib/backup-codes";
 
-type MfaStep = "idle" | "enrolling" | "verifying" | "enabled";
+type MfaStep = "idle" | "verifying" | "show-backup-codes" | "enabled";
 
 export function MfaSetup(): React.JSX.Element {
   const [step, setStep] = useState<MfaStep>("idle");
@@ -25,20 +37,19 @@ export function MfaSetup(): React.JSX.Element {
   const [loading, setLoading] = useState(false);
   const [mfaEnabled, setMfaEnabled] = useState(false);
   const [checkingStatus, setCheckingStatus] = useState(true);
+  const [backupCodes, setBackupCodes] = useState<string[]>([]);
+  const [backupCodesRemaining, setBackupCodesRemaining] = useState<number>(0);
+  const [copied, setCopied] = useState(false);
   const t = useTranslations("settings.mfa");
   const router = useRouter();
   const supabase = createClient();
 
-  // Check current MFA status on mount
   const checkStatus = useCallback(async (): Promise<void> => {
     const { data, error: err } = await supabase.auth.mfa.listFactors();
     if (!err && data) {
-      // data.totp contains only verified factors
-      // data.all contains both verified and unverified
       const verified = data.totp;
       const unverified = data.all.filter((f) => f.status === "unverified");
 
-      // Clean up any stuck unverified factors
       for (const factor of unverified) {
         await supabase.auth.mfa.unenroll({ factorId: factor.id });
       }
@@ -48,10 +59,17 @@ export function MfaSetup(): React.JSX.Element {
         setFactorId(verified[0]?.id ?? null);
       }
     }
+
+    // Check remaining backup codes
+    const { data: codes } = await supabase
+      .from("mfa_backup_codes")
+      .select("id")
+      .is("used_at", null);
+    setBackupCodesRemaining(codes?.length ?? 0);
+
     setCheckingStatus(false);
   }, [supabase]);
 
-  // Run check on mount
   useState(() => {
     checkStatus();
   });
@@ -60,7 +78,6 @@ export function MfaSetup(): React.JSX.Element {
     setLoading(true);
     setError(null);
 
-    // Clean up any leftover unverified factors first
     const { data: existing } = await supabase.auth.mfa.listFactors();
     if (existing) {
       for (const factor of existing.all.filter((f) => f.status === "unverified")) {
@@ -71,7 +88,7 @@ export function MfaSetup(): React.JSX.Element {
     const { data, error: err } = await supabase.auth.mfa.enroll({
       factorType: "totp",
       friendlyName: "Stint",
-      issuer: "stint.malcom.io",
+      issuer: "malcom.io",
     });
 
     if (err) {
@@ -81,9 +98,6 @@ export function MfaSetup(): React.JSX.Element {
     }
 
     if (data) {
-      // Rewrite the TOTP URI so iOS Passwords matches the correct entry.
-      // iOS matches on issuer + account, and the issuer must match the
-      // domain of the saved password entry.
       const originalUri = data.totp.uri;
       const url = new URL(originalUri);
       const secret = url.searchParams.get("secret") ?? "";
@@ -91,12 +105,9 @@ export function MfaSetup(): React.JSX.Element {
       const digits = url.searchParams.get("digits") ?? "6";
       const algorithm = url.searchParams.get("algorithm") ?? "SHA1";
 
-      // Get user email for the account label
       const { data: userData } = await supabase.auth.getUser();
       const email = userData.user?.email ?? "user";
 
-      // Build URI in the format iOS expects:
-      // otpauth://totp/{issuer}:{account}?secret=...&issuer={issuer}
       const issuer = "malcom.io";
       const rewrittenUri =
         `otpauth://totp/${encodeURIComponent(issuer)}:${encodeURIComponent(email)}` +
@@ -137,15 +148,41 @@ export function MfaSetup(): React.JSX.Element {
       return;
     }
 
-    setStep("enabled");
+    // MFA verified — generate backup codes
+    const { plainCodes, hashedCodes } = await generateBackupCodes();
+
+    const {
+      data: { user },
+    } = await supabase.auth.getUser();
+    if (user) {
+      // Delete any existing backup codes
+      await supabase
+        .from("mfa_backup_codes")
+        .delete()
+        .eq("user_id", user.id);
+
+      // Store hashed codes
+      const rows = hashedCodes.map((hash) => ({
+        user_id: user.id,
+        code_hash: hash,
+      }));
+      await supabase.from("mfa_backup_codes").insert(rows);
+    }
+
+    setBackupCodes(plainCodes);
+    setBackupCodesRemaining(plainCodes.length);
+    setStep("show-backup-codes");
     setMfaEnabled(true);
     setLoading(false);
-    router.refresh();
   }
 
   async function handleDisable(): Promise<void> {
     if (!factorId) return;
-    if (!confirm("Disable MFA? This will remove the second factor from your account.")) {
+    if (
+      !confirm(
+        "Disable MFA? This will remove the second factor and all backup codes."
+      )
+    ) {
       return;
     }
 
@@ -162,13 +199,78 @@ export function MfaSetup(): React.JSX.Element {
       return;
     }
 
+    // Delete backup codes
+    const {
+      data: { user },
+    } = await supabase.auth.getUser();
+    if (user) {
+      await supabase
+        .from("mfa_backup_codes")
+        .delete()
+        .eq("user_id", user.id);
+    }
+
     setMfaEnabled(false);
     setStep("idle");
     setFactorId(null);
     setQrUri(null);
     setCode("");
+    setBackupCodes([]);
+    setBackupCodesRemaining(0);
     setLoading(false);
     router.refresh();
+  }
+
+  async function handleRegenerateBackupCodes(): Promise<void> {
+    if (
+      !confirm(
+        "Regenerate backup codes? This will invalidate all existing codes."
+      )
+    ) {
+      return;
+    }
+
+    setLoading(true);
+    const { plainCodes, hashedCodes } = await generateBackupCodes();
+
+    const {
+      data: { user },
+    } = await supabase.auth.getUser();
+    if (user) {
+      await supabase
+        .from("mfa_backup_codes")
+        .delete()
+        .eq("user_id", user.id);
+
+      const rows = hashedCodes.map((hash) => ({
+        user_id: user.id,
+        code_hash: hash,
+      }));
+      await supabase.from("mfa_backup_codes").insert(rows);
+    }
+
+    setBackupCodes(plainCodes);
+    setBackupCodesRemaining(plainCodes.length);
+    setStep("show-backup-codes");
+    setLoading(false);
+  }
+
+  function handleDownloadCodes(): void {
+    const text = formatCodesForDownload(backupCodes, "Stint");
+    const blob = new Blob([text], { type: "text/plain" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = "stint-backup-codes.txt";
+    a.click();
+    URL.revokeObjectURL(url);
+  }
+
+  async function handleCopyCodes(): Promise<void> {
+    const text = backupCodes.join("\n");
+    await navigator.clipboard.writeText(text);
+    setCopied(true);
+    setTimeout(() => setCopied(false), 2000);
   }
 
   if (checkingStatus) {
@@ -180,38 +282,100 @@ export function MfaSetup(): React.JSX.Element {
     );
   }
 
-  // MFA is already enabled
-  if (mfaEnabled && step !== "enabled") {
+  // Show backup codes after enrollment or regeneration
+  if (step === "show-backup-codes" && backupCodes.length > 0) {
     return (
-      <div>
-        <div className="flex items-center gap-2 mb-3">
+      <div className="space-y-4">
+        <div className="flex items-center gap-2">
           <span className="inline-flex items-center gap-1.5 rounded-full bg-success-soft px-2.5 py-0.5 text-xs font-medium text-success">
             <CheckCircle size={12} />
             {t("enabled")}
           </span>
         </div>
-        <button
-          onClick={handleDisable}
-          disabled={loading}
-          className={buttonDangerClass}
-        >
-          <XCircle size={16} />
-          {loading ? "..." : t("disable")}
-        </button>
-        {error && <p className="mt-2 text-sm text-error">{error}</p>}
+
+        <div className="rounded-lg border border-warning/30 bg-warning-soft p-4">
+          <div className="flex items-center gap-2 mb-2">
+            <KeyRound size={16} className="text-warning" />
+            <h3 className="text-sm font-semibold text-warning">
+              Save your backup codes
+            </h3>
+          </div>
+          <p className="text-sm text-content-secondary mb-3">
+            Store these codes somewhere safe. Each code can only be used once.
+            If you lose access to your authenticator app, use a backup code to
+            sign in.
+          </p>
+          <div className="grid grid-cols-2 gap-2 rounded-lg border border-edge bg-surface p-3 font-mono text-sm">
+            {backupCodes.map((c, i) => (
+              <div key={i} className="text-content">
+                {c}
+              </div>
+            ))}
+          </div>
+          <div className="mt-3 flex gap-2">
+            <button
+              onClick={handleDownloadCodes}
+              className={buttonPrimaryClass}
+            >
+              <Download size={16} />
+              Download
+            </button>
+            <button
+              onClick={handleCopyCodes}
+              className={buttonSecondaryClass}
+            >
+              <Copy size={16} />
+              {copied ? "Copied!" : "Copy"}
+            </button>
+            <button
+              onClick={() => {
+                setStep("enabled");
+                setBackupCodes([]);
+              }}
+              className={buttonSecondaryClass}
+            >
+              Done
+            </button>
+          </div>
+        </div>
       </div>
     );
   }
 
-  // Just enabled — success message
-  if (step === "enabled") {
+  // MFA is enabled
+  if (mfaEnabled && (step === "idle" || step === "enabled")) {
     return (
-      <div className="flex items-center gap-2">
-        <span className="inline-flex items-center gap-1.5 rounded-full bg-success-soft px-2.5 py-0.5 text-xs font-medium text-success">
-          <CheckCircle size={12} />
-          {t("enabled")}
-        </span>
-        <span className="text-sm text-success">{t("verified")}</span>
+      <div className="space-y-4">
+        <div className="flex items-center gap-2">
+          <span className="inline-flex items-center gap-1.5 rounded-full bg-success-soft px-2.5 py-0.5 text-xs font-medium text-success">
+            <CheckCircle size={12} />
+            {t("enabled")}
+          </span>
+          {backupCodesRemaining > 0 && (
+            <span className="text-xs text-content-muted">
+              {backupCodesRemaining} backup codes remaining
+            </span>
+          )}
+        </div>
+        <div className="flex gap-2">
+          <button
+            onClick={handleRegenerateBackupCodes}
+            disabled={loading}
+            className={buttonSecondaryClass}
+          >
+            <KeyRound size={16} />
+            {loading ? "..." : "Regenerate Backup Codes"}
+          </button>
+          <button
+            onClick={handleDisable}
+            disabled={loading}
+            className={buttonDangerClass}
+          >
+            <XCircle size={16} />
+            {loading ? "..." : t("disable")}
+          </button>
+        </div>
+        {error && <p className="mt-2 text-sm text-error">{error}</p>}
       </div>
     );
   }
@@ -259,7 +423,6 @@ export function MfaSetup(): React.JSX.Element {
           </button>
           <button
             onClick={async () => {
-              // Unenroll the unverified factor so it doesn't block future enrolls
               if (factorId) {
                 await supabase.auth.mfa.unenroll({ factorId });
               }
