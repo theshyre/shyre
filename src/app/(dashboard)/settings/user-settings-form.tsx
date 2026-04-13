@@ -1,6 +1,5 @@
 "use client";
 
-import { useState } from "react";
 import { useTranslations } from "next-intl";
 import {
   Palette,
@@ -11,13 +10,13 @@ import {
   Moon,
   Monitor,
   Eye,
-  CheckCircle,
 } from "lucide-react";
 import { MfaSetup } from "@/components/MfaSetup";
+import { useFormAction } from "@/hooks/use-form-action";
+import { SubmitButton } from "@/components/SubmitButton";
 import {
   inputClass,
   labelClass,
-  buttonPrimaryClass,
   buttonSecondaryClass,
 } from "@/lib/form-styles";
 import { useTheme } from "@/components/theme-provider";
@@ -39,19 +38,19 @@ export function UserSettingsForm({
 }): React.JSX.Element {
   const t = useTranslations("settings");
   const { theme, setTheme } = useTheme();
-  const [tokenSaved, setTokenSaved] = useState(false);
-  const [profileSaved, setProfileSaved] = useState(false);
+
+  const profileForm = useFormAction({
+    action: updateProfileAction,
+  });
+
+  const tokenForm = useFormAction({
+    action: updateUserSettingsAction,
+  });
 
   return (
     <div className="mt-6 space-y-8">
       {/* Profile */}
-      <form
-        action={async (formData) => {
-          await updateProfileAction(formData);
-          setProfileSaved(true);
-          setTimeout(() => setProfileSaved(false), 3000);
-        }}
-      >
+      <form action={profileForm.handleSubmit}>
         <section className="rounded-lg border border-edge bg-surface-raised p-4 space-y-3">
           <div className="flex items-center gap-2 mb-2">
             <User size={18} className="text-accent" />
@@ -59,6 +58,9 @@ export function UserSettingsForm({
               Profile
             </h2>
           </div>
+          {profileForm.serverError && (
+            <p className="text-sm text-error bg-error-soft rounded-lg px-3 py-2">{profileForm.serverError}</p>
+          )}
           <div className="max-w-sm">
             <label className={labelClass}>Display Name</label>
             <input
@@ -67,17 +69,13 @@ export function UserSettingsForm({
               className={inputClass}
             />
           </div>
-          <div className="flex items-center gap-3">
-            <button type="submit" className={buttonSecondaryClass}>
-              Save Profile
-            </button>
-            {profileSaved && (
-              <span className="flex items-center gap-1.5 text-sm text-success">
-                <CheckCircle size={14} />
-                Saved
-              </span>
-            )}
-          </div>
+          <SubmitButton
+            label="Save Profile"
+            pending={profileForm.pending}
+            success={profileForm.success}
+            successMessage="Saved"
+            className={buttonSecondaryClass}
+          />
         </section>
       </form>
 
@@ -132,13 +130,7 @@ export function UserSettingsForm({
       </section>
 
       {/* GitHub Token */}
-      <form
-        action={async (formData) => {
-          await updateUserSettingsAction(formData);
-          setTokenSaved(true);
-          setTimeout(() => setTokenSaved(false), 3000);
-        }}
-      >
+      <form action={tokenForm.handleSubmit}>
         <section className="rounded-lg border border-edge bg-surface-raised p-4 space-y-3">
           <div className="flex items-center gap-2 mb-2">
             <Link2 size={18} className="text-accent" />
@@ -146,6 +138,9 @@ export function UserSettingsForm({
               {t("sections.integrations")}
             </h2>
           </div>
+          {tokenForm.serverError && (
+            <p className="text-sm text-error bg-error-soft rounded-lg px-3 py-2">{tokenForm.serverError}</p>
+          )}
           <div>
             <label className={labelClass}>{t("fields.githubToken")}</label>
             <input
@@ -159,17 +154,13 @@ export function UserSettingsForm({
               {t("fields.githubTokenHelp")}
             </p>
           </div>
-          <div className="flex items-center gap-3">
-            <button type="submit" className={buttonSecondaryClass}>
-              {t("saveSettings")}
-            </button>
-            {tokenSaved && (
-              <span className="flex items-center gap-1.5 text-sm text-success">
-                <CheckCircle size={14} />
-                {t("saved")}
-              </span>
-            )}
-          </div>
+          <SubmitButton
+            label={t("saveSettings")}
+            pending={tokenForm.pending}
+            success={tokenForm.success}
+            successMessage={t("saved")}
+            className={buttonSecondaryClass}
+          />
         </section>
       </form>
     </div>

@@ -1,17 +1,18 @@
 "use client";
 
 import { useTranslations } from "next-intl";
+import { FileText } from "lucide-react";
+import { useFormAction } from "@/hooks/use-form-action";
+import { SubmitButton } from "@/components/SubmitButton";
 import {
   inputClass,
   textareaClass,
   labelClass,
   selectClass,
-  buttonPrimaryClass,
 } from "@/lib/form-styles";
 import { OrgSelector } from "@/components/OrgSelector";
 import type { OrgListItem } from "@/lib/org-context";
 import { createInvoiceAction } from "../actions";
-import { FileText } from "lucide-react";
 
 interface ClientOption {
   id: string;
@@ -30,11 +31,18 @@ export function NewInvoiceForm({
 }): React.JSX.Element {
   const t = useTranslations("invoices");
 
+  const { pending, success, serverError, handleSubmit } = useFormAction({
+    action: createInvoiceAction,
+  });
+
   return (
     <form
-      action={createInvoiceAction}
+      action={handleSubmit}
       className="mt-6 space-y-4"
     >
+      {serverError && (
+        <p className="text-sm text-error bg-error-soft rounded-lg px-3 py-2">{serverError}</p>
+      )}
       <OrgSelector orgs={orgs} />
       <div className="rounded-lg border border-edge bg-surface-raised p-4 space-y-4">
         <p className="text-sm text-content-secondary">
@@ -82,10 +90,7 @@ export function NewInvoiceForm({
         </div>
       </div>
 
-      <button type="submit" className={buttonPrimaryClass}>
-        <FileText size={16} />
-        {t("createInvoice")}
-      </button>
+      <SubmitButton label={t("createInvoice")} pending={pending} success={success} icon={FileText} />
     </form>
   );
 }

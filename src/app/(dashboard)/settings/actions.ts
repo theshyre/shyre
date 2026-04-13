@@ -4,6 +4,19 @@ import { createClient } from "@/lib/supabase/server";
 import { validateOrgAccess } from "@/lib/org-context";
 import { redirect } from "next/navigation";
 import { revalidatePath } from "next/cache";
+import { serializeAddress } from "@/lib/schemas/address";
+
+function extractAddress(formData: FormData, prefix: string): string | null {
+  const address = {
+    street: (formData.get(`${prefix}.street`) as string) || "",
+    street2: (formData.get(`${prefix}.street2`) as string) || "",
+    city: (formData.get(`${prefix}.city`) as string) || "",
+    state: (formData.get(`${prefix}.state`) as string) || "",
+    postalCode: (formData.get(`${prefix}.postalCode`) as string) || "",
+    country: (formData.get(`${prefix}.country`) as string) || "",
+  };
+  return serializeAddress(address);
+}
 
 export async function updateOrgSettingsAction(formData: FormData): Promise<void> {
   const supabase = await createClient();
@@ -16,7 +29,7 @@ export async function updateOrgSettingsAction(formData: FormData): Promise<void>
 
   const business_name = (formData.get("business_name") as string) || null;
   const business_email = (formData.get("business_email") as string) || null;
-  const business_address = (formData.get("business_address") as string) || null;
+  const business_address = extractAddress(formData, "business_address");
   const business_phone = (formData.get("business_phone") as string) || null;
   const rateStr = formData.get("default_rate") as string;
   const default_rate = rateStr ? parseFloat(rateStr) : 0;

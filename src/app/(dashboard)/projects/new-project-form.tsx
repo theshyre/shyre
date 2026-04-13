@@ -4,6 +4,9 @@ import { useCallback, useState } from "react";
 import { useTranslations } from "next-intl";
 import { Plus } from "lucide-react";
 import { useKeyboardShortcut } from "@/hooks/use-keyboard-shortcut";
+import { useFormAction } from "@/hooks/use-form-action";
+import { SubmitButton } from "@/components/SubmitButton";
+import { FieldError } from "@/components/FieldError";
 import {
   inputClass,
   textareaClass,
@@ -35,6 +38,11 @@ export function NewProjectForm({
   const t = useTranslations("projects");
   const tc = useTranslations("common");
 
+  const { pending, success, serverError, fieldErrors, handleSubmit } = useFormAction({
+    action: createProjectAction,
+    onSuccess: () => setOpen(false),
+  });
+
   useKeyboardShortcut({
     key: "n",
     onTrigger: useCallback(() => setOpen(true), []),
@@ -56,17 +64,18 @@ export function NewProjectForm({
 
   return (
     <form
-      action={async (formData) => {
-        await createProjectAction(formData);
-        setOpen(false);
-      }}
+      action={handleSubmit}
       className="mt-4 space-y-3 rounded-lg border border-edge bg-surface-raised p-4"
     >
+      {serverError && (
+        <p className="text-sm text-error bg-error-soft rounded-lg px-3 py-2">{serverError}</p>
+      )}
       <OrgSelector orgs={orgs} defaultOrgId={defaultOrgId} />
       <div className="grid gap-3 sm:grid-cols-2">
         <div>
           <label className={labelClass}>{t("fields.name")} *</label>
           <input name="name" required className={inputClass} />
+          <FieldError error={fieldErrors.name} />
         </div>
         <div>
           <label className={labelClass}>{t("fields.client")}</label>
@@ -113,11 +122,10 @@ export function NewProjectForm({
         <textarea name="description" rows={2} className={textareaClass} />
       </div>
       <div className="flex gap-2">
-        <button type="submit" className={buttonPrimaryClass}>
-          {t("saveProject")}
-        </button>
+        <SubmitButton label={t("saveProject")} pending={pending} success={success} successMessage={tc("actions.saved")} />
         <button
           type="button"
+          disabled={pending}
           onClick={() => setOpen(false)}
           className={buttonSecondaryClass}
         >

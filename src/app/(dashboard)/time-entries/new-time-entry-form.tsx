@@ -4,6 +4,9 @@ import { useCallback, useState } from "react";
 import { useTranslations } from "next-intl";
 import { Plus } from "lucide-react";
 import { useKeyboardShortcut } from "@/hooks/use-keyboard-shortcut";
+import { useFormAction } from "@/hooks/use-form-action";
+import { SubmitButton } from "@/components/SubmitButton";
+import { FieldError } from "@/components/FieldError";
 import {
   inputClass,
   labelClass,
@@ -38,6 +41,15 @@ export function NewTimeEntryForm({
   const t = useTranslations("time");
   const tc = useTranslations("common");
 
+  const { pending, success, serverError, fieldErrors, handleSubmit } = useFormAction({
+    action: createTimeEntryAction,
+    onSuccess: () => {
+      setOpen(false);
+      setSelectedProjectId("");
+      setIssueNumber(null);
+    },
+  });
+
   const selectedProject = projects.find((p) => p.id === selectedProjectId);
   const linkedRepo = selectedProject?.github_repo ?? null;
 
@@ -62,14 +74,12 @@ export function NewTimeEntryForm({
 
   return (
     <form
-      action={async (formData) => {
-        await createTimeEntryAction(formData);
-        setOpen(false);
-        setSelectedProjectId("");
-        setIssueNumber(null);
-      }}
+      action={handleSubmit}
       className="mt-4 space-y-3 rounded-lg border border-edge bg-surface-raised p-4"
     >
+      {serverError && (
+        <p className="text-sm text-error bg-error-soft rounded-lg px-3 py-2">{serverError}</p>
+      )}
       <OrgSelector orgs={orgs} defaultOrgId={defaultOrgId} />
       <div className="grid gap-3 sm:grid-cols-2">
         <div>
@@ -91,6 +101,7 @@ export function NewTimeEntryForm({
               </option>
             ))}
           </select>
+          <FieldError error={fieldErrors.project_id} />
         </div>
         <div>
           <label className={labelClass}>{t("fields.description")}</label>
@@ -146,11 +157,10 @@ export function NewTimeEntryForm({
         </div>
       </div>
       <div className="flex gap-2">
-        <button type="submit" className={buttonPrimaryClass}>
-          {t("saveEntry")}
-        </button>
+        <SubmitButton label={t("saveEntry")} pending={pending} success={success} successMessage={tc("actions.saved")} />
         <button
           type="button"
+          disabled={pending}
           onClick={() => setOpen(false)}
           className={buttonSecondaryClass}
         >

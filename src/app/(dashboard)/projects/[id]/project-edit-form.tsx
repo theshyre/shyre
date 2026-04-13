@@ -2,12 +2,14 @@
 
 import { useTranslations } from "next-intl";
 import { FolderKanban } from "lucide-react";
+import { useFormAction } from "@/hooks/use-form-action";
+import { SubmitButton } from "@/components/SubmitButton";
+import { FieldError } from "@/components/FieldError";
 import {
   inputClass,
   textareaClass,
   labelClass,
   selectClass,
-  buttonPrimaryClass,
 } from "@/lib/form-styles";
 import { updateProjectAction } from "../actions";
 
@@ -31,8 +33,15 @@ export function ProjectEditForm({
   const t = useTranslations("projects");
   const tc = useTranslations("common");
 
+  const { pending, success, serverError, fieldErrors, handleSubmit } = useFormAction({
+    action: updateProjectAction,
+  });
+
   return (
-    <form action={updateProjectAction} className="space-y-4">
+    <form action={handleSubmit} className="space-y-4">
+      {serverError && (
+        <p className="text-sm text-error bg-error-soft rounded-lg px-3 py-2">{serverError}</p>
+      )}
       <input type="hidden" name="id" value={project.id} />
 
       <div className="flex items-center gap-3">
@@ -50,6 +59,7 @@ export function ProjectEditForm({
               defaultValue={project.name}
               className={inputClass}
             />
+            <FieldError error={fieldErrors.name} />
           </div>
           <div>
             <label className={labelClass}>{t("fields.status")}</label>
@@ -108,9 +118,7 @@ export function ProjectEditForm({
         </div>
       </div>
 
-      <button type="submit" className={buttonPrimaryClass}>
-        {t("saveChanges")}
-      </button>
+      <SubmitButton label={t("saveChanges")} pending={pending} success={success} successMessage={tc("actions.saved")} />
     </form>
   );
 }

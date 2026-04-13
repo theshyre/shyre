@@ -2,11 +2,13 @@
 
 import { useTranslations } from "next-intl";
 import { Clock } from "lucide-react";
+import { useFormAction } from "@/hooks/use-form-action";
+import { SubmitButton } from "@/components/SubmitButton";
+import { FieldError } from "@/components/FieldError";
 import {
   inputClass,
   labelClass,
   selectClass,
-  buttonPrimaryClass,
 } from "@/lib/form-styles";
 import { updateTimeEntryAction } from "../actions";
 
@@ -40,9 +42,17 @@ export function TimeEntryEditForm({
   projects: ProjectOption[];
 }): React.JSX.Element {
   const t = useTranslations("time");
+  const tc = useTranslations("common");
+
+  const { pending, success, serverError, fieldErrors, handleSubmit } = useFormAction({
+    action: updateTimeEntryAction,
+  });
 
   return (
-    <form action={updateTimeEntryAction} className="space-y-4">
+    <form action={handleSubmit} className="space-y-4">
+      {serverError && (
+        <p className="text-sm text-error bg-error-soft rounded-lg px-3 py-2">{serverError}</p>
+      )}
       <input type="hidden" name="id" value={entry.id} />
 
       <div className="flex items-center gap-3">
@@ -85,6 +95,7 @@ export function TimeEntryEditForm({
               defaultValue={toLocalDatetime(entry.start_time)}
               className={inputClass}
             />
+            <FieldError error={fieldErrors.start_time} />
           </div>
           <div>
             <label className={labelClass}>{t("fields.endTime")}</label>
@@ -119,9 +130,7 @@ export function TimeEntryEditForm({
         </div>
       </div>
 
-      <button type="submit" className={buttonPrimaryClass}>
-        {t("saveChanges")}
-      </button>
+      <SubmitButton label={t("saveChanges")} pending={pending} success={success} successMessage={tc("actions.saved")} />
     </form>
   );
 }

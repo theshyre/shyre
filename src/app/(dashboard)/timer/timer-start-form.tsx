@@ -2,11 +2,12 @@
 
 import { useTranslations } from "next-intl";
 import { Play, Square } from "lucide-react";
+import { useFormAction } from "@/hooks/use-form-action";
+import { SubmitButton } from "@/components/SubmitButton";
 import {
   inputClass,
   labelClass,
   selectClass,
-  buttonPrimaryClass,
   kbdClass,
 } from "@/lib/form-styles";
 import { OrgSelector } from "@/components/OrgSelector";
@@ -40,6 +41,14 @@ export function TimerStartForm({
   const t = useTranslations("time.timer");
   const tf = useTranslations("time.fields");
 
+  const startForm = useFormAction({
+    action: startTimerAction,
+  });
+
+  const stopForm = useFormAction({
+    action: stopTimerAction,
+  });
+
   if (running) {
     return (
       <div className="mt-6 rounded-lg border border-success/30 bg-success-soft p-6">
@@ -56,15 +65,17 @@ export function TimerStartForm({
         <p className="text-xs text-content-muted mt-1">
           Started {new Date(running.start_time).toLocaleTimeString()}
         </p>
-        <form action={stopTimerAction} className="mt-4">
+        {stopForm.serverError && (
+          <p className="mt-2 text-sm text-error bg-error-soft rounded-lg px-3 py-2">{stopForm.serverError}</p>
+        )}
+        <form action={stopForm.handleSubmit} className="mt-4">
           <input type="hidden" name="id" value={running.id} />
-          <button
-            type="submit"
-            className="flex items-center gap-2 rounded-lg bg-error px-4 py-2 text-sm font-medium text-content-inverse hover:opacity-90 transition-colors"
-          >
-            <Square size={16} />
-            {t("stop")}
-          </button>
+          <SubmitButton
+            label={t("stop")}
+            pending={stopForm.pending}
+            icon={Square}
+            className="flex items-center gap-2 rounded-lg bg-error px-4 py-2 text-sm font-medium text-content-inverse hover:opacity-90 transition-colors disabled:opacity-50"
+          />
         </form>
       </div>
     );
@@ -72,9 +83,12 @@ export function TimerStartForm({
 
   return (
     <form
-      action={startTimerAction}
+      action={startForm.handleSubmit}
       className="mt-6 space-y-4 rounded-lg border border-edge bg-surface-raised p-6"
     >
+      {startForm.serverError && (
+        <p className="text-sm text-error bg-error-soft rounded-lg px-3 py-2">{startForm.serverError}</p>
+      )}
       <OrgSelector orgs={orgs} />
       <div className="grid gap-4 sm:grid-cols-2">
         <div>
@@ -97,11 +111,7 @@ export function TimerStartForm({
           />
         </div>
       </div>
-      <button type="submit" className={buttonPrimaryClass}>
-        <Play size={16} />
-        {t("start")}
-        <kbd className={kbdClass}>Space</kbd>
-      </button>
+      <SubmitButton label={t("start")} pending={startForm.pending} icon={Play} />
     </form>
   );
 }

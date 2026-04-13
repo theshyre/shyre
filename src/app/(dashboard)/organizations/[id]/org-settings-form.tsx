@@ -1,13 +1,15 @@
 "use client";
 
-import { useState } from "react";
 import { useTranslations } from "next-intl";
-import { Building2, CheckCircle } from "lucide-react";
+import { Building2 } from "lucide-react";
+import { useFormAction } from "@/hooks/use-form-action";
+import { SubmitButton } from "@/components/SubmitButton";
+import { FieldError } from "@/components/FieldError";
+import { AddressFields } from "@/components/AddressFields";
+import { deserializeAddress } from "@/lib/schemas/address";
 import {
   inputClass,
   labelClass,
-  buttonPrimaryClass,
-  kbdClass,
 } from "@/lib/form-styles";
 import { updateOrgSettingsAction } from "../../settings/actions";
 
@@ -43,19 +45,22 @@ export function OrgSettingsForm({
   role: string;
 }): React.JSX.Element {
   const t = useTranslations("settings");
-  const [saved, setSaved] = useState(false);
   const org = orgSettings ?? DEFAULTS;
   const isAdmin = role === "owner" || role === "admin";
+  const businessAddress = deserializeAddress(org.business_address ?? null);
+
+  const { pending, success, serverError, fieldErrors, handleSubmit } = useFormAction({
+    action: updateOrgSettingsAction,
+  });
 
   return (
     <form
-      action={async (formData) => {
-        await updateOrgSettingsAction(formData);
-        setSaved(true);
-        setTimeout(() => setSaved(false), 3000);
-      }}
+      action={handleSubmit}
       className="mt-6 space-y-6"
     >
+      {serverError && (
+        <p className="text-sm text-error bg-error-soft rounded-lg px-3 py-2">{serverError}</p>
+      )}
       <input type="hidden" name="organization_id" value={orgId} />
 
       <section className="rounded-lg border border-edge bg-surface-raised p-4 space-y-3">
@@ -74,6 +79,7 @@ export function OrgSettingsForm({
               disabled={!isAdmin}
               className={inputClass}
             />
+            <FieldError error={fieldErrors.business_name} />
           </div>
           <div>
             <label className={labelClass}>{t("fields.businessEmail")}</label>
@@ -84,6 +90,7 @@ export function OrgSettingsForm({
               disabled={!isAdmin}
               className={inputClass}
             />
+            <FieldError error={fieldErrors.business_email} />
           </div>
           <div>
             <label className={labelClass}>{t("fields.businessPhone")}</label>
@@ -93,17 +100,16 @@ export function OrgSettingsForm({
               disabled={!isAdmin}
               className={inputClass}
             />
-          </div>
-          <div>
-            <label className={labelClass}>{t("fields.businessAddress")}</label>
-            <input
-              name="business_address"
-              defaultValue={org.business_address ?? ""}
-              disabled={!isAdmin}
-              className={inputClass}
-            />
+            <FieldError error={fieldErrors.business_phone} />
           </div>
         </div>
+        <AddressFields
+          prefix="business_address"
+          value={businessAddress}
+          label={t("fields.businessAddress")}
+          disabled={!isAdmin}
+          errors={fieldErrors}
+        />
       </section>
 
       <section className="rounded-lg border border-edge bg-surface-raised p-4 space-y-3">
@@ -160,18 +166,7 @@ export function OrgSettingsForm({
       </section>
 
       {isAdmin && (
-        <div className="flex items-center gap-3">
-          <button type="submit" className={buttonPrimaryClass}>
-            <kbd className={kbdClass}>⌘S</kbd>
-            {t("saveSettings")}
-          </button>
-          {saved && (
-            <span className="flex items-center gap-1.5 text-sm text-success">
-              <CheckCircle size={14} />
-              {t("saved")}
-            </span>
-          )}
-        </div>
+        <SubmitButton label={t("saveSettings")} pending={pending} success={success} successMessage={t("saved")} />
       )}
     </form>
   );
