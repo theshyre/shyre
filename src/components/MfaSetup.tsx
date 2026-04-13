@@ -33,7 +33,16 @@ export function MfaSetup(): React.JSX.Element {
   const checkStatus = useCallback(async (): Promise<void> => {
     const { data, error: err } = await supabase.auth.mfa.listFactors();
     if (!err && data) {
-      const verified = data.totp.filter((f) => f.status === "verified");
+      // data.totp contains only verified factors
+      // data.all contains both verified and unverified
+      const verified = data.totp;
+      const unverified = data.all.filter((f) => f.status === "unverified");
+
+      // Clean up any stuck unverified factors
+      for (const factor of unverified) {
+        await supabase.auth.mfa.unenroll({ factorId: factor.id });
+      }
+
       setMfaEnabled(verified.length > 0);
       if (verified.length > 0) {
         setFactorId(verified[0]?.id ?? null);
@@ -50,6 +59,14 @@ export function MfaSetup(): React.JSX.Element {
   async function handleEnroll(): Promise<void> {
     setLoading(true);
     setError(null);
+
+    // Clean up any leftover unverified factors first
+    const { data: existing } = await supabase.auth.mfa.listFactors();
+    if (existing) {
+      for (const factor of existing.all.filter((f) => f.status === "unverified")) {
+        await supabase.auth.mfa.unenroll({ factorId: factor.id });
+      }
+    }
 
     const { data, error: err } = await supabase.auth.mfa.enroll({
       factorType: "totp",
@@ -219,8 +236,13 @@ export function MfaSetup(): React.JSX.Element {
             {loading ? "..." : t("verify")}
           </button>
           <button
-            onClick={() => {
+            onClick={async () => {
+              // Unenroll the unverified factor so it doesn't block future enrolls
+              if (factorId) {
+                await supabase.auth.mfa.unenroll({ factorId });
+              }
               setStep("idle");
+              setFactorId(null);
               setQrUri(null);
               setCode("");
               setError(null);
