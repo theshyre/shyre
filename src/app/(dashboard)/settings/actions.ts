@@ -61,3 +61,22 @@ export async function updateUserSettingsAction(formData: FormData): Promise<void
   if (error) throw new Error(error.message);
   revalidatePath("/settings");
 }
+
+export async function updateProfileAction(formData: FormData): Promise<void> {
+  const supabase = await createClient();
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user) redirect("/login");
+
+  const display_name = (formData.get("display_name") as string) || null;
+
+  const { error } = await supabase
+    .from("user_profiles")
+    .upsert({
+      user_id: user.id,
+      display_name,
+    });
+
+  if (error) throw new Error(error.message);
+  revalidatePath("/settings");
+  revalidatePath("/");
+}

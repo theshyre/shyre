@@ -43,7 +43,7 @@ export default async function TimeEntriesPage({
         <OrgFilter orgs={orgs} selectedOrgId={selectedOrgId ?? null} />
       </div>
 
-      <NewTimeEntryForm projects={projects ?? []} orgs={orgs} />
+      <NewTimeEntryForm projects={projects ?? []} orgs={orgs} defaultOrgId={selectedOrgId} />
 
       {entries && entries.length > 0 ? (
         <div className="mt-6 overflow-hidden rounded-lg border border-edge bg-surface-raised">

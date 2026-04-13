@@ -43,7 +43,7 @@ export default async function ProjectsPage({
         <OrgFilter orgs={orgs} selectedOrgId={selectedOrgId ?? null} />
       </div>
 
-      <NewProjectForm clients={clients ?? []} orgs={orgs} />
+      <NewProjectForm clients={clients ?? []} orgs={orgs} defaultOrgId={selectedOrgId} />
 
       {projects && projects.length > 0 ? (
         <div className="mt-6 overflow-hidden rounded-lg border border-edge bg-surface-raised">

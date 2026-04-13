@@ -8,6 +8,8 @@ import type { OrgListItem } from "@/lib/org-context";
 interface OrgSelectorProps {
   orgs: OrgListItem[];
   label?: string;
+  /** Pre-select this org (e.g., from current page filter) */
+  defaultOrgId?: string | null;
 }
 
 const LAST_ORG_KEY = "stint-last-org";
@@ -21,11 +23,18 @@ const LAST_ORG_KEY = "stint-last-org";
 export function OrgSelector({
   orgs,
   label,
+  defaultOrgId,
 }: OrgSelectorProps): React.JSX.Element | null {
   const [selectedOrgId, setSelectedOrgId] = useState<string>("");
 
   useEffect(() => {
     if (orgs.length === 0) return;
+
+    // Priority: explicit default > last-used > first org
+    if (defaultOrgId && orgs.some((o) => o.id === defaultOrgId)) {
+      setSelectedOrgId(defaultOrgId);
+      return;
+    }
 
     const lastOrg = localStorage.getItem(LAST_ORG_KEY);
     const validLast = lastOrg && orgs.some((o) => o.id === lastOrg);
@@ -38,7 +47,7 @@ export function OrgSelector({
         setSelectedOrgId(firstOrg.id);
       }
     }
-  }, [orgs]);
+  }, [orgs, defaultOrgId]);
 
   if (orgs.length === 0) return null;
 

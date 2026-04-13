@@ -15,6 +15,7 @@ import {
   Settings,
   LogOut,
   User,
+  Building2,
 } from "lucide-react";
 import type { ComponentType } from "react";
 import Timer from "./Timer";
@@ -33,6 +34,7 @@ const nav: NavItem[] = [
   { labelKey: "projects", href: "/projects", icon: FolderKanban },
   { labelKey: "invoices", href: "/invoices", icon: FileText },
   { labelKey: "reports", href: "/reports", icon: BarChart3 },
+  { labelKey: "organizations", href: "/organizations", icon: Building2 },
   { labelKey: "settings", href: "/settings", icon: Settings },
 ];
 

@@ -25,9 +25,11 @@ interface ClientOption {
 export function NewProjectForm({
   clients,
   orgs,
+  defaultOrgId,
 }: {
   clients: ClientOption[];
   orgs: OrgListItem[];
+  defaultOrgId?: string;
 }): React.JSX.Element {
   const [open, setOpen] = useState(false);
   const t = useTranslations("projects");
@@ -60,7 +62,7 @@ export function NewProjectForm({
       }}
       className="mt-4 space-y-3 rounded-lg border border-edge bg-surface-raised p-4"
     >
-      <OrgSelector orgs={orgs} />
+      <OrgSelector orgs={orgs} defaultOrgId={defaultOrgId} />
       <div className="grid gap-3 sm:grid-cols-2">
         <div>
           <label className={labelClass}>{t("fields.name")} *</label>

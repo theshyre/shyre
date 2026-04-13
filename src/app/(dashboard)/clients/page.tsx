@@ -36,7 +36,7 @@ export default async function ClientsPage({
         <OrgFilter orgs={orgs} selectedOrgId={selectedOrgId ?? null} />
       </div>
 
-      <NewClientForm orgs={orgs} />
+      <NewClientForm orgs={orgs} defaultOrgId={selectedOrgId} />
 
       {clients && clients.length > 0 ? (
         <div className="mt-6 overflow-hidden rounded-lg border border-edge bg-surface-raised">
