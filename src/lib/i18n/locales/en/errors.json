@@ -1,0 +1,21 @@
+{
+  "title": "Something went wrong",
+  "notFoundTitle": "Page not found",
+  "notFoundMessage": "The page you're looking for doesn't exist or has been moved.",
+  "genericMessage": "An unexpected error occurred. Please try again.",
+  "validation": "Please check your input and try again.",
+  "authUnauthorized": "You need to sign in to access this page.",
+  "authForbidden": "You don't have permission to perform this action.",
+  "authSessionExpired": "Your session has expired. Please sign in again.",
+  "notFound": "The requested resource could not be found.",
+  "conflict": "This record already exists or conflicts with another.",
+  "externalService": "A third-party service is temporarily unavailable.",
+  "database": "A database error occurred. Please try again.",
+  "rateLimit": "Too many requests. Please wait a moment.",
+  "unknown": "An unexpected error occurred.",
+  "copyDetails": "Copy Details",
+  "detailsCopied": "Copied!",
+  "goHome": "Go Home",
+  "tryAgain": "Try Again",
+  "reference": "Reference"
+}

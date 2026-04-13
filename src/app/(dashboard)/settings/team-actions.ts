@@ -1,12 +1,11 @@
 "use server";
 
-import { createClient } from "@/lib/supabase/server";
+import { safeAction } from "@/lib/safe-action";
+import { assertSupabaseOk } from "@/lib/errors";
 import { validateOrgAccess } from "@/lib/org-context";
-import { redirect } from "next/navigation";
 import { revalidatePath } from "next/cache";
 
-export async function inviteMemberAction(formData: FormData): Promise<void> {
-  const supabase = await createClient();
+export const inviteMemberAction = safeAction(async (formData, { supabase }) => {
   const orgId = formData.get("org_id") as string;
   const { userId, role } = await validateOrgAccess(orgId);
 
@@ -21,25 +20,19 @@ export async function inviteMemberAction(formData: FormData): Promise<void> {
     throw new Error("Invalid role. Must be admin or member.");
   }
 
-  const { error } = await supabase.from("organization_invites").insert({
-    organization_id: orgId,
-    email,
-    role: inviteRole,
-    invited_by: userId,
-  });
-
-  if (error) {
-    if (error.code === "23505") {
-      throw new Error("This email has already been invited.");
-    }
-    throw new Error(error.message);
-  }
+  assertSupabaseOk(
+    await supabase.from("organization_invites").insert({
+      organization_id: orgId,
+      email,
+      role: inviteRole,
+      invited_by: userId,
+    })
+  );
 
   revalidatePath("/settings");
-}
+}, "inviteMemberAction");
 
-export async function removeMemberAction(formData: FormData): Promise<void> {
-  const supabase = await createClient();
+export const removeMemberAction = safeAction(async (formData, { supabase }) => {
   const orgId = formData.get("org_id") as string;
   const { userId, role } = await validateOrgAccess(orgId);
 
@@ -64,17 +57,17 @@ export async function removeMemberAction(formData: FormData): Promise<void> {
     throw new Error("Cannot remove the organization owner.");
   }
 
-  const { error } = await supabase
-    .from("organization_members")
-    .delete()
-    .eq("id", memberId);
+  assertSupabaseOk(
+    await supabase
+      .from("organization_members")
+      .delete()
+      .eq("id", memberId)
+  );
 
-  if (error) throw new Error(error.message);
   revalidatePath("/settings");
-}
+}, "removeMemberAction");
 
-export async function revokeInviteAction(formData: FormData): Promise<void> {
-  const supabase = await createClient();
+export const revokeInviteAction = safeAction(async (formData, { supabase }) => {
   const orgId = formData.get("org_id") as string;
   const { role } = await validateOrgAccess(orgId);
 
@@ -84,17 +77,17 @@ export async function revokeInviteAction(formData: FormData): Promise<void> {
 
   const inviteId = formData.get("invite_id") as string;
 
-  const { error } = await supabase
-    .from("organization_invites")
-    .delete()
-    .eq("id", inviteId);
+  assertSupabaseOk(
+    await supabase
+      .from("organization_invites")
+      .delete()
+      .eq("id", inviteId)
+  );
 
-  if (error) throw new Error(error.message);
   revalidatePath("/settings");
-}
+}, "revokeInviteAction");
 
-export async function updateOrgNameAction(formData: FormData): Promise<void> {
-  const supabase = await createClient();
+export const updateOrgNameAction = safeAction(async (formData, { supabase }) => {
   const orgId = formData.get("org_id") as string;
   const { role } = await validateOrgAccess(orgId);
 
@@ -104,11 +97,12 @@ export async function updateOrgNameAction(formData: FormData): Promise<void> {
 
   const name = formData.get("org_name") as string;
 
-  const { error } = await supabase
-    .from("organizations")
-    .update({ name })
-    .eq("id", orgId);
+  assertSupabaseOk(
+    await supabase
+      .from("organizations")
+      .update({ name })
+      .eq("id", orgId)
+  );
 
-  if (error) throw new Error(error.message);
   revalidatePath("/settings");
-}
+}, "updateOrgNameAction");

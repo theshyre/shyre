@@ -1,8 +1,8 @@
 "use server";
 
-import { createClient } from "@/lib/supabase/server";
+import { safeAction } from "@/lib/safe-action";
+import { assertSupabaseOk } from "@/lib/errors";
 import { validateOrgAccess } from "@/lib/org-context";
-import { redirect } from "next/navigation";
 import { revalidatePath } from "next/cache";
 import { serializeAddress } from "@/lib/schemas/address";
 
@@ -18,8 +18,7 @@ function extractAddress(formData: FormData, prefix: string): string | null {
   return serializeAddress(address);
 }
 
-export async function updateOrgSettingsAction(formData: FormData): Promise<void> {
-  const supabase = await createClient();
+export const updateOrgSettingsAction = safeAction(async (formData, { supabase }) => {
   const orgId = formData.get("organization_id") as string;
   const { role } = await validateOrgAccess(orgId);
 
@@ -39,57 +38,52 @@ export async function updateOrgSettingsAction(formData: FormData): Promise<void>
   const taxStr = formData.get("tax_rate") as string;
   const tax_rate = taxStr ? parseFloat(taxStr) : 0;
 
-  const { error } = await supabase
-    .from("organization_settings")
-    .upsert({
-      organization_id: orgId,
-      business_name,
-      business_email,
-      business_address,
-      business_phone,
-      default_rate,
-      invoice_prefix,
-      invoice_next_num,
-      tax_rate,
-    });
+  assertSupabaseOk(
+    await supabase
+      .from("organization_settings")
+      .upsert({
+        organization_id: orgId,
+        business_name,
+        business_email,
+        business_address,
+        business_phone,
+        default_rate,
+        invoice_prefix,
+        invoice_next_num,
+        tax_rate,
+      })
+  );
 
-  if (error) throw new Error(error.message);
   revalidatePath("/settings");
-}
+}, "updateOrgSettingsAction");
 
-export async function updateUserSettingsAction(formData: FormData): Promise<void> {
-  const supabase = await createClient();
-  const { data: { user } } = await supabase.auth.getUser();
-  if (!user) redirect("/login");
-
+export const updateUserSettingsAction = safeAction(async (formData, { supabase, userId }) => {
   const github_token = (formData.get("github_token") as string) || null;
 
-  const { error } = await supabase
-    .from("user_settings")
-    .upsert({
-      user_id: user.id,
-      github_token,
-    });
+  assertSupabaseOk(
+    await supabase
+      .from("user_settings")
+      .upsert({
+        user_id: userId,
+        github_token,
+      })
+  );
 
-  if (error) throw new Error(error.message);
   revalidatePath("/settings");
-}
+}, "updateUserSettingsAction");
 
-export async function updateProfileAction(formData: FormData): Promise<void> {
-  const supabase = await createClient();
-  const { data: { user } } = await supabase.auth.getUser();
-  if (!user) redirect("/login");
-
+export const updateProfileAction = safeAction(async (formData, { supabase, userId }) => {
   const display_name = (formData.get("display_name") as string) || null;
 
-  const { error } = await supabase
-    .from("user_profiles")
-    .upsert({
-      user_id: user.id,
-      display_name,
-    });
+  assertSupabaseOk(
+    await supabase
+      .from("user_profiles")
+      .upsert({
+        user_id: userId,
+        display_name,
+      })
+  );
 
-  if (error) throw new Error(error.message);
   revalidatePath("/settings");
   revalidatePath("/");
-}
+}, "updateProfileAction");

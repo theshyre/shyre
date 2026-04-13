@@ -1,8 +1,8 @@
 "use server";
 
-import { createClient } from "@/lib/supabase/server";
+import { safeAction } from "@/lib/safe-action";
+import { assertSupabaseOk } from "@/lib/errors";
 import { validateOrgAccess } from "@/lib/org-context";
-import { redirect } from "next/navigation";
 import { revalidatePath } from "next/cache";
 import { serializeAddress } from "@/lib/schemas/address";
 
@@ -18,8 +18,7 @@ function extractAddress(formData: FormData, prefix: string): string | null {
   return serializeAddress(address);
 }
 
-export async function createClientAction(formData: FormData): Promise<void> {
-  const supabase = await createClient();
+export const createClientAction = safeAction(async (formData, { supabase }) => {
   const orgId = formData.get("organization_id") as string;
   const { userId } = await validateOrgAccess(orgId);
 
@@ -30,27 +29,22 @@ export async function createClientAction(formData: FormData): Promise<void> {
   const rateStr = formData.get("default_rate") as string;
   const default_rate = rateStr ? parseFloat(rateStr) : null;
 
-  const { error } = await supabase.from("clients").insert({
-    organization_id: orgId,
-    user_id: userId,
-    name,
-    email,
-    address,
-    notes,
-    default_rate,
-  });
+  assertSupabaseOk(
+    await supabase.from("clients").insert({
+      organization_id: orgId,
+      user_id: userId,
+      name,
+      email,
+      address,
+      notes,
+      default_rate,
+    })
+  );
 
-  if (error) throw new Error(error.message);
   revalidatePath("/clients");
-}
+}, "createClientAction");
 
-export async function updateClientAction(formData: FormData): Promise<void> {
-  const supabase = await createClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
-  if (!user) redirect("/login");
-
+export const updateClientAction = safeAction(async (formData, { supabase }) => {
   const id = formData.get("id") as string;
   const name = formData.get("name") as string;
   const email = (formData.get("email") as string) || null;
@@ -59,30 +53,26 @@ export async function updateClientAction(formData: FormData): Promise<void> {
   const rateStr = formData.get("default_rate") as string;
   const default_rate = rateStr ? parseFloat(rateStr) : null;
 
-  const { error } = await supabase
-    .from("clients")
-    .update({ name, email, address, notes, default_rate })
-    .eq("id", id);
+  assertSupabaseOk(
+    await supabase
+      .from("clients")
+      .update({ name, email, address, notes, default_rate })
+      .eq("id", id)
+  );
 
-  if (error) throw new Error(error.message);
   revalidatePath("/clients");
   revalidatePath(`/clients/${id}`);
-}
+}, "updateClientAction");
 
-export async function archiveClientAction(formData: FormData): Promise<void> {
-  const supabase = await createClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
-  if (!user) redirect("/login");
-
+export const archiveClientAction = safeAction(async (formData, { supabase }) => {
   const id = formData.get("id") as string;
 
-  const { error } = await supabase
-    .from("clients")
-    .update({ archived: true })
-    .eq("id", id);
+  assertSupabaseOk(
+    await supabase
+      .from("clients")
+      .update({ archived: true })
+      .eq("id", id)
+  );
 
-  if (error) throw new Error(error.message);
   revalidatePath("/clients");
-}
+}, "archiveClientAction");

@@ -13,6 +13,7 @@ export default getRequestConfig(async () => {
     settings,
     invoices,
     reports,
+    errors,
   ] = await Promise.all([
     import(`./locales/${locale}/common.json`),
     import(`./locales/${locale}/auth.json`),
@@ -23,6 +24,7 @@ export default getRequestConfig(async () => {
     import(`./locales/${locale}/settings.json`),
     import(`./locales/${locale}/invoices.json`),
     import(`./locales/${locale}/reports.json`),
+    import(`./locales/${locale}/errors.json`),
   ]);
 
   return {
@@ -37,6 +39,7 @@ export default getRequestConfig(async () => {
       settings: settings.default,
       invoices: invoices.default,
       reports: reports.default,
+      errors: errors.default,
     },
   };
 });

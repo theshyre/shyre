@@ -1,0 +1,21 @@
+{
+  "title": "Algo salió mal",
+  "notFoundTitle": "Página no encontrada",
+  "notFoundMessage": "La página que buscas no existe o ha sido movida.",
+  "genericMessage": "Ocurrió un error inesperado. Por favor, intenta de nuevo.",
+  "validation": "Por favor revisa tu entrada e intenta de nuevo.",
+  "authUnauthorized": "Necesitas iniciar sesión para acceder a esta página.",
+  "authForbidden": "No tienes permiso para realizar esta acción.",
+  "authSessionExpired": "Tu sesión ha expirado. Por favor, inicia sesión de nuevo.",
+  "notFound": "El recurso solicitado no fue encontrado.",
+  "conflict": "Este registro ya existe o entra en conflicto con otro.",
+  "externalService": "Un servicio externo no está disponible temporalmente.",
+  "database": "Ocurrió un error de base de datos. Por favor, intenta de nuevo.",
+  "rateLimit": "Demasiadas solicitudes. Por favor, espera un momento.",
+  "unknown": "Ocurrió un error inesperado.",
+  "copyDetails": "Copiar Detalles",
+  "detailsCopied": "¡Copiado!",
+  "goHome": "Ir al Inicio",
+  "tryAgain": "Intentar de Nuevo",
+  "reference": "Referencia"
+}

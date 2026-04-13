@@ -16,6 +16,7 @@ import {
   LogOut,
   User,
   Building2,
+  Shield,
 } from "lucide-react";
 import type { ComponentType } from "react";
 import Timer from "./Timer";
@@ -41,11 +42,15 @@ const nav: NavItem[] = [
 interface SidebarProps {
   displayName: string;
   email: string;
+  isSystemAdmin?: boolean;
+  unresolvedErrorCount?: number;
 }
 
 export default function Sidebar({
   displayName,
   email,
+  isSystemAdmin: isAdmin,
+  unresolvedErrorCount,
 }: SidebarProps): React.JSX.Element {
   const pathname = usePathname();
   const router = useRouter();
@@ -97,6 +102,25 @@ export default function Sidebar({
             </Link>
           );
         })}
+
+        {isAdmin && (
+          <Link
+            href="/admin/errors"
+            className={`flex items-center gap-3 rounded-lg px-3 py-2 text-sm font-medium transition-colors ${
+              pathname.startsWith("/admin")
+                ? "bg-accent-soft text-accent-text"
+                : "text-content-secondary hover:bg-hover hover:text-content"
+            }`}
+          >
+            <Shield size={20} />
+            Admin
+            {(unresolvedErrorCount ?? 0) > 0 && (
+              <span className="ml-auto inline-flex h-5 min-w-5 items-center justify-center rounded-full bg-error text-content-inverse text-[10px] font-bold px-1">
+                {unresolvedErrorCount}
+              </span>
+            )}
+          </Link>
+        )}
       </nav>
 
       <div className="border-t border-edge">

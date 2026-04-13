@@ -1,6 +1,7 @@
 "use server";
 
-import { createClient } from "@/lib/supabase/server";
+import { safeAction } from "@/lib/safe-action";
+import { assertSupabaseOk } from "@/lib/errors";
 import { validateOrgAccess } from "@/lib/org-context";
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
@@ -12,8 +13,7 @@ import {
 } from "@/lib/invoice-utils";
 import type { LineItemResult } from "@/lib/invoice-utils";
 
-export async function createInvoiceAction(formData: FormData): Promise<void> {
-  const supabase = await createClient();
+export const createInvoiceAction = safeAction(async (formData, { supabase }) => {
   const orgId = formData.get("organization_id") as string;
   const { userId } = await validateOrgAccess(orgId);
 
@@ -35,7 +35,7 @@ export async function createInvoiceAction(formData: FormData): Promise<void> {
   const defaultRate = settings?.default_rate ? Number(settings.default_rate) : 0;
 
   // Get unbilled time entries — filter by client if specified, otherwise all org entries
-  let query = supabase
+  const query = supabase
     .from("time_entries")
     .select("id, description, duration_min, project_id, projects(name, hourly_rate, client_id, clients(default_rate))")
     .eq("organization_id", orgId)
@@ -98,27 +98,25 @@ export async function createInvoiceAction(formData: FormData): Promise<void> {
   const invoiceNumber = generateInvoiceNumber(prefix, nextNum);
 
   // Create invoice (client_id may be null for org-only invoices)
-  const { data: invoice, error: invoiceError } = await supabase
-    .from("invoices")
-    .insert({
-      organization_id: orgId,
-      user_id: userId,
-      client_id,
-      invoice_number: invoiceNumber,
-      due_date: due_date || null,
-      status: "draft",
-      subtotal: totals.subtotal,
-      tax_rate: totals.taxRate,
-      tax_amount: totals.taxAmount,
-      total: totals.total,
-      notes,
-    })
-    .select("id")
-    .single();
-
-  if (invoiceError || !invoice) {
-    throw new Error(invoiceError?.message ?? "Failed to create invoice");
-  }
+  const invoice = assertSupabaseOk(
+    await supabase
+      .from("invoices")
+      .insert({
+        organization_id: orgId,
+        user_id: userId,
+        client_id,
+        invoice_number: invoiceNumber,
+        due_date: due_date || null,
+        status: "draft",
+        subtotal: totals.subtotal,
+        tax_rate: totals.taxRate,
+        tax_amount: totals.taxAmount,
+        total: totals.total,
+        notes,
+      })
+      .select("id")
+      .single()
+  )!;
 
   // Create line items
   const lineItemRows = lineItems.map((item) => ({
@@ -130,11 +128,11 @@ export async function createInvoiceAction(formData: FormData): Promise<void> {
     time_entry_id: item.time_entry_id,
   }));
 
-  const { error: lineError } = await supabase
-    .from("invoice_line_items")
-    .insert(lineItemRows);
-
-  if (lineError) throw new Error(lineError.message);
+  assertSupabaseOk(
+    await supabase
+      .from("invoice_line_items")
+      .insert(lineItemRows)
+  );
 
   // Mark time entries as invoiced
   const entryIds = lineItems.map((item) => item.time_entry_id);
@@ -152,26 +150,19 @@ export async function createInvoiceAction(formData: FormData): Promise<void> {
   revalidatePath("/invoices");
   revalidatePath("/time-entries");
   redirect(`/invoices/${invoice.id}`);
-}
+}, "createInvoiceAction");
 
-export async function updateInvoiceStatusAction(
-  formData: FormData
-): Promise<void> {
-  const supabase = await createClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
-  if (!user) redirect("/login");
-
+export const updateInvoiceStatusAction = safeAction(async (formData, { supabase }) => {
   const id = formData.get("id") as string;
   const status = formData.get("status") as string;
 
-  const { error } = await supabase
-    .from("invoices")
-    .update({ status })
-    .eq("id", id);
+  assertSupabaseOk(
+    await supabase
+      .from("invoices")
+      .update({ status })
+      .eq("id", id)
+  );
 
-  if (error) throw new Error(error.message);
   revalidatePath("/invoices");
   revalidatePath(`/invoices/${id}`);
-}
+}, "updateInvoiceStatusAction");
