@@ -81,7 +81,29 @@ export function MfaSetup(): React.JSX.Element {
     }
 
     if (data) {
-      setQrUri(data.totp.uri);
+      // Rewrite the TOTP URI so iOS Passwords matches the correct entry.
+      // iOS matches on issuer + account, and the issuer must match the
+      // domain of the saved password entry.
+      const originalUri = data.totp.uri;
+      const url = new URL(originalUri);
+      const secret = url.searchParams.get("secret") ?? "";
+      const period = url.searchParams.get("period") ?? "30";
+      const digits = url.searchParams.get("digits") ?? "6";
+      const algorithm = url.searchParams.get("algorithm") ?? "SHA1";
+
+      // Get user email for the account label
+      const { data: userData } = await supabase.auth.getUser();
+      const email = userData.user?.email ?? "user";
+
+      // Build URI in the format iOS expects:
+      // otpauth://totp/{issuer}:{account}?secret=...&issuer={issuer}
+      const issuer = "stint.malcom.io";
+      const rewrittenUri =
+        `otpauth://totp/${encodeURIComponent(issuer)}:${encodeURIComponent(email)}` +
+        `?secret=${secret}&issuer=${encodeURIComponent(issuer)}` +
+        `&period=${period}&digits=${digits}&algorithm=${algorithm}`;
+
+      setQrUri(rewrittenUri);
       setFactorId(data.id);
       setStep("verifying");
     }
