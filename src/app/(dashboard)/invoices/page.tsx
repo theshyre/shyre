@@ -1,4 +1,5 @@
 import { createClient } from "@/lib/supabase/server";
+import { getOrgContext } from "@/lib/org-context";
 import { getTranslations } from "next-intl/server";
 import Link from "next/link";
 import { FileText, Plus } from "lucide-react";
@@ -7,11 +8,13 @@ import { formatCurrency } from "@/lib/invoice-utils";
 
 export default async function InvoicesPage(): Promise<React.JSX.Element> {
   const supabase = await createClient();
+  const { orgId } = await getOrgContext();
   const t = await getTranslations("invoices");
 
   const { data: invoices } = await supabase
     .from("invoices")
     .select("*, clients(name)")
+    .eq("organization_id", orgId)
     .order("created_at", { ascending: false });
 
   return (

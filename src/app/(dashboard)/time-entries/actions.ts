@@ -34,7 +34,7 @@ export async function createTimeEntryAction(formData: FormData): Promise<void> {
 
 export async function updateTimeEntryAction(formData: FormData): Promise<void> {
   const supabase = await createClient();
-  await getOrgContext();
+  const { orgId } = await getOrgContext();
 
   const id = formData.get("id") as string;
   const description = (formData.get("description") as string) || null;
@@ -53,6 +53,7 @@ export async function updateTimeEntryAction(formData: FormData): Promise<void> {
       billable,
       github_issue,
     })
+    .eq("organization_id", orgId)
     .eq("id", id);
 
   if (error) throw new Error(error.message);
@@ -62,11 +63,11 @@ export async function updateTimeEntryAction(formData: FormData): Promise<void> {
 
 export async function deleteTimeEntryAction(formData: FormData): Promise<void> {
   const supabase = await createClient();
-  await getOrgContext();
+  const { orgId } = await getOrgContext();
 
   const id = formData.get("id") as string;
 
-  const { error } = await supabase.from("time_entries").delete().eq("id", id);
+  const { error } = await supabase.from("time_entries").delete().eq("organization_id", orgId).eq("id", id);
 
   if (error) throw new Error(error.message);
   revalidatePath("/time-entries");
@@ -96,13 +97,14 @@ export async function startTimerAction(formData: FormData): Promise<void> {
 
 export async function stopTimerAction(formData: FormData): Promise<void> {
   const supabase = await createClient();
-  await getOrgContext();
+  const { orgId } = await getOrgContext();
 
   const id = formData.get("id") as string;
 
   const { error } = await supabase
     .from("time_entries")
     .update({ end_time: new Date().toISOString() })
+    .eq("organization_id", orgId)
     .eq("id", id);
 
   if (error) throw new Error(error.message);

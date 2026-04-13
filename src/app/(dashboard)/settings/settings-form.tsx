@@ -22,9 +22,9 @@ import {
   kbdClass,
 } from "@/lib/form-styles";
 import { useTheme } from "@/components/theme-provider";
-import { updateSettingsAction } from "./actions";
+import { updateOrgSettingsAction, updateUserSettingsAction } from "./actions";
 
-interface UserSettings {
+interface OrgSettings {
   business_name: string | null;
   business_email: string | null;
   business_address: string | null;
@@ -33,10 +33,13 @@ interface UserSettings {
   invoice_prefix: string | null;
   invoice_next_num: number | null;
   tax_rate: number | null;
+}
+
+interface UserSettings {
   github_token: string | null;
 }
 
-const DEFAULTS: UserSettings = {
+const ORG_DEFAULTS: OrgSettings = {
   business_name: null,
   business_email: null,
   business_address: null,
@@ -45,7 +48,6 @@ const DEFAULTS: UserSettings = {
   invoice_prefix: "INV",
   invoice_next_num: 1,
   tax_rate: 0,
-  github_token: null,
 };
 
 const THEME_OPTIONS = [
@@ -56,24 +58,30 @@ const THEME_OPTIONS = [
 ] as const;
 
 export function SettingsForm({
-  settings,
+  orgSettings,
+  userSettings,
+  role,
 }: {
-  settings: UserSettings | null;
+  orgSettings: OrgSettings | null;
+  userSettings: UserSettings | null;
+  role: string;
 }): React.JSX.Element {
   const t = useTranslations("settings");
   const { theme, setTheme } = useTheme();
-  const [saved, setSaved] = useState(false);
+  const [orgSaved, setOrgSaved] = useState(false);
+  const [userSaved, setUserSaved] = useState(false);
 
-  const current = settings ?? DEFAULTS;
+  const org = orgSettings ?? ORG_DEFAULTS;
+  const isAdmin = role === "owner" || role === "admin";
 
   return (
     <div className="mt-6 space-y-8">
-      {/* Business Information */}
+      {/* Org Settings — Business Info + Defaults */}
       <form
         action={async (formData) => {
-          await updateSettingsAction(formData);
-          setSaved(true);
-          setTimeout(() => setSaved(false), 3000);
+          await updateOrgSettingsAction(formData);
+          setOrgSaved(true);
+          setTimeout(() => setOrgSaved(false), 3000);
         }}
         className="space-y-6"
       >
@@ -86,108 +94,122 @@ export function SettingsForm({
           </div>
           <div className="grid gap-3 sm:grid-cols-2">
             <div>
-              <label className={labelClass}>
-                {t("fields.businessName")}
-              </label>
+              <label className={labelClass}>{t("fields.businessName")}</label>
               <input
                 name="business_name"
-                defaultValue={current.business_name ?? ""}
+                defaultValue={org.business_name ?? ""}
+                disabled={!isAdmin}
                 className={inputClass}
               />
             </div>
             <div>
-              <label className={labelClass}>
-                {t("fields.businessEmail")}
-              </label>
+              <label className={labelClass}>{t("fields.businessEmail")}</label>
               <input
                 name="business_email"
                 type="email"
-                defaultValue={current.business_email ?? ""}
+                defaultValue={org.business_email ?? ""}
+                disabled={!isAdmin}
                 className={inputClass}
               />
             </div>
             <div>
-              <label className={labelClass}>
-                {t("fields.businessPhone")}
-              </label>
+              <label className={labelClass}>{t("fields.businessPhone")}</label>
               <input
                 name="business_phone"
-                defaultValue={current.business_phone ?? ""}
+                defaultValue={org.business_phone ?? ""}
+                disabled={!isAdmin}
                 className={inputClass}
               />
             </div>
             <div>
-              <label className={labelClass}>
-                {t("fields.businessAddress")}
-              </label>
+              <label className={labelClass}>{t("fields.businessAddress")}</label>
               <input
                 name="business_address"
-                defaultValue={current.business_address ?? ""}
+                defaultValue={org.business_address ?? ""}
+                disabled={!isAdmin}
                 className={inputClass}
               />
             </div>
           </div>
         </section>
 
-        {/* Defaults */}
         <section className="rounded-lg border border-edge bg-surface-raised p-4 space-y-3">
           <h2 className="text-sm font-semibold uppercase tracking-wider text-content-muted mb-2">
             {t("sections.defaults")}
           </h2>
           <div className="grid gap-3 sm:grid-cols-3">
             <div>
-              <label className={labelClass}>
-                {t("fields.defaultRate")}
-              </label>
+              <label className={labelClass}>{t("fields.defaultRate")}</label>
               <input
                 name="default_rate"
                 type="number"
                 step="0.01"
                 min="0"
-                defaultValue={current.default_rate ?? 0}
+                defaultValue={org.default_rate ?? 0}
+                disabled={!isAdmin}
                 className={inputClass}
               />
             </div>
             <div>
-              <label className={labelClass}>
-                {t("fields.invoicePrefix")}
-              </label>
+              <label className={labelClass}>{t("fields.invoicePrefix")}</label>
               <input
                 name="invoice_prefix"
-                defaultValue={current.invoice_prefix ?? "INV"}
+                defaultValue={org.invoice_prefix ?? "INV"}
+                disabled={!isAdmin}
                 className={inputClass}
               />
             </div>
             <div>
-              <label className={labelClass}>
-                {t("fields.invoiceNextNum")}
-              </label>
+              <label className={labelClass}>{t("fields.invoiceNextNum")}</label>
               <input
                 name="invoice_next_num"
                 type="number"
                 min="1"
-                defaultValue={current.invoice_next_num ?? 1}
+                defaultValue={org.invoice_next_num ?? 1}
+                disabled={!isAdmin}
                 className={inputClass}
               />
             </div>
             <div>
-              <label className={labelClass}>
-                {t("fields.taxRate")}
-              </label>
+              <label className={labelClass}>{t("fields.taxRate")}</label>
               <input
                 name="tax_rate"
                 type="number"
                 step="0.01"
                 min="0"
                 max="100"
-                defaultValue={current.tax_rate ?? 0}
+                defaultValue={org.tax_rate ?? 0}
+                disabled={!isAdmin}
                 className={inputClass}
               />
             </div>
           </div>
         </section>
 
-        {/* Integrations */}
+        {isAdmin && (
+          <div className="flex items-center gap-3">
+            <button type="submit" className={buttonPrimaryClass}>
+              <kbd className={kbdClass}>⌘S</kbd>
+              {t("saveSettings")}
+            </button>
+            {orgSaved && (
+              <span className="flex items-center gap-1.5 text-sm text-success">
+                <CheckCircle size={14} />
+                {t("saved")}
+              </span>
+            )}
+          </div>
+        )}
+      </form>
+
+      {/* User Settings — GitHub Token */}
+      <form
+        action={async (formData) => {
+          await updateUserSettingsAction(formData);
+          setUserSaved(true);
+          setTimeout(() => setUserSaved(false), 3000);
+        }}
+      >
         <section className="rounded-lg border border-edge bg-surface-raised p-4 space-y-3">
           <div className="flex items-center gap-2 mb-2">
             <Link2 size={18} className="text-accent" />
@@ -196,37 +218,33 @@ export function SettingsForm({
             </h2>
           </div>
           <div>
-            <label className={labelClass}>
-              {t("fields.githubToken")}
-            </label>
+            <label className={labelClass}>{t("fields.githubToken")}</label>
             <input
               name="github_token"
               type="password"
               placeholder={t("fields.githubTokenPlaceholder")}
-              defaultValue={current.github_token ?? ""}
+              defaultValue={userSettings?.github_token ?? ""}
               className={inputClass}
             />
             <p className="mt-1 text-xs text-content-muted">
               {t("fields.githubTokenHelp")}
             </p>
           </div>
+          <div className="flex items-center gap-3">
+            <button type="submit" className={buttonSecondaryClass}>
+              {t("saveSettings")}
+            </button>
+            {userSaved && (
+              <span className="flex items-center gap-1.5 text-sm text-success">
+                <CheckCircle size={14} />
+                {t("saved")}
+              </span>
+            )}
+          </div>
         </section>
-
-        <div className="flex items-center gap-3">
-          <button type="submit" className={buttonPrimaryClass}>
-            <kbd className={kbdClass}>⌘S</kbd>
-            {t("saveSettings")}
-          </button>
-          {saved && (
-            <span className="flex items-center gap-1.5 text-sm text-success">
-              <CheckCircle size={14} />
-              {t("saved")}
-            </span>
-          )}
-        </div>
       </form>
 
-      {/* Appearance — client-only, not part of the server form */}
+      {/* Appearance */}
       <section className="rounded-lg border border-edge bg-surface-raised p-4 space-y-3">
         <div className="flex items-center gap-2 mb-2">
           <Palette size={18} className="text-accent" />

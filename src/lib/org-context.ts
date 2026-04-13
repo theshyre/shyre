@@ -6,9 +6,18 @@ export interface OrgContext {
   orgId: string;
   orgName: string;
   orgSlug: string;
+  isPersonalOrg: boolean;
   userId: string;
   userEmail: string;
   role: "owner" | "admin" | "member";
+}
+
+export interface OrgListItem {
+  id: string;
+  name: string;
+  slug: string;
+  role: string;
+  isPersonal: boolean;
 }
 
 const ORG_COOKIE = "stint-org-id";
@@ -35,7 +44,7 @@ export async function getOrgContext(): Promise<OrgContext> {
   if (storedOrgId) {
     const { data } = await supabase
       .from("organization_members")
-      .select("organization_id, role, organizations(id, name, slug)")
+      .select("organization_id, role, organizations(id, name, slug, is_personal)")
       .eq("user_id", user.id)
       .eq("organization_id", storedOrgId)
       .single();
@@ -45,7 +54,7 @@ export async function getOrgContext(): Promise<OrgContext> {
   if (!membership) {
     const { data } = await supabase
       .from("organization_members")
-      .select("organization_id, role, organizations(id, name, slug)")
+      .select("organization_id, role, organizations(id, name, slug, is_personal)")
       .eq("user_id", user.id)
       .order("joined_at", { ascending: true })
       .limit(1)
@@ -54,7 +63,6 @@ export async function getOrgContext(): Promise<OrgContext> {
   }
 
   if (!membership) {
-    // User has no org — this shouldn't happen (trigger creates one on signup)
     redirect("/login");
   }
 
@@ -62,7 +70,12 @@ export async function getOrgContext(): Promise<OrgContext> {
     membership.organizations &&
     typeof membership.organizations === "object" &&
     "id" in membership.organizations
-      ? (membership.organizations as unknown as { id: string; name: string; slug: string })
+      ? (membership.organizations as unknown as {
+          id: string;
+          name: string;
+          slug: string;
+          is_personal: boolean;
+        })
       : null;
 
   if (!org) redirect("/login");
@@ -71,6 +84,7 @@ export async function getOrgContext(): Promise<OrgContext> {
     orgId: org.id,
     orgName: org.name,
     orgSlug: org.slug,
+    isPersonalOrg: org.is_personal,
     userId: user.id,
     userEmail: user.email ?? "",
     role: membership.role as "owner" | "admin" | "member",
@@ -80,9 +94,7 @@ export async function getOrgContext(): Promise<OrgContext> {
 /**
  * Get all organizations the current user belongs to.
  */
-export async function getUserOrgs(): Promise<
-  Array<{ id: string; name: string; slug: string; role: string }>
-> {
+export async function getUserOrgs(): Promise<OrgListItem[]> {
   const supabase = await createClient();
   const {
     data: { user },
@@ -92,7 +104,7 @@ export async function getUserOrgs(): Promise<
 
   const { data } = await supabase
     .from("organization_members")
-    .select("role, organizations(id, name, slug)")
+    .select("role, organizations(id, name, slug, is_personal)")
     .eq("user_id", user.id)
     .order("joined_at", { ascending: true });
 
@@ -102,10 +114,21 @@ export async function getUserOrgs(): Promise<
         m.organizations &&
         typeof m.organizations === "object" &&
         "id" in m.organizations
-          ? (m.organizations as unknown as { id: string; name: string; slug: string })
+          ? (m.organizations as unknown as {
+              id: string;
+              name: string;
+              slug: string;
+              is_personal: boolean;
+            })
           : null;
       if (!org) return null;
-      return { id: org.id, name: org.name, slug: org.slug, role: m.role };
+      return {
+        id: org.id,
+        name: org.name,
+        slug: org.slug,
+        role: m.role,
+        isPersonal: org.is_personal,
+      };
     })
     .filter((x): x is NonNullable<typeof x> => x !== null);
 }

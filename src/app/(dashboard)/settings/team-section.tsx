@@ -12,6 +12,9 @@ import {
   X,
   Clock,
   Mail,
+  AlertTriangle,
+  LogOut,
+  Trash2,
 } from "lucide-react";
 import {
   inputClass,
@@ -27,12 +30,14 @@ import {
   revokeInviteAction,
   updateOrgNameAction,
 } from "./team-actions";
+import { leaveOrgAction, deleteOrgAction } from "../organizations/actions";
 
 interface Member {
   id: string;
   user_id: string;
   role: string;
   joined_at: string;
+  user_profiles: { display_name: string | null }[] | { display_name: string | null } | null;
 }
 
 interface Invite {
@@ -46,6 +51,7 @@ interface Invite {
 interface TeamSectionProps {
   orgName: string;
   orgId: string;
+  isPersonalOrg: boolean;
   currentRole: string;
   currentUserId: string;
   members: Member[];
@@ -67,12 +73,16 @@ const ROLE_COLORS: Record<string, string> = {
 export function TeamSection({
   orgName,
   orgId,
+  isPersonalOrg,
   currentRole,
   currentUserId,
   members,
   invites,
 }: TeamSectionProps): React.JSX.Element {
   const [inviteOpen, setInviteOpen] = useState(false);
+  const [deleteConfirmName, setDeleteConfirmName] = useState("");
+  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
+  const tc = useTranslations("common");
   const isAdmin = currentRole === "owner" || currentRole === "admin";
 
   return (
@@ -158,7 +168,7 @@ export function TeamSection({
               onClick={() => setInviteOpen(false)}
               className={buttonSecondaryClass}
             >
-              Cancel
+              {tc("actions.cancel")}
             </button>
           </form>
         )}
@@ -169,6 +179,12 @@ export function TeamSection({
             const RoleIcon = ROLE_ICONS[member.role] ?? User;
             const roleColor = ROLE_COLORS[member.role] ?? ROLE_COLORS.member;
             const isSelf = member.user_id === currentUserId;
+            const profileRaw = member.user_profiles;
+            const profile = Array.isArray(profileRaw) ? profileRaw[0] : profileRaw;
+            const displayName = profile && typeof profile === "object" && "display_name" in profile
+              ? (profile as { display_name: string | null }).display_name
+              : null;
+
             return (
               <li
                 key={member.id}
@@ -182,7 +198,7 @@ export function TeamSection({
                   </div>
                   <div>
                     <p className="text-sm font-medium text-content">
-                      {member.user_id.slice(0, 8)}...
+                      {displayName ?? member.user_id.slice(0, 8) + "..."}
                       {isSelf && (
                         <span className="ml-2 text-xs text-content-muted">
                           (you)
@@ -267,6 +283,110 @@ export function TeamSection({
           </div>
         )}
       </section>
+
+      {/* Danger Zone: Leave / Delete Org */}
+      {!isPersonalOrg && (
+        <section className="rounded-lg border border-error/30 bg-surface-raised p-4 space-y-4">
+          <div className="flex items-center gap-2 mb-2">
+            <AlertTriangle size={18} className="text-error" />
+            <h2 className="text-sm font-semibold uppercase tracking-wider text-error">
+              {tc("org.dangerZone")}
+            </h2>
+          </div>
+
+          {/* Leave org (non-owners, or owners with multiple owners) */}
+          {currentRole !== "owner" && (
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-sm font-medium text-content">
+                  {tc("org.leave")}
+                </p>
+                <p className="text-xs text-content-muted">
+                  You will lose access to all data in this organization.
+                </p>
+              </div>
+              <form action={leaveOrgAction}>
+                <input type="hidden" name="org_id" value={orgId} />
+                <button
+                  type="submit"
+                  className={buttonDangerClass}
+                  onClick={(e) => {
+                    if (!confirm(tc("org.leaveConfirm", { name: orgName }))) {
+                      e.preventDefault();
+                    }
+                  }}
+                >
+                  <LogOut size={16} />
+                  {tc("org.leave")}
+                </button>
+              </form>
+            </div>
+          )}
+
+          {/* Delete org (owners only) */}
+          {currentRole === "owner" && (
+            <div>
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="text-sm font-medium text-content">
+                    {tc("org.delete")}
+                  </p>
+                  <p className="text-xs text-content-muted">
+                    This will permanently delete all data, members, and settings.
+                  </p>
+                </div>
+                <button
+                  onClick={() => setShowDeleteConfirm(!showDeleteConfirm)}
+                  className={buttonDangerClass}
+                >
+                  <Trash2 size={16} />
+                  {tc("org.delete")}
+                </button>
+              </div>
+
+              {showDeleteConfirm && (
+                <form
+                  action={deleteOrgAction}
+                  className="mt-3 rounded-lg border border-error/30 bg-error-soft p-4 space-y-3"
+                >
+                  <input type="hidden" name="org_id" value={orgId} />
+                  <p className="text-sm text-content">
+                    {tc("org.deleteConfirm", { name: orgName })}
+                  </p>
+                  <input
+                    name="confirm_name"
+                    value={deleteConfirmName}
+                    onChange={(e) => setDeleteConfirmName(e.target.value)}
+                    placeholder={orgName}
+                    className={inputClass}
+                    autoFocus
+                  />
+                  <div className="flex gap-2">
+                    <button
+                      type="submit"
+                      disabled={deleteConfirmName !== orgName}
+                      className={`${buttonDangerClass} disabled:opacity-30`}
+                    >
+                      <Trash2 size={14} />
+                      Permanently Delete
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setShowDeleteConfirm(false);
+                        setDeleteConfirmName("");
+                      }}
+                      className={buttonSecondaryClass}
+                    >
+                      {tc("actions.cancel")}
+                    </button>
+                  </div>
+                </form>
+              )}
+            </div>
+          )}
+        </section>
+      )}
     </div>
   );
 }

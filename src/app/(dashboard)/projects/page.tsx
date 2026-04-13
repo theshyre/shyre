@@ -1,4 +1,5 @@
 import { createClient } from "@/lib/supabase/server";
+import { getOrgContext } from "@/lib/org-context";
 import { getTranslations } from "next-intl/server";
 import Link from "next/link";
 import { FolderKanban } from "lucide-react";
@@ -6,18 +7,21 @@ import { NewProjectForm } from "./new-project-form";
 
 export default async function ProjectsPage(): Promise<React.JSX.Element> {
   const supabase = await createClient();
+  const { orgId } = await getOrgContext();
   const t = await getTranslations("projects");
   const tc = await getTranslations("common");
 
   const { data: projects } = await supabase
     .from("projects")
     .select("*, clients(name)")
+    .eq("organization_id", orgId)
     .neq("status", "archived")
     .order("created_at", { ascending: false });
 
   const { data: clients } = await supabase
     .from("clients")
     .select("id, name")
+    .eq("organization_id", orgId)
     .eq("archived", false)
     .order("name");
 

@@ -1,4 +1,5 @@
 import { createClient } from "@/lib/supabase/server";
+import { getOrgContext } from "@/lib/org-context";
 import { getTranslations } from "next-intl/server";
 import { BarChart3 } from "lucide-react";
 import { formatCurrency } from "@/lib/invoice-utils";
@@ -23,23 +24,22 @@ interface ProjectSummary {
 
 export default async function ReportsPage(): Promise<React.JSX.Element> {
   const supabase = await createClient();
+  const { orgId } = await getOrgContext();
   const t = await getTranslations("reports");
 
   // Fetch all time entries with project and client info
   const { data: entries } = await supabase
     .from("time_entries")
     .select("duration_min, billable, projects(name, hourly_rate, clients(name, default_rate))")
+    .eq("organization_id", orgId)
     .not("end_time", "is", null)
     .not("duration_min", "is", null);
 
-  // Get user's default rate
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
+  // Get org's default rate
   const { data: settings } = await supabase
-    .from("user_settings")
+    .from("organization_settings")
     .select("default_rate")
-    .eq("user_id", user?.id ?? "")
+    .eq("organization_id", orgId)
     .single();
   const defaultRate = settings?.default_rate ? Number(settings.default_rate) : 0;
 

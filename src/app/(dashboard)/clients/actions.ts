@@ -31,7 +31,7 @@ export async function createClientAction(formData: FormData): Promise<void> {
 
 export async function updateClientAction(formData: FormData): Promise<void> {
   const supabase = await createClient();
-  await getOrgContext();
+  const { orgId } = await getOrgContext();
 
   const id = formData.get("id") as string;
   const name = formData.get("name") as string;
@@ -44,6 +44,7 @@ export async function updateClientAction(formData: FormData): Promise<void> {
   const { error } = await supabase
     .from("clients")
     .update({ name, email, address, notes, default_rate })
+    .eq("organization_id", orgId)
     .eq("id", id);
 
   if (error) throw new Error(error.message);
@@ -53,13 +54,14 @@ export async function updateClientAction(formData: FormData): Promise<void> {
 
 export async function archiveClientAction(formData: FormData): Promise<void> {
   const supabase = await createClient();
-  await getOrgContext();
+  const { orgId } = await getOrgContext();
 
   const id = formData.get("id") as string;
 
   const { error } = await supabase
     .from("clients")
     .update({ archived: true })
+    .eq("organization_id", orgId)
     .eq("id", id);
 
   if (error) throw new Error(error.message);

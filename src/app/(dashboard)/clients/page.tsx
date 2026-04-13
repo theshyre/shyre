@@ -1,4 +1,5 @@
 import { createClient } from "@/lib/supabase/server";
+import { getOrgContext } from "@/lib/org-context";
 import { getTranslations } from "next-intl/server";
 import Link from "next/link";
 import { Users } from "lucide-react";
@@ -7,12 +8,14 @@ import { ArchiveButton } from "./archive-button";
 
 export default async function ClientsPage(): Promise<React.JSX.Element> {
   const supabase = await createClient();
+  const { orgId } = await getOrgContext();
   const t = await getTranslations("clients");
   const tc = await getTranslations("common");
 
   const { data: clients } = await supabase
     .from("clients")
     .select("*")
+    .eq("organization_id", orgId)
     .eq("archived", false)
     .order("name");
 

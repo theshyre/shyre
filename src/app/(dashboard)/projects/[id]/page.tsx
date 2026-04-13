@@ -1,4 +1,5 @@
 import { createClient } from "@/lib/supabase/server";
+import { getOrgContext } from "@/lib/org-context";
 import { getTranslations } from "next-intl/server";
 import { notFound } from "next/navigation";
 import { Clock, Hash, ExternalLink } from "lucide-react";
@@ -17,11 +18,13 @@ export default async function ProjectDetailPage({
 }): Promise<React.JSX.Element> {
   const { id } = await params;
   const supabase = await createClient();
+  const { orgId } = await getOrgContext();
   const t = await getTranslations("projects");
 
   const { data: project } = await supabase
     .from("projects")
     .select("*, clients(name)")
+    .eq("organization_id", orgId)
     .eq("id", id)
     .single();
 
@@ -30,6 +33,7 @@ export default async function ProjectDetailPage({
   const { data: timeEntries } = await supabase
     .from("time_entries")
     .select("*")
+    .eq("organization_id", orgId)
     .eq("project_id", id)
     .order("start_time", { ascending: false });
 

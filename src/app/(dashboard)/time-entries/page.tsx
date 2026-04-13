@@ -1,4 +1,5 @@
 import { createClient } from "@/lib/supabase/server";
+import { getOrgContext } from "@/lib/org-context";
 import { getTranslations } from "next-intl/server";
 import Link from "next/link";
 import { List, CheckCircle, Circle } from "lucide-react";
@@ -6,18 +7,21 @@ import { NewTimeEntryForm } from "./new-time-entry-form";
 
 export default async function TimeEntriesPage(): Promise<React.JSX.Element> {
   const supabase = await createClient();
+  const { orgId } = await getOrgContext();
   const t = await getTranslations("time");
   const tc = await getTranslations("common");
 
   const { data: entries } = await supabase
     .from("time_entries")
     .select("*, projects(name)")
+    .eq("organization_id", orgId)
     .order("start_time", { ascending: false })
     .limit(50);
 
   const { data: projects } = await supabase
     .from("projects")
     .select("id, name, github_repo")
+    .eq("organization_id", orgId)
     .eq("status", "active")
     .order("name");
 

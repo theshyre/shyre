@@ -1,26 +1,25 @@
 import { createClient } from "@/lib/supabase/server";
+import { getOrgContext } from "@/lib/org-context";
 import { getTranslations } from "next-intl/server";
 import { FileText } from "lucide-react";
 import { NewInvoiceForm } from "./new-invoice-form";
 
 export default async function NewInvoicePage(): Promise<React.JSX.Element> {
   const supabase = await createClient();
+  const { orgId } = await getOrgContext();
   const t = await getTranslations("invoices");
-
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
 
   const { data: clients } = await supabase
     .from("clients")
     .select("id, name, default_rate")
+    .eq("organization_id", orgId)
     .eq("archived", false)
     .order("name");
 
   const { data: settings } = await supabase
-    .from("user_settings")
+    .from("organization_settings")
     .select("invoice_prefix, invoice_next_num, tax_rate, default_rate")
-    .eq("user_id", user?.id ?? "")
+    .eq("organization_id", orgId)
     .single();
 
   return (

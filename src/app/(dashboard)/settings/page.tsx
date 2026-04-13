@@ -10,16 +10,24 @@ export default async function SettingsPage(): Promise<React.JSX.Element> {
   const ctx = await getOrgContext();
   const t = await getTranslations("settings");
 
-  const { data: settings } = await supabase
+  // Org-scoped settings (business info, rates)
+  const { data: orgSettings } = await supabase
+    .from("organization_settings")
+    .select("*")
+    .eq("organization_id", ctx.orgId)
+    .single();
+
+  // User-scoped settings (github token)
+  const { data: userSettings } = await supabase
     .from("user_settings")
     .select("*")
     .eq("user_id", ctx.userId)
     .single();
 
-  // Fetch org members
+  // Fetch org members with profiles
   const { data: members } = await supabase
     .from("organization_members")
-    .select("id, user_id, role, joined_at")
+    .select("id, user_id, role, joined_at, user_profiles(display_name)")
     .eq("organization_id", ctx.orgId)
     .order("joined_at");
 
@@ -38,11 +46,16 @@ export default async function SettingsPage(): Promise<React.JSX.Element> {
         <h1 className="text-2xl font-bold text-content">{t("title")}</h1>
       </div>
 
-      <SettingsForm settings={settings} />
+      <SettingsForm
+        orgSettings={orgSettings}
+        userSettings={userSettings}
+        role={ctx.role}
+      />
 
       <TeamSection
         orgName={ctx.orgName}
         orgId={ctx.orgId}
+        isPersonalOrg={ctx.isPersonalOrg}
         currentRole={ctx.role}
         currentUserId={ctx.userId}
         members={members ?? []}

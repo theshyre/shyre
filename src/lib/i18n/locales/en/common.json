@@ -39,5 +39,17 @@
   },
   "confirm": {
     "archive": "Archive this {item}?"
+  },
+  "org": {
+    "create": "Create Organization",
+    "leave": "Leave Organization",
+    "delete": "Delete Organization",
+    "personal": "Personal",
+    "namePlaceholder": "Organization name",
+    "leaveConfirm": "Are you sure you want to leave {name}?",
+    "deleteConfirm": "Type \"{name}\" to confirm deletion",
+    "cannotDeletePersonal": "Your personal organization cannot be deleted.",
+    "cannotLeaveOwner": "Transfer ownership before leaving.",
+    "dangerZone": "Danger Zone"
   }
 }

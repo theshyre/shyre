@@ -35,7 +35,7 @@ export async function createProjectAction(formData: FormData): Promise<void> {
 
 export async function updateProjectAction(formData: FormData): Promise<void> {
   const supabase = await createClient();
-  await getOrgContext();
+  const { orgId } = await getOrgContext();
 
   const id = formData.get("id") as string;
   const name = formData.get("name") as string;
@@ -50,6 +50,7 @@ export async function updateProjectAction(formData: FormData): Promise<void> {
   const { error } = await supabase
     .from("projects")
     .update({ name, description, hourly_rate, budget_hours, github_repo, status })
+    .eq("organization_id", orgId)
     .eq("id", id);
 
   if (error) throw new Error(error.message);

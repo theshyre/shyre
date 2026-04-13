@@ -22,11 +22,11 @@ export async function createInvoiceAction(formData: FormData): Promise<void> {
   const taxRateStr = formData.get("tax_rate") as string;
   const taxRate = taxRateStr ? parseFloat(taxRateStr) : 0;
 
-  // Get user settings for invoice number
+  // Get org settings for invoice number
   const { data: settings } = await supabase
-    .from("user_settings")
+    .from("organization_settings")
     .select("invoice_prefix, invoice_next_num, default_rate")
-    .eq("user_id", userId)
+    .eq("organization_id", orgId)
     .single();
 
   const prefix = settings?.invoice_prefix ?? "INV";
@@ -132,13 +132,14 @@ export async function createInvoiceAction(formData: FormData): Promise<void> {
   await supabase
     .from("time_entries")
     .update({ invoiced: true, invoice_id: invoice.id })
+    .eq("organization_id", orgId)
     .in("id", entryIds);
 
   // Increment invoice number
   await supabase
-    .from("user_settings")
+    .from("organization_settings")
     .update({ invoice_next_num: nextNum + 1 })
-    .eq("user_id", userId);
+    .eq("organization_id", orgId);
 
   revalidatePath("/invoices");
   revalidatePath("/time-entries");
@@ -149,7 +150,7 @@ export async function updateInvoiceStatusAction(
   formData: FormData
 ): Promise<void> {
   const supabase = await createClient();
-  await getOrgContext();
+  const { orgId } = await getOrgContext();
 
   const id = formData.get("id") as string;
   const status = formData.get("status") as string;
@@ -157,6 +158,7 @@ export async function updateInvoiceStatusAction(
   const { error } = await supabase
     .from("invoices")
     .update({ status })
+    .eq("organization_id", orgId)
     .eq("id", id);
 
   if (error) throw new Error(error.message);
