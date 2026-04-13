@@ -6,8 +6,12 @@ import {
   inputClass,
   textareaClass,
   labelClass,
-  buttonPrimaryClass,
 } from "@/lib/form-styles";
+import { useFormAction } from "@/hooks/use-form-action";
+import { AddressFields } from "@/components/AddressFields";
+import { FieldError } from "@/components/FieldError";
+import { SubmitButton } from "@/components/SubmitButton";
+import { deserializeAddress } from "@/lib/schemas/address";
 import { updateClientAction } from "../actions";
 
 interface Client {
@@ -26,14 +30,27 @@ export function ClientEditForm({
 }): React.JSX.Element {
   const t = useTranslations("clients");
 
+  const { pending, success, serverError, fieldErrors, handleSubmit } =
+    useFormAction({
+      action: updateClientAction,
+    });
+
+  const address = deserializeAddress(client.address);
+
   return (
-    <form action={updateClientAction} className="space-y-4">
+    <form action={handleSubmit} className="space-y-4">
       <input type="hidden" name="id" value={client.id} />
 
       <div className="flex items-center gap-3">
         <Users size={24} className="text-accent" />
         <h1 className="text-2xl font-bold text-content">{t("editTitle")}</h1>
       </div>
+
+      {serverError && (
+        <p className="text-sm text-error bg-error-soft rounded-lg px-3 py-2">
+          {serverError}
+        </p>
+      )}
 
       <div className="rounded-lg border border-edge bg-surface-raised p-4 space-y-3">
         <div className="grid gap-3 sm:grid-cols-2">
@@ -45,6 +62,7 @@ export function ClientEditForm({
               defaultValue={client.name}
               className={inputClass}
             />
+            <FieldError error={fieldErrors.name} />
           </div>
           <div>
             <label className={labelClass}>{t("fields.email")}</label>
@@ -54,6 +72,7 @@ export function ClientEditForm({
               defaultValue={client.email ?? ""}
               className={inputClass}
             />
+            <FieldError error={fieldErrors.email} />
           </div>
           <div>
             <label className={labelClass}>{t("fields.defaultRate")}</label>
@@ -65,16 +84,17 @@ export function ClientEditForm({
               defaultValue={client.default_rate ?? ""}
               className={inputClass}
             />
-          </div>
-          <div>
-            <label className={labelClass}>{t("fields.address")}</label>
-            <input
-              name="address"
-              defaultValue={client.address ?? ""}
-              className={inputClass}
-            />
+            <FieldError error={fieldErrors.default_rate} />
           </div>
         </div>
+
+        <AddressFields
+          prefix="address"
+          value={address}
+          label={t("fields.address")}
+          errors={fieldErrors}
+        />
+
         <div>
           <label className={labelClass}>{t("fields.notes")}</label>
           <textarea
@@ -86,9 +106,12 @@ export function ClientEditForm({
         </div>
       </div>
 
-      <button type="submit" className={buttonPrimaryClass}>
-        {t("saveChanges")}
-      </button>
+      <SubmitButton
+        label={t("saveChanges")}
+        pending={pending}
+        success={success}
+        successMessage="Saved"
+      />
     </form>
   );
 }
