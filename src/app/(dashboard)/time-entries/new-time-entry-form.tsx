@@ -1,12 +1,14 @@
 "use client";
 
-import { useState } from "react";
+import { useCallback, useState } from "react";
 import { useTranslations } from "next-intl";
 import { Plus } from "lucide-react";
+import { useKeyboardShortcut } from "@/hooks/use-keyboard-shortcut";
 import {
   inputClass,
   labelClass,
   selectClass,
+  kbdClass,
   buttonPrimaryClass,
   buttonSecondaryClass,
 } from "@/lib/form-styles";
@@ -33,6 +35,12 @@ export function NewTimeEntryForm({
   const selectedProject = projects.find((p) => p.id === selectedProjectId);
   const linkedRepo = selectedProject?.github_repo ?? null;
 
+  useKeyboardShortcut({
+    key: "n",
+    onTrigger: useCallback(() => setOpen(true), []),
+    enabled: !open,
+  });
+
   if (!open) {
     return (
       <button
@@ -41,6 +49,7 @@ export function NewTimeEntryForm({
       >
         <Plus size={16} />
         {t("addEntry")}
+        <kbd className={kbdClass}>N</kbd>
       </button>
     );
   }

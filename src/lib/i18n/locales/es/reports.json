@@ -1,0 +1,28 @@
+{
+  "title": "Informes",
+  "period": {
+    "thisWeek": "Esta Semana",
+    "thisMonth": "Este Mes",
+    "lastMonth": "Mes Pasado",
+    "thisYear": "Este Año"
+  },
+  "sections": {
+    "byClient": "Horas por Cliente",
+    "byProject": "Horas por Proyecto",
+    "revenue": "Resumen de Ingresos"
+  },
+  "table": {
+    "name": "Nombre",
+    "hours": "Horas",
+    "billableHours": "Horas Facturables",
+    "revenue": "Ingresos",
+    "entries": "Registros"
+  },
+  "totals": {
+    "total": "Total",
+    "totalHours": "Total de Horas",
+    "totalRevenue": "Total de Ingresos",
+    "billablePercent": "% Facturable"
+  },
+  "noData": "No hay registros de tiempo para este período."
+}

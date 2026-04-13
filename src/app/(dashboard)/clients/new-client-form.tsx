@@ -1,12 +1,14 @@
 "use client";
 
-import { useState } from "react";
+import { useCallback, useState } from "react";
 import { useTranslations } from "next-intl";
 import { Plus } from "lucide-react";
+import { useKeyboardShortcut } from "@/hooks/use-keyboard-shortcut";
 import {
   inputClass,
   textareaClass,
   labelClass,
+  kbdClass,
   buttonPrimaryClass,
   buttonSecondaryClass,
 } from "@/lib/form-styles";
@@ -17,6 +19,12 @@ export function NewClientForm(): React.JSX.Element {
   const t = useTranslations("clients");
   const tc = useTranslations("common");
 
+  useKeyboardShortcut({
+    key: "n",
+    onTrigger: useCallback(() => setOpen(true), []),
+    enabled: !open,
+  });
+
   if (!open) {
     return (
       <button
@@ -25,6 +33,7 @@ export function NewClientForm(): React.JSX.Element {
       >
         <Plus size={16} />
         {t("addClient")}
+        <kbd className={kbdClass}>N</kbd>
       </button>
     );
   }

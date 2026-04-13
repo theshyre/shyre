@@ -1,0 +1,28 @@
+{
+  "title": "Reports",
+  "period": {
+    "thisWeek": "This Week",
+    "thisMonth": "This Month",
+    "lastMonth": "Last Month",
+    "thisYear": "This Year"
+  },
+  "sections": {
+    "byClient": "Hours by Client",
+    "byProject": "Hours by Project",
+    "revenue": "Revenue Summary"
+  },
+  "table": {
+    "name": "Name",
+    "hours": "Hours",
+    "billableHours": "Billable Hours",
+    "revenue": "Revenue",
+    "entries": "Entries"
+  },
+  "totals": {
+    "total": "Total",
+    "totalHours": "Total Hours",
+    "totalRevenue": "Total Revenue",
+    "billablePercent": "Billable %"
+  },
+  "noData": "No time entries for this period."
+}

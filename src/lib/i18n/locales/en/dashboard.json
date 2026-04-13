@@ -1,5 +1,17 @@
 {
   "title": "Dashboard",
   "welcomeBack": "Welcome back, {email}",
-  "getStarted": "Start by adding your first client in the Clients section."
+  "getStarted": "Start by adding your first client in the Clients section.",
+  "stats": {
+    "todayHours": "Today's Hours",
+    "weekHours": "This Week",
+    "activeTimers": "Active Timers",
+    "unbilledHours": "Unbilled Hours",
+    "totalClients": "Clients",
+    "totalProjects": "Active Projects"
+  },
+  "recentActivity": "Recent Activity",
+  "noRecentActivity": "No recent time entries.",
+  "quickActions": "Quick Actions",
+  "viewAll": "View All"
 }

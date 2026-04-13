@@ -1,13 +1,15 @@
 "use client";
 
-import { useState } from "react";
+import { useCallback, useState } from "react";
 import { useTranslations } from "next-intl";
 import { Plus } from "lucide-react";
+import { useKeyboardShortcut } from "@/hooks/use-keyboard-shortcut";
 import {
   inputClass,
   textareaClass,
   labelClass,
   selectClass,
+  kbdClass,
   buttonPrimaryClass,
   buttonSecondaryClass,
 } from "@/lib/form-styles";
@@ -27,6 +29,12 @@ export function NewProjectForm({
   const t = useTranslations("projects");
   const tc = useTranslations("common");
 
+  useKeyboardShortcut({
+    key: "n",
+    onTrigger: useCallback(() => setOpen(true), []),
+    enabled: !open,
+  });
+
   if (!open) {
     return (
       <button
@@ -35,6 +43,7 @@ export function NewProjectForm({
       >
         <Plus size={16} />
         {t("addProject")}
+        <kbd className={kbdClass}>N</kbd>
       </button>
     );
   }

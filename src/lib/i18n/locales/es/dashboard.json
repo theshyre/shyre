@@ -1,5 +1,17 @@
 {
   "title": "Panel",
   "welcomeBack": "Bienvenido de nuevo, {email}",
-  "getStarted": "Comienza agregando tu primer cliente en la sección de Clientes."
+  "getStarted": "Comienza agregando tu primer cliente en la sección de Clientes.",
+  "stats": {
+    "todayHours": "Horas de Hoy",
+    "weekHours": "Esta Semana",
+    "activeTimers": "Cronómetros Activos",
+    "unbilledHours": "Horas No Facturadas",
+    "totalClients": "Clientes",
+    "totalProjects": "Proyectos Activos"
+  },
+  "recentActivity": "Actividad Reciente",
+  "noRecentActivity": "No hay registros de tiempo recientes.",
+  "quickActions": "Acciones Rápidas",
+  "viewAll": "Ver Todo"
 }
