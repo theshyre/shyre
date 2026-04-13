@@ -1,4 +1,5 @@
 import { createClient } from "@/lib/supabase/server";
+import { getTranslations } from "next-intl/server";
 import Link from "next/link";
 import { Users } from "lucide-react";
 import { NewClientForm } from "./new-client-form";
@@ -6,6 +7,9 @@ import { ArchiveButton } from "./archive-button";
 
 export default async function ClientsPage(): Promise<React.JSX.Element> {
   const supabase = await createClient();
+  const t = await getTranslations("clients");
+  const tc = await getTranslations("common");
+
   const { data: clients } = await supabase
     .from("clients")
     .select("*")
@@ -16,7 +20,7 @@ export default async function ClientsPage(): Promise<React.JSX.Element> {
     <div>
       <div className="flex items-center gap-3">
         <Users size={24} className="text-accent" />
-        <h1 className="text-2xl font-bold text-content">Clients</h1>
+        <h1 className="text-2xl font-bold text-content">{t("title")}</h1>
       </div>
 
       <NewClientForm />
@@ -27,16 +31,16 @@ export default async function ClientsPage(): Promise<React.JSX.Element> {
             <thead>
               <tr className="border-b border-edge bg-surface-inset">
                 <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider text-content-muted">
-                  Name
+                  {tc("table.name")}
                 </th>
                 <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider text-content-muted">
-                  Email
+                  {tc("table.email")}
                 </th>
                 <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider text-content-muted">
-                  Default Rate
+                  {t("table.defaultRate")}
                 </th>
                 <th className="px-4 py-3 text-right text-xs font-semibold uppercase tracking-wider text-content-muted">
-                  Actions
+                  {tc("table.actions")}
                 </th>
               </tr>
             </thead>
@@ -72,7 +76,7 @@ export default async function ClientsPage(): Promise<React.JSX.Element> {
         </div>
       ) : (
         <p className="mt-6 text-sm text-content-muted">
-          No clients yet. Add one above to get started.
+          {t("noClients")}
         </p>
       )}
     </div>

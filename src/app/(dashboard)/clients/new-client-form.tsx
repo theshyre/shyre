@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { useTranslations } from "next-intl";
 import { Plus } from "lucide-react";
 import {
   inputClass,
@@ -13,6 +14,8 @@ import { createClientAction } from "./actions";
 
 export function NewClientForm(): React.JSX.Element {
   const [open, setOpen] = useState(false);
+  const t = useTranslations("clients");
+  const tc = useTranslations("common");
 
   if (!open) {
     return (
@@ -21,7 +24,7 @@ export function NewClientForm(): React.JSX.Element {
         className={`${buttonPrimaryClass} mt-4`}
       >
         <Plus size={16} />
-        Add Client
+        {t("addClient")}
       </button>
     );
   }
@@ -36,15 +39,15 @@ export function NewClientForm(): React.JSX.Element {
     >
       <div className="grid gap-3 sm:grid-cols-2">
         <div>
-          <label className={labelClass}>Name *</label>
+          <label className={labelClass}>{t("fields.name")} *</label>
           <input name="name" required className={inputClass} />
         </div>
         <div>
-          <label className={labelClass}>Email</label>
+          <label className={labelClass}>{t("fields.email")}</label>
           <input name="email" type="email" className={inputClass} />
         </div>
         <div>
-          <label className={labelClass}>Default Rate ($/hr)</label>
+          <label className={labelClass}>{t("fields.defaultRate")}</label>
           <input
             name="default_rate"
             type="number"
@@ -54,24 +57,24 @@ export function NewClientForm(): React.JSX.Element {
           />
         </div>
         <div>
-          <label className={labelClass}>Address</label>
+          <label className={labelClass}>{t("fields.address")}</label>
           <input name="address" className={inputClass} />
         </div>
       </div>
       <div>
-        <label className={labelClass}>Notes</label>
+        <label className={labelClass}>{t("fields.notes")}</label>
         <textarea name="notes" rows={2} className={textareaClass} />
       </div>
       <div className="flex gap-2">
         <button type="submit" className={buttonPrimaryClass}>
-          Save Client
+          {t("saveClient")}
         </button>
         <button
           type="button"
           onClick={() => setOpen(false)}
           className={buttonSecondaryClass}
         >
-          Cancel
+          {tc("actions.cancel")}
         </button>
       </div>
     </form>

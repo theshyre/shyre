@@ -1,5 +1,6 @@
 "use client";
 
+import { useTranslations } from "next-intl";
 import { Archive } from "lucide-react";
 import { buttonDangerClass } from "@/lib/form-styles";
 import { archiveClientAction } from "./actions";
@@ -9,6 +10,8 @@ export function ArchiveButton({
 }: {
   clientId: string;
 }): React.JSX.Element {
+  const tc = useTranslations("common");
+
   return (
     <form action={archiveClientAction}>
       <input type="hidden" name="id" value={clientId} />
@@ -16,13 +19,13 @@ export function ArchiveButton({
         type="submit"
         className={buttonDangerClass}
         onClick={(e) => {
-          if (!confirm("Archive this client?")) {
+          if (!confirm(tc("confirm.archive", { item: "client" }))) {
             e.preventDefault();
           }
         }}
       >
         <Archive size={14} />
-        Archive
+        {tc("actions.archive")}
       </button>
     </form>
   );

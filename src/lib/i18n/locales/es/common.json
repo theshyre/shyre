@@ -1,0 +1,43 @@
+{
+  "appName": "Stint",
+  "appTagline": "Control de tiempo y facturación",
+  "nav": {
+    "dashboard": "Panel",
+    "timer": "Cronómetro",
+    "timeEntries": "Registros de tiempo",
+    "clients": "Clientes",
+    "projects": "Proyectos",
+    "invoices": "Facturas",
+    "reports": "Informes",
+    "settings": "Configuración"
+  },
+  "actions": {
+    "save": "Guardar",
+    "cancel": "Cancelar",
+    "delete": "Eliminar",
+    "archive": "Archivar",
+    "edit": "Editar",
+    "create": "Crear",
+    "signOut": "Cerrar sesión"
+  },
+  "status": {
+    "active": "Activo",
+    "paused": "Pausado",
+    "completed": "Completado",
+    "archived": "Archivado",
+    "draft": "Borrador",
+    "sent": "Enviado",
+    "paid": "Pagado",
+    "overdue": "Vencido",
+    "void": "Anulado"
+  },
+  "table": {
+    "name": "Nombre",
+    "email": "Correo electrónico",
+    "actions": "Acciones",
+    "noData": "No hay datos para mostrar."
+  },
+  "confirm": {
+    "archive": "¿Archivar este {item}?"
+  }
+}

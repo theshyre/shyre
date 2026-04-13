@@ -1,0 +1,22 @@
+{
+  "title": "Clientes",
+  "editTitle": "Editar Cliente",
+  "addClient": "Agregar Cliente",
+  "saveClient": "Guardar Cliente",
+  "saveChanges": "Guardar Cambios",
+  "noClients": "Aún no hay clientes. Agrega uno arriba para comenzar.",
+  "fields": {
+    "name": "Nombre",
+    "email": "Correo electrónico",
+    "address": "Dirección",
+    "notes": "Notas",
+    "defaultRate": "Tarifa por defecto ($/hr)"
+  },
+  "table": {
+    "defaultRate": "Tarifa por defecto"
+  },
+  "projects": {
+    "title": "Proyectos",
+    "noProjects": "Aún no hay proyectos para este cliente."
+  }
+}

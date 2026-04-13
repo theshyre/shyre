@@ -1,0 +1,43 @@
+{
+  "appName": "Stint",
+  "appTagline": "Time tracking & invoicing",
+  "nav": {
+    "dashboard": "Dashboard",
+    "timer": "Timer",
+    "timeEntries": "Time Entries",
+    "clients": "Clients",
+    "projects": "Projects",
+    "invoices": "Invoices",
+    "reports": "Reports",
+    "settings": "Settings"
+  },
+  "actions": {
+    "save": "Save",
+    "cancel": "Cancel",
+    "delete": "Delete",
+    "archive": "Archive",
+    "edit": "Edit",
+    "create": "Create",
+    "signOut": "Sign Out"
+  },
+  "status": {
+    "active": "Active",
+    "paused": "Paused",
+    "completed": "Completed",
+    "archived": "Archived",
+    "draft": "Draft",
+    "sent": "Sent",
+    "paid": "Paid",
+    "overdue": "Overdue",
+    "void": "Void"
+  },
+  "table": {
+    "name": "Name",
+    "email": "Email",
+    "actions": "Actions",
+    "noData": "No data to display."
+  },
+  "confirm": {
+    "archive": "Archive this {item}?"
+  }
+}

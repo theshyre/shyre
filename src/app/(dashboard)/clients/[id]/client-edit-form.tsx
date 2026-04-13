@@ -1,5 +1,6 @@
 "use client";
 
+import { useTranslations } from "next-intl";
 import { Users } from "lucide-react";
 import {
   inputClass,
@@ -23,19 +24,21 @@ export function ClientEditForm({
 }: {
   client: Client;
 }): React.JSX.Element {
+  const t = useTranslations("clients");
+
   return (
     <form action={updateClientAction} className="space-y-4">
       <input type="hidden" name="id" value={client.id} />
 
       <div className="flex items-center gap-3">
         <Users size={24} className="text-accent" />
-        <h1 className="text-2xl font-bold text-content">Edit Client</h1>
+        <h1 className="text-2xl font-bold text-content">{t("editTitle")}</h1>
       </div>
 
       <div className="rounded-lg border border-edge bg-surface-raised p-4 space-y-3">
         <div className="grid gap-3 sm:grid-cols-2">
           <div>
-            <label className={labelClass}>Name *</label>
+            <label className={labelClass}>{t("fields.name")} *</label>
             <input
               name="name"
               required
@@ -44,7 +47,7 @@ export function ClientEditForm({
             />
           </div>
           <div>
-            <label className={labelClass}>Email</label>
+            <label className={labelClass}>{t("fields.email")}</label>
             <input
               name="email"
               type="email"
@@ -53,7 +56,7 @@ export function ClientEditForm({
             />
           </div>
           <div>
-            <label className={labelClass}>Default Rate ($/hr)</label>
+            <label className={labelClass}>{t("fields.defaultRate")}</label>
             <input
               name="default_rate"
               type="number"
@@ -64,7 +67,7 @@ export function ClientEditForm({
             />
           </div>
           <div>
-            <label className={labelClass}>Address</label>
+            <label className={labelClass}>{t("fields.address")}</label>
             <input
               name="address"
               defaultValue={client.address ?? ""}
@@ -73,7 +76,7 @@ export function ClientEditForm({
           </div>
         </div>
         <div>
-          <label className={labelClass}>Notes</label>
+          <label className={labelClass}>{t("fields.notes")}</label>
           <textarea
             name="notes"
             rows={3}
@@ -84,7 +87,7 @@ export function ClientEditForm({
       </div>
 
       <button type="submit" className={buttonPrimaryClass}>
-        Save Changes
+        {t("saveChanges")}
       </button>
     </form>
   );

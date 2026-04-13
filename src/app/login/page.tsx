@@ -3,6 +3,7 @@
 import { createClient } from "@/lib/supabase/client";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
+import { useTranslations } from "next-intl";
 import { inputClass, labelClass, buttonPrimaryClass } from "@/lib/form-styles";
 import { LogIn, UserPlus } from "lucide-react";
 
@@ -14,6 +15,8 @@ export default function LoginPage(): React.JSX.Element {
   const [loading, setLoading] = useState(false);
   const router = useRouter();
   const supabase = createClient();
+  const t = useTranslations("auth");
+  const tc = useTranslations("common");
 
   async function handleSubmit(e: React.FormEvent): Promise<void> {
     e.preventDefault();
@@ -31,7 +34,7 @@ export default function LoginPage(): React.JSX.Element {
     }
 
     if (isSignUp) {
-      setError("Check your email for a confirmation link.");
+      setError(t("checkEmailConfirmation"));
       setLoading(false);
       return;
     }
@@ -45,17 +48,17 @@ export default function LoginPage(): React.JSX.Element {
       <div className="w-full max-w-sm space-y-8">
         <div className="text-center">
           <h1 className="text-3xl font-bold tracking-tight text-content">
-            Stint
+            {tc("appName")}
           </h1>
           <p className="mt-2 text-content-secondary">
-            Time tracking & invoicing
+            {tc("appTagline")}
           </p>
         </div>
 
         <form onSubmit={handleSubmit} className="space-y-4">
           <div>
             <label htmlFor="email" className={labelClass}>
-              Email
+              {t("email")}
             </label>
             <input
               id="email"
@@ -64,13 +67,13 @@ export default function LoginPage(): React.JSX.Element {
               value={email}
               onChange={(e) => setEmail(e.target.value)}
               className={inputClass}
-              placeholder="you@example.com"
+              placeholder={t("emailPlaceholder")}
             />
           </div>
 
           <div>
             <label htmlFor="password" className={labelClass}>
-              Password
+              {t("password")}
             </label>
             <input
               id="password"
@@ -80,7 +83,7 @@ export default function LoginPage(): React.JSX.Element {
               value={password}
               onChange={(e) => setPassword(e.target.value)}
               className={inputClass}
-              placeholder="••••••••"
+              placeholder={t("passwordPlaceholder")}
             />
           </div>
 
@@ -96,19 +99,19 @@ export default function LoginPage(): React.JSX.Element {
             {isSignUp ? (
               <>
                 <UserPlus size={16} />
-                {loading ? "Creating account..." : "Sign Up"}
+                {loading ? t("creatingAccount") : t("signUp")}
               </>
             ) : (
               <>
                 <LogIn size={16} />
-                {loading ? "Signing in..." : "Sign In"}
+                {loading ? t("signingIn") : t("signIn")}
               </>
             )}
           </button>
         </form>
 
         <p className="text-center text-sm text-content-secondary">
-          {isSignUp ? "Already have an account?" : "Don't have an account?"}{" "}
+          {isSignUp ? t("alreadyHaveAccount") : t("dontHaveAccount")}{" "}
           <button
             onClick={() => {
               setIsSignUp(!isSignUp);
@@ -116,7 +119,7 @@ export default function LoginPage(): React.JSX.Element {
             }}
             className="text-accent hover:underline"
           >
-            {isSignUp ? "Sign In" : "Sign Up"}
+            {isSignUp ? t("signIn") : t("signUp")}
           </button>
         </p>
       </div>

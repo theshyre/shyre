@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
+import { useTranslations } from "next-intl";
 import { createClient } from "@/lib/supabase/client";
 import {
   LayoutDashboard,
@@ -17,25 +18,26 @@ import {
 import type { ComponentType } from "react";
 
 interface NavItem {
-  label: string;
+  labelKey: string;
   href: string;
   icon: ComponentType<{ size?: number }>;
 }
 
 const nav: NavItem[] = [
-  { label: "Dashboard", href: "/", icon: LayoutDashboard },
-  { label: "Timer", href: "/timer", icon: Clock },
-  { label: "Time Entries", href: "/time-entries", icon: List },
-  { label: "Clients", href: "/clients", icon: Users },
-  { label: "Projects", href: "/projects", icon: FolderKanban },
-  { label: "Invoices", href: "/invoices", icon: FileText },
-  { label: "Reports", href: "/reports", icon: BarChart3 },
-  { label: "Settings", href: "/settings", icon: Settings },
+  { labelKey: "dashboard", href: "/", icon: LayoutDashboard },
+  { labelKey: "timer", href: "/timer", icon: Clock },
+  { labelKey: "timeEntries", href: "/time-entries", icon: List },
+  { labelKey: "clients", href: "/clients", icon: Users },
+  { labelKey: "projects", href: "/projects", icon: FolderKanban },
+  { labelKey: "invoices", href: "/invoices", icon: FileText },
+  { labelKey: "reports", href: "/reports", icon: BarChart3 },
+  { labelKey: "settings", href: "/settings", icon: Settings },
 ];
 
 export default function Sidebar(): React.JSX.Element {
   const pathname = usePathname();
   const router = useRouter();
+  const t = useTranslations("common");
   const supabase = createClient();
 
   async function handleSignOut(): Promise<void> {
@@ -48,7 +50,7 @@ export default function Sidebar(): React.JSX.Element {
     <aside className="flex h-full w-64 flex-col border-r border-edge bg-surface-raised">
       <div className="p-4">
         <Link href="/" className="text-xl font-bold tracking-tight text-content">
-          Stint
+          {t("appName")}
         </Link>
       </div>
 
@@ -70,7 +72,7 @@ export default function Sidebar(): React.JSX.Element {
               }`}
             >
               <Icon size={20} />
-              {item.label}
+              {t(`nav.${item.labelKey}`)}
             </Link>
           );
         })}
@@ -82,7 +84,7 @@ export default function Sidebar(): React.JSX.Element {
           className="flex items-center gap-3 rounded-lg px-3 py-2 text-sm font-medium text-content-muted hover:bg-hover hover:text-content transition-colors w-full"
         >
           <LogOut size={20} />
-          Sign Out
+          {t("actions.signOut")}
         </button>
       </div>
     </aside>

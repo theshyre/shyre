@@ -1,4 +1,5 @@
 import { createClient } from "@/lib/supabase/server";
+import { getTranslations } from "next-intl/server";
 import { notFound } from "next/navigation";
 import { FolderKanban } from "lucide-react";
 import { ClientEditForm } from "./client-edit-form";
@@ -10,6 +11,7 @@ export default async function ClientDetailPage({
 }): Promise<React.JSX.Element> {
   const { id } = await params;
   const supabase = await createClient();
+  const t = await getTranslations("clients");
 
   const { data: client } = await supabase
     .from("clients")
@@ -32,7 +34,9 @@ export default async function ClientDetailPage({
       <div className="mt-8">
         <div className="flex items-center gap-3">
           <FolderKanban size={20} className="text-accent" />
-          <h2 className="text-lg font-semibold text-content">Projects</h2>
+          <h2 className="text-lg font-semibold text-content">
+            {t("projects.title")}
+          </h2>
         </div>
         {projects && projects.length > 0 ? (
           <ul className="mt-3 space-y-2">
@@ -59,7 +63,7 @@ export default async function ClientDetailPage({
           </ul>
         ) : (
           <p className="mt-3 text-sm text-content-muted">
-            No projects yet for this client.
+            {t("projects.noProjects")}
           </p>
         )}
       </div>
