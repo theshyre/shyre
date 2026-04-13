@@ -14,9 +14,13 @@ import {
   BarChart3,
   Settings,
   LogOut,
+  Building2,
+  ChevronDown,
 } from "lucide-react";
+import { useState } from "react";
 import type { ComponentType } from "react";
 import Timer from "./Timer";
+import { switchOrgAction } from "@/app/(dashboard)/switch-org/actions";
 
 interface NavItem {
   labelKey: string;
@@ -35,11 +39,24 @@ const nav: NavItem[] = [
   { labelKey: "settings", href: "/settings", icon: Settings },
 ];
 
-export default function Sidebar(): React.JSX.Element {
+interface SidebarProps {
+  orgName: string;
+  orgId: string;
+  role: string;
+  orgs: Array<{ id: string; name: string; slug: string; role: string }>;
+}
+
+export default function Sidebar({
+  orgName,
+  orgId,
+  role,
+  orgs,
+}: SidebarProps): React.JSX.Element {
   const pathname = usePathname();
   const router = useRouter();
   const t = useTranslations("common");
   const supabase = createClient();
+  const [orgDropdownOpen, setOrgDropdownOpen] = useState(false);
 
   async function handleSignOut(): Promise<void> {
     await supabase.auth.signOut();
@@ -49,13 +66,48 @@ export default function Sidebar(): React.JSX.Element {
 
   return (
     <aside className="flex h-full w-64 flex-col border-r border-edge bg-surface-raised">
-      <div className="p-4">
-        <Link href="/" className="text-xl font-bold tracking-tight text-content">
-          {t("appName")}
-        </Link>
+      {/* Org switcher */}
+      <div className="relative p-4 border-b border-edge">
+        <button
+          onClick={() => setOrgDropdownOpen(!orgDropdownOpen)}
+          className="flex items-center gap-2 w-full rounded-lg px-2 py-1.5 text-left hover:bg-hover transition-colors"
+        >
+          <Building2 size={18} className="text-accent shrink-0" />
+          <span className="text-sm font-semibold text-content truncate flex-1">
+            {orgName}
+          </span>
+          {orgs.length > 1 && (
+            <ChevronDown size={14} className="text-content-muted shrink-0" />
+          )}
+        </button>
+
+        {orgDropdownOpen && orgs.length > 1 && (
+          <div className="absolute left-2 right-2 top-full z-30 mt-1 rounded-lg border border-edge bg-surface-raised shadow-lg">
+            {orgs.map((org) => (
+              <form key={org.id} action={switchOrgAction}>
+                <input type="hidden" name="org_id" value={org.id} />
+                <button
+                  type="submit"
+                  className={`flex items-center gap-2 w-full px-3 py-2 text-sm text-left transition-colors ${
+                    org.id === orgId
+                      ? "bg-accent-soft text-accent-text"
+                      : "text-content-secondary hover:bg-hover"
+                  }`}
+                  onClick={() => setOrgDropdownOpen(false)}
+                >
+                  <Building2 size={14} />
+                  <span className="truncate">{org.name}</span>
+                  <span className="ml-auto text-xs text-content-muted">
+                    {org.role}
+                  </span>
+                </button>
+              </form>
+            ))}
+          </div>
+        )}
       </div>
 
-      <nav className="flex-1 space-y-1 px-3">
+      <nav className="flex-1 space-y-1 px-3 py-3">
         {nav.map((item) => {
           const isActive =
             item.href === "/"

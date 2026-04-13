@@ -1,4 +1,5 @@
 import { createClient } from "@/lib/supabase/server";
+import { getOrgContext } from "@/lib/org-context";
 import { getTranslations } from "next-intl/server";
 import Link from "next/link";
 import {
@@ -16,12 +17,9 @@ import { buttonPrimaryClass, kbdClass } from "@/lib/form-styles";
 
 export default async function DashboardPage(): Promise<React.JSX.Element> {
   const supabase = await createClient();
+  const { userEmail, orgName } = await getOrgContext();
   const t = await getTranslations("dashboard");
   const tc = await getTranslations("common");
-
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
 
   // Get today's start/end
   const now = new Date();
@@ -138,7 +136,7 @@ export default async function DashboardPage(): Promise<React.JSX.Element> {
           <div>
             <h1 className="text-2xl font-bold text-content">{t("title")}</h1>
             <p className="text-sm text-content-secondary">
-              {t("welcomeBack", { email: user?.email ?? "" })}
+              {t("welcomeBack", { email: userEmail })}
             </p>
           </div>
         </div>

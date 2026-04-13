@@ -1,6 +1,7 @@
 "use server";
 
 import { createClient } from "@/lib/supabase/server";
+import { getOrgContext } from "@/lib/org-context";
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import {
@@ -13,10 +14,7 @@ import type { LineItemResult } from "@/lib/invoice-utils";
 
 export async function createInvoiceAction(formData: FormData): Promise<void> {
   const supabase = await createClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
-  if (!user) redirect("/login");
+  const { orgId, userId } = await getOrgContext();
 
   const client_id = formData.get("client_id") as string;
   const notes = (formData.get("notes") as string) || null;
@@ -28,17 +26,18 @@ export async function createInvoiceAction(formData: FormData): Promise<void> {
   const { data: settings } = await supabase
     .from("user_settings")
     .select("invoice_prefix, invoice_next_num, default_rate")
-    .eq("user_id", user.id)
+    .eq("user_id", userId)
     .single();
 
   const prefix = settings?.invoice_prefix ?? "INV";
   const nextNum = settings?.invoice_next_num ?? 1;
   const defaultRate = settings?.default_rate ? Number(settings.default_rate) : 0;
 
-  // Get unbilled time entries for this client
+  // Get unbilled time entries for this client's projects
   const { data: entries } = await supabase
     .from("time_entries")
     .select("id, description, duration_min, project_id, projects(name, hourly_rate, client_id, clients(default_rate))")
+    .eq("organization_id", orgId)
     .eq("invoiced", false)
     .eq("billable", true)
     .not("end_time", "is", null)
@@ -93,7 +92,8 @@ export async function createInvoiceAction(formData: FormData): Promise<void> {
   const { data: invoice, error: invoiceError } = await supabase
     .from("invoices")
     .insert({
-      user_id: user.id,
+      organization_id: orgId,
+      user_id: userId,
       client_id,
       invoice_number: invoiceNumber,
       due_date: due_date || null,
@@ -138,7 +138,7 @@ export async function createInvoiceAction(formData: FormData): Promise<void> {
   await supabase
     .from("user_settings")
     .update({ invoice_next_num: nextNum + 1 })
-    .eq("user_id", user.id);
+    .eq("user_id", userId);
 
   revalidatePath("/invoices");
   revalidatePath("/time-entries");
@@ -149,6 +149,8 @@ export async function updateInvoiceStatusAction(
   formData: FormData
 ): Promise<void> {
   const supabase = await createClient();
+  await getOrgContext();
+
   const id = formData.get("id") as string;
   const status = formData.get("status") as string;
 

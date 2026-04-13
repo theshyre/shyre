@@ -1,6 +1,43 @@
 # Database Schema
 
-All tables live in the `public` schema with Row-Level Security (RLS) enabled. Every table (except `invoice_line_items`) has a `user_id` column scoped to `auth.uid()`.
+All tables live in the `public` schema with Row-Level Security (RLS) enabled. The app is **multi-tenant** — data tables have an `organization_id` column and RLS policies check org membership via `user_has_org_access(org_id)`.
+
+## Multi-tenancy
+
+### `organizations`
+| Column | Type | Notes |
+|--------|------|-------|
+| id | UUID (PK) | `gen_random_uuid()` |
+| name | TEXT | Required |
+| slug | TEXT | Unique, auto-generated |
+| created_at | TIMESTAMPTZ | |
+
+### `organization_members`
+| Column | Type | Notes |
+|--------|------|-------|
+| id | UUID (PK) | |
+| organization_id | UUID | References `organizations(id)` CASCADE |
+| user_id | UUID | References `auth.users(id)` CASCADE |
+| role | TEXT | `owner\|admin\|member` |
+| joined_at | TIMESTAMPTZ | |
+
+Unique constraint on `(organization_id, user_id)`.
+
+### `organization_invites`
+| Column | Type | Notes |
+|--------|------|-------|
+| id | UUID (PK) | |
+| organization_id | UUID | References `organizations(id)` CASCADE |
+| email | TEXT | Invitee email |
+| role | TEXT | `admin\|member` |
+| invited_by | UUID | References `auth.users(id)` |
+| token | TEXT | Unique, auto-generated |
+| expires_at | TIMESTAMPTZ | Default: 7 days |
+| accepted_at | TIMESTAMPTZ | NULL until accepted |
+
+### Helper functions
+- `user_has_org_access(org_id)` — returns true if `auth.uid()` is a member of the org
+- `user_org_role(org_id)` — returns the user's role in the org
 
 ## Tables
 

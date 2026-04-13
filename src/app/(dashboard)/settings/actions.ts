@@ -1,15 +1,12 @@
 "use server";
 
 import { createClient } from "@/lib/supabase/server";
+import { getOrgContext } from "@/lib/org-context";
 import { revalidatePath } from "next/cache";
-import { redirect } from "next/navigation";
 
 export async function updateSettingsAction(formData: FormData): Promise<void> {
   const supabase = await createClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
-  if (!user) redirect("/login");
+  const { orgId, userId } = await getOrgContext();
 
   const business_name = (formData.get("business_name") as string) || null;
   const business_email = (formData.get("business_email") as string) || null;
@@ -27,7 +24,8 @@ export async function updateSettingsAction(formData: FormData): Promise<void> {
   const { error } = await supabase
     .from("user_settings")
     .upsert({
-      user_id: user.id,
+      user_id: userId,
+      organization_id: orgId,
       business_name,
       business_email,
       business_address,

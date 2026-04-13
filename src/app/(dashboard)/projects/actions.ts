@@ -1,15 +1,12 @@
 "use server";
 
 import { createClient } from "@/lib/supabase/server";
+import { getOrgContext } from "@/lib/org-context";
 import { revalidatePath } from "next/cache";
-import { redirect } from "next/navigation";
 
 export async function createProjectAction(formData: FormData): Promise<void> {
   const supabase = await createClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
-  if (!user) redirect("/login");
+  const { orgId, userId } = await getOrgContext();
 
   const name = formData.get("name") as string;
   const client_id = formData.get("client_id") as string;
@@ -21,7 +18,8 @@ export async function createProjectAction(formData: FormData): Promise<void> {
   const github_repo = (formData.get("github_repo") as string) || null;
 
   const { error } = await supabase.from("projects").insert({
-    user_id: user.id,
+    organization_id: orgId,
+    user_id: userId,
     client_id,
     name,
     description,
@@ -37,10 +35,7 @@ export async function createProjectAction(formData: FormData): Promise<void> {
 
 export async function updateProjectAction(formData: FormData): Promise<void> {
   const supabase = await createClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
-  if (!user) redirect("/login");
+  await getOrgContext();
 
   const id = formData.get("id") as string;
   const name = formData.get("name") as string;

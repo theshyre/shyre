@@ -1,15 +1,12 @@
 "use server";
 
 import { createClient } from "@/lib/supabase/server";
+import { getOrgContext } from "@/lib/org-context";
 import { revalidatePath } from "next/cache";
-import { redirect } from "next/navigation";
 
-export async function createClientAction(formData: FormData) {
+export async function createClientAction(formData: FormData): Promise<void> {
   const supabase = await createClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
-  if (!user) redirect("/login");
+  const { orgId, userId } = await getOrgContext();
 
   const name = formData.get("name") as string;
   const email = (formData.get("email") as string) || null;
@@ -19,7 +16,8 @@ export async function createClientAction(formData: FormData) {
   const default_rate = rateStr ? parseFloat(rateStr) : null;
 
   const { error } = await supabase.from("clients").insert({
-    user_id: user.id,
+    organization_id: orgId,
+    user_id: userId,
     name,
     email,
     address,
@@ -31,12 +29,9 @@ export async function createClientAction(formData: FormData) {
   revalidatePath("/clients");
 }
 
-export async function updateClientAction(formData: FormData) {
+export async function updateClientAction(formData: FormData): Promise<void> {
   const supabase = await createClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
-  if (!user) redirect("/login");
+  await getOrgContext();
 
   const id = formData.get("id") as string;
   const name = formData.get("name") as string;
@@ -56,8 +51,10 @@ export async function updateClientAction(formData: FormData) {
   revalidatePath(`/clients/${id}`);
 }
 
-export async function archiveClientAction(formData: FormData) {
+export async function archiveClientAction(formData: FormData): Promise<void> {
   const supabase = await createClient();
+  await getOrgContext();
+
   const id = formData.get("id") as string;
 
   const { error } = await supabase
