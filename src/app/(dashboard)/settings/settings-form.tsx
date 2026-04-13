@@ -13,6 +13,7 @@ import {
   Eye,
   CheckCircle,
 } from "lucide-react";
+import { MfaSetup } from "@/components/MfaSetup";
 import {
   inputClass,
   labelClass,
@@ -259,7 +260,7 @@ export function SettingsForm({
         </div>
       </section>
 
-      {/* Security / MFA placeholder */}
+      {/* Security / MFA */}
       <section className="rounded-lg border border-edge bg-surface-raised p-4 space-y-3">
         <div className="flex items-center gap-2 mb-2">
           <Shield size={18} className="text-accent" />
@@ -271,26 +272,7 @@ export function SettingsForm({
           <h3 className="text-sm font-medium text-content">
             {t("mfa.title")}
           </h3>
-          <p className="text-sm text-content-secondary mt-1">
-            {t("mfa.description")}
-          </p>
-          <div className="mt-3 flex items-center gap-2">
-            <span className="inline-flex items-center gap-1.5 rounded-full bg-warning-soft px-2.5 py-0.5 text-xs font-medium text-warning">
-              <span className="h-1.5 w-1.5 rounded-full bg-current" />
-              {t("mfa.disabled")}
-            </span>
-          </div>
-          <button
-            type="button"
-            className={`${buttonSecondaryClass} mt-3`}
-            onClick={() => {
-              // MFA enrollment flow will be implemented with Supabase MFA API
-              alert("MFA setup requires a connected Supabase project.");
-            }}
-          >
-            <Shield size={16} />
-            {t("mfa.enable")}
-          </button>
+          <MfaSetup />
         </div>
       </section>
     </div>
