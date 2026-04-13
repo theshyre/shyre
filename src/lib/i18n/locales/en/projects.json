@@ -1,0 +1,29 @@
+{
+  "title": "Projects",
+  "editTitle": "Edit Project",
+  "addProject": "Add Project",
+  "saveProject": "Save Project",
+  "saveChanges": "Save Changes",
+  "noProjects": "No projects yet. Add one above to get started.",
+  "fields": {
+    "name": "Name",
+    "description": "Description",
+    "client": "Client",
+    "hourlyRate": "Hourly Rate ($/hr)",
+    "budgetHours": "Budget Hours",
+    "githubRepo": "GitHub Repo",
+    "githubRepoPlaceholder": "owner/repo",
+    "status": "Status"
+  },
+  "table": {
+    "client": "Client",
+    "hourlyRate": "Hourly Rate",
+    "budgetHours": "Budget",
+    "status": "Status"
+  },
+  "timeEntries": {
+    "title": "Time Entries",
+    "noEntries": "No time entries yet for this project.",
+    "totalHours": "Total: {hours}h"
+  }
+}

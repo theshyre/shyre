@@ -16,6 +16,7 @@ import {
   LogOut,
 } from "lucide-react";
 import type { ComponentType } from "react";
+import Timer from "./Timer";
 
 interface NavItem {
   labelKey: string;
@@ -77,6 +78,10 @@ export default function Sidebar(): React.JSX.Element {
           );
         })}
       </nav>
+
+      <div className="border-t border-edge">
+        <Timer />
+      </div>
 
       <div className="border-t border-edge p-4">
         <button

@@ -1,0 +1,37 @@
+{
+  "title": "Registros de Tiempo",
+  "addEntry": "Agregar Registro",
+  "saveEntry": "Guardar Registro",
+  "saveChanges": "Guardar Cambios",
+  "editTitle": "Editar Registro de Tiempo",
+  "noEntries": "Aún no hay registros. Comienza a registrar tiempo para ver entradas aquí.",
+  "fields": {
+    "project": "Proyecto",
+    "description": "Descripción",
+    "descriptionPlaceholder": "¿En qué trabajaste?",
+    "startTime": "Hora de inicio",
+    "endTime": "Hora de fin",
+    "billable": "Facturable",
+    "githubIssue": "Issue de GitHub #"
+  },
+  "table": {
+    "project": "Proyecto",
+    "description": "Descripción",
+    "date": "Fecha",
+    "duration": "Duración",
+    "billable": "Facturable"
+  },
+  "timer": {
+    "title": "Cronómetro",
+    "start": "Iniciar",
+    "stop": "Detener",
+    "running": "En curso",
+    "stopped": "Detenido",
+    "selectProject": "Selecciona un proyecto",
+    "noProject": "Sin proyecto seleccionado"
+  },
+  "format": {
+    "hours": "{h}h {m}m",
+    "minutes": "{m}m"
+  }
+}

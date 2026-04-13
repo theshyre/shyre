@@ -1,0 +1,37 @@
+{
+  "title": "Time Entries",
+  "addEntry": "Add Entry",
+  "saveEntry": "Save Entry",
+  "saveChanges": "Save Changes",
+  "editTitle": "Edit Time Entry",
+  "noEntries": "No time entries yet. Start tracking time to see entries here.",
+  "fields": {
+    "project": "Project",
+    "description": "Description",
+    "descriptionPlaceholder": "What did you work on?",
+    "startTime": "Start Time",
+    "endTime": "End Time",
+    "billable": "Billable",
+    "githubIssue": "GitHub Issue #"
+  },
+  "table": {
+    "project": "Project",
+    "description": "Description",
+    "date": "Date",
+    "duration": "Duration",
+    "billable": "Billable"
+  },
+  "timer": {
+    "title": "Timer",
+    "start": "Start",
+    "stop": "Stop",
+    "running": "Running",
+    "stopped": "Stopped",
+    "selectProject": "Select a project",
+    "noProject": "No project selected"
+  },
+  "format": {
+    "hours": "{h}h {m}m",
+    "minutes": "{m}m"
+  }
+}

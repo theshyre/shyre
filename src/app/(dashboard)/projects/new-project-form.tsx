@@ -1,0 +1,113 @@
+"use client";
+
+import { useState } from "react";
+import { useTranslations } from "next-intl";
+import { Plus } from "lucide-react";
+import {
+  inputClass,
+  textareaClass,
+  labelClass,
+  selectClass,
+  buttonPrimaryClass,
+  buttonSecondaryClass,
+} from "@/lib/form-styles";
+import { createProjectAction } from "./actions";
+
+interface ClientOption {
+  id: string;
+  name: string;
+}
+
+export function NewProjectForm({
+  clients,
+}: {
+  clients: ClientOption[];
+}): React.JSX.Element {
+  const [open, setOpen] = useState(false);
+  const t = useTranslations("projects");
+  const tc = useTranslations("common");
+
+  if (!open) {
+    return (
+      <button
+        onClick={() => setOpen(true)}
+        className={`${buttonPrimaryClass} mt-4`}
+      >
+        <Plus size={16} />
+        {t("addProject")}
+      </button>
+    );
+  }
+
+  return (
+    <form
+      action={async (formData) => {
+        await createProjectAction(formData);
+        setOpen(false);
+      }}
+      className="mt-4 space-y-3 rounded-lg border border-edge bg-surface-raised p-4"
+    >
+      <div className="grid gap-3 sm:grid-cols-2">
+        <div>
+          <label className={labelClass}>{t("fields.name")} *</label>
+          <input name="name" required className={inputClass} />
+        </div>
+        <div>
+          <label className={labelClass}>{t("fields.client")} *</label>
+          <select name="client_id" required className={selectClass}>
+            <option value="">{t("fields.client")}</option>
+            {clients.map((c) => (
+              <option key={c.id} value={c.id}>
+                {c.name}
+              </option>
+            ))}
+          </select>
+        </div>
+        <div>
+          <label className={labelClass}>{t("fields.hourlyRate")}</label>
+          <input
+            name="hourly_rate"
+            type="number"
+            step="0.01"
+            min="0"
+            className={inputClass}
+          />
+        </div>
+        <div>
+          <label className={labelClass}>{t("fields.budgetHours")}</label>
+          <input
+            name="budget_hours"
+            type="number"
+            step="0.5"
+            min="0"
+            className={inputClass}
+          />
+        </div>
+        <div className="sm:col-span-2">
+          <label className={labelClass}>{t("fields.githubRepo")}</label>
+          <input
+            name="github_repo"
+            placeholder={t("fields.githubRepoPlaceholder")}
+            className={inputClass}
+          />
+        </div>
+      </div>
+      <div>
+        <label className={labelClass}>{t("fields.description")}</label>
+        <textarea name="description" rows={2} className={textareaClass} />
+      </div>
+      <div className="flex gap-2">
+        <button type="submit" className={buttonPrimaryClass}>
+          {t("saveProject")}
+        </button>
+        <button
+          type="button"
+          onClick={() => setOpen(false)}
+          className={buttonSecondaryClass}
+        >
+          {tc("actions.cancel")}
+        </button>
+      </div>
+    </form>
+  );
+}

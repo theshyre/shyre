@@ -1,0 +1,53 @@
+{
+  "title": "Settings",
+  "sections": {
+    "business": "Business Information",
+    "defaults": "Defaults",
+    "appearance": "Appearance",
+    "security": "Security",
+    "integrations": "Integrations"
+  },
+  "fields": {
+    "businessName": "Business Name",
+    "businessEmail": "Business Email",
+    "businessAddress": "Business Address",
+    "businessPhone": "Business Phone",
+    "defaultRate": "Default Hourly Rate ($/hr)",
+    "invoicePrefix": "Invoice Prefix",
+    "invoiceNextNum": "Next Invoice Number",
+    "taxRate": "Tax Rate (%)",
+    "githubToken": "GitHub Personal Access Token",
+    "githubTokenPlaceholder": "ghp_...",
+    "githubTokenHelp": "Used to fetch issues from linked repos. Stored encrypted."
+  },
+  "theme": {
+    "title": "Theme",
+    "system": "System",
+    "light": "Light",
+    "dark": "Dark",
+    "highContrast": "High Contrast"
+  },
+  "textSize": {
+    "title": "Text Size",
+    "compact": "Compact",
+    "regular": "Regular",
+    "large": "Large"
+  },
+  "mfa": {
+    "title": "Multi-Factor Authentication",
+    "description": "Add an extra layer of security to your account with TOTP-based MFA.",
+    "enabled": "MFA Enabled",
+    "disabled": "MFA Disabled",
+    "enable": "Enable MFA",
+    "disable": "Disable MFA",
+    "setupTitle": "Set Up MFA",
+    "scanQR": "Scan this QR code with your authenticator app",
+    "enterCode": "Enter the 6-digit code from your app",
+    "codePlaceholder": "000000",
+    "verify": "Verify & Enable",
+    "verified": "MFA has been enabled successfully."
+  },
+  "saveSettings": "Save Settings",
+  "restoreDefaults": "Restore Defaults",
+  "saved": "Settings saved successfully."
+}

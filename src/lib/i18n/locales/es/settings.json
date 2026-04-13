@@ -1,0 +1,53 @@
+{
+  "title": "Configuración",
+  "sections": {
+    "business": "Información del Negocio",
+    "defaults": "Valores por Defecto",
+    "appearance": "Apariencia",
+    "security": "Seguridad",
+    "integrations": "Integraciones"
+  },
+  "fields": {
+    "businessName": "Nombre del Negocio",
+    "businessEmail": "Correo del Negocio",
+    "businessAddress": "Dirección del Negocio",
+    "businessPhone": "Teléfono del Negocio",
+    "defaultRate": "Tarifa por Hora por Defecto ($/hr)",
+    "invoicePrefix": "Prefijo de Factura",
+    "invoiceNextNum": "Siguiente Número de Factura",
+    "taxRate": "Tasa de Impuesto (%)",
+    "githubToken": "Token de Acceso Personal de GitHub",
+    "githubTokenPlaceholder": "ghp_...",
+    "githubTokenHelp": "Usado para obtener issues de repos vinculados. Se almacena encriptado."
+  },
+  "theme": {
+    "title": "Tema",
+    "system": "Sistema",
+    "light": "Claro",
+    "dark": "Oscuro",
+    "highContrast": "Alto Contraste"
+  },
+  "textSize": {
+    "title": "Tamaño de Texto",
+    "compact": "Compacto",
+    "regular": "Regular",
+    "large": "Grande"
+  },
+  "mfa": {
+    "title": "Autenticación Multifactor",
+    "description": "Agrega una capa extra de seguridad a tu cuenta con MFA basado en TOTP.",
+    "enabled": "MFA Habilitado",
+    "disabled": "MFA Deshabilitado",
+    "enable": "Habilitar MFA",
+    "disable": "Deshabilitar MFA",
+    "setupTitle": "Configurar MFA",
+    "scanQR": "Escanea este código QR con tu aplicación de autenticación",
+    "enterCode": "Ingresa el código de 6 dígitos de tu aplicación",
+    "codePlaceholder": "000000",
+    "verify": "Verificar y Habilitar",
+    "verified": "MFA se ha habilitado exitosamente."
+  },
+  "saveSettings": "Guardar Configuración",
+  "restoreDefaults": "Restaurar Valores por Defecto",
+  "saved": "Configuración guardada exitosamente."
+}
