@@ -25,10 +25,19 @@ export function OrgFilter({
   const [open, setOpen] = useState(false);
   const ref = useRef<HTMLDivElement>(null);
 
-  // Hide if user has only 1 org
-  if (orgs.length <= 1) return null;
-
   const selectedOrg = orgs.find((o) => o.id === selectedOrgId);
+
+  // Single org: show as a static pill (no dropdown needed)
+  if (orgs.length === 1) {
+    const singleOrg = orgs[0];
+    return (
+      <span className="inline-flex items-center gap-1.5 rounded-full bg-surface-inset px-3 py-1 text-xs font-medium text-content-secondary">
+        <Building2 size={12} />
+        {singleOrg?.name ?? ""}
+      </span>
+    );
+  }
+
   const label = selectedOrg ? selectedOrg.name : "All";
 
   function selectOrg(orgId: string | null): void {

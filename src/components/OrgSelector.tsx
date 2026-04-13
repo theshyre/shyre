@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { Building2 } from "lucide-react";
-import { selectClass, labelClass } from "@/lib/form-styles";
+import { selectClass, inputClass, labelClass } from "@/lib/form-styles";
 import type { OrgListItem } from "@/lib/org-context";
 
 interface OrgSelectorProps {
@@ -16,9 +16,7 @@ const LAST_ORG_KEY = "stint-last-org";
 
 /**
  * Org selector for create forms.
- * - 1 org: hidden input, auto-selected
- * - Multiple orgs: visible dropdown, defaults to last-used org
- * After form submission, parent should call updateLastOrg().
+ * Always visible — shows the org name even when there's only one.
  */
 export function OrgSelector({
   orgs,
@@ -51,19 +49,33 @@ export function OrgSelector({
 
   if (orgs.length === 0) return null;
 
-  // Single org: hidden input
+  // Single org: show as read-only so user always sees where data goes
   if (orgs.length === 1) {
     const singleOrg = orgs[0];
     return (
-      <input
-        type="hidden"
-        name="organization_id"
-        value={singleOrg?.id ?? ""}
-      />
+      <div>
+        <label className={labelClass}>
+          <span className="inline-flex items-center gap-1.5">
+            <Building2 size={14} className="text-accent" />
+            {label ?? "Organization"}
+          </span>
+        </label>
+        <input
+          type="text"
+          value={singleOrg?.name ?? ""}
+          disabled
+          className={inputClass}
+        />
+        <input
+          type="hidden"
+          name="organization_id"
+          value={singleOrg?.id ?? ""}
+        />
+      </div>
     );
   }
 
-  // Multiple orgs: visible dropdown
+  // Multiple orgs: dropdown
   return (
     <div>
       <label className={labelClass}>
