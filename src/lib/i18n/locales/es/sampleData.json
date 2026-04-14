@@ -3,6 +3,7 @@
   "subtitle": "Carga clientes, proyectos y entradas de tiempo ficticias en la organización seleccionada para probar la aplicación con densidad realista. Las filas de ejemplo están marcadas y se pueden eliminar en cualquier momento sin tocar los datos reales.",
   "noOrg": "Elige una organización arriba para gestionar sus datos de ejemplo.",
   "sampleLabel": "ejemplo",
+  "expensesLabel": "Gastos",
   "entryRange": "Entradas de {first} a {last}",
   "load": {
     "title": "Cargar datos de ejemplo",

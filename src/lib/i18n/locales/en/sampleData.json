@@ -3,6 +3,7 @@
   "subtitle": "Load fabricated customers, projects, and time entries into the selected organization so you can exercise the app with realistic density. Sample rows are tagged and can be removed at any time without touching real data.",
   "noOrg": "Pick an organization above to manage its sample data.",
   "sampleLabel": "sample",
+  "expensesLabel": "Expenses",
   "entryRange": "Entries from {first} to {last}",
   "load": {
     "title": "Load sample data",

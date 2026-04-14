@@ -22,7 +22,8 @@
   "tiles": {
     "expenses": {
       "title": "Gastos",
-      "hint": "Registra gastos del negocio. Próximamente."
+      "hint": "Registra gastos del negocio.",
+      "summary": "{count, plural, =0 {Sin gastos este mes} =1 {1 gasto · {amount} este mes} other {# gastos · {amount} este mes}}"
     },
     "people": {
       "title": "Empleados y contratistas",

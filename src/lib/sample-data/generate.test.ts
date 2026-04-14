@@ -81,6 +81,32 @@ describe("generateSampleData", () => {
     }
   });
 
+  it("produces a plausible number of expenses across 12 months", () => {
+    const data = generateSampleData({ now: FIXED_NOW });
+    // 12 months × ~6-16/month, minus future-clipped = ~70-190
+    expect(data.expenses.length).toBeGreaterThan(50);
+    expect(data.expenses.length).toBeLessThan(250);
+  });
+
+  it("never produces expenses dated in the future", () => {
+    const data = generateSampleData({ now: FIXED_NOW });
+    const todayStr = FIXED_NOW.toISOString().slice(0, 10);
+    for (const e of data.expenses) {
+      expect(e.incurredOn.localeCompare(todayStr)).toBeLessThanOrEqual(0);
+    }
+  });
+
+  it("billable expenses reference a real project index", () => {
+    const data = generateSampleData({ now: FIXED_NOW });
+    for (const e of data.expenses) {
+      if (e.billable) {
+        expect(e.projectIndex).not.toBeNull();
+        expect(e.projectIndex).toBeGreaterThanOrEqual(0);
+        expect(e.projectIndex!).toBeLessThan(data.projects.length);
+      }
+    }
+  });
+
   it("skews to weekdays", () => {
     const data = generateSampleData({ now: FIXED_NOW });
     let weekday = 0;

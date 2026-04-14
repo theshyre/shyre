@@ -22,7 +22,8 @@
   "tiles": {
     "expenses": {
       "title": "Expenses",
-      "hint": "Track business expenses. Coming soon."
+      "hint": "Track business expenses.",
+      "summary": "{count, plural, =0 {No expenses yet this month} =1 {1 expense · {amount} this month} other {# expenses · {amount} this month}}"
     },
     "people": {
       "title": "Employees & contractors",

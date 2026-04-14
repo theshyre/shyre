@@ -35,10 +35,34 @@ export interface SampleEntry {
   github_issue: number | null;
 }
 
+export interface SampleExpense {
+  /** YYYY-MM-DD */
+  incurredOn: string;
+  /** Dollars (2 decimal precision). */
+  amount: number;
+  currency: string;
+  vendor: string | null;
+  category:
+    | "software"
+    | "hardware"
+    | "subscriptions"
+    | "travel"
+    | "meals"
+    | "office"
+    | "professional_services"
+    | "fees"
+    | "other";
+  description: string | null;
+  /** Index into SampleData.projects, or null for unassigned. */
+  projectIndex: number | null;
+  billable: boolean;
+}
+
 export interface SampleData {
   customers: SampleCustomer[];
   projects: SampleProject[];
   entries: SampleEntry[];
+  expenses: SampleExpense[];
 }
 
 /** mulberry32 — small, deterministic PRNG. */
@@ -267,5 +291,104 @@ export function generateSampleData(opts: { now: Date; seed?: number }): SampleDa
   // Sort chronologically so inserts write in a predictable order.
   entries.sort((a, b) => a.startIso.localeCompare(b.startIso));
 
-  return { customers, projects, entries };
+  const expenses = generateExpenses(rng, now, projects);
+
+  return { customers, projects, entries, expenses };
+}
+
+interface ExpenseTemplate {
+  readonly vendor: string | null;
+  readonly category: SampleExpense["category"];
+  readonly amountRange: readonly [number, number];
+  readonly description: string | null;
+  /** Relative likelihood weight. */
+  readonly weight: number;
+  /** Chance this expense lands on a billable project (0..1). */
+  readonly billableBias: number;
+}
+
+const EXPENSE_TEMPLATES: readonly ExpenseTemplate[] = [
+  { vendor: "GitHub", category: "subscriptions", amountRange: [21, 21], description: "Team plan", weight: 3, billableBias: 0 },
+  { vendor: "Vercel", category: "subscriptions", amountRange: [20, 60], description: "Pro hosting", weight: 3, billableBias: 0 },
+  { vendor: "Supabase", category: "subscriptions", amountRange: [25, 120], description: "Database + auth", weight: 3, billableBias: 0 },
+  { vendor: "Linear", category: "subscriptions", amountRange: [8, 16], description: "Project tracking", weight: 2, billableBias: 0 },
+  { vendor: "OpenAI", category: "software", amountRange: [20, 200], description: "API usage", weight: 4, billableBias: 0.4 },
+  { vendor: "Anthropic", category: "software", amountRange: [20, 200], description: "API usage", weight: 4, billableBias: 0.4 },
+  { vendor: "AWS", category: "software", amountRange: [40, 320], description: "Cloud infra", weight: 5, billableBias: 0.6 },
+  { vendor: "Figma", category: "software", amountRange: [12, 24], description: "Design tool", weight: 2, billableBias: 0 },
+  { vendor: "Chipotle", category: "meals", amountRange: [12, 24], description: "Working lunch", weight: 3, billableBias: 0 },
+  { vendor: "Blue Bottle", category: "meals", amountRange: [5, 14], description: "Coffee + pastry", weight: 4, billableBias: 0 },
+  { vendor: "Uber", category: "travel", amountRange: [12, 48], description: "Client meeting", weight: 2, billableBias: 0.5 },
+  { vendor: "United Airlines", category: "travel", amountRange: [250, 780], description: "Onsite trip", weight: 1, billableBias: 0.8 },
+  { vendor: "Marriott", category: "travel", amountRange: [180, 420], description: "Hotel", weight: 1, billableBias: 0.8 },
+  { vendor: "Apple", category: "hardware", amountRange: [80, 1800], description: "Equipment", weight: 1, billableBias: 0 },
+  { vendor: "Amazon", category: "office", amountRange: [18, 160], description: "Supplies", weight: 3, billableBias: 0 },
+  { vendor: "Bench", category: "professional_services", amountRange: [180, 260], description: "Bookkeeping", weight: 2, billableBias: 0 },
+  { vendor: "LegalZoom", category: "professional_services", amountRange: [40, 220], description: "Filing", weight: 1, billableBias: 0 },
+  { vendor: null, category: "fees", amountRange: [1, 35], description: "Bank / processing fees", weight: 2, billableBias: 0 },
+  { vendor: null, category: "other", amountRange: [8, 60], description: null, weight: 1, billableBias: 0 },
+];
+
+const EXPENSES_PER_MONTH_MIN = 6;
+const EXPENSES_PER_MONTH_MAX = 16;
+
+function generateExpenses(
+  rng: () => number,
+  now: Date,
+  projects: SampleProject[],
+): SampleExpense[] {
+  const expenses: SampleExpense[] = [];
+  // Project selection for billable expenses: prefer projects with a rate.
+  const billableProjects = projects
+    .map((p, i) => ({ p, i }))
+    .filter((x) => x.p.hourly_rate !== null);
+
+  const thisMonth = new Date(now.getFullYear(), now.getMonth(), 1);
+
+  for (let m = 0; m < 12; m++) {
+    const monthStart = new Date(thisMonth);
+    monthStart.setMonth(monthStart.getMonth() - m);
+    const daysInMonth = new Date(
+      monthStart.getFullYear(),
+      monthStart.getMonth() + 1,
+      0,
+    ).getDate();
+
+    const count =
+      EXPENSES_PER_MONTH_MIN +
+      Math.floor(rng() * (EXPENSES_PER_MONTH_MAX - EXPENSES_PER_MONTH_MIN + 1));
+
+    for (let i = 0; i < count; i++) {
+      const tpl = pickWeighted<ExpenseTemplate>(
+        rng,
+        EXPENSE_TEMPLATES.map((t) => [t, t.weight] as const),
+      );
+      const day = 1 + Math.floor(rng() * daysInMonth);
+      const date = new Date(monthStart.getFullYear(), monthStart.getMonth(), day);
+      if (date.getTime() > now.getTime()) continue;
+
+      const [lo, hi] = tpl.amountRange;
+      const amount = Math.round((lo + rng() * (hi - lo)) * 100) / 100;
+
+      const billable = tpl.billableBias > 0 && rng() < tpl.billableBias;
+      const projectIndex =
+        billable && billableProjects.length > 0
+          ? billableProjects[Math.floor(rng() * billableProjects.length)]!.i
+          : null;
+
+      expenses.push({
+        incurredOn: `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, "0")}-${String(date.getDate()).padStart(2, "0")}`,
+        amount,
+        currency: "USD",
+        vendor: tpl.vendor,
+        category: tpl.category,
+        description: tpl.description,
+        projectIndex,
+        billable,
+      });
+    }
+  }
+
+  expenses.sort((a, b) => a.incurredOn.localeCompare(b.incurredOn));
+  return expenses;
 }

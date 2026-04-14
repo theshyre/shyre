@@ -1,0 +1,34 @@
+{
+  "title": "Expenses",
+  "back": "Back to Business",
+  "add": "Add expense",
+  "save": "Save expense",
+  "empty": "No expenses yet. Add one to start tracking.",
+  "noOrg": "Pick an organization above to see its expenses.",
+  "noProject": "— No project —",
+  "selectCategory": "— Select category —",
+  "monthTotal": "This month · {amount}",
+  "confirmDelete": "Delete",
+  "sampleTag": "sample",
+  "billableTag": "billable",
+  "fields": {
+    "incurredOn": "Date",
+    "amount": "Amount",
+    "category": "Category",
+    "vendor": "Vendor",
+    "description": "Description",
+    "project": "Project",
+    "billable": "Billable back to a customer"
+  },
+  "categories": {
+    "software": "Software",
+    "hardware": "Hardware",
+    "subscriptions": "Subscriptions",
+    "travel": "Travel",
+    "meals": "Meals",
+    "office": "Office",
+    "professional_services": "Professional services",
+    "fees": "Fees",
+    "other": "Other"
+  }
+}

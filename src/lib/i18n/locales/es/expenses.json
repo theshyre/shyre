@@ -1,0 +1,34 @@
+{
+  "title": "Gastos",
+  "back": "Volver a Negocio",
+  "add": "Agregar gasto",
+  "save": "Guardar gasto",
+  "empty": "Aún no hay gastos. Agrega uno para empezar a registrar.",
+  "noOrg": "Elige una organización arriba para ver sus gastos.",
+  "noProject": "— Sin proyecto —",
+  "selectCategory": "— Selecciona categoría —",
+  "monthTotal": "Este mes · {amount}",
+  "confirmDelete": "Eliminar",
+  "sampleTag": "ejemplo",
+  "billableTag": "facturable",
+  "fields": {
+    "incurredOn": "Fecha",
+    "amount": "Importe",
+    "category": "Categoría",
+    "vendor": "Proveedor",
+    "description": "Descripción",
+    "project": "Proyecto",
+    "billable": "Facturable al cliente"
+  },
+  "categories": {
+    "software": "Software",
+    "hardware": "Hardware",
+    "subscriptions": "Suscripciones",
+    "travel": "Viajes",
+    "meals": "Comidas",
+    "office": "Oficina",
+    "professional_services": "Servicios profesionales",
+    "fees": "Tarifas",
+    "other": "Otro"
+  }
+}

@@ -44,6 +44,13 @@ async function deleteSampleRowsInOrg(
 ): Promise<void> {
   assertSupabaseOk(
     await supabase
+      .from("expenses")
+      .delete()
+      .eq("organization_id", orgId)
+      .eq("is_sample", true),
+  );
+  assertSupabaseOk(
+    await supabase
       .from("time_entries")
       .delete()
       .eq("organization_id", orgId)
@@ -146,10 +153,32 @@ export async function loadSampleDataAction(formData: FormData): Promise<
         );
       }
 
+      // 4. Expenses
+      const expenseInserts = data.expenses.map((e) => ({
+        user_id: userId,
+        organization_id: orgId,
+        project_id: e.projectIndex === null ? null : projectIds[e.projectIndex]!,
+        incurred_on: e.incurredOn,
+        amount: e.amount,
+        currency: e.currency,
+        vendor: e.vendor,
+        category: e.category,
+        description: e.description,
+        billable: e.billable,
+        is_sample: true,
+      }));
+      for (let i = 0; i < expenseInserts.length; i += CHUNK) {
+        assertSupabaseOk(
+          await supabase.from("expenses").insert(expenseInserts.slice(i, i + CHUNK)),
+        );
+      }
+
       revalidatePath("/admin/sample-data");
       revalidatePath("/time-entries");
       revalidatePath("/customers");
       revalidatePath("/projects");
+      revalidatePath("/business");
+      revalidatePath("/business/expenses");
     },
     "loadSampleDataAction",
   );
@@ -172,6 +201,8 @@ export async function removeSampleDataAction(formData: FormData): Promise<
       revalidatePath("/time-entries");
       revalidatePath("/customers");
       revalidatePath("/projects");
+      revalidatePath("/business");
+      revalidatePath("/business/expenses");
     },
     "removeSampleDataAction",
   );
@@ -199,6 +230,9 @@ export async function clearAllOrgDataAction(formData: FormData): Promise<
       }
 
       assertSupabaseOk(
+        await supabase.from("expenses").delete().eq("organization_id", orgId),
+      );
+      assertSupabaseOk(
         await supabase.from("time_entries").delete().eq("organization_id", orgId),
       );
       assertSupabaseOk(
@@ -212,6 +246,8 @@ export async function clearAllOrgDataAction(formData: FormData): Promise<
       revalidatePath("/time-entries");
       revalidatePath("/customers");
       revalidatePath("/projects");
+      revalidatePath("/business");
+      revalidatePath("/business/expenses");
     },
     "clearAllOrgDataAction",
   );

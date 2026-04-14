@@ -2,7 +2,7 @@ import { createClient } from "@/lib/supabase/server";
 import { getUserOrgs } from "@/lib/org-context";
 import { getTranslations } from "next-intl/server";
 import Link from "next/link";
-import { Briefcase, Pencil, Users, DollarSign } from "lucide-react";
+import { Briefcase, Pencil, Users, DollarSign, Receipt } from "lucide-react";
 import { OrgFilter } from "@/components/OrgFilter";
 import { buttonSecondaryClass } from "@/lib/form-styles";
 
@@ -43,6 +43,8 @@ export default async function BusinessPage({
   // Quick stats: customers + this month's billable hours for this org
   let customerCount = 0;
   let billableHoursThisMonth = 0;
+  let expensesThisMonthTotal = 0;
+  let expensesThisMonthCount = 0;
   if (orgId) {
     const { count } = await supabase
       .from("customers")
@@ -66,6 +68,18 @@ export default async function BusinessPage({
       0,
     );
     billableHoursThisMonth = Math.round((totalMin / 60) * 10) / 10;
+
+    const monthStartStr = `${monthStart.getFullYear()}-${String(monthStart.getMonth() + 1).padStart(2, "0")}-01`;
+    const { data: expenseRows } = await supabase
+      .from("expenses")
+      .select("amount")
+      .eq("organization_id", orgId)
+      .gte("incurred_on", monthStartStr);
+    expensesThisMonthCount = expenseRows?.length ?? 0;
+    expensesThisMonthTotal = (expenseRows ?? []).reduce(
+      (s, e) => s + Number(e.amount ?? 0),
+      0,
+    );
   }
 
   const entityKey = settings?.entity_type ? String(settings.entity_type) : null;
@@ -127,11 +141,30 @@ export default async function BusinessPage({
         </section>
       )}
 
-      {/* Future tiles */}
-      <section className="grid gap-4 sm:grid-cols-2">
-        <PlaceholderCard title={t("tiles.expenses.title")} hint={t("tiles.expenses.hint")} />
-        <PlaceholderCard title={t("tiles.people.title")} hint={t("tiles.people.hint")} />
-      </section>
+      {/* Module tiles */}
+      {orgId && (
+        <section className="grid gap-4 sm:grid-cols-2">
+          <Link
+            href={`/business/expenses?org=${orgId}`}
+            className="flex items-start gap-4 rounded-lg border border-edge bg-surface-raised p-4 hover:bg-hover transition-colors"
+          >
+            <Receipt size={20} className="text-accent shrink-0 mt-1" />
+            <div className="min-w-0">
+              <p className="text-sm font-medium text-content">{t("tiles.expenses.title")}</p>
+              <p className="mt-0.5 text-xs text-content-muted">
+                {t("tiles.expenses.summary", {
+                  count: expensesThisMonthCount,
+                  amount: new Intl.NumberFormat("en-US", {
+                    style: "currency",
+                    currency: "USD",
+                  }).format(expensesThisMonthTotal),
+                })}
+              </p>
+            </div>
+          </Link>
+          <PlaceholderCard title={t("tiles.people.title")} hint={t("tiles.people.hint")} />
+        </section>
+      )}
     </div>
   );
 }

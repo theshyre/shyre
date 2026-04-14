@@ -17,6 +17,8 @@ interface OrgCounts {
   projectsSample: number;
   entriesTotal: number;
   entriesSample: number;
+  expensesTotal: number;
+  expensesSample: number;
   firstEntryAt: string | null;
   lastEntryAt: string | null;
 }
@@ -25,7 +27,7 @@ async function fetchCounts(
   supabase: Awaited<ReturnType<typeof createClient>>,
   orgId: string,
 ): Promise<OrgCounts> {
-  const [customersTotal, customersSample, projectsTotal, projectsSample, entriesTotal, entriesSample, firstEntry, lastEntry] = await Promise.all([
+  const [customersTotal, customersSample, projectsTotal, projectsSample, entriesTotal, entriesSample, expensesTotal, expensesSample, firstEntry, lastEntry] = await Promise.all([
     supabase
       .from("customers")
       .select("id", { count: "exact", head: true })
@@ -50,6 +52,15 @@ async function fetchCounts(
       .eq("organization_id", orgId),
     supabase
       .from("time_entries")
+      .select("id", { count: "exact", head: true })
+      .eq("organization_id", orgId)
+      .eq("is_sample", true),
+    supabase
+      .from("expenses")
+      .select("id", { count: "exact", head: true })
+      .eq("organization_id", orgId),
+    supabase
+      .from("expenses")
       .select("id", { count: "exact", head: true })
       .eq("organization_id", orgId)
       .eq("is_sample", true),
@@ -76,6 +87,8 @@ async function fetchCounts(
     projectsSample: projectsSample.count ?? 0,
     entriesTotal: entriesTotal.count ?? 0,
     entriesSample: entriesSample.count ?? 0,
+    expensesTotal: expensesTotal.count ?? 0,
+    expensesSample: expensesSample.count ?? 0,
     firstEntryAt: (firstEntry.data?.start_time as string | undefined) ?? null,
     lastEntryAt: (lastEntry.data?.start_time as string | undefined) ?? null,
   };
@@ -141,6 +154,12 @@ export default async function SampleDataPage({
                 sample={counts.entriesSample}
                 tSample={t("sampleLabel")}
               />
+              <CountBlock
+                label={t("expensesLabel")}
+                total={counts.expensesTotal}
+                sample={counts.expensesSample}
+                tSample={t("sampleLabel")}
+              />
             </dl>
             <div className="text-xs text-content-muted pt-1">
               {t("entryRange", {
@@ -153,7 +172,12 @@ export default async function SampleDataPage({
           <SampleDataControls
             orgId={selectedOrgId}
             orgName={selectedOrg.name}
-            hasSample={counts.entriesSample > 0 || counts.projectsSample > 0 || counts.customersSample > 0}
+            hasSample={
+              counts.entriesSample > 0 ||
+              counts.projectsSample > 0 ||
+              counts.customersSample > 0 ||
+              counts.expensesSample > 0
+            }
           />
         </>
       )}
