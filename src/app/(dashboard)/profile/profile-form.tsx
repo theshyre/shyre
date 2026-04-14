@@ -36,6 +36,7 @@ import {
   updateProfileAction,
   updatePreferencesAction,
 } from "./actions";
+// Note: exported as `ProfileForm` — aligned with the /profile route.
 
 type Theme = "system" | "light" | "dark" | "high-contrast";
 
@@ -61,7 +62,7 @@ interface Props {
   timeFormat: string | null;
 }
 
-export function UserSettingsForm({
+export function ProfileForm({
   email,
   displayName,
   avatarUrl,

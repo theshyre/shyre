@@ -11,11 +11,14 @@ import {
   FolderKanban,
   FileText,
   BarChart3,
-  Settings,
   LogOut,
   Building2,
   Shield,
   AlertTriangle,
+  Tags,
+  Bookmark,
+  Upload,
+  User as UserIcon,
 } from "lucide-react";
 import type { ComponentType } from "react";
 import Timer from "./Timer";
@@ -32,10 +35,17 @@ interface NavSection {
 }
 
 /**
- * Nav grouped into sections:
- * - Track: daily work
- * - Manage: ongoing records
- * - Setup: infrequent configuration
+ * Nav sections (for all users):
+ * - Track  : daily work (dashboard, time tracking)
+ * - Manage : ongoing records (clients, projects, invoices, reports)
+ * - Admin  : org-level admin (organizations, security groups, categories,
+ *            templates, data import)
+ *
+ * Personal user profile lives at /profile (linked from the user identity
+ * block at the top of the sidebar).
+ *
+ * System admin is a separate section rendered below, visible only to
+ * system admins.
  */
 const sections: NavSection[] = [
   {
@@ -55,15 +65,18 @@ const sections: NavSection[] = [
     ],
   },
   {
-    titleKey: "navSections.setup",
+    titleKey: "navSections.admin",
     items: [
       { labelKey: "organizations", href: "/organizations", icon: Building2 },
-      { labelKey: "settings", href: "/settings", icon: Settings },
+      { labelKey: "securityGroups", href: "/settings/security-groups", icon: Shield },
+      { labelKey: "categories", href: "/settings/categories", icon: Tags },
+      { labelKey: "templates", href: "/settings/templates", icon: Bookmark },
+      { labelKey: "import", href: "/settings/import", icon: Upload },
     ],
   },
 ];
 
-const adminItems: NavItem[] = [
+const systemAdminItems: NavItem[] = [
   { labelKey: "adminErrors", href: "/admin/errors", icon: AlertTriangle },
   { labelKey: "adminUsers", href: "/admin/users", icon: Users },
   { labelKey: "adminOrgs", href: "/admin/organizations", icon: Building2 },
@@ -100,20 +113,30 @@ export default function Sidebar({
 
   return (
     <aside className="flex h-full w-64 flex-col border-r border-edge bg-surface-raised">
-      {/* User identity */}
-      <div className="p-4 border-b border-edge">
+      {/* User identity — clicks to /profile */}
+      <Link
+        href="/profile"
+        aria-label={t("nav.profile")}
+        className={`group p-4 border-b border-edge transition-colors hover:bg-hover ${
+          isItemActive("/profile") ? "bg-accent-soft" : ""
+        }`}
+      >
         <div className="flex items-center gap-3">
           <div className="flex h-9 w-9 items-center justify-center rounded-full bg-accent text-content-inverse text-sm font-semibold">
             {displayName.charAt(0).toUpperCase()}
           </div>
-          <div className="min-w-0">
+          <div className="min-w-0 flex-1">
             <p className="text-sm font-semibold text-content truncate">
               {displayName}
             </p>
             <p className="text-xs text-content-muted truncate">{email}</p>
           </div>
+          <UserIcon
+            size={14}
+            className="text-content-muted shrink-0 opacity-0 group-hover:opacity-100 transition-opacity"
+          />
         </div>
-      </div>
+      </Link>
 
       <nav className="flex-1 overflow-y-auto px-3 py-3 space-y-5">
         {sections.map((section, idx) => (
@@ -144,14 +167,14 @@ export default function Sidebar({
           </div>
         ))}
 
-        {/* Admin section — only visible to system admins */}
+        {/* System admin section — only visible to system admins */}
         {isAdmin && (
           <div className="space-y-1 pt-3 border-t border-edge">
             <h3 className="px-3 text-[10px] font-semibold uppercase tracking-wider text-warning mb-1 flex items-center gap-1">
               <Shield size={10} />
-              {t("navSections.admin")}
+              {t("navSections.systemAdmin")}
             </h3>
-            {adminItems.map((item) => {
+            {systemAdminItems.map((item) => {
               const Icon = item.icon;
               const isActive = isItemActive(item.href);
               const showBadge =

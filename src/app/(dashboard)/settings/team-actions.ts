@@ -30,7 +30,7 @@ export async function inviteMemberAction(formData: FormData): Promise<void> {
       })
     );
 
-    revalidatePath("/settings");
+    revalidatePath(`/organizations/${orgId}`);
   }, "inviteMemberAction") as unknown as void;
 }
 
@@ -67,7 +67,7 @@ export async function removeMemberAction(formData: FormData): Promise<void> {
         .eq("id", memberId)
     );
 
-    revalidatePath("/settings");
+    revalidatePath(`/organizations/${orgId}`);
   }, "removeMemberAction") as unknown as void;
 }
 
@@ -89,7 +89,7 @@ export async function revokeInviteAction(formData: FormData): Promise<void> {
         .eq("id", inviteId)
     );
 
-    revalidatePath("/settings");
+    revalidatePath(`/organizations/${orgId}`);
   }, "revokeInviteAction") as unknown as void;
 }
 
@@ -111,6 +111,6 @@ export async function updateOrgNameAction(formData: FormData): Promise<void> {
         .eq("id", orgId)
     );
 
-    revalidatePath("/settings");
+    revalidatePath(`/organizations/${orgId}`);
   }, "updateOrgNameAction") as unknown as void;
 }

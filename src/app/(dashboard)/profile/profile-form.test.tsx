@@ -24,7 +24,7 @@ vi.mock("@/components/theme-provider", () => ({
   }),
 }));
 
-import { UserSettingsForm } from "./user-settings-form";
+import { ProfileForm } from "./profile-form";
 
 const defaultProps = {
   email: "marcus@malcom.io",
@@ -38,9 +38,9 @@ const defaultProps = {
   timeFormat: null,
 } as const;
 
-describe("UserSettingsForm", () => {
+describe("ProfileForm", () => {
   it("renders Profile, Preferences, Security, Integrations sections", () => {
-    renderWithIntl(<UserSettingsForm {...defaultProps} />);
+    renderWithIntl(<ProfileForm {...defaultProps} />);
     expect(screen.getByRole("heading", { name: /profile/i })).toBeInTheDocument();
     expect(
       screen.getByRole("heading", { name: /preferences/i }),
@@ -52,7 +52,7 @@ describe("UserSettingsForm", () => {
   });
 
   it("renders display name + readonly email", () => {
-    renderWithIntl(<UserSettingsForm {...defaultProps} />);
+    renderWithIntl(<ProfileForm {...defaultProps} />);
     expect(screen.getByDisplayValue("Marcus")).toBeInTheDocument();
     expect(
       screen.getByDisplayValue("marcus@malcom.io"),
@@ -60,7 +60,7 @@ describe("UserSettingsForm", () => {
   });
 
   it("renders all four theme buttons", () => {
-    renderWithIntl(<UserSettingsForm {...defaultProps} />);
+    renderWithIntl(<ProfileForm {...defaultProps} />);
     expect(screen.getByRole("button", { name: /system/i })).toBeInTheDocument();
     expect(screen.getByRole("button", { name: /light/i })).toBeInTheDocument();
     expect(screen.getByRole("button", { name: /dark/i })).toBeInTheDocument();
@@ -71,14 +71,14 @@ describe("UserSettingsForm", () => {
 
   it("shows selected timezone in the select", () => {
     renderWithIntl(
-      <UserSettingsForm {...defaultProps} timezone="America/Los_Angeles" />,
+      <ProfileForm {...defaultProps} timezone="America/Los_Angeles" />,
     );
     const select = screen.getAllByRole("combobox")[0] as HTMLSelectElement;
     expect(select.value).toBe("America/Los_Angeles");
   });
 
   it("renders the Advanced link cards", () => {
-    renderWithIntl(<UserSettingsForm {...defaultProps} />);
+    renderWithIntl(<ProfileForm {...defaultProps} />);
     expect(
       screen.getByRole("link", { name: /security groups/i }),
     ).toBeInTheDocument();
@@ -96,7 +96,7 @@ describe("UserSettingsForm", () => {
   it("clicking a theme button calls updatePreferencesAction via the form", async () => {
     const { updatePreferencesAction } = await import("./actions");
     const mock = vi.mocked(updatePreferencesAction);
-    renderWithIntl(<UserSettingsForm {...defaultProps} />);
+    renderWithIntl(<ProfileForm {...defaultProps} />);
     fireEvent.click(screen.getByRole("button", { name: /^dark$/i }));
     // The hook calls the action asynchronously via a transition; just verify
     // it fired eventually

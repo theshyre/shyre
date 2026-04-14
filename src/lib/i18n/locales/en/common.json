@@ -9,7 +9,11 @@
     "invoices": "Invoices",
     "reports": "Reports",
     "organizations": "Organizations",
-    "settings": "Settings",
+    "securityGroups": "Security Groups",
+    "categories": "Categories",
+    "templates": "Templates",
+    "import": "Import",
+    "profile": "Your profile",
     "adminErrors": "Error Log",
     "adminUsers": "Users",
     "adminOrgs": "All Organizations"
@@ -17,8 +21,8 @@
   "navSections": {
     "track": "Track",
     "manage": "Manage",
-    "setup": "Setup",
-    "admin": "Admin"
+    "admin": "Admin",
+    "systemAdmin": "System Admin"
   },
   "actions": {
     "save": "Save",

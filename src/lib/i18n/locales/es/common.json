@@ -9,7 +9,11 @@
     "invoices": "Facturas",
     "reports": "Informes",
     "organizations": "Organizaciones",
-    "settings": "Configuración",
+    "securityGroups": "Grupos de Seguridad",
+    "categories": "Categorías",
+    "templates": "Plantillas",
+    "import": "Importar",
+    "profile": "Tu perfil",
     "adminErrors": "Registro de Errores",
     "adminUsers": "Usuarios",
     "adminOrgs": "Todas las Organizaciones"
@@ -17,8 +21,8 @@
   "navSections": {
     "track": "Registrar",
     "manage": "Gestionar",
-    "setup": "Configuración",
-    "admin": "Administrador"
+    "admin": "Administración",
+    "systemAdmin": "Administración del Sistema"
   },
   "actions": {
     "save": "Guardar",

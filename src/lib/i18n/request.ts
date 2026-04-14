@@ -17,6 +17,7 @@ export default getRequestConfig(async () => {
     sharing,
     categories,
     templates,
+    profile,
   ] = await Promise.all([
     import(`./locales/${locale}/common.json`),
     import(`./locales/${locale}/auth.json`),
@@ -31,6 +32,7 @@ export default getRequestConfig(async () => {
     import(`./locales/${locale}/sharing.json`),
     import(`./locales/${locale}/categories.json`),
     import(`./locales/${locale}/templates.json`),
+    import(`./locales/${locale}/profile.json`),
   ]);
 
   return {
@@ -49,6 +51,7 @@ export default getRequestConfig(async () => {
       sharing: sharing.default,
       categories: categories.default,
       templates: templates.default,
+      profile: profile.default,
     },
   };
 });
