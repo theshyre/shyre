@@ -17,7 +17,9 @@
     "githubRepoPlaceholder": "owner/repo",
     "status": "Status",
     "categorySet": "Category set",
-    "noCategorySet": "No categories"
+    "noCategorySet": "No categories",
+    "requireTimestamps": "Require start/end times on entries",
+    "requireTimestampsHint": "Off: entries need only a date and duration (e.g. 3:15). On: every entry must have explicit start and end times."
   },
   "table": {
     "client": "Client",

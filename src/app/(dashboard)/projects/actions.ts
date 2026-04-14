@@ -19,6 +19,7 @@ export async function createProjectAction(formData: FormData): Promise<void> {
     const budget_hours = budgetStr ? parseFloat(budgetStr) : null;
     const github_repo = (formData.get("github_repo") as string) || null;
     const category_set_id = (formData.get("category_set_id") as string) || null;
+    const require_timestamps = formData.get("require_timestamps") === "on";
 
     assertSupabaseOk(
       await supabase.from("projects").insert({
@@ -31,6 +32,7 @@ export async function createProjectAction(formData: FormData): Promise<void> {
         budget_hours,
         github_repo,
         category_set_id,
+        require_timestamps,
       })
     );
 
@@ -51,6 +53,7 @@ export async function updateProjectAction(formData: FormData): Promise<void> {
     const github_repo = (formData.get("github_repo") as string) || null;
     const status = formData.get("status") as string;
     const category_set_id = (formData.get("category_set_id") as string) || null;
+    const require_timestamps = formData.get("require_timestamps") === "on";
 
     assertSupabaseOk(
       await supabase
@@ -63,6 +66,7 @@ export async function updateProjectAction(formData: FormData): Promise<void> {
           github_repo,
           status,
           category_set_id,
+          require_timestamps,
         })
         .eq("id", id)
     );

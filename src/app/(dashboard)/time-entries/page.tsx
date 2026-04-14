@@ -1,26 +1,26 @@
 import { createClient } from "@/lib/supabase/server";
 import { getUserOrgs } from "@/lib/org-context";
-import { parseIntervalParams } from "@/lib/time/intervals";
-import { getTodayStart } from "@/lib/time/week";
-import type { GroupingKind } from "@/lib/time/grouping";
+import {
+  getWeekStart,
+  getWeekRange,
+  getTodayStart,
+  parseWeekParam,
+} from "@/lib/time/week";
 import { getMyTemplates } from "@/lib/templates/queries";
 import { TimeHome } from "./time-home";
+import type { TimeView } from "./view-toggle";
 
 interface PageProps {
   searchParams: Promise<{
     org?: string;
-    interval?: string;
+    view?: string;
     anchor?: string;
-    from?: string;
-    to?: string;
-    groupBy?: string;
     billable?: string;
   }>;
 }
 
-function asGrouping(v: string | undefined): GroupingKind {
-  if (v === "category" || v === "project" || v === "day") return v;
-  return "day";
+function asView(v: string | undefined): TimeView {
+  return v === "day" ? "day" : "week";
 }
 
 export default async function TimeEntriesPage({
@@ -31,38 +31,53 @@ export default async function TimeEntriesPage({
   const sp = await searchParams;
   const { org: selectedOrgId } = sp;
 
-  const interval = parseIntervalParams(sp);
-  const grouping = asGrouping(sp.groupBy);
+  const view = asView(sp.view);
   const billableOnly = sp.billable === "1";
-  const todayStart = getTodayStart();
-  const todayEnd = new Date(todayStart);
-  todayEnd.setDate(todayEnd.getDate() + 1);
 
-  // Entries for the selected interval
-  let intervalQuery = supabase
+  // Anchor date for the view (default: today)
+  const anchor = parseWeekParam(sp.anchor) ?? getTodayStart();
+  // The "week" that contains the anchor — always used, even in day view
+  const { start: weekStart, end: weekEnd } = getWeekRange(anchor);
+  // The specific day (day view uses the anchor literally)
+  const day = sp.anchor ? anchor : getTodayStart();
+
+  // Entries for the whole week (both views use this — day view also needs it
+  // for the 7-day strip totals)
+  let weekQuery = supabase
     .from("time_entries")
-    .select("*, projects(id, name, github_repo, category_set_id)")
-    .gte("start_time", interval.start.toISOString())
-    .lt("start_time", interval.end.toISOString())
+    .select(
+      "*, projects(id, name, github_repo, category_set_id, require_timestamps)",
+    )
+    .gte("start_time", weekStart.toISOString())
+    .lt("start_time", weekEnd.toISOString())
     .order("start_time", { ascending: true });
-  if (selectedOrgId) intervalQuery = intervalQuery.eq("organization_id", selectedOrgId);
-  if (billableOnly) intervalQuery = intervalQuery.eq("billable", true);
-  const { data: intervalEntries } = await intervalQuery;
+  if (selectedOrgId) weekQuery = weekQuery.eq("organization_id", selectedOrgId);
+  if (billableOnly) weekQuery = weekQuery.eq("billable", true);
+  const { data: weekEntries } = await weekQuery;
 
-  // Today entries
-  let todayQuery = supabase
+  // Entries for the specific day being viewed (day view only)
+  const dayStart = new Date(day);
+  dayStart.setHours(0, 0, 0, 0);
+  const dayEnd = new Date(dayStart);
+  dayEnd.setDate(dayEnd.getDate() + 1);
+  let dayQuery = supabase
     .from("time_entries")
-    .select("*, projects(id, name, github_repo, category_set_id)")
-    .gte("start_time", todayStart.toISOString())
-    .lt("start_time", todayEnd.toISOString())
-    .order("start_time", { ascending: false });
-  if (selectedOrgId) todayQuery = todayQuery.eq("organization_id", selectedOrgId);
-  const { data: todayEntries } = await todayQuery;
+    .select(
+      "*, projects(id, name, github_repo, category_set_id, require_timestamps)",
+    )
+    .gte("start_time", dayStart.toISOString())
+    .lt("start_time", dayEnd.toISOString())
+    .order("start_time", { ascending: true });
+  if (selectedOrgId) dayQuery = dayQuery.eq("organization_id", selectedOrgId);
+  if (billableOnly) dayQuery = dayQuery.eq("billable", true);
+  const { data: dayEntries } = await dayQuery;
 
   // Running timer
   let runningQuery = supabase
     .from("time_entries")
-    .select("*, projects(id, name, github_repo, category_set_id)")
+    .select(
+      "*, projects(id, name, github_repo, category_set_id, require_timestamps)",
+    )
     .is("end_time", null)
     .order("start_time", { ascending: false })
     .limit(1);
@@ -73,13 +88,15 @@ export default async function TimeEntriesPage({
   // Active projects
   let projectsQuery = supabase
     .from("projects")
-    .select("id, name, github_repo, organization_id, category_set_id")
+    .select(
+      "id, name, github_repo, organization_id, category_set_id, require_timestamps",
+    )
     .eq("status", "active")
     .order("name");
   if (selectedOrgId) projectsQuery = projectsQuery.eq("organization_id", selectedOrgId);
   const { data: projects } = await projectsQuery;
 
-  // Categories for any project's category set
+  // Categories visible to any project's category set
   const setIds = Array.from(
     new Set(
       (projects ?? [])
@@ -119,7 +136,6 @@ export default async function TimeEntriesPage({
     .map((id) => (projects ?? []).find((p) => p.id === id))
     .filter((p): p is NonNullable<typeof p> => !!p);
 
-  // User's top-N templates (by last used)
   const allTemplates = await getMyTemplates(selectedOrgId);
   const templates = allTemplates.slice(0, 8);
 
@@ -127,13 +143,13 @@ export default async function TimeEntriesPage({
     <TimeHome
       orgs={orgs}
       selectedOrgId={selectedOrgId ?? null}
-      intervalKind={interval.kind}
-      intervalStartIso={interval.start.toISOString()}
-      intervalEndIso={interval.end.toISOString()}
-      grouping={grouping}
+      view={view}
       billableOnly={billableOnly}
-      intervalEntries={intervalEntries ?? []}
-      todayEntries={todayEntries ?? []}
+      dayIso={day.toISOString()}
+      weekStartIso={weekStart.toISOString()}
+      weekEndIso={weekEnd.toISOString()}
+      weekEntries={weekEntries ?? []}
+      dayEntries={dayEntries ?? []}
       running={running}
       projects={projects ?? []}
       recentProjects={recentProjects}

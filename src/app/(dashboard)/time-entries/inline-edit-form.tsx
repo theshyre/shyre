@@ -13,6 +13,7 @@ import {
 } from "@/lib/form-styles";
 import { updateTimeEntryAction } from "./actions";
 import { CategoryPicker } from "./category-picker";
+import { DurationInput } from "./duration-input";
 import type { CategoryOption, ProjectOption, TimeEntry } from "./types";
 
 interface Props {
@@ -27,6 +28,11 @@ function toLocalDatetime(iso: string): string {
   const offset = d.getTimezoneOffset();
   const local = new Date(d.getTime() - offset * 60000);
   return local.toISOString().slice(0, 16);
+}
+
+function toLocalDate(iso: string): string {
+  const d = new Date(iso);
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
 }
 
 export function InlineEditForm({
@@ -50,7 +56,6 @@ export function InlineEditForm({
     descRef.current?.focus();
   }, []);
 
-  // Cmd+Enter to submit, Esc to cancel
   const handleKeyDown = useCallback(
     (e: React.KeyboardEvent<HTMLFormElement>) => {
       if (e.key === "Escape") {
@@ -65,6 +70,13 @@ export function InlineEditForm({
     },
     [onDone],
   );
+
+  // Resolve the project (from the entry's embedded projects field, or look up
+  // in the projects list). We need require_timestamps to decide the form shape.
+  const project =
+    projects.find((p) => p.id === entry.project_id) ??
+    (entry.projects as { require_timestamps?: boolean } | null);
+  const requiresTimestamps = project?.require_timestamps ?? true;
 
   return (
     <form
@@ -104,26 +116,51 @@ export function InlineEditForm({
             className={inputClass}
           />
         </div>
-        <div>
-          <label className={labelClass}>{t("fields.startTime")} *</label>
-          <input
-            name="start_time"
-            type="datetime-local"
-            required
-            defaultValue={toLocalDatetime(entry.start_time)}
-            className={inputClass}
-          />
-          <FieldError error={fieldErrors.start_time} />
-        </div>
-        <div>
-          <label className={labelClass}>{t("fields.endTime")}</label>
-          <input
-            name="end_time"
-            type="datetime-local"
-            defaultValue={entry.end_time ? toLocalDatetime(entry.end_time) : ""}
-            className={inputClass}
-          />
-        </div>
+        {requiresTimestamps ? (
+          <>
+            <div>
+              <label className={labelClass}>{t("fields.startTime")} *</label>
+              <input
+                name="start_time"
+                type="datetime-local"
+                required
+                defaultValue={toLocalDatetime(entry.start_time)}
+                className={inputClass}
+              />
+              <FieldError error={fieldErrors.start_time} />
+            </div>
+            <div>
+              <label className={labelClass}>{t("fields.endTime")}</label>
+              <input
+                name="end_time"
+                type="datetime-local"
+                defaultValue={entry.end_time ? toLocalDatetime(entry.end_time) : ""}
+                className={inputClass}
+              />
+            </div>
+          </>
+        ) : (
+          <>
+            <div>
+              <label className={labelClass}>{t("fields.date")} *</label>
+              <input
+                name="entry_date"
+                type="date"
+                required
+                defaultValue={toLocalDate(entry.start_time)}
+                className={inputClass}
+              />
+            </div>
+            <div>
+              <label className={labelClass}>{t("fields.duration")} *</label>
+              <DurationInput
+                name="duration_min"
+                defaultMinutes={entry.duration_min ?? 0}
+                ariaLabel={t("fields.duration")}
+              />
+            </div>
+          </>
+        )}
         <div>
           <label className={labelClass}>{t("fields.githubIssue")}</label>
           <input

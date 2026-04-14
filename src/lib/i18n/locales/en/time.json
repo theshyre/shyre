@@ -11,6 +11,8 @@
     "descriptionPlaceholder": "What did you work on?",
     "startTime": "Start Time",
     "endTime": "End Time",
+    "date": "Date",
+    "duration": "Duration",
     "billable": "Billable",
     "githubIssue": "GitHub Issue #"
   },
@@ -99,5 +101,26 @@
     "keepEditing": "Keep editing",
     "actionsLabel": "Entry actions",
     "untitled": "Untitled entry"
+  },
+  "viewToggle": {
+    "day": "Day",
+    "week": "Week"
+  },
+  "timesheet": {
+    "project": "Project",
+    "total": "Total",
+    "dailyTotals": "Daily totals",
+    "addRow": "Add row",
+    "addRowConfirm": "Add",
+    "cancel": "Cancel",
+    "chooseProject": "Choose project",
+    "noCategory": "No category",
+    "empty": "No time logged this week. Add a row to start."
+  },
+  "dayView": {
+    "today": "Today: {date}",
+    "weekTotal": "Week total",
+    "prevDay": "Previous day",
+    "nextDay": "Next day"
   }
 }

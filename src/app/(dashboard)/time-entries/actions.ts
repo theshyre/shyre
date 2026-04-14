@@ -5,6 +5,25 @@ import { assertSupabaseOk } from "@/lib/errors";
 import { validateOrgAccess } from "@/lib/org-context";
 import { revalidatePath } from "next/cache";
 
+/**
+ * Given an entry_date (YYYY-MM-DD) and duration in minutes, return a
+ * (start_time, end_time) pair anchored at the start of that local day.
+ * This lets duration-only projects reuse the time_entries schema without
+ * forcing an arbitrary time-of-day on the user.
+ */
+function entryFromDuration(
+  entryDate: string,
+  durationMin: number,
+): { start_time: string; end_time: string } {
+  const [y, m, d] = entryDate.split("-").map(Number);
+  const start = new Date(y!, (m ?? 1) - 1, d ?? 1, 0, 0, 0, 0);
+  const end = new Date(start.getTime() + durationMin * 60 * 1000);
+  return {
+    start_time: start.toISOString(),
+    end_time: end.toISOString(),
+  };
+}
+
 export async function createTimeEntryAction(formData: FormData): Promise<void> {
   return runSafeAction(formData, async (formData, { supabase }) => {
     const orgId = formData.get("organization_id") as string;
@@ -12,12 +31,27 @@ export async function createTimeEntryAction(formData: FormData): Promise<void> {
 
     const project_id = formData.get("project_id") as string;
     const description = (formData.get("description") as string) || null;
-    const start_time = formData.get("start_time") as string;
-    const end_time = (formData.get("end_time") as string) || null;
     const billable = formData.get("billable") === "on";
     const issueStr = formData.get("github_issue") as string;
     const github_issue = issueStr ? parseInt(issueStr, 10) : null;
     const category_id = (formData.get("category_id") as string) || null;
+
+    // Duration-only mode: form submits `entry_date` (YYYY-MM-DD) + `duration_min`
+    // Timestamp mode: form submits `start_time` + optional `end_time`
+    const durationMinStr = formData.get("duration_min") as string | null;
+    const entryDate = formData.get("entry_date") as string | null;
+
+    let start_time: string;
+    let end_time: string | null;
+    if (durationMinStr && entryDate) {
+      const durationMin = parseInt(durationMinStr, 10);
+      const t = entryFromDuration(entryDate, durationMin);
+      start_time = t.start_time;
+      end_time = t.end_time;
+    } else {
+      start_time = formData.get("start_time") as string;
+      end_time = (formData.get("end_time") as string) || null;
+    }
 
     assertSupabaseOk(
       await supabase.from("time_entries").insert({
@@ -26,7 +60,7 @@ export async function createTimeEntryAction(formData: FormData): Promise<void> {
         project_id,
         description,
         start_time,
-        end_time: end_time || null,
+        end_time,
         billable,
         github_issue,
         category_id,
@@ -42,12 +76,25 @@ export async function updateTimeEntryAction(formData: FormData): Promise<void> {
   return runSafeAction(formData, async (formData, { supabase, userId }) => {
     const id = formData.get("id") as string;
     const description = (formData.get("description") as string) || null;
-    const start_time = formData.get("start_time") as string;
-    const end_time = (formData.get("end_time") as string) || null;
     const billable = formData.get("billable") === "on";
     const issueStr = formData.get("github_issue") as string;
     const github_issue = issueStr ? parseInt(issueStr, 10) : null;
     const category_id = (formData.get("category_id") as string) || null;
+
+    const durationMinStr = formData.get("duration_min") as string | null;
+    const entryDate = formData.get("entry_date") as string | null;
+
+    let start_time: string | undefined;
+    let end_time: string | null | undefined;
+    if (durationMinStr && entryDate) {
+      const durationMin = parseInt(durationMinStr, 10);
+      const t = entryFromDuration(entryDate, durationMin);
+      start_time = t.start_time;
+      end_time = t.end_time;
+    } else {
+      start_time = formData.get("start_time") as string;
+      end_time = (formData.get("end_time") as string) || null;
+    }
 
     assertSupabaseOk(
       await supabase
@@ -55,7 +102,7 @@ export async function updateTimeEntryAction(formData: FormData): Promise<void> {
         .update({
           description,
           start_time,
-          end_time: end_time || null,
+          end_time,
           billable,
           github_issue,
           category_id,
@@ -170,4 +217,116 @@ export async function duplicateTimeEntryAction(formData: FormData): Promise<void
 
     revalidatePath("/time-entries");
   }, "duplicateTimeEntryAction") as unknown as void;
+}
+
+/**
+ * Upsert the total duration for a (project, category, date) cell in the
+ * weekly timesheet. If durationMin is 0, deletes all entries for that cell.
+ * Otherwise, either:
+ *  - updates the single existing entry for that cell, OR
+ *  - inserts a new entry (when none exist)
+ * If multiple entries exist for that cell (unusual — manual timer sessions),
+ * their total is squashed into one entry with a preserved description.
+ */
+export async function upsertTimesheetCellAction(
+  formData: FormData,
+): Promise<void> {
+  return runSafeAction(formData, async (formData, { supabase, userId }) => {
+    const project_id = formData.get("project_id") as string;
+    const category_id = (formData.get("category_id") as string) || null;
+    const entry_date = formData.get("entry_date") as string;
+    const orgId = formData.get("organization_id") as string;
+    const durationMinStr = formData.get("duration_min") as string;
+    const durationMin = parseInt(durationMinStr, 10);
+    await validateOrgAccess(orgId);
+
+    const [y, m, d] = entry_date.split("-").map(Number);
+    const dayStart = new Date(y!, (m ?? 1) - 1, d ?? 1, 0, 0, 0, 0);
+    const dayEnd = new Date(dayStart);
+    dayEnd.setDate(dayEnd.getDate() + 1);
+
+    // Find existing entries in this (project, category, day) cell
+    let q = supabase
+      .from("time_entries")
+      .select("id, description, billable, github_issue, duration_min")
+      .eq("project_id", project_id)
+      .eq("user_id", userId)
+      .gte("start_time", dayStart.toISOString())
+      .lt("start_time", dayEnd.toISOString());
+    if (category_id) q = q.eq("category_id", category_id);
+    else q = q.is("category_id", null);
+    const { data: existing, error: existingErr } = await q;
+    if (existingErr) throw existingErr;
+
+    // Zero duration → delete everything in the cell
+    if (!durationMinStr || durationMin <= 0) {
+      if (existing && existing.length > 0) {
+        assertSupabaseOk(
+          await supabase
+            .from("time_entries")
+            .delete()
+            .in(
+              "id",
+              existing.map((e) => e.id),
+            ),
+        );
+      }
+      revalidatePath("/time-entries");
+      return;
+    }
+
+    const t = entryFromDuration(entry_date, durationMin);
+
+    if (!existing || existing.length === 0) {
+      // Insert new
+      assertSupabaseOk(
+        await supabase.from("time_entries").insert({
+          organization_id: orgId,
+          user_id: userId,
+          project_id,
+          category_id,
+          description: null,
+          start_time: t.start_time,
+          end_time: t.end_time,
+          billable: true,
+        }),
+      );
+    } else if (existing.length === 1) {
+      // Update the single existing row
+      assertSupabaseOk(
+        await supabase
+          .from("time_entries")
+          .update({
+            start_time: t.start_time,
+            end_time: t.end_time,
+          })
+          .eq("id", existing[0]!.id)
+          .eq("user_id", userId),
+      );
+    } else {
+      // Multiple rows → keep first, delete rest, then set total on the first
+      const [keep, ...drop] = existing;
+      assertSupabaseOk(
+        await supabase
+          .from("time_entries")
+          .delete()
+          .in(
+            "id",
+            drop.map((e) => e.id),
+          ),
+      );
+      assertSupabaseOk(
+        await supabase
+          .from("time_entries")
+          .update({
+            start_time: t.start_time,
+            end_time: t.end_time,
+          })
+          .eq("id", keep!.id)
+          .eq("user_id", userId),
+      );
+    }
+
+    revalidatePath("/time-entries");
+  }, "upsertTimesheetCellAction") as unknown as void;
 }

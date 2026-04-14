@@ -17,7 +17,9 @@
     "githubRepoPlaceholder": "propietario/repo",
     "status": "Estado",
     "categorySet": "Conjunto de categorías",
-    "noCategorySet": "Sin categorías"
+    "noCategorySet": "Sin categorías",
+    "requireTimestamps": "Requerir hora de inicio y fin",
+    "requireTimestampsHint": "Desactivado: las entradas solo necesitan fecha y duración (p. ej. 3:15). Activado: cada entrada requiere hora de inicio y fin explícitas."
   },
   "table": {
     "client": "Cliente",

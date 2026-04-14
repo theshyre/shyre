@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useMemo, useState } from "react";
+import { useMemo } from "react";
 import { useTranslations } from "next-intl";
 import { Clock } from "lucide-react";
 import { OrgFilter } from "@/components/OrgFilter";
@@ -10,29 +10,26 @@ import {
   sumBillableMin,
   sumDurationMin,
 } from "@/lib/time/week";
-import type { IntervalKind, ResolvedInterval } from "@/lib/time/intervals";
-import { groupEntries, type GroupingKind } from "@/lib/time/grouping";
 import type { TimeTemplate } from "@/lib/templates/types";
 import { RunningTimerCard } from "./running-timer-card";
-import { IntervalNav } from "./interval-nav";
-import { GroupByPicker } from "./group-by-picker";
 import { BillableFilter } from "./billable-filter";
 import { ExportButton } from "./export-button";
-import { EntryTable } from "./entry-table";
-import { TodayPanel } from "./today-panel";
+import { ViewToggle, type TimeView } from "./view-toggle";
+import { WeekTimesheet } from "./week-timesheet";
+import { DayView } from "./day-view";
 import { NewTimeEntryForm } from "./new-time-entry-form";
 import type { CategoryOption, ProjectOption, TimeEntry } from "./types";
 
 interface TimeHomeProps {
   orgs: OrgListItem[];
   selectedOrgId: string | null;
-  intervalKind: IntervalKind;
-  intervalStartIso: string;
-  intervalEndIso: string;
-  grouping: GroupingKind;
+  view: TimeView;
   billableOnly: boolean;
-  intervalEntries: TimeEntry[];
-  todayEntries: TimeEntry[];
+  dayIso: string;
+  weekStartIso: string;
+  weekEndIso: string;
+  weekEntries: TimeEntry[];
+  dayEntries: TimeEntry[];
   running: TimeEntry | null;
   projects: ProjectOption[];
   recentProjects: ProjectOption[];
@@ -43,13 +40,13 @@ interface TimeHomeProps {
 export function TimeHome({
   orgs,
   selectedOrgId,
-  intervalKind,
-  intervalStartIso,
-  intervalEndIso,
-  grouping,
+  view,
   billableOnly,
-  intervalEntries,
-  todayEntries,
+  dayIso,
+  weekStartIso,
+  weekEndIso,
+  weekEntries,
+  dayEntries,
   running,
   projects,
   recentProjects,
@@ -57,34 +54,14 @@ export function TimeHome({
   templates,
 }: TimeHomeProps): React.JSX.Element {
   const t = useTranslations("time");
+  const day = useMemo(() => new Date(dayIso), [dayIso]);
+  const weekStart = useMemo(() => new Date(weekStartIso), [weekStartIso]);
 
-  const interval: ResolvedInterval = useMemo(
-    () => ({
-      kind: intervalKind,
-      start: new Date(intervalStartIso),
-      end: new Date(intervalEndIso),
-    }),
-    [intervalKind, intervalStartIso, intervalEndIso],
-  );
-
-  const [expandedEntryId, setExpandedEntryId] = useState<string | null>(null);
-  const toggleExpanded = useCallback((id: string) => {
-    setExpandedEntryId((current) => (current === id ? null : id));
-  }, []);
-
-  const totalMin = sumDurationMin(intervalEntries);
-  const billableMin = sumBillableMin(intervalEntries);
+  // Totals for the currently-visible data (week for week view, day for day view)
+  const visibleEntries = view === "day" ? dayEntries : weekEntries;
+  const totalMin = sumDurationMin(visibleEntries);
+  const billableMin = sumBillableMin(visibleEntries);
   const nonBillableMin = totalMin - billableMin;
-
-  const groups = useMemo(
-    () =>
-      groupEntries(intervalEntries, grouping, {
-        projects: projects.map((p) => ({ id: p.id, name: p.name })),
-        categories,
-        uncategorizedLabel: t("groupBy.uncategorized"),
-      }),
-    [intervalEntries, grouping, projects, categories, t],
-  );
 
   return (
     <div className="space-y-6">
@@ -92,6 +69,9 @@ export function TimeHome({
         <Clock size={24} className="text-accent" />
         <h1 className="text-2xl font-bold text-content">{t("title")}</h1>
         <OrgFilter orgs={orgs} selectedOrgId={selectedOrgId} />
+        <div className="ml-auto">
+          <ViewToggle view={view} />
+        </div>
       </div>
 
       <RunningTimerCard
@@ -121,26 +101,27 @@ export function TimeHome({
         </div>
         <div className="flex items-center gap-2 flex-wrap">
           <ExportButton />
-          <GroupByPicker grouping={grouping} />
-          <IntervalNav interval={interval} />
         </div>
       </div>
 
-      <EntryTable
-        groups={groups}
-        projects={projects}
-        categories={categories}
-        expandedEntryId={expandedEntryId}
-        onToggleExpand={toggleExpanded}
-      />
-
-      <TodayPanel
-        entries={todayEntries}
-        projects={projects}
-        categories={categories}
-        expandedEntryId={expandedEntryId}
-        onToggleExpand={toggleExpanded}
-      />
+      {view === "day" ? (
+        <DayView
+          day={day}
+          weekStart={weekStart}
+          weekEntries={weekEntries}
+          dayEntries={dayEntries}
+          projects={projects}
+          categories={categories}
+        />
+      ) : (
+        <WeekTimesheet
+          weekStart={weekStart}
+          entries={weekEntries}
+          projects={projects}
+          categories={categories}
+          defaultOrgId={selectedOrgId ?? undefined}
+        />
+      )}
 
       <NewTimeEntryForm
         projects={projects}

@@ -86,6 +86,7 @@ One row per user, auto-created on signup via trigger.
 | github_repo | TEXT | `owner/repo` format |
 | status | TEXT | `active\|paused\|completed\|archived` |
 | category_set_id | UUID | References `category_sets(id)` SET NULL — optional category template |
+| require_timestamps | BOOLEAN | Default true. When false, entries need only date + duration (no explicit start/end). |
 | created_at | TIMESTAMPTZ | |
 
 ### `time_entries`

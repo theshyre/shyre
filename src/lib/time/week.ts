@@ -124,6 +124,65 @@ export function formatDurationHM(min: number | null): string {
 }
 
 /**
+ * Format minutes as "H:MM" always (even for zero/null — returns "0:00").
+ * Used in timesheet cells where an empty cell should read as zero.
+ */
+export function formatDurationHMZero(min: number | null | undefined): string {
+  const m = min ?? 0;
+  const hours = Math.floor(m / 60);
+  const mins = Math.round(m % 60);
+  return `${hours}:${String(mins).padStart(2, "0")}`;
+}
+
+/**
+ * Parse a user-entered duration string into minutes, accepting:
+ *   "3:15"       → 195
+ *   "3h 15m"     → 195
+ *   "3h"         → 180
+ *   "45m"        → 45
+ *   "3.25"       → 195 (decimal hours)
+ *   "3,25"       → 195 (comma decimal — European)
+ *   ".5" / "0.5" → 30
+ *   "90"         → 90  (bare number = minutes if < 24, else treated as hours is ambiguous — we pick minutes)
+ *   ""           → 0
+ *   anything else → null (caller decides to reject)
+ */
+export function parseDurationInput(input: string): number | null {
+  const raw = input.trim();
+  if (raw === "") return 0;
+
+  // "H:MM" or "HH:MM"
+  const colon = raw.match(/^(\d+):([0-5]?\d)$/);
+  if (colon) {
+    const h = Number(colon[1]);
+    const m = Number(colon[2]);
+    return h * 60 + m;
+  }
+
+  // "3h 15m" or "3h" or "45m" — allow any whitespace between
+  const hm = raw.match(/^(?:(\d+)\s*h)?\s*(?:(\d+)\s*m)?$/i);
+  if (hm && (hm[1] || hm[2])) {
+    const h = hm[1] ? Number(hm[1]) : 0;
+    const m = hm[2] ? Number(hm[2]) : 0;
+    return h * 60 + m;
+  }
+
+  // Decimal hours: "3.25" or "3,25" or ".5"
+  const dec = raw.replace(",", ".").match(/^(\d*\.\d+|\d+)$/);
+  if (dec) {
+    const n = Number(dec[1]);
+    if (!Number.isFinite(n)) return null;
+    // Bare integer < 24 → interpret as hours (matches Harvest/Toggl). Beyond 24 makes no sense as hours.
+    if (/^\d+$/.test(raw)) {
+      return n < 24 ? Math.round(n * 60) : Math.round(n);
+    }
+    return Math.round(n * 60);
+  }
+
+  return null;
+}
+
+/**
  * Sum total minutes across entries (only completed ones).
  */
 export function sumDurationMin(entries: TimeEntryLike[]): number {

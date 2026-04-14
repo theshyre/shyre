@@ -7,6 +7,8 @@ import {
   groupEntriesByDay,
   formatDurationShort,
   formatDurationHM,
+  formatDurationHMZero,
+  parseDurationInput,
   sumDurationMin,
   sumBillableMin,
   isSameDay,
@@ -164,6 +166,53 @@ describe("week helpers", () => {
       expect(formatDurationHM(60)).toBe("1:00");
       expect(formatDurationHM(195)).toBe("3:15");
       expect(formatDurationHM(720)).toBe("12:00");
+    });
+  });
+
+  describe("formatDurationHMZero", () => {
+    it("uses 0:00 for null/zero instead of em-dash", () => {
+      expect(formatDurationHMZero(null)).toBe("0:00");
+      expect(formatDurationHMZero(undefined)).toBe("0:00");
+      expect(formatDurationHMZero(0)).toBe("0:00");
+      expect(formatDurationHMZero(75)).toBe("1:15");
+    });
+  });
+
+  describe("parseDurationInput", () => {
+    it("parses H:MM form", () => {
+      expect(parseDurationInput("3:15")).toBe(195);
+      expect(parseDurationInput("0:45")).toBe(45);
+      expect(parseDurationInput("12:00")).toBe(720);
+    });
+
+    it("parses Hh Mm form", () => {
+      expect(parseDurationInput("3h 15m")).toBe(195);
+      expect(parseDurationInput("3h")).toBe(180);
+      expect(parseDurationInput("45m")).toBe(45);
+      expect(parseDurationInput("2h30m")).toBe(150);
+    });
+
+    it("parses decimal hours", () => {
+      expect(parseDurationInput("3.25")).toBe(195);
+      expect(parseDurationInput("0.5")).toBe(30);
+      expect(parseDurationInput(".5")).toBe(30);
+      expect(parseDurationInput("3,25")).toBe(195); // European decimal
+    });
+
+    it("treats bare integers < 24 as hours (Harvest convention)", () => {
+      expect(parseDurationInput("3")).toBe(180);
+      expect(parseDurationInput("0")).toBe(0);
+    });
+
+    it("empty string → 0", () => {
+      expect(parseDurationInput("")).toBe(0);
+      expect(parseDurationInput("   ")).toBe(0);
+    });
+
+    it("rejects nonsense as null", () => {
+      expect(parseDurationInput("abc")).toBeNull();
+      expect(parseDurationInput("3:99")).toBeNull(); // minutes must be 0-59
+      expect(parseDurationInput("--")).toBeNull();
     });
   });
 

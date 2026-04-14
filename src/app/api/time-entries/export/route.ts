@@ -1,5 +1,9 @@
 import { createClient } from "@/lib/supabase/server";
-import { parseIntervalParams } from "@/lib/time/intervals";
+import {
+  getWeekRange,
+  getTodayStart,
+  parseWeekParam,
+} from "@/lib/time/week";
 import { toCsv, type CsvEntryRow } from "@/lib/time/csv";
 
 /**
@@ -24,20 +28,32 @@ export async function GET(request: Request): Promise<Response> {
 
   const orgId = url.searchParams.get("org") ?? undefined;
   const billableOnly = url.searchParams.get("billable") === "1";
-  const interval = parseIntervalParams({
-    interval: url.searchParams.get("interval") ?? undefined,
-    anchor: url.searchParams.get("anchor") ?? undefined,
-    from: url.searchParams.get("from") ?? undefined,
-    to: url.searchParams.get("to") ?? undefined,
-  });
+  const view = url.searchParams.get("view") === "day" ? "day" : "week";
+  const anchor =
+    parseWeekParam(url.searchParams.get("anchor") ?? undefined) ??
+    getTodayStart();
+
+  // Resolve range by view
+  let rangeStart: Date;
+  let rangeEnd: Date;
+  if (view === "day") {
+    rangeStart = new Date(anchor);
+    rangeStart.setHours(0, 0, 0, 0);
+    rangeEnd = new Date(rangeStart);
+    rangeEnd.setDate(rangeEnd.getDate() + 1);
+  } else {
+    const w = getWeekRange(anchor);
+    rangeStart = w.start;
+    rangeEnd = w.end;
+  }
 
   let q = supabase
     .from("time_entries")
     .select(
       "start_time, end_time, duration_min, description, billable, github_issue, category_id, projects(name, clients(name)), categories(name)",
     )
-    .gte("start_time", interval.start.toISOString())
-    .lt("start_time", interval.end.toISOString())
+    .gte("start_time", rangeStart.toISOString())
+    .lt("start_time", rangeEnd.toISOString())
     .order("start_time", { ascending: true });
   if (orgId) q = q.eq("organization_id", orgId);
   if (billableOnly) q = q.eq("billable", true);
@@ -69,8 +85,8 @@ export async function GET(request: Request): Promise<Response> {
   });
 
   const csv = toCsv(rows);
-  const filename = `stint-time-${toDateOnly(interval.start)}-to-${toDateOnly(
-    new Date(interval.end.getTime() - 1),
+  const filename = `stint-time-${toDateOnly(rangeStart)}-to-${toDateOnly(
+    new Date(rangeEnd.getTime() - 1),
   )}.csv`;
 
   return new Response(csv, {

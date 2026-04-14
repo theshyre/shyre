@@ -7,6 +7,7 @@ export interface ProjectInfo {
   name: string;
   github_repo: string | null;
   category_set_id?: string | null;
+  require_timestamps?: boolean;
 }
 
 export interface TimeEntry {
@@ -30,6 +31,7 @@ export interface ProjectOption {
   github_repo: string | null;
   organization_id: string;
   category_set_id: string | null;
+  require_timestamps: boolean;
 }
 
 export interface CategoryOption {

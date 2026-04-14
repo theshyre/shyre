@@ -23,6 +23,7 @@ interface Project {
   github_repo: string | null;
   status: string | null;
   category_set_id: string | null;
+  require_timestamps: boolean;
 }
 
 const STATUSES = ["active", "paused", "completed", "archived"] as const;
@@ -124,6 +125,22 @@ export function ProjectEditForm({
                 </option>
               ))}
             </select>
+          </div>
+          <div className="sm:col-span-2">
+            <label className="flex items-start gap-2 text-sm font-medium text-content cursor-pointer">
+              <input
+                name="require_timestamps"
+                type="checkbox"
+                defaultChecked={project.require_timestamps}
+                className="mt-0.5 h-4 w-4 rounded border-edge text-accent focus:ring-focus-ring"
+              />
+              <span>
+                {t("fields.requireTimestamps")}
+                <span className="ml-1 block text-xs font-normal text-content-muted">
+                  {t("fields.requireTimestampsHint")}
+                </span>
+              </span>
+            </label>
           </div>
         </div>
         <div>

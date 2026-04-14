@@ -20,6 +20,7 @@ import { OrgSelector } from "@/components/OrgSelector";
 import type { OrgListItem } from "@/lib/org-context";
 import { createTimeEntryAction } from "./actions";
 import { CategoryPicker } from "./category-picker";
+import { DurationInput } from "./duration-input";
 import type { CategoryOption } from "./types";
 
 interface ProjectOption {
@@ -27,6 +28,7 @@ interface ProjectOption {
   name: string;
   github_repo: string | null;
   category_set_id?: string | null;
+  require_timestamps?: boolean;
 }
 
 export function NewTimeEntryForm({
@@ -116,19 +118,44 @@ export function NewTimeEntryForm({
             className={inputClass}
           />
         </div>
-        <div>
-          <label className={labelClass}>{t("fields.startTime")} *</label>
-          <input
-            name="start_time"
-            type="datetime-local"
-            required
-            className={inputClass}
-          />
-        </div>
-        <div>
-          <label className={labelClass}>{t("fields.endTime")}</label>
-          <input name="end_time" type="datetime-local" className={inputClass} />
-        </div>
+        {selectedProject?.require_timestamps ?? true ? (
+          <>
+            <div>
+              <label className={labelClass}>{t("fields.startTime")} *</label>
+              <input
+                name="start_time"
+                type="datetime-local"
+                required
+                className={inputClass}
+              />
+            </div>
+            <div>
+              <label className={labelClass}>{t("fields.endTime")}</label>
+              <input name="end_time" type="datetime-local" className={inputClass} />
+            </div>
+          </>
+        ) : (
+          <>
+            <div>
+              <label className={labelClass}>{t("fields.date")} *</label>
+              <input
+                name="entry_date"
+                type="date"
+                required
+                defaultValue={new Date().toISOString().slice(0, 10)}
+                className={inputClass}
+              />
+            </div>
+            <div>
+              <label className={labelClass}>{t("fields.duration")} *</label>
+              <DurationInput
+                name="duration_min"
+                defaultMinutes={0}
+                ariaLabel={t("fields.duration")}
+              />
+            </div>
+          </>
+        )}
         {linkedRepo ? (
           <div>
             <label className={labelClass}>{t("fields.githubIssue")}</label>
