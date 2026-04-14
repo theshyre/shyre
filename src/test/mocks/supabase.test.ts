@@ -24,7 +24,7 @@ describe("createMockSupabaseClient", () => {
 
   it("provides chainable query builder", () => {
     const client = createMockSupabaseClient();
-    const query = client.from("clients");
+    const query = client.from("customers");
     expect(query.select).toBeDefined();
     expect(query.insert).toBeDefined();
     expect(query.update).toBeDefined();
@@ -33,7 +33,7 @@ describe("createMockSupabaseClient", () => {
 
   it("from() is called with table name", () => {
     const client = createMockSupabaseClient();
-    client.from("clients");
-    expect(client.from).toHaveBeenCalledWith("clients");
+    client.from("customers");
+    expect(client.from).toHaveBeenCalledWith("customers");
   });
 });

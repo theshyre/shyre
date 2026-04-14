@@ -1,10 +1,10 @@
 {
-  "title": "Clients",
-  "editTitle": "Edit Client",
-  "addClient": "Add Client",
-  "saveClient": "Save Client",
+  "title": "Customers",
+  "editTitle": "Edit Customer",
+  "addCustomer": "Add Customer",
+  "saveCustomer": "Save Customer",
   "saveChanges": "Save Changes",
-  "noClients": "No clients yet. Add one above to get started.",
+  "noCustomers": "No customers yet. Add one above to get started.",
   "fields": {
     "name": "Name",
     "email": "Email",
@@ -17,6 +17,6 @@
   },
   "projects": {
     "title": "Projects",
-    "noProjects": "No projects yet for this client."
+    "noProjects": "No projects yet for this customer."
   }
 }

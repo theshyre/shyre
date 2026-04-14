@@ -16,7 +16,7 @@ export default async function AdminOrganizationsPage(): Promise<React.JSX.Elemen
   const [memberCounts, clientCounts, projectCounts, timeEntryCounts, invoiceCounts] =
     await Promise.all([
       admin.from("organization_members").select("organization_id"),
-      admin.from("clients").select("organization_id"),
+      admin.from("customers").select("organization_id"),
       admin.from("projects").select("organization_id"),
       admin.from("time_entries").select("organization_id"),
       admin.from("invoices").select("organization_id"),

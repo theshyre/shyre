@@ -15,7 +15,7 @@ interface ClientSummary {
 
 interface ProjectSummary {
   name: string;
-  clientName: string;
+  customerName: string;
   totalMinutes: number;
   billableMinutes: number;
   entryCount: number;
@@ -36,7 +36,7 @@ export default async function ReportsPage({
   // Fetch all time entries with project and client info
   let entriesQuery = supabase
     .from("time_entries")
-    .select("duration_min, billable, projects(name, hourly_rate, clients(name, default_rate))")
+    .select("duration_min, billable, projects(name, hourly_rate, customers(name, default_rate))")
     .not("end_time", "is", null)
     .not("duration_min", "is", null);
   if (selectedOrgId) entriesQuery = entriesQuery.eq("organization_id", selectedOrgId);
@@ -61,30 +61,30 @@ export default async function ReportsPage({
     const proj = entry.projects as unknown as {
       name: string;
       hourly_rate: number | null;
-      clients: { name: string; default_rate: number | null } | null;
+      customers: { name: string; default_rate: number | null } | null;
     } | null;
 
-    const clientName = proj?.clients?.name ?? "Internal";
+    const customerName = proj?.customers?.name ?? "Internal";
     const projectName = proj?.name ?? "Unknown";
     const mins = entry.duration_min ?? 0;
     const isBillable = entry.billable ?? false;
     const rate =
       (proj?.hourly_rate ? Number(proj.hourly_rate) : null) ??
-      (proj?.clients?.default_rate ? Number(proj.clients.default_rate) : null) ??
+      (proj?.customers?.default_rate ? Number(proj.customers.default_rate) : null) ??
       defaultRate;
     const hours = mins / 60;
     const entryRevenue = isBillable ? hours * rate : 0;
 
     // Client aggregation
-    const existing = clientMap.get(clientName);
+    const existing = clientMap.get(customerName);
     if (existing) {
       existing.totalMinutes += mins;
       if (isBillable) existing.billableMinutes += mins;
       existing.entryCount += 1;
       existing.revenue += entryRevenue;
     } else {
-      clientMap.set(clientName, {
-        name: clientName,
+      clientMap.set(customerName, {
+        name: customerName,
         totalMinutes: mins,
         billableMinutes: isBillable ? mins : 0,
         entryCount: 1,
@@ -93,7 +93,7 @@ export default async function ReportsPage({
     }
 
     // Project aggregation
-    const projKey = `${clientName}::${projectName}`;
+    const projKey = `${customerName}::${projectName}`;
     const existingProj = projectMap.get(projKey);
     if (existingProj) {
       existingProj.totalMinutes += mins;
@@ -103,7 +103,7 @@ export default async function ReportsPage({
     } else {
       projectMap.set(projKey, {
         name: projectName,
-        clientName,
+        customerName,
         totalMinutes: mins,
         billableMinutes: isBillable ? mins : 0,
         entryCount: 1,
@@ -246,14 +246,14 @@ export default async function ReportsPage({
                 <tbody>
                   {projectSummaries.map((p) => (
                     <tr
-                      key={`${p.clientName}::${p.name}`}
+                      key={`${p.customerName}::${p.name}`}
                       className="border-b border-edge last:border-0 hover:bg-hover transition-colors"
                     >
                       <td className="px-4 py-3 font-medium text-content">
                         {p.name}
                       </td>
                       <td className="px-4 py-3 text-content-secondary">
-                        {p.clientName}
+                        {p.customerName}
                       </td>
                       <td className="px-4 py-3 text-right font-mono text-content-secondary">
                         {fmtHours(p.totalMinutes)}

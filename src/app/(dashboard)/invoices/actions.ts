@@ -18,7 +18,7 @@ export async function createInvoiceAction(formData: FormData): Promise<void> {
     const orgId = formData.get("organization_id") as string;
     const { userId } = await validateOrgAccess(orgId);
 
-    const client_id = (formData.get("client_id") as string) || null;
+    const customer_id = (formData.get("customer_id") as string) || null;
     const notes = (formData.get("notes") as string) || null;
     const due_date = (formData.get("due_date") as string) || null;
     const taxRateStr = formData.get("tax_rate") as string;
@@ -38,7 +38,7 @@ export async function createInvoiceAction(formData: FormData): Promise<void> {
     // Get unbilled time entries — filter by client if specified, otherwise all org entries
     const query = supabase
       .from("time_entries")
-      .select("id, description, duration_min, project_id, projects(name, hourly_rate, client_id, clients(default_rate))")
+      .select("id, description, duration_min, project_id, projects(name, hourly_rate, customer_id, customers(default_rate))")
       .eq("organization_id", orgId)
       .eq("invoiced", false)
       .eq("billable", true)
@@ -49,12 +49,12 @@ export async function createInvoiceAction(formData: FormData): Promise<void> {
 
     // Filter entries based on client selection
     let filteredEntries;
-    if (client_id) {
+    if (customer_id) {
       // Client invoice: only entries from this client's projects
       filteredEntries = (entries ?? []).filter((e) => {
         const proj = e.projects;
-        if (!proj || typeof proj !== "object" || !("client_id" in proj)) return false;
-        return (proj as { client_id: string | null }).client_id === client_id;
+        if (!proj || typeof proj !== "object" || !("customer_id" in proj)) return false;
+        return (proj as { customer_id: string | null }).customer_id === customer_id;
       });
     } else {
       // Org-wide invoice: all unbilled entries (including internal projects)
@@ -73,13 +73,13 @@ export async function createInvoiceAction(formData: FormData): Promise<void> {
           ? (projRaw as unknown as {
               name: string;
               hourly_rate: number | null;
-              clients: { default_rate: number | null } | null;
+              customers: { default_rate: number | null } | null;
             })
           : null;
         const hours = minutesToHours(entry.duration_min ?? 0);
         const rate =
           (proj?.hourly_rate ? Number(proj.hourly_rate) : null) ??
-          (proj?.clients?.default_rate ? Number(proj.clients.default_rate) : null) ??
+          (proj?.customers?.default_rate ? Number(proj.customers.default_rate) : null) ??
           defaultRate;
         const amount = calculateLineItemAmount(hours, rate);
         const desc = entry.description
@@ -98,14 +98,14 @@ export async function createInvoiceAction(formData: FormData): Promise<void> {
     const totals = calculateInvoiceTotals(lineItems, taxRate);
     const invoiceNumber = generateInvoiceNumber(prefix, nextNum);
 
-    // Create invoice (client_id may be null for org-only invoices)
+    // Create invoice (customer_id may be null for org-only invoices)
     const invoice = assertSupabaseOk(
       await supabase
         .from("invoices")
         .insert({
           organization_id: orgId,
           user_id: userId,
-          client_id,
+          customer_id,
           invoice_number: invoiceNumber,
           due_date: due_date || null,
           status: "draft",

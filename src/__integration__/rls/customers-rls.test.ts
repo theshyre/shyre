@@ -8,7 +8,7 @@ import {
   TwoOrgSharingScenario,
 } from "../helpers/fixtures";
 
-describe("clients RLS", () => {
+describe("customers RLS", () => {
   let prefix: string;
   let scenario: TwoOrgSharingScenario;
 
@@ -24,13 +24,13 @@ describe("clients RLS", () => {
   async function resetSharing() {
     const admin = adminClient();
     await admin
-      .from("client_shares")
+      .from("customer_shares")
       .delete()
-      .eq("client_id", scenario.client.id);
+      .eq("customer_id", scenario.client.id);
     await admin
-      .from("client_permissions")
+      .from("customer_permissions")
       .delete()
-      .eq("client_id", scenario.client.id);
+      .eq("customer_id", scenario.client.id);
   }
 
   it("primary org member can SELECT the client", async () => {
@@ -40,7 +40,7 @@ describe("clients RLS", () => {
       scenario.alice.password,
     );
     const { data, error } = await alice
-      .from("clients")
+      .from("customers")
       .select("id")
       .eq("id", scenario.client.id);
     expect(error).toBeNull();
@@ -54,7 +54,7 @@ describe("clients RLS", () => {
       scenario.eve.password,
     );
     const { data, error } = await eve
-      .from("clients")
+      .from("customers")
       .select("id")
       .eq("id", scenario.client.id);
     expect(error).toBeNull();
@@ -64,8 +64,8 @@ describe("clients RLS", () => {
   it("after a client_share for participatingOrg, its members can SELECT the client", async () => {
     await resetSharing();
     const admin = adminClient();
-    await admin.from("client_shares").insert({
-      client_id: scenario.client.id,
+    await admin.from("customer_shares").insert({
+      customer_id: scenario.client.id,
       organization_id: scenario.participatingOrg.id,
       can_see_others_entries: false,
       created_by: scenario.alice.id,
@@ -76,7 +76,7 @@ describe("clients RLS", () => {
       scenario.bob.password,
     );
     const { data: bobRows } = await bob
-      .from("clients")
+      .from("customers")
       .select("id")
       .eq("id", scenario.client.id);
     expect(bobRows).toHaveLength(1);
@@ -86,7 +86,7 @@ describe("clients RLS", () => {
       scenario.dave.password,
     );
     const { data: daveRows } = await dave
-      .from("clients")
+      .from("customers")
       .select("id")
       .eq("id", scenario.client.id);
     expect(daveRows).toHaveLength(1);
@@ -95,8 +95,8 @@ describe("clients RLS", () => {
   it("direct viewer permission lets Eve SELECT but not UPDATE", async () => {
     await resetSharing();
     const admin = adminClient();
-    await admin.from("client_permissions").insert({
-      client_id: scenario.client.id,
+    await admin.from("customer_permissions").insert({
+      customer_id: scenario.client.id,
       principal_type: "user",
       principal_id: scenario.eve.id,
       permission_level: "viewer",
@@ -109,24 +109,24 @@ describe("clients RLS", () => {
     );
 
     const { data: rows } = await eve
-      .from("clients")
+      .from("customers")
       .select("id, name")
       .eq("id", scenario.client.id);
     expect(rows).toHaveLength(1);
 
     const { data: beforeRow } = await admin
-      .from("clients")
+      .from("customers")
       .select("name")
       .eq("id", scenario.client.id)
       .single();
 
     await eve
-      .from("clients")
+      .from("customers")
       .update({ name: `${prefix}eve-viewer-update` })
       .eq("id", scenario.client.id);
 
     const { data: afterRow } = await admin
-      .from("clients")
+      .from("customers")
       .select("name")
       .eq("id", scenario.client.id)
       .single();

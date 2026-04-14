@@ -54,17 +54,17 @@ export async function POST(request: Request): Promise<NextResponse> {
   // Step 2: Preview — fetch counts
   if (action === "preview") {
     try {
-      const [clients, projects, timeEntries] = await Promise.all([
+      const [customers, projects, timeEntries] = await Promise.all([
         fetchHarvestClients(opts),
         fetchHarvestProjects(opts),
         fetchHarvestTimeEntries(opts),
       ]);
 
       return NextResponse.json({
-        clients: clients.length,
+        customers: customers.length,
         projects: projects.length,
         timeEntries: timeEntries.length,
-        clientNames: clients.slice(0, 10).map((c) => c.name),
+        customerNames: customers.slice(0, 10).map((c) => c.name),
         projectNames: projects.slice(0, 10).map((p) => p.name),
       });
     } catch (err) {
@@ -89,14 +89,14 @@ export async function POST(request: Request): Promise<NextResponse> {
       const clientMap = new Map<number, string>();
       const projectMap = new Map<number, string>();
 
-      // Import clients
-      let clientsImported = 0;
+      // Import customers
+      let customersImported = 0;
       for (const hc of harvestClients) {
-        // Skip inactive clients
+        // Skip inactive customers
         if (!hc.is_active) continue;
 
         const { data: existing } = await supabase
-          .from("clients")
+          .from("customers")
           .select("id")
           .eq("organization_id", organizationId)
           .eq("name", hc.name)
@@ -109,7 +109,7 @@ export async function POST(request: Request): Promise<NextResponse> {
         }
 
         const { data: inserted, error } = await supabase
-          .from("clients")
+          .from("customers")
           .insert({
             organization_id: organizationId,
             user_id: user.id,
@@ -126,7 +126,7 @@ export async function POST(request: Request): Promise<NextResponse> {
 
         if (inserted) {
           clientMap.set(hc.id, inserted.id);
-          clientsImported++;
+          customersImported++;
         }
       }
 
@@ -135,7 +135,7 @@ export async function POST(request: Request): Promise<NextResponse> {
       for (const hp of harvestProjects) {
         if (!hp.is_active) continue;
 
-        const clientId = clientMap.get(hp.client.id) ?? null;
+        const customerId = clientMap.get(hp.client.id) ?? null;
 
         const { data: existing } = await supabase
           .from("projects")
@@ -155,7 +155,7 @@ export async function POST(request: Request): Promise<NextResponse> {
           .insert({
             organization_id: organizationId,
             user_id: user.id,
-            client_id: clientId,
+            customer_id: customerId,
             name: hp.name,
             description: hp.notes,
             hourly_rate: hp.hourly_rate,
@@ -240,7 +240,7 @@ export async function POST(request: Request): Promise<NextResponse> {
       return NextResponse.json({
         success: true,
         imported: {
-          clients: clientsImported,
+          customers: customersImported,
           projects: projectsImported,
           timeEntries: timeEntriesImported,
         },

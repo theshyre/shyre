@@ -1,7 +1,7 @@
 import { z } from "zod";
 import { addressSchema } from "./address";
 
-export const clientSchema = z.object({
+export const customerSchema = z.object({
   name: z.string().min(1, "Name is required").max(200),
   email: z.string().email("Invalid email address").optional().or(z.literal("")),
   address: addressSchema.optional(),
@@ -15,4 +15,4 @@ export const clientSchema = z.object({
   organization_id: z.string().uuid("Invalid organization"),
 });
 
-export type ClientInput = z.infer<typeof clientSchema>;
+export type CustomerInput = z.infer<typeof customerSchema>;

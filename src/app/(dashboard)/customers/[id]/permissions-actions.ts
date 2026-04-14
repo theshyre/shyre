@@ -9,7 +9,7 @@ export async function grantPermissionAction(
   return runSafeAction(
     formData,
     async (formData, { supabase }) => {
-      const clientId = formData.get("client_id") as string;
+      const customerId = formData.get("customer_id") as string;
       const principalRaw = formData.get("principal") as string;
       const principalType = formData.get("principal_type") as
         | "user"
@@ -33,20 +33,20 @@ export async function grantPermissionAction(
         finalId = id ?? null;
       }
 
-      if (!clientId) throw new Error("Client ID is required.");
+      if (!customerId) throw new Error("Client ID is required.");
       if (!finalType) throw new Error("Principal type is required.");
       if (!finalId) throw new Error("Principal is required.");
       if (!level) throw new Error("Permission level is required.");
 
-      const { error } = await supabase.rpc("grant_client_permission", {
-        p_client_id: clientId,
+      const { error } = await supabase.rpc("grant_customer_permission", {
+        p_customer_id: customerId,
         p_principal_type: finalType,
         p_principal_id: finalId,
         p_level: level,
       });
       if (error) throw new Error(error.message);
 
-      revalidatePath(`/clients/${clientId}`);
+      revalidatePath(`/customers/${customerId}`);
     },
     "grantPermissionAction",
   ) as unknown as void;
@@ -59,16 +59,16 @@ export async function revokePermissionAction(
     formData,
     async (formData, { supabase }) => {
       const permissionId = formData.get("permission_id") as string;
-      const clientId = formData.get("client_id") as string;
+      const customerId = formData.get("customer_id") as string;
       if (!permissionId) throw new Error("Permission ID is required.");
 
       const { error } = await supabase
-        .from("client_permissions")
+        .from("customer_permissions")
         .delete()
         .eq("id", permissionId);
       if (error) throw new Error(error.message);
 
-      revalidatePath(`/clients/${clientId}`);
+      revalidatePath(`/customers/${customerId}`);
     },
     "revokePermissionAction",
   ) as unknown as void;

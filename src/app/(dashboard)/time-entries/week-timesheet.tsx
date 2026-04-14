@@ -318,8 +318,8 @@ function TimesheetRow({
             <span className="text-content-secondary">
               {project?.name ?? "—"}
             </span>
-            {project?.clients?.name && (
-              <span> · {project.clients.name}</span>
+            {project?.customers?.name && (
+              <span> · {project.customers.name}</span>
             )}
           </div>
         </div>

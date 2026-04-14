@@ -21,18 +21,18 @@ import type { OrgListItem } from "@/lib/org-context";
 import type { CategorySet } from "@/lib/categories/types";
 import { createProjectAction } from "./actions";
 
-interface ClientOption {
+interface CustomerOption {
   id: string;
   name: string;
 }
 
 export function NewProjectForm({
-  clients,
+  customers,
   orgs,
   defaultOrgId,
   categorySets,
 }: {
-  clients: ClientOption[];
+  customers: CustomerOption[];
   orgs: OrgListItem[];
   defaultOrgId?: string;
   categorySets: CategorySet[];
@@ -81,10 +81,10 @@ export function NewProjectForm({
           <FieldError error={fieldErrors.name} />
         </div>
         <div>
-          <label className={labelClass}>{t("fields.client")}</label>
-          <select name="client_id" className={selectClass}>
+          <label className={labelClass}>{t("fields.customer")}</label>
+          <select name="customer_id" className={selectClass}>
             <option value="">{t("fields.internalProject")}</option>
-            {clients.map((c) => (
+            {customers.map((c) => (
               <option key={c.id} value={c.id}>
                 {c.name}
               </option>

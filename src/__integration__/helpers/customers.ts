@@ -7,7 +7,7 @@ export interface TestClient {
   orgId: string;
 }
 
-export async function createTestClient(
+export async function createTestCustomer(
   prefix: string,
   orgId: string,
   userId: string,
@@ -17,7 +17,7 @@ export async function createTestClient(
   const name = `${prefix}${label}`;
 
   const { data, error } = await adminClient()
-    .from("clients")
+    .from("customers")
     .insert({
       organization_id: orgId,
       user_id: userId,
@@ -33,7 +33,7 @@ export async function createTestClient(
 export async function createTestProject(
   prefix: string,
   orgId: string,
-  clientId: string | null,
+  customerId: string | null,
   userId: string,
   label = "project",
 ): Promise<{ id: string; name: string }> {
@@ -45,7 +45,7 @@ export async function createTestProject(
     .insert({
       organization_id: orgId,
       user_id: userId,
-      client_id: clientId,
+      customer_id: customerId,
       name,
       status: "active",
     })

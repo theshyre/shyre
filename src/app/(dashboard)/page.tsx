@@ -27,7 +27,7 @@ export default async function DashboardPage(): Promise<React.JSX.Element> {
   const weekStart = new Date(now.getFullYear(), now.getMonth(), now.getDate() - now.getDay()).toISOString();
 
   // Parallel queries
-  const [todayEntries, weekEntries, activeTimers, unbilledEntries, clients, projects, recentEntries] =
+  const [todayEntries, weekEntries, activeTimers, unbilledEntries, customers, projects, recentEntries] =
     await Promise.all([
       supabase
         .from("time_entries")
@@ -54,7 +54,7 @@ export default async function DashboardPage(): Promise<React.JSX.Element> {
         .eq("billable", true)
         .not("end_time", "is", null),
       supabase
-        .from("clients")
+        .from("customers")
         .select("id")
 
         .eq("archived", false),
@@ -81,7 +81,7 @@ export default async function DashboardPage(): Promise<React.JSX.Element> {
     (sum, e) => sum + (e.duration_min ?? 0), 0
   );
   const activeCount = activeTimers.data?.length ?? 0;
-  const clientCount = clients.data?.length ?? 0;
+  const clientCount = customers.data?.length ?? 0;
   const projectCount = projects.data?.length ?? 0;
 
   const fmtHours = (mins: number): string => {

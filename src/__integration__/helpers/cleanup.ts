@@ -52,8 +52,8 @@ async function cleanupByPattern(pattern: string): Promise<void> {
     await admin.from("invoices").delete().in("organization_id", orgIds);
     await admin.from("projects").delete().in("organization_id", orgIds);
     await admin.from("category_sets").delete().in("organization_id", orgIds);
-    await admin.from("client_shares").delete().in("organization_id", orgIds);
-    await admin.from("clients").delete().in("organization_id", orgIds);
+    await admin.from("customer_shares").delete().in("organization_id", orgIds);
+    await admin.from("customers").delete().in("organization_id", orgIds);
     await admin.from("security_group_members").delete().in("group_id",
       (await admin.from("security_groups").select("id").in("organization_id", orgIds)).data?.map(g => g.id) ?? []
     );

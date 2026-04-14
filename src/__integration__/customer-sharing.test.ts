@@ -21,8 +21,8 @@ describe("client sharing", () => {
   it("primary org owner can add a participating org as a share", async () => {
     const alice = await createAuthedClient(scenario.alice.email, scenario.alice.password);
 
-    const { data, error } = await alice.rpc("add_client_share", {
-      p_client_id: scenario.client.id,
+    const { data, error } = await alice.rpc("add_customer_share", {
+      p_customer_id: scenario.client.id,
       p_org_id: scenario.participatingOrg.id,
       p_can_see_others: false,
     });
@@ -32,9 +32,9 @@ describe("client sharing", () => {
 
     // Verify row exists
     const { data: shares } = await adminClient()
-      .from("client_shares")
+      .from("customer_shares")
       .select("id, organization_id, can_see_others_entries")
-      .eq("client_id", scenario.client.id)
+      .eq("customer_id", scenario.client.id)
       .eq("organization_id", scenario.participatingOrg.id);
 
     expect(shares).toHaveLength(1);
@@ -44,8 +44,8 @@ describe("client sharing", () => {
   it("cannot share with the client's primary org", async () => {
     const alice = await createAuthedClient(scenario.alice.email, scenario.alice.password);
 
-    const { error } = await alice.rpc("add_client_share", {
-      p_client_id: scenario.client.id,
+    const { error } = await alice.rpc("add_customer_share", {
+      p_customer_id: scenario.client.id,
       p_org_id: scenario.primaryOrg.id,
       p_can_see_others: false,
     });
@@ -57,8 +57,8 @@ describe("client sharing", () => {
   it("primary org member (not admin) cannot add a share", async () => {
     const carol = await createAuthedClient(scenario.carol.email, scenario.carol.password);
 
-    const { error } = await carol.rpc("add_client_share", {
-      p_client_id: scenario.client.id,
+    const { error } = await carol.rpc("add_customer_share", {
+      p_customer_id: scenario.client.id,
       p_org_id: scenario.outsiderOrg.id,
       p_can_see_others: false,
     });
@@ -71,31 +71,31 @@ describe("client sharing", () => {
     // Ensure a share row exists
     const admin = adminClient();
     await admin
-      .from("client_shares")
+      .from("customer_shares")
       .upsert(
         {
-          client_id: scenario.client.id,
+          customer_id: scenario.client.id,
           organization_id: scenario.participatingOrg.id,
           can_see_others_entries: false,
           created_by: scenario.alice.id,
         },
-        { onConflict: "client_id,organization_id" },
+        { onConflict: "customer_id,organization_id" },
       );
 
     const alice = await createAuthedClient(scenario.alice.email, scenario.alice.password);
 
     const { error } = await alice
-      .from("client_shares")
+      .from("customer_shares")
       .update({ can_see_others_entries: true })
-      .eq("client_id", scenario.client.id)
+      .eq("customer_id", scenario.client.id)
       .eq("organization_id", scenario.participatingOrg.id);
 
     expect(error).toBeNull();
 
     const { data: rows } = await admin
-      .from("client_shares")
+      .from("customer_shares")
       .select("can_see_others_entries")
-      .eq("client_id", scenario.client.id)
+      .eq("customer_id", scenario.client.id)
       .eq("organization_id", scenario.participatingOrg.id)
       .single();
 
@@ -105,31 +105,31 @@ describe("client sharing", () => {
   it("client admin can remove a share via DELETE", async () => {
     const admin = adminClient();
     await admin
-      .from("client_shares")
+      .from("customer_shares")
       .upsert(
         {
-          client_id: scenario.client.id,
+          customer_id: scenario.client.id,
           organization_id: scenario.participatingOrg.id,
           can_see_others_entries: false,
           created_by: scenario.alice.id,
         },
-        { onConflict: "client_id,organization_id" },
+        { onConflict: "customer_id,organization_id" },
       );
 
     const alice = await createAuthedClient(scenario.alice.email, scenario.alice.password);
 
     const { error } = await alice
-      .from("client_shares")
+      .from("customer_shares")
       .delete()
-      .eq("client_id", scenario.client.id)
+      .eq("customer_id", scenario.client.id)
       .eq("organization_id", scenario.participatingOrg.id);
 
     expect(error).toBeNull();
 
     const { data: rows } = await admin
-      .from("client_shares")
+      .from("customer_shares")
       .select("id")
-      .eq("client_id", scenario.client.id)
+      .eq("customer_id", scenario.client.id)
       .eq("organization_id", scenario.participatingOrg.id);
 
     expect(rows).toHaveLength(0);

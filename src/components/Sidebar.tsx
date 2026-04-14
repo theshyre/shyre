@@ -38,7 +38,7 @@ interface NavSection {
 /**
  * Nav sections (for all users):
  * - Track  : daily work (dashboard, time tracking)
- * - Manage : ongoing records (clients, projects, invoices, reports)
+ * - Manage : ongoing records (customers, projects, invoices, reports)
  * - Admin  : org-level admin (organizations, security groups, categories,
  *            templates, data import)
  *
@@ -59,7 +59,7 @@ const sections: NavSection[] = [
   {
     titleKey: "navSections.manage",
     items: [
-      { labelKey: "clients", href: "/clients", icon: Users },
+      { labelKey: "customers", href: "/customers", icon: Users },
       { labelKey: "projects", href: "/projects", icon: FolderKanban },
       { labelKey: "invoices", href: "/invoices", icon: FileText },
       { labelKey: "reports", href: "/reports", icon: BarChart3 },

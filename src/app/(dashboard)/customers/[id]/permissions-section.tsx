@@ -45,12 +45,12 @@ const LEVEL_BADGE: Record<PermissionLevel, string> = {
 };
 
 export function PermissionsSection({
-  clientId,
+  customerId,
   permissions,
   availablePrincipals,
   userCanAdmin,
 }: {
-  clientId: string;
+  customerId: string;
   permissions: Permission[];
   availablePrincipals: PrincipalOption[];
   userCanAdmin: boolean;
@@ -101,7 +101,7 @@ export function PermissionsSection({
             <PermissionRow
               key={perm.id}
               perm={perm}
-              clientId={clientId}
+              customerId={customerId}
               userCanAdmin={userCanAdmin}
             />
           ))}
@@ -115,7 +115,7 @@ export function PermissionsSection({
               action={handleGrant}
               className="rounded-lg border border-edge bg-surface-raised p-4 space-y-3"
             >
-              <input type="hidden" name="client_id" value={clientId} />
+              <input type="hidden" name="customer_id" value={customerId} />
               {grantError && (
                 <p className="text-sm text-error bg-error-soft rounded-lg px-3 py-2">
                   {grantError}
@@ -202,11 +202,11 @@ export function PermissionsSection({
 
 function PermissionRow({
   perm,
-  clientId,
+  customerId,
   userCanAdmin,
 }: {
   perm: Permission;
-  clientId: string;
+  customerId: string;
   userCanAdmin: boolean;
 }): React.JSX.Element {
   const t = useTranslations("sharing.clientSharing");
@@ -239,7 +239,7 @@ function PermissionRow({
         {userCanAdmin && (
           <form action={handleSubmit}>
             <input type="hidden" name="permission_id" value={perm.id} />
-            <input type="hidden" name="client_id" value={clientId} />
+            <input type="hidden" name="customer_id" value={customerId} />
             <button
               type="submit"
               disabled={pending}

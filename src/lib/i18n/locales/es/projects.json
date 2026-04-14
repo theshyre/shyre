@@ -9,7 +9,7 @@
   "fields": {
     "name": "Nombre",
     "description": "Descripción",
-    "client": "Cliente",
+    "customer": "Cliente",
     "internalProject": "Ninguno (proyecto interno)",
     "hourlyRate": "Tarifa por hora ($/hr)",
     "budgetHours": "Horas presupuestadas",
@@ -22,7 +22,7 @@
     "requireTimestampsHint": "Desactivado: las entradas solo necesitan fecha y duración (p. ej. 3:15). Activado: cada entrada requiere hora de inicio y fin explícitas."
   },
   "table": {
-    "client": "Cliente",
+    "customer": "Cliente",
     "hourlyRate": "Tarifa por hora",
     "budgetHours": "Presupuesto",
     "status": "Estado"

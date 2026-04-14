@@ -41,7 +41,7 @@
   },
   "table": {
     "invoiceNumber": "Factura #",
-    "client": "Cliente",
+    "customer": "Cliente",
     "issuedDate": "Emitida",
     "dueDate": "Vencimiento",
     "total": "Total",

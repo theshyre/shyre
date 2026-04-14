@@ -20,19 +20,19 @@ export default async function ProjectsPage({
 
   let projectsQuery = supabase
     .from("projects")
-    .select("*, clients(name)")
+    .select("*, customers(name)")
     .neq("status", "archived")
     .order("created_at", { ascending: false });
   if (selectedOrgId) projectsQuery = projectsQuery.eq("organization_id", selectedOrgId);
   const { data: projects } = await projectsQuery;
 
   let clientsQuery = supabase
-    .from("clients")
+    .from("customers")
     .select("id, name")
     .eq("archived", false)
     .order("name");
   if (selectedOrgId) clientsQuery = clientsQuery.eq("organization_id", selectedOrgId);
-  const { data: clients } = await clientsQuery;
+  const { data: customers } = await clientsQuery;
 
   const categorySetsFull = await getVisibleCategorySets(selectedOrgId);
   const categorySets = categorySetsFull.map(
@@ -58,7 +58,7 @@ export default async function ProjectsPage({
       </div>
 
       <NewProjectForm
-        clients={clients ?? []}
+        customers={customers ?? []}
         orgs={orgs}
         defaultOrgId={selectedOrgId}
         categorySets={categorySets}
@@ -76,7 +76,7 @@ export default async function ProjectsPage({
                   Org
                 </th>
                 <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider text-content-muted">
-                  {t("table.client")}
+                  {t("table.customer")}
                 </th>
                 <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider text-content-muted">
                   {t("table.hourlyRate")}
@@ -88,11 +88,11 @@ export default async function ProjectsPage({
             </thead>
             <tbody>
               {projects.map((project) => {
-                const clientName =
-                  project.clients &&
-                  typeof project.clients === "object" &&
-                  "name" in project.clients
-                    ? (project.clients as { name: string }).name
+                const customerName =
+                  project.customers &&
+                  typeof project.customers === "object" &&
+                  "name" in project.customers
+                    ? (project.customers as { name: string }).name
                     : "—";
                 return (
                   <tr
@@ -111,7 +111,7 @@ export default async function ProjectsPage({
                       {orgName(project.organization_id)}
                     </td>
                     <td className="px-4 py-3 text-content-secondary">
-                      {clientName}
+                      {customerName}
                     </td>
                     <td className="px-4 py-3 text-content-secondary font-mono">
                       {project.hourly_rate

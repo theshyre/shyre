@@ -2,7 +2,7 @@ import { z } from "zod";
 
 export const projectSchema = z.object({
   name: z.string().min(1, "Name is required").max(200),
-  client_id: z.string().uuid().optional().nullable(),
+  customer_id: z.string().uuid().optional().nullable(),
   description: z.string().max(2000).optional().or(z.literal("")),
   hourly_rate: z
     .number()

@@ -7,7 +7,7 @@ import {
   twoOrgSharingScenario,
   TwoOrgSharingScenario,
 } from "./helpers/fixtures";
-import { createTestSecurityGroup } from "./helpers/clients";
+import { createTestSecurityGroup } from "./helpers/customers";
 
 describe("client permissions", () => {
   let prefix: string;
@@ -24,9 +24,9 @@ describe("client permissions", () => {
 
   async function clearClientPermissions() {
     await adminClient()
-      .from("client_permissions")
+      .from("customer_permissions")
       .delete()
-      .eq("client_id", scenario.client.id);
+      .eq("customer_id", scenario.client.id);
   }
 
   it("grant viewer lets outsider SELECT but not UPDATE the client", async () => {
@@ -37,8 +37,8 @@ describe("client permissions", () => {
       scenario.alice.password,
     );
 
-    const { error: grantErr } = await alice.rpc("grant_client_permission", {
-      p_client_id: scenario.client.id,
+    const { error: grantErr } = await alice.rpc("grant_customer_permission", {
+      p_customer_id: scenario.client.id,
       p_principal_type: "user",
       p_principal_id: scenario.eve.id,
       p_level: "viewer",
@@ -51,7 +51,7 @@ describe("client permissions", () => {
     );
 
     const { data: selectData, error: selectErr } = await eve
-      .from("clients")
+      .from("customers")
       .select("id, name")
       .eq("id", scenario.client.id);
 
@@ -59,14 +59,14 @@ describe("client permissions", () => {
     expect(selectData).toHaveLength(1);
 
     const { error: updateErr } = await eve
-      .from("clients")
+      .from("customers")
       .update({ name: `${prefix}eve-was-here` })
       .eq("id", scenario.client.id)
       .select();
 
     // RLS UPDATE denied → either error or zero rows affected
     const { data: afterUpdate } = await adminClient()
-      .from("clients")
+      .from("customers")
       .select("name")
       .eq("id", scenario.client.id)
       .single();
@@ -97,8 +97,8 @@ describe("client permissions", () => {
       scenario.alice.password,
     );
 
-    const { error: grantErr } = await alice.rpc("grant_client_permission", {
-      p_client_id: scenario.client.id,
+    const { error: grantErr } = await alice.rpc("grant_customer_permission", {
+      p_customer_id: scenario.client.id,
       p_principal_type: "user",
       p_principal_id: scenario.eve.id,
       p_level: "contributor",
@@ -111,26 +111,26 @@ describe("client permissions", () => {
     );
 
     const { data: perm, error: permErr } = await eve.rpc(
-      "user_client_permission",
-      { p_client_id: scenario.client.id },
+      "user_customer_permission",
+      { p_customer_id: scenario.client.id },
     );
     expect(permErr).toBeNull();
     expect(perm).toBe("contributor");
 
     // Eve cannot UPDATE (contributor is not admin)
     const { data: beforeName } = await adminClient()
-      .from("clients")
+      .from("customers")
       .select("name")
       .eq("id", scenario.client.id)
       .single();
 
     await eve
-      .from("clients")
+      .from("customers")
       .update({ name: `${prefix}contributor-rename` })
       .eq("id", scenario.client.id);
 
     const { data: afterName } = await adminClient()
-      .from("clients")
+      .from("customers")
       .select("name")
       .eq("id", scenario.client.id)
       .single();
@@ -145,8 +145,8 @@ describe("client permissions", () => {
       scenario.alice.password,
     );
 
-    await alice.rpc("grant_client_permission", {
-      p_client_id: scenario.client.id,
+    await alice.rpc("grant_customer_permission", {
+      p_customer_id: scenario.client.id,
       p_principal_type: "user",
       p_principal_id: scenario.eve.id,
       p_level: "admin",
@@ -159,14 +159,14 @@ describe("client permissions", () => {
 
     const newName = `${prefix}eve-admin-rename`;
     const { error } = await eve
-      .from("clients")
+      .from("customers")
       .update({ name: newName })
       .eq("id", scenario.client.id);
 
     expect(error).toBeNull();
 
     const { data } = await adminClient()
-      .from("clients")
+      .from("customers")
       .select("name")
       .eq("id", scenario.client.id)
       .single();
@@ -174,7 +174,7 @@ describe("client permissions", () => {
 
     // Restore original name to keep scenario tidy
     await adminClient()
-      .from("clients")
+      .from("customers")
       .update({ name: scenario.client.name })
       .eq("id", scenario.client.id);
   });
@@ -201,8 +201,8 @@ describe("client permissions", () => {
       scenario.alice.email,
       scenario.alice.password,
     );
-    const { error: grantErr } = await alice.rpc("grant_client_permission", {
-      p_client_id: scenario.client.id,
+    const { error: grantErr } = await alice.rpc("grant_customer_permission", {
+      p_customer_id: scenario.client.id,
       p_principal_type: "group",
       p_principal_id: group.id,
       p_level: "admin",
@@ -217,14 +217,14 @@ describe("client permissions", () => {
 
     const newName = `${prefix}dave-group-rename`;
     const { error: updateErr } = await dave
-      .from("clients")
+      .from("customers")
       .update({ name: newName })
       .eq("id", scenario.client.id);
 
     expect(updateErr).toBeNull();
 
     const { data } = await adminClient()
-      .from("clients")
+      .from("customers")
       .select("name")
       .eq("id", scenario.client.id)
       .single();
@@ -232,7 +232,7 @@ describe("client permissions", () => {
 
     // Restore name
     await adminClient()
-      .from("clients")
+      .from("customers")
       .update({ name: scenario.client.name })
       .eq("id", scenario.client.id);
   });
@@ -245,15 +245,15 @@ describe("client permissions", () => {
       scenario.alice.password,
     );
 
-    const { data: id1 } = await alice.rpc("grant_client_permission", {
-      p_client_id: scenario.client.id,
+    const { data: id1 } = await alice.rpc("grant_customer_permission", {
+      p_customer_id: scenario.client.id,
       p_principal_type: "user",
       p_principal_id: scenario.eve.id,
       p_level: "viewer",
     });
 
-    const { data: id2 } = await alice.rpc("grant_client_permission", {
-      p_client_id: scenario.client.id,
+    const { data: id2 } = await alice.rpc("grant_customer_permission", {
+      p_customer_id: scenario.client.id,
       p_principal_type: "user",
       p_principal_id: scenario.eve.id,
       p_level: "admin",
@@ -262,9 +262,9 @@ describe("client permissions", () => {
     expect(id1).toBe(id2);
 
     const { data: rows } = await adminClient()
-      .from("client_permissions")
+      .from("customer_permissions")
       .select("id, permission_level")
-      .eq("client_id", scenario.client.id)
+      .eq("customer_id", scenario.client.id)
       .eq("principal_type", "user")
       .eq("principal_id", scenario.eve.id);
 
@@ -279,8 +279,8 @@ describe("client permissions", () => {
       scenario.alice.email,
       scenario.alice.password,
     );
-    await alice.rpc("grant_client_permission", {
-      p_client_id: scenario.client.id,
+    await alice.rpc("grant_customer_permission", {
+      p_customer_id: scenario.client.id,
       p_principal_type: "user",
       p_principal_id: scenario.eve.id,
       p_level: "viewer",
@@ -292,16 +292,16 @@ describe("client permissions", () => {
       scenario.eve.password,
     );
     const { data: before } = await eve
-      .from("clients")
+      .from("customers")
       .select("id")
       .eq("id", scenario.client.id);
     expect(before).toHaveLength(1);
 
     // Alice (client admin) deletes the permission row
     const { error: delErr } = await alice
-      .from("client_permissions")
+      .from("customer_permissions")
       .delete()
-      .eq("client_id", scenario.client.id)
+      .eq("customer_id", scenario.client.id)
       .eq("principal_type", "user")
       .eq("principal_id", scenario.eve.id);
     expect(delErr).toBeNull();
@@ -312,7 +312,7 @@ describe("client permissions", () => {
       scenario.eve.password,
     );
     const { data: after } = await eve2
-      .from("clients")
+      .from("customers")
       .select("id")
       .eq("id", scenario.client.id);
     expect(after ?? []).toHaveLength(0);

@@ -12,7 +12,7 @@ import { AddressFields } from "@/components/AddressFields";
 import { FieldError } from "@/components/FieldError";
 import { SubmitButton } from "@/components/SubmitButton";
 import { deserializeAddress } from "@/lib/schemas/address";
-import { updateClientAction } from "../actions";
+import { updateCustomerAction } from "../actions";
 
 interface Client {
   id: string;
@@ -23,16 +23,16 @@ interface Client {
   default_rate: number | null;
 }
 
-export function ClientEditForm({
+export function CustomerEditForm({
   client,
 }: {
   client: Client;
 }): React.JSX.Element {
-  const t = useTranslations("clients");
+  const t = useTranslations("customers");
 
   const { pending, success, serverError, fieldErrors, handleSubmit } =
     useFormAction({
-      action: updateClientAction,
+      action: updateCustomerAction,
     });
 
   const address = deserializeAddress(client.address);

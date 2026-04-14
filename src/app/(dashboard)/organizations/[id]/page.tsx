@@ -49,9 +49,9 @@ export default async function OrgDetailPage({
     .is("accepted_at", null)
     .order("created_at", { ascending: false });
 
-  // Org's clients
-  const { data: clients } = await supabase
-    .from("clients")
+  // Org's customers
+  const { data: customers } = await supabase
+    .from("customers")
     .select("id, name, email, default_rate")
     .eq("organization_id", id)
     .eq("archived", false)
@@ -60,7 +60,7 @@ export default async function OrgDetailPage({
   // Org's projects
   const { data: projects } = await supabase
     .from("projects")
-    .select("id, name, status, hourly_rate, client_id, clients(name)")
+    .select("id, name, status, hourly_rate, customer_id, customers(name)")
     .eq("organization_id", id)
     .neq("status", "archived")
     .order("created_at", { ascending: false });
@@ -118,22 +118,22 @@ export default async function OrgDetailPage({
           <div className="flex items-center gap-2">
             <Users size={18} className="text-accent" />
             <h2 className="text-sm font-semibold uppercase tracking-wider text-content-muted">
-              {tc("nav.clients")}
+              {tc("nav.customers")}
             </h2>
           </div>
           <Link
-            href={`/clients?org=${id}`}
+            href={`/customers?org=${id}`}
             className="flex items-center gap-1 text-xs text-accent hover:underline"
           >
             View all <ArrowRight size={12} />
           </Link>
         </div>
-        {clients && clients.length > 0 ? (
+        {customers && customers.length > 0 ? (
           <div className="mt-2 grid gap-2 sm:grid-cols-2">
-            {clients.slice(0, 6).map((client) => (
+            {customers.slice(0, 6).map((client) => (
               <Link
                 key={client.id}
-                href={`/clients/${client.id}`}
+                href={`/customers/${client.id}`}
                 className="rounded-lg border border-edge bg-surface-raised px-3 py-2 text-sm hover:bg-hover transition-colors"
               >
                 <span className="font-medium text-content">{client.name}</span>
@@ -146,7 +146,7 @@ export default async function OrgDetailPage({
             ))}
           </div>
         ) : (
-          <p className="mt-2 text-sm text-content-muted">No clients yet.</p>
+          <p className="mt-2 text-sm text-content-muted">No customers yet.</p>
         )}
       </div>
 
@@ -169,11 +169,11 @@ export default async function OrgDetailPage({
         {projects && projects.length > 0 ? (
           <div className="mt-2 grid gap-2 sm:grid-cols-2">
             {projects.slice(0, 6).map((project) => {
-              const clientName =
-                project.clients &&
-                typeof project.clients === "object" &&
-                "name" in project.clients
-                  ? (project.clients as { name: string }).name
+              const customerName =
+                project.customers &&
+                typeof project.customers === "object" &&
+                "name" in project.customers
+                  ? (project.customers as { name: string }).name
                   : null;
               return (
                 <Link
@@ -185,7 +185,7 @@ export default async function OrgDetailPage({
                     {project.name}
                   </span>
                   <span className="ml-2 text-xs text-content-muted">
-                    {clientName ?? tp("internal")}
+                    {customerName ?? tp("internal")}
                   </span>
                 </Link>
               );

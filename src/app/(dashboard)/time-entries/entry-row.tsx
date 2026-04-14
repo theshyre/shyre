@@ -38,7 +38,7 @@ export function EntryRow({
   const tt = useTranslations("time.timer");
   const isRunning = !entry.end_time;
   const projectName = entry.projects?.name ?? "—";
-  const clientName = entry.projects?.clients?.name ?? null;
+  const customerName = entry.projects?.customers?.name ?? null;
   const startDate = new Date(entry.start_time);
   const startTime = startDate.toLocaleTimeString(undefined, {
     hour: "numeric",
@@ -81,8 +81,8 @@ export function EntryRow({
         <td className="px-3 py-2.5 align-middle min-w-0">
           <div className="text-xs text-content-secondary truncate">
             <span className="text-content">{projectName}</span>
-            {clientName && (
-              <span className="text-content-muted"> · {clientName}</span>
+            {customerName && (
+              <span className="text-content-muted"> · {customerName}</span>
             )}
           </div>
           {entry.description ? (

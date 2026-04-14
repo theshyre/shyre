@@ -6,7 +6,7 @@ export default getRequestConfig(async () => {
   const [
     common,
     auth,
-    clients,
+    customers,
     dashboard,
     projects,
     time,
@@ -21,7 +21,7 @@ export default getRequestConfig(async () => {
   ] = await Promise.all([
     import(`./locales/${locale}/common.json`),
     import(`./locales/${locale}/auth.json`),
-    import(`./locales/${locale}/clients.json`),
+    import(`./locales/${locale}/customers.json`),
     import(`./locales/${locale}/dashboard.json`),
     import(`./locales/${locale}/projects.json`),
     import(`./locales/${locale}/time.json`),
@@ -40,7 +40,7 @@ export default getRequestConfig(async () => {
     messages: {
       common: common.default,
       auth: auth.default,
-      clients: clients.default,
+      customers: customers.default,
       dashboard: dashboard.default,
       projects: projects.default,
       time: time.default,

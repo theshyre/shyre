@@ -19,12 +19,12 @@ interface OrgOption {
 }
 
 export function ChangePrimaryFlow({
-  clientId,
+  customerId,
   currentPrimaryOrgName,
   availableOrgs,
   canChange,
 }: {
-  clientId: string;
+  customerId: string;
   currentPrimaryOrgName: string;
   availableOrgs: OrgOption[];
   canChange: boolean;
@@ -62,7 +62,7 @@ export function ChangePrimaryFlow({
       action={handleSubmit}
       className="rounded-lg border border-warning/30 bg-warning-soft/30 p-4 space-y-3"
     >
-      <input type="hidden" name="client_id" value={clientId} />
+      <input type="hidden" name="customer_id" value={customerId} />
 
       <div>
         <p className="text-sm font-semibold text-content">{t("title")}</p>

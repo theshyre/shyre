@@ -14,18 +14,18 @@ import { OrgSelector } from "@/components/OrgSelector";
 import type { OrgListItem } from "@/lib/org-context";
 import { createInvoiceAction } from "../actions";
 
-interface ClientOption {
+interface CustomerOption {
   id: string;
   name: string;
   default_rate: number | null;
 }
 
 export function NewInvoiceForm({
-  clients,
+  customers,
   defaultTaxRate,
   orgs,
 }: {
-  clients: ClientOption[];
+  customers: CustomerOption[];
   defaultTaxRate: number;
   orgs: OrgListItem[];
 }): React.JSX.Element {
@@ -52,9 +52,9 @@ export function NewInvoiceForm({
         <div className="grid gap-4 sm:grid-cols-2">
           <div>
             <label className={labelClass}>{t("selectClient")}</label>
-            <select name="client_id" className={selectClass}>
+            <select name="customer_id" className={selectClass}>
               <option value="">All (org-wide)</option>
-              {clients.map((c) => (
+              {customers.map((c) => (
                 <option key={c.id} value={c.id}>
                   {c.name}
                 </option>

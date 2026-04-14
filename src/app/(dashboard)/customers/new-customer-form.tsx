@@ -17,12 +17,12 @@ import { OrgSelector } from "@/components/OrgSelector";
 import { AddressFields } from "@/components/AddressFields";
 import { FieldError } from "@/components/FieldError";
 import { SubmitButton } from "@/components/SubmitButton";
-import { clientSchema } from "@/lib/schemas/client";
+import { customerSchema } from "@/lib/schemas/customer";
 import { deserializeAddress } from "@/lib/schemas/address";
 import type { OrgListItem } from "@/lib/org-context";
-import { createClientAction } from "./actions";
+import { createCustomerAction } from "./actions";
 
-export function NewClientForm({
+export function NewCustomerForm({
   orgs,
   defaultOrgId,
 }: {
@@ -30,13 +30,13 @@ export function NewClientForm({
   defaultOrgId?: string;
 }): React.JSX.Element {
   const [open, setOpen] = useState(false);
-  const t = useTranslations("clients");
+  const t = useTranslations("customers");
   const tc = useTranslations("common");
 
   const { pending, success, serverError, fieldErrors, handleSubmit } =
     useFormAction({
-      schema: clientSchema,
-      action: createClientAction,
+      schema: customerSchema,
+      action: createCustomerAction,
       transform: (fd) => ({
         name: fd.get("name"),
         email: fd.get("email") || undefined,
@@ -70,7 +70,7 @@ export function NewClientForm({
         className={`${buttonPrimaryClass} mt-4`}
       >
         <Plus size={16} />
-        {t("addClient")}
+        {t("addCustomer")}
         <kbd className={kbdClass}>N</kbd>
       </button>
     );
@@ -129,7 +129,7 @@ export function NewClientForm({
 
       <div className="flex gap-2">
         <SubmitButton
-          label={t("saveClient")}
+          label={t("saveCustomer")}
           pending={pending}
           success={success}
           successMessage={tc("actions.save")}

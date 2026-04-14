@@ -1,0 +1,263 @@
+import { createClient } from "@/lib/supabase/server";
+import { getUserOrgs } from "@/lib/org-context";
+import { getTranslations } from "next-intl/server";
+import { notFound } from "next/navigation";
+import { FolderKanban } from "lucide-react";
+import { CustomerEditForm } from "./customer-edit-form";
+import { SharingSection } from "./sharing-section";
+import { PermissionsSection } from "./permissions-section";
+
+interface ShareRow {
+  id: string;
+  organization_id: string;
+  can_see_others_entries: boolean;
+  organizations: { name: string } | { name: string }[] | null;
+}
+
+interface PermRow {
+  id: string;
+  principal_type: "user" | "group";
+  principal_id: string;
+  permission_level: "viewer" | "contributor" | "admin";
+}
+
+interface OrgMemberRow {
+  organization_id: string;
+  user_id: string;
+  user_profiles:
+    | { display_name: string | null }[]
+    | { display_name: string | null }
+    | null;
+}
+
+interface SecurityGroupRow {
+  id: string;
+  organization_id: string;
+  name: string;
+}
+
+function displayName(
+  profile:
+    | { display_name: string | null }[]
+    | { display_name: string | null }
+    | null,
+  fallback: string,
+): string {
+  const p = Array.isArray(profile) ? profile[0] : profile;
+  return p?.display_name ?? fallback;
+}
+
+export default async function ClientDetailPage({
+  params,
+}: {
+  params: Promise<{ id: string }>;
+}): Promise<React.JSX.Element> {
+  const { id } = await params;
+  const supabase = await createClient();
+  const t = await getTranslations("customers");
+
+  const { data: client } = await supabase
+    .from("customers")
+    .select("*")
+    .eq("id", id)
+    .single();
+
+  if (!client) notFound();
+
+  const { data: projects } = await supabase
+    .from("projects")
+    .select("*")
+    .eq("customer_id", id)
+    .order("created_at", { ascending: false });
+
+  // Sharing data
+  const { data: sharesData } = await supabase
+    .from("customer_shares")
+    .select("id, organization_id, can_see_others_entries, organizations(name)")
+    .eq("customer_id", id);
+  const shares = (sharesData ?? []) as unknown as ShareRow[];
+
+  // Permission level for current user
+  const { data: permLevel } = await supabase.rpc("user_customer_permission", {
+    p_customer_id: id,
+  });
+  const userCanAdmin = permLevel === "admin";
+
+  // User's orgs (for available orgs & primary change)
+  const userOrgs = await getUserOrgs();
+  const sharedOrgIds = new Set(shares.map((s) => s.organization_id));
+  const availableOrgs = userOrgs
+    .filter((o) => o.id !== client.organization_id && !sharedOrgIds.has(o.id))
+    .map((o) => ({ id: o.id, name: o.name }));
+
+  // Primary org name
+  const { data: primaryOrg } = await supabase
+    .from("organizations")
+    .select("id, name")
+    .eq("id", client.organization_id)
+    .single();
+  const primaryOrgName = primaryOrg?.name ?? "—";
+
+  // Can change primary: user is owner of current primary
+  const currentPrimaryMembership = userOrgs.find(
+    (o) => o.id === client.organization_id,
+  );
+  const canChangePrimary = currentPrimaryMembership?.role === "owner";
+  const changePrimaryOrgs = userOrgs
+    .filter((o) => o.id !== client.organization_id)
+    .map((o) => ({ id: o.id, name: o.name }));
+
+  // Permissions data
+  const { data: permsData } = await supabase
+    .from("customer_permissions")
+    .select("id, principal_type, principal_id, permission_level")
+    .eq("customer_id", id);
+  const perms = (permsData ?? []) as unknown as PermRow[];
+
+  // Participating org ids (primary + shared) for member/group lookup
+  const allOrgIds = [
+    client.organization_id,
+    ...shares.map((s) => s.organization_id),
+  ];
+
+  // Members of all those orgs
+  const { data: orgMembersData } = allOrgIds.length
+    ? await supabase
+        .from("organization_members")
+        .select("organization_id, user_id, user_profiles(display_name)")
+        .in("organization_id", allOrgIds)
+    : { data: [] };
+  const orgMembers = (orgMembersData ?? []) as unknown as OrgMemberRow[];
+
+  // Security groups of all those orgs
+  const { data: groupsData } = allOrgIds.length
+    ? await supabase
+        .from("security_groups")
+        .select("id, organization_id, name")
+        .in("organization_id", allOrgIds)
+    : { data: [] };
+  const groups = (groupsData ?? []) as unknown as SecurityGroupRow[];
+
+  // Org name lookup for display
+  const orgNameById = new Map<string, string>();
+  orgNameById.set(client.organization_id, primaryOrgName);
+  for (const s of shares) {
+    const name = Array.isArray(s.organizations)
+      ? s.organizations[0]?.name
+      : s.organizations?.name;
+    if (name) orgNameById.set(s.organization_id, name);
+  }
+
+  // Build available principals list (dedupe users by id)
+  const seenUserIds = new Set<string>();
+  const availablePrincipals: Array<{
+    type: "user" | "group";
+    id: string;
+    name: string;
+    orgName: string;
+  }> = [];
+  for (const m of orgMembers) {
+    if (seenUserIds.has(m.user_id)) continue;
+    seenUserIds.add(m.user_id);
+    availablePrincipals.push({
+      type: "user",
+      id: m.user_id,
+      name: displayName(m.user_profiles, m.user_id.slice(0, 8) + "…"),
+      orgName: orgNameById.get(m.organization_id) ?? "—",
+    });
+  }
+  for (const g of groups) {
+    availablePrincipals.push({
+      type: "group",
+      id: g.id,
+      name: g.name,
+      orgName: orgNameById.get(g.organization_id) ?? "—",
+    });
+  }
+
+  // Resolve principal_name for existing permissions
+  const userNameById = new Map<string, string>();
+  for (const m of orgMembers) {
+    if (!userNameById.has(m.user_id)) {
+      userNameById.set(
+        m.user_id,
+        displayName(m.user_profiles, m.user_id.slice(0, 8) + "…"),
+      );
+    }
+  }
+  const groupNameById = new Map<string, string>();
+  for (const g of groups) groupNameById.set(g.id, g.name);
+
+  const permissions = perms.map((p) => ({
+    id: p.id,
+    principal_type: p.principal_type,
+    principal_id: p.principal_id,
+    permission_level: p.permission_level,
+    principal_name:
+      p.principal_type === "user"
+        ? userNameById.get(p.principal_id) ??
+          p.principal_id.slice(0, 8) + "…"
+        : groupNameById.get(p.principal_id) ?? "Group",
+  }));
+
+  return (
+    <div>
+      <CustomerEditForm client={client} />
+
+      <div className="mt-8">
+        <div className="flex items-center gap-3">
+          <FolderKanban size={20} className="text-accent" />
+          <h2 className="text-lg font-semibold text-content">
+            {t("projects.title")}
+          </h2>
+        </div>
+        {projects && projects.length > 0 ? (
+          <ul className="mt-3 space-y-2">
+            {projects.map((p) => (
+              <li
+                key={p.id}
+                className="flex items-center justify-between rounded-lg border border-edge bg-surface-raised px-4 py-3 hover:bg-hover transition-colors"
+              >
+                <div>
+                  <span className="font-medium text-content">{p.name}</span>
+                  {p.status !== "active" && (
+                    <span className="ml-2 inline-flex items-center rounded-full bg-surface-inset px-2 py-0.5 text-xs text-content-muted">
+                      {p.status}
+                    </span>
+                  )}
+                </div>
+                <span className="text-sm text-content-secondary font-mono">
+                  {p.hourly_rate
+                    ? `$${Number(p.hourly_rate).toFixed(2)}/hr`
+                    : "—"}
+                </span>
+              </li>
+            ))}
+          </ul>
+        ) : (
+          <p className="mt-3 text-sm text-content-muted">
+            {t("projects.noProjects")}
+          </p>
+        )}
+      </div>
+
+      <SharingSection
+        customerId={id}
+        primaryOrgId={client.organization_id}
+        primaryOrgName={primaryOrgName}
+        shares={shares}
+        availableOrgs={availableOrgs}
+        userCanAdmin={userCanAdmin}
+        changePrimaryOrgs={changePrimaryOrgs}
+        canChangePrimary={canChangePrimary}
+      />
+
+      <PermissionsSection
+        customerId={id}
+        permissions={permissions}
+        availablePrincipals={availablePrincipals}
+        userCanAdmin={userCanAdmin}
+      />
+    </div>
+  );
+}

@@ -13,8 +13,8 @@ import {
   labelClass,
 } from "@/lib/form-styles";
 import {
-  addClientShareAction,
-  removeClientShareAction,
+  addCustomerShareAction,
+  removeCustomerShareAction,
   updateShareVisibilityAction,
 } from "./sharing-actions";
 import { ChangePrimaryFlow } from "./change-primary-flow";
@@ -39,7 +39,7 @@ function getOrgName(
 }
 
 export function SharingSection({
-  clientId,
+  customerId,
   primaryOrgId,
   primaryOrgName,
   shares,
@@ -48,7 +48,7 @@ export function SharingSection({
   changePrimaryOrgs,
   canChangePrimary,
 }: {
-  clientId: string;
+  customerId: string;
   primaryOrgId: string;
   primaryOrgName: string;
   shares: Share[];
@@ -66,7 +66,7 @@ export function SharingSection({
     serverError: addError,
     handleSubmit: handleAdd,
   } = useFormAction({
-    action: addClientShareAction,
+    action: addCustomerShareAction,
     onSuccess: () => setAddingOrg(false),
   });
 
@@ -95,7 +95,7 @@ export function SharingSection({
             </div>
           </div>
           <ChangePrimaryFlow
-            clientId={clientId}
+            customerId={customerId}
             currentPrimaryOrgName={primaryOrgName}
             availableOrgs={changePrimaryOrgs}
             canChange={canChangePrimary}
@@ -117,7 +117,7 @@ export function SharingSection({
               <ShareRow
                 key={share.id}
                 share={share}
-                clientId={clientId}
+                customerId={customerId}
                 userCanAdmin={userCanAdmin}
               />
             ))}
@@ -133,7 +133,7 @@ export function SharingSection({
               action={handleAdd}
               className="rounded-lg border border-edge bg-surface-raised p-4 space-y-3"
             >
-              <input type="hidden" name="client_id" value={clientId} />
+              <input type="hidden" name="customer_id" value={customerId} />
               {addError && (
                 <p className="text-sm text-error bg-error-soft rounded-lg px-3 py-2">
                   {addError}
@@ -200,11 +200,11 @@ export function SharingSection({
 
 function ShareRow({
   share,
-  clientId,
+  customerId,
   userCanAdmin,
 }: {
   share: Share;
-  clientId: string;
+  customerId: string;
   userCanAdmin: boolean;
 }): React.JSX.Element {
   const t = useTranslations("sharing.clientSharing");
@@ -218,7 +218,7 @@ function ShareRow({
     pending: removePending,
     serverError: removeError,
     handleSubmit: handleRemove,
-  } = useFormAction({ action: removeClientShareAction });
+  } = useFormAction({ action: removeCustomerShareAction });
 
   const orgName = getOrgName(share.organizations);
 
@@ -234,7 +234,7 @@ function ShareRow({
         {userCanAdmin && (
           <form action={handleRemove}>
             <input type="hidden" name="share_id" value={share.id} />
-            <input type="hidden" name="client_id" value={clientId} />
+            <input type="hidden" name="customer_id" value={customerId} />
             <button
               type="submit"
               disabled={removePending}
@@ -260,7 +260,7 @@ function ShareRow({
           className="mt-2 flex items-center gap-2"
         >
           <input type="hidden" name="share_id" value={share.id} />
-          <input type="hidden" name="client_id" value={clientId} />
+          <input type="hidden" name="customer_id" value={customerId} />
           <label className="flex items-center gap-2 text-xs text-content-secondary">
             <input
               type="checkbox"

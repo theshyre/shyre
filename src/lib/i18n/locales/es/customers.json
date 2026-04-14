@@ -1,10 +1,10 @@
 {
   "title": "Clientes",
-  "editTitle": "Editar Cliente",
-  "addClient": "Agregar Cliente",
-  "saveClient": "Guardar Cliente",
-  "saveChanges": "Guardar Cambios",
-  "noClients": "Aún no hay clientes. Agrega uno arriba para comenzar.",
+  "editTitle": "Editar cliente",
+  "addCustomer": "Agregar cliente",
+  "saveCustomer": "Guardar cliente",
+  "saveChanges": "Guardar cambios",
+  "noCustomers": "Aún no hay clientes. Agrega uno arriba para comenzar.",
   "fields": {
     "name": "Nombre",
     "email": "Correo electrónico",

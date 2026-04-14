@@ -7,7 +7,7 @@ import {
   twoOrgSharingScenario,
   TwoOrgSharingScenario,
 } from "../helpers/fixtures";
-import { createTestProject } from "../helpers/clients";
+import { createTestProject } from "../helpers/customers";
 
 describe("projects RLS", () => {
   let prefix: string;
@@ -22,7 +22,7 @@ describe("projects RLS", () => {
     await cleanupPrefix(prefix);
   });
 
-  it("internal org project (null client_id) is visible to primary org members only", async () => {
+  it("internal org project (null customer_id) is visible to primary org members only", async () => {
     // Create internal project in primaryOrg (no client)
     const internal = await createTestProject(
       prefix,
@@ -35,14 +35,14 @@ describe("projects RLS", () => {
     // Share the scenario client with participatingOrg so Dave has a cross-org pathway
     // that should NOT grant him access to this internal project.
     const admin = adminClient();
-    await admin.from("client_shares").upsert(
+    await admin.from("customer_shares").upsert(
       {
-        client_id: scenario.client.id,
+        customer_id: scenario.client.id,
         organization_id: scenario.participatingOrg.id,
         can_see_others_entries: false,
         created_by: scenario.alice.id,
       },
-      { onConflict: "client_id,organization_id" },
+      { onConflict: "customer_id,organization_id" },
     );
 
     // Primary member Carol can see it
@@ -68,17 +68,17 @@ describe("projects RLS", () => {
     expect(daveRows ?? []).toHaveLength(0);
   });
 
-  it("project with client_id follows the client's visibility rules", async () => {
+  it("project with customer_id follows the client's visibility rules", async () => {
     // Ensure share exists
     const admin = adminClient();
-    await admin.from("client_shares").upsert(
+    await admin.from("customer_shares").upsert(
       {
-        client_id: scenario.client.id,
+        customer_id: scenario.client.id,
         organization_id: scenario.participatingOrg.id,
         can_see_others_entries: false,
         created_by: scenario.alice.id,
       },
-      { onConflict: "client_id,organization_id" },
+      { onConflict: "customer_id,organization_id" },
     );
 
     // Dave (participating member) CAN see the scenario project (client-linked)
@@ -95,9 +95,9 @@ describe("projects RLS", () => {
     // Eve (outsider, no share, no permission) cannot see it
     // Clear any lingering permission row for Eve
     await admin
-      .from("client_permissions")
+      .from("customer_permissions")
       .delete()
-      .eq("client_id", scenario.client.id)
+      .eq("customer_id", scenario.client.id)
       .eq("principal_type", "user")
       .eq("principal_id", scenario.eve.id);
 
@@ -114,14 +114,14 @@ describe("projects RLS", () => {
 
   it("non-admin participating user cannot INSERT a project on a shared client", async () => {
     const admin = adminClient();
-    await admin.from("client_shares").upsert(
+    await admin.from("customer_shares").upsert(
       {
-        client_id: scenario.client.id,
+        customer_id: scenario.client.id,
         organization_id: scenario.participatingOrg.id,
         can_see_others_entries: false,
         created_by: scenario.alice.id,
       },
-      { onConflict: "client_id,organization_id" },
+      { onConflict: "customer_id,organization_id" },
     );
 
     // Dave is a regular member of participatingOrg — not a client admin.
@@ -135,7 +135,7 @@ describe("projects RLS", () => {
       .insert({
         organization_id: scenario.participatingOrg.id,
         user_id: scenario.dave.id,
-        client_id: scenario.client.id,
+        customer_id: scenario.client.id,
         name: `${prefix}dave-attempt`,
         status: "active",
       });

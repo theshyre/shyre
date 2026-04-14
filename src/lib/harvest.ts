@@ -116,7 +116,7 @@ async function fetchAllPages<T>(
 export async function fetchHarvestClients(
   opts: HarvestRequestOptions
 ): Promise<HarvestClient[]> {
-  return fetchAllPages<HarvestClient>("/clients", "clients", opts);
+  return fetchAllPages<HarvestClient>("/customers", "customers", opts);
 }
 
 export async function fetchHarvestProjects(

@@ -3,18 +3,18 @@
 import { useTranslations } from "next-intl";
 import { Archive } from "lucide-react";
 import { buttonDangerClass } from "@/lib/form-styles";
-import { archiveClientAction } from "./actions";
+import { archiveCustomerAction } from "./actions";
 
 export function ArchiveButton({
-  clientId,
+  customerId,
 }: {
-  clientId: string;
+  customerId: string;
 }): React.JSX.Element {
   const tc = useTranslations("common");
 
   return (
-    <form action={archiveClientAction}>
-      <input type="hidden" name="id" value={clientId} />
+    <form action={archiveCustomerAction}>
+      <input type="hidden" name="id" value={customerId} />
       <button
         type="submit"
         className={buttonDangerClass}

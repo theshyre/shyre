@@ -50,7 +50,7 @@ export async function GET(request: Request): Promise<Response> {
   let q = supabase
     .from("time_entries")
     .select(
-      "start_time, end_time, duration_min, description, billable, github_issue, category_id, projects(name, clients(name)), categories(name)",
+      "start_time, end_time, duration_min, description, billable, github_issue, category_id, projects(name, customers(name)), categories(name)",
     )
     .gte("start_time", rangeStart.toISOString())
     .lt("start_time", rangeEnd.toISOString())
@@ -66,8 +66,8 @@ export async function GET(request: Request): Promise<Response> {
   const rows: CsvEntryRow[] = (data ?? []).map((row) => {
     const start = new Date(row.start_time);
     const end = row.end_time ? new Date(row.end_time) : null;
-    const project = unwrapOne<{ name: string; clients: unknown }>(row.projects);
-    const client = project ? unwrapOne<{ name: string }>(project.clients) : null;
+    const project = unwrapOne<{ name: string; customers: unknown }>(row.projects);
+    const client = project ? unwrapOne<{ name: string }>(project.customers) : null;
     const category = unwrapOne<{ name: string }>(row.categories);
 
     return {

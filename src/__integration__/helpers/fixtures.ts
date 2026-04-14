@@ -1,6 +1,6 @@
 import { createTestUser, TestUser } from "./users";
 import { createTestOrg, addOrgMember, TestOrg } from "./orgs";
-import { createTestClient, createTestProject, TestClient } from "./clients";
+import { createTestCustomer, createTestProject, TestClient } from "./customers";
 
 export interface TwoOrgSharingScenario {
   prefix: string;
@@ -45,7 +45,7 @@ export async function twoOrgSharingScenario(
   await addOrgMember(primaryOrg.id, carol.id, "member");
   await addOrgMember(participatingOrg.id, dave.id, "member");
 
-  const client = await createTestClient(prefix, primaryOrg.id, alice.id);
+  const client = await createTestCustomer(prefix, primaryOrg.id, alice.id);
   const project = await createTestProject(
     prefix,
     primaryOrg.id,

@@ -106,7 +106,7 @@ export function RunningTimerCard({
   // --- Running state: live clock + Stop button
   if (running) {
     const projectName = running.projects?.name ?? "—";
-    const clientName = running.projects?.clients?.name ?? null;
+    const customerName = running.projects?.customers?.name ?? null;
     return (
       <div className="rounded-lg border border-success/30 bg-success-soft p-4 flex items-center gap-4 flex-wrap">
         <div className="flex items-center gap-2">
@@ -121,9 +121,9 @@ export function RunningTimerCard({
         <div className="min-w-0 flex-1">
           <p className="text-sm text-content truncate">
             {projectName}
-            {clientName && (
+            {customerName && (
               <span className="text-content-muted">
-                {" "}· {clientName}
+                {" "}· {customerName}
               </span>
             )}
           </p>
@@ -255,7 +255,7 @@ export function RunningTimerCard({
             {projects.map((p) => (
               <option key={p.id} value={p.id}>
                 {p.name}
-                {p.clients?.name ? ` · ${p.clients.name}` : ""}
+                {p.customers?.name ? ` · ${p.customers.name}` : ""}
               </option>
             ))}
           </select>

@@ -9,7 +9,7 @@
   "fields": {
     "name": "Name",
     "description": "Description",
-    "client": "Client",
+    "customer": "Client",
     "internalProject": "None (internal project)",
     "hourlyRate": "Hourly Rate ($/hr)",
     "budgetHours": "Budget Hours",
@@ -22,7 +22,7 @@
     "requireTimestampsHint": "Off: entries need only a date and duration (e.g. 3:15). On: every entry must have explicit start and end times."
   },
   "table": {
-    "client": "Client",
+    "customer": "Client",
     "hourlyRate": "Hourly Rate",
     "budgetHours": "Budget",
     "status": "Status"

@@ -11,7 +11,7 @@ export async function createProjectAction(formData: FormData): Promise<void> {
     const { userId } = await validateOrgAccess(orgId);
 
     const name = formData.get("name") as string;
-    const client_id = (formData.get("client_id") as string) || null;
+    const customer_id = (formData.get("customer_id") as string) || null;
     const description = (formData.get("description") as string) || null;
     const rateStr = formData.get("hourly_rate") as string;
     const hourly_rate = rateStr ? parseFloat(rateStr) : null;
@@ -25,7 +25,7 @@ export async function createProjectAction(formData: FormData): Promise<void> {
       await supabase.from("projects").insert({
         organization_id: orgId,
         user_id: userId,
-        client_id,
+        customer_id,
         name,
         description,
         hourly_rate,
@@ -37,7 +37,7 @@ export async function createProjectAction(formData: FormData): Promise<void> {
     );
 
     revalidatePath("/projects");
-    if (client_id) revalidatePath(`/clients/${client_id}`);
+    if (customer_id) revalidatePath(`/customers/${customer_id}`);
   }, "createProjectAction") as unknown as void;
 }
 

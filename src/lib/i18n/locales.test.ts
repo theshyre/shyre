@@ -1,7 +1,7 @@
 import { describe, it, expect } from "vitest";
 import enCommon from "./locales/en/common.json";
 import enAuth from "./locales/en/auth.json";
-import enClients from "./locales/en/clients.json";
+import enClients from "./locales/en/customers.json";
 import enDashboard from "./locales/en/dashboard.json";
 import enProjects from "./locales/en/projects.json";
 import enTime from "./locales/en/time.json";
@@ -10,7 +10,7 @@ import enInvoices from "./locales/en/invoices.json";
 import enReports from "./locales/en/reports.json";
 import esCommon from "./locales/es/common.json";
 import esAuth from "./locales/es/auth.json";
-import esClients from "./locales/es/clients.json";
+import esClients from "./locales/es/customers.json";
 import esDashboard from "./locales/es/dashboard.json";
 import esProjects from "./locales/es/projects.json";
 import esTime from "./locales/es/time.json";
@@ -34,7 +34,7 @@ function getKeyPaths(obj: Record<string, unknown>, prefix = ""): string[] {
 const namespaces = [
   { name: "common", en: enCommon, es: esCommon },
   { name: "auth", en: enAuth, es: esAuth },
-  { name: "clients", en: enClients, es: esClients },
+  { name: "customers", en: enClients, es: esClients },
   { name: "dashboard", en: enDashboard, es: esDashboard },
   { name: "projects", en: enProjects, es: esProjects },
   { name: "time", en: enTime, es: esTime },

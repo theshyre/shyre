@@ -7,7 +7,7 @@ import {
   twoOrgSharingScenario,
   TwoOrgSharingScenario,
 } from "../helpers/fixtures";
-import { createTestTimeEntry } from "../helpers/clients";
+import { createTestTimeEntry } from "../helpers/customers";
 
 describe("time_entries RLS (cross-org sharing)", () => {
   let prefix: string;
@@ -21,8 +21,8 @@ describe("time_entries RLS (cross-org sharing)", () => {
 
     // Share the client with participatingOrg, initially without can_see_others_entries
     const admin = adminClient();
-    await admin.from("client_shares").insert({
-      client_id: scenario.client.id,
+    await admin.from("customer_shares").insert({
+      customer_id: scenario.client.id,
       organization_id: scenario.participatingOrg.id,
       can_see_others_entries: false,
       created_by: scenario.alice.id,
@@ -101,9 +101,9 @@ describe("time_entries RLS (cross-org sharing)", () => {
     // Ensure the flag is false
     const admin = adminClient();
     await admin
-      .from("client_shares")
+      .from("customer_shares")
       .update({ can_see_others_entries: false })
-      .eq("client_id", scenario.client.id)
+      .eq("customer_id", scenario.client.id)
       .eq("organization_id", scenario.participatingOrg.id);
 
     const dave = await createAuthedClient(
@@ -121,9 +121,9 @@ describe("time_entries RLS (cross-org sharing)", () => {
   it("toggling can_see_others_entries=true grants Dave visibility on Alice's entry", async () => {
     const admin = adminClient();
     await admin
-      .from("client_shares")
+      .from("customer_shares")
       .update({ can_see_others_entries: true })
-      .eq("client_id", scenario.client.id)
+      .eq("customer_id", scenario.client.id)
       .eq("organization_id", scenario.participatingOrg.id);
 
     const dave = await createAuthedClient(
@@ -142,9 +142,9 @@ describe("time_entries RLS (cross-org sharing)", () => {
     // Make sure Eve has no lingering permission row
     const admin = adminClient();
     await admin
-      .from("client_permissions")
+      .from("customer_permissions")
       .delete()
-      .eq("client_id", scenario.client.id)
+      .eq("customer_id", scenario.client.id)
       .eq("principal_type", "user")
       .eq("principal_id", scenario.eve.id);
 

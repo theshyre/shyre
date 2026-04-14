@@ -18,7 +18,7 @@ function extractAddress(formData: FormData, prefix: string): string | null {
   return serializeAddress(address);
 }
 
-export async function createClientAction(formData: FormData): Promise<void> {
+export async function createCustomerAction(formData: FormData): Promise<void> {
   return runSafeAction(formData, async (formData, { supabase }) => {
     const orgId = formData.get("organization_id") as string;
     const { userId } = await validateOrgAccess(orgId);
@@ -31,7 +31,7 @@ export async function createClientAction(formData: FormData): Promise<void> {
     const default_rate = rateStr ? parseFloat(rateStr) : null;
 
     assertSupabaseOk(
-      await supabase.from("clients").insert({
+      await supabase.from("customers").insert({
         organization_id: orgId,
         user_id: userId,
         name,
@@ -42,11 +42,11 @@ export async function createClientAction(formData: FormData): Promise<void> {
       })
     );
 
-    revalidatePath("/clients");
-  }, "createClientAction") as unknown as void;
+    revalidatePath("/customers");
+  }, "createCustomerAction") as unknown as void;
 }
 
-export async function updateClientAction(formData: FormData): Promise<void> {
+export async function updateCustomerAction(formData: FormData): Promise<void> {
   return runSafeAction(formData, async (formData, { supabase }) => {
     const id = formData.get("id") as string;
     const name = formData.get("name") as string;
@@ -58,27 +58,27 @@ export async function updateClientAction(formData: FormData): Promise<void> {
 
     assertSupabaseOk(
       await supabase
-        .from("clients")
+        .from("customers")
         .update({ name, email, address, notes, default_rate })
         .eq("id", id)
     );
 
-    revalidatePath("/clients");
-    revalidatePath(`/clients/${id}`);
-  }, "updateClientAction") as unknown as void;
+    revalidatePath("/customers");
+    revalidatePath(`/customers/${id}`);
+  }, "updateCustomerAction") as unknown as void;
 }
 
-export async function archiveClientAction(formData: FormData): Promise<void> {
+export async function archiveCustomerAction(formData: FormData): Promise<void> {
   return runSafeAction(formData, async (formData, { supabase }) => {
     const id = formData.get("id") as string;
 
     assertSupabaseOk(
       await supabase
-        .from("clients")
+        .from("customers")
         .update({ archived: true })
         .eq("id", id)
     );
 
-    revalidatePath("/clients");
-  }, "archiveClientAction") as unknown as void;
+    revalidatePath("/customers");
+  }, "archiveCustomerAction") as unknown as void;
 }

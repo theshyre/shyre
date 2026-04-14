@@ -65,7 +65,7 @@ One row per user, auto-created on signup via trigger.
 | created_at | TIMESTAMPTZ | |
 | updated_at | TIMESTAMPTZ | Auto-updated via trigger |
 
-### `clients`
+### `customers` (renamed from `clients`)
 | Column | Type | Notes |
 |--------|------|-------|
 | id | UUID (PK) | `gen_random_uuid()` |

@@ -41,7 +41,7 @@
   },
   "table": {
     "invoiceNumber": "Invoice #",
-    "client": "Client",
+    "customer": "Client",
     "issuedDate": "Issued",
     "dueDate": "Due",
     "total": "Total",

@@ -19,7 +19,7 @@ export default async function InvoicesPage({
 
   let query = supabase
     .from("invoices")
-    .select("*, clients(name)")
+    .select("*, customers(name)")
     .order("created_at", { ascending: false });
   if (selectedOrgId) query = query.eq("organization_id", selectedOrgId);
   const { data: invoices } = await query;
@@ -52,7 +52,7 @@ export default async function InvoicesPage({
                   Org
                 </th>
                 <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider text-content-muted">
-                  {t("table.client")}
+                  {t("table.customer")}
                 </th>
                 <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider text-content-muted">
                   {t("table.issuedDate")}
@@ -67,11 +67,11 @@ export default async function InvoicesPage({
             </thead>
             <tbody>
               {invoices.map((inv) => {
-                const clientName =
-                  inv.clients &&
-                  typeof inv.clients === "object" &&
-                  "name" in inv.clients
-                    ? (inv.clients as { name: string }).name
+                const customerName =
+                  inv.customers &&
+                  typeof inv.customers === "object" &&
+                  "name" in inv.customers
+                    ? (inv.customers as { name: string }).name
                     : "—";
                 return (
                   <tr
@@ -90,7 +90,7 @@ export default async function InvoicesPage({
                       {orgName(inv.organization_id)}
                     </td>
                     <td className="px-4 py-3 text-content-secondary">
-                      {clientName}
+                      {customerName}
                     </td>
                     <td className="px-4 py-3 text-content-secondary text-xs">
                       {inv.issued_date

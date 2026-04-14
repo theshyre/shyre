@@ -17,7 +17,7 @@ export default async function InvoiceDetailPage({
 
   const { data: invoice } = await supabase
     .from("invoices")
-    .select("*, clients(name, email, address)")
+    .select("*, customers(name, email, address)")
     .eq("id", id)
     .single();
 
@@ -36,8 +36,8 @@ export default async function InvoiceDetailPage({
     .single();
 
   const client =
-    invoice.clients && typeof invoice.clients === "object"
-      ? (invoice.clients as { name: string; email: string | null; address: string | null })
+    invoice.customers && typeof invoice.customers === "object"
+      ? (invoice.customers as { name: string; email: string | null; address: string | null })
       : null;
 
   const statusColorMap: Record<string, string> = {

@@ -24,16 +24,16 @@ import type { OrgListItem } from "@/lib/org-context";
 type Step = "credentials" | "preview" | "importing" | "done";
 
 interface PreviewData {
-  clients: number;
+  customers: number;
   projects: number;
   timeEntries: number;
-  clientNames: string[];
+  customerNames: string[];
   projectNames: string[];
 }
 
 interface ImportResult {
   imported: {
-    clients: number;
+    customers: number;
     projects: number;
     timeEntries: number;
   };
@@ -152,7 +152,7 @@ export function HarvestImport({
           <div>
             <h2 className="font-semibold text-content">Harvest</h2>
             <p className="text-xs text-content-muted">
-              Import clients, projects, and time entries from Harvest
+              Import customers, projects, and time entries from Harvest
             </p>
           </div>
         </div>
@@ -282,8 +282,8 @@ export function HarvestImport({
               <PreviewCard
                 icon={Users}
                 label="Clients"
-                count={preview.clients}
-                names={preview.clientNames}
+                count={preview.customers}
+                names={preview.customerNames}
               />
               <PreviewCard
                 icon={FolderKanban}
@@ -301,7 +301,7 @@ export function HarvestImport({
 
             <p className="text-xs text-content-muted">
               Existing records with matching names will be skipped (no duplicates).
-              Only active clients and projects will be imported.
+              Only active customers and projects will be imported.
             </p>
 
             <div className="flex gap-2">
@@ -310,7 +310,7 @@ export function HarvestImport({
                 className={buttonPrimaryClass}
               >
                 <Upload size={16} />
-                Import {preview.clients + preview.projects + preview.timeEntries} records
+                Import {preview.customers + preview.projects + preview.timeEntries} records
               </button>
               <button
                 onClick={() => {
@@ -350,7 +350,7 @@ export function HarvestImport({
               <ResultCard
                 icon={Users}
                 label="Clients"
-                count={result.imported.clients}
+                count={result.imported.customers}
               />
               <ResultCard
                 icon={FolderKanban}
@@ -370,7 +370,7 @@ export function HarvestImport({
               </p>
             )}
 
-            <a href="/clients" className={buttonPrimaryClass}>
+            <a href="/customers" className={buttonPrimaryClass}>
               View Imported Data
             </a>
           </div>

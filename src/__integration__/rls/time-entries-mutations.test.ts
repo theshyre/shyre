@@ -7,7 +7,7 @@ import {
   twoOrgSharingScenario,
   TwoOrgSharingScenario,
 } from "../helpers/fixtures";
-import { createTestTimeEntry } from "../helpers/clients";
+import { createTestTimeEntry } from "../helpers/customers";
 
 /**
  * These tests exercise the RLS-backed defense for stop/update/delete and
@@ -29,8 +29,8 @@ describe("time_entries mutations (RLS defense + duplicate semantics)", () => {
     // Share the client with participatingOrg so Dave has visibility paths,
     // but RLS on time_entries mutations is still per-user.
     const admin = adminClient();
-    await admin.from("client_shares").insert({
-      client_id: scenario.client.id,
+    await admin.from("customer_shares").insert({
+      customer_id: scenario.client.id,
       organization_id: scenario.participatingOrg.id,
       can_see_others_entries: true,
       created_by: scenario.alice.id,

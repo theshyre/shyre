@@ -15,21 +15,21 @@ import { getMyTemplates } from "@/lib/templates/queries";
 import { TimeHome } from "./time-home";
 import type { TimeView } from "./view-toggle";
 
-// Supabase returns `projects(..., clients(...))` with `clients` as a 1-element
-// array even though it's a single FK row. Unwrap so downstream code can read
-// `entry.projects.clients.name` cleanly.
+// Supabase returns `projects(..., customers(...))` with `customers` as a
+// 1-element array even though it's a single FK row. Unwrap so downstream
+// code can read `entry.projects.customers.name` cleanly.
 function normalizeEntry<T extends { projects: unknown }>(row: T): T {
   const projects = row.projects as
-    | { clients?: unknown; [key: string]: unknown }
+    | { customers?: unknown; [key: string]: unknown }
     | null;
   if (!projects) return row;
-  const clients = projects.clients;
-  const unwrappedClients = Array.isArray(clients)
-    ? (clients[0] ?? null)
-    : (clients ?? null);
+  const customers = projects.customers;
+  const unwrapped = Array.isArray(customers)
+    ? (customers[0] ?? null)
+    : (customers ?? null);
   return {
     ...row,
-    projects: { ...projects, clients: unwrappedClients },
+    projects: { ...projects, customers: unwrapped },
   };
 }
 
@@ -87,7 +87,7 @@ export default async function TimeEntriesPage({
   let weekQuery = supabase
     .from("time_entries")
     .select(
-      "*, projects(id, name, github_repo, category_set_id, require_timestamps, clients(id, name))",
+      "*, projects(id, name, github_repo, category_set_id, require_timestamps, customers(id, name))",
     )
     .gte("start_time", weekStartUtc.toISOString())
     .lt("start_time", weekEndUtc.toISOString())
@@ -101,7 +101,7 @@ export default async function TimeEntriesPage({
   let dayQuery = supabase
     .from("time_entries")
     .select(
-      "*, projects(id, name, github_repo, category_set_id, require_timestamps, clients(id, name))",
+      "*, projects(id, name, github_repo, category_set_id, require_timestamps, customers(id, name))",
     )
     .gte("start_time", dayStartUtc.toISOString())
     .lt("start_time", dayEndUtc.toISOString())
@@ -115,7 +115,7 @@ export default async function TimeEntriesPage({
   let runningQuery = supabase
     .from("time_entries")
     .select(
-      "*, projects(id, name, github_repo, category_set_id, require_timestamps, clients(id, name))",
+      "*, projects(id, name, github_repo, category_set_id, require_timestamps, customers(id, name))",
     )
     .is("end_time", null)
     .order("start_time", { ascending: false })
@@ -128,7 +128,7 @@ export default async function TimeEntriesPage({
   let projectsQuery = supabase
     .from("projects")
     .select(
-      "id, name, github_repo, organization_id, category_set_id, require_timestamps, clients(id, name)",
+      "id, name, github_repo, organization_id, category_set_id, require_timestamps, customers(id, name)",
     )
     .eq("status", "active")
     .order("name");
@@ -136,7 +136,7 @@ export default async function TimeEntriesPage({
   const { data: rawProjects } = await projectsQuery;
   const projects = (rawProjects ?? []).map((p) => ({
     ...p,
-    clients: Array.isArray(p.clients) ? (p.clients[0] ?? null) : (p.clients ?? null),
+    customers: Array.isArray(p.customers) ? (p.customers[0] ?? null) : (p.customers ?? null),
   }));
 
   // Categories visible to any project's category set

@@ -9,8 +9,8 @@ export default async function NewInvoicePage(): Promise<React.JSX.Element> {
   const orgs = await getUserOrgs();
   const t = await getTranslations("invoices");
 
-  const { data: clients } = await supabase
-    .from("clients")
+  const { data: customers } = await supabase
+    .from("customers")
     .select("id, name, default_rate")
     .eq("archived", false)
     .order("name");
@@ -29,7 +29,7 @@ export default async function NewInvoicePage(): Promise<React.JSX.Element> {
       </div>
 
       <NewInvoiceForm
-        clients={clients ?? []}
+        customers={customers ?? []}
         defaultTaxRate={settings?.tax_rate ? Number(settings.tax_rate) : 0}
         orgs={orgs}
       />
