@@ -1,9 +1,15 @@
 "use client";
 
+import { useMemo } from "react";
 import { useTranslations } from "next-intl";
 import { Sun } from "lucide-react";
-import { formatDurationShort, sumDurationMin } from "@/lib/time/week";
-import { EntryCard } from "./entry-card";
+import {
+  formatDurationHM,
+  sumBillableMin,
+  sumDurationMin,
+} from "@/lib/time/week";
+import type { EntryGroup } from "@/lib/time/grouping";
+import { EntryTable } from "./entry-table";
 import type { CategoryOption, ProjectOption, TimeEntry } from "./types";
 
 interface Props {
@@ -23,36 +29,54 @@ export function TodayPanel({
 }: Props): React.JSX.Element {
   const t = useTranslations("time.home");
   const total = sumDurationMin(entries);
+  const billable = sumBillableMin(entries);
+
+  // Wrap today's entries in a single unnamed group so we reuse EntryTable.
+  const groups: EntryGroup<TimeEntry>[] = useMemo(
+    () => [
+      {
+        id: "__today__",
+        label: "Today",
+        entries: [...entries].sort(
+          (a, b) =>
+            new Date(b.start_time).getTime() - new Date(a.start_time).getTime(),
+        ),
+        totalMin: total,
+        billableMin: billable,
+      },
+    ],
+    [entries, total, billable],
+  );
 
   return (
-    <div className="rounded-lg border border-edge bg-surface-raised p-4">
-      <div className="flex items-baseline justify-between mb-3">
+    <section className="space-y-2">
+      <div className="flex items-baseline justify-between gap-2">
         <div className="flex items-center gap-2">
-          <Sun size={18} className="text-accent" />
+          <Sun size={16} className="text-accent" />
           <h2 className="text-sm font-semibold uppercase tracking-wider text-content">
             {t("todayTitle")}
           </h2>
         </div>
-        <p className="text-xs font-mono text-content-secondary">
-          {formatDurationShort(total)}
-        </p>
+        {entries.length > 0 && (
+          <p className="font-mono text-xs text-content-secondary tabular-nums">
+            {formatDurationHM(total)}
+          </p>
+        )}
       </div>
       {entries.length === 0 ? (
-        <p className="text-sm text-content-muted">{t("noToday")}</p>
+        <p className="rounded-lg border border-edge bg-surface-raised p-4 text-sm text-content-muted">
+          {t("noToday")}
+        </p>
       ) : (
-        <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-3">
-          {entries.map((entry) => (
-            <EntryCard
-              key={entry.id}
-              entry={entry}
-              projects={projects}
-              categories={categories}
-              expanded={expandedEntryId === entry.id}
-              onToggleExpand={onToggleExpand}
-            />
-          ))}
-        </div>
+        <EntryTable
+          groups={groups}
+          projects={projects}
+          categories={categories}
+          expandedEntryId={expandedEntryId}
+          onToggleExpand={onToggleExpand}
+          hideGroupHeaders
+        />
       )}
-    </div>
+    </section>
   );
 }

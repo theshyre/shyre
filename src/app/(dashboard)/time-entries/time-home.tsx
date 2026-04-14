@@ -6,7 +6,7 @@ import { Clock } from "lucide-react";
 import { OrgFilter } from "@/components/OrgFilter";
 import type { OrgListItem } from "@/lib/org-context";
 import {
-  formatDurationShort,
+  formatDurationHM,
   sumBillableMin,
   sumDurationMin,
 } from "@/lib/time/week";
@@ -18,8 +18,7 @@ import { IntervalNav } from "./interval-nav";
 import { GroupByPicker } from "./group-by-picker";
 import { BillableFilter } from "./billable-filter";
 import { ExportButton } from "./export-button";
-import { WeekGrid } from "./week-grid";
-import { GroupedList } from "./grouped-list";
+import { EntryTable } from "./entry-table";
 import { TodayPanel } from "./today-panel";
 import { NewTimeEntryForm } from "./new-time-entry-form";
 import type { CategoryOption, ProjectOption, TimeEntry } from "./types";
@@ -77,19 +76,15 @@ export function TimeHome({
   const billableMin = sumBillableMin(intervalEntries);
   const nonBillableMin = totalMin - billableMin;
 
-  // Decide renderer:
-  //   interval=week + groupBy=day → existing 7-column grid
-  //   otherwise → grouped list
-  const useWeekGrid = intervalKind === "week" && grouping === "day";
-
-  const groups = useMemo(() => {
-    if (useWeekGrid) return [];
-    return groupEntries(intervalEntries, grouping, {
-      projects: projects.map((p) => ({ id: p.id, name: p.name })),
-      categories,
-      uncategorizedLabel: t("groupBy.uncategorized"),
-    });
-  }, [useWeekGrid, intervalEntries, grouping, projects, categories, t]);
+  const groups = useMemo(
+    () =>
+      groupEntries(intervalEntries, grouping, {
+        projects: projects.map((p) => ({ id: p.id, name: p.name })),
+        categories,
+        uncategorizedLabel: t("groupBy.uncategorized"),
+      }),
+    [intervalEntries, grouping, projects, categories, t],
+  );
 
   return (
     <div className="space-y-6">
@@ -110,14 +105,18 @@ export function TimeHome({
       />
 
       <div className="flex items-center justify-between flex-wrap gap-3">
-        <div className="flex items-center gap-3 flex-wrap">
-          <p className="text-sm text-content-secondary">
-            {t("week.totals", {
-              total: formatDurationShort(totalMin),
-              billable: formatDurationShort(billableMin),
-              nonBillable: formatDurationShort(nonBillableMin),
-            })}
-          </p>
+        <div className="flex items-center gap-4 flex-wrap">
+          <div className="flex items-baseline gap-2">
+            <span className="font-mono text-2xl font-semibold text-content tabular-nums">
+              {formatDurationHM(totalMin)}
+            </span>
+            <span className="text-xs text-content-muted">
+              {t("totalsSummary", {
+                billable: formatDurationHM(billableMin),
+                nonBillable: formatDurationHM(nonBillableMin),
+              })}
+            </span>
+          </div>
           <BillableFilter active={billableOnly} />
         </div>
         <div className="flex items-center gap-2 flex-wrap">
@@ -127,24 +126,13 @@ export function TimeHome({
         </div>
       </div>
 
-      {useWeekGrid ? (
-        <WeekGrid
-          weekStart={interval.start}
-          entries={intervalEntries}
-          projects={projects}
-          categories={categories}
-          expandedEntryId={expandedEntryId}
-          onToggleExpand={toggleExpanded}
-        />
-      ) : (
-        <GroupedList
-          groups={groups}
-          projects={projects}
-          categories={categories}
-          expandedEntryId={expandedEntryId}
-          onToggleExpand={toggleExpanded}
-        />
-      )}
+      <EntryTable
+        groups={groups}
+        projects={projects}
+        categories={categories}
+        expandedEntryId={expandedEntryId}
+        onToggleExpand={toggleExpanded}
+      />
 
       <TodayPanel
         entries={todayEntries}

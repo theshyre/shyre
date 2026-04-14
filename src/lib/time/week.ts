@@ -113,6 +113,17 @@ export function formatDurationShort(min: number | null): string {
 }
 
 /**
+ * Format minutes as "H:MM" (e.g. "3:15", "0:45") — duration-clock style.
+ * This is the hero format for time-entry tables: monospaced, right-aligned.
+ */
+export function formatDurationHM(min: number | null): string {
+  if (min === null || min <= 0) return "—";
+  const hours = Math.floor(min / 60);
+  const mins = Math.round(min % 60);
+  return `${hours}:${String(mins).padStart(2, "0")}`;
+}
+
+/**
  * Sum total minutes across entries (only completed ones).
  */
 export function sumDurationMin(entries: TimeEntryLike[]): number {

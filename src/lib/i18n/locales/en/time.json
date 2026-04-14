@@ -21,6 +21,15 @@
     "duration": "Duration",
     "billable": "Billable"
   },
+  "tableHeaders": {
+    "time": "Time",
+    "project": "Project",
+    "description": "Description",
+    "category": "Category",
+    "duration": "Duration",
+    "billable": "Billable"
+  },
+  "totalsSummary": "{billable} billable · {nonBillable} non-billable",
   "timer": {
     "title": "Timer",
     "start": "Start",

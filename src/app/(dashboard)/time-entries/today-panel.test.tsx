@@ -57,8 +57,8 @@ describe("TodayPanel", () => {
     );
     expect(screen.getByText("entry-a")).toBeInTheDocument();
     expect(screen.getByText("entry-b")).toBeInTheDocument();
-    // 75 min total → 1h 15m
-    expect(screen.getByText(/1h 15m/)).toBeInTheDocument();
+    // 75 min total → 1:15
+    expect(screen.getByText("1:15")).toBeInTheDocument();
   });
 
   it("renders the Today title", () => {

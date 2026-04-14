@@ -6,6 +6,7 @@ import {
   parseWeekParam,
   groupEntriesByDay,
   formatDurationShort,
+  formatDurationHM,
   sumDurationMin,
   sumBillableMin,
   isSameDay,
@@ -151,6 +152,18 @@ describe("week helpers", () => {
       expect(formatDurationShort(90)).toBe("1h 30m");
       expect(formatDurationShort(120)).toBe("2h");
       expect(formatDurationShort(125)).toBe("2h 5m");
+    });
+  });
+
+  describe("formatDurationHM", () => {
+    it("formats as H:MM with zero-padded minutes", () => {
+      expect(formatDurationHM(null)).toBe("—");
+      expect(formatDurationHM(0)).toBe("—");
+      expect(formatDurationHM(5)).toBe("0:05");
+      expect(formatDurationHM(45)).toBe("0:45");
+      expect(formatDurationHM(60)).toBe("1:00");
+      expect(formatDurationHM(195)).toBe("3:15");
+      expect(formatDurationHM(720)).toBe("12:00");
     });
   });
 

@@ -21,6 +21,15 @@
     "duration": "Duración",
     "billable": "Facturable"
   },
+  "tableHeaders": {
+    "time": "Hora",
+    "project": "Proyecto",
+    "description": "Descripción",
+    "category": "Categoría",
+    "duration": "Duración",
+    "billable": "Facturable"
+  },
+  "totalsSummary": "{billable} facturable · {nonBillable} no facturable",
   "timer": {
     "title": "Cronómetro",
     "start": "Iniciar",
