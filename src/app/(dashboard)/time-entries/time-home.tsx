@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useState } from "react";
+import { useCallback, useMemo, useState } from "react";
 import { useTranslations } from "next-intl";
 import { Clock } from "lucide-react";
 import { OrgFilter } from "@/components/OrgFilter";
@@ -10,9 +10,13 @@ import {
   sumBillableMin,
   sumDurationMin,
 } from "@/lib/time/week";
+import type { IntervalKind, ResolvedInterval } from "@/lib/time/intervals";
+import { groupEntries, type GroupingKind } from "@/lib/time/grouping";
 import { RunningTimerCard } from "./running-timer-card";
-import { WeekNav } from "./week-nav";
+import { IntervalNav } from "./interval-nav";
+import { GroupByPicker } from "./group-by-picker";
 import { WeekGrid } from "./week-grid";
+import { GroupedList } from "./grouped-list";
 import { TodayPanel } from "./today-panel";
 import { NewTimeEntryForm } from "./new-time-entry-form";
 import type { CategoryOption, ProjectOption, TimeEntry } from "./types";
@@ -20,8 +24,11 @@ import type { CategoryOption, ProjectOption, TimeEntry } from "./types";
 interface TimeHomeProps {
   orgs: OrgListItem[];
   selectedOrgId: string | null;
-  weekStartIso: string;
-  weekEntries: TimeEntry[];
+  intervalKind: IntervalKind;
+  intervalStartIso: string;
+  intervalEndIso: string;
+  grouping: GroupingKind;
+  intervalEntries: TimeEntry[];
   todayEntries: TimeEntry[];
   running: TimeEntry | null;
   projects: ProjectOption[];
@@ -32,8 +39,11 @@ interface TimeHomeProps {
 export function TimeHome({
   orgs,
   selectedOrgId,
-  weekStartIso,
-  weekEntries,
+  intervalKind,
+  intervalStartIso,
+  intervalEndIso,
+  grouping,
+  intervalEntries,
   todayEntries,
   running,
   projects,
@@ -41,16 +51,38 @@ export function TimeHome({
   categories,
 }: TimeHomeProps): React.JSX.Element {
   const t = useTranslations("time");
-  const weekStart = new Date(weekStartIso);
+
+  const interval: ResolvedInterval = useMemo(
+    () => ({
+      kind: intervalKind,
+      start: new Date(intervalStartIso),
+      end: new Date(intervalEndIso),
+    }),
+    [intervalKind, intervalStartIso, intervalEndIso],
+  );
 
   const [expandedEntryId, setExpandedEntryId] = useState<string | null>(null);
   const toggleExpanded = useCallback((id: string) => {
     setExpandedEntryId((current) => (current === id ? null : id));
   }, []);
 
-  const totalMin = sumDurationMin(weekEntries);
-  const billableMin = sumBillableMin(weekEntries);
+  const totalMin = sumDurationMin(intervalEntries);
+  const billableMin = sumBillableMin(intervalEntries);
   const nonBillableMin = totalMin - billableMin;
+
+  // Decide renderer:
+  //   interval=week + groupBy=day → existing 7-column grid
+  //   otherwise → grouped list
+  const useWeekGrid = intervalKind === "week" && grouping === "day";
+
+  const groups = useMemo(() => {
+    if (useWeekGrid) return [];
+    return groupEntries(intervalEntries, grouping, {
+      projects: projects.map((p) => ({ id: p.id, name: p.name })),
+      categories,
+      uncategorizedLabel: t("groupBy.uncategorized"),
+    });
+  }, [useWeekGrid, intervalEntries, grouping, projects, categories, t]);
 
   return (
     <div className="space-y-6">
@@ -77,17 +109,30 @@ export function TimeHome({
             nonBillable: formatDurationShort(nonBillableMin),
           })}
         </p>
-        <WeekNav weekStart={weekStart} />
+        <div className="flex items-center gap-2 flex-wrap">
+          <GroupByPicker grouping={grouping} />
+          <IntervalNav interval={interval} />
+        </div>
       </div>
 
-      <WeekGrid
-        weekStart={weekStart}
-        entries={weekEntries}
-        projects={projects}
-        categories={categories}
-        expandedEntryId={expandedEntryId}
-        onToggleExpand={toggleExpanded}
-      />
+      {useWeekGrid ? (
+        <WeekGrid
+          weekStart={interval.start}
+          entries={intervalEntries}
+          projects={projects}
+          categories={categories}
+          expandedEntryId={expandedEntryId}
+          onToggleExpand={toggleExpanded}
+        />
+      ) : (
+        <GroupedList
+          groups={groups}
+          projects={projects}
+          categories={categories}
+          expandedEntryId={expandedEntryId}
+          onToggleExpand={toggleExpanded}
+        />
+      )}
 
       <TodayPanel
         entries={todayEntries}

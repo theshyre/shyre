@@ -1,10 +1,24 @@
 import { createClient } from "@/lib/supabase/server";
 import { getUserOrgs } from "@/lib/org-context";
-import { getWeekRange, parseWeekParam, getWeekStart, getTodayStart } from "@/lib/time/week";
+import { parseIntervalParams } from "@/lib/time/intervals";
+import { getTodayStart } from "@/lib/time/week";
+import type { GroupingKind } from "@/lib/time/grouping";
 import { TimeHome } from "./time-home";
 
 interface PageProps {
-  searchParams: Promise<{ org?: string; week?: string }>;
+  searchParams: Promise<{
+    org?: string;
+    interval?: string;
+    anchor?: string;
+    from?: string;
+    to?: string;
+    groupBy?: string;
+  }>;
+}
+
+function asGrouping(v: string | undefined): GroupingKind {
+  if (v === "category" || v === "project" || v === "day") return v;
+  return "day";
 }
 
 export default async function TimeEntriesPage({
@@ -12,26 +26,26 @@ export default async function TimeEntriesPage({
 }: PageProps): Promise<React.JSX.Element> {
   const supabase = await createClient();
   const orgs = await getUserOrgs();
-  const { org: selectedOrgId, week: weekParam } = await searchParams;
+  const sp = await searchParams;
+  const { org: selectedOrgId } = sp;
 
-  // Resolve week start (Monday)
-  const weekStart = parseWeekParam(weekParam) ?? getWeekStart(new Date());
-  const { start: weekStartDate, end: weekEndDate } = getWeekRange(weekStart);
+  const interval = parseIntervalParams(sp);
+  const grouping = asGrouping(sp.groupBy);
   const todayStart = getTodayStart();
   const todayEnd = new Date(todayStart);
   todayEnd.setDate(todayEnd.getDate() + 1);
 
-  // Fetch week entries
-  let weekQuery = supabase
+  // Entries for the selected interval
+  let intervalQuery = supabase
     .from("time_entries")
     .select("*, projects(id, name, github_repo, category_set_id)")
-    .gte("start_time", weekStartDate.toISOString())
-    .lt("start_time", weekEndDate.toISOString())
+    .gte("start_time", interval.start.toISOString())
+    .lt("start_time", interval.end.toISOString())
     .order("start_time", { ascending: true });
-  if (selectedOrgId) weekQuery = weekQuery.eq("organization_id", selectedOrgId);
-  const { data: weekEntries } = await weekQuery;
+  if (selectedOrgId) intervalQuery = intervalQuery.eq("organization_id", selectedOrgId);
+  const { data: intervalEntries } = await intervalQuery;
 
-  // Fetch today entries (can differ from week when viewing past/future week)
+  // Today entries
   let todayQuery = supabase
     .from("time_entries")
     .select("*, projects(id, name, github_repo, category_set_id)")
@@ -41,7 +55,7 @@ export default async function TimeEntriesPage({
   if (selectedOrgId) todayQuery = todayQuery.eq("organization_id", selectedOrgId);
   const { data: todayEntries } = await todayQuery;
 
-  // Running timer (most recent entry with null end_time)
+  // Running timer
   let runningQuery = supabase
     .from("time_entries")
     .select("*, projects(id, name, github_repo, category_set_id)")
@@ -52,7 +66,7 @@ export default async function TimeEntriesPage({
   const { data: runningEntries } = await runningQuery;
   const running = runningEntries?.[0] ?? null;
 
-  // Active projects (for selects and recent chips)
+  // Active projects
   let projectsQuery = supabase
     .from("projects")
     .select("id, name, github_repo, organization_id, category_set_id")
@@ -78,7 +92,7 @@ export default async function TimeEntriesPage({
     : { data: [] };
   const categories = categoryRows ?? [];
 
-  // Recent projects: distinct project_ids from the last 30 days, most recent first
+  // Recent projects — distinct project_ids from the last 30 days
   const recentSinceIso = new Date(Date.now() - 30 * 24 * 3600 * 1000).toISOString();
   let recentQuery = supabase
     .from("time_entries")
@@ -105,8 +119,11 @@ export default async function TimeEntriesPage({
     <TimeHome
       orgs={orgs}
       selectedOrgId={selectedOrgId ?? null}
-      weekStartIso={weekStartDate.toISOString()}
-      weekEntries={weekEntries ?? []}
+      intervalKind={interval.kind}
+      intervalStartIso={interval.start.toISOString()}
+      intervalEndIso={interval.end.toISOString()}
+      grouping={grouping}
+      intervalEntries={intervalEntries ?? []}
       todayEntries={todayEntries ?? []}
       running={running}
       projects={projects ?? []}

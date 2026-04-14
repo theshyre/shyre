@@ -42,6 +42,28 @@
     "dayTotal": "{duration}",
     "emptyDay": "Sin registros"
   },
+  "interval": {
+    "prev": "Anterior",
+    "next": "Siguiente",
+    "chooseInterval": "Elegir intervalo",
+    "customFrom": "Fecha de inicio",
+    "customTo": "Fecha de fin",
+    "kind": {
+      "day": "Día",
+      "week": "Semana",
+      "month": "Mes",
+      "custom": "Personalizado"
+    }
+  },
+  "groupBy": {
+    "label": "Agrupar por",
+    "uncategorized": "Sin categoría",
+    "kind": {
+      "day": "Día",
+      "category": "Categoría",
+      "project": "Proyecto"
+    }
+  },
   "home": {
     "runningHeader": "En curso",
     "startPrompt": "Iniciar un nuevo cronómetro",

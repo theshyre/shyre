@@ -42,6 +42,28 @@
     "dayTotal": "{duration}",
     "emptyDay": "No entries"
   },
+  "interval": {
+    "prev": "Previous",
+    "next": "Next",
+    "chooseInterval": "Choose interval",
+    "customFrom": "Start date",
+    "customTo": "End date",
+    "kind": {
+      "day": "Day",
+      "week": "Week",
+      "month": "Month",
+      "custom": "Custom"
+    }
+  },
+  "groupBy": {
+    "label": "Group by",
+    "uncategorized": "Uncategorized",
+    "kind": {
+      "day": "Day",
+      "category": "Category",
+      "project": "Project"
+    }
+  },
   "home": {
     "runningHeader": "Running",
     "startPrompt": "Start a new timer",
