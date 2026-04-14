@@ -12,9 +12,12 @@ import {
 } from "@/lib/time/week";
 import type { IntervalKind, ResolvedInterval } from "@/lib/time/intervals";
 import { groupEntries, type GroupingKind } from "@/lib/time/grouping";
+import type { TimeTemplate } from "@/lib/templates/types";
 import { RunningTimerCard } from "./running-timer-card";
 import { IntervalNav } from "./interval-nav";
 import { GroupByPicker } from "./group-by-picker";
+import { BillableFilter } from "./billable-filter";
+import { ExportButton } from "./export-button";
 import { WeekGrid } from "./week-grid";
 import { GroupedList } from "./grouped-list";
 import { TodayPanel } from "./today-panel";
@@ -28,12 +31,14 @@ interface TimeHomeProps {
   intervalStartIso: string;
   intervalEndIso: string;
   grouping: GroupingKind;
+  billableOnly: boolean;
   intervalEntries: TimeEntry[];
   todayEntries: TimeEntry[];
   running: TimeEntry | null;
   projects: ProjectOption[];
   recentProjects: ProjectOption[];
   categories: CategoryOption[];
+  templates: TimeTemplate[];
 }
 
 export function TimeHome({
@@ -43,12 +48,14 @@ export function TimeHome({
   intervalStartIso,
   intervalEndIso,
   grouping,
+  billableOnly,
   intervalEntries,
   todayEntries,
   running,
   projects,
   recentProjects,
   categories,
+  templates,
 }: TimeHomeProps): React.JSX.Element {
   const t = useTranslations("time");
 
@@ -99,17 +106,22 @@ export function TimeHome({
         orgs={orgs}
         defaultOrgId={selectedOrgId ?? undefined}
         categories={categories}
+        templates={templates}
       />
 
       <div className="flex items-center justify-between flex-wrap gap-3">
-        <p className="text-sm text-content-secondary">
-          {t("week.totals", {
-            total: formatDurationShort(totalMin),
-            billable: formatDurationShort(billableMin),
-            nonBillable: formatDurationShort(nonBillableMin),
-          })}
-        </p>
+        <div className="flex items-center gap-3 flex-wrap">
+          <p className="text-sm text-content-secondary">
+            {t("week.totals", {
+              total: formatDurationShort(totalMin),
+              billable: formatDurationShort(billableMin),
+              nonBillable: formatDurationShort(nonBillableMin),
+            })}
+          </p>
+          <BillableFilter active={billableOnly} />
+        </div>
         <div className="flex items-center gap-2 flex-wrap">
+          <ExportButton />
           <GroupByPicker grouping={grouping} />
           <IntervalNav interval={interval} />
         </div>

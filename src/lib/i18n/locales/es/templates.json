@@ -1,0 +1,27 @@
+{
+  "title": "Plantillas de Tiempo",
+  "description": "Guarda combinaciones (proyecto + categoría + descripción) como plantillas de un clic para iniciar cronómetros más rápido.",
+  "newTemplate": "Nueva plantilla",
+  "create": "Crear",
+  "save": "Guardar cambios",
+  "edit": "Editar",
+  "delete": "Eliminar",
+  "confirmDelete": "Confirmar eliminación",
+  "billable": "Facturable",
+  "nonBillable": "No facturable",
+  "empty": "Aún no hay plantillas. Guarda tus combinaciones más usadas para iniciarlas con un solo clic.",
+  "fields": {
+    "name": "Nombre",
+    "namePlaceholder": "p. ej., Reunión diaria, Revisión de código",
+    "project": "Proyecto",
+    "selectProject": "Selecciona un proyecto",
+    "description": "Descripción",
+    "descriptionPlaceholder": "Se rellena automáticamente en el registro iniciado",
+    "category": "Categoría",
+    "noCategory": "Sin categoría",
+    "billable": "Facturable"
+  },
+  "nav": "Plantillas",
+  "startFrom": "Plantillas",
+  "startButton": "Iniciar"
+}

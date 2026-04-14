@@ -132,6 +132,23 @@ Individual categories within a set.
 | sort_order | INTEGER | Default 0 |
 | created_at | TIMESTAMPTZ | |
 
+### `time_templates`
+Saved (project + category + description + billable) combos for one-click timer starts. Scoped to the owning user within an org.
+
+| Column | Type | Notes |
+|--------|------|-------|
+| id | UUID (PK) | |
+| organization_id | UUID | References `organizations(id)` CASCADE |
+| user_id | UUID | References `auth.users(id)` CASCADE |
+| project_id | UUID | References `projects(id)` CASCADE |
+| category_id | UUID | References `categories(id)` SET NULL |
+| name | TEXT | Display name; unique per (user, org) |
+| description | TEXT | Pre-filled into the started entry |
+| billable | BOOLEAN | Default true |
+| sort_order | INTEGER | Default 0 |
+| last_used_at | TIMESTAMPTZ | Updated when template is used |
+| created_at | TIMESTAMPTZ | |
+
 ### `invoices`
 | Column | Type | Notes |
 |--------|------|-------|

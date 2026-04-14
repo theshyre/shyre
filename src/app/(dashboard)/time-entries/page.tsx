@@ -3,6 +3,7 @@ import { getUserOrgs } from "@/lib/org-context";
 import { parseIntervalParams } from "@/lib/time/intervals";
 import { getTodayStart } from "@/lib/time/week";
 import type { GroupingKind } from "@/lib/time/grouping";
+import { getMyTemplates } from "@/lib/templates/queries";
 import { TimeHome } from "./time-home";
 
 interface PageProps {
@@ -13,6 +14,7 @@ interface PageProps {
     from?: string;
     to?: string;
     groupBy?: string;
+    billable?: string;
   }>;
 }
 
@@ -31,6 +33,7 @@ export default async function TimeEntriesPage({
 
   const interval = parseIntervalParams(sp);
   const grouping = asGrouping(sp.groupBy);
+  const billableOnly = sp.billable === "1";
   const todayStart = getTodayStart();
   const todayEnd = new Date(todayStart);
   todayEnd.setDate(todayEnd.getDate() + 1);
@@ -43,6 +46,7 @@ export default async function TimeEntriesPage({
     .lt("start_time", interval.end.toISOString())
     .order("start_time", { ascending: true });
   if (selectedOrgId) intervalQuery = intervalQuery.eq("organization_id", selectedOrgId);
+  if (billableOnly) intervalQuery = intervalQuery.eq("billable", true);
   const { data: intervalEntries } = await intervalQuery;
 
   // Today entries
@@ -115,6 +119,10 @@ export default async function TimeEntriesPage({
     .map((id) => (projects ?? []).find((p) => p.id === id))
     .filter((p): p is NonNullable<typeof p> => !!p);
 
+  // User's top-N templates (by last used)
+  const allTemplates = await getMyTemplates(selectedOrgId);
+  const templates = allTemplates.slice(0, 8);
+
   return (
     <TimeHome
       orgs={orgs}
@@ -123,12 +131,14 @@ export default async function TimeEntriesPage({
       intervalStartIso={interval.start.toISOString()}
       intervalEndIso={interval.end.toISOString()}
       grouping={grouping}
+      billableOnly={billableOnly}
       intervalEntries={intervalEntries ?? []}
       todayEntries={todayEntries ?? []}
       running={running}
       projects={projects ?? []}
       recentProjects={recentProjects}
       categories={categories}
+      templates={templates}
     />
   );
 }

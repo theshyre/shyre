@@ -1,0 +1,27 @@
+{
+  "title": "Time Templates",
+  "description": "Save (project + category + description) combos as one-click templates to start timers faster.",
+  "newTemplate": "New template",
+  "create": "Create",
+  "save": "Save changes",
+  "edit": "Edit",
+  "delete": "Delete",
+  "confirmDelete": "Confirm delete",
+  "billable": "Billable",
+  "nonBillable": "Non-billable",
+  "empty": "No templates yet. Save your most-used time-entry combinations as one-click starters.",
+  "fields": {
+    "name": "Name",
+    "namePlaceholder": "e.g., Daily standup, Code review",
+    "project": "Project",
+    "selectProject": "Select a project",
+    "description": "Description",
+    "descriptionPlaceholder": "Pre-filled into the started entry",
+    "category": "Category",
+    "noCategory": "No category",
+    "billable": "Billable"
+  },
+  "nav": "Templates",
+  "startFrom": "Templates",
+  "startButton": "Start"
+}

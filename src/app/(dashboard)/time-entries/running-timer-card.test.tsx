@@ -10,6 +10,10 @@ vi.mock("./actions", () => ({
   updateTimeEntryAction: vi.fn(),
 }));
 
+vi.mock("../settings/templates/actions", () => ({
+  startFromTemplateAction: vi.fn(async () => ({ success: true })),
+}));
+
 import { RunningTimerCard } from "./running-timer-card";
 import type { TimeEntry } from "./types";
 

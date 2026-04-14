@@ -79,6 +79,9 @@ export function IntervalNav({ interval }: Props): React.JSX.Element {
   useKeyboardShortcut({ key: "ArrowLeft", onTrigger: goPrev });
   useKeyboardShortcut({ key: "ArrowRight", onTrigger: goNext });
   useKeyboardShortcut({ key: "t", onTrigger: goToday });
+  useKeyboardShortcut({ key: "d", onTrigger: () => changeKind("day") });
+  useKeyboardShortcut({ key: "w", onTrigger: () => changeKind("week") });
+  useKeyboardShortcut({ key: "m", onTrigger: () => changeKind("month") });
 
   // Close kind menu on outside click / Escape
   useEffect(() => {

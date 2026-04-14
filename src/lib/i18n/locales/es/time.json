@@ -64,6 +64,14 @@
       "project": "Proyecto"
     }
   },
+  "billableFilter": {
+    "on": "Solo facturables",
+    "off": "Todas"
+  },
+  "export": {
+    "label": "Exportar CSV",
+    "hint": "Descargar la vista filtrada actual como CSV"
+  },
   "home": {
     "runningHeader": "En curso",
     "startPrompt": "Iniciar un nuevo cronómetro",

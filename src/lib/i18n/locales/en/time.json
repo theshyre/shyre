@@ -64,6 +64,14 @@
       "project": "Project"
     }
   },
+  "billableFilter": {
+    "on": "Billable only",
+    "off": "All entries"
+  },
+  "export": {
+    "label": "Export CSV",
+    "hint": "Download the current filtered view as CSV"
+  },
   "home": {
     "runningHeader": "Running",
     "startPrompt": "Start a new timer",

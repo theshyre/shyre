@@ -16,7 +16,9 @@ import type { OrgListItem } from "@/lib/org-context";
 import { startTimerAction, stopTimerAction } from "./actions";
 import { RecentProjectsChips } from "./recent-projects-chips";
 import { CategoryPicker } from "./category-picker";
+import { TemplateChips } from "./template-chips";
 import type { CategoryOption, ProjectOption, TimeEntry } from "./types";
+import type { TimeTemplate } from "@/lib/templates/types";
 
 interface Props {
   running: TimeEntry | null;
@@ -25,6 +27,7 @@ interface Props {
   orgs: OrgListItem[];
   defaultOrgId?: string;
   categories: CategoryOption[];
+  templates?: TimeTemplate[];
 }
 
 export function RunningTimerCard({
@@ -34,6 +37,7 @@ export function RunningTimerCard({
   orgs,
   defaultOrgId,
   categories,
+  templates = [],
 }: Props): React.JSX.Element {
   const t = useTranslations("time");
   const tf = useTranslations("time.fields");
@@ -192,6 +196,7 @@ export function RunningTimerCard({
           selectedId={selectedProjectId}
         />
       )}
+      <TemplateChips templates={templates} />
       <SubmitButton label={tt("start")} pending={startForm.pending} icon={Play} />
     </form>
   );
