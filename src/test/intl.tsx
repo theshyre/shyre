@@ -8,6 +8,7 @@ import templates from "@/lib/i18n/locales/en/templates.json";
 import settings from "@/lib/i18n/locales/en/settings.json";
 import profile from "@/lib/i18n/locales/en/profile.json";
 import business from "@/lib/i18n/locales/en/business.json";
+import errors from "@/lib/i18n/locales/en/errors.json";
 
 export const testMessages = {
   common: en,
@@ -17,6 +18,7 @@ export const testMessages = {
   settings,
   profile,
   business,
+  errors,
 } as const;
 
 /**

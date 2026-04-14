@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useState, useTransition } from "react";
+import { useTranslations } from "next-intl";
 import type { ZodSchema } from "zod";
 import type { SerializedAppError } from "@/lib/errors";
 
@@ -52,6 +53,29 @@ export function useFormAction<T = unknown>({
   const [success, setSuccess] = useState(false);
   const [serverError, setServerError] = useState<string | null>(null);
   const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({});
+  // Root-level translator so we can resolve dot-path keys like
+  // "errors.authForbidden" that server actions return.
+  const t = useTranslations();
+
+  /**
+   * Translate an i18n key (e.g. "errors.authForbidden") to a user-facing
+   * message, falling back to the raw value if no translation exists.
+   */
+  const translateError = useCallback(
+    (keyOrMessage: string): string => {
+      try {
+        const translated = t(keyOrMessage);
+        // next-intl returns the key itself when not found — detect that and
+        // fall through to the raw value so legacy thrown-Error messages
+        // still render sensibly.
+        if (translated && translated !== keyOrMessage) return translated;
+      } catch {
+        // Key not in dictionary — fall through.
+      }
+      return keyOrMessage;
+    },
+    [t],
+  );
 
   const handleSubmit = useCallback(
     async (formData: FormData) => {
@@ -84,7 +108,7 @@ export function useFormAction<T = unknown>({
           // Handle safeAction ActionResult
           if (result && typeof result === "object" && "success" in result) {
             if (!result.success) {
-              setServerError(result.error.userMessageKey);
+              setServerError(translateError(result.error.userMessageKey));
               if (result.error.fieldErrors) {
                 setFieldErrors(result.error.fieldErrors);
               }
@@ -99,14 +123,15 @@ export function useFormAction<T = unknown>({
             setTimeout(() => setSuccess(false), successTimeout);
           }
         } catch (err) {
-          // Legacy throws (for actions not yet wrapped with safeAction)
-          setServerError(
-            err instanceof Error ? err.message : "An error occurred"
-          );
+          // Legacy throws (for actions not yet wrapped with safeAction).
+          // Still run through translateError in case the thrown message
+          // happens to be an i18n key.
+          const raw = err instanceof Error ? err.message : "An error occurred";
+          setServerError(translateError(raw));
         }
       });
     },
-    [schema, transform, action, onSuccess, successTimeout]
+    [schema, transform, action, onSuccess, successTimeout, translateError]
   );
 
   const reset = useCallback(() => {
