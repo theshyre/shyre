@@ -14,6 +14,7 @@ interface Props {
   onToggleExpand: (id: string) => void;
   /** Hide the group headers when there's only one implicit group (e.g. today panel) */
   hideGroupHeaders?: boolean;
+  tzOffsetMin?: number;
 }
 
 const COLUMN_COUNT = 6;
@@ -25,6 +26,7 @@ export function EntryTable({
   expandedEntryId,
   onToggleExpand,
   hideGroupHeaders,
+  tzOffsetMin,
 }: Props): React.JSX.Element {
   const t = useTranslations("time");
 
@@ -69,6 +71,7 @@ export function EntryTable({
               expandedEntryId={expandedEntryId}
               onToggleExpand={onToggleExpand}
               showHeader={!hideGroupHeaders}
+              tzOffsetMin={tzOffsetMin}
             />
           ))}
         </tbody>
@@ -84,6 +87,7 @@ function GroupBlock({
   expandedEntryId,
   onToggleExpand,
   showHeader,
+  tzOffsetMin,
 }: {
   group: EntryGroup<TimeEntry>;
   projects: ProjectOption[];
@@ -91,6 +95,7 @@ function GroupBlock({
   expandedEntryId: string | null;
   onToggleExpand: (id: string) => void;
   showHeader: boolean;
+  tzOffsetMin?: number;
 }): React.JSX.Element {
   return (
     <>
@@ -134,6 +139,7 @@ function GroupBlock({
           expanded={expandedEntryId === entry.id}
           onToggleExpand={onToggleExpand}
           columnCount={COLUMN_COUNT}
+          tzOffsetMin={tzOffsetMin}
         />
       ))}
     </>

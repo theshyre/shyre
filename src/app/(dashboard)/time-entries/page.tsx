@@ -1,10 +1,15 @@
+import { cookies } from "next/headers";
 import { createClient } from "@/lib/supabase/server";
 import { getUserOrgs } from "@/lib/org-context";
 import {
-  getWeekRange,
-  getTodayStart,
-  parseDayParam,
-} from "@/lib/time/week";
+  TZ_COOKIE_NAME,
+  parseTzOffset,
+  getLocalToday,
+  getLocalWeekStart,
+  addLocalDays,
+  localDateMidnightUtc,
+  validateLocalDateStr,
+} from "@/lib/time/tz";
 import { getMyTemplates } from "@/lib/templates/queries";
 import { TimeHome } from "./time-home";
 import type { TimeView } from "./view-toggle";
@@ -48,42 +53,51 @@ export default async function TimeEntriesPage({
   const sp = await searchParams;
   const { org: selectedOrgId } = sp;
 
+  // User's local TZ offset (from the TimezoneSync cookie). Falls back to 0
+  // (UTC) — on first paint before the cookie is set, the Sync component
+  // will trigger a router.refresh() once the cookie lands.
+  const cookieStore = await cookies();
+  const tzOffsetMin = parseTzOffset(cookieStore.get(TZ_COOKIE_NAME)?.value);
+
   const view = asView(sp.view);
   const billableOnly = sp.billable === "1";
 
-  // Anchor date for the view (default: today). Day-view uses the literal
-  // date; week-view uses the week containing the anchor.
-  const anchor = parseDayParam(sp.anchor) ?? getTodayStart();
-  const { start: weekStart, end: weekEnd } = getWeekRange(anchor);
+  // All day math happens as local-date strings (YYYY-MM-DD) in the user's TZ.
+  // Only converted to UTC timestamps right before hitting the DB.
+  const today = getLocalToday(tzOffsetMin);
+  const anchor = validateLocalDateStr(sp.anchor) ?? today;
+  const weekStart = getLocalWeekStart(anchor);
+  const weekEnd = addLocalDays(weekStart, 7);
   const day = anchor;
+  const dayEnd = addLocalDays(day, 1);
 
-  // Entries for the whole week (both views use this — day view also needs it
-  // for the 7-day strip totals)
+  const weekStartUtc = localDateMidnightUtc(weekStart, tzOffsetMin);
+  const weekEndUtc = localDateMidnightUtc(weekEnd, tzOffsetMin);
+  const dayStartUtc = localDateMidnightUtc(day, tzOffsetMin);
+  const dayEndUtc = localDateMidnightUtc(dayEnd, tzOffsetMin);
+
+  // Week entries — used by both views (week grid + day view's daily-total strip)
   let weekQuery = supabase
     .from("time_entries")
     .select(
       "*, projects(id, name, github_repo, category_set_id, require_timestamps, clients(id, name))",
     )
-    .gte("start_time", weekStart.toISOString())
-    .lt("start_time", weekEnd.toISOString())
+    .gte("start_time", weekStartUtc.toISOString())
+    .lt("start_time", weekEndUtc.toISOString())
     .order("start_time", { ascending: true });
   if (selectedOrgId) weekQuery = weekQuery.eq("organization_id", selectedOrgId);
   if (billableOnly) weekQuery = weekQuery.eq("billable", true);
   const { data: rawWeekEntries } = await weekQuery;
   const weekEntries = (rawWeekEntries ?? []).map(normalizeEntry);
 
-  // Entries for the specific day being viewed (day view only)
-  const dayStart = new Date(day);
-  dayStart.setHours(0, 0, 0, 0);
-  const dayEnd = new Date(dayStart);
-  dayEnd.setDate(dayEnd.getDate() + 1);
+  // Day entries — used by day view's entry list
   let dayQuery = supabase
     .from("time_entries")
     .select(
       "*, projects(id, name, github_repo, category_set_id, require_timestamps, clients(id, name))",
     )
-    .gte("start_time", dayStart.toISOString())
-    .lt("start_time", dayEnd.toISOString())
+    .gte("start_time", dayStartUtc.toISOString())
+    .lt("start_time", dayEndUtc.toISOString())
     .order("start_time", { ascending: true });
   if (selectedOrgId) dayQuery = dayQuery.eq("organization_id", selectedOrgId);
   if (billableOnly) dayQuery = dayQuery.eq("billable", true);
@@ -113,8 +127,6 @@ export default async function TimeEntriesPage({
     .order("name");
   if (selectedOrgId) projectsQuery = projectsQuery.eq("organization_id", selectedOrgId);
   const { data: rawProjects } = await projectsQuery;
-  // Supabase returns nested selects as arrays even for single-row FK joins.
-  // Unwrap `clients` to the single row so downstream types line up.
   const projects = (rawProjects ?? []).map((p) => ({
     ...p,
     clients: Array.isArray(p.clients) ? (p.clients[0] ?? null) : (p.clients ?? null),
@@ -123,7 +135,7 @@ export default async function TimeEntriesPage({
   // Categories visible to any project's category set
   const setIds = Array.from(
     new Set(
-      (projects ?? [])
+      projects
         .map((p) => p.category_set_id)
         .filter((id): id is string => !!id),
     ),
@@ -157,7 +169,7 @@ export default async function TimeEntriesPage({
     if (recentProjectIds.length >= 5) break;
   }
   const recentProjects = recentProjectIds
-    .map((id) => (projects ?? []).find((p) => p.id === id))
+    .map((id) => projects.find((p) => p.id === id))
     .filter((p): p is NonNullable<typeof p> => !!p);
 
   const allTemplates = await getMyTemplates(selectedOrgId);
@@ -169,13 +181,13 @@ export default async function TimeEntriesPage({
       selectedOrgId={selectedOrgId ?? null}
       view={view}
       billableOnly={billableOnly}
-      dayIso={day.toISOString()}
-      weekStartIso={weekStart.toISOString()}
-      weekEndIso={weekEnd.toISOString()}
-      weekEntries={weekEntries ?? []}
-      dayEntries={dayEntries ?? []}
+      dayStr={day}
+      weekStartStr={weekStart}
+      tzOffsetMin={tzOffsetMin}
+      weekEntries={weekEntries}
+      dayEntries={dayEntries}
       running={running}
-      projects={projects ?? []}
+      projects={projects}
       recentProjects={recentProjects}
       categories={categories}
       templates={templates}

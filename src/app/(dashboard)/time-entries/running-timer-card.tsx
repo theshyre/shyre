@@ -29,6 +29,7 @@ interface Props {
   defaultOrgId?: string;
   categories: CategoryOption[];
   templates?: TimeTemplate[];
+  tzOffsetMin?: number;
 }
 
 export function RunningTimerCard({

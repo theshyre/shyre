@@ -28,7 +28,9 @@ function makeEntry(
   id: string,
   opts: { day: number; durationMin: number; projectId?: string; categoryId?: string | null },
 ): TimeEntry {
-  const start = new Date(2026, 3, 13 + opts.day, 0, 0);
+  // Use UTC midnight so the local-date conversion with tzOffsetMin=0 returns
+  // a predictable calendar day.
+  const start = new Date(Date.UTC(2026, 3, 13 + opts.day, 0, 0));
   const end = new Date(start.getTime() + opts.durationMin * 60 * 1000);
   return {
     id,
@@ -46,7 +48,8 @@ function makeEntry(
   };
 }
 
-const weekStart = new Date(2026, 3, 13); // Mon
+const weekStartStr = "2026-04-13";
+const tzOffsetMin = 0;
 
 describe("WeekTimesheet", () => {
   beforeEach(() => {
@@ -57,13 +60,13 @@ describe("WeekTimesheet", () => {
   it("renders Mon..Sun headers with day numbers", () => {
     renderWithIntl(
       <WeekTimesheet
-        weekStart={weekStart}
+        weekStartStr={weekStartStr}
+        tzOffsetMin={tzOffsetMin}
         entries={[]}
         projects={[project]}
         categories={[]}
       />,
     );
-    // Day numbers 13..19 visible
     for (const n of [13, 14, 15, 16, 17, 18, 19]) {
       expect(screen.getByText(String(n))).toBeInTheDocument();
     }
@@ -72,7 +75,8 @@ describe("WeekTimesheet", () => {
   it("groups entries into project rows", () => {
     renderWithIntl(
       <WeekTimesheet
-        weekStart={weekStart}
+        weekStartStr={weekStartStr}
+        tzOffsetMin={tzOffsetMin}
         entries={[
           makeEntry("e1", { day: 0, durationMin: 60 }),
           makeEntry("e2", { day: 2, durationMin: 90 }),
@@ -87,7 +91,8 @@ describe("WeekTimesheet", () => {
   it("sums daily totals in the footer", () => {
     renderWithIntl(
       <WeekTimesheet
-        weekStart={weekStart}
+        weekStartStr={weekStartStr}
+        tzOffsetMin={tzOffsetMin}
         entries={[
           makeEntry("e1", { day: 0, durationMin: 60 }), // 1:00 Mon
           makeEntry("e2", { day: 1, durationMin: 90 }), // 1:30 Tue
@@ -96,7 +101,6 @@ describe("WeekTimesheet", () => {
         categories={[]}
       />,
     );
-    // Daily totals row shows 1:00 and 1:30
     expect(screen.getAllByText("1:00").length).toBeGreaterThanOrEqual(1);
     expect(screen.getAllByText("1:30").length).toBeGreaterThanOrEqual(1);
   });
@@ -104,13 +108,13 @@ describe("WeekTimesheet", () => {
   it("calls upsert when a cell is edited and blurred", async () => {
     renderWithIntl(
       <WeekTimesheet
-        weekStart={weekStart}
+        weekStartStr={weekStartStr}
+        tzOffsetMin={tzOffsetMin}
         entries={[makeEntry("e1", { day: 0, durationMin: 60 })]}
         projects={[project]}
         categories={[]}
       />,
     );
-    // Find a duration cell input and change it
     const cells = screen.getAllByRole("textbox");
     const cell = cells[0]!;
     fireEvent.change(cell, { target: { value: "2:30" } });
@@ -119,12 +123,14 @@ describe("WeekTimesheet", () => {
     const fd = upsertCellMock.mock.calls[0]?.[0];
     expect(fd?.get("project_id")).toBe("p1");
     expect(fd?.get("duration_min")).toBe("150");
+    expect(fd?.get("tz_offset_min")).toBe("0");
   });
 
-  it("does not fire upsert when cell value is unchanged", async () => {
+  it("does not fire upsert when cell value is unchanged", () => {
     renderWithIntl(
       <WeekTimesheet
-        weekStart={weekStart}
+        weekStartStr={weekStartStr}
+        tzOffsetMin={tzOffsetMin}
         entries={[makeEntry("e1", { day: 0, durationMin: 60 })]}
         projects={[project]}
         categories={[]}
@@ -140,7 +146,8 @@ describe("WeekTimesheet", () => {
   it("shows empty state when no rows", () => {
     renderWithIntl(
       <WeekTimesheet
-        weekStart={weekStart}
+        weekStartStr={weekStartStr}
+        tzOffsetMin={tzOffsetMin}
         entries={[]}
         projects={[project]}
         categories={[]}
@@ -152,7 +159,8 @@ describe("WeekTimesheet", () => {
   it("'Add row' reveals a project picker", () => {
     renderWithIntl(
       <WeekTimesheet
-        weekStart={weekStart}
+        weekStartStr={weekStartStr}
+        tzOffsetMin={tzOffsetMin}
         entries={[]}
         projects={[project]}
         categories={[]}

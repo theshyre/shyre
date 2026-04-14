@@ -3,25 +3,33 @@
 import { runSafeAction } from "@/lib/safe-action";
 import { assertSupabaseOk } from "@/lib/errors";
 import { validateOrgAccess } from "@/lib/org-context";
+import { localDateMidnightUtc } from "@/lib/time/tz";
 import { revalidatePath } from "next/cache";
 
 /**
- * Given an entry_date (YYYY-MM-DD) and duration in minutes, return a
- * (start_time, end_time) pair anchored at the start of that local day.
- * This lets duration-only projects reuse the time_entries schema without
- * forcing an arbitrary time-of-day on the user.
+ * Given an entry_date (YYYY-MM-DD in the user's local TZ) and duration in
+ * minutes, return a (start_time, end_time) pair anchored at that local
+ * midnight, converted to UTC using the caller's tz offset.
  */
 function entryFromDuration(
   entryDate: string,
   durationMin: number,
+  tzOffsetMin: number,
 ): { start_time: string; end_time: string } {
-  const [y, m, d] = entryDate.split("-").map(Number);
-  const start = new Date(y!, (m ?? 1) - 1, d ?? 1, 0, 0, 0, 0);
+  const start = localDateMidnightUtc(entryDate, tzOffsetMin);
   const end = new Date(start.getTime() + durationMin * 60 * 1000);
   return {
     start_time: start.toISOString(),
     end_time: end.toISOString(),
   };
+}
+
+function tzOffsetFromForm(formData: FormData): number {
+  const raw = formData.get("tz_offset_min");
+  if (typeof raw !== "string") return 0;
+  const n = Number(raw);
+  if (!Number.isFinite(n) || n < -840 || n > 840) return 0;
+  return n;
 }
 
 export async function createTimeEntryAction(formData: FormData): Promise<void> {
@@ -40,12 +48,13 @@ export async function createTimeEntryAction(formData: FormData): Promise<void> {
     // Timestamp mode: form submits `start_time` + optional `end_time`
     const durationMinStr = formData.get("duration_min") as string | null;
     const entryDate = formData.get("entry_date") as string | null;
+    const tzOffsetMin = tzOffsetFromForm(formData);
 
     let start_time: string;
     let end_time: string | null;
     if (durationMinStr && entryDate) {
       const durationMin = parseInt(durationMinStr, 10);
-      const t = entryFromDuration(entryDate, durationMin);
+      const t = entryFromDuration(entryDate, durationMin, tzOffsetMin);
       start_time = t.start_time;
       end_time = t.end_time;
     } else {
@@ -83,12 +92,13 @@ export async function updateTimeEntryAction(formData: FormData): Promise<void> {
 
     const durationMinStr = formData.get("duration_min") as string | null;
     const entryDate = formData.get("entry_date") as string | null;
+    const tzOffsetMin = tzOffsetFromForm(formData);
 
     let start_time: string | undefined;
     let end_time: string | null | undefined;
     if (durationMinStr && entryDate) {
       const durationMin = parseInt(durationMinStr, 10);
-      const t = entryFromDuration(entryDate, durationMin);
+      const t = entryFromDuration(entryDate, durationMin, tzOffsetMin);
       start_time = t.start_time;
       end_time = t.end_time;
     } else {
@@ -238,12 +248,11 @@ export async function upsertTimesheetCellAction(
     const orgId = formData.get("organization_id") as string;
     const durationMinStr = formData.get("duration_min") as string;
     const durationMin = parseInt(durationMinStr, 10);
+    const tzOffsetMin = tzOffsetFromForm(formData);
     await validateOrgAccess(orgId);
 
-    const [y, m, d] = entry_date.split("-").map(Number);
-    const dayStart = new Date(y!, (m ?? 1) - 1, d ?? 1, 0, 0, 0, 0);
-    const dayEnd = new Date(dayStart);
-    dayEnd.setDate(dayEnd.getDate() + 1);
+    const dayStart = localDateMidnightUtc(entry_date, tzOffsetMin);
+    const dayEnd = new Date(dayStart.getTime() + 24 * 60 * 60 * 1000);
 
     // Find existing entries in this (project, category, day) cell
     let q = supabase
@@ -275,7 +284,7 @@ export async function upsertTimesheetCellAction(
       return;
     }
 
-    const t = entryFromDuration(entry_date, durationMin);
+    const t = entryFromDuration(entry_date, durationMin, tzOffsetMin);
 
     if (!existing || existing.length === 0) {
       // Insert new

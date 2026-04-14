@@ -1,4 +1,5 @@
 import Sidebar from "@/components/Sidebar";
+import { TimezoneSync } from "@/components/TimezoneSync";
 import { getUserContext } from "@/lib/org-context";
 import { isSystemAdmin } from "@/lib/system-admin";
 import { createClient } from "@/lib/supabase/server";
@@ -24,6 +25,7 @@ export default async function DashboardLayout({
 
   return (
     <div className="flex h-full">
+      <TimezoneSync />
       <Sidebar
         displayName={user.displayName}
         email={user.userEmail}

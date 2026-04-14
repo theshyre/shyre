@@ -15,6 +15,7 @@ interface Props {
   onToggleExpand: (id: string) => void;
   /** Total number of columns in the parent table — used for the edit row span */
   columnCount: number;
+  tzOffsetMin?: number;
 }
 
 /**
@@ -31,6 +32,7 @@ export function EntryRow({
   expanded,
   onToggleExpand,
   columnCount,
+  tzOffsetMin,
 }: Props): React.JSX.Element {
   const t = useTranslations("time");
   const tt = useTranslations("time.timer");
@@ -144,6 +146,7 @@ export function EntryRow({
               projects={projects}
               categories={categories}
               onDone={() => onToggleExpand(entry.id)}
+              tzOffsetMin={tzOffsetMin}
             />
           </td>
         </tr>

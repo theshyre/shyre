@@ -4,10 +4,8 @@ import { useCallback, useEffect, useMemo, useState, useTransition } from "react"
 import { useRouter, usePathname, useSearchParams } from "next/navigation";
 import { useTranslations } from "next-intl";
 import { ChevronLeft, ChevronRight, Loader2 } from "lucide-react";
-import {
-  formatDurationHMZero,
-  isSameDay,
-} from "@/lib/time/week";
+import { formatDurationHMZero } from "@/lib/time/week";
+import { addLocalDays, utcToLocalDateStr } from "@/lib/time/tz";
 import {
   buttonSecondaryClass,
   kbdClass,
@@ -18,21 +16,39 @@ import type { CategoryOption, ProjectOption, TimeEntry } from "./types";
 import type { EntryGroup } from "@/lib/time/grouping";
 
 interface Props {
-  /** The day being viewed */
-  day: Date;
-  /** Start of the week the day is in — for the 7-day strip at the top */
-  weekStart: Date;
-  /** Entries for the *entire week*, used for daily-total strip */
+  /** The local date being viewed (YYYY-MM-DD) */
+  dayStr: string;
+  /** Local date of the Monday of the visible week (YYYY-MM-DD) */
+  weekStartStr: string;
+  /** User's TZ offset, minutes west of UTC */
+  tzOffsetMin: number;
   weekEntries: TimeEntry[];
-  /** Entries for the specific day */
   dayEntries: TimeEntry[];
   projects: ProjectOption[];
   categories: CategoryOption[];
 }
 
+/**
+ * Pretty-format a local-date string like "2026-04-14" as "Tuesday, Apr 14",
+ * prefixed with "Today: " if it's today in the user's TZ.
+ */
+function formatDayTitle(dateStr: string, todayStr: string): string {
+  const [y, m, d] = dateStr.split("-").map(Number);
+  const date = new Date(y!, m! - 1, d!); // local
+  const thisYear = new Date().getFullYear();
+  const body = date.toLocaleDateString(undefined, {
+    weekday: "long",
+    month: "short",
+    day: "numeric",
+    year: y !== thisYear ? "numeric" : undefined,
+  });
+  return dateStr === todayStr ? `Today: ${body}` : body;
+}
+
 export function DayView({
-  day,
-  weekStart,
+  dayStr,
+  weekStartStr,
+  tzOffsetMin,
   weekEntries,
   dayEntries,
   projects,
@@ -49,43 +65,47 @@ export function DayView({
   }, []);
 
   // Optimistic selected day so clicks feel instant while the server
-  // re-renders the page for the new anchor.
-  const [optimisticDay, setOptimisticDay] = useState<Date | null>(null);
-  const visibleDay = optimisticDay ?? day;
+  // re-renders for the new anchor.
+  const [optimisticDay, setOptimisticDay] = useState<string | null>(null);
+  const visibleDay = optimisticDay ?? dayStr;
 
-  // Reset optimistic day when props catch up
+  // Drop optimistic state once props catch up
   useEffect(() => {
-    if (optimisticDay && isSameDay(optimisticDay, day)) {
+    if (optimisticDay && optimisticDay === dayStr) {
       setOptimisticDay(null);
     }
-  }, [optimisticDay, day]);
+  }, [optimisticDay, dayStr]);
 
-  // Daily totals per day of this week
+  // Today's local-date string (for "Today:" prefix and strip highlight)
+  const todayStr = useMemo(
+    () => utcToLocalDateStr(new Date(), tzOffsetMin),
+    [tzOffsetMin],
+  );
+
+  // Precompute the 7 day-strings for the week strip
+  const weekDays = useMemo(
+    () => Array.from({ length: 7 }, (_, i) => addLocalDays(weekStartStr, i)),
+    [weekStartStr],
+  );
+
+  // Daily totals indexed by weekDays[i]
   const dailyTotals = useMemo(() => {
-    const totals = Array.from({ length: 7 }, () => 0);
+    const byDay = new Map<string, number>();
     for (const e of weekEntries) {
-      const start = new Date(e.start_time);
-      const diff = Math.round(
-        (new Date(start.getFullYear(), start.getMonth(), start.getDate()).getTime() -
-          new Date(weekStart.getFullYear(), weekStart.getMonth(), weekStart.getDate()).getTime()) /
-          (1000 * 60 * 60 * 24),
-      );
-      if (diff >= 0 && diff < 7) {
-        totals[diff] = (totals[diff] ?? 0) + (e.duration_min ?? 0);
-      }
+      const key = utcToLocalDateStr(e.start_time, tzOffsetMin);
+      byDay.set(key, (byDay.get(key) ?? 0) + (e.duration_min ?? 0));
     }
-    return totals;
-  }, [weekEntries, weekStart]);
+    return weekDays.map((d) => byDay.get(d) ?? 0);
+  }, [weekEntries, weekDays, tzOffsetMin]);
 
   const weekTotal = dailyTotals.reduce((s, n) => s + n, 0);
 
   const navigateToDay = useCallback(
-    (targetDay: Date) => {
-      if (isSameDay(targetDay, visibleDay)) return;
-      // Optimistic update — highlight the new day immediately
-      setOptimisticDay(targetDay);
+    (targetDayStr: string) => {
+      if (targetDayStr === visibleDay) return;
+      setOptimisticDay(targetDayStr);
       const params = new URLSearchParams(searchParams.toString());
-      params.set("anchor", toIsoDate(targetDay));
+      params.set("anchor", targetDayStr);
       startTransition(() => {
         router.push(`${pathname}?${params.toString()}`);
       });
@@ -94,55 +114,25 @@ export function DayView({
   );
 
   const goPrev = useCallback(() => {
-    const d = new Date(visibleDay);
-    d.setDate(d.getDate() - 1);
-    navigateToDay(d);
+    navigateToDay(addLocalDays(visibleDay, -1));
   }, [visibleDay, navigateToDay]);
 
   const goNext = useCallback(() => {
-    const d = new Date(visibleDay);
-    d.setDate(d.getDate() + 1);
-    navigateToDay(d);
+    navigateToDay(addLocalDays(visibleDay, 1));
   }, [visibleDay, navigateToDay]);
 
   useKeyboardShortcut({ key: "ArrowLeft", onTrigger: goPrev });
   useKeyboardShortcut({ key: "ArrowRight", onTrigger: goNext });
 
-  const today = new Date();
-  const isToday = isSameDay(visibleDay, today);
-  const titleLabel = isToday
-    ? t("today", {
-        date: visibleDay.toLocaleDateString(undefined, {
-          weekday: "long",
-          month: "short",
-          day: "numeric",
-        }),
-      })
-    : visibleDay.toLocaleDateString(undefined, {
-        weekday: "long",
-        month: "short",
-        day: "numeric",
-        year:
-          visibleDay.getFullYear() !== today.getFullYear()
-            ? "numeric"
-            : undefined,
-      });
+  const titleLabel = formatDayTitle(visibleDay, todayStr);
 
-  // Filter dayEntries client-side too, as a safety net: only show entries whose
-  // local calendar date matches the currently-visible day. This defends
-  // against any timezone edge case where the server query included a bordering
-  // entry, and also handles the "optimistic day" state before the server
-  // returns the new query.
+  // Filter dayEntries client-side to the currently-visible day (defense against
+  // optimistic-day / server-data lag).
   const trulyDayEntries = useMemo(() => {
-    return dayEntries.filter((e) => {
-      const s = new Date(e.start_time);
-      return (
-        s.getFullYear() === visibleDay.getFullYear() &&
-        s.getMonth() === visibleDay.getMonth() &&
-        s.getDate() === visibleDay.getDate()
-      );
-    });
-  }, [dayEntries, visibleDay]);
+    return dayEntries.filter(
+      (e) => utcToLocalDateStr(e.start_time, tzOffsetMin) === visibleDay,
+    );
+  }, [dayEntries, visibleDay, tzOffsetMin]);
 
   const groups: EntryGroup<TimeEntry>[] = useMemo(
     () => [
@@ -199,17 +189,17 @@ export function DayView({
       {/* 7-day strip with daily totals */}
       <div className="rounded-lg border border-edge bg-surface-raised p-2">
         <div className="grid grid-cols-8 gap-1 items-stretch">
-          {Array.from({ length: 7 }).map((_, i) => {
-            const d = new Date(weekStart);
-            d.setDate(d.getDate() + i);
-            const isCurrent = isSameDay(d, visibleDay);
-            const isTodayPill = isSameDay(d, today);
+          {weekDays.map((dStr, i) => {
+            const [y, m, d] = dStr.split("-").map(Number);
+            const dateObj = new Date(y!, m! - 1, d!);
+            const isCurrent = dStr === visibleDay;
+            const isTodayPill = dStr === todayStr;
             const tot = dailyTotals[i] ?? 0;
             return (
               <button
-                key={i}
+                key={dStr}
                 type="button"
-                onClick={() => navigateToDay(d)}
+                onClick={() => navigateToDay(dStr)}
                 aria-pressed={isCurrent}
                 className={`flex flex-col items-center py-2 rounded-md transition-colors border ${
                   isCurrent
@@ -220,10 +210,10 @@ export function DayView({
                 }`}
               >
                 <span className="text-[10px] font-semibold uppercase">
-                  {d.toLocaleDateString(undefined, { weekday: "short" })}
+                  {dateObj.toLocaleDateString(undefined, { weekday: "short" })}
                 </span>
                 <span className="text-sm font-semibold mt-0.5">
-                  {d.getDate()}
+                  {d}
                 </span>
                 <span
                   className={`font-mono text-[11px] tabular-nums mt-0.5 ${
@@ -246,7 +236,7 @@ export function DayView({
         </div>
       </div>
 
-      {/* Entries for this day — dimmed while transitioning */}
+      {/* Entries for this day */}
       <div className={isPending ? "opacity-60 transition-opacity" : ""}>
         <EntryTable
           groups={groups}
@@ -255,12 +245,9 @@ export function DayView({
           expandedEntryId={expandedEntryId}
           onToggleExpand={toggleExpanded}
           hideGroupHeaders
+          tzOffsetMin={tzOffsetMin}
         />
       </div>
     </div>
   );
-}
-
-function toIsoDate(d: Date): string {
-  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
 }

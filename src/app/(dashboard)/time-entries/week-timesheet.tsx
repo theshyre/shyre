@@ -3,10 +3,8 @@
 import { useCallback, useMemo, useState } from "react";
 import { useTranslations } from "next-intl";
 import { Plus, Trash2 } from "lucide-react";
-import {
-  formatDurationHMZero,
-  isSameDay,
-} from "@/lib/time/week";
+import { formatDurationHMZero } from "@/lib/time/week";
+import { addLocalDays, utcToLocalDateStr } from "@/lib/time/tz";
 import { DurationInput } from "./duration-input";
 import {
   upsertTimesheetCellAction,
@@ -19,7 +17,10 @@ import {
 import type { CategoryOption, ProjectOption, TimeEntry } from "./types";
 
 interface Props {
-  weekStart: Date;
+  /** Local date of Monday of the visible week (YYYY-MM-DD) */
+  weekStartStr: string;
+  /** User's TZ offset in minutes west of UTC */
+  tzOffsetMin: number;
   entries: TimeEntry[];
   projects: ProjectOption[];
   categories: CategoryOption[];
@@ -43,13 +44,20 @@ const DAYS_IN_WEEK = 7;
  * on blur.
  */
 export function WeekTimesheet({
-  weekStart,
+  weekStartStr,
+  tzOffsetMin,
   entries,
   projects,
   categories,
   defaultOrgId,
 }: Props): React.JSX.Element {
   const t = useTranslations("time.timesheet");
+
+  // Precompute local-date strings for each column (Mon..Sun)
+  const weekDays = useMemo(
+    () => Array.from({ length: DAYS_IN_WEEK }, (_, i) => addLocalDays(weekStartStr, i)),
+    [weekStartStr],
+  );
 
   // Derive rows from existing entries + any user-added blank rows
   const [extraRows, setExtraRows] = useState<
@@ -60,6 +68,8 @@ export function WeekTimesheet({
     const byKey = new Map<string, Row>();
     const rowKey = (projectId: string, categoryId: string | null) =>
       `${projectId}::${categoryId ?? ""}`;
+
+    const dayIndexOf = (dateStr: string): number => weekDays.indexOf(dateStr);
 
     // Aggregate existing entries into rows
     for (const e of entries) {
@@ -73,8 +83,8 @@ export function WeekTimesheet({
         };
         byKey.set(key, row);
       }
-      const start = new Date(e.start_time);
-      const dayIndex = daysBetween(weekStart, start);
+      const localDate = utcToLocalDateStr(e.start_time, tzOffsetMin);
+      const dayIndex = dayIndexOf(localDate);
       if (dayIndex >= 0 && dayIndex < DAYS_IN_WEEK) {
         row.byDay[dayIndex] = (row.byDay[dayIndex] ?? 0) + (e.duration_min ?? 0);
       }
@@ -98,7 +108,7 @@ export function WeekTimesheet({
       const pb = projects.find((p) => p.id === b.projectId)?.name ?? "";
       return pa.localeCompare(pb);
     });
-  }, [entries, projects, extraRows, weekStart]);
+  }, [entries, projects, extraRows, weekDays, tzOffsetMin]);
 
   const dailyTotals = useMemo<number[]>(() => {
     const totals = Array.from({ length: DAYS_IN_WEEK }, () => 0);
@@ -138,15 +148,15 @@ export function WeekTimesheet({
   ): Promise<void> {
     const project = projects.find((p) => p.id === projectId);
     if (!project) return;
-    const date = new Date(weekStart);
-    date.setDate(date.getDate() + dayIndex);
-    const dateStr = toIsoDate(date);
+    const dateStr = weekDays[dayIndex];
+    if (!dateStr) return;
     const fd = new FormData();
     fd.set("project_id", projectId);
     if (categoryId) fd.set("category_id", categoryId);
     fd.set("entry_date", dateStr);
     fd.set("organization_id", project.organization_id);
     fd.set("duration_min", String(minutes));
+    fd.set("tz_offset_min", String(tzOffsetMin));
     await upsertTimesheetCellAction(fd);
   }
 
@@ -171,22 +181,22 @@ export function WeekTimesheet({
             <th className="py-2 pl-4 text-left text-[10px] font-semibold uppercase tracking-wider text-content-muted w-[30%]">
               {t("categoryProject")}
             </th>
-            {Array.from({ length: DAYS_IN_WEEK }).map((_, i) => {
-              const d = new Date(weekStart);
-              d.setDate(d.getDate() + i);
-              const isToday = isSameDay(d, new Date());
+            {weekDays.map((dStr, i) => {
+              const [y, m, d] = dStr.split("-").map(Number);
+              const dateObj = new Date(y!, m! - 1, d!);
+              const isToday = dStr === utcToLocalDateStr(new Date(), tzOffsetMin);
               return (
                 <th
-                  key={i}
+                  key={dStr}
                   className={`px-2 py-2 text-center text-[10px] font-semibold uppercase tracking-wider ${
                     isToday ? "text-accent" : "text-content-muted"
                   }`}
                 >
                   <div>
-                    {d.toLocaleDateString(undefined, { weekday: "short" })}
+                    {dateObj.toLocaleDateString(undefined, { weekday: "short" })}
                   </div>
                   <div className="text-[10px] font-normal mt-0.5">
-                    {d.getDate()}
+                    {d}
                   </div>
                 </th>
               );
@@ -218,7 +228,8 @@ export function WeekTimesheet({
                 submitCell(row.projectId, row.categoryId, dayIndex, minutes)
               }
               onDelete={() => deleteRow(row.projectId, row.categoryId)}
-              weekStart={weekStart}
+              weekDays={weekDays}
+              todayStr={utcToLocalDateStr(new Date(), tzOffsetMin)}
             />
           ))}
         </tbody>
@@ -260,14 +271,16 @@ function TimesheetRow({
   categories,
   onCellCommit,
   onDelete,
-  weekStart,
+  weekDays,
+  todayStr,
 }: {
   row: Row;
   projects: ProjectOption[];
   categories: CategoryOption[];
   onCellCommit: (dayIndex: number, minutes: number) => void | Promise<void>;
   onDelete: () => void;
-  weekStart: Date;
+  weekDays: string[];
+  todayStr: string;
 }): React.JSX.Element {
   const project = projects.find((p) => p.id === row.projectId);
   const category = row.categoryId
@@ -312,12 +325,10 @@ function TimesheetRow({
         </div>
       </td>
       {row.byDay.map((min, i) => {
-        const date = new Date(weekStart);
-        date.setDate(date.getDate() + i);
-        const isToday = isSameDay(date, new Date());
+        const isToday = weekDays[i] === todayStr;
         return (
           <td
-            key={i}
+            key={weekDays[i] ?? i}
             className={`px-1 py-1 align-middle ${isToday ? "bg-accent-soft/30" : ""}`}
           >
             <DurationInput
@@ -459,14 +470,3 @@ function AddRowControl({
   );
 }
 
-function toIsoDate(d: Date): string {
-  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
-}
-
-function daysBetween(weekStart: Date, date: Date): number {
-  const startDay = new Date(weekStart);
-  startDay.setHours(0, 0, 0, 0);
-  const d = new Date(date);
-  d.setHours(0, 0, 0, 0);
-  return Math.round((d.getTime() - startDay.getTime()) / (1000 * 60 * 60 * 24));
-}

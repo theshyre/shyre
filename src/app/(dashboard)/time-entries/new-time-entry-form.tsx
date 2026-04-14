@@ -36,11 +36,13 @@ export function NewTimeEntryForm({
   orgs,
   defaultOrgId,
   categories,
+  tzOffsetMin,
 }: {
   projects: ProjectOption[];
   orgs: OrgListItem[];
   defaultOrgId?: string;
   categories: CategoryOption[];
+  tzOffsetMin?: number;
 }): React.JSX.Element {
   const [open, setOpen] = useState(false);
   const [selectedProjectId, setSelectedProjectId] = useState("");
@@ -86,6 +88,9 @@ export function NewTimeEntryForm({
     >
       {serverError && (
         <p className="text-sm text-error bg-error-soft rounded-lg px-3 py-2">{serverError}</p>
+      )}
+      {tzOffsetMin !== undefined && (
+        <input type="hidden" name="tz_offset_min" value={String(tzOffsetMin)} />
       )}
       <OrgSelector orgs={orgs} defaultOrgId={defaultOrgId} />
       <div className="grid gap-3 sm:grid-cols-2">

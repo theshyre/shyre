@@ -1,6 +1,5 @@
 "use client";
 
-import { useMemo } from "react";
 import { useTranslations } from "next-intl";
 import { Clock } from "lucide-react";
 import { OrgFilter } from "@/components/OrgFilter";
@@ -25,9 +24,12 @@ interface TimeHomeProps {
   selectedOrgId: string | null;
   view: TimeView;
   billableOnly: boolean;
-  dayIso: string;
-  weekStartIso: string;
-  weekEndIso: string;
+  /** Local date being viewed (YYYY-MM-DD in user's TZ) */
+  dayStr: string;
+  /** Local date of the Monday of the visible week (YYYY-MM-DD in user's TZ) */
+  weekStartStr: string;
+  /** User's TZ offset in minutes west of UTC */
+  tzOffsetMin: number;
   weekEntries: TimeEntry[];
   dayEntries: TimeEntry[];
   running: TimeEntry | null;
@@ -42,9 +44,9 @@ export function TimeHome({
   selectedOrgId,
   view,
   billableOnly,
-  dayIso,
-  weekStartIso,
-  weekEndIso,
+  dayStr,
+  weekStartStr,
+  tzOffsetMin,
   weekEntries,
   dayEntries,
   running,
@@ -54,8 +56,6 @@ export function TimeHome({
   templates,
 }: TimeHomeProps): React.JSX.Element {
   const t = useTranslations("time");
-  const day = useMemo(() => new Date(dayIso), [dayIso]);
-  const weekStart = useMemo(() => new Date(weekStartIso), [weekStartIso]);
 
   // Totals for the currently-visible data (week for week view, day for day view)
   const visibleEntries = view === "day" ? dayEntries : weekEntries;
@@ -82,6 +82,7 @@ export function TimeHome({
         defaultOrgId={selectedOrgId ?? undefined}
         categories={categories}
         templates={templates}
+        tzOffsetMin={tzOffsetMin}
       />
 
       <div className="flex items-center justify-between flex-wrap gap-3">
@@ -106,8 +107,9 @@ export function TimeHome({
 
       {view === "day" ? (
         <DayView
-          day={day}
-          weekStart={weekStart}
+          dayStr={dayStr}
+          weekStartStr={weekStartStr}
+          tzOffsetMin={tzOffsetMin}
           weekEntries={weekEntries}
           dayEntries={dayEntries}
           projects={projects}
@@ -115,7 +117,8 @@ export function TimeHome({
         />
       ) : (
         <WeekTimesheet
-          weekStart={weekStart}
+          weekStartStr={weekStartStr}
+          tzOffsetMin={tzOffsetMin}
           entries={weekEntries}
           projects={projects}
           categories={categories}
@@ -128,6 +131,7 @@ export function TimeHome({
         orgs={orgs}
         defaultOrgId={selectedOrgId ?? undefined}
         categories={categories}
+        tzOffsetMin={tzOffsetMin}
       />
     </div>
   );

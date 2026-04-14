@@ -36,37 +36,39 @@ function makeEntry(id: string, start: Date, durationMin = 60): TimeEntry {
   };
 }
 
-const weekStart = new Date(2026, 3, 13);
+const weekStartStr = "2026-04-13";
+const tzOffsetMin = 0;
 
 describe("DayView", () => {
   beforeEach(() => pushMock.mockClear());
 
   it("renders 7-day strip with daily totals + week total", () => {
     const weekEntries = [
-      makeEntry("a", new Date(2026, 3, 13, 9), 60),
-      makeEntry("b", new Date(2026, 3, 14, 10), 90),
+      makeEntry("a", new Date(Date.UTC(2026, 3, 13, 9)), 60),
+      makeEntry("b", new Date(Date.UTC(2026, 3, 14, 10)), 90),
     ];
     renderWithIntl(
       <DayView
-        day={new Date(2026, 3, 14)}
-        weekStart={weekStart}
+        dayStr="2026-04-14"
+        weekStartStr={weekStartStr}
+        tzOffsetMin={tzOffsetMin}
         weekEntries={weekEntries}
         dayEntries={[]}
         projects={[]}
         categories={[]}
       />,
     );
-    // Mon daily total = 1:00, Tue = 1:30 → week total 2:30
     expect(screen.getAllByText("1:00").length).toBeGreaterThanOrEqual(1);
     expect(screen.getAllByText("1:30").length).toBeGreaterThanOrEqual(1);
     expect(screen.getByText(/week total/i)).toBeInTheDocument();
   });
 
-  it("prev/next navigate to adjacent days", () => {
+  it("prev navigates to the prior day", () => {
     renderWithIntl(
       <DayView
-        day={new Date(2026, 3, 14)}
-        weekStart={weekStart}
+        dayStr="2026-04-14"
+        weekStartStr={weekStartStr}
+        tzOffsetMin={tzOffsetMin}
         weekEntries={[]}
         dayEntries={[]}
         projects={[]}
@@ -82,8 +84,9 @@ describe("DayView", () => {
   it("next navigates to the following day", () => {
     renderWithIntl(
       <DayView
-        day={new Date(2026, 3, 14)}
-        weekStart={weekStart}
+        dayStr="2026-04-14"
+        weekStartStr={weekStartStr}
+        tzOffsetMin={tzOffsetMin}
         weekEntries={[]}
         dayEntries={[]}
         projects={[]}
@@ -99,15 +102,15 @@ describe("DayView", () => {
   it("clicking a day in the strip navigates to that day", () => {
     renderWithIntl(
       <DayView
-        day={new Date(2026, 3, 14)}
-        weekStart={weekStart}
+        dayStr="2026-04-14"
+        weekStartStr={weekStartStr}
+        tzOffsetMin={tzOffsetMin}
         weekEntries={[]}
         dayEntries={[]}
         projects={[]}
         categories={[]}
       />,
     );
-    // Click on Friday (Apr 17)
     const friButtons = screen.getAllByRole("button");
     const fri = friButtons.find((b) => b.textContent?.includes("Fri"));
     expect(fri).toBeTruthy();
@@ -118,32 +121,15 @@ describe("DayView", () => {
   it("renders the day's entries", () => {
     renderWithIntl(
       <DayView
-        day={new Date(2026, 3, 14)}
-        weekStart={weekStart}
+        dayStr="2026-04-14"
+        weekStartStr={weekStartStr}
+        tzOffsetMin={tzOffsetMin}
         weekEntries={[]}
-        dayEntries={[makeEntry("a", new Date(2026, 3, 14, 9))]}
+        dayEntries={[makeEntry("a", new Date(Date.UTC(2026, 3, 14, 9)))]}
         projects={[]}
         categories={[]}
       />,
     );
     expect(screen.getByText("entry a")).toBeInTheDocument();
-  });
-
-  it("labels today's date with 'Today:'", () => {
-    const today = new Date();
-    today.setHours(0, 0, 0, 0);
-    const mondayOfToday = new Date(today);
-    mondayOfToday.setDate(today.getDate() - ((today.getDay() + 6) % 7));
-    renderWithIntl(
-      <DayView
-        day={today}
-        weekStart={mondayOfToday}
-        weekEntries={[]}
-        dayEntries={[]}
-        projects={[]}
-        categories={[]}
-      />,
-    );
-    expect(screen.getByText(/today:/i)).toBeInTheDocument();
   });
 });

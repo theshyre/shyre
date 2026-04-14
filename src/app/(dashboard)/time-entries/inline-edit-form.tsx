@@ -21,6 +21,7 @@ interface Props {
   projects: ProjectOption[];
   categories: CategoryOption[];
   onDone: () => void;
+  tzOffsetMin?: number;
 }
 
 function toLocalDatetime(iso: string): string {
@@ -40,6 +41,7 @@ export function InlineEditForm({
   projects,
   categories,
   onDone,
+  tzOffsetMin,
 }: Props): React.JSX.Element {
   const t = useTranslations("time");
   const tc = useTranslations("common");
@@ -91,6 +93,9 @@ export function InlineEditForm({
         </p>
       )}
       <input type="hidden" name="id" value={entry.id} />
+      {tzOffsetMin !== undefined && (
+        <input type="hidden" name="tz_offset_min" value={String(tzOffsetMin)} />
+      )}
       <div className="grid gap-3 sm:grid-cols-2">
         <div>
           <label className={labelClass}>{t("fields.project")}</label>
