@@ -7,6 +7,7 @@ import {
   localDateMidnightUtc,
   utcToLocalDateStr,
   validateLocalDateStr,
+  getOffsetForZone,
 } from "./tz";
 
 describe("parseTzOffset", () => {
@@ -108,6 +109,30 @@ describe("utcToLocalDateStr", () => {
 
   it("UTC user: no shift", () => {
     expect(utcToLocalDateStr("2026-04-14T00:00:00.000Z", 0)).toBe("2026-04-14");
+  });
+});
+
+describe("getOffsetForZone", () => {
+  it("returns 420 for America/Los_Angeles in summer (PDT)", () => {
+    const summer = new Date("2026-07-15T12:00:00Z");
+    expect(getOffsetForZone("America/Los_Angeles", summer)).toBe(420);
+  });
+
+  it("returns 480 for America/Los_Angeles in winter (PST)", () => {
+    const winter = new Date("2026-01-15T12:00:00Z");
+    expect(getOffsetForZone("America/Los_Angeles", winter)).toBe(480);
+  });
+
+  it("returns 0 for UTC", () => {
+    expect(getOffsetForZone("UTC", new Date("2026-06-01T00:00:00Z"))).toBe(0);
+  });
+
+  it("returns -540 for Asia/Tokyo (JST, UTC+9)", () => {
+    expect(getOffsetForZone("Asia/Tokyo", new Date("2026-06-01T00:00:00Z"))).toBe(-540);
+  });
+
+  it("returns 0 for unknown zone", () => {
+    expect(getOffsetForZone("Not/A_Real_Zone")).toBe(0);
   });
 });
 

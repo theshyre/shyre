@@ -9,6 +9,7 @@ import {
   addLocalDays,
   localDateMidnightUtc,
   validateLocalDateStr,
+  getOffsetForZone,
 } from "@/lib/time/tz";
 import { getMyTemplates } from "@/lib/templates/queries";
 import { TimeHome } from "./time-home";
@@ -53,11 +54,17 @@ export default async function TimeEntriesPage({
   const sp = await searchParams;
   const { org: selectedOrgId } = sp;
 
-  // User's local TZ offset (from the TimezoneSync cookie). Falls back to 0
-  // (UTC) — on first paint before the cookie is set, the Sync component
-  // will trigger a router.refresh() once the cookie lands.
+  // User's effective tz: prefer the explicit IANA setting from user_settings,
+  // falling back to the browser-detected offset cookie, falling back to UTC.
   const cookieStore = await cookies();
-  const tzOffsetMin = parseTzOffset(cookieStore.get(TZ_COOKIE_NAME)?.value);
+  const cookieOffset = parseTzOffset(cookieStore.get(TZ_COOKIE_NAME)?.value);
+  const { data: userPrefs } = await supabase
+    .from("user_settings")
+    .select("timezone")
+    .maybeSingle();
+  const tzOffsetMin = userPrefs?.timezone
+    ? getOffsetForZone(userPrefs.timezone, new Date())
+    : cookieOffset;
 
   const view = asView(sp.view);
   const billableOnly = sp.billable === "1";

@@ -1,0 +1,105 @@
+import { describe, it, expect, vi } from "vitest";
+import { screen, fireEvent } from "@testing-library/react";
+import { renderWithIntl } from "@/test/intl";
+
+vi.mock("./actions", () => ({
+  updateProfileAction: vi.fn(),
+  updateUserSettingsAction: vi.fn(),
+  updatePreferencesAction: vi.fn(),
+}));
+
+// MfaSetup pulls in Supabase client; stub it out for render
+vi.mock("@/components/MfaSetup", () => ({
+  MfaSetup: () => null,
+}));
+
+// Stub the ThemeProvider context so useTheme works in tests without wrapping
+const setThemeSpy = vi.fn();
+vi.mock("@/components/theme-provider", () => ({
+  useTheme: () => ({
+    theme: "system",
+    setTheme: setThemeSpy,
+    applyExternalTheme: vi.fn(),
+    themes: ["system", "light", "dark", "high-contrast"] as const,
+  }),
+}));
+
+import { UserSettingsForm } from "./user-settings-form";
+
+const defaultProps = {
+  email: "marcus@malcom.io",
+  displayName: "Marcus",
+  avatarUrl: "",
+  githubToken: null,
+  preferredTheme: null,
+  timezone: null,
+  locale: null,
+  weekStart: null,
+  timeFormat: null,
+} as const;
+
+describe("UserSettingsForm", () => {
+  it("renders Profile, Preferences, Security, Integrations sections", () => {
+    renderWithIntl(<UserSettingsForm {...defaultProps} />);
+    expect(screen.getByRole("heading", { name: /profile/i })).toBeInTheDocument();
+    expect(
+      screen.getByRole("heading", { name: /preferences/i }),
+    ).toBeInTheDocument();
+    expect(screen.getByRole("heading", { name: /security/i })).toBeInTheDocument();
+    expect(
+      screen.getByRole("heading", { name: /integrations/i }),
+    ).toBeInTheDocument();
+  });
+
+  it("renders display name + readonly email", () => {
+    renderWithIntl(<UserSettingsForm {...defaultProps} />);
+    expect(screen.getByDisplayValue("Marcus")).toBeInTheDocument();
+    expect(
+      screen.getByDisplayValue("marcus@malcom.io"),
+    ).toBeInTheDocument();
+  });
+
+  it("renders all four theme buttons", () => {
+    renderWithIntl(<UserSettingsForm {...defaultProps} />);
+    expect(screen.getByRole("button", { name: /system/i })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: /light/i })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: /dark/i })).toBeInTheDocument();
+    expect(
+      screen.getByRole("button", { name: /high contrast/i }),
+    ).toBeInTheDocument();
+  });
+
+  it("shows selected timezone in the select", () => {
+    renderWithIntl(
+      <UserSettingsForm {...defaultProps} timezone="America/Los_Angeles" />,
+    );
+    const select = screen.getAllByRole("combobox")[0] as HTMLSelectElement;
+    expect(select.value).toBe("America/Los_Angeles");
+  });
+
+  it("renders the Advanced link cards", () => {
+    renderWithIntl(<UserSettingsForm {...defaultProps} />);
+    expect(
+      screen.getByRole("link", { name: /security groups/i }),
+    ).toBeInTheDocument();
+    expect(
+      screen.getByRole("link", { name: /time categories/i }),
+    ).toBeInTheDocument();
+    expect(
+      screen.getByRole("link", { name: /time templates/i }),
+    ).toBeInTheDocument();
+    expect(
+      screen.getByRole("link", { name: /import data/i }),
+    ).toBeInTheDocument();
+  });
+
+  it("clicking a theme button calls updatePreferencesAction via the form", async () => {
+    const { updatePreferencesAction } = await import("./actions");
+    const mock = vi.mocked(updatePreferencesAction);
+    renderWithIntl(<UserSettingsForm {...defaultProps} />);
+    fireEvent.click(screen.getByRole("button", { name: /^dark$/i }));
+    // The hook calls the action asynchronously via a transition; just verify
+    // it fired eventually
+    await vi.waitFor(() => expect(mock).toHaveBeenCalled());
+  });
+});

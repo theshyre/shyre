@@ -3,9 +3,36 @@
   "sections": {
     "business": "Business Information",
     "defaults": "Defaults",
+    "profile": "Profile",
+    "preferences": "Preferences",
     "appearance": "Appearance",
     "security": "Security",
-    "integrations": "Integrations"
+    "integrations": "Integrations",
+    "advanced": "Advanced"
+  },
+  "profile": {
+    "displayName": "Display name",
+    "avatarUrl": "Avatar URL",
+    "avatarUrlPlaceholder": "https://example.com/you.jpg",
+    "email": "Email",
+    "emailReadOnlyHelp": "Contact support to change your email.",
+    "save": "Save profile"
+  },
+  "preferences": {
+    "timezone": "Timezone",
+    "timezoneHelp": "Dates and times are shown in this timezone. Defaults to your browser setting.",
+    "timezoneAuto": "Auto-detect from browser",
+    "timezoneDetected": "Detected: {zone}",
+    "locale": "Language",
+    "localeAuto": "Auto",
+    "weekStart": "Week starts on",
+    "weekStartMonday": "Monday (ISO)",
+    "weekStartSunday": "Sunday",
+    "timeFormat": "Time format",
+    "timeFormatAuto": "Locale default",
+    "timeFormat12h": "12-hour (1:30 PM)",
+    "timeFormat24h": "24-hour (13:30)",
+    "save": "Save preferences"
   },
   "fields": {
     "businessName": "Business Name",

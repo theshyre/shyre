@@ -13,6 +13,8 @@ type Theme = "system" | "light" | "dark" | "high-contrast";
 interface ThemeContextValue {
   theme: Theme;
   setTheme: (theme: Theme) => void;
+  /** Apply a theme value from an external source (e.g. DB preference) */
+  applyExternalTheme: (theme: Theme) => void;
   themes: readonly Theme[];
 }
 
@@ -61,8 +63,19 @@ export function ThemeProvider({ children }: { children: React.ReactNode }) {
     applyTheme(next);
   }, []);
 
+  // Apply a theme value from an external source (e.g. the server's DB read).
+  // Updates localStorage so the anti-flash script picks up the DB-preferred
+  // value on subsequent loads.
+  const applyExternalTheme = useCallback((next: Theme) => {
+    setThemeState(next);
+    localStorage.setItem(STORAGE_KEY, next);
+    applyTheme(next);
+  }, []);
+
   return (
-    <ThemeContext.Provider value={{ theme, setTheme, themes: THEMES }}>
+    <ThemeContext.Provider
+      value={{ theme, setTheme, applyExternalTheme, themes: THEMES }}
+    >
       {children}
     </ThemeContext.Provider>
   );

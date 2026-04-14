@@ -86,6 +86,109 @@ export function utcToLocalDateStr(
 }
 
 /**
+ * Compute the offset (minutes west of UTC) for a specific IANA timezone at a
+ * given moment. Handles DST correctly.
+ *
+ *   getOffsetForZone("America/Los_Angeles", new Date("2026-07-01"))  // 420 (PDT)
+ *   getOffsetForZone("America/Los_Angeles", new Date("2026-01-01"))  // 480 (PST)
+ *
+ * Returns 0 on unknown zone or environment without Intl support.
+ */
+export function getOffsetForZone(iana: string, atDate: Date = new Date()): number {
+  try {
+    const formatter = new Intl.DateTimeFormat("en-US", {
+      timeZone: iana,
+      year: "numeric",
+      month: "2-digit",
+      day: "2-digit",
+      hour: "2-digit",
+      minute: "2-digit",
+      second: "2-digit",
+      hourCycle: "h23",
+    });
+    const parts = formatter.formatToParts(atDate);
+    const map: Record<string, string> = {};
+    for (const p of parts) if (p.type !== "literal") map[p.type] = p.value;
+    const asIfUtc = Date.UTC(
+      Number(map.year),
+      Number(map.month) - 1,
+      Number(map.day),
+      Number(map.hour),
+      Number(map.minute),
+      Number(map.second),
+    );
+    return Math.round((atDate.getTime() - asIfUtc) / 60000);
+  } catch {
+    return 0;
+  }
+}
+
+/**
+ * Curated list of IANA zones for the settings picker. Runtime users can also
+ * pick any zone supported by `Intl.supportedValuesOf("timeZone")`.
+ */
+export const COMMON_TIMEZONES: Array<{ region: string; zones: string[] }> = [
+  {
+    region: "Americas",
+    zones: [
+      "America/Anchorage",
+      "America/Chicago",
+      "America/Denver",
+      "America/Halifax",
+      "America/Los_Angeles",
+      "America/Mexico_City",
+      "America/New_York",
+      "America/Phoenix",
+      "America/Sao_Paulo",
+      "America/Toronto",
+      "America/Vancouver",
+    ],
+  },
+  {
+    region: "Europe",
+    zones: [
+      "Europe/Amsterdam",
+      "Europe/Athens",
+      "Europe/Berlin",
+      "Europe/Dublin",
+      "Europe/Istanbul",
+      "Europe/London",
+      "Europe/Madrid",
+      "Europe/Paris",
+      "Europe/Rome",
+      "Europe/Stockholm",
+      "Europe/Warsaw",
+      "Europe/Zurich",
+    ],
+  },
+  {
+    region: "Asia / Oceania",
+    zones: [
+      "Asia/Dubai",
+      "Asia/Hong_Kong",
+      "Asia/Jakarta",
+      "Asia/Kolkata",
+      "Asia/Seoul",
+      "Asia/Shanghai",
+      "Asia/Singapore",
+      "Asia/Tokyo",
+      "Australia/Melbourne",
+      "Australia/Sydney",
+      "Pacific/Auckland",
+      "Pacific/Honolulu",
+    ],
+  },
+  {
+    region: "Africa",
+    zones: ["Africa/Cairo", "Africa/Johannesburg", "Africa/Lagos"],
+  },
+  {
+    region: "UTC",
+    zones: ["UTC"],
+  },
+];
+
+/**
  * Validate a YYYY-MM-DD string. Returns the string if valid, null otherwise.
  */
 export function validateLocalDateStr(s: string | undefined): string | null {

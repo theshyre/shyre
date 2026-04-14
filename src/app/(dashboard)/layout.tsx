@@ -1,5 +1,6 @@
 import Sidebar from "@/components/Sidebar";
 import { TimezoneSync } from "@/components/TimezoneSync";
+import { ThemeSync } from "@/components/ThemeSync";
 import { getUserContext } from "@/lib/org-context";
 import { isSystemAdmin } from "@/lib/system-admin";
 import { createClient } from "@/lib/supabase/server";
@@ -11,11 +12,26 @@ export default async function DashboardLayout({
 }): Promise<React.JSX.Element> {
   const user = await getUserContext();
   const admin = await isSystemAdmin();
+  const supabase = await createClient();
+
+  // User's persisted theme (null if they've never set it — fall back to system)
+  const { data: userPrefs } = await supabase
+    .from("user_settings")
+    .select("preferred_theme")
+    .eq("user_id", user.userId)
+    .maybeSingle();
+  const preferredTheme =
+    (userPrefs?.preferred_theme as
+      | "system"
+      | "light"
+      | "dark"
+      | "high-contrast"
+      | null
+      | undefined) ?? null;
 
   // Fetch unresolved error count for admin badge
   let unresolvedErrorCount = 0;
   if (admin) {
-    const supabase = await createClient();
     const { count } = await supabase
       .from("error_logs")
       .select("id", { count: "exact", head: true })
@@ -26,6 +42,7 @@ export default async function DashboardLayout({
   return (
     <div className="flex h-full">
       <TimezoneSync />
+      <ThemeSync preferredTheme={preferredTheme} />
       <Sidebar
         displayName={user.displayName}
         email={user.userEmail}

@@ -1,5 +1,6 @@
 "use client";
 
+import { useCallback, useEffect, useState, type ComponentType } from "react";
 import { useTranslations } from "next-intl";
 import {
   Palette,
@@ -13,6 +14,11 @@ import {
   Upload,
   Tags,
   Bookmark,
+  Globe,
+  Clock,
+  Languages,
+  Calendar,
+  Settings2,
 } from "lucide-react";
 import { MfaSetup } from "@/components/MfaSetup";
 import { useFormAction } from "@/hooks/use-form-action";
@@ -20,130 +26,278 @@ import { SubmitButton } from "@/components/SubmitButton";
 import {
   inputClass,
   labelClass,
+  selectClass,
   buttonSecondaryClass,
 } from "@/lib/form-styles";
 import { useTheme } from "@/components/theme-provider";
-import { updateUserSettingsAction, updateProfileAction } from "./actions";
+import { COMMON_TIMEZONES } from "@/lib/time/tz";
+import {
+  updateUserSettingsAction,
+  updateProfileAction,
+  updatePreferencesAction,
+} from "./actions";
 
-const THEME_OPTIONS = [
+type Theme = "system" | "light" | "dark" | "high-contrast";
+
+const THEME_OPTIONS: ReadonlyArray<{
+  key: Theme;
+  icon: ComponentType<{ size?: number }>;
+}> = [
   { key: "system", icon: Monitor },
   { key: "light", icon: Sun },
   { key: "dark", icon: Moon },
   { key: "high-contrast", icon: Eye },
-] as const;
+];
+
+interface Props {
+  email: string;
+  displayName: string;
+  avatarUrl: string;
+  githubToken: string | null;
+  preferredTheme: Theme | null;
+  timezone: string | null;
+  locale: string | null;
+  weekStart: string | null;
+  timeFormat: string | null;
+}
 
 export function UserSettingsForm({
-  githubToken,
+  email,
   displayName,
-}: {
-  githubToken: string | null;
-  displayName: string;
-}): React.JSX.Element {
+  avatarUrl,
+  githubToken,
+  timezone,
+  locale,
+  weekStart,
+  timeFormat,
+}: Props): React.JSX.Element {
   const t = useTranslations("settings");
+  const tc = useTranslations("common");
   const { theme, setTheme } = useTheme();
 
-  const profileForm = useFormAction({
-    action: updateProfileAction,
-  });
+  const [detectedTz, setDetectedTz] = useState<string>("");
+  useEffect(() => {
+    try {
+      setDetectedTz(Intl.DateTimeFormat().resolvedOptions().timeZone);
+    } catch {
+      setDetectedTz("");
+    }
+  }, []);
 
-  const tokenForm = useFormAction({
-    action: updateUserSettingsAction,
-  });
+  const profileForm = useFormAction({ action: updateProfileAction });
+  const tokenForm = useFormAction({ action: updateUserSettingsAction });
+  const prefsForm = useFormAction({ action: updatePreferencesAction });
+
+  // Apply theme changes optimistically + persist to DB without requiring the
+  // user to click "Save preferences". Saving theme here re-submits the current
+  // values of the other preference fields so we don't blow them away.
+  const handleThemeChange = useCallback(
+    (next: Theme) => {
+      setTheme(next);
+      const fd = new FormData();
+      fd.set("preferred_theme", next);
+      if (timezone) fd.set("timezone", timezone);
+      if (locale) fd.set("locale", locale);
+      if (weekStart) fd.set("week_start", weekStart);
+      if (timeFormat) fd.set("time_format", timeFormat);
+      void prefsForm.handleSubmit(fd);
+    },
+    [setTheme, prefsForm, timezone, locale, weekStart, timeFormat],
+  );
 
   return (
-    <div className="mt-6 space-y-8">
-      {/* Profile */}
+    <div className="mt-6 space-y-6">
+      {/* ───── Profile ───── */}
       <form action={profileForm.handleSubmit}>
         <section className="rounded-lg border border-edge bg-surface-raised p-4 space-y-3">
-          <div className="flex items-center gap-2 mb-2">
-            <User size={18} className="text-accent" />
-            <h2 className="text-sm font-semibold uppercase tracking-wider text-content-muted">
-              Profile
-            </h2>
-          </div>
+          <SectionHeader icon={User} label={t("sections.profile")} />
           {profileForm.serverError && (
-            <p className="text-sm text-error bg-error-soft rounded-lg px-3 py-2">{profileForm.serverError}</p>
+            <ErrorBanner text={profileForm.serverError} />
           )}
-          <div className="max-w-sm">
-            <label className={labelClass}>Display Name</label>
-            <input
-              name="display_name"
-              defaultValue={displayName}
-              className={inputClass}
-            />
+          <div className="grid gap-3 sm:grid-cols-2">
+            <div>
+              <label className={labelClass}>{t("profile.displayName")}</label>
+              <input
+                name="display_name"
+                defaultValue={displayName}
+                className={inputClass}
+              />
+            </div>
+            <div>
+              <label className={labelClass}>{t("profile.email")}</label>
+              <input
+                value={email}
+                readOnly
+                className={`${inputClass} text-content-muted`}
+              />
+              <p className="mt-1 text-xs text-content-muted">
+                {t("profile.emailReadOnlyHelp")}
+              </p>
+            </div>
+            <div className="sm:col-span-2">
+              <label className={labelClass}>{t("profile.avatarUrl")}</label>
+              <input
+                name="avatar_url"
+                defaultValue={avatarUrl}
+                placeholder={t("profile.avatarUrlPlaceholder")}
+                className={inputClass}
+              />
+            </div>
           </div>
           <SubmitButton
-            label="Save Profile"
+            label={t("profile.save")}
             pending={profileForm.pending}
             success={profileForm.success}
-            successMessage="Saved"
+            successMessage={tc("actions.saved")}
             className={buttonSecondaryClass}
           />
         </section>
       </form>
 
-      {/* Appearance */}
-      <section className="rounded-lg border border-edge bg-surface-raised p-4 space-y-3">
-        <div className="flex items-center gap-2 mb-2">
-          <Palette size={18} className="text-accent" />
-          <h2 className="text-sm font-semibold uppercase tracking-wider text-content-muted">
-            {t("sections.appearance")}
-          </h2>
-        </div>
-        <div>
-          <label className={labelClass}>{t("theme.title")}</label>
-          <div className="flex gap-2 mt-1">
-            {THEME_OPTIONS.map((opt) => {
-              const Icon = opt.icon;
-              const isActive = theme === opt.key;
-              return (
-                <button
-                  key={opt.key}
-                  type="button"
-                  onClick={() => setTheme(opt.key)}
-                  className={`flex items-center gap-2 rounded-lg px-3 py-2 text-sm font-medium transition-colors ${
-                    isActive
-                      ? "bg-accent-soft text-accent-text"
-                      : "border border-edge text-content-secondary hover:bg-hover"
-                  }`}
-                >
-                  <Icon size={16} />
-                  {t(`theme.${opt.key === "high-contrast" ? "highContrast" : opt.key}`)}
-                </button>
-              );
-            })}
-          </div>
-        </div>
-      </section>
+      {/* ───── Preferences ───── */}
+      <form action={prefsForm.handleSubmit}>
+        <section className="rounded-lg border border-edge bg-surface-raised p-4 space-y-5">
+          <SectionHeader icon={Palette} label={t("sections.preferences")} />
+          {prefsForm.serverError && <ErrorBanner text={prefsForm.serverError} />}
 
-      {/* Security / MFA */}
+          {/* Theme */}
+          <div>
+            <label className={labelClass}>{t("theme.title")}</label>
+            <div className="flex gap-2 flex-wrap">
+              {THEME_OPTIONS.map((opt) => {
+                const Icon = opt.icon;
+                const isActive = theme === opt.key;
+                return (
+                  <button
+                    key={opt.key}
+                    type="button"
+                    onClick={() => handleThemeChange(opt.key)}
+                    className={`flex items-center gap-2 rounded-lg px-3 py-2 text-sm font-medium transition-colors ${
+                      isActive
+                        ? "bg-accent-soft text-accent-text border border-accent/40"
+                        : "border border-edge text-content-secondary hover:bg-hover"
+                    }`}
+                  >
+                    <Icon size={16} />
+                    {t(
+                      `theme.${opt.key === "high-contrast" ? "highContrast" : opt.key}`,
+                    )}
+                  </button>
+                );
+              })}
+            </div>
+            {/* Hidden field so the Save button submits current theme too */}
+            <input type="hidden" name="preferred_theme" value={theme} />
+          </div>
+
+          {/* Timezone */}
+          <div>
+            <label className={labelClass}>
+              <Globe size={12} className="inline mr-1" />
+              {t("preferences.timezone")}
+            </label>
+            <select
+              name="timezone"
+              defaultValue={timezone ?? ""}
+              className={selectClass}
+            >
+              <option value="">
+                {detectedTz
+                  ? t("preferences.timezoneDetected", { zone: detectedTz })
+                  : t("preferences.timezoneAuto")}
+              </option>
+              {COMMON_TIMEZONES.map((group) => (
+                <optgroup key={group.region} label={group.region}>
+                  {group.zones.map((z) => (
+                    <option key={z} value={z}>
+                      {z}
+                    </option>
+                  ))}
+                </optgroup>
+              ))}
+            </select>
+            <p className="mt-1 text-xs text-content-muted">
+              {t("preferences.timezoneHelp")}
+            </p>
+          </div>
+
+          {/* Locale + Week + Time format */}
+          <div className="grid gap-3 sm:grid-cols-3">
+            <div>
+              <label className={labelClass}>
+                <Languages size={12} className="inline mr-1" />
+                {t("preferences.locale")}
+              </label>
+              <select
+                name="locale"
+                defaultValue={locale ?? ""}
+                className={selectClass}
+              >
+                <option value="">{t("preferences.localeAuto")}</option>
+                <option value="en">English</option>
+                <option value="es">Español</option>
+              </select>
+            </div>
+            <div>
+              <label className={labelClass}>
+                <Calendar size={12} className="inline mr-1" />
+                {t("preferences.weekStart")}
+              </label>
+              <select
+                name="week_start"
+                defaultValue={weekStart ?? ""}
+                className={selectClass}
+              >
+                <option value="">{t("preferences.weekStartMonday")}</option>
+                <option value="monday">
+                  {t("preferences.weekStartMonday")}
+                </option>
+                <option value="sunday">
+                  {t("preferences.weekStartSunday")}
+                </option>
+              </select>
+            </div>
+            <div>
+              <label className={labelClass}>
+                <Clock size={12} className="inline mr-1" />
+                {t("preferences.timeFormat")}
+              </label>
+              <select
+                name="time_format"
+                defaultValue={timeFormat ?? ""}
+                className={selectClass}
+              >
+                <option value="">{t("preferences.timeFormatAuto")}</option>
+                <option value="12h">{t("preferences.timeFormat12h")}</option>
+                <option value="24h">{t("preferences.timeFormat24h")}</option>
+              </select>
+            </div>
+          </div>
+
+          <SubmitButton
+            label={t("preferences.save")}
+            pending={prefsForm.pending}
+            success={prefsForm.success}
+            successMessage={tc("actions.saved")}
+            className={buttonSecondaryClass}
+          />
+        </section>
+      </form>
+
+      {/* ───── Security / MFA ───── */}
       <section className="rounded-lg border border-edge bg-surface-raised p-4 space-y-3">
-        <div className="flex items-center gap-2 mb-2">
-          <Shield size={18} className="text-accent" />
-          <h2 className="text-sm font-semibold uppercase tracking-wider text-content-muted">
-            {t("sections.security")}
-          </h2>
-        </div>
+        <SectionHeader icon={Shield} label={t("sections.security")} />
         <div>
-          <h3 className="text-sm font-medium text-content">
-            {t("mfa.title")}
-          </h3>
+          <h3 className="text-sm font-medium text-content">{t("mfa.title")}</h3>
           <MfaSetup />
         </div>
       </section>
 
-      {/* GitHub Token */}
+      {/* ───── Integrations ───── */}
       <form action={tokenForm.handleSubmit}>
         <section className="rounded-lg border border-edge bg-surface-raised p-4 space-y-3">
-          <div className="flex items-center gap-2 mb-2">
-            <Link2 size={18} className="text-accent" />
-            <h2 className="text-sm font-semibold uppercase tracking-wider text-content-muted">
-              {t("sections.integrations")}
-            </h2>
-          </div>
-          {tokenForm.serverError && (
-            <p className="text-sm text-error bg-error-soft rounded-lg px-3 py-2">{tokenForm.serverError}</p>
-          )}
+          <SectionHeader icon={Link2} label={t("sections.integrations")} />
+          {tokenForm.serverError && <ErrorBanner text={tokenForm.serverError} />}
           <div>
             <label className={labelClass}>{t("fields.githubToken")}</label>
             <input
@@ -161,67 +315,90 @@ export function UserSettingsForm({
             label={t("saveSettings")}
             pending={tokenForm.pending}
             success={tokenForm.success}
-            successMessage={t("saved")}
+            successMessage={tc("actions.saved")}
             className={buttonSecondaryClass}
           />
         </section>
       </form>
 
-      {/* Security Groups */}
-      <a
-        href="/settings/security-groups"
-        className="flex items-center gap-3 rounded-lg border border-edge bg-surface-raised p-4 hover:bg-hover transition-colors"
-      >
-        <Shield size={20} className="text-accent" />
-        <div>
-          <p className="text-sm font-medium text-content">Security Groups</p>
-          <p className="text-xs text-content-muted">
-            Bundle users to grant permissions in bulk
-          </p>
-        </div>
-      </a>
-
-      {/* Time Categories */}
-      <a
-        href="/settings/categories"
-        className="flex items-center gap-3 rounded-lg border border-edge bg-surface-raised p-4 hover:bg-hover transition-colors"
-      >
-        <Tags size={20} className="text-accent" />
-        <div>
-          <p className="text-sm font-medium text-content">Time Categories</p>
-          <p className="text-xs text-content-muted">
-            Tag time entries with configurable categories per project
-          </p>
-        </div>
-      </a>
-
-      {/* Time Templates */}
-      <a
-        href="/settings/templates"
-        className="flex items-center gap-3 rounded-lg border border-edge bg-surface-raised p-4 hover:bg-hover transition-colors"
-      >
-        <Bookmark size={20} className="text-accent" />
-        <div>
-          <p className="text-sm font-medium text-content">Time Templates</p>
-          <p className="text-xs text-content-muted">
-            Save (project + category + description) combos for one-click timer starts
-          </p>
-        </div>
-      </a>
-
-      {/* Import */}
-      <a
-        href="/settings/import"
-        className="flex items-center gap-3 rounded-lg border border-edge bg-surface-raised p-4 hover:bg-hover transition-colors"
-      >
-        <Upload size={20} className="text-accent" />
-        <div>
-          <p className="text-sm font-medium text-content">Import Data</p>
-          <p className="text-xs text-content-muted">
-            Import from Harvest or other services
-          </p>
-        </div>
-      </a>
+      {/* ───── Advanced — linked pages ───── */}
+      <section className="space-y-2">
+        <SectionHeader icon={Settings2} label={t("sections.advanced")} />
+        <LinkCard
+          href="/settings/security-groups"
+          icon={Shield}
+          title="Security Groups"
+          description="Bundle users to grant permissions in bulk"
+        />
+        <LinkCard
+          href="/settings/categories"
+          icon={Tags}
+          title="Time Categories"
+          description="Tag time entries with configurable categories per project"
+        />
+        <LinkCard
+          href="/settings/templates"
+          icon={Bookmark}
+          title="Time Templates"
+          description="Save (project + category + description) combos for one-click timer starts"
+        />
+        <LinkCard
+          href="/settings/import"
+          icon={Upload}
+          title="Import Data"
+          description="Import from Harvest or other services"
+        />
+      </section>
     </div>
+  );
+}
+
+function SectionHeader({
+  icon: Icon,
+  label,
+}: {
+  icon: ComponentType<{ size?: number; className?: string }>;
+  label: string;
+}): React.JSX.Element {
+  return (
+    <div className="flex items-center gap-2 mb-1">
+      <Icon size={18} className="text-accent" />
+      <h2 className="text-sm font-semibold uppercase tracking-wider text-content-muted">
+        {label}
+      </h2>
+    </div>
+  );
+}
+
+function ErrorBanner({ text }: { text: string }): React.JSX.Element {
+  return (
+    <p className="text-sm text-error bg-error-soft rounded-lg px-3 py-2">
+      {text}
+    </p>
+  );
+}
+
+function LinkCard({
+  href,
+  icon: Icon,
+  title,
+  description,
+}: {
+  href: string;
+  icon: ComponentType<{ size?: number; className?: string }>;
+  title: string;
+  description: string;
+}): React.JSX.Element {
+  return (
+    <a
+      href={href}
+      className="flex items-center gap-3 rounded-lg border border-edge bg-surface-raised p-4 hover:bg-hover transition-colors"
+    >
+      <Icon size={20} className="text-accent" />
+      <div>
+        <p className="text-sm font-medium text-content">{title}</p>
+        <p className="text-xs text-content-muted">{description}</p>
+      </div>
+    </a>
   );
 }

@@ -57,6 +57,11 @@ One row per user, auto-created on signup via trigger.
 | invoice_next_num | INTEGER | Default: 1 |
 | tax_rate | NUMERIC(5,2) | Default: 0 |
 | github_token | TEXT | Encrypted, PAT for GitHub API |
+| preferred_theme | TEXT | `system\|light\|dark\|high-contrast`. NULL = follow system |
+| timezone | TEXT | IANA name (e.g. `America/Los_Angeles`). NULL = browser-detected |
+| locale | TEXT | `en\|es`. NULL = app default (en) |
+| week_start | TEXT | `monday\|sunday`. NULL = monday (ISO) |
+| time_format | TEXT | `12h\|24h`. NULL = locale default |
 | created_at | TIMESTAMPTZ | |
 | updated_at | TIMESTAMPTZ | Auto-updated via trigger |
 

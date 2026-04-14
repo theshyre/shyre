@@ -11,15 +11,17 @@ export default async function SettingsPage(): Promise<React.JSX.Element> {
 
   const { data: userSettings } = await supabase
     .from("user_settings")
-    .select("*")
+    .select(
+      "github_token, preferred_theme, timezone, locale, week_start, time_format",
+    )
     .eq("user_id", user.userId)
-    .single();
+    .maybeSingle();
 
   const { data: profile } = await supabase
     .from("user_profiles")
-    .select("display_name")
+    .select("display_name, avatar_url")
     .eq("user_id", user.userId)
-    .single();
+    .maybeSingle();
 
   return (
     <div>
@@ -29,8 +31,15 @@ export default async function SettingsPage(): Promise<React.JSX.Element> {
       </div>
 
       <UserSettingsForm
-        githubToken={userSettings?.github_token ?? null}
+        email={user.userEmail}
         displayName={profile?.display_name ?? ""}
+        avatarUrl={profile?.avatar_url ?? ""}
+        githubToken={userSettings?.github_token ?? null}
+        preferredTheme={userSettings?.preferred_theme ?? null}
+        timezone={userSettings?.timezone ?? null}
+        locale={userSettings?.locale ?? null}
+        weekStart={userSettings?.week_start ?? null}
+        timeFormat={userSettings?.time_format ?? null}
       />
     </div>
   );
