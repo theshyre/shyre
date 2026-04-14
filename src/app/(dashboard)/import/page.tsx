@@ -1,0 +1,23 @@
+import { getUserOrgs } from "@/lib/org-context";
+import { getTranslations } from "next-intl/server";
+import { Upload } from "lucide-react";
+import { HarvestImport } from "./harvest-import";
+
+export default async function ImportPage(): Promise<React.JSX.Element> {
+  const orgs = await getUserOrgs();
+
+  return (
+    <div>
+      <div className="flex items-center gap-3">
+        <Upload size={24} className="text-accent" />
+        <h1 className="text-2xl font-bold text-content">Import Data</h1>
+      </div>
+
+      <p className="mt-2 text-sm text-content-secondary">
+        Import your existing data from other time tracking services.
+      </p>
+
+      <HarvestImport orgs={orgs} />
+    </div>
+  );
+}

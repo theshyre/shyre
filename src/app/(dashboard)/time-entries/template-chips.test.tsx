@@ -6,7 +6,7 @@ const { startFromTemplateMock } = vi.hoisted(() => ({
   startFromTemplateMock: vi.fn(async (_fd: FormData) => {}),
 }));
 
-vi.mock("../settings/templates/actions", () => ({
+vi.mock("../templates/actions", () => ({
   startFromTemplateAction: startFromTemplateMock,
 }));
 

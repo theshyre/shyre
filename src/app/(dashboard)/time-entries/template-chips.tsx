@@ -4,7 +4,7 @@ import { useTranslations } from "next-intl";
 import { Bookmark, Play } from "lucide-react";
 import type { TimeTemplate } from "@/lib/templates/types";
 import { useFormAction } from "@/hooks/use-form-action";
-import { startFromTemplateAction } from "../settings/templates/actions";
+import { startFromTemplateAction } from "../templates/actions";
 
 interface Props {
   templates: TimeTemplate[];

@@ -26,7 +26,7 @@ export async function createCategorySetAction(formData: FormData): Promise<void>
         created_by: userId,
       }),
     );
-    revalidatePath("/settings/categories");
+    revalidatePath("/categories");
   }, "createCategorySetAction") as unknown as void;
 }
 
@@ -79,7 +79,7 @@ export async function cloneCategorySetAction(formData: FormData): Promise<void> 
       );
     }
 
-    revalidatePath("/settings/categories");
+    revalidatePath("/categories");
   }, "cloneCategorySetAction") as unknown as void;
 }
 
@@ -100,7 +100,7 @@ export async function updateCategorySetAction(formData: FormData): Promise<void>
         .eq("id", id)
         .eq("organization_id", orgId),
     );
-    revalidatePath("/settings/categories");
+    revalidatePath("/categories");
   }, "updateCategorySetAction") as unknown as void;
 }
 
@@ -117,7 +117,7 @@ export async function deleteCategorySetAction(formData: FormData): Promise<void>
         .eq("id", id)
         .eq("organization_id", orgId),
     );
-    revalidatePath("/settings/categories");
+    revalidatePath("/categories");
   }, "deleteCategorySetAction") as unknown as void;
 }
 
@@ -138,7 +138,7 @@ export async function createCategoryAction(formData: FormData): Promise<void> {
         sort_order,
       }),
     );
-    revalidatePath("/settings/categories");
+    revalidatePath("/categories");
   }, "createCategoryAction") as unknown as void;
 }
 
@@ -157,7 +157,7 @@ export async function updateCategoryAction(formData: FormData): Promise<void> {
         .update({ name, color, sort_order })
         .eq("id", id),
     );
-    revalidatePath("/settings/categories");
+    revalidatePath("/categories");
   }, "updateCategoryAction") as unknown as void;
 }
 
@@ -165,6 +165,6 @@ export async function deleteCategoryAction(formData: FormData): Promise<void> {
   return runSafeAction(formData, async (formData, { supabase }) => {
     const id = formData.get("id") as string;
     assertSupabaseOk(await supabase.from("categories").delete().eq("id", id));
-    revalidatePath("/settings/categories");
+    revalidatePath("/categories");
   }, "deleteCategoryAction") as unknown as void;
 }

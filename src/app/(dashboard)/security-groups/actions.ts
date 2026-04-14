@@ -25,7 +25,7 @@ export async function createGroupAction(formData: FormData): Promise<void> {
         created_by: userId,
       })
     );
-    revalidatePath("/settings/security-groups");
+    revalidatePath("/security-groups");
   }, "createGroupAction") as unknown as void;
 }
 
@@ -47,7 +47,7 @@ export async function deleteGroupAction(formData: FormData): Promise<void> {
     if (error) throw new Error(error.message);
     if (count === 0) throw new Error("Group not found or permission denied.");
 
-    revalidatePath("/settings/security-groups");
+    revalidatePath("/security-groups");
   }, "deleteGroupAction") as unknown as void;
 }
 
@@ -75,7 +75,7 @@ export async function addGroupMemberAction(formData: FormData): Promise<void> {
         added_by: userId,
       })
     );
-    revalidatePath("/settings/security-groups");
+    revalidatePath("/security-groups");
   }, "addGroupMemberAction") as unknown as void;
 }
 
@@ -102,6 +102,6 @@ export async function removeGroupMemberAction(formData: FormData): Promise<void>
       .eq("user_id", memberUserId);
     if (error) throw new Error(error.message);
 
-    revalidatePath("/settings/security-groups");
+    revalidatePath("/security-groups");
   }, "removeGroupMemberAction") as unknown as void;
 }

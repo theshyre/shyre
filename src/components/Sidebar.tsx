@@ -79,10 +79,10 @@ const SHELL_SECTIONS: NavSection[] = [
     items: [
       { labelKey: "organizations", href: "/organizations", icon: Building2 },
       // Business module injected here from the registry
-      { labelKey: "securityGroups", href: "/settings/security-groups", icon: Shield },
-      { labelKey: "categories", href: "/settings/categories", icon: Tags },
-      { labelKey: "templates", href: "/settings/templates", icon: Bookmark },
-      { labelKey: "import", href: "/settings/import", icon: Upload },
+      { labelKey: "securityGroups", href: "/security-groups", icon: Shield },
+      { labelKey: "categories", href: "/categories", icon: Tags },
+      { labelKey: "templates", href: "/templates", icon: Bookmark },
+      { labelKey: "import", href: "/import", icon: Upload },
     ],
   },
 ];

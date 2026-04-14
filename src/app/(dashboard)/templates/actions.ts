@@ -32,7 +32,7 @@ export async function createTemplateAction(formData: FormData): Promise<void> {
         sort_order,
       }),
     );
-    revalidatePath("/settings/templates");
+    revalidatePath("/templates");
     revalidatePath("/time-entries");
   }, "createTemplateAction") as unknown as void;
 }
@@ -64,7 +64,7 @@ export async function updateTemplateAction(formData: FormData): Promise<void> {
         .eq("id", id)
         .eq("user_id", userId),
     );
-    revalidatePath("/settings/templates");
+    revalidatePath("/templates");
     revalidatePath("/time-entries");
   }, "updateTemplateAction") as unknown as void;
 }
@@ -79,7 +79,7 @@ export async function deleteTemplateAction(formData: FormData): Promise<void> {
         .eq("id", id)
         .eq("user_id", userId),
     );
-    revalidatePath("/settings/templates");
+    revalidatePath("/templates");
     revalidatePath("/time-entries");
   }, "deleteTemplateAction") as unknown as void;
 }
