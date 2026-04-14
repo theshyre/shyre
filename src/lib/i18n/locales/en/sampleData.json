@@ -1,0 +1,34 @@
+{
+  "title": "Sample Data",
+  "subtitle": "Load fabricated customers, projects, and time entries into the selected organization so you can exercise the app with realistic density. Sample rows are tagged and can be removed at any time without touching real data.",
+  "noOrg": "Pick an organization above to manage its sample data.",
+  "sampleLabel": "sample",
+  "entryRange": "Entries from {first} to {last}",
+  "load": {
+    "title": "Load sample data",
+    "description": "Insert ~12 weeks of customers, projects, and time entries into this organization. Each row is tagged as sample so it can be removed later.",
+    "button": "Load sample data",
+    "pending": "Loading…"
+  },
+  "replay": {
+    "title": "Replay sample data",
+    "description": "This org already has sample data. Running again deletes the existing sample rows and re-inserts a fresh spread — useful after testing destructive actions on sample rows.",
+    "button": "Replay sample data"
+  },
+  "remove": {
+    "title": "Remove sample data",
+    "description": "Delete every sample-tagged row in this org. Real customers, projects, and entries are untouched.",
+    "button": "Remove sample data",
+    "pending": "Removing…",
+    "nothing": "No sample data in this org."
+  },
+  "clear": {
+    "title": "Clear ALL data in this organization",
+    "description": "Destructive. Deletes every customer, project, and time entry in this org — sample and real alike. Invoices and organization settings are left alone.",
+    "open": "Clear all org data",
+    "confirmLabel": "Type \"{name}\" to confirm",
+    "confirm": "Permanently clear data",
+    "cancel": "Cancel",
+    "pending": "Clearing…"
+  }
+}

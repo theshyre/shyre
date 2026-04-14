@@ -17,7 +17,8 @@
     "business": "Business",
     "adminErrors": "Error Log",
     "adminUsers": "Users",
-    "adminOrgs": "All Organizations"
+    "adminOrgs": "All Organizations",
+    "adminSampleData": "Sample Data"
   },
   "navSections": {
     "track": "Track",

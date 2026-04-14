@@ -1,0 +1,187 @@
+"use client";
+
+import { useState } from "react";
+import { useRouter } from "next/navigation";
+import { useTranslations } from "next-intl";
+import { Sparkles, Trash2, AlertTriangle, Loader2 } from "lucide-react";
+import {
+  buttonPrimaryClass,
+  buttonSecondaryClass,
+  buttonDangerClass,
+  inputClass,
+  labelClass,
+} from "@/lib/form-styles";
+import { useFormAction } from "@/hooks/use-form-action";
+import {
+  loadSampleDataAction,
+  removeSampleDataAction,
+  clearAllOrgDataAction,
+} from "./actions";
+
+interface Props {
+  orgId: string;
+  orgName: string;
+  hasSample: boolean;
+}
+
+export function SampleDataControls({ orgId, orgName, hasSample }: Props): React.JSX.Element {
+  const t = useTranslations("sampleData");
+  const router = useRouter();
+
+  const load = useFormAction({
+    action: loadSampleDataAction,
+    onSuccess: () => router.refresh(),
+  });
+  const remove = useFormAction({
+    action: removeSampleDataAction,
+    onSuccess: () => router.refresh(),
+  });
+  const clearAll = useFormAction({
+    action: clearAllOrgDataAction,
+    onSuccess: () => {
+      setConfirmOpen(false);
+      setConfirmName("");
+      router.refresh();
+    },
+  });
+
+  const [confirmOpen, setConfirmOpen] = useState(false);
+  const [confirmName, setConfirmName] = useState("");
+
+  return (
+    <div className="grid gap-4 md:grid-cols-2">
+      {/* Load / replay */}
+      <section className="rounded-lg border border-edge bg-surface-raised p-5 space-y-3">
+        <h2 className="text-sm font-semibold text-content flex items-center gap-2">
+          <Sparkles size={16} className="text-accent" />
+          {hasSample ? t("replay.title") : t("load.title")}
+        </h2>
+        <p className="text-sm text-content-secondary">
+          {hasSample ? t("replay.description") : t("load.description")}
+        </p>
+        <form action={load.handleSubmit}>
+          <input type="hidden" name="organization_id" value={orgId} />
+          <button
+            type="submit"
+            disabled={load.pending}
+            className={buttonPrimaryClass}
+          >
+            {load.pending ? (
+              <Loader2 size={16} className="animate-spin" />
+            ) : (
+              <Sparkles size={16} />
+            )}
+            {load.pending
+              ? t("load.pending")
+              : hasSample
+                ? t("replay.button")
+                : t("load.button")}
+          </button>
+          {load.serverError && (
+            <p className="mt-2 text-sm text-error">{load.serverError}</p>
+          )}
+        </form>
+      </section>
+
+      {/* Remove sample */}
+      <section className="rounded-lg border border-edge bg-surface-raised p-5 space-y-3">
+        <h2 className="text-sm font-semibold text-content flex items-center gap-2">
+          <Trash2 size={16} className="text-content-muted" />
+          {t("remove.title")}
+        </h2>
+        <p className="text-sm text-content-secondary">{t("remove.description")}</p>
+        <form action={remove.handleSubmit}>
+          <input type="hidden" name="organization_id" value={orgId} />
+          <button
+            type="submit"
+            disabled={remove.pending || !hasSample}
+            className={buttonSecondaryClass}
+          >
+            {remove.pending ? (
+              <Loader2 size={16} className="animate-spin" />
+            ) : (
+              <Trash2 size={16} />
+            )}
+            {remove.pending ? t("remove.pending") : t("remove.button")}
+          </button>
+          {!hasSample && (
+            <p className="mt-2 text-xs text-content-muted">{t("remove.nothing")}</p>
+          )}
+          {remove.serverError && (
+            <p className="mt-2 text-sm text-error">{remove.serverError}</p>
+          )}
+        </form>
+      </section>
+
+      {/* Danger: clear all org data */}
+      <section className="md:col-span-2 rounded-lg border border-error/40 bg-error-soft/30 p-5 space-y-3">
+        <h2 className="text-sm font-semibold text-error flex items-center gap-2">
+          <AlertTriangle size={16} />
+          {t("clear.title")}
+        </h2>
+        <p className="text-sm text-content-secondary">{t("clear.description")}</p>
+
+        {!confirmOpen ? (
+          <button
+            type="button"
+            onClick={() => setConfirmOpen(true)}
+            className={buttonDangerClass}
+          >
+            <AlertTriangle size={16} />
+            {t("clear.open")}
+          </button>
+        ) : (
+          <form action={clearAll.handleSubmit} className="space-y-3">
+            <input type="hidden" name="organization_id" value={orgId} />
+            <div>
+              <label className={labelClass} htmlFor="confirm_name">
+                {t("clear.confirmLabel", { name: orgName })}
+              </label>
+              <input
+                id="confirm_name"
+                name="confirm_name"
+                type="text"
+                autoComplete="off"
+                autoFocus
+                value={confirmName}
+                onChange={(e) => setConfirmName(e.target.value)}
+                className={inputClass}
+                placeholder={orgName}
+                disabled={clearAll.pending}
+              />
+            </div>
+            <div className="flex items-center gap-3">
+              <button
+                type="submit"
+                disabled={clearAll.pending || confirmName !== orgName}
+                className={buttonDangerClass}
+              >
+                {clearAll.pending ? (
+                  <Loader2 size={16} className="animate-spin" />
+                ) : (
+                  <AlertTriangle size={16} />
+                )}
+                {clearAll.pending ? t("clear.pending") : t("clear.confirm")}
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  setConfirmOpen(false);
+                  setConfirmName("");
+                  clearAll.reset();
+                }}
+                disabled={clearAll.pending}
+                className={buttonSecondaryClass}
+              >
+                {t("clear.cancel")}
+              </button>
+            </div>
+            {clearAll.serverError && (
+              <p className="text-sm text-error">{clearAll.serverError}</p>
+            )}
+          </form>
+        )}
+      </section>
+    </div>
+  );
+}

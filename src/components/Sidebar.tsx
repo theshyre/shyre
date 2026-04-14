@@ -18,6 +18,7 @@ import {
   Tags,
   Bookmark,
   Upload,
+  Database,
   User as UserIcon,
 } from "lucide-react";
 import type { ComponentType } from "react";
@@ -125,6 +126,7 @@ const systemAdminItems: NavItem[] = [
   { labelKey: "adminErrors", href: "/admin/errors", icon: AlertTriangle },
   { labelKey: "adminUsers", href: "/admin/users", icon: Users },
   { labelKey: "adminOrgs", href: "/admin/organizations", icon: Building2 },
+  { labelKey: "adminSampleData", href: "/admin/sample-data", icon: Database },
 ];
 
 interface SidebarProps {
