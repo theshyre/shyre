@@ -160,6 +160,14 @@ export default function Sidebar({
 
   return (
     <aside className="flex h-full w-64 flex-col border-r border-edge bg-surface-raised">
+      {/* Platform brand */}
+      <div className="px-4 py-3 border-b border-edge">
+        <p className="text-sm font-bold text-content tracking-wide">
+          {t("appName")}
+        </p>
+        <p className="text-[11px] text-content-muted">{t("appTagline")}</p>
+      </div>
+
       {/* User identity — clicks to /profile */}
       <Link
         href="/profile"

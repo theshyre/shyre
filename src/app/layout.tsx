@@ -16,8 +16,8 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "Stint — Time Tracking & Invoicing",
-  description: "Time tracking and invoicing for solo consultants",
+  title: "Shyre",
+  description: "Shyre — platform for running a consulting business. Time tracking, customers, invoicing.",
 };
 
 export default async function RootLayout({
