@@ -24,7 +24,6 @@ export async function updateUserSettingsAction(formData: FormData): Promise<void
 export async function updateProfileAction(formData: FormData): Promise<void> {
   return runSafeAction(formData, async (formData, { supabase, userId }) => {
     const display_name = (formData.get("display_name") as string) || null;
-    const avatar_url = (formData.get("avatar_url") as string) || null;
 
     assertSupabaseOk(
       await supabase
@@ -32,13 +31,41 @@ export async function updateProfileAction(formData: FormData): Promise<void> {
         .upsert({
           user_id: userId,
           display_name,
-          avatar_url,
         })
     );
 
     revalidatePath("/profile");
     revalidatePath("/");
   }, "updateProfileAction") as unknown as void;
+}
+
+/**
+ * Update just the avatar_url on user_profiles. Called by the AvatarPicker
+ * when the user selects a preset or finishes uploading an image.
+ */
+export async function setAvatarAction(formData: FormData): Promise<void> {
+  return runSafeAction(formData, async (formData, { supabase, userId }) => {
+    const raw = (formData.get("avatar_url") as string) || "";
+    const avatar_url = raw.trim() === "" ? null : raw.trim();
+
+    // Minimal validation: preset:* tokens or http(s) URLs only.
+    if (avatar_url && !avatar_url.startsWith("preset:")) {
+      if (!/^https?:\/\//.test(avatar_url)) {
+        throw new Error("Avatar URL must be http(s) or a preset.");
+      }
+    }
+
+    assertSupabaseOk(
+      await supabase
+        .from("user_profiles")
+        .upsert({
+          user_id: userId,
+          avatar_url,
+        })
+    );
+    revalidatePath("/profile");
+    revalidatePath("/");
+  }, "setAvatarAction") as unknown as void;
 }
 
 const ALLOWED_THEMES = new Set(["system", "light", "dark", "high-contrast"]);

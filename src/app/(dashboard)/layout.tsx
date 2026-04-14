@@ -29,6 +29,14 @@ export default async function DashboardLayout({
       | null
       | undefined) ?? null;
 
+  // Avatar for the sidebar user-identity block
+  const { data: profileRow } = await supabase
+    .from("user_profiles")
+    .select("avatar_url")
+    .eq("user_id", user.userId)
+    .maybeSingle();
+  const avatarUrl = profileRow?.avatar_url ?? null;
+
   // Fetch unresolved error count for admin badge
   let unresolvedErrorCount = 0;
   if (admin) {
@@ -46,6 +54,7 @@ export default async function DashboardLayout({
       <Sidebar
         displayName={user.displayName}
         email={user.userEmail}
+        avatarUrl={avatarUrl}
         isSystemAdmin={admin}
         unresolvedErrorCount={unresolvedErrorCount}
       />

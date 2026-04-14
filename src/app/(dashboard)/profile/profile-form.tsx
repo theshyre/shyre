@@ -11,14 +11,10 @@ import {
   Moon,
   Monitor,
   Eye,
-  Upload,
-  Tags,
-  Bookmark,
   Globe,
   Clock,
   Languages,
   Calendar,
-  Settings2,
 } from "lucide-react";
 import { MfaSetup } from "@/components/MfaSetup";
 import { useFormAction } from "@/hooks/use-form-action";
@@ -36,6 +32,7 @@ import {
   updateProfileAction,
   updatePreferencesAction,
 } from "./actions";
+import { AvatarPicker } from "./avatar-picker";
 // Note: exported as `ProfileForm` — aligned with the /profile route.
 
 type Theme = "system" | "light" | "dark" | "high-contrast";
@@ -51,6 +48,7 @@ const THEME_OPTIONS: ReadonlyArray<{
 ];
 
 interface Props {
+  userId: string;
   email: string;
   displayName: string;
   avatarUrl: string;
@@ -63,6 +61,7 @@ interface Props {
 }
 
 export function ProfileForm({
+  userId,
   email,
   displayName,
   avatarUrl,
@@ -109,9 +108,21 @@ export function ProfileForm({
   return (
     <div className="mt-6 space-y-6">
       {/* ───── Profile ───── */}
-      <form action={profileForm.handleSubmit}>
-        <section className="rounded-lg border border-edge bg-surface-raised p-4 space-y-3">
-          <SectionHeader icon={User} label={t("sections.profile")} />
+      <section className="rounded-lg border border-edge bg-surface-raised p-4 space-y-5">
+        <SectionHeader icon={User} label={t("sections.profile")} />
+
+        {/* Avatar — self-contained, saves on pick/upload */}
+        <div>
+          <label className={labelClass}>{t("profile.avatar")}</label>
+          <AvatarPicker
+            userId={userId}
+            displayName={displayName}
+            initialAvatarUrl={avatarUrl || null}
+          />
+        </div>
+
+        {/* Name + email form */}
+        <form action={profileForm.handleSubmit} className="space-y-3">
           {profileForm.serverError && (
             <ErrorBanner text={profileForm.serverError} />
           )}
@@ -135,15 +146,6 @@ export function ProfileForm({
                 {t("profile.emailReadOnlyHelp")}
               </p>
             </div>
-            <div className="sm:col-span-2">
-              <label className={labelClass}>{t("profile.avatarUrl")}</label>
-              <input
-                name="avatar_url"
-                defaultValue={avatarUrl}
-                placeholder={t("profile.avatarUrlPlaceholder")}
-                className={inputClass}
-              />
-            </div>
           </div>
           <SubmitButton
             label={t("profile.save")}
@@ -152,8 +154,8 @@ export function ProfileForm({
             successMessage={tc("actions.saved")}
             className={buttonSecondaryClass}
           />
-        </section>
-      </form>
+        </form>
+      </section>
 
       {/* ───── Preferences ───── */}
       <form action={prefsForm.handleSubmit}>
@@ -322,34 +324,6 @@ export function ProfileForm({
         </section>
       </form>
 
-      {/* ───── Advanced — linked pages ───── */}
-      <section className="space-y-2">
-        <SectionHeader icon={Settings2} label={t("sections.advanced")} />
-        <LinkCard
-          href="/settings/security-groups"
-          icon={Shield}
-          title="Security Groups"
-          description="Bundle users to grant permissions in bulk"
-        />
-        <LinkCard
-          href="/settings/categories"
-          icon={Tags}
-          title="Time Categories"
-          description="Tag time entries with configurable categories per project"
-        />
-        <LinkCard
-          href="/settings/templates"
-          icon={Bookmark}
-          title="Time Templates"
-          description="Save (project + category + description) combos for one-click timer starts"
-        />
-        <LinkCard
-          href="/settings/import"
-          icon={Upload}
-          title="Import Data"
-          description="Import from Harvest or other services"
-        />
-      </section>
     </div>
   );
 }
@@ -379,27 +353,3 @@ function ErrorBanner({ text }: { text: string }): React.JSX.Element {
   );
 }
 
-function LinkCard({
-  href,
-  icon: Icon,
-  title,
-  description,
-}: {
-  href: string;
-  icon: ComponentType<{ size?: number; className?: string }>;
-  title: string;
-  description: string;
-}): React.JSX.Element {
-  return (
-    <a
-      href={href}
-      className="flex items-center gap-3 rounded-lg border border-edge bg-surface-raised p-4 hover:bg-hover transition-colors"
-    >
-      <Icon size={20} className="text-accent" />
-      <div>
-        <p className="text-sm font-medium text-content">{title}</p>
-        <p className="text-xs text-content-muted">{description}</p>
-      </div>
-    </a>
-  );
-}

@@ -22,6 +22,7 @@ import {
 } from "lucide-react";
 import type { ComponentType } from "react";
 import Timer from "./Timer";
+import { Avatar } from "./Avatar";
 
 interface NavItem {
   labelKey: string;
@@ -85,6 +86,7 @@ const systemAdminItems: NavItem[] = [
 interface SidebarProps {
   displayName: string;
   email: string;
+  avatarUrl?: string | null;
   isSystemAdmin?: boolean;
   unresolvedErrorCount?: number;
 }
@@ -92,6 +94,7 @@ interface SidebarProps {
 export default function Sidebar({
   displayName,
   email,
+  avatarUrl,
   isSystemAdmin: isAdmin,
   unresolvedErrorCount,
 }: SidebarProps): React.JSX.Element {
@@ -122,9 +125,11 @@ export default function Sidebar({
         }`}
       >
         <div className="flex items-center gap-3">
-          <div className="flex h-9 w-9 items-center justify-center rounded-full bg-accent text-content-inverse text-sm font-semibold">
-            {displayName.charAt(0).toUpperCase()}
-          </div>
+          <Avatar
+            avatarUrl={avatarUrl ?? null}
+            displayName={displayName}
+            size={36}
+          />
           <div className="min-w-0 flex-1">
             <p className="text-sm font-semibold text-content truncate">
               {displayName}

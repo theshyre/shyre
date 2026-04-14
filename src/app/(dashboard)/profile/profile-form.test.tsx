@@ -6,6 +6,7 @@ vi.mock("./actions", () => ({
   updateProfileAction: vi.fn(),
   updateUserSettingsAction: vi.fn(),
   updatePreferencesAction: vi.fn(),
+  setAvatarAction: vi.fn(),
 }));
 
 // MfaSetup pulls in Supabase client; stub it out for render
@@ -27,6 +28,7 @@ vi.mock("@/components/theme-provider", () => ({
 import { ProfileForm } from "./profile-form";
 
 const defaultProps = {
+  userId: "user-1",
   email: "marcus@malcom.io",
   displayName: "Marcus",
   avatarUrl: "",
@@ -77,20 +79,22 @@ describe("ProfileForm", () => {
     expect(select.value).toBe("America/Los_Angeles");
   });
 
-  it("renders the Advanced link cards", () => {
+  it("does NOT render Advanced / admin link cards", () => {
+    // Admin things (Security Groups, Categories, Templates, Import) belong
+    // in the sidebar Admin section, not in the user's profile page.
     renderWithIntl(<ProfileForm {...defaultProps} />);
     expect(
-      screen.getByRole("link", { name: /security groups/i }),
-    ).toBeInTheDocument();
+      screen.queryByRole("link", { name: /security groups/i }),
+    ).not.toBeInTheDocument();
     expect(
-      screen.getByRole("link", { name: /time categories/i }),
-    ).toBeInTheDocument();
+      screen.queryByRole("link", { name: /time categories/i }),
+    ).not.toBeInTheDocument();
     expect(
-      screen.getByRole("link", { name: /time templates/i }),
-    ).toBeInTheDocument();
+      screen.queryByRole("link", { name: /time templates/i }),
+    ).not.toBeInTheDocument();
     expect(
-      screen.getByRole("link", { name: /import data/i }),
-    ).toBeInTheDocument();
+      screen.queryByRole("link", { name: /import data/i }),
+    ).not.toBeInTheDocument();
   });
 
   it("clicking a theme button calls updatePreferencesAction via the form", async () => {

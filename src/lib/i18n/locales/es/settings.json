@@ -12,11 +12,19 @@
   },
   "profile": {
     "displayName": "Nombre visible",
-    "avatarUrl": "URL del avatar",
-    "avatarUrlPlaceholder": "https://ejemplo.com/tu.jpg",
+    "avatar": "Avatar",
     "email": "Correo",
     "emailReadOnlyHelp": "Contacta a soporte para cambiar tu correo.",
-    "save": "Guardar perfil"
+    "save": "Guardar perfil",
+    "avatar_picker": {
+      "upload": "Subir foto",
+      "uploading": "Subiendo…",
+      "remove": "Quitar",
+      "orPickPreset": "O elige un color:",
+      "helpText": "PNG, JPG, WebP o GIF · hasta 2 MB",
+      "errorType": "Tipo de archivo no admitido. Usa PNG, JPG, WebP o GIF.",
+      "errorSize": "Archivo demasiado grande. Máx. 2 MB."
+    }
   },
   "preferences": {
     "timezone": "Zona horaria",

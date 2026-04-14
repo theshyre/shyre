@@ -32,6 +32,7 @@ export default async function ProfilePage(): Promise<React.JSX.Element> {
       <p className="mt-1 text-sm text-content-secondary">{t("subtitle")}</p>
 
       <ProfileForm
+        userId={user.userId}
         email={user.userEmail}
         displayName={profile?.display_name ?? ""}
         avatarUrl={profile?.avatar_url ?? ""}
