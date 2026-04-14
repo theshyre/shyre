@@ -1,9 +1,9 @@
 {
-  "title": "Time Entries",
-  "addEntry": "Add Entry",
+  "title": "Time",
+  "addEntry": "Add past entry",
   "saveEntry": "Save Entry",
   "saveChanges": "Save Changes",
-  "editTitle": "Edit Time Entry",
+  "editTitle": "Edit entry",
   "noEntries": "No time entries yet. Start tracking time to see entries here.",
   "fields": {
     "project": "Project",
@@ -33,5 +33,32 @@
   "format": {
     "hours": "{h}h {m}m",
     "minutes": "{m}m"
+  },
+  "week": {
+    "prev": "Prev",
+    "next": "Next",
+    "thisWeek": "This week",
+    "totals": "{total} · {billable} billable · {nonBillable} non-billable",
+    "dayTotal": "{duration}",
+    "emptyDay": "No entries"
+  },
+  "home": {
+    "runningHeader": "Running",
+    "startPrompt": "Start a new timer",
+    "recentProjects": "Recent",
+    "todayTitle": "Today",
+    "noToday": "No entries today.",
+    "startedAt": "Started {time}"
+  },
+  "entry": {
+    "edit": "Edit",
+    "duplicate": "Duplicate",
+    "delete": "Delete",
+    "confirmDelete": "Confirm delete",
+    "discardChanges": "Discard changes?",
+    "discard": "Discard",
+    "keepEditing": "Keep editing",
+    "actionsLabel": "Entry actions",
+    "untitled": "Untitled entry"
   }
 }

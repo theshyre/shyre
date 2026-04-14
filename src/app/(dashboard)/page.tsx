@@ -148,9 +148,9 @@ export default async function DashboardPage(): Promise<React.JSX.Element> {
           </div>
         </div>
         <div className="flex gap-2">
-          <Link href="/timer" className={buttonPrimaryClass}>
+          <Link href="/time-entries" className={buttonPrimaryClass}>
             <Play size={16} />
-            {tc("nav.timer")}
+            {tc("nav.time")}
           </Link>
         </div>
       </div>

@@ -1,147 +1,99 @@
 import { createClient } from "@/lib/supabase/server";
 import { getUserOrgs } from "@/lib/org-context";
-import { getTranslations } from "next-intl/server";
-import Link from "next/link";
-import { List, CheckCircle, Circle } from "lucide-react";
-import { OrgFilter } from "@/components/OrgFilter";
-import { NewTimeEntryForm } from "./new-time-entry-form";
+import { getWeekRange, parseWeekParam, getWeekStart, getTodayStart } from "@/lib/time/week";
+import { TimeHome } from "./time-home";
+
+interface PageProps {
+  searchParams: Promise<{ org?: string; week?: string }>;
+}
 
 export default async function TimeEntriesPage({
   searchParams,
-}: {
-  searchParams: Promise<{ org?: string }>;
-}): Promise<React.JSX.Element> {
+}: PageProps): Promise<React.JSX.Element> {
   const supabase = await createClient();
   const orgs = await getUserOrgs();
-  const { org: selectedOrgId } = await searchParams;
-  const t = await getTranslations("time");
-  const tc = await getTranslations("common");
+  const { org: selectedOrgId, week: weekParam } = await searchParams;
 
-  let entriesQuery = supabase
+  // Resolve week start (Monday)
+  const weekStart = parseWeekParam(weekParam) ?? getWeekStart(new Date());
+  const { start: weekStartDate, end: weekEndDate } = getWeekRange(weekStart);
+  const todayStart = getTodayStart();
+  const todayEnd = new Date(todayStart);
+  todayEnd.setDate(todayEnd.getDate() + 1);
+
+  // Fetch week entries
+  let weekQuery = supabase
     .from("time_entries")
-    .select("*, projects(name)")
-    .order("start_time", { ascending: false })
-    .limit(50);
-  if (selectedOrgId) entriesQuery = entriesQuery.eq("organization_id", selectedOrgId);
-  const { data: entries } = await entriesQuery;
+    .select("*, projects(id, name, github_repo)")
+    .gte("start_time", weekStartDate.toISOString())
+    .lt("start_time", weekEndDate.toISOString())
+    .order("start_time", { ascending: true });
+  if (selectedOrgId) weekQuery = weekQuery.eq("organization_id", selectedOrgId);
+  const { data: weekEntries } = await weekQuery;
 
+  // Fetch today entries (can differ from week when viewing past/future week)
+  let todayQuery = supabase
+    .from("time_entries")
+    .select("*, projects(id, name, github_repo)")
+    .gte("start_time", todayStart.toISOString())
+    .lt("start_time", todayEnd.toISOString())
+    .order("start_time", { ascending: false });
+  if (selectedOrgId) todayQuery = todayQuery.eq("organization_id", selectedOrgId);
+  const { data: todayEntries } = await todayQuery;
+
+  // Running timer (most recent entry with null end_time)
+  let runningQuery = supabase
+    .from("time_entries")
+    .select("*, projects(id, name, github_repo)")
+    .is("end_time", null)
+    .order("start_time", { ascending: false })
+    .limit(1);
+  if (selectedOrgId) runningQuery = runningQuery.eq("organization_id", selectedOrgId);
+  const { data: runningEntries } = await runningQuery;
+  const running = runningEntries?.[0] ?? null;
+
+  // Active projects (for selects and recent chips)
   let projectsQuery = supabase
     .from("projects")
-    .select("id, name, github_repo")
+    .select("id, name, github_repo, organization_id")
     .eq("status", "active")
     .order("name");
   if (selectedOrgId) projectsQuery = projectsQuery.eq("organization_id", selectedOrgId);
   const { data: projects } = await projectsQuery;
 
-  const orgName = (orgId: string) => orgs.find(o => o.id === orgId)?.name ?? "\u2014";
+  // Recent projects: distinct project_ids from the last 30 days, most recent first
+  const recentSinceIso = new Date(Date.now() - 30 * 24 * 3600 * 1000).toISOString();
+  let recentQuery = supabase
+    .from("time_entries")
+    .select("project_id, start_time")
+    .gte("start_time", recentSinceIso)
+    .order("start_time", { ascending: false })
+    .limit(50);
+  if (selectedOrgId) recentQuery = recentQuery.eq("organization_id", selectedOrgId);
+  const { data: recentRows } = await recentQuery;
+  const seen = new Set<string>();
+  const recentProjectIds: string[] = [];
+  for (const row of recentRows ?? []) {
+    if (!seen.has(row.project_id)) {
+      seen.add(row.project_id);
+      recentProjectIds.push(row.project_id);
+    }
+    if (recentProjectIds.length >= 5) break;
+  }
+  const recentProjects = recentProjectIds
+    .map((id) => (projects ?? []).find((p) => p.id === id))
+    .filter((p): p is NonNullable<typeof p> => !!p);
 
   return (
-    <div>
-      <div className="flex items-center gap-3">
-        <List size={24} className="text-accent" />
-        <h1 className="text-2xl font-bold text-content">{t("title")}</h1>
-        <OrgFilter orgs={orgs} selectedOrgId={selectedOrgId ?? null} />
-      </div>
-
-      <NewTimeEntryForm projects={projects ?? []} orgs={orgs} defaultOrgId={selectedOrgId} />
-
-      {entries && entries.length > 0 ? (
-        <div className="mt-6 overflow-hidden rounded-lg border border-edge bg-surface-raised">
-          <table className="w-full text-sm">
-            <thead>
-              <tr className="border-b border-edge bg-surface-inset">
-                <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider text-content-muted">
-                  {t("table.project")}
-                </th>
-                <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider text-content-muted">
-                  Org
-                </th>
-                <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider text-content-muted">
-                  {t("table.description")}
-                </th>
-                <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider text-content-muted">
-                  {t("table.date")}
-                </th>
-                <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider text-content-muted">
-                  {t("table.duration")}
-                </th>
-                <th className="px-4 py-3 text-center text-xs font-semibold uppercase tracking-wider text-content-muted">
-                  {t("table.billable")}
-                </th>
-              </tr>
-            </thead>
-            <tbody>
-              {entries.map((entry) => {
-                const projectName =
-                  entry.projects &&
-                  typeof entry.projects === "object" &&
-                  "name" in entry.projects
-                    ? (entry.projects as { name: string }).name
-                    : "—";
-                const hours = entry.duration_min
-                  ? Math.floor(entry.duration_min / 60)
-                  : 0;
-                const mins = entry.duration_min
-                  ? Math.round(entry.duration_min % 60)
-                  : 0;
-                const isRunning = !entry.end_time;
-
-                return (
-                  <tr
-                    key={entry.id}
-                    className="border-b border-edge last:border-0 hover:bg-hover transition-colors"
-                  >
-                    <td className="px-4 py-3 text-content-secondary">
-                      {projectName}
-                    </td>
-                    <td className="px-4 py-3 text-content-secondary text-xs">
-                      {orgName(entry.organization_id)}
-                    </td>
-                    <td className="px-4 py-3">
-                      <Link
-                        href={`/time-entries/${entry.id}`}
-                        className="text-accent hover:underline"
-                      >
-                        {entry.description || "—"}
-                      </Link>
-                    </td>
-                    <td className="px-4 py-3 text-content-secondary text-xs">
-                      {new Date(entry.start_time).toLocaleDateString()}
-                    </td>
-                    <td className="px-4 py-3 font-mono text-content-secondary">
-                      {isRunning ? (
-                        <span className="inline-flex items-center gap-1.5 text-success">
-                          <span className="h-1.5 w-1.5 rounded-full bg-success animate-pulse" />
-                          {t("timer.running")}
-                        </span>
-                      ) : (
-                        `${hours}h ${mins}m`
-                      )}
-                    </td>
-                    <td className="px-4 py-3 text-center">
-                      {entry.billable ? (
-                        <CheckCircle
-                          size={16}
-                          className="inline text-success"
-                        />
-                      ) : (
-                        <Circle
-                          size={16}
-                          className="inline text-content-muted"
-                        />
-                      )}
-                    </td>
-                  </tr>
-                );
-              })}
-            </tbody>
-          </table>
-        </div>
-      ) : (
-        <p className="mt-6 text-sm text-content-muted">
-          {t("noEntries")}
-        </p>
-      )}
-    </div>
+    <TimeHome
+      orgs={orgs}
+      selectedOrgId={selectedOrgId ?? null}
+      weekStartIso={weekStartDate.toISOString()}
+      weekEntries={weekEntries ?? []}
+      todayEntries={todayEntries ?? []}
+      running={running}
+      projects={projects ?? []}
+      recentProjects={recentProjects}
+    />
   );
 }

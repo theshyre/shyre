@@ -3,8 +3,7 @@
   "appTagline": "Control de tiempo y facturación",
   "nav": {
     "dashboard": "Panel",
-    "timer": "Cronómetro",
-    "timeEntries": "Registros de tiempo",
+    "time": "Tiempo",
     "clients": "Clientes",
     "projects": "Proyectos",
     "invoices": "Facturas",

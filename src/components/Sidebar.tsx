@@ -7,7 +7,6 @@ import { createClient } from "@/lib/supabase/client";
 import {
   LayoutDashboard,
   Clock,
-  List,
   Users,
   FolderKanban,
   FileText,
@@ -43,8 +42,7 @@ const sections: NavSection[] = [
     titleKey: "navSections.track",
     items: [
       { labelKey: "dashboard", href: "/", icon: LayoutDashboard },
-      { labelKey: "timer", href: "/timer", icon: Clock },
-      { labelKey: "timeEntries", href: "/time-entries", icon: List },
+      { labelKey: "time", href: "/time-entries", icon: Clock },
     ],
   },
   {

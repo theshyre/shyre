@@ -37,7 +37,7 @@ export async function createTimeEntryAction(formData: FormData): Promise<void> {
 }
 
 export async function updateTimeEntryAction(formData: FormData): Promise<void> {
-  return runSafeAction(formData, async (formData, { supabase }) => {
+  return runSafeAction(formData, async (formData, { supabase, userId }) => {
     const id = formData.get("id") as string;
     const description = (formData.get("description") as string) || null;
     const start_time = formData.get("start_time") as string;
@@ -57,19 +57,19 @@ export async function updateTimeEntryAction(formData: FormData): Promise<void> {
           github_issue,
         })
         .eq("id", id)
+        .eq("user_id", userId)
     );
 
     revalidatePath("/time-entries");
-    revalidatePath(`/time-entries/${id}`);
   }, "updateTimeEntryAction") as unknown as void;
 }
 
 export async function deleteTimeEntryAction(formData: FormData): Promise<void> {
-  return runSafeAction(formData, async (formData, { supabase }) => {
+  return runSafeAction(formData, async (formData, { supabase, userId }) => {
     const id = formData.get("id") as string;
 
     assertSupabaseOk(
-      await supabase.from("time_entries").delete().eq("id", id)
+      await supabase.from("time_entries").delete().eq("id", id).eq("user_id", userId)
     );
 
     revalidatePath("/time-entries");
@@ -97,12 +97,11 @@ export async function startTimerAction(formData: FormData): Promise<void> {
     );
 
     revalidatePath("/time-entries");
-    revalidatePath("/timer");
   }, "startTimerAction") as unknown as void;
 }
 
 export async function stopTimerAction(formData: FormData): Promise<void> {
-  return runSafeAction(formData, async (formData, { supabase }) => {
+  return runSafeAction(formData, async (formData, { supabase, userId }) => {
     const id = formData.get("id") as string;
 
     assertSupabaseOk(
@@ -110,9 +109,56 @@ export async function stopTimerAction(formData: FormData): Promise<void> {
         .from("time_entries")
         .update({ end_time: new Date().toISOString() })
         .eq("id", id)
+        .eq("user_id", userId)
     );
 
     revalidatePath("/time-entries");
-    revalidatePath("/timer");
   }, "stopTimerAction") as unknown as void;
+}
+
+/**
+ * Duplicate a time entry: start a new timer now with the same
+ * project/description/billable/github_issue. Stops any running timer first.
+ */
+export async function duplicateTimeEntryAction(formData: FormData): Promise<void> {
+  return runSafeAction(formData, async (formData, { supabase, userId }) => {
+    const sourceId = formData.get("id") as string;
+
+    // Fetch source entry
+    const { data: source, error: fetchErr } = await supabase
+      .from("time_entries")
+      .select("organization_id, project_id, description, billable, github_issue")
+      .eq("id", sourceId)
+      .eq("user_id", userId)
+      .single();
+    if (fetchErr) throw fetchErr;
+    if (!source) throw new Error("Entry not found");
+
+    const now = new Date().toISOString();
+
+    // Stop any running timer for this user
+    assertSupabaseOk(
+      await supabase
+        .from("time_entries")
+        .update({ end_time: now })
+        .eq("user_id", userId)
+        .is("end_time", null)
+    );
+
+    // Insert the duplicate as a running timer
+    assertSupabaseOk(
+      await supabase.from("time_entries").insert({
+        organization_id: source.organization_id,
+        user_id: userId,
+        project_id: source.project_id,
+        description: source.description,
+        start_time: now,
+        end_time: null,
+        billable: source.billable,
+        github_issue: source.github_issue,
+      })
+    );
+
+    revalidatePath("/time-entries");
+  }, "duplicateTimeEntryAction") as unknown as void;
 }

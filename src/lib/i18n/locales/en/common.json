@@ -3,8 +3,7 @@
   "appTagline": "Time tracking & invoicing",
   "nav": {
     "dashboard": "Dashboard",
-    "timer": "Timer",
-    "timeEntries": "Time Entries",
+    "time": "Time",
     "clients": "Clients",
     "projects": "Projects",
     "invoices": "Invoices",

@@ -1,9 +1,9 @@
 {
-  "title": "Registros de Tiempo",
-  "addEntry": "Agregar Registro",
+  "title": "Tiempo",
+  "addEntry": "Agregar registro pasado",
   "saveEntry": "Guardar Registro",
   "saveChanges": "Guardar Cambios",
-  "editTitle": "Editar Registro de Tiempo",
+  "editTitle": "Editar registro",
   "noEntries": "Aún no hay registros. Comienza a registrar tiempo para ver entradas aquí.",
   "fields": {
     "project": "Proyecto",
@@ -33,5 +33,32 @@
   "format": {
     "hours": "{h}h {m}m",
     "minutes": "{m}m"
+  },
+  "week": {
+    "prev": "Anterior",
+    "next": "Siguiente",
+    "thisWeek": "Esta semana",
+    "totals": "{total} · {billable} facturable · {nonBillable} no facturable",
+    "dayTotal": "{duration}",
+    "emptyDay": "Sin registros"
+  },
+  "home": {
+    "runningHeader": "En curso",
+    "startPrompt": "Iniciar un nuevo cronómetro",
+    "recentProjects": "Recientes",
+    "todayTitle": "Hoy",
+    "noToday": "No hay registros hoy.",
+    "startedAt": "Iniciado {time}"
+  },
+  "entry": {
+    "edit": "Editar",
+    "duplicate": "Duplicar",
+    "delete": "Eliminar",
+    "confirmDelete": "Confirmar eliminación",
+    "discardChanges": "¿Descartar cambios?",
+    "discard": "Descartar",
+    "keepEditing": "Seguir editando",
+    "actionsLabel": "Acciones de registro",
+    "untitled": "Registro sin título"
   }
 }
