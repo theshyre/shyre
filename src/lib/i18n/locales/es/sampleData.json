@@ -4,6 +4,10 @@
   "noOrg": "Elige una organización arriba para gestionar sus datos de ejemplo.",
   "sampleLabel": "ejemplo",
   "expensesLabel": "Gastos",
+  "operatingOn": "Operando sobre",
+  "onlyOrg": "Única organización que puedes gestionar con esta herramienta",
+  "switchOrg": "Cambiar organización",
+  "currentData": "Datos actuales en esta organización",
   "entryRange": "Entradas de {first} a {last}",
   "load": {
     "title": "Cargar datos de ejemplo",

@@ -4,6 +4,10 @@
   "noOrg": "Pick an organization above to manage its sample data.",
   "sampleLabel": "sample",
   "expensesLabel": "Expenses",
+  "operatingOn": "Operating on",
+  "onlyOrg": "Only organization you can target with this tool",
+  "switchOrg": "Switch organization",
+  "currentData": "Current data in this organization",
   "entryRange": "Entries from {first} to {last}",
   "load": {
     "title": "Load sample data",

@@ -113,12 +113,13 @@ export default async function SampleDataPage({
   const selectedOrg = orgs.find((o) => o.id === selectedOrgId) ?? null;
   const counts = selectedOrgId ? await fetchCounts(supabase, selectedOrgId) : null;
 
+  const multipleOrgs = orgs.length > 1;
+
   return (
     <div className="space-y-6">
-      <div className="flex items-center gap-3 flex-wrap">
+      <div className="flex items-center gap-3">
         <Database size={24} className="text-accent" />
         <h1 className="text-2xl font-bold text-content">{t("title")}</h1>
-        <OrgFilter orgs={orgs} selectedOrgId={selectedOrgId} />
       </div>
 
       <p className="text-sm text-content-secondary max-w-3xl">{t("subtitle")}</p>
@@ -129,12 +130,40 @@ export default async function SampleDataPage({
         </div>
       ) : (
         <>
-          {/* Current state summary */}
-          <section className="rounded-lg border border-edge bg-surface-raised p-5 space-y-3">
-            <div className="flex items-center gap-2">
-              <Building2 size={16} className="text-content-muted" />
-              <h2 className="text-sm font-semibold text-content">{selectedOrg.name}</h2>
+          {/* Hero: which org is being targeted. Destructive per-org tool — the
+              operator needs to see this at a glance, not hunt for a pill. */}
+          <section className="rounded-lg border-2 border-accent/50 bg-accent-soft p-5 flex items-center gap-5 flex-wrap">
+            <div className="flex h-14 w-14 shrink-0 items-center justify-center rounded-full bg-accent/20">
+              <Building2 size={28} className="text-accent" />
             </div>
+            <div className="min-w-0 flex-1">
+              <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-accent">
+                {t("operatingOn")}
+              </p>
+              <h2 className="mt-0.5 text-3xl font-bold text-content break-words">
+                {selectedOrg.name}
+              </h2>
+              {!multipleOrgs && (
+                <p className="mt-0.5 text-xs text-content-muted">
+                  {t("onlyOrg")}
+                </p>
+              )}
+            </div>
+            {multipleOrgs && (
+              <div className="shrink-0">
+                <p className="mb-1 text-[10px] font-semibold uppercase tracking-wider text-content-muted">
+                  {t("switchOrg")}
+                </p>
+                <OrgFilter orgs={orgs} selectedOrgId={selectedOrgId} />
+              </div>
+            )}
+          </section>
+
+          {/* Counts for the selected org. */}
+          <section className="rounded-lg border border-edge bg-surface-raised p-5 space-y-3">
+            <h2 className="text-sm font-semibold text-content">
+              {t("currentData")}
+            </h2>
             <dl className="grid grid-cols-2 sm:grid-cols-3 gap-3 text-sm">
               <CountBlock
                 label={tc("nav.customers")}
