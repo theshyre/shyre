@@ -4,6 +4,7 @@ import { getTranslations } from "next-intl/server";
 import Link from "next/link";
 import { FolderKanban } from "lucide-react";
 import { OrgFilter } from "@/components/OrgFilter";
+import { getVisibleCategorySets } from "@/lib/categories/queries";
 import { NewProjectForm } from "./new-project-form";
 
 export default async function ProjectsPage({
@@ -33,6 +34,19 @@ export default async function ProjectsPage({
   if (selectedOrgId) clientsQuery = clientsQuery.eq("organization_id", selectedOrgId);
   const { data: clients } = await clientsQuery;
 
+  const categorySetsFull = await getVisibleCategorySets(selectedOrgId);
+  const categorySets = categorySetsFull.map(
+    ({ id, organization_id, name, description, is_system, created_by, created_at }) => ({
+      id,
+      organization_id,
+      name,
+      description,
+      is_system,
+      created_by,
+      created_at,
+    }),
+  );
+
   const orgName = (orgId: string) => orgs.find(o => o.id === orgId)?.name ?? "\u2014";
 
   return (
@@ -43,7 +57,12 @@ export default async function ProjectsPage({
         <OrgFilter orgs={orgs} selectedOrgId={selectedOrgId ?? null} />
       </div>
 
-      <NewProjectForm clients={clients ?? []} orgs={orgs} defaultOrgId={selectedOrgId} />
+      <NewProjectForm
+        clients={clients ?? []}
+        orgs={orgs}
+        defaultOrgId={selectedOrgId}
+        categorySets={categorySets}
+      />
 
       {projects && projects.length > 0 ? (
         <div className="mt-6 overflow-hidden rounded-lg border border-edge bg-surface-raised">

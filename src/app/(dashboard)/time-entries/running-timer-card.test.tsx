@@ -18,6 +18,7 @@ const project = {
   name: "Alpha",
   github_repo: null,
   organization_id: "o1",
+  category_set_id: null,
 };
 const orgs = [
   { id: "o1", name: "Org", slug: "org", role: "owner" as const },
@@ -31,6 +32,7 @@ describe("RunningTimerCard", () => {
         projects={[project]}
         recentProjects={[]}
         orgs={orgs}
+        categories={[]}
       />,
     );
     expect(screen.getByRole("button", { name: /start/i })).toBeInTheDocument();
@@ -44,6 +46,7 @@ describe("RunningTimerCard", () => {
         projects={[project]}
         recentProjects={[]}
         orgs={orgs}
+        categories={[]}
       />,
     );
     expect(container.querySelector('select[name="project_id"]')).toHaveFocus();
@@ -61,6 +64,7 @@ describe("RunningTimerCard", () => {
       duration_min: null,
       billable: true,
       github_issue: null,
+      category_id: null,
       projects: { id: "p1", name: "Alpha", github_repo: null },
     };
     renderWithIntl(
@@ -69,6 +73,7 @@ describe("RunningTimerCard", () => {
         projects={[project]}
         recentProjects={[]}
         orgs={orgs}
+        categories={[]}
       />,
     );
     expect(screen.getByText("Alpha")).toBeInTheDocument();
@@ -80,8 +85,8 @@ describe("RunningTimerCard", () => {
 
   it("shows recent project chips when provided", () => {
     const recent = [
-      { id: "p1", name: "Alpha", github_repo: null, organization_id: "o1" },
-      { id: "p2", name: "Beta", github_repo: null, organization_id: "o1" },
+      { id: "p1", name: "Alpha", github_repo: null, organization_id: "o1", category_set_id: null },
+      { id: "p2", name: "Beta", github_repo: null, organization_id: "o1", category_set_id: null },
     ];
     renderWithIntl(
       <RunningTimerCard
@@ -89,6 +94,7 @@ describe("RunningTimerCard", () => {
         projects={[project]}
         recentProjects={recent}
         orgs={orgs}
+        categories={[]}
       />,
     );
     expect(screen.getByRole("button", { name: "Alpha" })).toBeInTheDocument();
@@ -102,6 +108,7 @@ describe("RunningTimerCard", () => {
         projects={[project]}
         recentProjects={[]}
         orgs={orgs}
+        categories={[]}
       />,
     );
     expect(screen.queryByRole("combobox", { name: /organization/i })).not.toBeInTheDocument();

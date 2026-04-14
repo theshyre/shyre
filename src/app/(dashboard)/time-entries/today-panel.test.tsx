@@ -25,6 +25,7 @@ function makeEntry(id: string, minutes: number): TimeEntry {
     duration_min: minutes,
     billable: true,
     github_issue: null,
+    category_id: null,
     projects: project,
   };
 }
@@ -35,6 +36,7 @@ describe("TodayPanel", () => {
       <TodayPanel
         entries={[]}
         projects={[]}
+        categories={[]}
         expandedEntryId={null}
         onToggleExpand={() => {}}
       />,
@@ -48,6 +50,7 @@ describe("TodayPanel", () => {
       <TodayPanel
         entries={entries}
         projects={[]}
+        categories={[]}
         expandedEntryId={null}
         onToggleExpand={() => {}}
       />,
@@ -63,6 +66,7 @@ describe("TodayPanel", () => {
       <TodayPanel
         entries={[]}
         projects={[]}
+        categories={[]}
         expandedEntryId={null}
         onToggleExpand={() => {}}
       />,

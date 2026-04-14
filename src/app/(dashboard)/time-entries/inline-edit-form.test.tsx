@@ -15,7 +15,7 @@ vi.mock("./actions", () => ({
 import { InlineEditForm } from "./inline-edit-form";
 import type { TimeEntry } from "./types";
 
-const project = { id: "p1", name: "Alpha", github_repo: null, organization_id: "o1" };
+const project = { id: "p1", name: "Alpha", github_repo: null, organization_id: "o1", category_set_id: null };
 const entry: TimeEntry = {
   id: "e1",
   organization_id: "o1",
@@ -27,6 +27,7 @@ const entry: TimeEntry = {
   duration_min: 60,
   billable: true,
   github_issue: null,
+  category_id: null,
   projects: project,
 };
 
@@ -37,7 +38,7 @@ describe("InlineEditForm", () => {
 
   it("populates fields from the entry", () => {
     const { container } = renderWithIntl(
-      <InlineEditForm entry={entry} projects={[project]} onDone={() => {}} />,
+      <InlineEditForm entry={entry} projects={[project]} categories={[]} onDone={() => {}} />,
     );
     const desc = container.querySelector<HTMLInputElement>('input[name="description"]');
     expect(desc?.value).toBe("original");
@@ -47,7 +48,7 @@ describe("InlineEditForm", () => {
 
   it("autofocuses the description field", () => {
     const { container } = renderWithIntl(
-      <InlineEditForm entry={entry} projects={[project]} onDone={() => {}} />,
+      <InlineEditForm entry={entry} projects={[project]} categories={[]} onDone={() => {}} />,
     );
     const desc = container.querySelector('input[name="description"]');
     expect(desc).toHaveFocus();
@@ -56,7 +57,7 @@ describe("InlineEditForm", () => {
   it("Cancel button calls onDone", () => {
     const onDone = vi.fn();
     renderWithIntl(
-      <InlineEditForm entry={entry} projects={[project]} onDone={onDone} />,
+      <InlineEditForm entry={entry} projects={[project]} categories={[]} onDone={onDone} />,
     );
     fireEvent.click(screen.getByRole("button", { name: /cancel/i }));
     expect(onDone).toHaveBeenCalled();
@@ -65,7 +66,7 @@ describe("InlineEditForm", () => {
   it("submits form and calls onDone on success", async () => {
     const onDone = vi.fn();
     renderWithIntl(
-      <InlineEditForm entry={entry} projects={[project]} onDone={onDone} />,
+      <InlineEditForm entry={entry} projects={[project]} categories={[]} onDone={onDone} />,
     );
     fireEvent.click(screen.getByRole("button", { name: /save changes/i }));
     await waitFor(() => expect(updateMock).toHaveBeenCalled());
@@ -77,7 +78,7 @@ describe("InlineEditForm", () => {
   it("Escape key calls onDone", () => {
     const onDone = vi.fn();
     renderWithIntl(
-      <InlineEditForm entry={entry} projects={[project]} onDone={onDone} />,
+      <InlineEditForm entry={entry} projects={[project]} categories={[]} onDone={onDone} />,
     );
     const form = screen.getByRole("button", { name: /save changes/i }).closest("form")!;
     fireEvent.keyDown(form, { key: "Escape" });

@@ -2,12 +2,13 @@
 
 import { groupEntriesByDay } from "@/lib/time/week";
 import { DayColumn } from "./day-column";
-import type { ProjectOption, TimeEntry } from "./types";
+import type { CategoryOption, ProjectOption, TimeEntry } from "./types";
 
 interface Props {
   weekStart: Date;
   entries: TimeEntry[];
   projects: ProjectOption[];
+  categories: CategoryOption[];
   expandedEntryId: string | null;
   onToggleExpand: (id: string) => void;
 }
@@ -16,6 +17,7 @@ export function WeekGrid({
   weekStart,
   entries,
   projects,
+  categories,
   expandedEntryId,
   onToggleExpand,
 }: Props): React.JSX.Element {
@@ -32,6 +34,7 @@ export function WeekGrid({
             date={date}
             entries={dayEntries}
             projects={projects}
+            categories={categories}
             expandedEntryId={expandedEntryId}
             onToggleExpand={onToggleExpand}
           />

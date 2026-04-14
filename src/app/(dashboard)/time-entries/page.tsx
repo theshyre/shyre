@@ -24,7 +24,7 @@ export default async function TimeEntriesPage({
   // Fetch week entries
   let weekQuery = supabase
     .from("time_entries")
-    .select("*, projects(id, name, github_repo)")
+    .select("*, projects(id, name, github_repo, category_set_id)")
     .gte("start_time", weekStartDate.toISOString())
     .lt("start_time", weekEndDate.toISOString())
     .order("start_time", { ascending: true });
@@ -34,7 +34,7 @@ export default async function TimeEntriesPage({
   // Fetch today entries (can differ from week when viewing past/future week)
   let todayQuery = supabase
     .from("time_entries")
-    .select("*, projects(id, name, github_repo)")
+    .select("*, projects(id, name, github_repo, category_set_id)")
     .gte("start_time", todayStart.toISOString())
     .lt("start_time", todayEnd.toISOString())
     .order("start_time", { ascending: false });
@@ -44,7 +44,7 @@ export default async function TimeEntriesPage({
   // Running timer (most recent entry with null end_time)
   let runningQuery = supabase
     .from("time_entries")
-    .select("*, projects(id, name, github_repo)")
+    .select("*, projects(id, name, github_repo, category_set_id)")
     .is("end_time", null)
     .order("start_time", { ascending: false })
     .limit(1);
@@ -55,11 +55,28 @@ export default async function TimeEntriesPage({
   // Active projects (for selects and recent chips)
   let projectsQuery = supabase
     .from("projects")
-    .select("id, name, github_repo, organization_id")
+    .select("id, name, github_repo, organization_id, category_set_id")
     .eq("status", "active")
     .order("name");
   if (selectedOrgId) projectsQuery = projectsQuery.eq("organization_id", selectedOrgId);
   const { data: projects } = await projectsQuery;
+
+  // Categories for any project's category set
+  const setIds = Array.from(
+    new Set(
+      (projects ?? [])
+        .map((p) => p.category_set_id)
+        .filter((id): id is string => !!id),
+    ),
+  );
+  const { data: categoryRows } = setIds.length
+    ? await supabase
+        .from("categories")
+        .select("id, category_set_id, name, color, sort_order")
+        .in("category_set_id", setIds)
+        .order("sort_order", { ascending: true })
+    : { data: [] };
+  const categories = categoryRows ?? [];
 
   // Recent projects: distinct project_ids from the last 30 days, most recent first
   const recentSinceIso = new Date(Date.now() - 30 * 24 * 3600 * 1000).toISOString();
@@ -94,6 +111,7 @@ export default async function TimeEntriesPage({
       running={running}
       projects={projects ?? []}
       recentProjects={recentProjects}
+      categories={categories}
     />
   );
 }

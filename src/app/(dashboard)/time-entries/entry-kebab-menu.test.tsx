@@ -26,6 +26,7 @@ const entry: TimeEntry = {
   duration_min: 60,
   billable: true,
   github_issue: null,
+  category_id: null,
   projects: { id: "p1", name: "Alpha", github_repo: null },
 };
 

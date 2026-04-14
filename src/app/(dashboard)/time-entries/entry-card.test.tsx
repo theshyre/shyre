@@ -23,6 +23,7 @@ const completed: TimeEntry = {
   duration_min: 60,
   billable: true,
   github_issue: null,
+  category_id: null,
   projects: project,
 };
 const running: TimeEntry = {
@@ -38,6 +39,7 @@ describe("EntryCard", () => {
       <EntryCard
         entry={completed}
         projects={[]}
+        categories={[]}
         expanded={false}
         onToggleExpand={() => {}}
       />,
@@ -51,6 +53,7 @@ describe("EntryCard", () => {
       <EntryCard
         entry={running}
         projects={[]}
+        categories={[]}
         expanded={false}
         onToggleExpand={() => {}}
       />,
@@ -63,6 +66,7 @@ describe("EntryCard", () => {
       <EntryCard
         entry={completed}
         projects={[]}
+        categories={[]}
         expanded={false}
         onToggleExpand={() => {}}
       />,
@@ -76,6 +80,7 @@ describe("EntryCard", () => {
       <EntryCard
         entry={completed}
         projects={[]}
+        categories={[]}
         expanded={false}
         onToggleExpand={onToggle}
       />,
@@ -90,7 +95,8 @@ describe("EntryCard", () => {
     renderWithIntl(
       <EntryCard
         entry={completed}
-        projects={[{ ...project, organization_id: "o1" }]}
+        projects={[{ ...project, organization_id: "o1", category_set_id: null }]}
+        categories={[]}
         expanded={true}
         onToggleExpand={() => {}}
       />,

@@ -15,7 +15,8 @@ import { OrgSelector } from "@/components/OrgSelector";
 import type { OrgListItem } from "@/lib/org-context";
 import { startTimerAction, stopTimerAction } from "./actions";
 import { RecentProjectsChips } from "./recent-projects-chips";
-import type { ProjectOption, TimeEntry } from "./types";
+import { CategoryPicker } from "./category-picker";
+import type { CategoryOption, ProjectOption, TimeEntry } from "./types";
 
 interface Props {
   running: TimeEntry | null;
@@ -23,6 +24,7 @@ interface Props {
   recentProjects: ProjectOption[];
   orgs: OrgListItem[];
   defaultOrgId?: string;
+  categories: CategoryOption[];
 }
 
 export function RunningTimerCard({
@@ -31,6 +33,7 @@ export function RunningTimerCard({
   recentProjects,
   orgs,
   defaultOrgId,
+  categories,
 }: Props): React.JSX.Element {
   const t = useTranslations("time");
   const tf = useTranslations("time.fields");
@@ -176,6 +179,12 @@ export function RunningTimerCard({
           />
         </div>
       </div>
+      <CategoryPicker
+        categories={categories}
+        categorySetId={
+          projects.find((p) => p.id === selectedProjectId)?.category_set_id ?? null
+        }
+      />
       {recentProjects.length > 0 && (
         <RecentProjectsChips
           projects={recentProjects}

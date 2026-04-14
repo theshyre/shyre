@@ -12,11 +12,13 @@ import {
   buttonSecondaryClass,
 } from "@/lib/form-styles";
 import { updateTimeEntryAction } from "./actions";
-import type { ProjectOption, TimeEntry } from "./types";
+import { CategoryPicker } from "./category-picker";
+import type { CategoryOption, ProjectOption, TimeEntry } from "./types";
 
 interface Props {
   entry: TimeEntry;
   projects: ProjectOption[];
+  categories: CategoryOption[];
   onDone: () => void;
 }
 
@@ -30,6 +32,7 @@ function toLocalDatetime(iso: string): string {
 export function InlineEditForm({
   entry,
   projects,
+  categories,
   onDone,
 }: Props): React.JSX.Element {
   const t = useTranslations("time");
@@ -141,6 +144,13 @@ export function InlineEditForm({
             />
             {t("fields.billable")}
           </label>
+        </div>
+        <div className="sm:col-span-2">
+          <CategoryPicker
+            categories={categories}
+            categorySetId={entry.projects?.category_set_id ?? null}
+            defaultValue={entry.category_id}
+          />
         </div>
       </div>
       <div className="flex gap-2">

@@ -7,12 +7,13 @@ import {
   sumDurationMin,
 } from "@/lib/time/week";
 import { EntryCard } from "./entry-card";
-import type { ProjectOption, TimeEntry } from "./types";
+import type { CategoryOption, ProjectOption, TimeEntry } from "./types";
 
 interface Props {
   date: Date;
   entries: TimeEntry[];
   projects: ProjectOption[];
+  categories: CategoryOption[];
   expandedEntryId: string | null;
   onToggleExpand: (id: string) => void;
 }
@@ -21,6 +22,7 @@ export function DayColumn({
   date,
   entries,
   projects,
+  categories,
   expandedEntryId,
   onToggleExpand,
 }: Props): React.JSX.Element {
@@ -58,6 +60,7 @@ export function DayColumn({
               key={entry.id}
               entry={entry}
               projects={projects}
+              categories={categories}
               expanded={expandedEntryId === entry.id}
               onToggleExpand={onToggleExpand}
             />

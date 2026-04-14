@@ -15,7 +15,9 @@
     "budgetHours": "Horas presupuestadas",
     "githubRepo": "Repositorio GitHub",
     "githubRepoPlaceholder": "propietario/repo",
-    "status": "Estado"
+    "status": "Estado",
+    "categorySet": "Conjunto de categorías",
+    "noCategorySet": "Sin categorías"
   },
   "table": {
     "client": "Cliente",

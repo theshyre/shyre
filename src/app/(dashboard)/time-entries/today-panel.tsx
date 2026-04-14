@@ -4,11 +4,12 @@ import { useTranslations } from "next-intl";
 import { Sun } from "lucide-react";
 import { formatDurationShort, sumDurationMin } from "@/lib/time/week";
 import { EntryCard } from "./entry-card";
-import type { ProjectOption, TimeEntry } from "./types";
+import type { CategoryOption, ProjectOption, TimeEntry } from "./types";
 
 interface Props {
   entries: TimeEntry[];
   projects: ProjectOption[];
+  categories: CategoryOption[];
   expandedEntryId: string | null;
   onToggleExpand: (id: string) => void;
 }
@@ -16,6 +17,7 @@ interface Props {
 export function TodayPanel({
   entries,
   projects,
+  categories,
   expandedEntryId,
   onToggleExpand,
 }: Props): React.JSX.Element {
@@ -44,6 +46,7 @@ export function TodayPanel({
               key={entry.id}
               entry={entry}
               projects={projects}
+              categories={categories}
               expanded={expandedEntryId === entry.id}
               onToggleExpand={onToggleExpand}
             />

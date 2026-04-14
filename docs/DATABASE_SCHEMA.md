@@ -85,6 +85,7 @@ One row per user, auto-created on signup via trigger.
 | budget_hours | NUMERIC(10,2) | Optional cap |
 | github_repo | TEXT | `owner/repo` format |
 | status | TEXT | `active\|paused\|completed\|archived` |
+| category_set_id | UUID | References `category_sets(id)` SET NULL — optional category template |
 | created_at | TIMESTAMPTZ | |
 
 ### `time_entries`
@@ -99,8 +100,36 @@ One row per user, auto-created on signup via trigger.
 | duration_min | INTEGER | Generated: `EXTRACT(EPOCH FROM (end - start)) / 60` |
 | billable | BOOLEAN | Default: true |
 | github_issue | INTEGER | GitHub issue number |
+| category_id | UUID | References `categories(id)` SET NULL — trigger enforces set matches project |
 | invoiced | BOOLEAN | Default: false |
 | invoice_id | UUID | References `invoices(id)` SET NULL |
+| created_at | TIMESTAMPTZ | |
+
+### `category_sets`
+Templates of time categories. System sets (`is_system=true`, `organization_id=NULL`) are seeded and visible to all users. Org sets are user-created copies or custom sets.
+
+| Column | Type | Notes |
+|--------|------|-------|
+| id | UUID (PK) | |
+| organization_id | UUID | References `organizations(id)` CASCADE; NULL for system sets |
+| name | TEXT | Required, unique per org |
+| description | TEXT | |
+| is_system | BOOLEAN | True for built-in templates |
+| created_by | UUID | References `auth.users(id)` |
+| created_at | TIMESTAMPTZ | |
+
+Check: `is_system` ↔ `organization_id IS NULL` (system sets have no org; org sets have one).
+
+### `categories`
+Individual categories within a set.
+
+| Column | Type | Notes |
+|--------|------|-------|
+| id | UUID (PK) | |
+| category_set_id | UUID | References `category_sets(id)` CASCADE |
+| name | TEXT | Required, unique per set |
+| color | TEXT | Hex color, default `#6b7280` |
+| sort_order | INTEGER | Default 0 |
 | created_at | TIMESTAMPTZ | |
 
 ### `invoices`

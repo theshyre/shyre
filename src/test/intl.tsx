@@ -3,10 +3,12 @@ import { render, type RenderOptions, type RenderResult } from "@testing-library/
 import type { ReactElement, ReactNode } from "react";
 import en from "@/lib/i18n/locales/en/common.json";
 import time from "@/lib/i18n/locales/en/time.json";
+import categories from "@/lib/i18n/locales/en/categories.json";
 
 export const testMessages = {
   common: en,
   time,
+  categories,
 } as const;
 
 /**

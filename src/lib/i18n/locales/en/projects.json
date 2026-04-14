@@ -15,7 +15,9 @@
     "budgetHours": "Budget Hours",
     "githubRepo": "GitHub Repo",
     "githubRepoPlaceholder": "owner/repo",
-    "status": "Status"
+    "status": "Status",
+    "categorySet": "Category set",
+    "noCategorySet": "No categories"
   },
   "table": {
     "client": "Client",

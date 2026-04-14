@@ -25,6 +25,7 @@ function makeEntry(id: string, date: Date): TimeEntry {
     duration_min: 60,
     billable: true,
     github_issue: null,
+    category_id: null,
     projects: project,
   };
 }
@@ -38,6 +39,7 @@ describe("WeekGrid", () => {
         weekStart={weekStart}
         entries={[]}
         projects={[]}
+        categories={[]}
         expandedEntryId={null}
         onToggleExpand={() => {}}
       />,
@@ -58,6 +60,7 @@ describe("WeekGrid", () => {
         weekStart={weekStart}
         entries={entries}
         projects={[]}
+        categories={[]}
         expandedEntryId={null}
         onToggleExpand={() => {}}
       />,

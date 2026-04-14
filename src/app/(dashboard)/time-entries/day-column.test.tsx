@@ -27,6 +27,7 @@ function makeEntry(id: string, startHour: number, durationMin = 60): TimeEntry {
     duration_min: durationMin,
     billable: true,
     github_issue: null,
+    category_id: null,
     projects: project,
   };
 }
@@ -40,6 +41,7 @@ describe("DayColumn", () => {
         date={date}
         entries={[]}
         projects={[]}
+        categories={[]}
         expandedEntryId={null}
         onToggleExpand={() => {}}
       />,
@@ -55,6 +57,7 @@ describe("DayColumn", () => {
         date={date}
         entries={entries}
         projects={[]}
+        categories={[]}
         expandedEntryId={null}
         onToggleExpand={() => {}}
       />,
@@ -71,6 +74,7 @@ describe("DayColumn", () => {
         date={date}
         entries={entries}
         projects={[]}
+        categories={[]}
         expandedEntryId={null}
         onToggleExpand={() => {}}
       />,
@@ -87,6 +91,7 @@ describe("DayColumn", () => {
         date={today}
         entries={[]}
         projects={[]}
+        categories={[]}
         expandedEntryId={null}
         onToggleExpand={() => {}}
       />,

@@ -18,6 +18,7 @@ import {
 } from "@/lib/form-styles";
 import { OrgSelector } from "@/components/OrgSelector";
 import type { OrgListItem } from "@/lib/org-context";
+import type { CategorySet } from "@/lib/categories/types";
 import { createProjectAction } from "./actions";
 
 interface ClientOption {
@@ -29,10 +30,12 @@ export function NewProjectForm({
   clients,
   orgs,
   defaultOrgId,
+  categorySets,
 }: {
   clients: ClientOption[];
   orgs: OrgListItem[];
   defaultOrgId?: string;
+  categorySets: CategorySet[];
 }): React.JSX.Element {
   const [open, setOpen] = useState(false);
   const t = useTranslations("projects");
@@ -115,6 +118,17 @@ export function NewProjectForm({
             placeholder={t("fields.githubRepoPlaceholder")}
             className={inputClass}
           />
+        </div>
+        <div className="sm:col-span-2">
+          <label className={labelClass}>{t("fields.categorySet")}</label>
+          <select name="category_set_id" className={selectClass}>
+            <option value="">{t("fields.noCategorySet")}</option>
+            {categorySets.map((s) => (
+              <option key={s.id} value={s.id}>
+                {s.is_system ? `${s.name} (built-in)` : s.name}
+              </option>
+            ))}
+          </select>
         </div>
       </div>
       <div>

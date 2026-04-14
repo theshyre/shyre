@@ -6,6 +6,7 @@ export interface ProjectInfo {
   id: string;
   name: string;
   github_repo: string | null;
+  category_set_id?: string | null;
 }
 
 export interface TimeEntry {
@@ -19,6 +20,7 @@ export interface TimeEntry {
   duration_min: number | null;
   billable: boolean;
   github_issue: number | null;
+  category_id: string | null;
   projects: ProjectInfo | null;
 }
 
@@ -27,4 +29,13 @@ export interface ProjectOption {
   name: string;
   github_repo: string | null;
   organization_id: string;
+  category_set_id: string | null;
+}
+
+export interface CategoryOption {
+  id: string;
+  category_set_id: string;
+  name: string;
+  color: string;
+  sort_order: number;
 }

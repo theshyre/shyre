@@ -17,6 +17,7 @@ export async function createTimeEntryAction(formData: FormData): Promise<void> {
     const billable = formData.get("billable") === "on";
     const issueStr = formData.get("github_issue") as string;
     const github_issue = issueStr ? parseInt(issueStr, 10) : null;
+    const category_id = (formData.get("category_id") as string) || null;
 
     assertSupabaseOk(
       await supabase.from("time_entries").insert({
@@ -28,6 +29,7 @@ export async function createTimeEntryAction(formData: FormData): Promise<void> {
         end_time: end_time || null,
         billable,
         github_issue,
+        category_id,
       })
     );
 
@@ -45,6 +47,7 @@ export async function updateTimeEntryAction(formData: FormData): Promise<void> {
     const billable = formData.get("billable") === "on";
     const issueStr = formData.get("github_issue") as string;
     const github_issue = issueStr ? parseInt(issueStr, 10) : null;
+    const category_id = (formData.get("category_id") as string) || null;
 
     assertSupabaseOk(
       await supabase
@@ -55,6 +58,7 @@ export async function updateTimeEntryAction(formData: FormData): Promise<void> {
           end_time: end_time || null,
           billable,
           github_issue,
+          category_id,
         })
         .eq("id", id)
         .eq("user_id", userId)
@@ -83,6 +87,7 @@ export async function startTimerAction(formData: FormData): Promise<void> {
 
     const project_id = formData.get("project_id") as string;
     const description = (formData.get("description") as string) || null;
+    const category_id = (formData.get("category_id") as string) || null;
 
     assertSupabaseOk(
       await supabase.from("time_entries").insert({
@@ -93,6 +98,7 @@ export async function startTimerAction(formData: FormData): Promise<void> {
         start_time: new Date().toISOString(),
         end_time: null,
         billable: true,
+        category_id,
       })
     );
 
@@ -127,7 +133,9 @@ export async function duplicateTimeEntryAction(formData: FormData): Promise<void
     // Fetch source entry
     const { data: source, error: fetchErr } = await supabase
       .from("time_entries")
-      .select("organization_id, project_id, description, billable, github_issue")
+      .select(
+        "organization_id, project_id, description, billable, github_issue, category_id",
+      )
       .eq("id", sourceId)
       .eq("user_id", userId)
       .single();
@@ -156,6 +164,7 @@ export async function duplicateTimeEntryAction(formData: FormData): Promise<void
         end_time: null,
         billable: source.billable,
         github_issue: source.github_issue,
+        category_id: source.category_id,
       })
     );
 

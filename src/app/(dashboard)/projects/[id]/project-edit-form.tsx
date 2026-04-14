@@ -11,6 +11,7 @@ import {
   labelClass,
   selectClass,
 } from "@/lib/form-styles";
+import type { CategorySet } from "@/lib/categories/types";
 import { updateProjectAction } from "../actions";
 
 interface Project {
@@ -21,14 +22,17 @@ interface Project {
   budget_hours: number | null;
   github_repo: string | null;
   status: string | null;
+  category_set_id: string | null;
 }
 
 const STATUSES = ["active", "paused", "completed", "archived"] as const;
 
 export function ProjectEditForm({
   project,
+  categorySets,
 }: {
   project: Project;
+  categorySets: CategorySet[];
 }): React.JSX.Element {
   const t = useTranslations("projects");
   const tc = useTranslations("common");
@@ -105,6 +109,21 @@ export function ProjectEditForm({
               defaultValue={project.github_repo ?? ""}
               className={inputClass}
             />
+          </div>
+          <div className="sm:col-span-2">
+            <label className={labelClass}>{t("fields.categorySet")}</label>
+            <select
+              name="category_set_id"
+              defaultValue={project.category_set_id ?? ""}
+              className={selectClass}
+            >
+              <option value="">{t("fields.noCategorySet")}</option>
+              {categorySets.map((s) => (
+                <option key={s.id} value={s.id}>
+                  {s.is_system ? `${s.name} (built-in)` : s.name}
+                </option>
+              ))}
+            </select>
           </div>
         </div>
         <div>

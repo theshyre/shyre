@@ -19,21 +19,26 @@ import { GitHubIssuePicker } from "@/components/GitHubIssuePicker";
 import { OrgSelector } from "@/components/OrgSelector";
 import type { OrgListItem } from "@/lib/org-context";
 import { createTimeEntryAction } from "./actions";
+import { CategoryPicker } from "./category-picker";
+import type { CategoryOption } from "./types";
 
 interface ProjectOption {
   id: string;
   name: string;
   github_repo: string | null;
+  category_set_id?: string | null;
 }
 
 export function NewTimeEntryForm({
   projects,
   orgs,
   defaultOrgId,
+  categories,
 }: {
   projects: ProjectOption[];
   orgs: OrgListItem[];
   defaultOrgId?: string;
+  categories: CategoryOption[];
 }): React.JSX.Element {
   const [open, setOpen] = useState(false);
   const [selectedProjectId, setSelectedProjectId] = useState("");
@@ -154,6 +159,12 @@ export function NewTimeEntryForm({
             />
             {t("fields.billable")}
           </label>
+        </div>
+        <div className="sm:col-span-2">
+          <CategoryPicker
+            categories={categories}
+            categorySetId={selectedProject?.category_set_id ?? null}
+          />
         </div>
       </div>
       <div className="flex gap-2">

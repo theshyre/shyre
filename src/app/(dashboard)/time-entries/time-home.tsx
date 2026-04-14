@@ -15,7 +15,7 @@ import { WeekNav } from "./week-nav";
 import { WeekGrid } from "./week-grid";
 import { TodayPanel } from "./today-panel";
 import { NewTimeEntryForm } from "./new-time-entry-form";
-import type { ProjectOption, TimeEntry } from "./types";
+import type { CategoryOption, ProjectOption, TimeEntry } from "./types";
 
 interface TimeHomeProps {
   orgs: OrgListItem[];
@@ -26,6 +26,7 @@ interface TimeHomeProps {
   running: TimeEntry | null;
   projects: ProjectOption[];
   recentProjects: ProjectOption[];
+  categories: CategoryOption[];
 }
 
 export function TimeHome({
@@ -37,6 +38,7 @@ export function TimeHome({
   running,
   projects,
   recentProjects,
+  categories,
 }: TimeHomeProps): React.JSX.Element {
   const t = useTranslations("time");
   const weekStart = new Date(weekStartIso);
@@ -64,6 +66,7 @@ export function TimeHome({
         recentProjects={recentProjects}
         orgs={orgs}
         defaultOrgId={selectedOrgId ?? undefined}
+        categories={categories}
       />
 
       <div className="flex items-center justify-between flex-wrap gap-3">
@@ -81,6 +84,7 @@ export function TimeHome({
         weekStart={weekStart}
         entries={weekEntries}
         projects={projects}
+        categories={categories}
         expandedEntryId={expandedEntryId}
         onToggleExpand={toggleExpanded}
       />
@@ -88,6 +92,7 @@ export function TimeHome({
       <TodayPanel
         entries={todayEntries}
         projects={projects}
+        categories={categories}
         expandedEntryId={expandedEntryId}
         onToggleExpand={toggleExpanded}
       />
@@ -96,6 +101,7 @@ export function TimeHome({
         projects={projects}
         orgs={orgs}
         defaultOrgId={selectedOrgId ?? undefined}
+        categories={categories}
       />
     </div>
   );

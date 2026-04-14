@@ -11,6 +11,7 @@ import {
   Monitor,
   Eye,
   Upload,
+  Tags,
 } from "lucide-react";
 import { MfaSetup } from "@/components/MfaSetup";
 import { useFormAction } from "@/hooks/use-form-action";
@@ -175,6 +176,20 @@ export function UserSettingsForm({
           <p className="text-sm font-medium text-content">Security Groups</p>
           <p className="text-xs text-content-muted">
             Bundle users to grant permissions in bulk
+          </p>
+        </div>
+      </a>
+
+      {/* Time Categories */}
+      <a
+        href="/settings/categories"
+        className="flex items-center gap-3 rounded-lg border border-edge bg-surface-raised p-4 hover:bg-hover transition-colors"
+      >
+        <Tags size={20} className="text-accent" />
+        <div>
+          <p className="text-sm font-medium text-content">Time Categories</p>
+          <p className="text-xs text-content-muted">
+            Tag time entries with configurable categories per project
           </p>
         </div>
       </a>

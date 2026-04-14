@@ -15,6 +15,7 @@ export default getRequestConfig(async () => {
     reports,
     errors,
     sharing,
+    categories,
   ] = await Promise.all([
     import(`./locales/${locale}/common.json`),
     import(`./locales/${locale}/auth.json`),
@@ -27,6 +28,7 @@ export default getRequestConfig(async () => {
     import(`./locales/${locale}/reports.json`),
     import(`./locales/${locale}/errors.json`),
     import(`./locales/${locale}/sharing.json`),
+    import(`./locales/${locale}/categories.json`),
   ]);
 
   return {
@@ -43,6 +45,7 @@ export default getRequestConfig(async () => {
       reports: reports.default,
       errors: errors.default,
       sharing: sharing.default,
+      categories: categories.default,
     },
   };
 });

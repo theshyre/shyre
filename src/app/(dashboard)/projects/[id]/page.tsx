@@ -2,6 +2,7 @@ import { createClient } from "@/lib/supabase/server";
 import { getTranslations } from "next-intl/server";
 import { notFound } from "next/navigation";
 import { Clock, Hash, ExternalLink } from "lucide-react";
+import { getVisibleCategorySets } from "@/lib/categories/queries";
 import { ProjectEditForm } from "./project-edit-form";
 
 interface IssueTimeSummary {
@@ -26,6 +27,19 @@ export default async function ProjectDetailPage({
     .single();
 
   if (!project) notFound();
+
+  const categorySetsFull = await getVisibleCategorySets(project.organization_id);
+  const categorySets = categorySetsFull.map(
+    ({ id, organization_id, name, description, is_system, created_by, created_at }) => ({
+      id,
+      organization_id,
+      name,
+      description,
+      is_system,
+      created_by,
+      created_at,
+    }),
+  );
 
   const { data: timeEntries } = await supabase
     .from("time_entries")
@@ -66,7 +80,7 @@ export default async function ProjectDetailPage({
 
   return (
     <div>
-      <ProjectEditForm project={project} />
+      <ProjectEditForm project={project} categorySets={categorySets} />
 
       {/* Issue Time Summary */}
       {issueSummaries.length > 0 && project.github_repo && (

@@ -5,11 +5,13 @@ import { DollarSign } from "lucide-react";
 import { formatDurationShort } from "@/lib/time/week";
 import { EntryKebabMenu } from "./entry-kebab-menu";
 import { InlineEditForm } from "./inline-edit-form";
-import type { ProjectOption, TimeEntry } from "./types";
+import { CategoryBadge } from "./category-picker";
+import type { CategoryOption, ProjectOption, TimeEntry } from "./types";
 
 interface Props {
   entry: TimeEntry;
   projects: ProjectOption[];
+  categories: CategoryOption[];
   expanded: boolean;
   onToggleExpand: (id: string) => void;
 }
@@ -17,6 +19,7 @@ interface Props {
 export function EntryCard({
   entry,
   projects,
+  categories,
   expanded,
   onToggleExpand,
 }: Props): React.JSX.Element {
@@ -28,6 +31,9 @@ export function EntryCard({
     hour: "numeric",
     minute: "2-digit",
   });
+  const entryCategory = entry.category_id
+    ? categories.find((c) => c.id === entry.category_id)
+    : null;
 
   return (
     <div
@@ -69,6 +75,7 @@ export function EntryCard({
             {entry.billable && (
               <DollarSign size={10} className="text-success" />
             )}
+            {entryCategory && <CategoryBadge category={entryCategory} />}
           </div>
         </button>
         <div className="pr-1 pt-1">
@@ -83,6 +90,7 @@ export function EntryCard({
           <InlineEditForm
             entry={entry}
             projects={projects}
+            categories={categories}
             onDone={() => onToggleExpand(entry.id)}
           />
         </div>
