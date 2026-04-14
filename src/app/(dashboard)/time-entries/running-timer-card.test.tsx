@@ -1,5 +1,5 @@
 import { describe, it, expect, vi } from "vitest";
-import { screen } from "@testing-library/react";
+import { screen, fireEvent } from "@testing-library/react";
 import { renderWithIntl } from "@/test/intl";
 
 vi.mock("./actions", () => ({
@@ -30,8 +30,8 @@ const orgs = [
 ];
 
 describe("RunningTimerCard", () => {
-  it("shows start form when no running timer", () => {
-    const { container } = renderWithIntl(
+  it("shows a 'Start timer' button by default (collapsed)", () => {
+    renderWithIntl(
       <RunningTimerCard
         running={null}
         projects={[project]}
@@ -41,11 +41,14 @@ describe("RunningTimerCard", () => {
       />,
     );
     expect(screen.getByRole("button", { name: /start/i })).toBeInTheDocument();
-    expect(container.querySelector('select[name="project_id"]')).toBeTruthy();
+    // Project picker is NOT visible in collapsed state
+    expect(
+      document.querySelector('select[name="project_id"]'),
+    ).toBeNull();
   });
 
-  it("autofocuses the project select", () => {
-    const { container } = renderWithIntl(
+  it("expands to show project picker when Start button clicked", () => {
+    renderWithIntl(
       <RunningTimerCard
         running={null}
         projects={[project]}
@@ -54,7 +57,24 @@ describe("RunningTimerCard", () => {
         categories={[]}
       />,
     );
-    expect(container.querySelector('select[name="project_id"]')).toHaveFocus();
+    fireEvent.click(screen.getByRole("button", { name: /start/i }));
+    expect(
+      document.querySelector('select[name="project_id"]'),
+    ).toBeTruthy();
+  });
+
+  it("autofocuses the project select when expanded", () => {
+    renderWithIntl(
+      <RunningTimerCard
+        running={null}
+        projects={[project]}
+        recentProjects={[]}
+        orgs={orgs}
+        categories={[]}
+      />,
+    );
+    fireEvent.click(screen.getByRole("button", { name: /start/i }));
+    expect(document.querySelector('select[name="project_id"]')).toHaveFocus();
   });
 
   it("renders running state with project name and elapsed", () => {
@@ -81,14 +101,13 @@ describe("RunningTimerCard", () => {
         categories={[]}
       />,
     );
-    expect(screen.getByText("Alpha")).toBeInTheDocument();
+    expect(screen.getByText(/Alpha/)).toBeInTheDocument();
     expect(screen.getByText("hacking")).toBeInTheDocument();
     expect(screen.getByRole("button", { name: /stop/i })).toBeInTheDocument();
-    // Elapsed time is HH:MM:SS format
     expect(screen.getByText(/^\d\d:\d\d:\d\d$/)).toBeInTheDocument();
   });
 
-  it("shows recent project chips when provided", () => {
+  it("shows recent project chips after expanding", () => {
     const recent = [
       { id: "p1", name: "Alpha", github_repo: null, organization_id: "o1", category_set_id: null, require_timestamps: true },
       { id: "p2", name: "Beta", github_repo: null, organization_id: "o1", category_set_id: null, require_timestamps: true },
@@ -102,11 +121,12 @@ describe("RunningTimerCard", () => {
         categories={[]}
       />,
     );
+    fireEvent.click(screen.getByRole("button", { name: /start/i }));
     expect(screen.getByRole("button", { name: "Alpha" })).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Beta" })).toBeInTheDocument();
   });
 
-  it("hides org selector when only one org", () => {
+  it("hides org selector when only one org (after expanding)", () => {
     renderWithIntl(
       <RunningTimerCard
         running={null}
@@ -116,6 +136,9 @@ describe("RunningTimerCard", () => {
         categories={[]}
       />,
     );
-    expect(screen.queryByRole("combobox", { name: /organization/i })).not.toBeInTheDocument();
+    fireEvent.click(screen.getByRole("button", { name: /start/i }));
+    expect(
+      screen.queryByRole("combobox", { name: /organization/i }),
+    ).not.toBeInTheDocument();
   });
 });

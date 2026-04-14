@@ -86,6 +86,7 @@
   "home": {
     "runningHeader": "Running",
     "startPrompt": "Start a new timer",
+    "startNewTimer": "Start timer",
     "recentProjects": "Recent",
     "todayTitle": "Today",
     "noToday": "No entries today.",

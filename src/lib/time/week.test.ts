@@ -4,6 +4,7 @@ import {
   getWeekRange,
   isoWeekParam,
   parseWeekParam,
+  parseDayParam,
   groupEntriesByDay,
   formatDurationShort,
   formatDurationHM,
@@ -70,6 +71,21 @@ describe("week helpers", () => {
       const parsed = parseWeekParam("2026-04-15");
       expect(parsed?.getDay()).toBe(1);
       expect(parsed?.getDate()).toBe(13);
+    });
+
+    it("parseDayParam returns the literal day without snapping", () => {
+      const parsed = parseDayParam("2026-04-15");
+      expect(parsed?.getDay()).toBe(3); // Wed
+      expect(parsed?.getDate()).toBe(15);
+      expect(parsed?.getHours()).toBe(0);
+    });
+
+    it("parseDayParam returns null for invalid input", () => {
+      expect(parseDayParam(undefined)).toBeNull();
+      expect(parseDayParam("")).toBeNull();
+      expect(parseDayParam("nope")).toBeNull();
+      expect(parseDayParam("2026-13-01")).toBeNull();
+      expect(parseDayParam("2026-02-30")).toBeNull();
     });
   });
 

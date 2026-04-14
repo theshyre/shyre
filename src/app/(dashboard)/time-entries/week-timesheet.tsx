@@ -6,7 +6,6 @@ import { Plus, Trash2 } from "lucide-react";
 import {
   formatDurationHMZero,
   isSameDay,
-  sumDurationMin,
 } from "@/lib/time/week";
 import { DurationInput } from "./duration-input";
 import {
@@ -274,8 +273,6 @@ function TimesheetRow({
   const category = row.categoryId
     ? categories.find((c) => c.id === row.categoryId)
     : null;
-  const rowTotal = sumDurationMin(row.byDay.map((m) => ({ duration_min: m, billable: true })) as never);
-  // We just need the sum; the type cast is a minor hack to reuse sumDurationMin.
   const rowTotalActual = row.byDay.reduce((s, n) => s + n, 0);
 
   return (
@@ -283,6 +280,11 @@ function TimesheetRow({
       <td className="px-3 py-2 align-middle">
         <div className="text-sm text-content font-medium truncate">
           {project?.name ?? "—"}
+          {project?.clients?.name && (
+            <span className="text-content-muted font-normal ml-1">
+              · {project.clients.name}
+            </span>
+          )}
         </div>
         {category && (
           <div className="flex items-center gap-1.5 mt-0.5">

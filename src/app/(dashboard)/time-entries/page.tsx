@@ -1,14 +1,31 @@
 import { createClient } from "@/lib/supabase/server";
 import { getUserOrgs } from "@/lib/org-context";
 import {
-  getWeekStart,
   getWeekRange,
   getTodayStart,
-  parseWeekParam,
+  parseDayParam,
 } from "@/lib/time/week";
 import { getMyTemplates } from "@/lib/templates/queries";
 import { TimeHome } from "./time-home";
 import type { TimeView } from "./view-toggle";
+
+// Supabase returns `projects(..., clients(...))` with `clients` as a 1-element
+// array even though it's a single FK row. Unwrap so downstream code can read
+// `entry.projects.clients.name` cleanly.
+function normalizeEntry<T extends { projects: unknown }>(row: T): T {
+  const projects = row.projects as
+    | { clients?: unknown; [key: string]: unknown }
+    | null;
+  if (!projects) return row;
+  const clients = projects.clients;
+  const unwrappedClients = Array.isArray(clients)
+    ? (clients[0] ?? null)
+    : (clients ?? null);
+  return {
+    ...row,
+    projects: { ...projects, clients: unwrappedClients },
+  };
+}
 
 interface PageProps {
   searchParams: Promise<{
@@ -34,26 +51,26 @@ export default async function TimeEntriesPage({
   const view = asView(sp.view);
   const billableOnly = sp.billable === "1";
 
-  // Anchor date for the view (default: today)
-  const anchor = parseWeekParam(sp.anchor) ?? getTodayStart();
-  // The "week" that contains the anchor — always used, even in day view
+  // Anchor date for the view (default: today). Day-view uses the literal
+  // date; week-view uses the week containing the anchor.
+  const anchor = parseDayParam(sp.anchor) ?? getTodayStart();
   const { start: weekStart, end: weekEnd } = getWeekRange(anchor);
-  // The specific day (day view uses the anchor literally)
-  const day = sp.anchor ? anchor : getTodayStart();
+  const day = anchor;
 
   // Entries for the whole week (both views use this — day view also needs it
   // for the 7-day strip totals)
   let weekQuery = supabase
     .from("time_entries")
     .select(
-      "*, projects(id, name, github_repo, category_set_id, require_timestamps)",
+      "*, projects(id, name, github_repo, category_set_id, require_timestamps, clients(id, name))",
     )
     .gte("start_time", weekStart.toISOString())
     .lt("start_time", weekEnd.toISOString())
     .order("start_time", { ascending: true });
   if (selectedOrgId) weekQuery = weekQuery.eq("organization_id", selectedOrgId);
   if (billableOnly) weekQuery = weekQuery.eq("billable", true);
-  const { data: weekEntries } = await weekQuery;
+  const { data: rawWeekEntries } = await weekQuery;
+  const weekEntries = (rawWeekEntries ?? []).map(normalizeEntry);
 
   // Entries for the specific day being viewed (day view only)
   const dayStart = new Date(day);
@@ -63,38 +80,45 @@ export default async function TimeEntriesPage({
   let dayQuery = supabase
     .from("time_entries")
     .select(
-      "*, projects(id, name, github_repo, category_set_id, require_timestamps)",
+      "*, projects(id, name, github_repo, category_set_id, require_timestamps, clients(id, name))",
     )
     .gte("start_time", dayStart.toISOString())
     .lt("start_time", dayEnd.toISOString())
     .order("start_time", { ascending: true });
   if (selectedOrgId) dayQuery = dayQuery.eq("organization_id", selectedOrgId);
   if (billableOnly) dayQuery = dayQuery.eq("billable", true);
-  const { data: dayEntries } = await dayQuery;
+  const { data: rawDayEntries } = await dayQuery;
+  const dayEntries = (rawDayEntries ?? []).map(normalizeEntry);
 
   // Running timer
   let runningQuery = supabase
     .from("time_entries")
     .select(
-      "*, projects(id, name, github_repo, category_set_id, require_timestamps)",
+      "*, projects(id, name, github_repo, category_set_id, require_timestamps, clients(id, name))",
     )
     .is("end_time", null)
     .order("start_time", { ascending: false })
     .limit(1);
   if (selectedOrgId) runningQuery = runningQuery.eq("organization_id", selectedOrgId);
   const { data: runningEntries } = await runningQuery;
-  const running = runningEntries?.[0] ?? null;
+  const running = runningEntries?.[0] ? normalizeEntry(runningEntries[0]) : null;
 
   // Active projects
   let projectsQuery = supabase
     .from("projects")
     .select(
-      "id, name, github_repo, organization_id, category_set_id, require_timestamps",
+      "id, name, github_repo, organization_id, category_set_id, require_timestamps, clients(id, name)",
     )
     .eq("status", "active")
     .order("name");
   if (selectedOrgId) projectsQuery = projectsQuery.eq("organization_id", selectedOrgId);
-  const { data: projects } = await projectsQuery;
+  const { data: rawProjects } = await projectsQuery;
+  // Supabase returns nested selects as arrays even for single-row FK joins.
+  // Unwrap `clients` to the single row so downstream types line up.
+  const projects = (rawProjects ?? []).map((p) => ({
+    ...p,
+    clients: Array.isArray(p.clients) ? (p.clients[0] ?? null) : (p.clients ?? null),
+  }));
 
   // Categories visible to any project's category set
   const setIds = Array.from(

@@ -36,8 +36,38 @@ export function isoWeekParam(date: Date): string {
 }
 
 /**
+ * Parse a YYYY-MM-DD date param into a Date at local midnight.
+ * Returns null if invalid. Does NOT snap to any week boundary — use when you
+ * need the literal date (e.g. day-view navigation).
+ */
+export function parseDayParam(param: string | undefined): Date | null {
+  if (!param) return null;
+  const match = param.match(/^(\d{4})-(\d{2})-(\d{2})$/);
+  if (!match) return null;
+  const y = match[1];
+  const m = match[2];
+  const d = match[3];
+  if (!y || !m || !d) return null;
+  const year = Number(y);
+  const month = Number(m);
+  const day = Number(d);
+  if (month < 1 || month > 12 || day < 1 || day > 31) return null;
+  const date = new Date(year, month - 1, day);
+  if (isNaN(date.getTime())) return null;
+  if (
+    date.getFullYear() !== year ||
+    date.getMonth() !== month - 1 ||
+    date.getDate() !== day
+  ) {
+    return null;
+  }
+  return date;
+}
+
+/**
  * Parse a YYYY-MM-DD week param into a Date (local midnight).
- * Returns null if invalid.
+ * Returns null if invalid. Snaps to the Monday of the containing week — use
+ * when you need the week boundary.
  */
 export function parseWeekParam(param: string | undefined): Date | null {
   if (!param) return null;

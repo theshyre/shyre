@@ -2,12 +2,18 @@
  * Shared types for time-entries client components.
  */
 
+export interface ClientRef {
+  id: string;
+  name: string;
+}
+
 export interface ProjectInfo {
   id: string;
   name: string;
   github_repo: string | null;
   category_set_id?: string | null;
   require_timestamps?: boolean;
+  clients?: ClientRef | null;
 }
 
 export interface TimeEntry {
@@ -32,6 +38,7 @@ export interface ProjectOption {
   organization_id: string;
   category_set_id: string | null;
   require_timestamps: boolean;
+  clients?: ClientRef | null;
 }
 
 export interface CategoryOption {

@@ -2,10 +2,12 @@
 
 import { useEffect, useRef, useState } from "react";
 import { useTranslations } from "next-intl";
-import { Play, Square } from "lucide-react";
+import { Play, Square, X } from "lucide-react";
 import { useFormAction } from "@/hooks/use-form-action";
 import { SubmitButton } from "@/components/SubmitButton";
 import {
+  buttonPrimaryClass,
+  buttonGhostClass,
   inputClass,
   labelClass,
   selectClass,
@@ -39,7 +41,6 @@ export function RunningTimerCard({
   categories,
   templates = [],
 }: Props): React.JSX.Element {
-  const t = useTranslations("time");
   const tf = useTranslations("time.fields");
   const tt = useTranslations("time.timer");
   const th = useTranslations("time.home");
@@ -47,11 +48,13 @@ export function RunningTimerCard({
   const startForm = useFormAction({ action: startTimerAction });
   const stopForm = useFormAction({ action: stopTimerAction });
 
+  const [expanded, setExpanded] = useState(false);
   const [selectedProjectId, setSelectedProjectId] = useState("");
   const [description, setDescription] = useState("");
   const [elapsed, setElapsed] = useState("00:00:00");
   const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
+  // Live-tick the elapsed clock when a timer is running
   useEffect(() => {
     if (!running) {
       setElapsed("00:00:00");
@@ -74,8 +77,9 @@ export function RunningTimerCard({
     };
   }, [running]);
 
-  // Space shortcut — only handle start here (stop is handled by sidebar Timer widget).
-  // We only bind start when there's no running timer, to avoid double-handling.
+  // Space shortcut: opens the start form when collapsed + no running timer;
+  // submits it when expanded + project selected. Sidebar Timer widget handles
+  // stopping, so we don't bind that here.
   useEffect(() => {
     if (running) return;
     function handleKey(e: KeyboardEvent) {
@@ -84,76 +88,120 @@ export function RunningTimerCard({
       const tag = target.tagName.toLowerCase();
       if (tag === "input" || tag === "textarea" || tag === "select") return;
       if (target.isContentEditable) return;
-      if (!selectedProjectId) return;
       e.preventDefault();
-      const fd = new FormData();
-      fd.set("organization_id", defaultOrgId ?? orgs[0]?.id ?? "");
-      fd.set("project_id", selectedProjectId);
-      fd.set("description", description);
-      void startForm.handleSubmit(fd);
+      if (!expanded) {
+        setExpanded(true);
+      } else if (selectedProjectId) {
+        const fd = new FormData();
+        fd.set("organization_id", defaultOrgId ?? orgs[0]?.id ?? "");
+        fd.set("project_id", selectedProjectId);
+        fd.set("description", description);
+        void startForm.handleSubmit(fd);
+      }
     }
     window.addEventListener("keydown", handleKey);
     return () => window.removeEventListener("keydown", handleKey);
-  }, [running, selectedProjectId, description, defaultOrgId, orgs, startForm]);
+  }, [running, expanded, selectedProjectId, description, defaultOrgId, orgs, startForm]);
 
+  // --- Running state: live clock + Stop button
   if (running) {
     const projectName = running.projects?.name ?? "—";
+    const clientName = running.projects?.clients?.name ?? null;
     return (
-      <div className="rounded-lg border border-success/30 bg-success-soft p-6">
+      <div className="rounded-lg border border-success/30 bg-success-soft p-4 flex items-center gap-4 flex-wrap">
         <div className="flex items-center gap-2">
-          <span className="h-3 w-3 rounded-full bg-success animate-pulse" />
-          <span className="text-sm font-medium text-success">
+          <span className="h-2.5 w-2.5 rounded-full bg-success animate-pulse" />
+          <span className="text-xs font-medium text-success uppercase tracking-wider">
             {th("runningHeader")}
           </span>
-          <kbd className={kbdClass}>Space</kbd>
         </div>
-        <p className="mt-3 font-mono text-4xl font-semibold text-content tabular-nums">
+        <span className="font-mono text-2xl font-semibold text-content tabular-nums">
           {elapsed}
-        </p>
-        <p className="mt-2 text-sm text-content">{projectName}</p>
-        {running.description && (
-          <p className="text-sm text-content-secondary">{running.description}</p>
-        )}
+        </span>
+        <div className="min-w-0 flex-1">
+          <p className="text-sm text-content truncate">
+            {projectName}
+            {clientName && (
+              <span className="text-content-muted">
+                {" "}· {clientName}
+              </span>
+            )}
+          </p>
+          {running.description && (
+            <p className="text-xs text-content-secondary truncate">
+              {running.description}
+            </p>
+          )}
+        </div>
         {stopForm.serverError && (
-          <p className="mt-2 text-sm text-error bg-error-soft rounded-lg px-3 py-2">
+          <p className="text-xs text-error bg-error-soft rounded-md px-2 py-1">
             {stopForm.serverError}
           </p>
         )}
-        <form action={stopForm.handleSubmit} className="mt-4">
+        <form action={stopForm.handleSubmit}>
           <input type="hidden" name="id" value={running.id} />
           <SubmitButton
             label={tt("stop")}
             pending={stopForm.pending}
             icon={Square}
-            className="flex items-center gap-2 rounded-lg bg-error px-4 py-2 text-sm font-medium text-content-inverse hover:opacity-90 transition-colors disabled:opacity-50"
+            className="flex items-center gap-2 rounded-lg bg-error px-3 py-2 text-sm font-medium text-content-inverse hover:opacity-90 transition-colors disabled:opacity-50"
           />
         </form>
       </div>
     );
   }
 
+  // --- Collapsed state: just the Start button (Harvest-style)
+  if (!expanded) {
+    return (
+      <div className="flex items-center gap-3 flex-wrap">
+        <button
+          type="button"
+          onClick={() => setExpanded(true)}
+          className={buttonPrimaryClass}
+        >
+          <Play size={14} />
+          {th("startNewTimer")}
+          <kbd className={kbdClass}>Space</kbd>
+        </button>
+        {templates.length > 0 && <TemplateChips templates={templates} />}
+      </div>
+    );
+  }
+
+  // --- Expanded state: compact start form
+  const selectedProject = projects.find((p) => p.id === selectedProjectId);
   return (
     <form
       action={startForm.handleSubmit}
-      className="space-y-4 rounded-lg border border-edge bg-surface-raised p-6"
+      className="space-y-3 rounded-lg border border-accent bg-surface-raised p-4"
     >
-      <div className="flex items-center gap-2">
-        <span className="h-3 w-3 rounded-full bg-content-muted" />
-        <span className="text-sm font-medium text-content-secondary">
-          {th("startPrompt")}
+      <div className="flex items-center justify-between">
+        <span className="text-xs font-semibold uppercase tracking-wider text-content-muted">
+          {th("startNewTimer")}
         </span>
-        <kbd className={kbdClass}>Space</kbd>
+        <button
+          type="button"
+          onClick={() => setExpanded(false)}
+          className={buttonGhostClass}
+          aria-label="Close"
+        >
+          <X size={14} />
+        </button>
       </div>
+
       {startForm.serverError && (
         <p className="text-sm text-error bg-error-soft rounded-lg px-3 py-2">
           {startForm.serverError}
         </p>
       )}
+
       {orgs.length > 1 && <OrgSelector orgs={orgs} defaultOrgId={defaultOrgId} />}
       {orgs.length === 1 && (
         <input type="hidden" name="organization_id" value={orgs[0]?.id ?? ""} />
       )}
-      <div className="grid gap-4 sm:grid-cols-2">
+
+      <div className="grid gap-3 sm:grid-cols-[2fr_1fr_2fr]">
         <div>
           <label className={labelClass}>{tf("project")} *</label>
           <select
@@ -168,9 +216,16 @@ export function RunningTimerCard({
             {projects.map((p) => (
               <option key={p.id} value={p.id}>
                 {p.name}
+                {p.clients?.name ? ` · ${p.clients.name}` : ""}
               </option>
             ))}
           </select>
+        </div>
+        <div>
+          <CategoryPicker
+            categories={categories}
+            categorySetId={selectedProject?.category_set_id ?? null}
+          />
         </div>
         <div>
           <label className={labelClass}>{tf("description")}</label>
@@ -183,12 +238,7 @@ export function RunningTimerCard({
           />
         </div>
       </div>
-      <CategoryPicker
-        categories={categories}
-        categorySetId={
-          projects.find((p) => p.id === selectedProjectId)?.category_set_id ?? null
-        }
-      />
+
       {recentProjects.length > 0 && (
         <RecentProjectsChips
           projects={recentProjects}
@@ -196,8 +246,16 @@ export function RunningTimerCard({
           selectedId={selectedProjectId}
         />
       )}
-      <TemplateChips templates={templates} />
-      <SubmitButton label={tt("start")} pending={startForm.pending} icon={Play} />
+
+      {templates.length > 0 && <TemplateChips templates={templates} />}
+
+      <div className="flex gap-2">
+        <SubmitButton
+          label={tt("start")}
+          pending={startForm.pending}
+          icon={Play}
+        />
+      </div>
     </form>
   );
 }

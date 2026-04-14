@@ -86,6 +86,7 @@
   "home": {
     "runningHeader": "En curso",
     "startPrompt": "Iniciar un nuevo cronómetro",
+    "startNewTimer": "Iniciar",
     "recentProjects": "Recientes",
     "todayTitle": "Hoy",
     "noToday": "No hay registros hoy.",

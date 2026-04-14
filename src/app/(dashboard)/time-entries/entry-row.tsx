@@ -55,7 +55,12 @@ export function EntryRow({
           </span>
         </td>
         <td className="px-3 py-2 align-middle">
-          <span className="text-sm text-content">{projectName}</span>
+          <div className="text-sm text-content">{projectName}</div>
+          {entry.projects?.clients?.name && (
+            <div className="text-[11px] text-content-muted">
+              {entry.projects.clients.name}
+            </div>
+          )}
         </td>
         <td className="px-3 py-2 align-middle">
           <span className="text-sm text-content-secondary">
