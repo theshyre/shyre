@@ -23,6 +23,7 @@ import {
 import type { ComponentType } from "react";
 import Timer from "./Timer";
 import { Avatar } from "./Avatar";
+import { navItemsForSection } from "@/lib/modules/registry";
 
 interface NavItem {
   labelKey: string;
@@ -40,7 +41,12 @@ interface NavSection {
  * - Track  : daily work (dashboard, time tracking)
  * - Manage : ongoing records (customers, projects, invoices, reports)
  * - Admin  : org-level admin (organizations, security groups, categories,
- *            templates, data import)
+ *            templates, data import, business)
+ *
+ * Shell entries (dashboard, projects, reports, org-admin tooling) live in
+ * the hardcoded section arrays below. Module-owned entries (time, customers,
+ * invoices, business) are contributed by the module registry so new modules
+ * can plug in by editing one file.
  *
  * Personal user profile lives at /profile (linked from the user identity
  * block at the top of the sidebar).
@@ -48,20 +54,22 @@ interface NavSection {
  * System admin is a separate section rendered below, visible only to
  * system admins.
  */
-const sections: NavSection[] = [
+
+/** Shell-owned nav entries (not owned by any module). */
+const SHELL_SECTIONS: NavSection[] = [
   {
     titleKey: "navSections.track",
     items: [
       { labelKey: "dashboard", href: "/", icon: LayoutDashboard },
-      { labelKey: "time", href: "/time-entries", icon: Clock },
+      // Modules in the "track" section are injected from the registry
     ],
   },
   {
     titleKey: "navSections.manage",
     items: [
-      { labelKey: "customers", href: "/customers", icon: Users },
+      // Module-owned entries come first (customers, invoices)
+      // then shell-owned cross-cutting entries:
       { labelKey: "projects", href: "/projects", icon: FolderKanban },
-      { labelKey: "invoices", href: "/invoices", icon: FileText },
       { labelKey: "reports", href: "/reports", icon: BarChart3 },
     ],
   },
@@ -69,6 +77,7 @@ const sections: NavSection[] = [
     titleKey: "navSections.admin",
     items: [
       { labelKey: "organizations", href: "/organizations", icon: Building2 },
+      // Business module injected here from the registry
       { labelKey: "securityGroups", href: "/settings/security-groups", icon: Shield },
       { labelKey: "categories", href: "/settings/categories", icon: Tags },
       { labelKey: "templates", href: "/settings/templates", icon: Bookmark },
@@ -76,6 +85,41 @@ const sections: NavSection[] = [
     ],
   },
 ];
+
+type NavSectionId = "track" | "manage" | "admin";
+const SECTION_ID_BY_TITLE: Record<string, NavSectionId> = {
+  "navSections.track": "track",
+  "navSections.manage": "manage",
+  "navSections.admin": "admin",
+};
+
+/** Merge shell entries with module-contributed entries per section. */
+function buildSections(): NavSection[] {
+  return SHELL_SECTIONS.map((section) => {
+    const sectionId = section.titleKey
+      ? SECTION_ID_BY_TITLE[section.titleKey]
+      : undefined;
+    const moduleItems = sectionId ? navItemsForSection(sectionId) : [];
+    const seen = new Set<string>();
+    const merged: NavItem[] = [];
+    // Module items come first within a section, before shell items
+    for (const it of moduleItems) {
+      if (!seen.has(it.href)) {
+        seen.add(it.href);
+        merged.push(it);
+      }
+    }
+    for (const it of section.items) {
+      if (!seen.has(it.href)) {
+        seen.add(it.href);
+        merged.push(it);
+      }
+    }
+    return { ...section, items: merged };
+  });
+}
+
+const sections: NavSection[] = buildSections();
 
 const systemAdminItems: NavItem[] = [
   { labelKey: "adminErrors", href: "/admin/errors", icon: AlertTriangle },

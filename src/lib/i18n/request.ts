@@ -18,6 +18,7 @@ export default getRequestConfig(async () => {
     categories,
     templates,
     profile,
+    business,
   ] = await Promise.all([
     import(`./locales/${locale}/common.json`),
     import(`./locales/${locale}/auth.json`),
@@ -33,6 +34,7 @@ export default getRequestConfig(async () => {
     import(`./locales/${locale}/categories.json`),
     import(`./locales/${locale}/templates.json`),
     import(`./locales/${locale}/profile.json`),
+    import(`./locales/${locale}/business.json`),
   ]);
 
   return {
@@ -52,6 +54,7 @@ export default getRequestConfig(async () => {
       categories: categories.default,
       templates: templates.default,
       profile: profile.default,
+      business: business.default,
     },
   };
 });

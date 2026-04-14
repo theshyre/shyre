@@ -14,6 +14,7 @@
     "templates": "Plantillas",
     "import": "Importar",
     "profile": "Tu perfil",
+    "business": "Negocio",
     "adminErrors": "Registro de Errores",
     "adminUsers": "Usuarios",
     "adminOrgs": "Todas las Organizaciones"
@@ -23,6 +24,12 @@
     "manage": "Gestionar",
     "admin": "Administración",
     "systemAdmin": "Administración del Sistema"
+  },
+  "modules": {
+    "stint": "Stint (Tiempo)",
+    "customers": "Clientes",
+    "invoicing": "Facturación",
+    "business": "Negocio"
   },
   "actions": {
     "save": "Guardar",

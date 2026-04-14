@@ -7,6 +7,7 @@ import categories from "@/lib/i18n/locales/en/categories.json";
 import templates from "@/lib/i18n/locales/en/templates.json";
 import settings from "@/lib/i18n/locales/en/settings.json";
 import profile from "@/lib/i18n/locales/en/profile.json";
+import business from "@/lib/i18n/locales/en/business.json";
 
 export const testMessages = {
   common: en,
@@ -15,6 +16,7 @@ export const testMessages = {
   templates,
   settings,
   profile,
+  business,
 } as const;
 
 /**

@@ -269,7 +269,7 @@ describe("client permissions", () => {
       .eq("principal_id", scenario.eve.id);
 
     expect(rows).toHaveLength(1);
-    expect(rows![0].permission_level).toBe("admin");
+    expect(rows?.[0]?.permission_level).toBe("admin");
   });
 
   it("revoking a permission removes access", async () => {

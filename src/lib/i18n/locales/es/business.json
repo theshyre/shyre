@@ -1,0 +1,51 @@
+{
+  "title": "Negocio",
+  "subtitle": "Identidad legal, clientes, gastos y personas de esta organización.",
+  "edit": "Editar",
+  "noOrg": "Elige una organización para ver la identidad del negocio.",
+  "sections": {
+    "identity": "Identidad del negocio"
+  },
+  "fields": {
+    "legalName": "Razón social",
+    "entityType": "Tipo de entidad",
+    "taxId": "ID Fiscal (EIN)",
+    "stateRegistrationId": "ID de registro estatal",
+    "registeredState": "Registrada en",
+    "dateIncorporated": "Fecha de constitución",
+    "fiscalYearStart": "Inicio del año fiscal"
+  },
+  "stats": {
+    "customers": "Clientes",
+    "billableHours": "Hrs facturables · este mes"
+  },
+  "tiles": {
+    "expenses": {
+      "title": "Gastos",
+      "hint": "Registra gastos del negocio. Próximamente."
+    },
+    "people": {
+      "title": "Empleados y contratistas",
+      "hint": "Registra personas que trabajan para el negocio. Próximamente."
+    }
+  },
+  "info": {
+    "title": "Identidad del negocio",
+    "back": "Volver a Negocio",
+    "save": "Guardar identidad",
+    "fields": {
+      "legalName": "Razón social",
+      "legalNamePlaceholder": "Como aparece en el registro",
+      "legalNameHelp": "Nombre formal registrado de la entidad. Déjalo vacío para usar el nombre de la organización.",
+      "entityType": "Tipo de entidad",
+      "entityTypeAny": "— Selecciona —",
+      "taxId": "ID Fiscal (EIN)",
+      "taxIdHelp": "Se guarda tal cual. Maneja con cuidado.",
+      "stateRegistrationId": "ID de registro estatal",
+      "registeredState": "Registrada en",
+      "dateIncorporated": "Fecha de constitución",
+      "fiscalYearStart": "Inicio del año fiscal (MM-DD)",
+      "fiscalYearStartHelp": "Usa 01-01 para año calendario, 07-01 para año fiscal julio–junio, etc."
+    }
+  }
+}

@@ -38,7 +38,7 @@ describe("client sharing", () => {
       .eq("organization_id", scenario.participatingOrg.id);
 
     expect(shares).toHaveLength(1);
-    expect(shares![0].can_see_others_entries).toBe(false);
+    expect(shares?.[0]?.can_see_others_entries).toBe(false);
   });
 
   it("cannot share with the client's primary org", async () => {

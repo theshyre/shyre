@@ -1,0 +1,51 @@
+{
+  "title": "Business",
+  "subtitle": "Legal identity, customers, expenses, and people for this organization.",
+  "edit": "Edit",
+  "noOrg": "Pick an organization to see business identity.",
+  "sections": {
+    "identity": "Business identity"
+  },
+  "fields": {
+    "legalName": "Legal name",
+    "entityType": "Entity type",
+    "taxId": "Tax ID (EIN)",
+    "stateRegistrationId": "State registration ID",
+    "registeredState": "Registered in",
+    "dateIncorporated": "Incorporated",
+    "fiscalYearStart": "Fiscal year start"
+  },
+  "stats": {
+    "customers": "Customers",
+    "billableHours": "Billable hrs · this month"
+  },
+  "tiles": {
+    "expenses": {
+      "title": "Expenses",
+      "hint": "Track business expenses. Coming soon."
+    },
+    "people": {
+      "title": "Employees & contractors",
+      "hint": "Track people who work for the business. Coming soon."
+    }
+  },
+  "info": {
+    "title": "Business identity",
+    "back": "Back to Business",
+    "save": "Save business identity",
+    "fields": {
+      "legalName": "Legal name",
+      "legalNamePlaceholder": "As registered with the state",
+      "legalNameHelp": "The formal registered name of the entity. Leave blank to use the organization's display name.",
+      "entityType": "Entity type",
+      "entityTypeAny": "— Select —",
+      "taxId": "Tax ID (EIN)",
+      "taxIdHelp": "Stored as entered. Handle with care.",
+      "stateRegistrationId": "State registration ID",
+      "registeredState": "Registered in",
+      "dateIncorporated": "Date of incorporation",
+      "fiscalYearStart": "Fiscal year start (MM-DD)",
+      "fiscalYearStartHelp": "Use 01-01 for calendar-year businesses, 07-01 for July–June fiscal year, etc."
+    }
+  }
+}

@@ -14,6 +14,7 @@
     "templates": "Templates",
     "import": "Import",
     "profile": "Your profile",
+    "business": "Business",
     "adminErrors": "Error Log",
     "adminUsers": "Users",
     "adminOrgs": "All Organizations"
@@ -23,6 +24,12 @@
     "manage": "Manage",
     "admin": "Admin",
     "systemAdmin": "System Admin"
+  },
+  "modules": {
+    "stint": "Stint (Time Tracking)",
+    "customers": "Customers",
+    "invoicing": "Invoicing",
+    "business": "Business"
   },
   "actions": {
     "save": "Save",
