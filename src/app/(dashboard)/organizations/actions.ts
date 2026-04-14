@@ -1,7 +1,6 @@
 "use server";
 
 import { runSafeAction } from "@/lib/safe-action";
-import { assertSupabaseOk } from "@/lib/errors";
 import { validateOrgAccess } from "@/lib/org-context";
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
@@ -43,16 +42,19 @@ export async function leaveOrgAction(formData: FormData): Promise<void> {
       }
     }
 
-    assertSupabaseOk(
-      await supabase
-        .from("organization_members")
-        .delete()
-        .eq("organization_id", orgId)
-        .eq("user_id", userId)
-    );
+    const { error: leaveError, count } = await supabase
+      .from("organization_members")
+      .delete({ count: "exact" })
+      .eq("organization_id", orgId)
+      .eq("user_id", userId);
 
-    revalidatePath("/");
-    redirect("/");
+    if (leaveError) throw new Error(leaveError.message);
+    if (count === 0) {
+      throw new Error("Leave failed — membership was not removed.");
+    }
+
+    revalidatePath("/organizations");
+    redirect("/organizations");
   }, "leaveOrgAction") as unknown as void;
 }
 
@@ -77,14 +79,20 @@ export async function deleteOrgAction(formData: FormData): Promise<void> {
       throw new Error("Organization name does not match. Deletion cancelled.");
     }
 
-    assertSupabaseOk(
-      await supabase
-        .from("organizations")
-        .delete()
-        .eq("id", orgId)
-    );
+    // Delete and verify it actually happened (RLS may silently return 0 rows)
+    const { error: deleteError, count } = await supabase
+      .from("organizations")
+      .delete({ count: "exact" })
+      .eq("id", orgId);
 
-    revalidatePath("/");
-    redirect("/");
+    if (deleteError) throw new Error(deleteError.message);
+    if (count === 0) {
+      throw new Error(
+        "Delete failed — the organization was not removed. You may not have permission to delete it."
+      );
+    }
+
+    revalidatePath("/organizations");
+    redirect("/organizations");
   }, "deleteOrgAction") as unknown as void;
 }
