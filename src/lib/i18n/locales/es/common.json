@@ -22,6 +22,7 @@
   },
   "actions": {
     "save": "Guardar",
+    "saved": "Guardado",
     "cancel": "Cancelar",
     "delete": "Eliminar",
     "archive": "Archivar",
