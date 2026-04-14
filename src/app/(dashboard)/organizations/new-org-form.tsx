@@ -4,6 +4,8 @@ import { useCallback, useState } from "react";
 import { useTranslations } from "next-intl";
 import { Plus } from "lucide-react";
 import { useKeyboardShortcut } from "@/hooks/use-keyboard-shortcut";
+import { useFormAction } from "@/hooks/use-form-action";
+import { SubmitButton } from "@/components/SubmitButton";
 import {
   inputClass,
   labelClass,
@@ -16,6 +18,11 @@ import { createOrgAction } from "./actions";
 export function NewOrgForm(): React.JSX.Element {
   const [open, setOpen] = useState(false);
   const tc = useTranslations("common");
+
+  const { pending, serverError, handleSubmit } = useFormAction({
+    action: createOrgAction,
+    onSuccess: () => setOpen(false),
+  });
 
   useKeyboardShortcut({
     key: "n",
@@ -38,12 +45,14 @@ export function NewOrgForm(): React.JSX.Element {
 
   return (
     <form
-      action={async (formData) => {
-        await createOrgAction(formData);
-        setOpen(false);
-      }}
+      action={handleSubmit}
       className="mt-4 space-y-3 rounded-lg border border-edge bg-surface-raised p-4"
     >
+      {serverError && (
+        <p className="text-sm text-error bg-error-soft rounded-lg px-3 py-2">
+          {serverError}
+        </p>
+      )}
       <div>
         <label className={labelClass}>{tc("org.namePlaceholder")} *</label>
         <input
@@ -52,15 +61,19 @@ export function NewOrgForm(): React.JSX.Element {
           autoFocus
           placeholder={tc("org.namePlaceholder")}
           className={inputClass}
+          disabled={pending}
         />
       </div>
       <div className="flex gap-2">
-        <button type="submit" className={buttonPrimaryClass}>
-          {tc("org.create")}
-        </button>
+        <SubmitButton
+          label={tc("org.create")}
+          pending={pending}
+          icon={Plus}
+        />
         <button
           type="button"
           onClick={() => setOpen(false)}
+          disabled={pending}
           className={buttonSecondaryClass}
         >
           {tc("actions.cancel")}

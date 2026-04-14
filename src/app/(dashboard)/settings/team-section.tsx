@@ -24,6 +24,8 @@ import {
   buttonSecondaryClass,
   buttonDangerClass,
 } from "@/lib/form-styles";
+import { useFormAction } from "@/hooks/use-form-action";
+import { SubmitButton } from "@/components/SubmitButton";
 import {
   inviteMemberAction,
   removeMemberAction,
@@ -80,8 +82,6 @@ export function TeamSection({
   invites,
 }: TeamSectionProps): React.JSX.Element {
   const [inviteOpen, setInviteOpen] = useState(false);
-  const [deleteConfirmName, setDeleteConfirmName] = useState("");
-  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
   const tc = useTranslations("common");
   const isAdmin = currentRole === "owner" || currentRole === "admin";
 
@@ -300,97 +300,175 @@ export function TeamSection({
 
           {/* Leave org (non-owners, or owners with multiple owners) */}
           {currentRole !== "owner" && (
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-sm font-medium text-content">
-                  {tc("org.leave")}
-                </p>
-                <p className="text-xs text-content-muted">
-                  You will lose access to all data in this organization.
-                </p>
-              </div>
-              <form action={leaveOrgAction}>
-                <input type="hidden" name="org_id" value={orgId} />
-                <button
-                  type="submit"
-                  className={buttonDangerClass}
-                  onClick={(e) => {
-                    if (!confirm(tc("org.leaveConfirm", { name: orgName }))) {
-                      e.preventDefault();
-                    }
-                  }}
-                >
-                  <LogOut size={16} />
-                  {tc("org.leave")}
-                </button>
-              </form>
-            </div>
+            <LeaveOrgFlow orgId={orgId} orgName={orgName} />
           )}
 
           {/* Delete org (owners only) */}
           {currentRole === "owner" && (
-            <div>
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="text-sm font-medium text-content">
-                    {tc("org.delete")}
-                  </p>
-                  <p className="text-xs text-content-muted">
-                    This will permanently delete all data, members, and settings.
-                  </p>
-                </div>
-                <button
-                  onClick={() => setShowDeleteConfirm(!showDeleteConfirm)}
-                  className={buttonDangerClass}
-                >
-                  <Trash2 size={16} />
-                  {tc("org.delete")}
-                </button>
-              </div>
-
-              {showDeleteConfirm && (
-                <form
-                  action={deleteOrgAction}
-                  className="mt-3 rounded-lg border border-error/30 bg-error-soft p-4 space-y-3"
-                >
-                  <input type="hidden" name="org_id" value={orgId} />
-                  <p className="text-sm text-content">
-                    {tc("org.deleteConfirm", { name: orgName })}
-                  </p>
-                  <input
-                    name="confirm_name"
-                    value={deleteConfirmName}
-                    onChange={(e) => setDeleteConfirmName(e.target.value)}
-                    placeholder={orgName}
-                    className={inputClass}
-                    autoFocus
-                  />
-                  <div className="flex gap-2">
-                    <button
-                      type="submit"
-                      disabled={deleteConfirmName !== orgName}
-                      className={`${buttonDangerClass} disabled:opacity-30`}
-                    >
-                      <Trash2 size={14} />
-                      Permanently Delete
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => {
-                        setShowDeleteConfirm(false);
-                        setDeleteConfirmName("");
-                      }}
-                      className={buttonSecondaryClass}
-                    >
-                      {tc("actions.cancel")}
-                    </button>
-                  </div>
-                </form>
-              )}
-            </div>
+            <DeleteOrgFlow orgId={orgId} orgName={orgName} />
           )}
         </section>
       )}
     </div>
+  );
+}
+
+/**
+ * Leave org with confirmation flow.
+ * Hides original button when confirming.
+ */
+function LeaveOrgFlow({
+  orgId,
+  orgName,
+}: {
+  orgId: string;
+  orgName: string;
+}): React.JSX.Element {
+  const [confirming, setConfirming] = useState(false);
+  const tc = useTranslations("common");
+  const { pending, serverError, handleSubmit } = useFormAction({
+    action: leaveOrgAction,
+  });
+
+  if (!confirming) {
+    return (
+      <div className="flex items-center justify-between">
+        <div>
+          <p className="text-sm font-medium text-content">{tc("org.leave")}</p>
+          <p className="text-xs text-content-muted">
+            You will lose access to all data in this organization.
+          </p>
+        </div>
+        <button
+          onClick={() => setConfirming(true)}
+          className={buttonDangerClass}
+        >
+          <LogOut size={16} />
+          {tc("org.leave")}
+        </button>
+      </div>
+    );
+  }
+
+  return (
+    <form
+      action={handleSubmit}
+      className="rounded-lg border border-error/30 bg-error-soft p-4 space-y-3"
+    >
+      <input type="hidden" name="org_id" value={orgId} />
+      {serverError && (
+        <p className="text-sm text-error bg-error-soft rounded-lg px-3 py-2">
+          {serverError}
+        </p>
+      )}
+      <p className="text-sm text-content">
+        {tc("org.leaveConfirm", { name: orgName })}
+      </p>
+      <div className="flex gap-2">
+        <SubmitButton
+          label={tc("org.leave")}
+          pending={pending}
+          icon={LogOut}
+          className="inline-flex items-center gap-2 rounded-lg bg-error px-4 py-2 text-sm font-medium text-content-inverse hover:opacity-90 disabled:opacity-50 transition-colors"
+        />
+        <button
+          type="button"
+          onClick={() => setConfirming(false)}
+          disabled={pending}
+          className={buttonSecondaryClass}
+        >
+          {tc("actions.cancel")}
+        </button>
+      </div>
+    </form>
+  );
+}
+
+/**
+ * Delete org with typed-name confirmation.
+ * Hides original button when confirm form is shown.
+ */
+function DeleteOrgFlow({
+  orgId,
+  orgName,
+}: {
+  orgId: string;
+  orgName: string;
+}): React.JSX.Element {
+  const [confirming, setConfirming] = useState(false);
+  const [typedName, setTypedName] = useState("");
+  const tc = useTranslations("common");
+  const { pending, serverError, handleSubmit } = useFormAction({
+    action: deleteOrgAction,
+  });
+
+  if (!confirming) {
+    return (
+      <div className="flex items-center justify-between">
+        <div>
+          <p className="text-sm font-medium text-content">
+            {tc("org.delete")}
+          </p>
+          <p className="text-xs text-content-muted">
+            This will permanently delete all data, members, and settings.
+          </p>
+        </div>
+        <button
+          onClick={() => setConfirming(true)}
+          className={buttonDangerClass}
+        >
+          <Trash2 size={16} />
+          {tc("org.delete")}
+        </button>
+      </div>
+    );
+  }
+
+  const canDelete = typedName === orgName && !pending;
+
+  return (
+    <form
+      action={handleSubmit}
+      className="rounded-lg border border-error/30 bg-error-soft p-4 space-y-3"
+    >
+      <input type="hidden" name="org_id" value={orgId} />
+      {serverError && (
+        <p className="text-sm text-error bg-error-soft rounded-lg px-3 py-2">
+          {serverError}
+        </p>
+      )}
+      <p className="text-sm text-content">
+        {tc("org.deleteConfirm", { name: orgName })}
+      </p>
+      <input
+        name="confirm_name"
+        value={typedName}
+        onChange={(e) => setTypedName(e.target.value)}
+        placeholder={orgName}
+        className={inputClass}
+        autoFocus
+        disabled={pending}
+      />
+      <div className="flex gap-2">
+        <SubmitButton
+          label="Permanently Delete"
+          pending={pending}
+          icon={Trash2}
+          disabled={!canDelete}
+          className="inline-flex items-center gap-2 rounded-lg bg-error px-4 py-2 text-sm font-medium text-content-inverse hover:opacity-90 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
+        />
+        <button
+          type="button"
+          onClick={() => {
+            setConfirming(false);
+            setTypedName("");
+          }}
+          disabled={pending}
+          className={buttonSecondaryClass}
+        >
+          {tc("actions.cancel")}
+        </button>
+      </div>
+    </form>
   );
 }

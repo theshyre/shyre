@@ -50,6 +50,26 @@ Stint is a time-tracking and invoicing app. Next.js 16 (App Router) + Supabase +
 - Validate all user input in server actions
 - GitHub tokens are secrets — never log or return in list queries
 
+## Form & button rules (MANDATORY)
+
+Every form:
+- Submits on Enter (native `<form>` + submit button)
+- Autofocuses the primary field on open
+- Uses SubmitButton from @/components/SubmitButton for spinner + disabled state
+- Disables Cancel during pending
+- Shows serverError inline + FieldError below fields
+
+Every button:
+- Uses shared button classes from @/lib/form-styles
+- Shows loading state for async actions
+- Disabled buttons look disabled (not ambiguous)
+- Never silently succeeds or fails
+
+Destructive flows:
+- HIDE the original trigger when confirmation form is shown
+- Typed-name confirmation for irreversible actions
+- Cancel always present
+
 ## Redundant visual encoding (MANDATORY)
 
 Every meaningful UI element uses 2+ of: icon, text, color.

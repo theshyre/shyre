@@ -126,6 +126,31 @@ All colors use semantic CSS custom properties defined in `globals.css` with 3 th
 - Table headers: `text-xs font-semibold uppercase tracking-wider text-content-muted`
 - Page titles: `text-2xl font-bold text-content` with icon
 
+## Form & button rules — MANDATORY
+
+These rules apply to EVERY form and button in the app. Non-negotiable.
+
+### Every form must:
+1. **Submit on Enter** — native `<form>` with `<button type="submit">` handles this automatically. Never build custom submit buttons that break Enter-to-submit.
+2. **Autofocus the primary field** — when opening a form (inline expansion or modal), autofocus the first field the user needs to fill (e.g., `<input autoFocus>`).
+3. **Show visual feedback on submission** — use `SubmitButton` component from `@/components/SubmitButton` which provides spinner + "Saving..." + disabled state. No silent submits.
+4. **Disable Cancel/back buttons during submission** — `disabled={pending}` on every button in the form while submitting.
+5. **Show server errors inline** — use `serverError` from `useFormAction` with the standard error banner pattern.
+6. **Show field-level errors below fields** — use `FieldError` component next to each field.
+7. **Have a keyboard shortcut if it's a primary action** — "new" forms use `N` key with visible `<kbd>` badge on the trigger button.
+
+### Every button must:
+1. **Look like its state** — disabled buttons must look visually disabled (opacity, no hover). Enabled buttons have hover states and clear color.
+2. **Use shared button classes** — `buttonPrimaryClass`, `buttonSecondaryClass`, `buttonDangerClass`, `buttonGhostClass` from `@/lib/form-styles`. Don't inline button styles.
+3. **Show loading state for async actions** — if the click triggers an async operation, show a spinner and disable the button. Use `SubmitButton` for forms.
+4. **Never silently succeed or fail** — user must see SOMETHING happen after clicking.
+
+### Destructive confirmation flows:
+1. **One action button at a time** — when a destructive action reveals a confirmation form, HIDE the original trigger button. Don't show both "Delete" and "Permanently Delete" simultaneously.
+2. **Require typed confirmation for irreversible actions** — delete org, void invoice, etc. Require the user to type the exact name.
+3. **Confirm button disabled until confirmation matches** — typed name must match exactly before the destructive button enables.
+4. **Cancel button always present** — easy escape from destructive flows.
+
 ## Supabase patterns
 
 - **Server Components**: use `createClient()` from `@/lib/supabase/server`
