@@ -165,6 +165,20 @@ export function UserSettingsForm({
         </section>
       </form>
 
+      {/* Security Groups */}
+      <a
+        href="/settings/security-groups"
+        className="flex items-center gap-3 rounded-lg border border-edge bg-surface-raised p-4 hover:bg-hover transition-colors"
+      >
+        <Shield size={20} className="text-accent" />
+        <div>
+          <p className="text-sm font-medium text-content">Security Groups</p>
+          <p className="text-xs text-content-muted">
+            Bundle users to grant permissions in bulk
+          </p>
+        </div>
+      </a>
+
       {/* Import */}
       <a
         href="/settings/import"

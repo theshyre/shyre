@@ -1,0 +1,68 @@
+{
+  "securityGroups": {
+    "title": "Grupos de Seguridad",
+    "description": "Agrupa usuarios para otorgar permisos en grupo.",
+    "create": "Crear Grupo",
+    "noGroups": "Aún no hay grupos de seguridad. Crea uno para comenzar.",
+    "memberCount": "{count, plural, =0 {sin miembros} =1 {1 miembro} other {# miembros}}",
+    "fields": {
+      "name": "Nombre del Grupo",
+      "description": "Descripción",
+      "organization": "Organización"
+    },
+    "addMember": "Agregar Miembro",
+    "removeMember": "Eliminar",
+    "noMembers": "Aún no hay miembros. Agrega usuarios de esta organización.",
+    "confirmDelete": "¿Eliminar este grupo? Se revocarán los permisos otorgados a través de este grupo."
+  },
+  "clientSharing": {
+    "title": "Compartir",
+    "primaryOrg": "Organización Principal",
+    "changePrimary": "Cambiar Org Principal",
+    "participatingOrgs": "Organizaciones Participantes",
+    "addOrg": "Agregar Organización",
+    "noParticipants": "Solo la organización principal tiene acceso. Agrega orgs participantes para compartir este cliente.",
+    "canSeeOtherEntries": "Puede ver registros de tiempo de otras organizaciones",
+    "removeOrg": "Eliminar",
+    "confirmRemove": "¿Eliminar el acceso de esta organización? Sus registros históricos permanecerán pero perderán acceso.",
+    "permissions": "Permisos",
+    "grantPermission": "Otorgar Permiso",
+    "noPermissions": "No hay permisos explícitos otorgados. Los miembros tienen acceso según su org.",
+    "permissionLevel": "Nivel de Permiso",
+    "principal": "Usuario o Grupo",
+    "levels": {
+      "viewer": "Visualizador",
+      "contributor": "Contribuyente",
+      "admin": "Administrador"
+    },
+    "levelDescriptions": {
+      "viewer": "Puede ver cliente y proyectos",
+      "contributor": "Puede registrar tiempo",
+      "admin": "Control total de este cliente"
+    },
+    "revoke": "Revocar",
+    "confirmRevoke": "¿Revocar este permiso?"
+  },
+  "orgRelationships": {
+    "title": "Relaciones de Organización",
+    "parentOrgs": "Organizaciones Padre",
+    "childOrgs": "Organizaciones Hijas",
+    "propose": "Proponer Vínculo",
+    "accept": "Aceptar",
+    "pending": "Pendiente",
+    "pendingChild": "Esperando aceptación de la otra org",
+    "pendingParent": "Invitación para unirse como organización hija",
+    "noRelationships": "Aún no hay relaciones.",
+    "sharingLevel": "Nivel de Acceso",
+    "levels": {
+      "clients_read": "Ver clientes (solo lectura)",
+      "clients_participate": "Participar en clientes"
+    }
+  },
+  "changePrimary": {
+    "title": "Cambiar Organización Principal",
+    "warning": "Esto transfiere la propiedad del cliente a la organización destino. Debes ser propietario de la org actual y miembro de la destino.",
+    "consequence": "La org principal actual se convertirá automáticamente en participante para que sus registros sigan funcionando.",
+    "confirmTransfer": "Transferir Propiedad"
+  }
+}

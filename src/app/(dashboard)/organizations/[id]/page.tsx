@@ -1,5 +1,5 @@
 import { createClient } from "@/lib/supabase/server";
-import { validateOrgAccess, getUserContext } from "@/lib/org-context";
+import { validateOrgAccess, getUserOrgs } from "@/lib/org-context";
 import { getTranslations } from "next-intl/server";
 import { notFound } from "next/navigation";
 import Link from "next/link";
@@ -11,6 +11,7 @@ import {
 } from "lucide-react";
 import { OrgSettingsForm } from "./org-settings-form";
 import { TeamSection } from "../../../(dashboard)/settings/team-section";
+import { RelationshipsSection } from "./relationships-section";
 
 export default async function OrgDetailPage({
   params,
@@ -63,6 +64,40 @@ export default async function OrgDetailPage({
     .eq("organization_id", id)
     .neq("status", "archived")
     .order("created_at", { ascending: false });
+
+  // Org parent/child shares
+  interface OrgShareRow {
+    id: string;
+    parent_org_id: string;
+    child_org_id: string;
+    sharing_level: string;
+    accepted_at: string | null;
+    organizations: { name: string } | { name: string }[] | null;
+  }
+  const { data: parentSharesData } = await supabase
+    .from("organization_shares")
+    .select(
+      "id, parent_org_id, child_org_id, sharing_level, accepted_at, organizations:parent_org_id(name)",
+    )
+    .eq("child_org_id", id);
+  const { data: childSharesData } = await supabase
+    .from("organization_shares")
+    .select(
+      "id, parent_org_id, child_org_id, sharing_level, accepted_at, organizations:child_org_id(name)",
+    )
+    .eq("parent_org_id", id);
+
+  const parentShares = (parentSharesData ?? []) as unknown as OrgShareRow[];
+  const childShares = (childSharesData ?? []) as unknown as OrgShareRow[];
+
+  const userOrgs = await getUserOrgs();
+  const linkedOrgIds = new Set<string>([
+    ...parentShares.map((s) => s.parent_org_id),
+    ...childShares.map((s) => s.child_org_id),
+  ]);
+  const availableOrgsForRelationship = userOrgs
+    .filter((o) => o.id !== id && !linkedOrgIds.has(o.id))
+    .map((o) => ({ id: o.id, name: o.name }));
 
   const tc = await getTranslations("common");
   const tp = await getTranslations("projects");
@@ -175,6 +210,14 @@ export default async function OrgDetailPage({
         currentUserId={userId}
         members={members ?? []}
         invites={invites ?? []}
+      />
+
+      <RelationshipsSection
+        orgId={id}
+        role={role}
+        parentOrgs={parentShares}
+        childOrgs={childShares}
+        availableOrgs={availableOrgsForRelationship}
       />
     </div>
   );
