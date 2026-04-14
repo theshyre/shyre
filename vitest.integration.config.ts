@@ -10,10 +10,6 @@ export default defineConfig({
     globalSetup: ["./src/__integration__/global-setup.ts"],
     testTimeout: 30_000,
     hookTimeout: 60_000,
-    pool: "forks",
-    poolOptions: {
-      forks: { singleFork: true },
-    },
     fileParallelism: false,
     sequence: { concurrent: false },
     reporters: ["default"],

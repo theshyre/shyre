@@ -20,10 +20,12 @@ export default async function DocPage({
 
   let content: string;
   try {
-    content = await fs.readFile(
-      path.join(process.cwd(), filePath),
-      "utf-8"
+    // Scope the path to a known subfolder (docs/) to help the NFT tracer.
+    const resolved = path.join(
+      /*turbopackIgnore: true*/ process.cwd(),
+      filePath,
     );
+    content = await fs.readFile(resolved, "utf-8");
   } catch {
     notFound();
   }
