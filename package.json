@@ -15,7 +15,11 @@
     "test:all": "npm run test && npm run test:integration",
     "test:e2e": "playwright test",
     "test:e2e:ui": "playwright test --ui",
-    "cleanup:test-data": "tsx src/__integration__/helpers/cleanup-cli.ts"
+    "cleanup:test-data": "tsx src/__integration__/helpers/cleanup-cli.ts",
+    "db:link": "supabase link --project-ref onbdbngemtbrnstjnbns",
+    "db:push": "bash scripts/db-push.sh",
+    "db:status": "bash scripts/db-status.sh",
+    "db:new": "supabase migration new"
   },
   "dependencies": {
     "@react-pdf/renderer": "^4.4.1",
