@@ -16,7 +16,7 @@ interface Props {
   hideGroupHeaders?: boolean;
 }
 
-const COLUMN_COUNT = 7;
+const COLUMN_COUNT = 6;
 
 export function EntryTable({
   groups,
@@ -41,22 +41,19 @@ export function EntryTable({
       <table className="w-full text-sm">
         <thead className="bg-surface-inset">
           <tr>
-            <th className="px-3 py-2 text-left text-[10px] font-semibold uppercase tracking-wider text-content-muted">
-              {t("tableHeaders.time")}
-            </th>
-            <th className="px-3 py-2 text-left text-[10px] font-semibold uppercase tracking-wider text-content-muted">
-              {t("tableHeaders.project")}
-            </th>
-            <th className="px-3 py-2 text-left text-[10px] font-semibold uppercase tracking-wider text-content-muted">
-              {t("tableHeaders.description")}
-            </th>
-            <th className="px-3 py-2 text-left text-[10px] font-semibold uppercase tracking-wider text-content-muted">
+            <th className="py-2 pl-4 text-left text-[10px] font-semibold uppercase tracking-wider text-content-muted">
               {t("tableHeaders.category")}
+            </th>
+            <th className="px-3 py-2 text-left text-[10px] font-semibold uppercase tracking-wider text-content-muted">
+              {t("tableHeaders.projectDescription")}
+            </th>
+            <th className="px-3 py-2 text-right text-[10px] font-semibold uppercase tracking-wider text-content-muted">
+              {t("tableHeaders.time")}
             </th>
             <th className="px-3 py-2 text-right text-[10px] font-semibold uppercase tracking-wider text-content-muted">
               {t("tableHeaders.duration")}
             </th>
-            <th className="px-3 py-2 text-center text-[10px] font-semibold uppercase tracking-wider text-content-muted">
+            <th className="px-2 py-2 text-center text-[10px] font-semibold uppercase tracking-wider text-content-muted">
               {t("tableHeaders.billable")}
             </th>
             <th className="px-2 py-2" aria-label="actions" />
@@ -99,7 +96,7 @@ function GroupBlock({
     <>
       {showHeader && (
         <tr className="bg-surface-inset/60 border-y border-edge">
-          <td colSpan={5} className="px-3 py-1.5">
+          <td colSpan={4} className="px-3 py-1.5">
             <div className="flex items-center gap-2">
               {group.color && (
                 <span
@@ -125,7 +122,7 @@ function GroupBlock({
               {formatDurationHM(group.totalMin)}
             </span>
           </td>
-          <td className="px-2 py-1.5" />
+          <td className="px-2 py-1.5" colSpan={2} />
         </tr>
       )}
       {group.entries.map((entry) => (

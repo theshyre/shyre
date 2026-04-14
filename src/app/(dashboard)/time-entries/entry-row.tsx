@@ -20,6 +20,9 @@ interface Props {
 /**
  * A single <tr> in the entry table, plus an optional spanning edit row
  * rendered underneath it when `expanded` is true.
+ *
+ * Layout (category-first):
+ *   [Category █ Name] [Project · Client — Description] [Duration] [$] [⋯]
  */
 export function EntryRow({
   entry,
@@ -33,6 +36,7 @@ export function EntryRow({
   const tt = useTranslations("time.timer");
   const isRunning = !entry.end_time;
   const projectName = entry.projects?.name ?? "—";
+  const clientName = entry.projects?.clients?.name ?? null;
   const startDate = new Date(entry.start_time);
   const startTime = startDate.toLocaleTimeString(undefined, {
     hour: "numeric",
@@ -49,67 +53,85 @@ export function EntryRow({
   return (
     <>
       <tr className={rowClass} onClick={() => onToggleExpand(entry.id)}>
-        <td className="px-3 py-2 align-middle whitespace-nowrap">
-          <span className="font-mono text-xs text-content-secondary">
-            {startTime}
-          </span>
-        </td>
-        <td className="px-3 py-2 align-middle">
-          <div className="text-sm text-content">{projectName}</div>
-          {entry.projects?.clients?.name && (
-            <div className="text-[11px] text-content-muted">
-              {entry.projects.clients.name}
+        {/* Category — hero column */}
+        <td className="py-2.5 align-middle">
+          {category ? (
+            <div className="flex items-center gap-2 border-l-4 pl-3" style={{ borderColor: category.color }}>
+              <span
+                className="h-2.5 w-2.5 rounded-full shrink-0"
+                style={{ backgroundColor: category.color }}
+              />
+              <span className="text-sm font-semibold text-content">
+                {category.name}
+              </span>
+            </div>
+          ) : (
+            <div className="flex items-center gap-2 border-l-4 border-edge pl-3">
+              <span className="h-2.5 w-2.5 rounded-full bg-content-muted shrink-0" />
+              <span className="text-sm text-content-muted italic">
+                {t("entry.noCategory")}
+              </span>
             </div>
           )}
         </td>
-        <td className="px-3 py-2 align-middle">
-          <span className="text-sm text-content-secondary">
-            {entry.description || (
-              <span className="text-content-muted italic">
-                {t("entry.untitled")}
-              </span>
+
+        {/* Project · Client + Description */}
+        <td className="px-3 py-2.5 align-middle min-w-0">
+          <div className="text-xs text-content-secondary truncate">
+            <span className="text-content">{projectName}</span>
+            {clientName && (
+              <span className="text-content-muted"> · {clientName}</span>
             )}
-          </span>
-        </td>
-        <td className="px-3 py-2 align-middle whitespace-nowrap">
-          {category ? (
-            <span className="inline-flex items-center gap-1.5 text-xs">
-              <span
-                className="h-2 w-2 rounded-full shrink-0"
-                style={{ backgroundColor: category.color }}
-              />
-              <span className="text-content-secondary">{category.name}</span>
-            </span>
+          </div>
+          {entry.description ? (
+            <div className="text-sm text-content truncate mt-0.5">
+              {entry.description}
+            </div>
           ) : (
-            <span className="text-xs text-content-muted">—</span>
+            <div className="text-sm text-content-muted italic truncate mt-0.5">
+              {t("entry.untitled")}
+            </div>
           )}
         </td>
-        <td className="px-3 py-2 align-middle text-right whitespace-nowrap">
+
+        {/* Start time (small, muted) */}
+        <td className="px-3 py-2.5 align-middle whitespace-nowrap text-right">
+          <span className="font-mono text-[11px] text-content-muted">
+            {startTime}
+          </span>
+        </td>
+
+        {/* Duration */}
+        <td className="px-3 py-2.5 align-middle text-right whitespace-nowrap">
           {isRunning ? (
             <span className="inline-flex items-center gap-1.5 text-xs font-medium text-success">
               <span className="h-1.5 w-1.5 rounded-full bg-success animate-pulse" />
               {tt("running")}
             </span>
           ) : (
-            <span className="font-mono text-sm font-semibold text-content tabular-nums">
+            <span className="font-mono text-base font-semibold text-content tabular-nums">
               {formatDurationHM(entry.duration_min)}
             </span>
           )}
         </td>
-        <td className="px-3 py-2 align-middle text-center whitespace-nowrap">
+
+        {/* Billable */}
+        <td className="px-2 py-2.5 align-middle text-center whitespace-nowrap">
           {entry.billable ? (
             <DollarSign size={14} className="inline text-success" />
           ) : (
             <Minus size={14} className="inline text-content-muted" />
           )}
         </td>
+
         <td
-          className="px-2 py-2 align-middle text-right"
+          className="px-2 py-2.5 align-middle text-right"
           onClick={(e) => e.stopPropagation()}
         >
           <EntryKebabMenu entry={entry} onEdit={() => onToggleExpand(entry.id)} />
         </td>
       </tr>
+
       {expanded && (
         <tr className="bg-surface-inset">
           <td

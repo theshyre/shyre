@@ -168,8 +168,8 @@ export function WeekTimesheet({
       <table className="w-full text-sm">
         <thead>
           <tr className="border-b border-edge bg-surface-inset">
-            <th className="px-3 py-2 text-left text-[10px] font-semibold uppercase tracking-wider text-content-muted w-[28%]">
-              {t("project")}
+            <th className="py-2 pl-4 text-left text-[10px] font-semibold uppercase tracking-wider text-content-muted w-[30%]">
+              {t("categoryProject")}
             </th>
             {Array.from({ length: DAYS_IN_WEEK }).map((_, i) => {
               const d = new Date(weekStart);
@@ -277,26 +277,39 @@ function TimesheetRow({
 
   return (
     <tr className="border-b border-edge last:border-0 hover:bg-hover">
-      <td className="px-3 py-2 align-middle">
-        <div className="text-sm text-content font-medium truncate">
-          {project?.name ?? "—"}
-          {project?.clients?.name && (
-            <span className="text-content-muted font-normal ml-1">
-              · {project.clients.name}
-            </span>
-          )}
-        </div>
-        {category && (
-          <div className="flex items-center gap-1.5 mt-0.5">
-            <span
-              className="h-1.5 w-1.5 rounded-full shrink-0"
-              style={{ backgroundColor: category.color }}
-            />
-            <span className="text-[11px] text-content-secondary">
-              {category.name}
-            </span>
+      <td className="py-2 align-middle">
+        {/* Category as hero — colored left border + name */}
+        <div
+          className="border-l-4 pl-3"
+          style={{ borderColor: category?.color ?? "var(--edge)" }}
+        >
+          <div className="flex items-center gap-1.5">
+            {category ? (
+              <>
+                <span
+                  className="h-2 w-2 rounded-full shrink-0"
+                  style={{ backgroundColor: category.color }}
+                />
+                <span className="text-sm font-semibold text-content truncate">
+                  {category.name}
+                </span>
+              </>
+            ) : (
+              <span className="text-sm text-content-muted italic truncate">
+                —
+              </span>
+            )}
           </div>
-        )}
+          {/* Project · Client as muted subline */}
+          <div className="text-[11px] text-content-muted truncate mt-0.5">
+            <span className="text-content-secondary">
+              {project?.name ?? "—"}
+            </span>
+            {project?.clients?.name && (
+              <span> · {project.clients.name}</span>
+            )}
+          </div>
+        </div>
       </td>
       {row.byDay.map((min, i) => {
         const date = new Date(weekStart);

@@ -17,7 +17,6 @@ import { OrgSelector } from "@/components/OrgSelector";
 import type { OrgListItem } from "@/lib/org-context";
 import { startTimerAction, stopTimerAction } from "./actions";
 import { RecentProjectsChips } from "./recent-projects-chips";
-import { CategoryPicker } from "./category-picker";
 import { TemplateChips } from "./template-chips";
 import type { CategoryOption, ProjectOption, TimeEntry } from "./types";
 import type { TimeTemplate } from "@/lib/templates/types";
@@ -169,8 +168,15 @@ export function RunningTimerCard({
     );
   }
 
-  // --- Expanded state: compact start form
+  // --- Expanded state: compact start form (Category → Project → Description)
   const selectedProject = projects.find((p) => p.id === selectedProjectId);
+  const projectCategorySetId = selectedProject?.category_set_id ?? null;
+  const availableCategories = projectCategorySetId
+    ? categories.filter((c) => c.category_set_id === projectCategorySetId)
+    : [];
+  // Category is required when the project has a category set
+  const categoryRequired = !!projectCategorySetId && availableCategories.length > 0;
+
   return (
     <form
       action={startForm.handleSubmit}
@@ -201,7 +207,39 @@ export function RunningTimerCard({
         <input type="hidden" name="organization_id" value={orgs[0]?.id ?? ""} />
       )}
 
-      <div className="grid gap-3 sm:grid-cols-[2fr_1fr_2fr]">
+      {/* Category first — primary field */}
+      <div>
+        <label className={labelClass}>
+          {tf("category")} {categoryRequired ? "*" : ""}
+        </label>
+        {categoryRequired ? (
+          <select
+            name="category_id"
+            required
+            className={selectClass}
+            defaultValue=""
+          >
+            <option value="" disabled>
+              {tt("selectCategory")}
+            </option>
+            {availableCategories.map((c) => (
+              <option key={c.id} value={c.id}>
+                {c.name}
+              </option>
+            ))}
+          </select>
+        ) : selectedProject ? (
+          <p className="text-xs text-content-muted italic">
+            {tf("categoryUnavailable")}
+          </p>
+        ) : (
+          <p className="text-xs text-content-muted italic">
+            {tf("categoryPickProjectFirst")}
+          </p>
+        )}
+      </div>
+
+      <div className="grid gap-3 sm:grid-cols-2">
         <div>
           <label className={labelClass}>{tf("project")} *</label>
           <select
@@ -220,12 +258,6 @@ export function RunningTimerCard({
               </option>
             ))}
           </select>
-        </div>
-        <div>
-          <CategoryPicker
-            categories={categories}
-            categorySetId={selectedProject?.category_set_id ?? null}
-          />
         </div>
         <div>
           <label className={labelClass}>{tf("description")}</label>

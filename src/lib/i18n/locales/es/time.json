@@ -14,7 +14,10 @@
     "date": "Fecha",
     "duration": "Duración",
     "billable": "Facturable",
-    "githubIssue": "Issue de GitHub #"
+    "githubIssue": "Issue de GitHub #",
+    "category": "Categoría",
+    "categoryUnavailable": "Este proyecto no tiene un conjunto de categorías — configúralo en los ajustes del proyecto.",
+    "categoryPickProjectFirst": "Selecciona un proyecto primero."
   },
   "table": {
     "project": "Proyecto",
@@ -26,6 +29,7 @@
   "tableHeaders": {
     "time": "Hora",
     "project": "Proyecto",
+    "projectDescription": "Proyecto · Descripción",
     "description": "Descripción",
     "category": "Categoría",
     "duration": "Duración",
@@ -39,6 +43,7 @@
     "running": "En curso",
     "stopped": "Detenido",
     "selectProject": "Selecciona un proyecto",
+    "selectCategory": "Selecciona una categoría",
     "noProject": "Sin proyecto seleccionado"
   },
   "format": {
@@ -101,7 +106,8 @@
     "discard": "Descartar",
     "keepEditing": "Seguir editando",
     "actionsLabel": "Acciones de registro",
-    "untitled": "Registro sin título"
+    "untitled": "Registro sin título",
+    "noCategory": "Sin categoría"
   },
   "viewToggle": {
     "day": "Día",
@@ -109,12 +115,14 @@
   },
   "timesheet": {
     "project": "Proyecto",
+    "categoryProject": "Categoría · Proyecto",
     "total": "Total",
     "dailyTotals": "Totales diarios",
     "addRow": "Agregar fila",
     "addRowConfirm": "Agregar",
     "cancel": "Cancelar",
     "chooseProject": "Elegir proyecto",
+    "chooseCategory": "Elegir categoría",
     "noCategory": "Sin categoría",
     "empty": "Sin tiempo registrado esta semana. Agrega una fila para comenzar."
   },

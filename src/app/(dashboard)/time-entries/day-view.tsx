@@ -1,9 +1,9 @@
 "use client";
 
-import { useCallback, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState, useTransition } from "react";
 import { useRouter, usePathname, useSearchParams } from "next/navigation";
 import { useTranslations } from "next-intl";
-import { ChevronLeft, ChevronRight } from "lucide-react";
+import { ChevronLeft, ChevronRight, Loader2 } from "lucide-react";
 import {
   formatDurationHMZero,
   isSameDay,
@@ -24,7 +24,7 @@ interface Props {
   weekStart: Date;
   /** Entries for the *entire week*, used for daily-total strip */
   weekEntries: TimeEntry[];
-  /** Entries for the specific day (may overlap with weekEntries) */
+  /** Entries for the specific day */
   dayEntries: TimeEntry[];
   projects: ProjectOption[];
   categories: CategoryOption[];
@@ -42,12 +42,25 @@ export function DayView({
   const router = useRouter();
   const pathname = usePathname();
   const searchParams = useSearchParams();
+  const [isPending, startTransition] = useTransition();
   const [expandedEntryId, setExpandedEntryId] = useState<string | null>(null);
   const toggleExpanded = useCallback((id: string) => {
     setExpandedEntryId((c) => (c === id ? null : id));
   }, []);
 
-  // Daily totals for each day of this week
+  // Optimistic selected day so clicks feel instant while the server
+  // re-renders the page for the new anchor.
+  const [optimisticDay, setOptimisticDay] = useState<Date | null>(null);
+  const visibleDay = optimisticDay ?? day;
+
+  // Reset optimistic day when props catch up
+  useEffect(() => {
+    if (optimisticDay && isSameDay(optimisticDay, day)) {
+      setOptimisticDay(null);
+    }
+  }, [optimisticDay, day]);
+
+  // Daily totals per day of this week
   const dailyTotals = useMemo(() => {
     const totals = Array.from({ length: 7 }, () => 0);
     for (const e of weekEntries) {
@@ -68,62 +81,89 @@ export function DayView({
 
   const navigateToDay = useCallback(
     (targetDay: Date) => {
+      if (isSameDay(targetDay, visibleDay)) return;
+      // Optimistic update — highlight the new day immediately
+      setOptimisticDay(targetDay);
       const params = new URLSearchParams(searchParams.toString());
       params.set("anchor", toIsoDate(targetDay));
-      router.push(`${pathname}?${params.toString()}`);
+      startTransition(() => {
+        router.push(`${pathname}?${params.toString()}`);
+      });
     },
-    [router, pathname, searchParams],
+    [router, pathname, searchParams, visibleDay],
   );
 
   const goPrev = useCallback(() => {
-    const d = new Date(day);
+    const d = new Date(visibleDay);
     d.setDate(d.getDate() - 1);
     navigateToDay(d);
-  }, [day, navigateToDay]);
+  }, [visibleDay, navigateToDay]);
 
   const goNext = useCallback(() => {
-    const d = new Date(day);
+    const d = new Date(visibleDay);
     d.setDate(d.getDate() + 1);
     navigateToDay(d);
-  }, [day, navigateToDay]);
+  }, [visibleDay, navigateToDay]);
 
   useKeyboardShortcut({ key: "ArrowLeft", onTrigger: goPrev });
   useKeyboardShortcut({ key: "ArrowRight", onTrigger: goNext });
 
-  const isToday = isSameDay(day, new Date());
+  const today = new Date();
+  const isToday = isSameDay(visibleDay, today);
   const titleLabel = isToday
     ? t("today", {
-        date: day.toLocaleDateString(undefined, {
+        date: visibleDay.toLocaleDateString(undefined, {
           weekday: "long",
           month: "short",
           day: "numeric",
         }),
       })
-    : day.toLocaleDateString(undefined, {
+    : visibleDay.toLocaleDateString(undefined, {
         weekday: "long",
         month: "short",
         day: "numeric",
         year:
-          day.getFullYear() !== new Date().getFullYear() ? "numeric" : undefined,
+          visibleDay.getFullYear() !== today.getFullYear()
+            ? "numeric"
+            : undefined,
       });
+
+  // Filter dayEntries client-side too, as a safety net: only show entries whose
+  // local calendar date matches the currently-visible day. This defends
+  // against any timezone edge case where the server query included a bordering
+  // entry, and also handles the "optimistic day" state before the server
+  // returns the new query.
+  const trulyDayEntries = useMemo(() => {
+    return dayEntries.filter((e) => {
+      const s = new Date(e.start_time);
+      return (
+        s.getFullYear() === visibleDay.getFullYear() &&
+        s.getMonth() === visibleDay.getMonth() &&
+        s.getDate() === visibleDay.getDate()
+      );
+    });
+  }, [dayEntries, visibleDay]);
 
   const groups: EntryGroup<TimeEntry>[] = useMemo(
     () => [
       {
         id: "__day__",
         label: titleLabel,
-        entries: [...dayEntries].sort(
+        entries: [...trulyDayEntries].sort(
           (a, b) =>
             new Date(a.start_time).getTime() -
             new Date(b.start_time).getTime(),
         ),
-        totalMin: dayEntries.reduce((s, e) => s + (e.duration_min ?? 0), 0),
-        billableMin: dayEntries
+        totalMin: trulyDayEntries.reduce(
+          (s, e) => s + (e.duration_min ?? 0),
+          0,
+        ),
+        billableMin: trulyDayEntries
           .filter((e) => e.billable)
           .reduce((s, e) => s + (e.duration_min ?? 0), 0),
       },
     ],
-    [dayEntries, titleLabel],
+    [trulyDayEntries, titleLabel],
   );
 
   return (
@@ -139,7 +179,12 @@ export function DayView({
           <ChevronLeft size={16} />
           <kbd className={kbdClass}>←</kbd>
         </button>
-        <h2 className="text-lg font-semibold text-content">{titleLabel}</h2>
+        <h2 className="text-lg font-semibold text-content inline-flex items-center gap-2">
+          {titleLabel}
+          {isPending && (
+            <Loader2 size={16} className="animate-spin text-content-muted" />
+          )}
+        </h2>
         <button
           type="button"
           onClick={goNext}
@@ -152,34 +197,45 @@ export function DayView({
       </div>
 
       {/* 7-day strip with daily totals */}
-      <div className="rounded-lg border border-edge bg-surface-raised p-3">
-        <div className="grid grid-cols-8 gap-2 items-center">
+      <div className="rounded-lg border border-edge bg-surface-raised p-2">
+        <div className="grid grid-cols-8 gap-1 items-stretch">
           {Array.from({ length: 7 }).map((_, i) => {
             const d = new Date(weekStart);
             d.setDate(d.getDate() + i);
-            const isCurrent = isSameDay(d, day);
+            const isCurrent = isSameDay(d, visibleDay);
+            const isTodayPill = isSameDay(d, today);
             const tot = dailyTotals[i] ?? 0;
             return (
               <button
                 key={i}
                 type="button"
                 onClick={() => navigateToDay(d)}
-                className={`flex flex-col items-center py-1.5 rounded-md transition-colors ${
+                aria-pressed={isCurrent}
+                className={`flex flex-col items-center py-2 rounded-md transition-colors border ${
                   isCurrent
-                    ? "bg-accent-soft text-accent-text"
-                    : "hover:bg-hover text-content-secondary"
+                    ? "bg-accent text-content-inverse border-accent shadow-sm"
+                    : isTodayPill
+                    ? "border-accent/40 bg-surface-inset text-content hover:bg-hover"
+                    : "border-transparent text-content-secondary hover:bg-hover"
                 }`}
               >
                 <span className="text-[10px] font-semibold uppercase">
                   {d.toLocaleDateString(undefined, { weekday: "short" })}
                 </span>
-                <span className="font-mono text-xs tabular-nums mt-0.5">
+                <span className="text-sm font-semibold mt-0.5">
+                  {d.getDate()}
+                </span>
+                <span
+                  className={`font-mono text-[11px] tabular-nums mt-0.5 ${
+                    isCurrent ? "opacity-90" : "text-content-muted"
+                  }`}
+                >
                   {formatDurationHMZero(tot)}
                 </span>
               </button>
             );
           })}
-          <div className="flex flex-col items-end border-l border-edge pl-2">
+          <div className="flex flex-col items-center justify-center border-l border-edge pl-2">
             <span className="text-[10px] font-semibold uppercase text-content-muted">
               {t("weekTotal")}
             </span>
@@ -190,15 +246,17 @@ export function DayView({
         </div>
       </div>
 
-      {/* Entries for this day */}
-      <EntryTable
-        groups={groups}
-        projects={projects}
-        categories={categories}
-        expandedEntryId={expandedEntryId}
-        onToggleExpand={toggleExpanded}
-        hideGroupHeaders
-      />
+      {/* Entries for this day — dimmed while transitioning */}
+      <div className={isPending ? "opacity-60 transition-opacity" : ""}>
+        <EntryTable
+          groups={groups}
+          projects={projects}
+          categories={categories}
+          expandedEntryId={expandedEntryId}
+          onToggleExpand={toggleExpanded}
+          hideGroupHeaders
+        />
+      </div>
     </div>
   );
 }

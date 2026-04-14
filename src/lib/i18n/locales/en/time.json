@@ -14,7 +14,10 @@
     "date": "Date",
     "duration": "Duration",
     "billable": "Billable",
-    "githubIssue": "GitHub Issue #"
+    "githubIssue": "GitHub Issue #",
+    "category": "Category",
+    "categoryUnavailable": "This project has no category set — configure one in project settings.",
+    "categoryPickProjectFirst": "Pick a project first."
   },
   "table": {
     "project": "Project",
@@ -26,6 +29,7 @@
   "tableHeaders": {
     "time": "Time",
     "project": "Project",
+    "projectDescription": "Project · Description",
     "description": "Description",
     "category": "Category",
     "duration": "Duration",
@@ -39,6 +43,7 @@
     "running": "Running",
     "stopped": "Stopped",
     "selectProject": "Select a project",
+    "selectCategory": "Select a category",
     "noProject": "No project selected"
   },
   "format": {
@@ -101,7 +106,8 @@
     "discard": "Discard",
     "keepEditing": "Keep editing",
     "actionsLabel": "Entry actions",
-    "untitled": "Untitled entry"
+    "untitled": "Untitled entry",
+    "noCategory": "No category"
   },
   "viewToggle": {
     "day": "Day",
@@ -109,12 +115,14 @@
   },
   "timesheet": {
     "project": "Project",
+    "categoryProject": "Category · Project",
     "total": "Total",
     "dailyTotals": "Daily totals",
     "addRow": "Add row",
     "addRowConfirm": "Add",
     "cancel": "Cancel",
     "chooseProject": "Choose project",
+    "chooseCategory": "Choose category",
     "noCategory": "No category",
     "empty": "No time logged this week. Add a row to start."
   },

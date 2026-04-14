@@ -74,9 +74,24 @@ describe("DayView", () => {
       />,
     );
     fireEvent.click(screen.getByRole("button", { name: /previous day/i }));
-    expect(pushMock).toHaveBeenCalledWith(expect.stringContaining("anchor=2026-04-13"));
+    expect(pushMock).toHaveBeenCalledWith(
+      expect.stringContaining("anchor=2026-04-13"),
+    );
+  });
+
+  it("next navigates to the following day", () => {
+    renderWithIntl(
+      <DayView
+        day={new Date(2026, 3, 14)}
+        weekStart={weekStart}
+        weekEntries={[]}
+        dayEntries={[]}
+        projects={[]}
+        categories={[]}
+      />,
+    );
     fireEvent.click(screen.getByRole("button", { name: /next day/i }));
-    expect(pushMock).toHaveBeenLastCalledWith(
+    expect(pushMock).toHaveBeenCalledWith(
       expect.stringContaining("anchor=2026-04-15"),
     );
   });
