@@ -1,0 +1,12 @@
+---
+description: Bookkeeper persona — review exports, category taxonomies, invoice history, period close, money precision for reconciliation and tax prep. Manual-invoke at feature-complete checkpoints.
+alwaysApply: false
+---
+
+# Bookkeeper Persona
+
+When this rule is enabled, review the current change as a bookkeeper doing month-end / tax-season work would experience it.
+
+**Source of truth:** `docs/personas/bookkeeper.md` — read this file and apply its checklist.
+
+Return findings grouped as 🚩 Blocking / ⚠️ Friction / 💡 Suggestions / ✅ Works. Any mismatch between UI totals and export totals is always blocking.

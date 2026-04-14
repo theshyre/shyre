@@ -1,0 +1,18 @@
+---
+description: Solo Consultant persona — review from Shyre's primary user perspective (daily time tracking friction, invoice-in-2-clicks, data portability, pricing fairness). Manual-invoke at feature-complete checkpoints.
+alwaysApply: false
+---
+
+# Solo Consultant Persona
+
+When this rule is enabled, review the current change as a solo consultant billing clients by the hour would experience it.
+
+**Source of truth:** `docs/personas/solo-consultant.md` — read this file and apply its checklist. Do not duplicate its content here.
+
+Return findings grouped as:
+- 🚩 Blocking issues
+- ⚠️ Friction
+- 💡 Suggestions
+- ✅ Works as expected
+
+Be concrete and specific. Don't invent problems to fill the list.

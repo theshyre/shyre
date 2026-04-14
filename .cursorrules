@@ -1,6 +1,8 @@
-# Cursor Rules — Stint
+# Cursor Rules — Shyre
 
 > These rules are identical to `CLAUDE.md`. If you update one, update the other.
+>
+> Persona sync is stricter: every persona has three files (`docs/personas/<name>.md`, `.claude/agents/<name>.md`, `.cursor/rules/persona-<name>.mdc`) that must move together.
 
 ## Project
 
@@ -108,3 +110,17 @@ Every meaningful UI element uses 2+ of: icon, text, color.
 - Fix issues immediately — no TODOs, no deferring
 - Every feature: complete, tested, documented, localized
 - Be proactive about improvements
+
+## Personas (MANDATORY)
+
+- Source of truth: `docs/personas/*.md` (8 personas). Tool wrappers at `.claude/agents/` and `.cursor/rules/persona-*.mdc` must reference the source, not duplicate it.
+- Auto-engage alongside regular work when these patterns are touched:
+  - `src/**/*.ts(x)` or `supabase/migrations/**` → QA Tester
+  - `supabase/migrations/**`, `src/lib/supabase/**`, `src/lib/safe-action.ts`, `src/lib/system-admin.ts`, `src/lib/org-context.ts`, `**/actions.ts`, `src/app/auth/**` → Security Reviewer
+  - `src/app/**/*.tsx`, `src/components/**/*.tsx` → UX Designer **and** Accessibility Auditor (separate passes)
+  - `src/lib/modules/**`, `supabase/migrations/**`, new `(dashboard)/*/page.tsx` → Platform Architect
+- Stakeholder voices (Solo Consultant, Agency Owner, Bookkeeper) are **manual invoke only** — engaging them on every change is noise.
+- **Persona sync rule:** every persona has three files — `docs/personas/<name>.md`, `.claude/agents/<name>.md`, `.cursor/rules/persona-<name>.mdc`. Editing any one requires editing the other two in the same commit.
+- Personas review, they don't implement. Each file ends with a concrete checklist, ≤100 lines.
+- Personas are lenses, not gatekeepers — conflicting reviews are fine; the human decides.
+- Prune checks that become lint rules / tests. Update personas when prod surprises slip past them.

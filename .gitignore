@@ -44,7 +44,10 @@ yarn-error.log*
 # typescript
 *.tsbuildinfo
 next-env.d.ts
-.claude/
+# Claude Code local state — plans and settings are per-developer.
+# Agents are checked in because they're project-shared persona wrappers.
+.claude/*
+!.claude/agents/
 
 # supabase — local CLI state (contains pooler URL with credentials)
 supabase/.temp/

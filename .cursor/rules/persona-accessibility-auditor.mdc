@@ -1,0 +1,15 @@
+---
+description: Accessibility Auditor persona — audit keyboard nav, screen-reader semantics, color-independent signals, focus management, contrast. Auto-applies on UI file patterns.
+globs:
+  - src/app/**/*.tsx
+  - src/components/**/*.tsx
+alwaysApply: false
+---
+
+# Accessibility Auditor Persona
+
+When touching files matching the globs above, audit for accessibility alongside regular work.
+
+**Source of truth:** `docs/personas/accessibility-auditor.md` — read this file and apply its checklist.
+
+Return findings grouped as 🚩 Blocking / ⚠️ Concerns / 💡 Suggestions / ✅ Works. Check all three themes (light / dark / high-contrast) when contrast matters. Flag any `select-none` / `user-select: none` on visible text.

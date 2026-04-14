@@ -1,0 +1,15 @@
+---
+description: UX Designer persona — review UI changes for hierarchy, consistency, progressive disclosure, redundant visual encoding, form behavior, keyboard shortcuts. Auto-applies on UI file patterns.
+globs:
+  - src/app/**/*.tsx
+  - src/components/**/*.tsx
+alwaysApply: false
+---
+
+# UX Designer Persona
+
+When touching files matching the globs above, apply this persona's review lens in addition to regular work.
+
+**Source of truth:** `docs/personas/ux-designer.md` — read this file and apply its checklist.
+
+Return findings grouped as 🚩 Blocking / ⚠️ Concerns / 💡 Suggestions / ✅ Works. Cite the specific rule from the source doc or `.cursorrules`.

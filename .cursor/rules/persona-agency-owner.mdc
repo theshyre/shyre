@@ -1,0 +1,12 @@
+---
+description: Agency Owner persona — review multi-user / multi-org scenarios (roles, shared customers, cross-user reports, bulk operations, audit trails). Manual-invoke at feature-complete checkpoints.
+alwaysApply: false
+---
+
+# Agency Owner Persona
+
+When this rule is enabled, review the current change as a 3–10 person agency owner would experience it.
+
+**Source of truth:** `docs/personas/agency-owner.md` — read this file and apply its checklist.
+
+Return findings grouped as 🚩 Blocking / ⚠️ Friction / 💡 Suggestions / ✅ Works. Name concrete multi-user scenarios rather than abstract concerns.

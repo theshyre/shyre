@@ -293,9 +293,58 @@ Documentation lives in `docs/` AND is served as an in-app `/docs` route so it's 
 - **No TODO comments** — either fix it now or create a tracked issue. `// TODO` is not a plan.
 - **No partial implementations** — every feature you touch must be complete, tested, documented, and localized before moving on.
 
+## Personas — MANDATORY
+
+> Personas are stakeholder / craft / guardian lenses used by AI agents to review Shyre from perspectives other than the implementer's.
+
+### Source of truth
+
+- `docs/personas/*.md` holds the canonical persona definitions. There are 8 today: `solo-consultant`, `agency-owner`, `bookkeeper`, `ux-designer`, `accessibility-auditor`, `qa-tester`, `security-reviewer`, `platform-architect`. See `docs/personas/README.md` for the index.
+- Tool wrappers at `.claude/agents/<name>.md` and `.cursor/rules/persona-<name>.mdc` must reference the source, not duplicate it.
+
+### Auto-engagement policy
+
+Apply the relevant persona review alongside regular work whenever these file patterns are touched. Auto-engagement is proactive — the agent initiates the review without being asked.
+
+| Persona | Auto-engages on |
+|---|---|
+| QA Tester | Any `src/**/*.ts(x)` or `supabase/migrations/**/*.sql` change |
+| Security Reviewer | `supabase/migrations/**`, `src/lib/supabase/**`, `src/lib/safe-action.ts`, `src/lib/system-admin.ts`, `src/lib/org-context.ts`, any `**/actions.ts`, `src/app/auth/**` |
+| UX Designer | `src/app/**/*.tsx`, `src/components/**/*.tsx` |
+| Accessibility Auditor | Same as UX Designer (separate pass, different lens) |
+| Platform Architect | `src/lib/modules/**`, `supabase/migrations/**`, new top-level `src/app/(dashboard)/*/page.tsx` |
+
+**Stakeholder voices** (Solo Consultant, Agency Owner, Bookkeeper) are **not** auto-engaged. Invoke them manually at feature-complete checkpoints — running them on every small change turns them into noise.
+
+### Persona sync — CRITICAL
+
+Every persona has **three** files that must stay byte-compatible in scope and instruction:
+
+1. `docs/personas/<name>.md` (source)
+2. `.claude/agents/<name>.md` (Claude Code wrapper)
+3. `.cursor/rules/persona-<name>.mdc` (Cursor rule wrapper)
+
+> **Editing any one requires editing the other two.** When adding a new persona, add all three files in the same commit. When renaming, rename everywhere. When retiring, delete everywhere.
+
+This rule is stricter than the general CLAUDE.md ↔ .cursorrules parity — for personas, a third directory (`docs/personas/`) is the source of truth, and the wrappers must never drift from it.
+
+### Writing and maintaining personas
+
+- **Personas review; they do not implement.** Each file ends with a concrete checklist of what to flag, not prose.
+- **Personas are lenses, not gatekeepers.** Conflicting reviews are expected — the human decides.
+- **Each persona file stays ≤ ~100 lines.** If it grows, split the role.
+- **Prune stale concerns.** When a persona's check becomes a lint rule, a test, or a general CLAUDE.md rule, delete that bullet.
+- **Update personas when prod surprises slip past them.** The persona is living doc — the checklist should reflect real near-misses.
+- **Document deferred personas.** Don't add speculative personas; track "add when X" in `docs/personas/README.md`.
+
+### Using personas in prompts
+
+- Claude Code: `@<persona-name>` invokes the subagent (e.g., `@security-reviewer audit the new migration`).
+- Cursor: enable the persona rule from the rule picker or reference by name in-prompt.
+
 ## Code generation rules (Claude Code + Cursor)
 
-> **Keep in sync**: These rules are duplicated in `.cursorrules`. If you modify rules here, update `.cursorrules` to match.
+> **Keep in sync**: These rules are duplicated in `.cursorrules`. If you modify rules here, update `.cursorrules` to match. Persona sync is stricter — see above.
 
 - **All code must be TypeScript strict mode** — no `any`, no `@ts-ignore`
 - **All code must pass ESLint** — run lint before considering any code complete

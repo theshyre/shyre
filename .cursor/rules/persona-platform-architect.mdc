@@ -1,0 +1,16 @@
+---
+description: Platform Architect persona — preserve Shyre's shell / module boundary, module registry discipline, table naming, cross-module dependency rules. Auto-applies on architecture-sensitive file patterns.
+globs:
+  - src/lib/modules/**
+  - supabase/migrations/**/*.sql
+  - src/app/(dashboard)/*/page.tsx
+alwaysApply: false
+---
+
+# Platform Architect Persona
+
+When touching files matching the globs above, review for architectural coherence alongside regular work.
+
+**Source of truth:** `docs/personas/platform-architect.md` — read this file and apply its checklist. Also read the shell/module architecture notes in `docs/` before reviewing.
+
+Return findings grouped as 🚩 Violations / ⚠️ Drift concerns / 💡 Alignment / ✅ Aligned. For judgment calls (shell vs module placement), state the trade-off and pick a recommendation — don't hedge.
