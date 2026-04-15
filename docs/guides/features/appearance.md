@@ -33,6 +33,15 @@ Like theme, text size saves immediately and follows you across devices.
 - **Scales**: body text, labels, buttons, table cells, inline edits, the running timer readout, section headings.
 - **Doesn't scale**: icons (kept at pixel-fixed sizes for crispness), avatars, CSV export output, printed invoices (those have their own layout).
 
+## Quick access in the sidebar
+
+Theme and text size also live in the sidebar footer so you can flip either without a detour through Profile:
+
+- **Text size**: three `A` buttons in increasing size. The active one is highlighted.
+- **Theme**: the palette icon opens a popover with all five options and a check next to the active one. Escape closes it.
+
+Your app version (`Shyre v0.1.0`-style) is shown at the bottom of the sidebar, next to sign out. If you're reporting a bug, quote that string — it's baked in at build time so it pins the exact deploy you're seeing.
+
 ## Related
 
 - Keyboard shortcuts: [shortcuts](keyboard-shortcuts.md)

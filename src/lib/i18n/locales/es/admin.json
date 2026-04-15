@@ -1,0 +1,49 @@
+{
+  "hub": {
+    "title": "Administración",
+    "description": "Ajustes, equipos y configuración de tu negocio. Elige una tarjeta para continuar.",
+    "systemSection": "Administración del sistema",
+    "cards": {
+      "business": {
+        "title": "Negocio",
+        "description": "Identidad legal, año fiscal, tarifas por defecto, marca."
+      },
+      "teams": {
+        "title": "Equipos",
+        "description": "Crea, cambia y gestiona los equipos a los que pertenecen tus datos."
+      },
+      "securityGroups": {
+        "title": "Grupos de Seguridad",
+        "description": "Grupos de acceso basados en roles para recursos compartidos."
+      },
+      "categories": {
+        "title": "Categorías",
+        "description": "Conjuntos de categorías para entradas de tiempo — el eje principal."
+      },
+      "templates": {
+        "title": "Plantillas",
+        "description": "Atajos reutilizables de proyecto + descripción + facturable."
+      },
+      "import": {
+        "title": "Importar",
+        "description": "Trae datos desde Harvest o CSV."
+      },
+      "errorLog": {
+        "title": "Registro de Errores",
+        "description": "Errores en tiempo de ejecución capturados en la aplicación."
+      },
+      "users": {
+        "title": "Usuarios",
+        "description": "Cada cuenta registrada y su estado de administrador del sistema."
+      },
+      "allTeams": {
+        "title": "Todos los Equipos",
+        "description": "Cada equipo en la instancia, con conteo de miembros."
+      },
+      "sampleData": {
+        "title": "Datos de Ejemplo",
+        "description": "Carga o borra clientes, proyectos y entradas de demostración."
+      }
+    }
+  }
+}

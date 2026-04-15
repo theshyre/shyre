@@ -1,13 +1,16 @@
 {
   "appName": "Shyre",
   "appTagline": "Run your consulting business",
+  "appVersion": "Shyre v{version}",
   "nav": {
+    "primary": "Primary navigation",
     "dashboard": "Dashboard",
     "time": "Time",
     "customers": "Customers",
     "projects": "Projects",
     "invoices": "Invoices",
     "reports": "Reports",
+    "admin": "Admin",
     "teams": "Teams",
     "securityGroups": "Security Groups",
     "categories": "Categories",
@@ -19,7 +22,8 @@
     "adminUsers": "Users",
     "adminTeams": "All Teams",
     "adminSampleData": "Sample Data",
-    "docs": "Documentation"
+    "docs": "Documentation",
+    "unresolvedBadge": "{count, plural, one {# unresolved item} other {# unresolved items}}"
   },
   "navSections": {
     "track": "Track",

@@ -1,0 +1,49 @@
+{
+  "hub": {
+    "title": "Admin",
+    "description": "Settings, teams, and configuration for your business. Pick a card to dive in.",
+    "systemSection": "System administration",
+    "cards": {
+      "business": {
+        "title": "Business",
+        "description": "Legal identity, fiscal year, default rates, brand."
+      },
+      "teams": {
+        "title": "Teams",
+        "description": "Create, switch, and manage the teams your data belongs to."
+      },
+      "securityGroups": {
+        "title": "Security Groups",
+        "description": "Role-based access groups for shared resources."
+      },
+      "categories": {
+        "title": "Categories",
+        "description": "Time-entry category sets — the primary organizing axis for time."
+      },
+      "templates": {
+        "title": "Templates",
+        "description": "Reusable project + description + billable shortcuts for the timer."
+      },
+      "import": {
+        "title": "Import",
+        "description": "Pull data in from Harvest or CSV."
+      },
+      "errorLog": {
+        "title": "Error Log",
+        "description": "Unresolved runtime errors captured from the app."
+      },
+      "users": {
+        "title": "Users",
+        "description": "Every signed-up account and its system-admin status."
+      },
+      "allTeams": {
+        "title": "All Teams",
+        "description": "Every team across the instance, with membership counts."
+      },
+      "sampleData": {
+        "title": "Sample Data",
+        "description": "Seed or wipe demo customers, projects, and entries."
+      }
+    }
+  }
+}

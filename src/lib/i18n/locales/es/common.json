@@ -1,13 +1,16 @@
 {
   "appName": "Shyre",
   "appTagline": "Gestiona tu negocio de consultoría",
+  "appVersion": "Shyre v{version}",
   "nav": {
+    "primary": "Navegación principal",
     "dashboard": "Panel",
     "time": "Tiempo",
     "customers": "Clientes",
     "projects": "Proyectos",
     "invoices": "Facturas",
     "reports": "Informes",
+    "admin": "Administración",
     "teams": "Equipos",
     "securityGroups": "Grupos de Seguridad",
     "categories": "Categorías",
@@ -19,7 +22,8 @@
     "adminUsers": "Usuarios",
     "adminTeams": "Todos los Equipos",
     "adminSampleData": "Datos de Ejemplo",
-    "docs": "Documentación"
+    "docs": "Documentación",
+    "unresolvedBadge": "{count, plural, one {# ítem pendiente} other {# ítems pendientes}}"
   },
   "navSections": {
     "track": "Registrar",

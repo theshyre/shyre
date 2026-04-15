@@ -21,6 +21,7 @@ export default getRequestConfig(async () => {
     business,
     sampleData,
     expenses,
+    admin,
   ] = await Promise.all([
     import(`./locales/${locale}/common.json`),
     import(`./locales/${locale}/auth.json`),
@@ -39,6 +40,7 @@ export default getRequestConfig(async () => {
     import(`./locales/${locale}/business.json`),
     import(`./locales/${locale}/sampleData.json`),
     import(`./locales/${locale}/expenses.json`),
+    import(`./locales/${locale}/admin.json`),
   ]);
 
   return {
@@ -61,6 +63,7 @@ export default getRequestConfig(async () => {
       business: business.default,
       sampleData: sampleData.default,
       expenses: expenses.default,
+      admin: admin.default,
     },
   };
 });

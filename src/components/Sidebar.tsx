@@ -6,128 +6,27 @@ import { useTranslations } from "next-intl";
 import { createClient } from "@/lib/supabase/client";
 import {
   LayoutDashboard,
-  Users,
   FolderKanban,
   BarChart3,
   LogOut,
-  Building2,
-  Shield,
-  AlertTriangle,
-  Tags,
-  Bookmark,
-  Upload,
-  Database,
+  Settings,
   BookOpen,
-  User as UserIcon,
 } from "lucide-react";
 import type { ComponentType } from "react";
 import Timer from "./Timer";
 import { Avatar } from "./Avatar";
 import { LinkPendingSpinner } from "./LinkPendingSpinner";
+import { TextSizeSwitcher } from "./TextSizeSwitcher";
+import { ThemePickerPopover } from "./ThemePickerPopover";
 import { navItemsForSection } from "@/lib/modules/registry";
 
 interface NavItem {
   labelKey: string;
   href: string;
-  icon: ComponentType<{ size?: number }>;
+  icon: ComponentType<{ size?: number; className?: string }>;
+  /** Count badge (e.g. unresolved errors on Admin for system admins). */
+  badge?: number;
 }
-
-interface NavSection {
-  titleKey?: string;
-  items: NavItem[];
-}
-
-/**
- * Nav sections (for all users):
- * - Track  : daily work (dashboard, time tracking)
- * - Manage : ongoing records (customers, projects, invoices, reports)
- * - Admin  : org-level admin (teams, security groups, categories,
- *            templates, data import, business)
- *
- * Shell entries (dashboard, projects, reports, org-admin tooling) live in
- * the hardcoded section arrays below. Module-owned entries (time, customers,
- * invoices, business) are contributed by the module registry so new modules
- * can plug in by editing one file.
- *
- * Personal user profile lives at /profile (linked from the user identity
- * block at the top of the sidebar).
- *
- * System admin is a separate section rendered below, visible only to
- * system admins.
- */
-
-/** Shell-owned nav entries (not owned by any module). */
-const SHELL_SECTIONS: NavSection[] = [
-  {
-    titleKey: "navSections.track",
-    items: [
-      { labelKey: "dashboard", href: "/", icon: LayoutDashboard },
-      // Modules in the "track" section are injected from the registry
-    ],
-  },
-  {
-    titleKey: "navSections.manage",
-    items: [
-      // Module-owned entries come first (customers, invoices)
-      // then shell-owned cross-cutting entries:
-      { labelKey: "projects", href: "/projects", icon: FolderKanban },
-      { labelKey: "reports", href: "/reports", icon: BarChart3 },
-    ],
-  },
-  {
-    titleKey: "navSections.admin",
-    items: [
-      { labelKey: "teams", href: "/teams", icon: Building2 },
-      // Business module injected here from the registry
-      { labelKey: "securityGroups", href: "/security-groups", icon: Shield },
-      { labelKey: "categories", href: "/categories", icon: Tags },
-      { labelKey: "templates", href: "/templates", icon: Bookmark },
-      { labelKey: "import", href: "/import", icon: Upload },
-    ],
-  },
-];
-
-type NavSectionId = "track" | "manage" | "admin";
-const SECTION_ID_BY_TITLE: Record<string, NavSectionId> = {
-  "navSections.track": "track",
-  "navSections.manage": "manage",
-  "navSections.admin": "admin",
-};
-
-/** Merge shell entries with module-contributed entries per section. */
-function buildSections(): NavSection[] {
-  return SHELL_SECTIONS.map((section) => {
-    const sectionId = section.titleKey
-      ? SECTION_ID_BY_TITLE[section.titleKey]
-      : undefined;
-    const moduleItems = sectionId ? navItemsForSection(sectionId) : [];
-    const seen = new Set<string>();
-    const merged: NavItem[] = [];
-    // Module items come first within a section, before shell items
-    for (const it of moduleItems) {
-      if (!seen.has(it.href)) {
-        seen.add(it.href);
-        merged.push(it);
-      }
-    }
-    for (const it of section.items) {
-      if (!seen.has(it.href)) {
-        seen.add(it.href);
-        merged.push(it);
-      }
-    }
-    return { ...section, items: merged };
-  });
-}
-
-const sections: NavSection[] = buildSections();
-
-const systemAdminItems: NavItem[] = [
-  { labelKey: "adminErrors", href: "/admin/errors", icon: AlertTriangle },
-  { labelKey: "adminUsers", href: "/admin/users", icon: Users },
-  { labelKey: "adminTeams", href: "/admin/teams", icon: Building2 },
-  { labelKey: "adminSampleData", href: "/admin/sample-data", icon: Database },
-];
 
 interface SidebarProps {
   displayName: string;
@@ -137,6 +36,16 @@ interface SidebarProps {
   unresolvedErrorCount?: number;
 }
 
+/**
+ * Main sidebar. Flat 7-item nav + anchored bottom block — matches Liv's
+ * structure so the two apps share a consistent shape. Section dividers
+ * were dropped because with 7 items the order alone communicates hierarchy.
+ *
+ * Sub-surfaces previously listed directly in the sidebar (Business, Teams,
+ * Security Groups, Categories, Templates, Import) now live under the
+ * /admin hub page. System-admin-only tooling is a second section on the
+ * same hub page, gated by requireSystemAdmin in each sub-route.
+ */
 export default function Sidebar({
   displayName,
   email,
@@ -149,6 +58,28 @@ export default function Sidebar({
   const t = useTranslations("common");
   const supabase = createClient();
 
+  // Main nav: registry-contributed items from track + manage, then shell
+  // cross-cutting entries, then Admin as the final hub entry.
+  const trackItems = navItemsForSection("track");
+  const manageItems = navItemsForSection("manage");
+
+  const mainItems: NavItem[] = [
+    { labelKey: "dashboard", href: "/", icon: LayoutDashboard },
+    ...trackItems,
+    ...manageItems,
+    { labelKey: "projects", href: "/projects", icon: FolderKanban },
+    { labelKey: "reports", href: "/reports", icon: BarChart3 },
+    {
+      labelKey: "admin",
+      href: "/admin",
+      icon: Settings,
+      // Badge is safe to render for non-admins too (will be 0 / hidden),
+      // but we only pass a non-zero value from the dashboard layout when
+      // the user is a system admin.
+      badge: isAdmin ? (unresolvedErrorCount ?? 0) : 0,
+    },
+  ];
+
   async function handleSignOut(): Promise<void> {
     await supabase.auth.signOut();
     router.push("/login");
@@ -160,21 +91,63 @@ export default function Sidebar({
     return pathname.startsWith(href);
   }
 
+  const version = process.env.NEXT_PUBLIC_APP_VERSION;
+
   return (
     <aside className="flex h-full w-64 flex-col border-r border-edge bg-surface-raised">
       {/* Platform brand */}
       <div className="px-4 py-3 border-b border-edge">
-        <p className="text-sm font-bold text-content tracking-wide">
+        <p className="text-body-lg font-bold text-content tracking-wide">
           {t("appName")}
         </p>
-        <p className="text-[11px] text-content-muted">{t("appTagline")}</p>
+        <p className="text-caption text-content-muted">{t("appTagline")}</p>
       </div>
 
-      {/* User identity — clicks to /profile */}
+      {/* Main nav — flat, no section dividers */}
+      <nav
+        aria-label={t("nav.primary")}
+        className="flex-1 overflow-y-auto px-3 py-3 space-y-0.5"
+      >
+        {mainItems.map((item) => {
+          const Icon = item.icon;
+          const isActive = isItemActive(item.href);
+          const showBadge = (item.badge ?? 0) > 0;
+          return (
+            <Link
+              key={item.href}
+              href={item.href}
+              className={`flex items-center gap-3 rounded-lg px-3 py-2 text-body-lg font-medium transition-colors ${
+                isActive
+                  ? "bg-accent-soft text-accent-text"
+                  : "text-content-secondary hover:bg-hover hover:text-content"
+              }`}
+            >
+              <Icon size={18} className="shrink-0" />
+              <span className="flex-1">{t(`nav.${item.labelKey}`)}</span>
+              {showBadge ? (
+                <span
+                  aria-label={t("nav.unresolvedBadge", { count: item.badge! })}
+                  className="inline-flex h-5 min-w-5 items-center justify-center rounded-full bg-error px-1 text-caption font-bold text-content-inverse"
+                >
+                  {item.badge}
+                </span>
+              ) : (
+                <LinkPendingSpinner />
+              )}
+            </Link>
+          );
+        })}
+      </nav>
+
+      {/* Bottom block — ambient context + identity + controls */}
+      <div className="border-t border-edge">
+        <Timer />
+      </div>
+
       <Link
         href="/profile"
         aria-label={t("nav.profile")}
-        className={`group p-4 border-b border-edge transition-colors hover:bg-hover ${
+        className={`group px-4 py-3 border-t border-edge transition-colors hover:bg-hover ${
           isItemActive("/profile") ? "bg-accent-soft" : ""
         }`}
       >
@@ -182,114 +155,57 @@ export default function Sidebar({
           <Avatar
             avatarUrl={avatarUrl ?? null}
             displayName={displayName}
-            size={36}
+            size={32}
           />
           <div className="min-w-0 flex-1">
-            <p className="text-sm font-semibold text-content truncate">
+            <p className="text-body-lg font-semibold text-content truncate">
               {displayName}
             </p>
-            <p className="text-xs text-content-muted truncate">{email}</p>
+            <p className="text-caption text-content-muted truncate">{email}</p>
           </div>
-          <UserIcon
-            size={14}
-            className="text-content-muted shrink-0 opacity-0 group-hover:opacity-100 transition-opacity"
-          />
+          <LinkPendingSpinner />
         </div>
       </Link>
 
-      <nav className="flex-1 overflow-y-auto px-3 py-3 space-y-5">
-        {sections.map((section, idx) => (
-          <div key={idx} className="space-y-1">
-            {section.titleKey && (
-              <h3 className="px-3 text-[10px] font-semibold uppercase tracking-wider text-content-muted mb-1">
-                {t(section.titleKey)}
-              </h3>
-            )}
-            {section.items.map((item) => {
-              const Icon = item.icon;
-              const isActive = isItemActive(item.href);
-              return (
-                <Link
-                  key={item.href}
-                  href={item.href}
-                  className={`flex items-center gap-3 rounded-lg px-3 py-2 text-sm font-medium transition-colors ${
-                    isActive
-                      ? "bg-accent-soft text-accent-text"
-                      : "text-content-secondary hover:bg-hover hover:text-content"
-                  }`}
-                >
-                  <Icon size={18} />
-                  {t(`nav.${item.labelKey}`)}
-                  <LinkPendingSpinner />
-                </Link>
-              );
-            })}
-          </div>
-        ))}
-
-        {/* System admin section — only visible to system admins */}
-        {isAdmin && (
-          <div className="space-y-1 pt-3 border-t border-edge">
-            <h3 className="px-3 text-[10px] font-semibold uppercase tracking-wider text-warning mb-1 flex items-center gap-1">
-              <Shield size={10} />
-              {t("navSections.systemAdmin")}
-            </h3>
-            {systemAdminItems.map((item) => {
-              const Icon = item.icon;
-              const isActive = isItemActive(item.href);
-              const showBadge =
-                item.href === "/admin/errors" &&
-                (unresolvedErrorCount ?? 0) > 0;
-              return (
-                <Link
-                  key={item.href}
-                  href={item.href}
-                  className={`flex items-center gap-3 rounded-lg px-3 py-2 text-sm font-medium transition-colors ${
-                    isActive
-                      ? "bg-accent-soft text-accent-text"
-                      : "text-content-secondary hover:bg-hover hover:text-content"
-                  }`}
-                >
-                  <Icon size={18} />
-                  {t(`nav.${item.labelKey}`)}
-                  {showBadge && (
-                    <span className="ml-auto inline-flex h-5 min-w-5 items-center justify-center rounded-full bg-error text-content-inverse text-[10px] font-bold px-1">
-                      {unresolvedErrorCount}
-                    </span>
-                  )}
-                  {!showBadge && <LinkPendingSpinner />}
-                </Link>
-              );
-            })}
-          </div>
-        )}
-      </nav>
-
-      <div className="border-t border-edge">
-        <Timer />
+      {/* Controls row: text size + theme (language deferred — request.ts
+          still hardcodes locale, so a picker would be a placebo). */}
+      <div className="flex items-center justify-between gap-2 px-4 py-2 border-t border-edge">
+        <TextSizeSwitcher dense />
+        <ThemePickerPopover />
       </div>
 
-      <div className="border-t border-edge p-4 space-y-1">
+      {/* Docs + sign out */}
+      <div className="border-t border-edge px-3 py-2 space-y-0.5">
         <Link
           href="/docs"
-          className={`flex items-center gap-3 rounded-lg px-3 py-2 text-sm font-medium transition-colors ${
+          className={`flex items-center gap-3 rounded-lg px-3 py-2 text-body font-medium transition-colors ${
             isItemActive("/docs")
               ? "bg-accent-soft text-accent-text"
               : "text-content-muted hover:bg-hover hover:text-content"
           }`}
         >
-          <BookOpen size={18} />
-          {t("nav.docs")}
+          <BookOpen size={16} className="shrink-0" />
+          <span className="flex-1">{t("nav.docs")}</span>
           <LinkPendingSpinner />
         </Link>
         <button
+          type="button"
           onClick={handleSignOut}
-          className="flex items-center gap-3 rounded-lg px-3 py-2 text-sm font-medium text-content-muted hover:bg-hover hover:text-content transition-colors w-full"
+          className="flex w-full items-center gap-3 rounded-lg px-3 py-2 text-body font-medium text-content-muted hover:bg-hover hover:text-content transition-colors"
         >
-          <LogOut size={18} />
-          {t("actions.signOut")}
+          <LogOut size={16} className="shrink-0" />
+          <span className="flex-1 text-left">{t("actions.signOut")}</span>
         </button>
       </div>
+
+      {/* Version — build-time from package.json via next.config.ts */}
+      {version && (
+        <div className="border-t border-edge px-4 py-2 text-center">
+          <span className="text-caption text-content-muted">
+            {t("appVersion", { version })}
+          </span>
+        </div>
+      )}
     </aside>
   );
 }
