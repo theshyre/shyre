@@ -103,11 +103,25 @@ ALTER FUNCTION public.change_customer_primary_org(UUID, UUID) RENAME TO change_c
 
 -- ============================================================
 -- 5. Rewrite function bodies with team-named references
---    CREATE OR REPLACE keeps the OID (function was renamed above, so
---    policies already bound to it continue to work unchanged).
+--
+--    CREATE OR REPLACE keeps the OID (preserves RLS policy binding)
+--    but Postgres refuses to rename input parameters. Two patterns:
+--
+--    (a) RLS-bound helpers — functions referenced by policy
+--        expressions. We must keep the OID, so we CREATE OR REPLACE
+--        and retain the original parameter names (`org_id`, `p_client_id`).
+--        Callers in SQL land are positional, so the stale param name
+--        is cosmetic.
+--
+--    (b) RPC functions called from TS with named-arg objects. These
+--        have no policy dependency, so we DROP them (OID change is
+--        fine) and CREATE fresh with team-named parameters that match
+--        the TS call site.
 -- ============================================================
 
-CREATE OR REPLACE FUNCTION public.user_has_team_access(p_team_id UUID)
+-- (a) RLS-bound helpers — keep original param names
+
+CREATE OR REPLACE FUNCTION public.user_has_team_access(org_id UUID)
 RETURNS BOOLEAN
 LANGUAGE plpgsql
 SECURITY DEFINER
@@ -117,13 +131,13 @@ AS $$
 BEGIN
   RETURN EXISTS (
     SELECT 1 FROM public.team_members tm
-    WHERE tm.team_id = p_team_id
+    WHERE tm.team_id = user_has_team_access.org_id
       AND tm.user_id = auth.uid()
   );
 END;
 $$;
 
-CREATE OR REPLACE FUNCTION public.user_team_role(p_team_id UUID)
+CREATE OR REPLACE FUNCTION public.user_team_role(org_id UUID)
 RETURNS TEXT
 LANGUAGE plpgsql
 SECURITY DEFINER
@@ -134,12 +148,53 @@ DECLARE
   result TEXT;
 BEGIN
   SELECT tm.role INTO result FROM public.team_members tm
-    WHERE tm.team_id = p_team_id AND tm.user_id = auth.uid();
+    WHERE tm.team_id = user_team_role.org_id AND tm.user_id = auth.uid();
   RETURN result;
 END;
 $$;
 
-CREATE OR REPLACE FUNCTION public.create_team(p_team_name TEXT)
+-- user_can_see_cross_team_entries used `p_client_id` before the rename
+-- (kept through the customers migration). Policies on time_entries bind
+-- to this function by OID, so the param name stays.
+CREATE OR REPLACE FUNCTION public.user_can_see_cross_team_entries(p_client_id UUID)
+RETURNS BOOLEAN
+LANGUAGE plpgsql
+SECURITY DEFINER
+STABLE
+SET search_path = public
+AS $$
+DECLARE
+  uid UUID := auth.uid();
+  primary_team UUID;
+BEGIN
+  IF uid IS NULL THEN RETURN false; END IF;
+  SELECT team_id INTO primary_team FROM public.customers WHERE id = p_client_id;
+  IF primary_team IS NULL THEN RETURN false; END IF;
+
+  IF EXISTS (
+    SELECT 1 FROM public.team_members
+    WHERE user_id = uid AND team_id = primary_team
+  ) THEN RETURN true; END IF;
+
+  IF public.user_customer_permission(p_client_id) = 'admin' THEN
+    RETURN true;
+  END IF;
+
+  RETURN EXISTS (
+    SELECT 1 FROM public.customer_shares cs
+    JOIN public.team_members tm ON tm.team_id = cs.team_id
+    WHERE cs.customer_id = p_client_id
+      AND tm.user_id = uid
+      AND cs.can_see_others_entries = true
+  );
+END;
+$$;
+
+-- (b) RPC functions called from TS with named args — DROP + CREATE
+--     so we can rename parameters to match TS call sites.
+
+DROP FUNCTION IF EXISTS public.create_team(TEXT);
+CREATE FUNCTION public.create_team(team_name TEXT)
 RETURNS UUID
 LANGUAGE plpgsql
 SECURITY DEFINER
@@ -156,16 +211,16 @@ BEGIN
     RAISE EXCEPTION 'Authentication required';
   END IF;
 
-  IF p_team_name IS NULL OR length(trim(p_team_name)) = 0 THEN
+  IF team_name IS NULL OR length(trim(team_name)) = 0 THEN
     RAISE EXCEPTION 'Team name is required';
   END IF;
 
-  new_slug := lower(regexp_replace(trim(p_team_name), '[^a-z0-9]+', '-', 'gi'));
+  new_slug := lower(regexp_replace(trim(team_name), '[^a-z0-9]+', '-', 'gi'));
   new_slug := regexp_replace(new_slug, '(^-|-$)', '', 'g');
   new_slug := substring(new_slug, 1, 50) || '-' || extract(epoch from now())::text;
 
   INSERT INTO public.teams (name, slug, is_personal)
-  VALUES (trim(p_team_name), new_slug, false)
+  VALUES (trim(team_name), new_slug, false)
   RETURNING id INTO new_team_id;
 
   INSERT INTO public.team_members (team_id, user_id, role)
@@ -178,41 +233,8 @@ BEGIN
 END;
 $$;
 
-CREATE OR REPLACE FUNCTION public.user_can_see_cross_team_entries(p_customer_id UUID)
-RETURNS BOOLEAN
-LANGUAGE plpgsql
-SECURITY DEFINER
-STABLE
-SET search_path = public
-AS $$
-DECLARE
-  uid UUID := auth.uid();
-  primary_team UUID;
-BEGIN
-  IF uid IS NULL THEN RETURN false; END IF;
-  SELECT team_id INTO primary_team FROM public.customers WHERE id = p_customer_id;
-  IF primary_team IS NULL THEN RETURN false; END IF;
-
-  IF EXISTS (
-    SELECT 1 FROM public.team_members
-    WHERE user_id = uid AND team_id = primary_team
-  ) THEN RETURN true; END IF;
-
-  IF public.user_customer_permission(p_customer_id) = 'admin' THEN
-    RETURN true;
-  END IF;
-
-  RETURN EXISTS (
-    SELECT 1 FROM public.customer_shares cs
-    JOIN public.team_members tm ON tm.team_id = cs.team_id
-    WHERE cs.customer_id = p_customer_id
-      AND tm.user_id = uid
-      AND cs.can_see_others_entries = true
-  );
-END;
-$$;
-
-CREATE OR REPLACE FUNCTION public.propose_team_share(
+DROP FUNCTION IF EXISTS public.propose_team_share(UUID, UUID, TEXT);
+CREATE FUNCTION public.propose_team_share(
   p_parent_team_id UUID,
   p_child_team_id UUID,
   p_sharing_level TEXT DEFAULT 'clients_read'
@@ -239,6 +261,8 @@ BEGIN
 END;
 $$;
 
+-- accept_team_share already used p_share_id — no rename needed, just
+-- update body for the renamed table.
 CREATE OR REPLACE FUNCTION public.accept_team_share(
   p_share_id UUID
 ) RETURNS VOID
@@ -264,7 +288,8 @@ BEGIN
 END;
 $$;
 
-CREATE OR REPLACE FUNCTION public.change_customer_primary_team(
+DROP FUNCTION IF EXISTS public.change_customer_primary_team(UUID, UUID);
+CREATE FUNCTION public.change_customer_primary_team(
   p_customer_id UUID,
   p_new_team_id UUID
 ) RETURNS VOID
@@ -439,7 +464,8 @@ BEGIN
 END;
 $$;
 
-CREATE OR REPLACE FUNCTION public.add_customer_share(
+DROP FUNCTION IF EXISTS public.add_customer_share(UUID, UUID, BOOLEAN);
+CREATE FUNCTION public.add_customer_share(
   p_customer_id UUID,
   p_team_id UUID,
   p_can_see_others BOOLEAN DEFAULT false
