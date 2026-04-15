@@ -102,10 +102,11 @@ Every meaningful UI element uses 2+ of: icon, text, color.
 ## Documentation (MANDATORY)
 
 - Docs live in `docs/` and are served in-app at `/docs` via react-markdown + remark-gfm.
-- Structure: `docs/guides/{solo,agency,bookkeeper,admin}/` for user-facing (audience-segmented), `docs/reference/` for technical, `docs/security/` for audit log, `docs/personas/` for AI personas.
-- Every user-facing feature has a guide entry in every relevant audience folder, shipped in the same commit as the feature.
+- Structure: `docs/guides/features/` for cross-role feature docs (apply to everyone), `docs/guides/{agency,bookkeeper,admin}/` for role-specific additions only. `docs/reference/` for technical, `docs/security/` for audit log, `docs/personas/` for AI personas.
+- The `/docs` landing is role-aware: surfaces relevant links based on logged-in user's role mix. Audience browse cards are secondary, not the hero.
+- Every user-facing feature has a guide in `docs/guides/features/`, shipped in the same commit as the feature. Add a role-specific entry only if something is genuinely role-only.
 - Required updates per change:
-  - New feature → audience guides under `docs/guides/`
+  - New feature → `docs/guides/features/<feature>.md` (+ role-specific only if needed)
   - Schema change → `docs/reference/database-schema.md`
   - New module / shell concept → `docs/reference/modules.md`
   - New env var → `.env.example` AND `docs/guides/admin/env-configuration.md`

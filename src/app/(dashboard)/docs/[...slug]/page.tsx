@@ -8,10 +8,10 @@ import remarkGfm from "remark-gfm";
 
 /**
  * Resolve a URL slug to a file under docs/. Supports:
- *   /docs/guides/solo/time-tracking        → docs/guides/solo/time-tracking.md
+ *   /docs/guides/features/time-tracking        → docs/guides/features/time-tracking.md
  *   /docs/reference/architecture           → docs/reference/architecture.md
  *   /docs/security/SECURITY_AUDIT_LOG      → docs/security/SECURITY_AUDIT_LOG.md
- *   /docs/guides/solo                      → docs/guides/solo/README.md
+ *   /docs/guides/features                      → docs/guides/features/README.md
  *
  * Back-compat for the previous flat slug scheme:
  *   /docs/architecture          → docs/reference/architecture.md

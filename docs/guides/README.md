@@ -1,20 +1,23 @@
 # Guides
 
-User-facing how-tos. Start with [getting started](getting-started.md), then drill into your role.
+User-facing how-tos. Start with [getting started](getting-started.md).
 
-## By audience
+## Feature guides (everyone)
 
-- **[Solo consultants](solo/)** — the daily workflow
+How each Shyre feature works. See [features/](features/) for the full list.
+
+## Role-specific guides
+
 - **[Agency owners](agency/)** — multi-user, roles, sharing
 - **[Bookkeepers](bookkeeper/)** — exports, reconciliation, close
 - **[System admins](admin/)** — the tools behind the admin sidebar
 
-## Reading order suggestions
+## Reading-order suggestions
 
-**New Shyre user:** getting-started → solo/time-tracking → solo/customers → solo/projects → solo/invoicing.
+**New Shyre user:** getting-started → features/time-tracking → features/customers → features/projects → features/invoicing.
 
-**Someone just invited to an existing org:** getting-started → solo/time-tracking → agency/orgs-and-roles (to understand your role).
+**Just invited to an existing org:** getting-started → features/time-tracking → agency/orgs-and-roles.
 
-**Bookkeeper onboarded to reconcile:** bookkeeper/exports → bookkeeper/period-close → solo/business-identity.
+**Bookkeeper onboarded to reconcile:** bookkeeper/exports → bookkeeper/period-close → features/business-identity.
 
 **New platform admin:** admin/env-configuration → admin/error-log → admin/sample-data.

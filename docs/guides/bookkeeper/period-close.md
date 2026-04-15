@@ -28,9 +28,9 @@ Until a formal close control ships:
 
 ## Fiscal year
 
-Set `fiscal_year_start` (MM-DD) in [Business identity](../solo/business-identity.md). Reports respect this when showing "this fiscal year" or "last quarter".
+Set `fiscal_year_start` (MM-DD) in [Business identity](../features/business-identity.md). Reports respect this when showing "this fiscal year" or "last quarter".
 
 ## Related
 
 - [Exports](exports.md)
-- Solo guide: [business identity](../solo/business-identity.md)
+- Feature guide: [business identity](../features/business-identity.md)

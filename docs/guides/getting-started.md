@@ -52,11 +52,11 @@ Invoices are in early development. Expect basics now; late fees, multi-currency,
 
 ## 7. Next steps
 
-- **Solo consultant?** Read the [solo guides](solo/) for daily workflow tips.
+- **Solo consultant?** Read the [solo guides](features/) for daily workflow tips.
 - **Running a team?** See the [agency guides](agency/) for orgs, roles, and customer sharing.
-- **Setting up your business identity for tax/legal?** See [business identity](solo/business-identity.md).
-- **Need to import from Harvest?** See [imports](solo/imports.md).
+- **Setting up your business identity for tax/legal?** See [business identity](features/business-identity.md).
+- **Need to import from Harvest?** See [imports](features/imports.md).
 
 ## Keyboard shortcuts
 
-See the [keyboard shortcuts cheatsheet](solo/keyboard-shortcuts.md) for every shortcut in the app.
+See the [keyboard shortcuts cheatsheet](features/keyboard-shortcuts.md) for every shortcut in the app.

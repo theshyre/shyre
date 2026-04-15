@@ -6,13 +6,13 @@ This folder is the single source of truth for all documentation. Everything here
 
 ## Guides
 
-User-facing how-tos, organized by who you are.
+User-facing how-tos. Feature guides apply to every Shyre user; role guides cover what's specific to your role.
 
-- **[Getting started](guides/getting-started.md)** — first login to first invoice, for everyone
-- **[For solo consultants](guides/solo/)** — the daily workflow
-- **[For agency owners](guides/agency/)** — multi-user, roles, sharing
-- **[For bookkeepers](guides/bookkeeper/)** — exports, reconciliation, close
-- **[For system admins](guides/admin/)** — the tools behind the admin sidebar
+- **[Getting started](guides/getting-started.md)** — first login to first invoice
+- **[Feature guides](guides/features/)** — time tracking, customers, projects, invoicing, expenses, business identity, categories, templates, imports, keyboard shortcuts. Apply to everyone.
+- **[Agency owner guides](guides/agency/)** — multi-user, roles, customer sharing, security groups
+- **[Bookkeeper guides](guides/bookkeeper/)** — exports, reconciliation, period close
+- **[System admin guides](guides/admin/)** — env config, error log, sample data, users + orgs admin
 
 ## Reference
 

@@ -273,10 +273,10 @@ docs/
 ├── README.md                # index
 ├── guides/                  # user-facing how-tos, by audience
 │   ├── getting-started.md
-│   ├── solo/                # Solo Consultant
-│   ├── agency/              # Agency Owner
-│   ├── bookkeeper/          # Bookkeeper
-│   └── admin/               # System Admin
+│   ├── features/            # Cross-role feature docs (apply to every user)
+│   ├── agency/              # Role-specific: Agency Owner
+│   ├── bookkeeper/          # Role-specific: Bookkeeper
+│   └── admin/               # Role-specific: System Admin
 ├── reference/               # technical
 │   ├── architecture.md
 │   ├── database-schema.md
@@ -285,7 +285,11 @@ docs/
 └── personas/                # AI review personas
 ```
 
-Guides are segmented by **audience** (matches the persona system). A feature that affects multiple audiences gets one entry in each relevant audience's guide — don't write a single generic page.
+Guides have two layers:
+- **`guides/features/`** — one doc per feature, written for the default Shyre user (most often a solo consultant). Apply to everyone; role-specific behavior is called out inline and linked to the relevant role guide.
+- **`guides/{agency,bookkeeper,admin}/`** — role-specific docs that only matter if you have that role. Don't duplicate feature content here; link to it from `features/` instead.
+
+The `/docs` landing is **role-aware**: it auto-shows the most relevant links based on the logged-in user's role mix (system-admin status + role across their orgs). Audience browse cards exist as a secondary section, not the hero.
 
 ### When you build, modify, or add anything
 
@@ -293,7 +297,7 @@ The relevant user-facing guide gets created or updated **in the same commit**.
 
 | Change | Must update |
 |---|---|
-| New user-facing feature | Guide entry in every affected audience folder under `docs/guides/` |
+| New user-facing feature | Doc in `docs/guides/features/`. Add a role-specific doc in `agency/` / `bookkeeper/` / `admin/` only if there's something genuinely role-specific to say beyond what the feature doc covers. |
 | UI / flow change | Existing guide entry for that feature |
 | Schema / migration | `docs/reference/database-schema.md` |
 | New module / shell concept | `docs/reference/modules.md` |

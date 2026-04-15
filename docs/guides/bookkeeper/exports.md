@@ -62,6 +62,6 @@ Direct QB Online sync is on the roadmap.
 
 ## Related
 
-- Solo guide: [invoicing](../solo/invoicing.md)
+- Feature guide: [invoicing](../features/invoicing.md)
 - [Period close](period-close.md)
 - [Reference: database schema](../../reference/database-schema.md)
