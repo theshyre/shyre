@@ -25,16 +25,14 @@ const STORAGE_KEY = "stint-text-size";
 const SIZES = ["compact", "regular", "large"] as const;
 const SIZE_CHANGE_EVENT = "stint-text-size-change";
 
-const SIZE_PX: Record<TextSize, string> = {
-  compact: "14px",
-  regular: "16px",
-  large: "18px",
-};
-
 const TextSizeContext = createContext<TextSizeContextValue | null>(null);
 
 function applyTextSize(size: TextSize): void {
-  document.documentElement.style.fontSize = SIZE_PX[size];
+  // CSS drives the actual font-size via `html[data-text-size="..."]`
+  // rules in globals.css. Don't set `style.fontSize` directly: Next 16 /
+  // React 19 reconciles the <html> element and strips inline styles that
+  // weren't rendered from React's JSX tree. The attribute, mirroring how
+  // the theme works, survives that reconciliation.
   document.documentElement.setAttribute("data-text-size", size);
 }
 

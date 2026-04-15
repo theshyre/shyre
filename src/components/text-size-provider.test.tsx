@@ -24,7 +24,6 @@ describe("TextSizeProvider", () => {
   beforeEach(() => {
     localStorage.clear();
     document.documentElement.removeAttribute("data-text-size");
-    document.documentElement.style.fontSize = "";
   });
 
   it("defaults to regular when nothing stored", () => {
@@ -37,7 +36,7 @@ describe("TextSizeProvider", () => {
     expect(screen.getByTestId("count").textContent).toBe("3");
   });
 
-  it("switching size writes localStorage + data-text-size + root font-size", async () => {
+  it("switching size writes localStorage + data-text-size attribute", async () => {
     const user = userEvent.setup();
     render(
       <TextSizeProvider>
@@ -47,10 +46,11 @@ describe("TextSizeProvider", () => {
     await user.click(screen.getByText("set-large"));
     expect(screen.getByTestId("current").textContent).toBe("large");
     expect(localStorage.getItem("stint-text-size")).toBe("large");
+    // CSS in globals.css drives the actual font-size off the attribute —
+    // no inline style.fontSize is set (it gets reconciled away by React).
     expect(document.documentElement.getAttribute("data-text-size")).toBe(
       "large",
     );
-    expect(document.documentElement.style.fontSize).toBe("18px");
   });
 
   it("reads stored size on mount", async () => {

@@ -50,8 +50,6 @@ export default async function RootLayout({
                   document.documentElement.setAttribute('data-theme', resolved);
                   var size = localStorage.getItem('stint-text-size');
                   if (size === 'compact' || size === 'regular' || size === 'large') {
-                    var sizes = { compact: '14px', regular: '16px', large: '18px' };
-                    document.documentElement.style.fontSize = sizes[size];
                     document.documentElement.setAttribute('data-text-size', size);
                   }
                 } catch (e) {}
