@@ -13,6 +13,7 @@ import {
 } from "@/lib/time/tz";
 import { getMyTemplates } from "@/lib/templates/queries";
 import { TimeHome } from "./time-home";
+import { NoTeamEmptyState } from "./no-team-empty-state";
 import type { TimeView } from "./view-toggle";
 
 // Supabase returns `projects(..., customers(...))` with `customers` as a
@@ -53,6 +54,14 @@ export default async function TimeEntriesPage({
   const teams = await getUserTeams();
   const sp = await searchParams;
   const { org: selectedTeamId } = sp;
+
+  // No teams → no surface to log time into. Short-circuit to a guidance
+  // page instead of rendering the Timer form against a void of projects.
+  if (teams.length === 0) {
+    return <NoTeamEmptyState />;
+  }
+
+  const userTeamIds = teams.map((tm) => tm.id);
 
   // User's effective tz: prefer the explicit IANA setting from user_settings,
   // falling back to the browser-detected offset cookie, falling back to UTC.
@@ -127,13 +136,19 @@ export default async function TimeEntriesPage({
   const { data: runningEntries } = await runningQuery;
   const running = runningEntries?.[0] ? normalizeEntry(runningEntries[0]) : null;
 
-  // Active projects
+  // Active projects — scoped to teams the user is an actual member of.
+  // RLS would also let through customer-shared projects from other teams,
+  // but our "you can only log time to teams you're a member of" rule means
+  // those projects can't be targets of a new entry. Hide them here so
+  // Recent-projects chips and the Start form never show a project that
+  // would be rejected on submit.
   let projectsQuery = supabase
     .from("projects")
     .select(
       "id, name, github_repo, team_id, category_set_id, require_timestamps, customers(id, name)",
     )
     .eq("status", "active")
+    .in("team_id", userTeamIds)
     .order("name");
   if (selectedTeamId) projectsQuery = projectsQuery.eq("team_id", selectedTeamId);
   const { data: rawProjects } = await projectsQuery;

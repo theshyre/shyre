@@ -135,6 +135,14 @@
     "promptWithSummary": "Type {word} to delete {summary}",
     "inputLabel": "Type delete to confirm"
   },
+  "noTeams": {
+    "title": "Time",
+    "headline": "You're not on any team yet",
+    "body": "Time entries belong to a team. Create one of your own to start tracking, or ask your team lead to invite you — once they do, your projects will show up here automatically.",
+    "createTeam": "Create a team",
+    "contactAdmin": "Email support",
+    "contactSubject": "Need access to a Shyre team"
+  },
   "toast": {
     "entryDeleted": "Entry moved to trash",
     "entriesDeleted": "{count, plural, one {# entry} other {# entries}} moved to trash",

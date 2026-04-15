@@ -135,6 +135,14 @@
     "promptWithSummary": "Escribe {word} para eliminar {summary}",
     "inputLabel": "Escribe delete para confirmar"
   },
+  "noTeams": {
+    "title": "Tiempo",
+    "headline": "Aún no perteneces a ningún equipo",
+    "body": "Las entradas de tiempo pertenecen a un equipo. Crea uno propio para empezar a registrar, o pídele a tu líder que te invite — en cuanto lo haga, tus proyectos aparecerán aquí.",
+    "createTeam": "Crear un equipo",
+    "contactAdmin": "Contactar soporte",
+    "contactSubject": "Necesito acceso a un equipo en Shyre"
+  },
   "toast": {
     "entryDeleted": "Entrada movida a la papelera",
     "entriesDeleted": "{count, plural, one {# entrada movida a la papelera} other {# entradas movidas a la papelera}}",
