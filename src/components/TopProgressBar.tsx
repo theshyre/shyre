@@ -5,42 +5,42 @@ import { useEffect, useRef, useState } from "react";
 
 /**
  * Slim accent-colored progress bar pinned to the top of the viewport.
- * Fires when an in-app navigation starts; snaps to 100% + fades on completion.
  *
- * Detection:
- *   - Click on any in-app `<a>` triggers the start (after a small delay so
- *     genuinely-zero-cost navigations don't flash).
- *   - `usePathname` change signals completion.
+ * Strategy: react to actual route changes, not click predictions.
  *
- * Once the bar enters "loading", it stays visible for at least
- * MIN_VISIBLE_MS so even fast navigations get a perceptible signal.
+ *   1. Document-level click handler on in-app `<a>` flips the bar to
+ *      "loading" the moment a navigation is intended.
+ *   2. `usePathname` / `useSearchParams` change → flip to "complete"
+ *      (with a minimum-visible window so even prefetched/instant routes
+ *      get a perceptible flash).
+ *   3. Pathname change WITHOUT a preceding click (programmatic nav,
+ *      router.push) also triggers a brief flash.
  *
- * The animation is nprogress-flavored: trickles toward ~80% over ~3.5s
- * while loading, then snaps to 100% and fades on pathname change.
- * Safety: if the route never resolves within MAX_LOADING_MS, the bar
- * gives up and hides.
+ * The previous version delayed `setState("loading")` until 40ms after
+ * the click — but Next 16's prefetched links resolve faster than that,
+ * so the show-timer was cancelled before it fired and the bar never
+ * appeared. No more show-delay. A "min visible" window absorbs the
+ * "instant" case so the user always sees the bar.
  */
 
-const SHOW_DELAY_MS = 40;       // Don't flash for genuinely-zero-cost navigations
-const MIN_VISIBLE_MS = 320;     // Once "loading", stay visible at least this long
-const HIDE_DELAY_MS = 260;      // Time the "complete" fade is visible
-const MAX_LOADING_MS = 12_000;  // Safety: hide after this even if no nav happens
+const MIN_VISIBLE_MS = 320;
+const COMPLETE_FADE_MS = 280;
+const SAFETY_MS = 12_000;
 
-type State = "idle" | "loading" | "complete";
+type Phase = "hidden" | "loading" | "complete";
 
 export function TopProgressBar(): React.JSX.Element | null {
   const pathname = usePathname();
-  const [state, setState] = useState<State>("idle");
+
+  const [phase, setPhase] = useState<Phase>("hidden");
   const prevPathname = useRef(pathname);
-  const showTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const shownAt = useRef<number | null>(null);
+  const completeTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const hideTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const safetyTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
-  const minVisibleTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
-  const shownAt = useRef<number | null>(null);
-  // Buffer for "complete" deferred until min-visible elapses.
-  const deferredComplete = useRef(false);
 
-  // Show on click (after a brief delay, so instant routes don't flicker).
+  // Show on click, immediately. No predictive delay — that's what was
+  // hiding the bar on instant prefetched routes.
   useEffect(() => {
     function handleClick(e: MouseEvent): void {
       if (e.defaultPrevented) return;
@@ -61,7 +61,6 @@ export function TopProgressBar(): React.JSX.Element | null {
         return;
       }
 
-      // External links — skip
       let url: URL;
       try {
         url = new URL(href, window.location.href);
@@ -69,8 +68,6 @@ export function TopProgressBar(): React.JSX.Element | null {
         return;
       }
       if (url.origin !== window.location.origin) return;
-
-      // Same-page link — no nav
       if (
         url.pathname === window.location.pathname &&
         url.search === window.location.search
@@ -78,75 +75,61 @@ export function TopProgressBar(): React.JSX.Element | null {
         return;
       }
 
-      // Schedule loading state. If the new pathname appears before SHOW_DELAY,
-      // it gets cancelled in the pathname effect.
-      clearAll();
-      deferredComplete.current = false;
-      showTimer.current = setTimeout(() => {
-        shownAt.current = performance.now();
-        setState("loading");
-        // Safety fallback — if pathname never changes, don't lock the UI.
-        safetyTimer.current = setTimeout(() => {
-          setState("idle");
-          shownAt.current = null;
-        }, MAX_LOADING_MS);
-      }, SHOW_DELAY_MS);
+      startLoading();
     }
 
     document.addEventListener("click", handleClick);
     return () => {
       document.removeEventListener("click", handleClick);
-      clearAll();
+      clearTimers();
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  // Detect navigation completion via pathname change.
+  // React to route change → "complete", honoring MIN_VISIBLE_MS.
+  // Also covers programmatic navigation: if the bar wasn't already
+  // loading when the route changed, show it now and complete after
+  // the min-visible window.
   useEffect(() => {
     if (pathname === prevPathname.current) return;
     prevPathname.current = pathname;
 
-    // If we never got past show-delay, never showed → nothing to complete.
-    if (showTimer.current) {
-      clearTimeout(showTimer.current);
-      showTimer.current = null;
-      return;
-    }
-    if (safetyTimer.current) {
-      clearTimeout(safetyTimer.current);
-      safetyTimer.current = null;
+    if (shownAt.current === null) {
+      // Programmatic nav — start now.
+      startLoading();
     }
 
-    // Honor MIN_VISIBLE_MS — defer the "complete" transition so users
-    // actually perceive the bar even on a snappy server response.
     const elapsed = shownAt.current ? performance.now() - shownAt.current : 0;
     const remaining = Math.max(0, MIN_VISIBLE_MS - elapsed);
 
-    const goComplete = (): void => {
-      setState("complete");
-      hideTimer.current = setTimeout(() => {
-        setState("idle");
-        shownAt.current = null;
-      }, HIDE_DELAY_MS);
-    };
-
-    if (remaining === 0) {
-      goComplete();
-    } else {
-      deferredComplete.current = true;
-      minVisibleTimer.current = setTimeout(() => {
-        if (deferredComplete.current) {
-          deferredComplete.current = false;
-          goComplete();
-        }
-      }, remaining);
-    }
+    if (completeTimer.current) clearTimeout(completeTimer.current);
+    completeTimer.current = setTimeout(goComplete, remaining);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [pathname]);
 
-  function clearAll(): void {
-    if (showTimer.current) {
-      clearTimeout(showTimer.current);
-      showTimer.current = null;
+  function startLoading(): void {
+    clearTimers();
+    shownAt.current = performance.now();
+    setPhase("loading");
+    safetyTimer.current = setTimeout(reset, SAFETY_MS);
+  }
+
+  function goComplete(): void {
+    setPhase("complete");
+    if (hideTimer.current) clearTimeout(hideTimer.current);
+    hideTimer.current = setTimeout(reset, COMPLETE_FADE_MS);
+  }
+
+  function reset(): void {
+    setPhase("hidden");
+    shownAt.current = null;
+    clearTimers();
+  }
+
+  function clearTimers(): void {
+    if (completeTimer.current) {
+      clearTimeout(completeTimer.current);
+      completeTimer.current = null;
     }
     if (hideTimer.current) {
       clearTimeout(hideTimer.current);
@@ -156,31 +139,41 @@ export function TopProgressBar(): React.JSX.Element | null {
       clearTimeout(safetyTimer.current);
       safetyTimer.current = null;
     }
-    if (minVisibleTimer.current) {
-      clearTimeout(minVisibleTimer.current);
-      minVisibleTimer.current = null;
-    }
   }
 
-  if (state === "idle") return null;
+  if (phase === "hidden") return null;
 
-  const isLoading = state === "loading";
+  const isLoading = phase === "loading";
+
+  // Inline styles — bypass any chance Tailwind didn't pick up the
+  // accent token. Variable `--accent` is defined for every theme in
+  // globals.css, so this renders consistently in light, dark, and
+  // high-contrast.
   return (
     <div
-      className="pointer-events-none fixed inset-x-0 top-0 z-[60] h-1"
       aria-hidden="true"
       role="progressbar"
+      style={{
+        position: "fixed",
+        top: 0,
+        left: 0,
+        right: 0,
+        height: 4,
+        zIndex: 9999,
+        pointerEvents: "none",
+      }}
     >
       <div
-        className="h-full bg-accent"
         style={{
-          width: isLoading ? "80%" : "100%",
+          height: "100%",
+          width: isLoading ? "78%" : "100%",
           opacity: isLoading ? 1 : 0,
+          background: "var(--accent, #3b82f6)",
           boxShadow:
-            "0 0 10px var(--color-accent, currentColor), 0 0 4px var(--color-accent, currentColor)",
+            "0 0 12px var(--accent, #3b82f6), 0 0 4px var(--accent, #3b82f6)",
           transition: isLoading
             ? "width 3500ms cubic-bezier(0.1, 0.7, 0.1, 1), opacity 120ms ease-out"
-            : `width 140ms ease-out, opacity ${HIDE_DELAY_MS}ms ease-in`,
+            : `width 160ms ease-out, opacity ${COMPLETE_FADE_MS}ms ease-in`,
         }}
       />
     </div>
