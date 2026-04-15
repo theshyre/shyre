@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import Link from "next/link";
 import { AlertTriangle, SearchX, Copy, Check, Home, RefreshCw } from "lucide-react";
 import { buttonPrimaryClass, buttonSecondaryClass } from "@/lib/form-styles";
 
@@ -101,10 +102,10 @@ export function ErrorDisplay({
         )}
 
         {showHome && (
-          <a href="/" className={buttonSecondaryClass}>
+          <Link href="/" className={buttonSecondaryClass}>
             <Home size={16} />
             Go Home
-          </a>
+          </Link>
         )}
 
         <button

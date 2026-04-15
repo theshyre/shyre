@@ -5,7 +5,6 @@ import { useTranslations } from "next-intl";
 import { Plus, Save, Trash2, X } from "lucide-react";
 import type { Category, CategorySetWithCategories } from "@/lib/categories/types";
 import {
-  buttonPrimaryClass,
   buttonSecondaryClass,
   buttonGhostClass,
   inputClass,

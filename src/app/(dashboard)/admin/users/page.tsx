@@ -1,6 +1,6 @@
 import { requireSystemAdmin } from "@/lib/system-admin";
 import { createAdminClient } from "@/lib/supabase/admin";
-import { Users, Shield, Crown } from "lucide-react";
+import { Users, Crown } from "lucide-react";
 
 export default async function AdminUsersPage(): Promise<React.JSX.Element> {
   await requireSystemAdmin();

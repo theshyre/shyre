@@ -31,7 +31,6 @@ interface Props {
 
 export function CategoriesSection({ teams, sets }: Props): React.JSX.Element {
   const t = useTranslations("categories");
-  const tc = useTranslations("common");
   const [showCreate, setShowCreate] = useState(false);
   const [editingSetId, setEditingSetId] = useState<string | null>(null);
 

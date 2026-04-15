@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import { Building2 } from "lucide-react";
 import { selectClass, inputClass, labelClass } from "@/lib/form-styles";
 import type { TeamListItem } from "@/lib/team-context";
@@ -23,29 +23,13 @@ export function TeamSelector({
   label,
   defaultTeamId,
 }: TeamSelectorProps): React.JSX.Element | null {
-  const [selectedTeamId, setSelectedTeamId] = useState<string>("");
-
-  useEffect(() => {
-    if (teams.length === 0) return;
-
-    // Priority: explicit default > last-used > first org
-    if (defaultTeamId && teams.some((o) => o.id === defaultTeamId)) {
-      setSelectedTeamId(defaultTeamId);
-      return;
-    }
-
-    const lastTeam = localStorage.getItem(LAST_TEAM_KEY);
-    const validLast = lastTeam && teams.some((o) => o.id === lastTeam);
-
-    if (validLast) {
-      setSelectedTeamId(lastTeam);
-    } else {
-      const firstTeam = teams[0];
-      if (firstTeam) {
-        setSelectedTeamId(firstTeam.id);
-      }
-    }
-  }, [teams, defaultTeamId]);
+  // Lazy initializer picks the default team once at mount, avoiding a
+  // setState-in-effect. Priority: explicit default > last-used (localStorage)
+  // > first team. Subsequent prop changes are rare on this control and don't
+  // need to re-seed — the user's explicit onChange below takes priority.
+  const [selectedTeamId, setSelectedTeamId] = useState<string>(() =>
+    pickInitialTeamId(teams, defaultTeamId),
+  );
 
   if (teams.length === 0) return null;
 
@@ -109,4 +93,19 @@ export function TeamSelector({
  */
 export function updateLastOrg(teamId: string): void {
   localStorage.setItem(LAST_TEAM_KEY, teamId);
+}
+
+function pickInitialTeamId(
+  teams: TeamListItem[],
+  defaultTeamId?: string | null,
+): string {
+  if (teams.length === 0) return "";
+  if (defaultTeamId && teams.some((o) => o.id === defaultTeamId)) {
+    return defaultTeamId;
+  }
+  if (typeof window !== "undefined") {
+    const last = localStorage.getItem(LAST_TEAM_KEY);
+    if (last && teams.some((o) => o.id === last)) return last;
+  }
+  return teams[0]?.id ?? "";
 }

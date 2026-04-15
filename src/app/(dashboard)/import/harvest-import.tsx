@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import Link from "next/link";
 import {
   CheckCircle,
   Loader2,
@@ -18,7 +19,6 @@ import {
   buttonPrimaryClass,
   buttonSecondaryClass,
 } from "@/lib/form-styles";
-import { TeamSelector } from "@/components/TeamSelector";
 import type { TeamListItem } from "@/lib/team-context";
 
 type Step = "credentials" | "preview" | "importing" | "done";
@@ -370,9 +370,9 @@ export function HarvestImport({
               </p>
             )}
 
-            <a href="/customers" className={buttonPrimaryClass}>
+            <Link href="/customers" className={buttonPrimaryClass}>
               View Imported Data
-            </a>
+            </Link>
           </div>
         )}
       </div>

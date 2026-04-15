@@ -4,16 +4,7 @@ import { runSafeAction } from "@/lib/safe-action";
 import { assertSupabaseOk } from "@/lib/errors";
 import { validateTeamAccess } from "@/lib/team-context";
 import { revalidatePath } from "next/cache";
-
-const ALLOWED_ENTITY_TYPES = new Set([
-  "sole_prop",
-  "llc",
-  "s_corp",
-  "c_corp",
-  "partnership",
-  "nonprofit",
-  "other",
-]);
+import { ALLOWED_ENTITY_TYPES } from "./allow-lists";
 
 function blankToNull(v: FormDataEntryValue | null): string | null {
   if (v == null) return null;

@@ -6,7 +6,6 @@ import {
   fetchHarvestProjects,
   fetchHarvestTimeEntries,
 } from "@/lib/harvest";
-import type { HarvestClient, HarvestProject, HarvestTimeEntry } from "@/lib/harvest";
 import { NextResponse } from "next/server";
 
 export async function POST(request: Request): Promise<NextResponse> {

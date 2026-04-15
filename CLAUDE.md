@@ -207,6 +207,17 @@ Skipping the dance means the old code is still live in Vercel the moment the mig
 
 Renames are destructive twice over — the old name goes away and the new name appears. Use a three-step expand-contract: add the new column, backfill + dual-write, flip reads, then drop the old column. This is how `rename_organizations_to_teams` was done; copy that pattern.
 
+### Allow-lists and DB check constraints must match
+
+Any app-level `ALLOWED_*` set that backs a DB column with a `CHECK (col IN (...))` constraint must match the constraint exactly. Adding a value to the set without widening the DB constraint → runtime 23514 errors on writes (how the "warm" theme incident hit prod). Removing from the set without tightening → dead data in the DB.
+
+**Workflow for changes:**
+1. Keep the allow-list in a plain module next to `actions.ts` (e.g. `allow-lists.ts`) so tests and server actions can both import it without a `"use server"` boundary.
+2. Write a migration that `DROP CONSTRAINT IF EXISTS … ; ADD CONSTRAINT … CHECK (col IS NULL OR col IN (...))` in the same PR.
+3. `src/__tests__/db-parity.test.ts` walks every migration and compares each known column's effective CHECK set against the app allow-list. Red = drift.
+
+Adding a new allow-list pair: export it from the relevant `allow-lists.ts`, wire it into the `PAIRS` array in `db-parity.test.ts`, and ship the migration.
+
 ### Timestamps must be monotonic
 
 Migration filenames sort lexically. A migration with a timestamp earlier than any already-applied migration on prod cannot be applied without `--include-all`, which pollutes history. Before creating a migration, check the most recent file under `supabase/migrations/` and use a strictly-later timestamp. If you have to rename after the fact to restore order, do it before the CI action tries to apply.

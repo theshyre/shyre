@@ -4,18 +4,7 @@ import { runSafeAction } from "@/lib/safe-action";
 import { assertSupabaseOk } from "@/lib/errors";
 import { validateTeamAccess } from "@/lib/team-context";
 import { revalidatePath } from "next/cache";
-
-const ALLOWED_CATEGORIES = new Set([
-  "software",
-  "hardware",
-  "subscriptions",
-  "travel",
-  "meals",
-  "office",
-  "professional_services",
-  "fees",
-  "other",
-]);
+import { ALLOWED_EXPENSE_CATEGORIES } from "./allow-lists";
 
 function blankToNull(v: FormDataEntryValue | null): string | null {
   if (v == null) return null;
@@ -46,7 +35,7 @@ function readExpense(formData: FormData): ExpenseInput {
     throw new Error("Amount must be a non-negative number.");
   }
   const category = blankToNull(formData.get("category"));
-  if (!category || !ALLOWED_CATEGORIES.has(category)) {
+  if (!category || !ALLOWED_EXPENSE_CATEGORIES.has(category)) {
     throw new Error("A valid category is required.");
   }
   const currency = blankToNull(formData.get("currency")) ?? "USD";

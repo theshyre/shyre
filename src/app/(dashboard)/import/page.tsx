@@ -1,5 +1,4 @@
 import { getUserTeams } from "@/lib/team-context";
-import { getTranslations } from "next-intl/server";
 import { Upload } from "lucide-react";
 import { HarvestImport } from "./harvest-import";
 

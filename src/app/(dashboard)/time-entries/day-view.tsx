@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useState, useTransition } from "react";
+import { useCallback, useMemo, useState, useTransition } from "react";
 import { useRouter, usePathname, useSearchParams } from "next/navigation";
 import { useTranslations } from "next-intl";
 import { ChevronLeft, ChevronRight, Loader2 } from "lucide-react";
@@ -65,16 +65,11 @@ export function DayView({
   }, []);
 
   // Optimistic selected day so clicks feel instant while the server
-  // re-renders for the new anchor.
+  // re-renders for the new anchor. No reset effect needed — once the server
+  // catches up, optimisticDay === dayStr so visibleDay resolves to the same
+  // value either way. The next click replaces optimisticDay in place.
   const [optimisticDay, setOptimisticDay] = useState<string | null>(null);
   const visibleDay = optimisticDay ?? dayStr;
-
-  // Drop optimistic state once props catch up
-  useEffect(() => {
-    if (optimisticDay && optimisticDay === dayStr) {
-      setOptimisticDay(null);
-    }
-  }, [optimisticDay, dayStr]);
 
   // Today's local-date string (for "Today:" prefix and strip highlight)
   const todayStr = useMemo(

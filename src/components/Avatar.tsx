@@ -78,7 +78,6 @@ export function Avatar({
   };
 
   if (r.kind === "image") {
-    // eslint-disable-next-line @next/next/no-img-element
     return (
       <img
         src={r.src}

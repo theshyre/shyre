@@ -10,19 +10,6 @@ interface HarvestRequestOptions {
   accountId: string;
 }
 
-interface HarvestPaginatedResponse<T> {
-  [key: string]: unknown;
-  total_entries: number;
-  per_page: number;
-  total_pages: number;
-  links: {
-    first: string;
-    next: string | null;
-    previous: string | null;
-    last: string;
-  };
-}
-
 export interface HarvestClient {
   id: number;
   name: string;

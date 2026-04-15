@@ -3,6 +3,13 @@
 import { runSafeAction } from "@/lib/safe-action";
 import { assertSupabaseOk } from "@/lib/errors";
 import { revalidatePath } from "next/cache";
+import {
+  ALLOWED_THEMES,
+  ALLOWED_LOCALES,
+  ALLOWED_WEEK_STARTS,
+  ALLOWED_TEXT_SIZES,
+  ALLOWED_TIME_FORMATS,
+} from "./allow-lists";
 
 export async function updateUserSettingsAction(formData: FormData): Promise<void> {
   return runSafeAction(formData, async (formData, { supabase, userId }) => {
@@ -67,18 +74,6 @@ export async function setAvatarAction(formData: FormData): Promise<void> {
     revalidatePath("/");
   }, "setAvatarAction") as unknown as void;
 }
-
-const ALLOWED_THEMES = new Set([
-  "system",
-  "light",
-  "dark",
-  "high-contrast",
-  "warm",
-]);
-const ALLOWED_LOCALES = new Set(["en", "es"]);
-const ALLOWED_WEEK_STARTS = new Set(["monday", "sunday"]);
-const ALLOWED_TEXT_SIZES = new Set(["compact", "regular", "large"]);
-const ALLOWED_TIME_FORMATS = new Set(["12h", "24h"]);
 
 function normalizeStr(value: FormDataEntryValue | null): string | null {
   if (value == null) return null;

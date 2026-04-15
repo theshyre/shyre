@@ -1,7 +1,6 @@
 "use client";
 
 import { useCallback, useEffect, useRef, useState } from "react";
-import { useTranslations } from "next-intl";
 import { Search, ExternalLink, Hash, Loader2 } from "lucide-react";
 import { inputClass } from "@/lib/form-styles";
 
@@ -31,7 +30,6 @@ export function GitHubIssuePicker({
   const [error, setError] = useState<string | null>(null);
   const [selectedTitle, setSelectedTitle] = useState<string | null>(null);
   const containerRef = useRef<HTMLDivElement>(null);
-  const t = useTranslations("common");
 
   const fetchIssues = useCallback(
     async (searchQuery: string): Promise<void> => {

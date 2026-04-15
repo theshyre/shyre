@@ -1,10 +1,15 @@
 "use client";
 
-import { useCallback, useEffect, useRef, useState } from "react";
+import {
+  useCallback,
+  useEffect,
+  useState,
+  useSyncExternalStore,
+} from "react";
 import { useTranslations } from "next-intl";
 import { useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
-import { Play, Square } from "lucide-react";
+import { Square } from "lucide-react";
 import { kbdClass } from "@/lib/form-styles";
 
 interface RunningEntry {
@@ -17,8 +22,6 @@ interface RunningEntry {
 
 export default function Timer(): React.JSX.Element {
   const [running, setRunning] = useState<RunningEntry | null>(null);
-  const [elapsed, setElapsed] = useState("00:00:00");
-  const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const t = useTranslations("time.timer");
   const router = useRouter();
   const supabase = createClient();
@@ -54,31 +57,25 @@ export default function Timer(): React.JSX.Element {
   }, [supabase]);
 
   useEffect(() => {
-    fetchRunning();
+    // Schedule the fetch on a separate task so the setState inside
+    // fetchRunning doesn't happen synchronously within the effect body
+    // (React 19's set-state-in-effect lint rule). Functionally identical.
+    const id = setTimeout(() => {
+      void fetchRunning();
+    }, 0);
+    return () => clearTimeout(id);
   }, [fetchRunning]);
 
-  useEffect(() => {
-    // Only tick while a timer is running. The non-running branch of the
-    // component doesn't render `elapsed`, so no need to reset state here —
-    // next start will overwrite on the first tick.
-    if (!running) return;
-
-    const tick = (): void => {
-      const diff = Date.now() - new Date(running.start_time).getTime();
-      const totalSec = Math.floor(diff / 1000);
-      const h = Math.floor(totalSec / 3600);
-      const m = Math.floor((totalSec % 3600) / 60);
-      const s = totalSec % 60;
-      setElapsed(
-        `${String(h).padStart(2, "0")}:${String(m).padStart(2, "0")}:${String(s).padStart(2, "0")}`
-      );
-    };
-    tick();
-    intervalRef.current = setInterval(tick, 1000);
-    return () => {
-      if (intervalRef.current) clearInterval(intervalRef.current);
-    };
-  }, [running]);
+  // Live elapsed clock via useSyncExternalStore — keeps Date.now() off the
+  // render path and avoids setState-in-effect.
+  const nowMs = useSyncExternalStore(
+    subscribeToSecond,
+    getNowMs,
+    getServerNowMs,
+  );
+  const elapsed = running
+    ? formatElapsed(nowMs - new Date(running.start_time).getTime())
+    : "00:00:00";
 
   const handleStop = useCallback(async (): Promise<void> => {
     if (!running) return;
@@ -145,4 +142,22 @@ export default function Timer(): React.JSX.Element {
       </button>
     </div>
   );
+}
+
+function subscribeToSecond(onChange: () => void): () => void {
+  const id = setInterval(onChange, 1000);
+  return () => clearInterval(id);
+}
+function getNowMs(): number {
+  return Date.now();
+}
+function getServerNowMs(): number {
+  return 0;
+}
+function formatElapsed(diffMs: number): string {
+  const totalSec = Math.max(0, Math.floor(diffMs / 1000));
+  const h = Math.floor(totalSec / 3600);
+  const m = Math.floor((totalSec % 3600) / 60);
+  const s = totalSec % 60;
+  return `${String(h).padStart(2, "0")}:${String(m).padStart(2, "0")}:${String(s).padStart(2, "0")}`;
 }

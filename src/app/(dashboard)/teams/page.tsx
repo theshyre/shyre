@@ -1,8 +1,7 @@
 import { getUserTeams } from "@/lib/team-context";
 import { getTranslations } from "next-intl/server";
 import Link from "next/link";
-import { Building2, Plus, Crown, ShieldCheck, User } from "lucide-react";
-import { buttonPrimaryClass, kbdClass } from "@/lib/form-styles";
+import { Building2, Crown, ShieldCheck, User } from "lucide-react";
 import { NewTeamForm } from "./new-team-form";
 
 export default async function OrganizationsPage(): Promise<React.JSX.Element> {

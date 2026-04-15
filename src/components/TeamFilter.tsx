@@ -25,9 +25,22 @@ export function TeamFilter({
   const [open, setOpen] = useState(false);
   const ref = useRef<HTMLDivElement>(null);
 
+  // Close on outside click. Hook is called unconditionally so the early-
+  // return path below doesn't change the hook count across renders.
+  useEffect(() => {
+    if (!open) return;
+    function handleClick(e: MouseEvent): void {
+      if (ref.current && !ref.current.contains(e.target as Node)) {
+        setOpen(false);
+      }
+    }
+    document.addEventListener("mousedown", handleClick);
+    return () => document.removeEventListener("mousedown", handleClick);
+  }, [open]);
+
   const selectedTeam = teams.find((o) => o.id === selectedTeamId);
 
-  // Single org: show as a static pill (no dropdown needed)
+  // Single team: static pill (no dropdown).
   if (teams.length === 1) {
     const singleOrg = teams[0];
     return (
@@ -50,18 +63,6 @@ export function TeamFilter({
     router.push(`${pathname}?${params.toString()}`);
     setOpen(false);
   }
-
-  // Close on outside click
-  useEffect(() => {
-    if (!open) return;
-    function handleClick(e: MouseEvent): void {
-      if (ref.current && !ref.current.contains(e.target as Node)) {
-        setOpen(false);
-      }
-    }
-    document.addEventListener("mousedown", handleClick);
-    return () => document.removeEventListener("mousedown", handleClick);
-  }, [open]);
 
   return (
     <div ref={ref} className="relative">

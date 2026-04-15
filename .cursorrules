@@ -48,6 +48,7 @@ Vercel (app code) and `.github/workflows/db-migrate.yml` (SQL migrations) run in
   2. PR 2: the migration alone. Merge.
 - **Renames**: expand-contract. Add new column → backfill + dual-write → flip reads → drop old column, across multiple PRs. See `rename_organizations_to_teams` as the reference pattern.
 - **Timestamps must be monotonic**: check the latest file under `supabase/migrations/` and use a strictly-later timestamp so `supabase db push` doesn't require `--include-all`.
+- **Allow-lists ↔ CHECK constraints must match.** App-level `ALLOWED_*` sets live in `allow-lists.ts` siblings of their action files; `src/__tests__/db-parity.test.ts` compares each to the effective CHECK constraint in migrations. Adding a value requires widening the constraint in the same PR.
 - `SUPABASE_DB_URL` repo secret is required for prod migrations. If the GH Action fails for a missing secret, that's a fire, not a warning.
 - Don't disable the `db-verify.yml` PR check to merge — red means the migration is broken.
 

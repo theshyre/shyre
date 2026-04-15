@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useState, useSyncExternalStore } from "react";
 import { useTranslations } from "next-intl";
 import { Play, Square, X } from "lucide-react";
 import { useFormAction } from "@/hooks/use-form-action";
@@ -51,31 +51,17 @@ export function RunningTimerCard({
   const [expanded, setExpanded] = useState(false);
   const [selectedProjectId, setSelectedProjectId] = useState("");
   const [description, setDescription] = useState("");
-  const [elapsed, setElapsed] = useState("00:00:00");
-  const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
-  // Live-tick the elapsed clock when a timer is running
-  useEffect(() => {
-    if (!running) {
-      setElapsed("00:00:00");
-      return;
-    }
-    const tick = () => {
-      const diff = Date.now() - new Date(running.start_time).getTime();
-      const totalSec = Math.max(0, Math.floor(diff / 1000));
-      const h = Math.floor(totalSec / 3600);
-      const m = Math.floor((totalSec % 3600) / 60);
-      const s = totalSec % 60;
-      setElapsed(
-        `${String(h).padStart(2, "0")}:${String(m).padStart(2, "0")}:${String(s).padStart(2, "0")}`,
-      );
-    };
-    tick();
-    intervalRef.current = setInterval(tick, 1000);
-    return () => {
-      if (intervalRef.current) clearInterval(intervalRef.current);
-    };
-  }, [running]);
+  // Live elapsed clock via useSyncExternalStore — avoids the setState-in-
+  // effect pattern and keeps Date.now() off the render path.
+  const nowMs = useSyncExternalStore(
+    subscribeToSecond,
+    getNowMs,
+    getServerNowMs,
+  );
+  const elapsed = running
+    ? formatElapsed(nowMs - new Date(running.start_time).getTime())
+    : "00:00:00";
 
   // Space shortcut: opens the start form when collapsed + no running timer;
   // submits it when expanded + project selected. Sidebar Timer widget handles
@@ -291,4 +277,24 @@ export function RunningTimerCard({
       </div>
     </form>
   );
+}
+
+// Module-scope helpers for useSyncExternalStore so the subscribe and
+// getSnapshot references are stable across renders.
+function subscribeToSecond(onChange: () => void): () => void {
+  const id = setInterval(onChange, 1000);
+  return () => clearInterval(id);
+}
+function getNowMs(): number {
+  return Date.now();
+}
+function getServerNowMs(): number {
+  return 0;
+}
+function formatElapsed(diffMs: number): string {
+  const totalSec = Math.max(0, Math.floor(diffMs / 1000));
+  const h = Math.floor(totalSec / 3600);
+  const m = Math.floor((totalSec % 3600) / 60);
+  const s = totalSec % 60;
+  return `${String(h).padStart(2, "0")}:${String(m).padStart(2, "0")}:${String(s).padStart(2, "0")}`;
 }

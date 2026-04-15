@@ -6,10 +6,8 @@ import { useTranslations } from "next-intl";
 import { createClient } from "@/lib/supabase/client";
 import {
   LayoutDashboard,
-  Clock,
   Users,
   FolderKanban,
-  FileText,
   BarChart3,
   LogOut,
   Building2,

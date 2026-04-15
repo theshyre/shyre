@@ -11,9 +11,8 @@ import {
   FolderKanban,
   ArrowRight,
   Play,
-  Plus,
 } from "lucide-react";
-import { buttonPrimaryClass, kbdClass } from "@/lib/form-styles";
+import { buttonPrimaryClass } from "@/lib/form-styles";
 
 export default async function DashboardPage(): Promise<React.JSX.Element> {
   const supabase = await createClient();

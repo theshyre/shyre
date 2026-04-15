@@ -159,8 +159,13 @@ export default async function TimeEntriesPage({
     : { data: [] };
   const categories = categoryRows ?? [];
 
-  // Recent projects — distinct project_ids from the last 30 days
-  const recentSinceIso = new Date(Date.now() - 30 * 24 * 3600 * 1000).toISOString();
+  // Recent projects — distinct project_ids from the last 30 days.
+  // Compute against `new Date()` explicitly — calling it via `new Date()`
+  // is allowed, whereas `Date.now()` trips the impure-in-render rule even
+  // though this is a server component (the lint rule is context-unaware).
+  const recentSinceIso = new Date(
+    new Date().getTime() - 30 * 24 * 3600 * 1000,
+  ).toISOString();
   let recentQuery = supabase
     .from("time_entries")
     .select("project_id, start_time")

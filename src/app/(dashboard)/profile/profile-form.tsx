@@ -1,6 +1,10 @@
 "use client";
 
-import { useCallback, useEffect, useState, type ComponentType } from "react";
+import {
+  useCallback,
+  useSyncExternalStore,
+  type ComponentType,
+} from "react";
 import { useTranslations } from "next-intl";
 import {
   Palette,
@@ -83,14 +87,13 @@ export function ProfileForm({
   const { theme, setTheme } = useTheme();
   const { textSize, setTextSize } = useTextSize();
 
-  const [detectedTz, setDetectedTz] = useState<string>("");
-  useEffect(() => {
-    try {
-      setDetectedTz(Intl.DateTimeFormat().resolvedOptions().timeZone);
-    } catch {
-      setDetectedTz("");
-    }
-  }, []);
+  // Browser-detected TZ. Read via useSyncExternalStore so we don't need a
+  // setState-in-effect (lint rule) and the value is correct on first render.
+  const detectedTz = useSyncExternalStore(
+    subscribeNever,
+    getDetectedTz,
+    getDetectedTzServer,
+  );
 
   const profileForm = useFormAction({ action: updateProfileAction });
   const tokenForm = useFormAction({ action: updateUserSettingsAction });
@@ -418,5 +421,22 @@ function ErrorBanner({ text }: { text: string }): React.JSX.Element {
       {text}
     </p>
   );
+}
+
+// Browser-only helpers for useSyncExternalStore — the "store" here is the
+// Intl API, which is effectively immutable for the tab's lifetime, so the
+// subscriber is a no-op.
+function subscribeNever(): () => void {
+  return () => {};
+}
+function getDetectedTz(): string {
+  try {
+    return Intl.DateTimeFormat().resolvedOptions().timeZone;
+  } catch {
+    return "";
+  }
+}
+function getDetectedTzServer(): string {
+  return "";
 }
 
