@@ -11,9 +11,21 @@ export function createAdminClient() {
   const key = process.env.SUPABASE_SERVICE_ROLE_KEY;
 
   if (!url || !key) {
-    throw new Error(
-      "Missing SUPABASE_SERVICE_ROLE_KEY or NEXT_PUBLIC_SUPABASE_URL env vars"
+    const missing = [
+      !url && "NEXT_PUBLIC_SUPABASE_URL",
+      !key && "SUPABASE_SERVICE_ROLE_KEY",
+    ]
+      .filter(Boolean)
+      .join(", ");
+    // Loud console.error so Vercel runtime logs surface the cause even
+    // when the thrown error is hidden behind Next's generic error page.
+    console.error(
+      `[createAdminClient] Missing required env var(s): ${missing}. ` +
+        "Admin-only pages (/admin/users, /admin/organizations) and the " +
+        "error logger will fail until this is set in the deployment " +
+        "environment.",
     );
+    throw new Error(`Missing required env var(s): ${missing}`);
   }
 
   return createClient(url, key, {

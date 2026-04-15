@@ -1,5 +1,6 @@
 import "server-only";
 import { createAdminClient } from "@/lib/supabase/admin";
+import { createClient } from "@/lib/supabase/server";
 import { toAppError } from "@/lib/errors";
 import type { AppError } from "@/lib/errors";
 
@@ -27,10 +28,12 @@ async function writeErrorLog(
   error: AppError | Error | unknown,
   context: LogErrorContext
 ): Promise<void> {
-  try {
-    const appError = toAppError(error);
-    const supabase = createAdminClient();
+  const appError = toAppError(error);
 
+  // Preferred path: service-role client, bypasses RLS, works without a user
+  // session. Fails if SUPABASE_SERVICE_ROLE_KEY is not configured.
+  try {
+    const supabase = createAdminClient();
     const { error: insertError } = await supabase.from("error_logs").insert({
       error_code: appError.code,
       message: appError.message,
@@ -45,12 +48,39 @@ async function writeErrorLog(
     });
 
     if (insertError) {
-      console.error("[logger] Failed to insert error log:", insertError);
+      console.error("[logger] Admin insert failed:", insertError);
+      console.error("[logger] Original error:", appError.message, appError.code);
+    } else {
+      return;
+    }
+  } catch (adminErr) {
+    // Most common failure: missing SUPABASE_SERVICE_ROLE_KEY.
+    console.error("[logger] Admin client unavailable:", adminErr);
+  }
+
+  // Fallback path: SECURITY DEFINER RPC. Requires an authenticated user
+  // context (works in server components / server actions with a session).
+  // Lets us capture errors even when the service role key is missing from
+  // the deployment env.
+  try {
+    const supabase = await createClient();
+    const { error: rpcError } = await supabase.rpc("log_error_from_user", {
+      p_error_code: appError.code,
+      p_message: appError.message,
+      p_user_message_key: appError.userMessageKey,
+      p_details: appError.details ?? null,
+      p_url: context.url ?? null,
+      p_action: context.action ?? null,
+      p_stack_trace: appError.stack ?? null,
+      p_severity: appError.severity,
+    });
+    if (rpcError) {
+      console.error("[logger] RPC fallback failed:", rpcError);
       console.error("[logger] Original error:", appError.message, appError.code);
     }
-  } catch (logErr) {
-    // Logger must never throw — fall back to console
-    console.error("[logger] Exception in writeErrorLog:", logErr);
-    console.error("[logger] Original error:", error);
+  } catch (fallbackErr) {
+    // Last-resort: loud console. Logger must never throw.
+    console.error("[logger] All paths failed:", fallbackErr);
+    console.error("[logger] Original error:", appError.message, appError.code);
   }
 }
