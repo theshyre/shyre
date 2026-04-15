@@ -60,7 +60,8 @@
     "system": "Sistema",
     "light": "Claro",
     "dark": "Oscuro",
-    "highContrast": "Alto Contraste"
+    "highContrast": "Alto Contraste",
+    "warm": "Cálido"
   },
   "textSize": {
     "title": "Tamaño de Texto",

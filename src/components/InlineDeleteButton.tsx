@@ -72,46 +72,51 @@ export function InlineDeleteButton({
     }
   }
 
-  if (!confirming) {
-    return (
-      <button
-        type="button"
-        onClick={() => setConfirming(true)}
-        disabled={disabled}
-        aria-label={ariaLabel}
-        className="rounded p-1 text-content-muted hover:bg-hover hover:text-error transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-      >
-        <Trash2 size={iconSize} />
-      </button>
-    );
-  }
-
+  // Outer wrapper reserves a fixed slot wide enough for the confirm state
+  // so the trash→confirm swap can't push surrounding columns. The confirm
+  // controls are absolutely positioned, right-anchored, so they overflow
+  // the row's right edge if needed instead of widening the action cell.
   return (
-    <div className="inline-flex items-center gap-1">
-      {confirmDescription && (
-        <span className="text-[10px] text-content-muted mr-1">
-          {confirmDescription}
+    <span className="relative inline-flex h-7 w-7 items-center justify-end">
+      {!confirming && (
+        <button
+          type="button"
+          onClick={() => setConfirming(true)}
+          disabled={disabled}
+          aria-label={ariaLabel}
+          className="rounded p-1 text-content-muted hover:bg-hover hover:text-error transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+        >
+          <Trash2 size={iconSize} />
+        </button>
+      )}
+      {confirming && (
+        <span className="absolute right-0 top-1/2 -translate-y-1/2 inline-flex items-center gap-1 rounded-md border border-edge bg-surface-raised px-1.5 py-1 shadow-sm whitespace-nowrap z-10">
+          {confirmDescription && (
+            <span className="text-caption text-content-muted mr-0.5">
+              {confirmDescription}
+            </span>
+          )}
+          <button
+            type="button"
+            onClick={handleConfirm}
+            disabled={pending}
+            aria-label={t("confirmDelete")}
+            className="inline-flex items-center gap-1 rounded bg-error px-2 py-0.5 text-caption font-medium text-content-inverse hover:opacity-90 disabled:opacity-50 transition-opacity"
+          >
+            <Check size={12} />
+            {t("delete")}
+          </button>
+          <button
+            type="button"
+            onClick={() => setConfirming(false)}
+            disabled={pending}
+            aria-label={t("cancel")}
+            className="rounded p-0.5 text-content-muted hover:bg-hover transition-colors"
+          >
+            <X size={12} />
+          </button>
         </span>
       )}
-      <button
-        type="button"
-        onClick={handleConfirm}
-        disabled={pending}
-        aria-label={t("confirmDelete")}
-        className="inline-flex items-center gap-1 rounded bg-error px-2 py-1 text-[10px] font-medium text-content-inverse hover:opacity-90 disabled:opacity-50 transition-opacity"
-      >
-        <Check size={12} />
-        {t("delete")}
-      </button>
-      <button
-        type="button"
-        onClick={() => setConfirming(false)}
-        disabled={pending}
-        aria-label={t("cancel")}
-        className="rounded p-1 text-content-muted hover:bg-hover transition-colors"
-      >
-        <X size={12} />
-      </button>
-    </div>
+    </span>
   );
 }

@@ -8,7 +8,13 @@ interface Props {
    * The theme the server read from user_settings.preferred_theme. `null` means
    * the user hasn't picked one — follow the client's local preference / system.
    */
-  preferredTheme: "system" | "light" | "dark" | "high-contrast" | null;
+  preferredTheme:
+    | "system"
+    | "light"
+    | "dark"
+    | "high-contrast"
+    | "warm"
+    | null;
 }
 
 /**

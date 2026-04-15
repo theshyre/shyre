@@ -1,7 +1,9 @@
 import Sidebar from "@/components/Sidebar";
 import { TimezoneSync } from "@/components/TimezoneSync";
 import { ThemeSync } from "@/components/ThemeSync";
+import { TextSizeSync } from "@/components/TextSizeSync";
 import { ToastProvider } from "@/components/Toast";
+import type { TextSize } from "@/components/text-size-provider";
 import { getUserContext } from "@/lib/team-context";
 import { isSystemAdmin } from "@/lib/system-admin";
 import { createClient } from "@/lib/supabase/server";
@@ -15,10 +17,10 @@ export default async function DashboardLayout({
   const admin = await isSystemAdmin();
   const supabase = await createClient();
 
-  // User's persisted theme (null if they've never set it — fall back to system)
+  // User's persisted theme + text size (null if never set — client falls back)
   const { data: userPrefs } = await supabase
     .from("user_settings")
-    .select("preferred_theme")
+    .select("preferred_theme, text_size")
     .eq("user_id", user.userId)
     .maybeSingle();
   const preferredTheme =
@@ -27,8 +29,11 @@ export default async function DashboardLayout({
       | "light"
       | "dark"
       | "high-contrast"
+      | "warm"
       | null
       | undefined) ?? null;
+  const preferredTextSize =
+    (userPrefs?.text_size as TextSize | null | undefined) ?? null;
 
   // Avatar for the sidebar user-identity block
   const { data: profileRow } = await supabase
@@ -53,6 +58,7 @@ export default async function DashboardLayout({
       <div className="flex h-full">
         <TimezoneSync />
         <ThemeSync preferredTheme={preferredTheme} />
+        <TextSizeSync preferredTextSize={preferredTextSize} />
         <Sidebar
           displayName={user.displayName}
           email={user.userEmail}

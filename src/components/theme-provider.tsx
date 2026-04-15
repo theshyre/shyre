@@ -8,7 +8,7 @@ import {
   useSyncExternalStore,
 } from "react";
 
-type Theme = "system" | "light" | "dark" | "high-contrast";
+type Theme = "system" | "light" | "dark" | "high-contrast" | "warm";
 
 interface ThemeContextValue {
   theme: Theme;
@@ -19,7 +19,7 @@ interface ThemeContextValue {
 }
 
 const STORAGE_KEY = "stint-theme";
-const THEMES = ["system", "light", "dark", "high-contrast"] as const;
+const THEMES = ["system", "light", "dark", "high-contrast", "warm"] as const;
 const THEME_CHANGE_EVENT = "stint-theme-change";
 
 const ThemeContext = createContext<ThemeContextValue | null>(null);

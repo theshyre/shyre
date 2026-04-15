@@ -206,7 +206,7 @@ export function WeekTimesheet({
   return (
     <div className="rounded-lg border border-edge bg-surface-raised overflow-x-auto">
       <div className="flex items-center justify-between gap-2 px-3 py-2 border-b border-edge bg-surface-inset">
-        <span className="text-[11px] font-semibold uppercase tracking-wider text-content-muted">
+        <span className="text-label font-semibold uppercase text-content-muted">
           {t("frameTitle")}
         </span>
         <SaveStatus
@@ -215,36 +215,36 @@ export function WeekTimesheet({
           lastError={save.lastError}
         />
       </div>
-      <table className="w-full text-sm">
+      <table className="w-full text-body">
         <thead>
           <tr className="border-b border-edge bg-surface-inset">
-            <th className="py-2 pl-4 text-left text-[10px] font-semibold uppercase tracking-wider text-content-muted w-[30%]">
+            <th className="py-2 pl-4 text-left text-label font-semibold uppercase text-content-muted w-[30%]">
               {t("categoryProject")}
             </th>
-            {weekDays.map((dStr, i) => {
+            {weekDays.map((dStr) => {
               const [y, m, d] = dStr.split("-").map(Number);
               const dateObj = new Date(y!, m! - 1, d!);
               const isToday = dStr === utcToLocalDateStr(new Date(), tzOffsetMin);
               return (
                 <th
                   key={dStr}
-                  className={`px-2 py-2 text-center text-[10px] font-semibold uppercase tracking-wider ${
+                  className={`px-2 py-2 text-center text-label font-semibold uppercase ${
                     isToday ? "text-accent" : "text-content-muted"
                   }`}
                 >
                   <div>
                     {dateObj.toLocaleDateString(undefined, { weekday: "short" })}
                   </div>
-                  <div className="text-[10px] font-normal mt-0.5">
+                  <div className="text-label font-normal mt-0.5">
                     {d}
                   </div>
                 </th>
               );
             })}
-            <th className="px-2 py-2 text-right text-[10px] font-semibold uppercase tracking-wider text-content-muted">
+            <th className="px-2 py-2 text-right text-label font-semibold uppercase text-content-muted">
               {t("total")}
             </th>
-            <th className="px-2 py-2" aria-label="actions" />
+            <th className="px-2 py-2 w-10" aria-label="actions" />
           </tr>
         </thead>
         <tbody>
@@ -252,7 +252,7 @@ export function WeekTimesheet({
             <tr>
               <td
                 colSpan={DAYS_IN_WEEK + 3}
-                className="px-3 py-6 text-center text-sm text-content-muted"
+                className="px-3 py-6 text-center text-body text-content-muted"
               >
                 {t("empty")}
               </td>
@@ -275,18 +275,18 @@ export function WeekTimesheet({
         </tbody>
         <tfoot>
           <tr className="border-t-2 border-edge bg-surface-inset">
-            <td className="px-3 py-2 text-right text-xs font-semibold text-content-muted">
+            <td className="px-3 py-2 text-right text-caption font-semibold text-content-muted">
               {t("dailyTotals")}
             </td>
             {dailyTotals.map((min, i) => (
               <td
                 key={i}
-                className="px-2 py-2 text-center font-mono text-xs tabular-nums text-content-secondary"
+                className="px-2 py-2 text-center font-mono text-body tabular-nums text-content-secondary"
               >
                 {formatDurationHMZero(min)}
               </td>
             ))}
-            <td className="px-2 py-2 text-right font-mono text-sm font-semibold tabular-nums text-content">
+            <td className="px-2 py-2 text-right font-mono text-body-lg font-semibold tabular-nums text-content">
               {formatDurationHMZero(weekTotal)}
             </td>
             <td className="px-2 py-2" />
@@ -346,18 +346,18 @@ function TimesheetRow({
                   className="h-2 w-2 rounded-full shrink-0"
                   style={{ backgroundColor: category.color }}
                 />
-                <span className="text-sm font-semibold text-content truncate">
+                <span className="text-body-lg font-semibold text-content truncate">
                   {category.name}
                 </span>
               </>
             ) : (
-              <span className="text-sm text-content-muted italic truncate">
+              <span className="text-body-lg text-content-muted italic truncate">
                 —
               </span>
             )}
           </div>
           {/* Project · Client as muted subline */}
-          <div className="text-[11px] text-content-muted truncate mt-0.5">
+          <div className="text-caption text-content-muted truncate mt-0.5">
             <span className="text-content-secondary">
               {project?.name ?? "—"}
             </span>
@@ -382,15 +382,15 @@ function TimesheetRow({
                   void onCellCommit(i, committed);
                 }
               }}
-              className="w-full rounded-md border border-edge bg-surface-raised px-2 py-1.5 text-xs outline-none transition-colors hover:border-content-muted focus:border-focus-ring focus:ring-2 focus:ring-focus-ring/30"
+              className="w-full rounded-md border border-edge bg-surface-raised px-2 py-1.5 text-body outline-none transition-colors hover:border-content-muted focus:border-focus-ring focus:ring-2 focus:ring-focus-ring/30"
             />
           </td>
         );
       })}
-      <td className="px-2 py-2 text-right font-mono text-xs font-semibold tabular-nums text-content">
+      <td className="px-2 py-2 text-right font-mono text-body font-semibold tabular-nums text-content">
         {rowTotalActual > 0 ? formatDurationHMZero(rowTotalActual) : "—"}
       </td>
-      <td className="px-2 py-2 text-right">
+      <td className="px-2 py-2 text-right w-10">
         <InlineDeleteButton
           ariaLabel={t("deleteRow")}
           onConfirm={onDelete}

@@ -3,6 +3,7 @@ import { Geist, Geist_Mono } from "next/font/google";
 import { NextIntlClientProvider } from "next-intl";
 import { getLocale, getMessages } from "next-intl/server";
 import { ThemeProvider } from "@/components/theme-provider";
+import { TextSizeProvider } from "@/components/text-size-provider";
 import { TopProgressBar } from "@/components/TopProgressBar";
 import "./globals.css";
 
@@ -47,6 +48,12 @@ export default async function RootLayout({
                     resolved = window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
                   }
                   document.documentElement.setAttribute('data-theme', resolved);
+                  var size = localStorage.getItem('stint-text-size');
+                  if (size === 'compact' || size === 'regular' || size === 'large') {
+                    var sizes = { compact: '14px', regular: '16px', large: '18px' };
+                    document.documentElement.style.fontSize = sizes[size];
+                    document.documentElement.setAttribute('data-text-size', size);
+                  }
                 } catch (e) {}
               })();
             `,
@@ -56,8 +63,10 @@ export default async function RootLayout({
       <body className="h-full bg-surface text-content">
         <NextIntlClientProvider messages={messages}>
           <ThemeProvider>
-            <TopProgressBar />
-            {children}
+            <TextSizeProvider>
+              <TopProgressBar />
+              {children}
+            </TextSizeProvider>
           </ThemeProvider>
         </NextIntlClientProvider>
       </body>

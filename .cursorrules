@@ -86,6 +86,19 @@ Destructive flows (tiered):
 - **Irreversible hard delete from trash** → inline confirm with an explicit "forever" label (second-click safety).
 - HIDE the original trigger when confirmation form is shown. Cancel always present.
 
+## Typography (MANDATORY)
+
+- Semantic scale defined in `globals.css`: `text-label` / `text-caption` / `text-body` / `text-body-lg` / `text-title` / `text-page-title` / `text-hero`. All rem-based so the text-size preference scales the whole UI.
+- **Never use `text-[Npx]` or raw `text-xs/sm/base/lg/xl`** in new code — they bypass the scale.
+- Pair semantic size with `font-normal/medium/semibold/bold` as needed. Weights are orthogonal.
+- Monetary/time values: `font-mono tabular-nums` + one of the scale classes.
+- Table headers: `text-label font-semibold uppercase text-content-muted`. Page titles: `text-page-title font-bold text-content`.
+
+## Text size preference
+
+- Compact / Regular / Large applied via `data-text-size` on `<html>` + root font-size. Persisted in `user_settings.text_size`, mirrored to localStorage for anti-flash. Source of truth in `@/components/text-size-provider`.
+- Themes: `system`, `light`, `dark`, `high-contrast`, `warm`. Warm palette matches Liv.
+
 ## Redundant visual encoding (MANDATORY)
 
 Every meaningful UI element uses 2+ of: icon, text, color.

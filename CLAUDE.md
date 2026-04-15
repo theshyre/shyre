@@ -123,8 +123,30 @@ All colors use semantic CSS custom properties defined in `globals.css` with 3 th
 
 - Primary: Geist Sans (via `next/font/google`)
 - Monospace: Geist Mono — used for monetary values, rates, durations
-- Table headers: `text-xs font-semibold uppercase tracking-wider text-content-muted`
-- Page titles: `text-2xl font-bold text-content` with icon
+
+**MANDATORY: use the semantic typography scale defined in `globals.css`.** Never use `text-[Npx]` or raw Tailwind `text-xs`/`text-sm`/`text-base`/`text-lg`/`text-xl` in new code — those are absolute sizes that won't scale with the user's text-size preference.
+
+| Class             | Role                                         | rem    | @ regular (16px) |
+|-------------------|----------------------------------------------|--------|------------------|
+| `text-label`      | Uppercase micro labels (col headers, framebar titles) | 0.625 | 10px |
+| `text-caption`    | Meta info, sublines, timestamps, kbd         | 0.6875 | 11px |
+| `text-body`       | Default body, cells, descriptions, inputs    | 0.8125 | 13px |
+| `text-body-lg`    | Emphasized body, button labels               | 0.875  | 14px |
+| `text-title`      | Section / card titles                        | 1      | 16px |
+| `text-page-title` | H1 per page                                  | 1.5    | 24px |
+| `text-hero`       | Running timer elapsed, big stats             | 2.25   | 36px |
+
+- Weights are orthogonal: pair with `font-normal` / `font-medium` / `font-semibold` / `font-bold` as the hierarchy demands.
+- Table headers: `text-label font-semibold uppercase text-content-muted`
+- Page titles: `text-page-title font-bold text-content` with icon
+- Monetary/time values: `font-mono tabular-nums` + one of the scale classes
+- If you need a size outside this scale, the scale is wrong — propose a new entry rather than inline pixels.
+
+### User-facing text size preference
+
+- Three levels: Compact (14px root) / Regular (16px, default) / Large (18px). Applied via `data-text-size` on `<html>` + a root `font-size`. Every rem in the app scales uniformly.
+- Persisted in `user_settings.text_size` and mirrored to localStorage (`stint-text-size`) for anti-flash.
+- `useTextSize()` from `@/components/text-size-provider` is the client API. `<TextSizeSync />` syncs DB → provider on login. Pattern mirrors theme handling.
 
 ## Form & button rules — MANDATORY
 

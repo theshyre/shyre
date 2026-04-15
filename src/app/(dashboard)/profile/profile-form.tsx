@@ -11,10 +11,12 @@ import {
   Moon,
   Monitor,
   Eye,
+  Flame,
   Globe,
   Clock,
   Languages,
   Calendar,
+  ALargeSmall,
 } from "lucide-react";
 import { MfaSetup } from "@/components/MfaSetup";
 import { useFormAction } from "@/hooks/use-form-action";
@@ -26,6 +28,10 @@ import {
   buttonSecondaryClass,
 } from "@/lib/form-styles";
 import { useTheme } from "@/components/theme-provider";
+import {
+  useTextSize,
+  type TextSize,
+} from "@/components/text-size-provider";
 import { COMMON_TIMEZONES } from "@/lib/time/tz";
 import {
   updateUserSettingsAction,
@@ -35,7 +41,7 @@ import {
 import { AvatarPicker } from "./avatar-picker";
 // Note: exported as `ProfileForm` — aligned with the /profile route.
 
-type Theme = "system" | "light" | "dark" | "high-contrast";
+type Theme = "system" | "light" | "dark" | "high-contrast" | "warm";
 
 const THEME_OPTIONS: ReadonlyArray<{
   key: Theme;
@@ -45,6 +51,7 @@ const THEME_OPTIONS: ReadonlyArray<{
   { key: "light", icon: Sun },
   { key: "dark", icon: Moon },
   { key: "high-contrast", icon: Eye },
+  { key: "warm", icon: Flame },
 ];
 
 interface Props {
@@ -74,6 +81,7 @@ export function ProfileForm({
   const t = useTranslations("settings");
   const tc = useTranslations("common");
   const { theme, setTheme } = useTheme();
+  const { textSize, setTextSize } = useTextSize();
 
   const [detectedTz, setDetectedTz] = useState<string>("");
   useEffect(() => {
@@ -89,20 +97,36 @@ export function ProfileForm({
   const prefsForm = useFormAction({ action: updatePreferencesAction });
 
   // Apply theme changes optimistically + persist to DB without requiring the
-  // user to click "Save preferences". Saving theme here re-submits the current
+  // user to click "Save preferences". Saving here re-submits the current
   // values of the other preference fields so we don't blow them away.
-  const handleThemeChange = useCallback(
-    (next: Theme) => {
-      setTheme(next);
+  const submitPrefs = useCallback(
+    (overrides: Partial<{ theme: Theme; textSize: TextSize }>) => {
       const fd = new FormData();
-      fd.set("preferred_theme", next);
+      fd.set("preferred_theme", overrides.theme ?? theme);
+      fd.set("text_size", overrides.textSize ?? textSize);
       if (timezone) fd.set("timezone", timezone);
       if (locale) fd.set("locale", locale);
       if (weekStart) fd.set("week_start", weekStart);
       if (timeFormat) fd.set("time_format", timeFormat);
       void prefsForm.handleSubmit(fd);
     },
-    [setTheme, prefsForm, timezone, locale, weekStart, timeFormat],
+    [prefsForm, theme, textSize, timezone, locale, weekStart, timeFormat],
+  );
+
+  const handleThemeChange = useCallback(
+    (next: Theme) => {
+      setTheme(next);
+      submitPrefs({ theme: next });
+    },
+    [setTheme, submitPrefs],
+  );
+
+  const handleTextSizeChange = useCallback(
+    (next: TextSize) => {
+      setTextSize(next);
+      submitPrefs({ textSize: next });
+    },
+    [setTextSize, submitPrefs],
   );
 
   return (
@@ -191,6 +215,49 @@ export function ProfileForm({
             </div>
             {/* Hidden field so the Save button submits current theme too */}
             <input type="hidden" name="preferred_theme" value={theme} />
+          </div>
+
+          {/* Text size */}
+          <div>
+            <label className={labelClass}>{t("textSize.title")}</label>
+            <div className="flex items-center gap-1 flex-wrap">
+              <ALargeSmall
+                size={16}
+                className="mr-1 text-content-muted shrink-0"
+              />
+              {(["compact", "regular", "large"] as const).map((size) => {
+                const isActive = textSize === size;
+                return (
+                  <button
+                    key={size}
+                    type="button"
+                    onClick={() => handleTextSizeChange(size)}
+                    title={t(`textSize.${size}`)}
+                    aria-label={t(`textSize.${size}`)}
+                    aria-pressed={isActive}
+                    className={`flex h-8 w-8 items-center justify-center rounded-md font-semibold transition-colors ${
+                      isActive
+                        ? "bg-accent text-content-inverse"
+                        : "border border-edge text-content-secondary hover:bg-hover"
+                    }`}
+                    style={{
+                      fontSize:
+                        size === "compact"
+                          ? "11px"
+                          : size === "large"
+                            ? "16px"
+                            : "13px",
+                    }}
+                  >
+                    A
+                  </button>
+                );
+              })}
+              <span className="ml-2 text-caption text-content-muted">
+                {t(`textSize.${textSize}`)}
+              </span>
+            </div>
+            <input type="hidden" name="text_size" value={textSize} />
           </div>
 
           {/* Timezone */}

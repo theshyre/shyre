@@ -14,14 +14,24 @@ vi.mock("@/components/MfaSetup", () => ({
   MfaSetup: () => null,
 }));
 
-// Stub the ThemeProvider context so useTheme works in tests without wrapping
+// Stub the ThemeProvider + TextSizeProvider contexts so the hooks work in
+// tests without wrapping with real providers.
 const setThemeSpy = vi.fn();
 vi.mock("@/components/theme-provider", () => ({
   useTheme: () => ({
     theme: "system",
     setTheme: setThemeSpy,
     applyExternalTheme: vi.fn(),
-    themes: ["system", "light", "dark", "high-contrast"] as const,
+    themes: ["system", "light", "dark", "high-contrast", "warm"] as const,
+  }),
+}));
+const setTextSizeSpy = vi.fn();
+vi.mock("@/components/text-size-provider", () => ({
+  useTextSize: () => ({
+    textSize: "regular",
+    setTextSize: setTextSizeSpy,
+    applyExternalTextSize: vi.fn(),
+    sizes: ["compact", "regular", "large"] as const,
   }),
 }));
 
@@ -61,13 +71,27 @@ describe("ProfileForm", () => {
     ).toBeInTheDocument();
   });
 
-  it("renders all four theme buttons", () => {
+  it("renders all five theme buttons", () => {
     renderWithIntl(<ProfileForm {...defaultProps} />);
     expect(screen.getByRole("button", { name: /system/i })).toBeInTheDocument();
     expect(screen.getByRole("button", { name: /light/i })).toBeInTheDocument();
     expect(screen.getByRole("button", { name: /dark/i })).toBeInTheDocument();
     expect(
       screen.getByRole("button", { name: /high contrast/i }),
+    ).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: /warm/i })).toBeInTheDocument();
+  });
+
+  it("renders three text-size buttons", () => {
+    renderWithIntl(<ProfileForm {...defaultProps} />);
+    expect(
+      screen.getByRole("button", { name: /compact/i, pressed: false }),
+    ).toBeInTheDocument();
+    expect(
+      screen.getByRole("button", { name: /regular/i, pressed: true }),
+    ).toBeInTheDocument();
+    expect(
+      screen.getByRole("button", { name: /^large$/i, pressed: false }),
     ).toBeInTheDocument();
   });
 

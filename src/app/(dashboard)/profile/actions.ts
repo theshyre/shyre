@@ -68,9 +68,16 @@ export async function setAvatarAction(formData: FormData): Promise<void> {
   }, "setAvatarAction") as unknown as void;
 }
 
-const ALLOWED_THEMES = new Set(["system", "light", "dark", "high-contrast"]);
+const ALLOWED_THEMES = new Set([
+  "system",
+  "light",
+  "dark",
+  "high-contrast",
+  "warm",
+]);
 const ALLOWED_LOCALES = new Set(["en", "es"]);
 const ALLOWED_WEEK_STARTS = new Set(["monday", "sunday"]);
+const ALLOWED_TEXT_SIZES = new Set(["compact", "regular", "large"]);
 const ALLOWED_TIME_FORMATS = new Set(["12h", "24h"]);
 
 function normalizeStr(value: FormDataEntryValue | null): string | null {
@@ -92,6 +99,7 @@ export async function updatePreferencesAction(
     const locale = normalizeStr(formData.get("locale"));
     const week_start = normalizeStr(formData.get("week_start"));
     const time_format = normalizeStr(formData.get("time_format"));
+    const text_size = normalizeStr(formData.get("text_size"));
 
     if (theme && !ALLOWED_THEMES.has(theme)) {
       throw new Error(`Invalid theme: ${theme}`);
@@ -105,6 +113,9 @@ export async function updatePreferencesAction(
     if (time_format && !ALLOWED_TIME_FORMATS.has(time_format)) {
       throw new Error(`Invalid time_format: ${time_format}`);
     }
+    if (text_size && !ALLOWED_TEXT_SIZES.has(text_size)) {
+      throw new Error(`Invalid text_size: ${text_size}`);
+    }
 
     assertSupabaseOk(
       await supabase.from("user_settings").upsert({
@@ -114,6 +125,7 @@ export async function updatePreferencesAction(
         locale,
         week_start,
         time_format,
+        text_size,
       }),
     );
 
