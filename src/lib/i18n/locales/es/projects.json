@@ -31,5 +31,22 @@
     "title": "Registros de tiempo",
     "noEntries": "Aún no hay registros de tiempo para este proyecto.",
     "totalHours": "Total: {hours}h"
+  },
+  "projectCategories": {
+    "title": "Categorías específicas del proyecto",
+    "enableTitle": "¿Necesitas categorías solo para este proyecto?",
+    "enableHint": "Los conjuntos integrados y de equipo sirven para trabajo estándar. Crea categorías específicas cuando este proyecto requiera su propia taxonomía.",
+    "enableHintSharedActive": "Este proyecto usa un conjunto compartido. Agregar categorías específicas reemplazará esa selección solo para este proyecto.",
+    "enableButton": "Agregar categorías específicas",
+    "setName": "Nombre del conjunto",
+    "defaultSetName": "Categorías del proyecto",
+    "categoriesLabel": "Categorías",
+    "emptyHint": "Agrega tu primera categoría abajo.",
+    "categoryNamePlaceholder": "ej. Revisión de diseño",
+    "addCategory": "Agregar categoría",
+    "removeCategory": "Quitar categoría",
+    "replacesSharedWarning": "Guardar reemplazará el conjunto compartido actualmente seleccionado para este proyecto.",
+    "deleteSet": "Eliminar categorías del proyecto",
+    "deleteSummary": "categorías personalizadas del proyecto"
   }
 }

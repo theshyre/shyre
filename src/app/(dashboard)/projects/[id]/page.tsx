@@ -4,6 +4,7 @@ import { notFound } from "next/navigation";
 import { Clock, Hash, ExternalLink } from "lucide-react";
 import { getVisibleCategorySets } from "@/lib/categories/queries";
 import { ProjectEditForm } from "./project-edit-form";
+import { ProjectCategoriesEditor } from "./project-categories-editor";
 
 interface IssueTimeSummary {
   issueNumber: number;
@@ -40,6 +41,25 @@ export default async function ProjectDetailPage({
       created_at,
     }),
   );
+
+  // Fetch project-scoped category set (if any) + its categories. Used
+  // by the ProjectCategoriesEditor below.
+  const { data: projectSet } = await supabase
+    .from("category_sets")
+    .select("id, name, categories(id, name, color, sort_order)")
+    .eq("project_id", id)
+    .maybeSingle();
+  const projectSetCategories =
+    projectSet && Array.isArray(projectSet.categories)
+      ? (projectSet.categories as Array<{
+          id: string;
+          name: string;
+          color: string;
+          sort_order: number;
+        }>)
+          .slice()
+          .sort((a, b) => a.sort_order - b.sort_order)
+      : [];
 
   const { data: timeEntries } = await supabase
     .from("time_entries")
@@ -82,6 +102,19 @@ export default async function ProjectDetailPage({
   return (
     <div>
       <ProjectEditForm project={project} categorySets={categorySets} />
+
+      <div className="mt-6">
+        <ProjectCategoriesEditor
+          projectId={project.id}
+          setId={projectSet?.id ?? null}
+          setName={projectSet?.name ?? ""}
+          initialCategories={projectSetCategories}
+          hasSharedSet={
+            project.category_set_id !== null &&
+            project.category_set_id !== (projectSet?.id ?? null)
+          }
+        />
+      </div>
 
       {/* Issue Time Summary */}
       {issueSummaries.length > 0 && project.github_repo && (

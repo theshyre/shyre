@@ -31,5 +31,22 @@
     "title": "Time Entries",
     "noEntries": "No time entries yet for this project.",
     "totalHours": "Total: {hours}h"
+  },
+  "projectCategories": {
+    "title": "Project-specific categories",
+    "enableTitle": "Need categories only for this project?",
+    "enableHint": "Built-in and team sets are great for standard work. Create project-specific ones when this project needs its own taxonomy.",
+    "enableHintSharedActive": "This project uses a shared set. Adding project-specific categories will replace that selection for this project only.",
+    "enableButton": "Add project-specific categories",
+    "setName": "Set name",
+    "defaultSetName": "Project categories",
+    "categoriesLabel": "Categories",
+    "emptyHint": "Add your first category below.",
+    "categoryNamePlaceholder": "e.g. Design review",
+    "addCategory": "Add category",
+    "removeCategory": "Remove category",
+    "replacesSharedWarning": "Saving will replace the currently selected shared set for this project.",
+    "deleteSet": "Delete project-specific categories",
+    "deleteSummary": "project's custom categories"
   }
 }
