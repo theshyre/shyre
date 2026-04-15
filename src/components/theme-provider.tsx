@@ -5,7 +5,7 @@ import {
   useCallback,
   useContext,
   useEffect,
-  useState,
+  useSyncExternalStore,
 } from "react";
 
 type Theme = "system" | "light" | "dark" | "high-contrast";
@@ -20,6 +20,7 @@ interface ThemeContextValue {
 
 const STORAGE_KEY = "stint-theme";
 const THEMES = ["system", "light", "dark", "high-contrast"] as const;
+const THEME_CHANGE_EVENT = "stint-theme-change";
 
 const ThemeContext = createContext<ThemeContextValue | null>(null);
 
@@ -35,18 +36,39 @@ function applyTheme(theme: Theme): void {
   document.documentElement.setAttribute("data-theme", resolved);
 }
 
-export function ThemeProvider({ children }: { children: React.ReactNode }) {
-  const [theme, setThemeState] = useState<Theme>("system");
+function readStoredTheme(): Theme {
+  if (typeof window === "undefined") return "system";
+  const stored = localStorage.getItem(STORAGE_KEY) as Theme | null;
+  return stored && THEMES.includes(stored) ? stored : "system";
+}
 
-  useEffect(() => {
-    const stored = localStorage.getItem(STORAGE_KEY) as Theme | null;
-    if (stored && THEMES.includes(stored)) {
-      setThemeState(stored);
-      applyTheme(stored);
-    } else {
-      applyTheme("system");
-    }
-  }, []);
+function subscribeToTheme(onChange: () => void): () => void {
+  // Fires for in-app setTheme() calls (same tab) and cross-tab storage events.
+  window.addEventListener(THEME_CHANGE_EVENT, onChange);
+  window.addEventListener("storage", onChange);
+  return () => {
+    window.removeEventListener(THEME_CHANGE_EVENT, onChange);
+    window.removeEventListener("storage", onChange);
+  };
+}
+
+function writeTheme(next: Theme): void {
+  localStorage.setItem(STORAGE_KEY, next);
+  applyTheme(next);
+  window.dispatchEvent(new Event(THEME_CHANGE_EVENT));
+}
+
+export function ThemeProvider({ children }: { children: React.ReactNode }) {
+  // localStorage is the source of truth. The anti-flash script in <head>
+  // has already applied data-theme before hydration, so we just need React
+  // state to read the same value — useSyncExternalStore does exactly that
+  // without the setState-in-effect pattern.
+  const getServerSnapshot = (): Theme => "system";
+  const theme = useSyncExternalStore<Theme>(
+    subscribeToTheme,
+    readStoredTheme,
+    getServerSnapshot,
+  );
 
   useEffect(() => {
     const mq = window.matchMedia("(prefers-color-scheme: dark)");
@@ -58,18 +80,14 @@ export function ThemeProvider({ children }: { children: React.ReactNode }) {
   }, [theme]);
 
   const setTheme = useCallback((next: Theme) => {
-    setThemeState(next);
-    localStorage.setItem(STORAGE_KEY, next);
-    applyTheme(next);
+    writeTheme(next);
   }, []);
 
-  // Apply a theme value from an external source (e.g. the server's DB read).
-  // Updates localStorage so the anti-flash script picks up the DB-preferred
-  // value on subsequent loads.
+  // External-source variant exists so the settings page can push a DB-
+  // preferred theme into the same store without going through the user's
+  // click handler. Same write path.
   const applyExternalTheme = useCallback((next: Theme) => {
-    setThemeState(next);
-    localStorage.setItem(STORAGE_KEY, next);
-    applyTheme(next);
+    writeTheme(next);
   }, []);
 
   return (

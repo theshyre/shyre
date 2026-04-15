@@ -57,26 +57,37 @@ export default function Timer(): React.JSX.Element {
   }, [fetchRunning]);
 
   useEffect(() => {
-    if (running) {
-      const tick = (): void => {
-        const diff = Date.now() - new Date(running.start_time).getTime();
-        const totalSec = Math.floor(diff / 1000);
-        const h = Math.floor(totalSec / 3600);
-        const m = Math.floor((totalSec % 3600) / 60);
-        const s = totalSec % 60;
-        setElapsed(
-          `${String(h).padStart(2, "0")}:${String(m).padStart(2, "0")}:${String(s).padStart(2, "0")}`
-        );
-      };
-      tick();
-      intervalRef.current = setInterval(tick, 1000);
-      return () => {
-        if (intervalRef.current) clearInterval(intervalRef.current);
-      };
-    } else {
-      setElapsed("00:00:00");
-    }
+    // Only tick while a timer is running. The non-running branch of the
+    // component doesn't render `elapsed`, so no need to reset state here —
+    // next start will overwrite on the first tick.
+    if (!running) return;
+
+    const tick = (): void => {
+      const diff = Date.now() - new Date(running.start_time).getTime();
+      const totalSec = Math.floor(diff / 1000);
+      const h = Math.floor(totalSec / 3600);
+      const m = Math.floor((totalSec % 3600) / 60);
+      const s = totalSec % 60;
+      setElapsed(
+        `${String(h).padStart(2, "0")}:${String(m).padStart(2, "0")}:${String(s).padStart(2, "0")}`
+      );
+    };
+    tick();
+    intervalRef.current = setInterval(tick, 1000);
+    return () => {
+      if (intervalRef.current) clearInterval(intervalRef.current);
+    };
   }, [running]);
+
+  const handleStop = useCallback(async (): Promise<void> => {
+    if (!running) return;
+    await supabase
+      .from("time_entries")
+      .update({ end_time: new Date().toISOString() })
+      .eq("id", running.id);
+    setRunning(null);
+    router.refresh();
+  }, [running, supabase, router]);
 
   // Keyboard shortcut: Space to toggle timer (when not in input)
   useEffect(() => {
@@ -96,17 +107,7 @@ export default function Timer(): React.JSX.Element {
 
     window.addEventListener("keydown", handleKeyDown);
     return () => window.removeEventListener("keydown", handleKeyDown);
-  });
-
-  async function handleStop(): Promise<void> {
-    if (!running) return;
-    await supabase
-      .from("time_entries")
-      .update({ end_time: new Date().toISOString() })
-      .eq("id", running.id);
-    setRunning(null);
-    router.refresh();
-  }
+  }, [running, handleStop]);
 
   if (!running) {
     return (
