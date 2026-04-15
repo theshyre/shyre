@@ -92,11 +92,12 @@ Every button:
 - Disabled buttons look disabled (not ambiguous)
 - Never silently succeeds or fails
 
-Destructive flows (tiered):
-- **Row-level recoverable** (single time-entry row, etc.) → inline `<InlineDeleteButton />` confirm (no modal, no typed name). Soft-delete + 10s Undo toast (`useToast()`) + persistent `/trash` view for later recovery.
-- **Multi-entity or record-level** (delete customer/project/team, void invoice) → typed-name confirmation.
-- **Irreversible hard delete from trash** → inline confirm with an explicit "forever" label (second-click safety).
-- HIDE the original trigger when confirmation form is shown. Cancel always present.
+Destructive flows (by what is actually being destroyed):
+- **Unsaved local state** (row user added but never committed) → inline `<InlineDeleteButton />`. Nothing to undo.
+- **Row-level delete of persisted data** → typed-confirm via `<InlineDeleteRowConfirm />`; user types `delete` (case-insensitive) to arm. Inline expansion, not modal. Soft-delete + 10s Undo toast + `/trash` recovery are orthogonal — they apply on top.
+- **Multi-entity or record-level** (delete customer/project/team, void invoice) → typed-name confirmation using the entity's own name.
+- **Irreversible hard delete from trash** → inline `<InlineDeleteButton />` with "forever" label (second-click safety after the user already decided to trash it).
+- HIDE the original trigger when the confirmation form is shown. Cancel button + Escape key always work.
 
 ## Typography (MANDATORY)
 

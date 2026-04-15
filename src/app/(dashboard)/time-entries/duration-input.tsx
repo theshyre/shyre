@@ -15,7 +15,7 @@ interface Props {
   onChange?: (minutes: number | null) => void;
   /** Called on blur with the final minutes (null if unparseable) */
   onCommit?: (minutes: number | null) => void;
-  /** Placeholder shown when empty */
+  /** Placeholder shown when empty. Default is a muted `·` so empty cells recede. */
   placeholder?: string;
   className?: string;
   ariaLabel?: string;
@@ -24,6 +24,8 @@ interface Props {
   selectOnFocus?: boolean;
   /** Commit on Enter (blurs the input) */
   commitOnEnter?: boolean;
+  /** Fires on arrow keys so the parent can move focus between cells. */
+  onArrowNav?: (direction: "up" | "down" | "left" | "right") => void;
 }
 
 /**
@@ -38,12 +40,13 @@ export const DurationInput = forwardRef<HTMLInputElement, Props>(
       defaultMinutes,
       onChange,
       onCommit,
-      placeholder = "0:00",
+      placeholder = "·",
       className,
       ariaLabel,
       autoFocus,
       selectOnFocus = true,
       commitOnEnter = true,
+      onArrowNav,
     },
     ref,
   ): React.JSX.Element {
@@ -78,10 +81,35 @@ export const DurationInput = forwardRef<HTMLInputElement, Props>(
 
     function handleKeyDown(e: KeyboardEvent<HTMLInputElement>): void {
       if (commitOnEnter && e.key === "Enter") {
+        // Commit + move down one row, Excel-style. Blur writes through
+        // onCommit; then we ask the parent to shift focus.
+        e.preventDefault();
         e.currentTarget.blur();
+        onArrowNav?.("down");
+        return;
+      }
+      if (!onArrowNav) return;
+      const el = e.currentTarget;
+      const atStart = el.selectionStart === 0 && el.selectionEnd === 0;
+      const atEnd =
+        el.selectionStart === el.value.length &&
+        el.selectionEnd === el.value.length;
+      if (e.key === "ArrowDown") {
+        e.preventDefault();
+        onArrowNav("down");
+      } else if (e.key === "ArrowUp") {
+        e.preventDefault();
+        onArrowNav("up");
+      } else if (e.key === "ArrowRight" && atEnd) {
+        e.preventDefault();
+        onArrowNav("right");
+      } else if (e.key === "ArrowLeft" && atStart) {
+        e.preventDefault();
+        onArrowNav("left");
       }
     }
 
+    const isEmpty = !text;
     return (
       <>
         <input
@@ -97,9 +125,9 @@ export const DurationInput = forwardRef<HTMLInputElement, Props>(
           onBlur={handleBlur}
           onKeyDown={handleKeyDown}
           onFocus={selectOnFocus ? (e) => e.currentTarget.select() : undefined}
-          className={`${className ?? inputClass} font-mono tabular-nums text-right ${
-            invalid ? "border-error" : ""
-          }`}
+          className={`${className ?? inputClass} font-mono tabular-nums text-right font-medium ${
+            isEmpty ? "text-content-muted/60 placeholder:text-content-muted/50" : "text-content"
+          } ${invalid ? "border-error" : ""}`}
         />
         <input type="hidden" name={name} value={minutes ?? ""} />
       </>

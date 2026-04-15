@@ -36,9 +36,12 @@ Click a card. It expands in place into an edit form.
 
 ### Row delete from the weekly timesheet
 
-Each row in the weekly timesheet has a trash button on the right. Click it once → the same cell flips to a red **Delete** + muted **Cancel** pair. Click **Delete** again to soft-delete every entry in that row. You won't get a browser confirm dialog — the two-click inline pattern is the confirmation.
+Each row in the weekly timesheet has a trash button on the right. What it does depends on whether the row has real data:
 
-If you walk away for a few seconds, the confirm state auto-reverts to the trash icon.
+- **Blank row you just added** (never typed anything): clicking the trash removes the row immediately — it was never saved.
+- **Row with any saved entries**: clicking the trash expands an inline prompt: `Type delete to confirm`. Type `delete` (case-insensitive) and the red **Delete** button unlocks. This matches the "this is destructive" weight of the action even when only one cell has a value — deleting data is deleting data. Press Escape or click ✗ to back out.
+
+Either path is still soft-delete and still produces the Undo toast.
 
 ### Undo
 
@@ -61,6 +64,12 @@ Soft-deleted entries are excluded from reports, invoicing, dashboards, exports, 
 ### Per-entry delete (day view / kebab menu)
 
 Deleting a single entry from the kebab menu follows the same rules: soft-delete, Undo toast, recoverable from the Trash page.
+
+### Keyboard nav inside the grid
+
+- **Arrow keys** move focus between cells. Up/Down walks the same day across rows. Left/Right walks the same row across days (only when the cursor is at the start/end of the input so you can still edit text naturally).
+- **Enter** commits the current cell and moves focus one row down (Excel-style).
+- **N** opens the Add-row picker.
 
 ### Autosave indicator
 

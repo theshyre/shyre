@@ -126,7 +126,14 @@
     "noCategory": "Sin categoría",
     "empty": "Sin tiempo registrado esta semana. Agrega una fila para comenzar.",
     "deleteRow": "Eliminar fila",
+    "discardRow": "Descartar fila",
+    "columnActions": "Acciones de fila",
     "frameTitle": "Parte de horas semanal"
+  },
+  "rowDelete": {
+    "prompt": "Escribe {word} para confirmar",
+    "promptWithSummary": "Escribe {word} para eliminar {summary}",
+    "inputLabel": "Escribe delete para confirmar"
   },
   "toast": {
     "entryDeleted": "Entrada movida a la papelera",

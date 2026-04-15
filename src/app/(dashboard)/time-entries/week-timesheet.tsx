@@ -1,6 +1,12 @@
 "use client";
 
-import { useCallback, useMemo, useState } from "react";
+import {
+  useCallback,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+} from "react";
 import { useTranslations } from "next-intl";
 import { Plus } from "lucide-react";
 import { formatDurationHMZero } from "@/lib/time/week";
@@ -14,8 +20,10 @@ import {
 import {
   buttonSecondaryClass,
   selectClass,
+  kbdClass,
 } from "@/lib/form-styles";
 import { InlineDeleteButton } from "@/components/InlineDeleteButton";
+import { InlineDeleteRowConfirm } from "@/components/InlineDeleteRowConfirm";
 import { SaveStatus } from "@/components/SaveStatus";
 import { useAutosaveStatus } from "@/hooks/useAutosaveStatus";
 import { useToast } from "@/components/Toast";
@@ -66,6 +74,7 @@ export function WeekTimesheet({
     () => Array.from({ length: DAYS_IN_WEEK }, (_, i) => addLocalDays(weekStartStr, i)),
     [weekStartStr],
   );
+  const todayStr = utcToLocalDateStr(new Date(), tzOffsetMin);
 
   // Derive rows from existing entries + any user-added blank rows
   const [extraRows, setExtraRows] = useState<
@@ -143,7 +152,7 @@ export function WeekTimesheet({
   const removeEmptyRow = useCallback((projectId: string, categoryId: string | null) => {
     setExtraRows((prev) =>
       prev.filter(
-        (r) => !(r.projectId === projectId && r.categoryId === categoryId),
+        (r) => !(r.projectId === projectId && r.categoryId === catId(categoryId)),
       ),
     );
   }, []);
@@ -203,6 +212,48 @@ export function WeekTimesheet({
     }
   }
 
+  // 2D ref map keyed by `${rowIndex}:${dayIndex}` for keyboard navigation
+  // between cells. Parent keeps a Map so individual rows don't need to
+  // thread a callback through React's DOM attribute surface.
+  const cellRefs = useRef<Map<string, HTMLInputElement>>(new Map());
+  function setCellRef(rowIdx: number, dayIdx: number, el: HTMLInputElement | null): void {
+    const key = `${rowIdx}:${dayIdx}`;
+    if (el) cellRefs.current.set(key, el);
+    else cellRefs.current.delete(key);
+  }
+  function focusCell(rowIdx: number, dayIdx: number): void {
+    // Clamp indices to the visible grid.
+    const targetRow = Math.max(0, Math.min(rows.length - 1, rowIdx));
+    const targetDay = Math.max(0, Math.min(DAYS_IN_WEEK - 1, dayIdx));
+    const el = cellRefs.current.get(`${targetRow}:${targetDay}`);
+    if (el) {
+      el.focus();
+      el.select();
+    }
+  }
+
+  // Add-row trigger state lifted here so the global `N` shortcut can open
+  // it from anywhere inside the timesheet frame.
+  const [addRowOpen, setAddRowOpen] = useState(false);
+  useEffect(() => {
+    function handleKey(e: KeyboardEvent): void {
+      if (e.key !== "n" && e.key !== "N") return;
+      const target = e.target as HTMLElement | null;
+      const tag = target?.tagName.toLowerCase();
+      if (
+        tag === "input" ||
+        tag === "textarea" ||
+        tag === "select" ||
+        target?.isContentEditable
+      )
+        return;
+      e.preventDefault();
+      setAddRowOpen(true);
+    }
+    window.addEventListener("keydown", handleKey);
+    return () => window.removeEventListener("keydown", handleKey);
+  }, []);
+
   return (
     <div className="rounded-lg border border-edge bg-surface-raised overflow-x-auto">
       <div className="flex items-center justify-between gap-2 px-3 py-2 border-b border-edge bg-surface-inset">
@@ -215,36 +266,64 @@ export function WeekTimesheet({
           lastError={save.lastError}
         />
       </div>
-      <table className="w-full text-body">
+      <table className="w-full text-body border-separate border-spacing-0">
+        <colgroup>
+          <col className="w-[220px]" />
+          {weekDays.map((d) => (
+            <col key={d} className="w-[72px]" />
+          ))}
+          <col className="w-[80px]" />
+          <col className="w-[32px]" />
+        </colgroup>
         <thead>
-          <tr className="border-b border-edge bg-surface-inset">
-            <th className="py-2 pl-4 text-left text-label font-semibold uppercase text-content-muted w-[30%]">
+          <tr className="bg-surface-inset">
+            <th
+              scope="col"
+              className="py-2 pl-4 text-left text-label font-semibold uppercase text-content-muted border-b border-edge"
+            >
               {t("categoryProject")}
             </th>
-            {weekDays.map((dStr) => {
+            {weekDays.map((dStr, i) => {
               const [y, m, d] = dStr.split("-").map(Number);
               const dateObj = new Date(y!, m! - 1, d!);
-              const isToday = dStr === utcToLocalDateStr(new Date(), tzOffsetMin);
+              const isToday = dStr === todayStr;
+              const isWeekend = i >= 5;
               return (
                 <th
                   key={dStr}
-                  className={`px-2 py-2 text-center text-label font-semibold uppercase ${
-                    isToday ? "text-accent" : "text-content-muted"
+                  scope="col"
+                  className={`px-2 py-2 text-center text-label font-semibold uppercase border-b border-edge ${
+                    isWeekend ? "bg-surface-inset/60" : ""
+                  } ${
+                    isToday
+                      ? "text-accent border-t-2 border-accent"
+                      : "text-content-muted"
                   }`}
                 >
                   <div>
                     {dateObj.toLocaleDateString(undefined, { weekday: "short" })}
                   </div>
-                  <div className="text-label font-normal mt-0.5">
+                  <div
+                    className={`text-label mt-0.5 ${
+                      isToday ? "font-bold text-accent" : "font-normal"
+                    }`}
+                  >
                     {d}
                   </div>
                 </th>
               );
             })}
-            <th className="px-2 py-2 text-right text-label font-semibold uppercase text-content-muted">
+            <th
+              scope="col"
+              className="px-2 py-2 text-right text-label font-semibold uppercase text-content-muted border-b border-edge"
+            >
               {t("total")}
             </th>
-            <th className="px-2 py-2 w-10" aria-label="actions" />
+            <th
+              scope="col"
+              className="px-2 py-2 border-b border-edge"
+              aria-label={t("columnActions")}
+            />
           </tr>
         </thead>
         <tbody>
@@ -258,9 +337,10 @@ export function WeekTimesheet({
               </td>
             </tr>
           )}
-          {rows.map((row) => (
+          {rows.map((row, rowIdx) => (
             <TimesheetRow
               key={`${row.projectId}::${row.categoryId ?? ""}`}
+              rowIndex={rowIdx}
               row={row}
               projects={projects}
               categories={categories}
@@ -268,59 +348,93 @@ export function WeekTimesheet({
                 submitCell(row.projectId, row.categoryId, dayIndex, minutes)
               }
               onDelete={() => deleteRow(row.projectId, row.categoryId)}
+              onDiscardEmpty={() =>
+                removeEmptyRow(row.projectId, row.categoryId)
+              }
               weekDays={weekDays}
-              todayStr={utcToLocalDateStr(new Date(), tzOffsetMin)}
+              todayStr={todayStr}
+              setCellRef={setCellRef}
+              onArrowNav={(dir, dayIdx) => {
+                if (dir === "up") focusCell(rowIdx - 1, dayIdx);
+                else if (dir === "down") focusCell(rowIdx + 1, dayIdx);
+                else if (dir === "left") focusCell(rowIdx, dayIdx - 1);
+                else focusCell(rowIdx, dayIdx + 1);
+              }}
             />
           ))}
+          {/* Add-row lives as the last tbody row so it feels like part of
+              the grid, not an appendix. */}
+          <tr className="bg-surface-raised">
+            <td colSpan={DAYS_IN_WEEK + 3} className="px-3 py-2 border-t border-dashed border-edge-muted">
+              <AddRowControl
+                open={addRowOpen}
+                setOpen={setAddRowOpen}
+                projects={projects}
+                categories={categories}
+                existingRows={rows}
+                onAdd={addRow}
+                defaultTeamId={defaultTeamId}
+              />
+            </td>
+          </tr>
         </tbody>
         <tfoot>
           <tr className="border-t-2 border-edge bg-surface-inset">
-            <td className="px-3 py-2 text-right text-caption font-semibold text-content-muted">
+            <th
+              scope="row"
+              className="px-3 py-2 text-right text-label font-semibold uppercase text-content-muted"
+            >
               {t("dailyTotals")}
-            </td>
+            </th>
             {dailyTotals.map((min, i) => (
               <td
                 key={i}
-                className="px-2 py-2 text-center font-mono text-body tabular-nums text-content-secondary"
+                className="px-2 py-2 text-center font-mono text-body-lg font-semibold tabular-nums text-content-secondary"
               >
-                {formatDurationHMZero(min)}
+                {min > 0 ? formatDurationHMZero(min) : <span className="text-content-muted/50">·</span>}
               </td>
             ))}
-            <td className="px-2 py-2 text-right font-mono text-body-lg font-semibold tabular-nums text-content">
+            <td className="px-2 py-2 text-right font-mono text-title font-semibold tabular-nums text-content">
               {formatDurationHMZero(weekTotal)}
             </td>
             <td className="px-2 py-2" />
           </tr>
         </tfoot>
       </table>
-
-      <AddRowControl
-        projects={projects}
-        categories={categories}
-        existingRows={rows}
-        onAdd={addRow}
-        defaultTeamId={defaultTeamId}
-      />
     </div>
   );
 }
 
+/** Identity helper — categoryId in extraRows matches row.categoryId which
+ *  is `string | null`. Some callers pass `null`; we want strict equality. */
+function catId(v: string | null): string | null {
+  return v;
+}
+
 function TimesheetRow({
+  rowIndex,
   row,
   projects,
   categories,
   onCellCommit,
   onDelete,
+  onDiscardEmpty,
   weekDays,
   todayStr,
+  setCellRef,
+  onArrowNav,
 }: {
+  rowIndex: number;
   row: Row;
   projects: ProjectOption[];
   categories: CategoryOption[];
   onCellCommit: (dayIndex: number, minutes: number) => void | Promise<void>;
   onDelete: () => void;
+  onDiscardEmpty: () => void;
   weekDays: string[];
   todayStr: string;
+  setCellRef: (row: number, day: number, el: HTMLInputElement | null) => void;
+  onArrowNav: (dir: "up" | "down" | "left" | "right", dayIndex: number) => void;
 }): React.JSX.Element {
   const t = useTranslations("time.timesheet");
   const tc = useTranslations("common.actions");
@@ -330,9 +444,10 @@ function TimesheetRow({
     : null;
   const rowTotalActual = row.byDay.reduce((s, n) => s + n, 0);
   const entryCount = row.byDay.filter((m) => m > 0).length;
+  const hasSavedData = rowTotalActual > 0 || entryCount > 0;
 
   return (
-    <tr className="border-b border-edge last:border-0 hover:bg-hover">
+    <tr className="hover:ring-1 hover:ring-inset hover:ring-edge-muted odd:bg-surface-raised even:bg-surface">
       <td className="py-2 align-middle">
         {/* Category as hero — colored left border + name */}
         <div
@@ -368,13 +483,18 @@ function TimesheetRow({
         </div>
       </td>
       {row.byDay.map((min, i) => {
-        const isToday = weekDays[i] === todayStr;
+        const dayStr = weekDays[i];
+        const isToday = dayStr === todayStr;
+        const isWeekend = i >= 5;
         return (
           <td
-            key={weekDays[i] ?? i}
-            className={`px-1 py-1 align-middle ${isToday ? "bg-accent-soft/30" : ""}`}
+            key={dayStr ?? i}
+            className={`px-1 py-1 align-middle ${
+              isWeekend ? "bg-surface-inset/40" : ""
+            } ${isToday ? "border-l-2 border-accent/40" : ""}`}
           >
             <DurationInput
+              ref={(el) => setCellRef(rowIndex, i, el)}
               name={`cell-${row.projectId}-${row.categoryId ?? ""}-${i}`}
               defaultMinutes={min}
               onCommit={(committed) => {
@@ -382,34 +502,50 @@ function TimesheetRow({
                   void onCellCommit(i, committed);
                 }
               }}
-              className="w-full rounded-md border border-edge bg-surface-raised px-2 py-1.5 text-body outline-none transition-colors hover:border-content-muted focus:border-focus-ring focus:ring-2 focus:ring-focus-ring/30"
+              onArrowNav={(dir) => onArrowNav(dir, i)}
+              className="w-full rounded-md border border-transparent bg-transparent px-1.5 py-1 text-body outline-none transition-colors hover:border-edge-muted focus:border-focus-ring focus:bg-surface-raised focus:ring-2 focus:ring-focus-ring/30"
             />
           </td>
         );
       })}
-      <td className="px-2 py-2 text-right font-mono text-body font-semibold tabular-nums text-content">
-        {rowTotalActual > 0 ? formatDurationHMZero(rowTotalActual) : "—"}
+      <td className="px-2 py-2 text-right font-mono text-body-lg font-semibold tabular-nums text-content">
+        {rowTotalActual > 0 ? (
+          formatDurationHMZero(rowTotalActual)
+        ) : (
+          <span className="text-content-muted/60">—</span>
+        )}
       </td>
-      <td className="px-2 py-2 text-right w-10">
-        <InlineDeleteButton
-          ariaLabel={t("deleteRow")}
-          onConfirm={onDelete}
-          confirmDescription={
-            entryCount > 1 ? tc("deleteCount", { count: entryCount }) : undefined
-          }
-        />
+      <td className="px-2 py-2 text-right">
+        {hasSavedData ? (
+          <InlineDeleteRowConfirm
+            ariaLabel={t("deleteRow")}
+            onConfirm={onDelete}
+            summary={tc("deleteCount", { count: entryCount })}
+          />
+        ) : (
+          // Blank row (user added it, never typed anything). No persisted
+          // data — just drop from local state, no confirm needed.
+          <InlineDeleteButton
+            ariaLabel={t("discardRow")}
+            onConfirm={onDiscardEmpty}
+          />
+        )}
       </td>
     </tr>
   );
 }
 
 function AddRowControl({
+  open,
+  setOpen,
   projects,
   categories,
   existingRows,
   onAdd,
   defaultTeamId,
 }: {
+  open: boolean;
+  setOpen: (v: boolean) => void;
   projects: ProjectOption[];
   categories: CategoryOption[];
   existingRows: Row[];
@@ -417,7 +553,6 @@ function AddRowControl({
   defaultTeamId?: string;
 }): React.JSX.Element {
   const t = useTranslations("time.timesheet");
-  const [open, setOpen] = useState(false);
   const [projectId, setProjectId] = useState("");
   const [categoryId, setCategoryId] = useState("");
 
@@ -432,11 +567,11 @@ function AddRowControl({
 
   function handleAdd(): void {
     if (!projectId) return;
-    const catId = categoryId || null;
+    const catIdValue = categoryId || null;
     const exists = existingRows.some(
-      (r) => r.projectId === projectId && r.categoryId === catId,
+      (r) => r.projectId === projectId && r.categoryId === catIdValue,
     );
-    if (!exists) onAdd(projectId, catId);
+    if (!exists) onAdd(projectId, catIdValue);
     setProjectId("");
     setCategoryId("");
     setOpen(false);
@@ -444,21 +579,20 @@ function AddRowControl({
 
   if (!open) {
     return (
-      <div className="border-t border-edge p-3">
-        <button
-          type="button"
-          onClick={() => setOpen(true)}
-          className={buttonSecondaryClass}
-        >
-          <Plus size={14} />
-          {t("addRow")}
-        </button>
-      </div>
+      <button
+        type="button"
+        onClick={() => setOpen(true)}
+        className="inline-flex items-center gap-2 text-body-lg text-content-muted hover:text-content transition-colors"
+      >
+        <Plus size={14} />
+        {t("addRow")}
+        <kbd className={kbdClass}>N</kbd>
+      </button>
     );
   }
 
   return (
-    <div className="border-t border-edge p-3 space-y-2 bg-surface-inset">
+    <div className="space-y-2">
       <div className="flex items-center gap-2 flex-wrap">
         <select
           className={selectClass}
@@ -511,4 +645,3 @@ function AddRowControl({
     </div>
   );
 }
-

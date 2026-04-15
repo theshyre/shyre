@@ -164,7 +164,7 @@ describe("WeekTimesheet", () => {
     expect(screen.getByText(/no time logged/i)).toBeInTheDocument();
   });
 
-  it("delete row → soft-deletes entries and pushes an Undo toast that restores them", async () => {
+  it("delete row → typed-confirm, soft-deletes entries, Undo toast restores", async () => {
     renderTimesheet(
       <WeekTimesheet
         weekStartStr={weekStartStr}
@@ -177,8 +177,10 @@ describe("WeekTimesheet", () => {
         categories={[]}
       />,
     );
-    // Open row confirm + click Confirm
+    // Click trash, type `delete`, hit the red Delete button
     fireEvent.click(screen.getByRole("button", { name: /delete row/i }));
+    const input = screen.getByLabelText(/type delete to confirm/i);
+    fireEvent.change(input, { target: { value: "delete" } });
     fireEvent.click(screen.getByRole("button", { name: /confirm delete/i }));
     await waitFor(() => expect(deleteMock).toHaveBeenCalledTimes(2));
     // Undo toast is present

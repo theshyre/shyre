@@ -71,13 +71,13 @@ export function TimeHome({
     <div className="space-y-6">
       <div className="flex items-center gap-3 flex-wrap">
         <Clock size={24} className="text-accent" />
-        <h1 className="text-2xl font-bold text-content">{t("title")}</h1>
+        <h1 className="text-page-title font-bold text-content">{t("title")}</h1>
         <TeamFilter teams={teams} selectedTeamId={selectedTeamId} />
         <div className="ml-auto flex items-center gap-2">
           {trashCount > 0 && (
             <Link
               href="/time-entries/trash"
-              className="inline-flex items-center gap-1.5 rounded-md border border-edge bg-surface px-2.5 py-1 text-xs text-content-muted hover:text-content hover:bg-hover transition-colors"
+              className="inline-flex items-center gap-1.5 rounded-md border border-edge bg-surface px-2.5 py-1 text-caption text-content-muted hover:text-content hover:bg-hover transition-colors"
             >
               <Trash2 size={12} />
               {t("trashLink", { count: trashCount })}
@@ -98,13 +98,15 @@ export function TimeHome({
         tzOffsetMin={tzOffsetMin}
       />
 
-      <div className="flex items-center justify-between flex-wrap gap-3">
-        <div className="flex items-center gap-4 flex-wrap">
-          <div className="flex items-baseline gap-2">
-            <span className="font-mono text-2xl font-semibold text-content tabular-nums">
+      <div className="flex items-end justify-between flex-wrap gap-3">
+        <div className="flex items-end gap-4 flex-wrap">
+          {/* Hero + breakdown stacked — hero is the dominant number,
+              breakdown is context underneath it (not inline-baselined). */}
+          <div className="flex flex-col">
+            <span className="font-mono text-hero font-semibold text-content tabular-nums leading-none">
               {formatDurationHM(totalMin)}
             </span>
-            <span className="text-xs text-content-muted">
+            <span className="text-caption text-content-muted font-mono tabular-nums mt-1">
               {t("totalsSummary", {
                 billable: formatDurationHM(billableMin),
                 nonBillable: formatDurationHM(nonBillableMin),

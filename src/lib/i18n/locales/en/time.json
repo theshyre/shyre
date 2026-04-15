@@ -126,7 +126,14 @@
     "noCategory": "No category",
     "empty": "No time logged this week. Add a row to start.",
     "deleteRow": "Delete row",
+    "discardRow": "Discard row",
+    "columnActions": "Row actions",
     "frameTitle": "Weekly timesheet"
+  },
+  "rowDelete": {
+    "prompt": "Type {word} to confirm",
+    "promptWithSummary": "Type {word} to delete {summary}",
+    "inputLabel": "Type delete to confirm"
   },
   "toast": {
     "entryDeleted": "Entry moved to trash",
