@@ -17,10 +17,10 @@
   },
   "clientSharing": {
     "title": "Compartir",
-    "primaryOrg": "Equipo Principal",
+    "primaryTeam": "Equipo Principal",
     "changePrimary": "Cambiar Org Principal",
-    "participatingOrgs": "Equipos Participantes",
-    "addOrg": "Agregar Equipo",
+    "participatingTeams": "Equipos Participantes",
+    "addTeam": "Agregar Equipo",
     "noParticipants": "Solo la equipo principal tiene acceso. Agrega teams participantes para compartir este cliente.",
     "canSeeOtherEntries": "Puede ver registros de tiempo de otras equipos",
     "removeOrg": "Eliminar",
@@ -43,10 +43,10 @@
     "revoke": "Revocar",
     "confirmRevoke": "¿Revocar este permiso?"
   },
-  "orgRelationships": {
+  "teamRelationships": {
     "title": "Relaciones de Equipo",
-    "parentOrgs": "Equipos Padre",
-    "childOrgs": "Equipos Hijas",
+    "parentTeams": "Equipos Padre",
+    "childTeams": "Equipos Hijos",
     "propose": "Proponer Vínculo",
     "accept": "Aceptar",
     "pending": "Pendiente",

@@ -165,7 +165,7 @@ function SystemSetRow({
             </p>
           )}
           <input type="hidden" name="source_id" value={set.id} />
-          <TeamSelector teams={teams} label={t("cloneToOrg")} />
+          <TeamSelector teams={teams} label={t("cloneToTeam")} />
           <div>
             <label className={labelClass}>{t("nameOptional")}</label>
             <input

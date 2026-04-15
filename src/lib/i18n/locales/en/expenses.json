@@ -4,7 +4,7 @@
   "add": "Add expense",
   "save": "Save expense",
   "empty": "No expenses yet. Add one to start tracking.",
-  "noOrg": "Pick an team above to see its expenses.",
+  "noTeam": "Pick a team above to see its expenses.",
   "noProject": "— No project —",
   "selectCategory": "— Select category —",
   "monthTotal": "This month · {amount}",

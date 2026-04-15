@@ -15,7 +15,7 @@
   "descriptionPlaceholder": "What this set is used for",
   "clone": "Clone",
   "cloneConfirm": "Clone to org",
-  "cloneToOrg": "Clone to team",
+  "cloneToTeam": "Clone to team",
   "edit": "Edit",
   "delete": "Delete",
   "confirmDelete": "Confirm delete",

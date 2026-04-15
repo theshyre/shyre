@@ -106,7 +106,7 @@ export function SharingSection({
       {/* Participating teams */}
       <div>
         <p className="text-xs uppercase tracking-wider text-content-muted mb-2">
-          {t("participatingOrgs")}
+          {t("participatingTeams")}
         </p>
 
         {shares.length === 0 ? (
@@ -140,7 +140,7 @@ export function SharingSection({
                 </p>
               )}
               <div>
-                <label className={labelClass}>{t("addOrg")} *</label>
+                <label className={labelClass}>{t("addTeam")} *</label>
                 <select
                   name="team_id"
                   required
@@ -168,7 +168,7 @@ export function SharingSection({
               </label>
               <div className="flex gap-2">
                 <SubmitButton
-                  label={t("addOrg")}
+                  label={t("addTeam")}
                   pending={addPending}
                   icon={Plus}
                 />
@@ -189,7 +189,7 @@ export function SharingSection({
               className={buttonPrimaryClass}
             >
               <Plus size={16} />
-              {t("addOrg")}
+              {t("addTeam")}
             </button>
           )}
         </div>

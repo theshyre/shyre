@@ -9,7 +9,7 @@ The paranoid. Assumes every input is adversarial and every policy is subtly wron
 - **RLS correctness, including the sneaky failures.** Self-referential policies (SAL-003). Policies that pass on paper but produce zero rows at runtime. Policies that are over-permissive in update/delete (SAL-002 lineage).
 - **Authorization is layered.** RLS is the wall, but server actions also filter by `user_id` / role. Defense in depth.
 - **Secrets never leave the server.** `GITHUB_TOKEN`, service keys, DB passwords — never logged, never returned in list queries, never in client bundles. `.env.local` gitignored; `.env.example` curated.
-- **Auth paths fail closed.** `requireSystemAdmin` / `validateOrgAccess` redirect on failure, not succeed with empty state.
+- **Auth paths fail closed.** `requireSystemAdmin` / `validateTeamAccess` redirect on failure, not succeed with empty state.
 - **Session handling is correct.** Short-lived tokens respected. MFA path doesn't have side-channel bypass.
 - **Audit log is append-only.** Security bugs logged under `SAL-*` with severity, resolution, commit hash. Never deleted.
 - **Inputs validated at boundaries.** Server actions validate before hitting the DB. No string interpolation into queries (only parameterized Supabase calls).

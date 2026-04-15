@@ -127,7 +127,7 @@ const sections: NavSection[] = buildSections();
 const systemAdminItems: NavItem[] = [
   { labelKey: "adminErrors", href: "/admin/errors", icon: AlertTriangle },
   { labelKey: "adminUsers", href: "/admin/users", icon: Users },
-  { labelKey: "adminOrgs", href: "/admin/teams", icon: Building2 },
+  { labelKey: "adminTeams", href: "/admin/teams", icon: Building2 },
   { labelKey: "adminSampleData", href: "/admin/sample-data", icon: Database },
 ];
 

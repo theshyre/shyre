@@ -17,10 +17,10 @@
   },
   "clientSharing": {
     "title": "Sharing",
-    "primaryOrg": "Primary Team",
+    "primaryTeam": "Primary Team",
     "changePrimary": "Change Primary Org",
-    "participatingOrgs": "Participating Teams",
-    "addOrg": "Add Team",
+    "participatingTeams": "Participating Teams",
+    "addTeam": "Add Team",
     "noParticipants": "Only the primary team has access. Add participating teams to share this client.",
     "canSeeOtherEntries": "Can see time entries from other teams",
     "removeOrg": "Remove",
@@ -43,10 +43,10 @@
     "revoke": "Revoke",
     "confirmRevoke": "Revoke this permission?"
   },
-  "orgRelationships": {
+  "teamRelationships": {
     "title": "Team Relationships",
-    "parentOrgs": "Parent Teams",
-    "childOrgs": "Child Teams",
+    "parentTeams": "Parent Teams",
+    "childTeams": "Child Teams",
     "propose": "Propose Link",
     "accept": "Accept",
     "pending": "Pending",

@@ -126,7 +126,7 @@ export default async function SampleDataPage({
 
       {!selectedTeamId || !selectedTeam || !counts ? (
         <div className="rounded-lg border border-edge bg-surface-raised p-6 text-sm text-content-muted">
-          {t("noOrg")}
+          {t("noTeam")}
         </div>
       ) : (
         <>
@@ -145,14 +145,14 @@ export default async function SampleDataPage({
               </h2>
               {!multipleOrgs && (
                 <p className="mt-0.5 text-xs text-content-muted">
-                  {t("onlyOrg")}
+                  {t("onlyTeam")}
                 </p>
               )}
             </div>
             {multipleOrgs && (
               <div className="shrink-0">
                 <p className="mb-1 text-[10px] font-semibold uppercase tracking-wider text-content-muted">
-                  {t("switchOrg")}
+                  {t("switchTeam")}
                 </p>
                 <TeamFilter teams={teams} selectedTeamId={selectedTeamId} />
               </div>

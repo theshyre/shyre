@@ -25,10 +25,10 @@ Don't hardcode new items into `Sidebar.tsx`; go through the registry.
 
 ## Platform API modules can use
 
-- `getUserContext()`, `getUserOrgs()`, `validateOrgAccess()` (from `@/lib/org-context`)
+- `getUserContext()`, `getUserTeams()`, `validateTeamAccess()` (from `@/lib/team-context`)
 - `createClient()` from `@/lib/supabase/{server,client}`
 - `runSafeAction`, `assertSupabaseOk` (from `@/lib/safe-action`, `@/lib/errors`)
-- Shared UI: `<Avatar>`, `<OrgSelector>`, `<OrgFilter>`, `<SubmitButton>`, form style classes
+- Shared UI: `<Avatar>`, `<TeamSelector>`, `<TeamFilter>`, `<SubmitButton>`, form style classes
 
 ## What modules must not do
 

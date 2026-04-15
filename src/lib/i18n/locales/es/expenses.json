@@ -4,7 +4,7 @@
   "add": "Agregar gasto",
   "save": "Guardar gasto",
   "empty": "Aún no hay gastos. Agrega uno para empezar a registrar.",
-  "noOrg": "Elige una equipo arriba para ver sus gastos.",
+  "noTeam": "Elige un equipo arriba para ver sus gastos.",
   "noProject": "— Sin proyecto —",
   "selectCategory": "— Selecciona categoría —",
   "monthTotal": "Este mes · {amount}",

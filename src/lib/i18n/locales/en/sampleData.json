@@ -1,12 +1,12 @@
 {
   "title": "Sample Data",
   "subtitle": "Load fabricated customers, projects, and time entries into the selected team so you can exercise the app with realistic density. Sample rows are tagged and can be removed at any time without touching real data.",
-  "noOrg": "Pick an team above to manage its sample data.",
+  "noTeam": "Pick a team above to manage its sample data.",
   "sampleLabel": "sample",
   "expensesLabel": "Expenses",
   "operatingOn": "Operating on",
-  "onlyOrg": "Only team you can target with this tool",
-  "switchOrg": "Switch team",
+  "onlyTeam": "Only team you can target with this tool",
+  "switchTeam": "Switch team",
   "currentData": "Current data in this team",
   "entryRange": "Entries from {first} to {last}",
   "load": {

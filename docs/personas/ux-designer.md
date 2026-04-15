@@ -22,7 +22,7 @@ When reviewing a change, flag:
 
 - [ ] **Primary action clearly dominant on the page?** Font weight, color, placement.
 - [ ] **Uses shared tokens?** `text-content`, `bg-surface-raised`, `border-edge` — not raw hex or arbitrary tailwind shades.
-- [ ] **Uses shared components?** `SubmitButton`, `OrgFilter`, `FieldError`, `buttonPrimaryClass`, `inputClass` — not inline styles.
+- [ ] **Uses shared components?** `SubmitButton`, `TeamFilter`, `FieldError`, `buttonPrimaryClass`, `inputClass` — not inline styles.
 - [ ] **Icons from lucide-react only, paired with text?**
 - [ ] **Status shown via 2+ channels?** Color + text, icon + text, etc. — never color alone.
 - [ ] **Form submits on Enter, autofocuses first field, shows loading / success / error?**
