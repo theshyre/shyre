@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect } from "react";
+import { useEffect, useRef } from "react";
 import { useTheme } from "./theme-provider";
 
 interface Props {
@@ -18,20 +18,24 @@ interface Props {
 }
 
 /**
- * One-way sync from DB → ThemeProvider. When the user has an explicit theme
- * saved on the server, apply it on mount so the UI matches across devices.
- * If no DB preference exists, this is a no-op (the ThemeProvider's localStorage
- * logic runs unchanged).
+ * One-way sync DB → ThemeProvider. Runs **once per mount**: if the server-
+ * read preference differs from the current provider state, push the DB value
+ * in. After that, client state is authoritative for the session. Without
+ * the ref-guard, a click from the in-app theme picker would trigger a
+ * rerender, the effect would see `preferredTheme !== theme` and snap back
+ * to the DB value — see the TextSizeSync incident.
  */
 export function ThemeSync({ preferredTheme }: Props): null {
   const { theme, applyExternalTheme } = useTheme();
+  const didSync = useRef(false);
 
   useEffect(() => {
+    if (didSync.current) return;
+    didSync.current = true;
     if (preferredTheme && preferredTheme !== theme) {
       applyExternalTheme(preferredTheme);
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [preferredTheme]);
+  }, [preferredTheme, theme, applyExternalTheme]);
 
   return null;
 }
