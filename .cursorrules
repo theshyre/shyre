@@ -52,6 +52,17 @@ Vercel (app code) and `.github/workflows/db-migrate.yml` (SQL migrations) run in
 - `SUPABASE_DB_URL` repo secret is required for prod migrations. If the GH Action fails for a missing secret, that's a fire, not a warning.
 - Don't disable the `db-verify.yml` PR check to merge — red means the migration is broken.
 
+## Gates (MANDATORY — CI enforces these)
+
+`.github/workflows/ci.yml` runs on every push and PR. All three must pass:
+
+- **`npm run lint`** exits zero with `--max-warnings=0`. Warnings = errors.
+  - No `eslint-disable` to make it pass. Fix the code. For true exceptions, add a file-scoped override in `eslint.config.mjs` with a written rationale.
+- **`npm run typecheck`** (`tsc --noEmit`) exits zero. No `any`, no `@ts-ignore`.
+- **`npm run test`** passes. Every new file needs a test. Vitest for unit, Playwright for E2E.
+
+Run all three locally before declaring work complete. "Run lint later" is not a plan.
+
 ## Testing (>90% coverage)
 
 - Vitest for unit + integration, Playwright for E2E

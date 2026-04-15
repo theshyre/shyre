@@ -1,0 +1,42 @@
+name: CI
+
+# Hard gate for code changes. Runs lint (--max-warnings=0), typecheck, and
+# unit tests on every push to main and every pull request. If this workflow
+# is red, the change must not land — no exceptions for "warnings" or
+# "flaky tests". Integration + E2E tests run separately (they need secrets
+# and longer timeouts) and are not included here.
+
+on:
+  push:
+    branches: [main]
+  pull_request: {}
+
+concurrency:
+  # Cancel in-progress CI for the same ref so rapid pushes don't queue up.
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  check:
+    name: Lint, typecheck, test
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: "npm"
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Lint (zero warnings allowed)
+        run: npm run lint
+
+      - name: Typecheck
+        run: npm run typecheck
+
+      - name: Unit tests
+        run: npm run test

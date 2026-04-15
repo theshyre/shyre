@@ -491,8 +491,8 @@ This rule is stricter than the general CLAUDE.md ↔ .cursorrules parity — for
 
 > **Keep in sync**: These rules are duplicated in `.cursorrules`. If you modify rules here, update `.cursorrules` to match. Persona sync is stricter — see above.
 
-- **All code must be TypeScript strict mode** — no `any`, no `@ts-ignore`
-- **All code must pass ESLint** — run lint before considering any code complete
+- **All code must be TypeScript strict mode** — no `any`, no `@ts-ignore`. `npm run typecheck` must exit zero.
+- **`npm run lint` must exit zero with `--max-warnings=0`.** Warnings are treated as errors. No `eslint-disable` to make it pass — fix the underlying code or, in a true exception, add a file-scoped override in `eslint.config.mjs` with a written rationale (see the Avatar example). The `.github/workflows/ci.yml` job enforces this; a failing lint run blocks the merge, no matter how trivial the warning looks. Run lint before declaring any work complete — it is never "a follow-up".
 - **All code must have tests** — every new `.ts` file needs a `.test.ts` file
 - **>90% test coverage** — enforced via Vitest coverage thresholds
 - **Tests must be meaningful** — test behavior, not implementation
