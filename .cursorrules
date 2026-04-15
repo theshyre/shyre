@@ -38,6 +38,19 @@ Stint is a time-tracking and invoicing app. Next.js 16 (App Router) + Supabase +
 - Server Actions: always verify `auth.getUser()` first
 - RLS handles authorization — never bypass it
 
+## Migrations & deploy ordering (MANDATORY)
+
+Vercel (app code) and `.github/workflows/db-migrate.yml` (SQL migrations) run in **parallel** on every push to `main`. There is no sequencing.
+
+- **Additive** (`ADD COLUMN`, `CREATE TABLE/INDEX/POLICY`, nullable FK, new enum value): safe to ship code + migration in one PR. Use `IF NOT EXISTS` for idempotency. A brief window where one is live without the other is harmless.
+- **Destructive** (`DROP COLUMN/TABLE`, `ALTER ... NOT NULL` without default, narrowing a type): **two PRs, never one.**
+  1. PR 1: remove every code reference to the thing. Merge, wait for Vercel.
+  2. PR 2: the migration alone. Merge.
+- **Renames**: expand-contract. Add new column → backfill + dual-write → flip reads → drop old column, across multiple PRs. See `rename_organizations_to_teams` as the reference pattern.
+- **Timestamps must be monotonic**: check the latest file under `supabase/migrations/` and use a strictly-later timestamp so `supabase db push` doesn't require `--include-all`.
+- `SUPABASE_DB_URL` repo secret is required for prod migrations. If the GH Action fails for a missing secret, that's a fire, not a warning.
+- Don't disable the `db-verify.yml` PR check to merge — red means the migration is broken.
+
 ## Testing (>90% coverage)
 
 - Vitest for unit + integration, Playwright for E2E
