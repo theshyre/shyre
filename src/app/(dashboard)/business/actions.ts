@@ -22,7 +22,7 @@ function blankToNull(v: FormDataEntryValue | null): string | null {
 }
 
 /**
- * Update business identity on organization_settings (upsert).
+ * Update business identity on team_settings (upsert).
  * Owner/admin only — matches updateTeamSettingsAction's authorization model.
  */
 export async function updateBusinessIdentityAction(

@@ -76,7 +76,7 @@ describe("team relationships (parent/child shares)", () => {
     expect(row?.accepted_at).not.toBeNull();
   });
 
-  it("parent-side owner can DELETE an organization_share", async () => {
+  it("parent-side owner can DELETE an team_share", async () => {
     const user = await createTestUser(prefix, "u3");
     const parent = await createTestTeam(prefix, user.id, "parent3");
     const child = await createTestTeam(prefix, user.id, "child3");

@@ -26,7 +26,7 @@ export async function createTeamAction(formData: FormData): Promise<void> {
 
 export async function leaveTeamAction(formData: FormData): Promise<void> {
   return runSafeAction(formData, async (formData, { supabase }) => {
-    const teamId = formData.get("org_id") as string;
+    const teamId = formData.get("team_id") as string;
     const { userId, role } = await validateTeamAccess(teamId);
 
     // Cannot leave if sole owner
@@ -60,7 +60,7 @@ export async function leaveTeamAction(formData: FormData): Promise<void> {
 
 export async function deleteTeamAction(formData: FormData): Promise<void> {
   return runSafeAction(formData, async (formData, { supabase }) => {
-    const teamId = formData.get("org_id") as string;
+    const teamId = formData.get("team_id") as string;
     const confirmName = formData.get("confirm_name") as string;
     const { role } = await validateTeamAccess(teamId);
 

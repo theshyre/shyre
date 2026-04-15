@@ -10,7 +10,7 @@ export async function changePrimaryTeamAction(
     formData,
     async (formData, { supabase }) => {
       const customerId = formData.get("customer_id") as string;
-      const newTeamId = formData.get("new_org_id") as string;
+      const newTeamId = formData.get("new_team_id") as string;
       if (!customerId) throw new Error("Client ID is required.");
       if (!newTeamId) throw new Error("New team is required.");
 

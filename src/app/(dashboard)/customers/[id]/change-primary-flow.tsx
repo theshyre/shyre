@@ -81,7 +81,7 @@ export function ChangePrimaryFlow({
           {currentPrimaryTeamName} →
         </label>
         <select
-          name="new_org_id"
+          name="new_team_id"
           required
           autoFocus
           value={selected}

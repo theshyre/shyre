@@ -7,7 +7,7 @@ import { revalidatePath } from "next/cache";
 
 export async function inviteMemberAction(formData: FormData): Promise<void> {
   return runSafeAction(formData, async (formData, { supabase }) => {
-    const teamId = formData.get("org_id") as string;
+    const teamId = formData.get("team_id") as string;
     const { userId, role } = await validateTeamAccess(teamId);
 
     if (role !== "owner" && role !== "admin") {
@@ -36,7 +36,7 @@ export async function inviteMemberAction(formData: FormData): Promise<void> {
 
 export async function removeMemberAction(formData: FormData): Promise<void> {
   return runSafeAction(formData, async (formData, { supabase }) => {
-    const teamId = formData.get("org_id") as string;
+    const teamId = formData.get("team_id") as string;
     const { userId, role } = await validateTeamAccess(teamId);
 
     if (role !== "owner" && role !== "admin") {
@@ -73,7 +73,7 @@ export async function removeMemberAction(formData: FormData): Promise<void> {
 
 export async function revokeInviteAction(formData: FormData): Promise<void> {
   return runSafeAction(formData, async (formData, { supabase }) => {
-    const teamId = formData.get("org_id") as string;
+    const teamId = formData.get("team_id") as string;
     const { role } = await validateTeamAccess(teamId);
 
     if (role !== "owner" && role !== "admin") {
@@ -95,7 +95,7 @@ export async function revokeInviteAction(formData: FormData): Promise<void> {
 
 export async function updateTeamNameAction(formData: FormData): Promise<void> {
   return runSafeAction(formData, async (formData, { supabase }) => {
-    const teamId = formData.get("org_id") as string;
+    const teamId = formData.get("team_id") as string;
     const { role } = await validateTeamAccess(teamId);
 
     if (role !== "owner") {

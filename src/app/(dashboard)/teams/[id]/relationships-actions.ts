@@ -38,7 +38,7 @@ export async function acceptTeamShareAction(
     formData,
     async (formData, { supabase }) => {
       const shareId = formData.get("share_id") as string;
-      const teamId = formData.get("org_id") as string;
+      const teamId = formData.get("team_id") as string;
       if (!shareId) throw new Error("Share ID is required.");
 
       const { error } = await supabase.rpc("accept_team_share", {
@@ -59,7 +59,7 @@ export async function removeTeamShareAction(
     formData,
     async (formData, { supabase }) => {
       const shareId = formData.get("share_id") as string;
-      const teamId = formData.get("org_id") as string;
+      const teamId = formData.get("team_id") as string;
       if (!shareId) throw new Error("Share ID is required.");
 
       const { error } = await supabase

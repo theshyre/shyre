@@ -165,7 +165,7 @@ export default async function ErrorDashboardPage({
                     </div>
                     <div>
                       <span className="text-content-muted">Org ID:</span>{" "}
-                      <span className="font-mono text-content">{err.org_id ?? "—"}</span>
+                      <span className="font-mono text-content">{err.team_id ?? "—"}</span>
                     </div>
                     {err.url && (
                       <div className="sm:col-span-2">

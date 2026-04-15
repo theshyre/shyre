@@ -40,7 +40,7 @@ async function writeErrorLog(
       user_message_key: appError.userMessageKey,
       details: appError.details,
       user_id: context.userId ?? null,
-      org_id: context.teamId ?? null,
+      team_id: context.teamId ?? null,
       url: context.url ?? null,
       action: context.action ?? null,
       stack_trace: appError.stack ?? null,
