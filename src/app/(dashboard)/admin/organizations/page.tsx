@@ -1,40 +1,61 @@
+import Link from "next/link";
 import { requireSystemAdmin } from "@/lib/system-admin";
 import { createAdminClient } from "@/lib/supabase/admin";
-import { Building2, Users, FolderKanban, Clock, FileText } from "lucide-react";
+import {
+  Building2,
+  Users,
+  FolderKanban,
+  Clock,
+  FileText,
+  ChevronLeft,
+  ChevronRight,
+} from "lucide-react";
 
-export default async function AdminOrganizationsPage(): Promise<React.JSX.Element> {
+const PAGE_SIZE = 50;
+const MAX_PAGE = 200; // Hard ceiling against absurd page-jumping.
+
+interface PageProps {
+  searchParams: Promise<{ page?: string }>;
+}
+
+export default async function AdminOrganizationsPage({
+  searchParams,
+}: PageProps): Promise<React.JSX.Element> {
   await requireSystemAdmin();
   const admin = createAdminClient();
+  const sp = await searchParams;
 
-  // List all orgs
-  const { data: orgs } = await admin
+  const rawPage = Number.parseInt(sp.page ?? "1", 10);
+  const page = Number.isFinite(rawPage) && rawPage > 0 ? Math.min(rawPage, MAX_PAGE) : 1;
+  const from = (page - 1) * PAGE_SIZE;
+  const to = from + PAGE_SIZE - 1;
+
+  // Page of orgs + total count.
+  const { data: orgs, count: totalOrgs } = await admin
     .from("organizations")
-    .select("*")
-    .order("created_at", { ascending: false });
+    .select("id, name, slug, created_at", { count: "exact" })
+    .order("created_at", { ascending: false })
+    .range(from, to);
 
-  // Get counts per org
-  const [memberCounts, clientCounts, projectCounts, timeEntryCounts, invoiceCounts] =
-    await Promise.all([
-      admin.from("organization_members").select("organization_id"),
-      admin.from("customers").select("organization_id"),
-      admin.from("projects").select("organization_id"),
-      admin.from("time_entries").select("organization_id"),
-      admin.from("invoices").select("organization_id"),
-    ]);
+  const orgIds = (orgs ?? []).map((o) => o.id);
 
-  function countByOrg(data: { organization_id: string }[] | null): Map<string, number> {
-    const map = new Map<string, number>();
-    for (const row of data ?? []) {
-      map.set(row.organization_id, (map.get(row.organization_id) ?? 0) + 1);
-    }
-    return map;
-  }
+  // Fan out counts only for the orgs on this page — bounded work regardless
+  // of how large the table grows.
+  const countsPerOrg =
+    orgIds.length === 0
+      ? {
+          members: new Map<string, number>(),
+          customers: new Map<string, number>(),
+          projects: new Map<string, number>(),
+          entries: new Map<string, number>(),
+          invoices: new Map<string, number>(),
+        }
+      : await fetchPagedCounts(admin, orgIds);
 
-  const memberMap = countByOrg(memberCounts.data);
-  const clientMap = countByOrg(clientCounts.data);
-  const projectMap = countByOrg(projectCounts.data);
-  const timeEntryMap = countByOrg(timeEntryCounts.data);
-  const invoiceMap = countByOrg(invoiceCounts.data);
+  const total = totalOrgs ?? 0;
+  const totalPages = Math.max(1, Math.ceil(total / PAGE_SIZE));
+  const hasPrev = page > 1;
+  const hasNext = page < totalPages;
 
   return (
     <div>
@@ -42,7 +63,7 @@ export default async function AdminOrganizationsPage(): Promise<React.JSX.Elemen
         <Building2 size={24} className="text-accent" />
         <h1 className="text-2xl font-bold text-content">All Organizations</h1>
         <span className="inline-flex items-center gap-1.5 rounded-full bg-surface-inset px-2.5 py-0.5 text-xs font-medium text-content-muted">
-          {orgs?.length ?? 0} total
+          {total} total
         </span>
       </div>
 
@@ -76,37 +97,124 @@ export default async function AdminOrganizationsPage(): Promise<React.JSX.Elemen
               <StatCell
                 icon={Users}
                 label="Members"
-                count={memberMap.get(org.id) ?? 0}
+                count={countsPerOrg.members.get(org.id) ?? 0}
               />
               <StatCell
                 icon={Users}
-                label="Clients"
-                count={clientMap.get(org.id) ?? 0}
+                label="Customers"
+                count={countsPerOrg.customers.get(org.id) ?? 0}
               />
               <StatCell
                 icon={FolderKanban}
                 label="Projects"
-                count={projectMap.get(org.id) ?? 0}
+                count={countsPerOrg.projects.get(org.id) ?? 0}
               />
               <StatCell
                 icon={Clock}
                 label="Time Entries"
-                count={timeEntryMap.get(org.id) ?? 0}
+                count={countsPerOrg.entries.get(org.id) ?? 0}
               />
               <StatCell
                 icon={FileText}
                 label="Invoices"
-                count={invoiceMap.get(org.id) ?? 0}
+                count={countsPerOrg.invoices.get(org.id) ?? 0}
               />
             </div>
           </div>
         ))}
 
         {(!orgs || orgs.length === 0) && (
-          <p className="text-sm text-content-muted">No organizations yet.</p>
+          <p className="text-sm text-content-muted">No organizations on this page.</p>
         )}
       </div>
+
+      {totalPages > 1 && (
+        <nav
+          className="mt-6 flex items-center justify-between gap-3 text-sm"
+          aria-label="Pagination"
+        >
+          <PageLink page={page - 1} enabled={hasPrev} label="Previous">
+            <ChevronLeft size={14} />
+            Previous
+          </PageLink>
+          <span className="text-content-muted">
+            Page <span className="text-content font-semibold">{page}</span> of{" "}
+            <span className="text-content font-semibold">{totalPages}</span>
+          </span>
+          <PageLink page={page + 1} enabled={hasNext} label="Next">
+            Next
+            <ChevronRight size={14} />
+          </PageLink>
+        </nav>
+      )}
     </div>
+  );
+}
+
+async function fetchPagedCounts(
+  admin: ReturnType<typeof createAdminClient>,
+  orgIds: string[],
+): Promise<{
+  members: Map<string, number>;
+  customers: Map<string, number>;
+  projects: Map<string, number>;
+  entries: Map<string, number>;
+  invoices: Map<string, number>;
+}> {
+  // Each query below is scoped to the page's orgIds, so the result set is
+  // bounded by (PAGE_SIZE × rows-per-org) — not a full table scan.
+  const [members, customers, projects, entries, invoices] = await Promise.all([
+    admin.from("organization_members").select("organization_id").in("organization_id", orgIds),
+    admin.from("customers").select("organization_id").in("organization_id", orgIds),
+    admin.from("projects").select("organization_id").in("organization_id", orgIds),
+    admin.from("time_entries").select("organization_id").in("organization_id", orgIds),
+    admin.from("invoices").select("organization_id").in("organization_id", orgIds),
+  ]);
+  return {
+    members: countByOrg(members.data),
+    customers: countByOrg(customers.data),
+    projects: countByOrg(projects.data),
+    entries: countByOrg(entries.data),
+    invoices: countByOrg(invoices.data),
+  };
+}
+
+function countByOrg(
+  data: { organization_id: string }[] | null,
+): Map<string, number> {
+  const map = new Map<string, number>();
+  for (const row of data ?? []) {
+    map.set(row.organization_id, (map.get(row.organization_id) ?? 0) + 1);
+  }
+  return map;
+}
+
+function PageLink({
+  page,
+  enabled,
+  label,
+  children,
+}: {
+  page: number;
+  enabled: boolean;
+  label: string;
+  children: React.ReactNode;
+}): React.JSX.Element {
+  if (!enabled) {
+    return (
+      <span className="inline-flex items-center gap-1 rounded-md border border-edge bg-surface-inset px-3 py-1.5 text-content-muted opacity-50">
+        {children}
+      </span>
+    );
+  }
+  return (
+    <Link
+      href={`/admin/organizations?page=${page}`}
+      aria-label={label}
+      className="inline-flex items-center gap-1 rounded-md border border-edge bg-surface-raised px-3 py-1.5 text-content-secondary hover:bg-hover hover:text-content transition-colors"
+    >
+      {children}
+    </Link>
   );
 }
 

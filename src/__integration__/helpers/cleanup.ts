@@ -35,11 +35,16 @@ async function cleanupByPattern(pattern: string): Promise<void> {
 
   const admin = adminClient();
 
-  // Get all test orgs first — we'll cascade-delete most data via these
+  // Get all test orgs first — we'll cascade-delete most data via these.
+  //
+  // The handle_new_user trigger derives org NAME from the user's email
+  // ("itest-foo@stint-test.local" → "itest-foo's Organization") but auto-
+  // generates the slug as "org-{uuid}". So name matches the test prefix;
+  // slug does NOT. Filter by name to actually catch them.
   const { data: testOrgs } = await admin
     .from("organizations")
     .select("id")
-    .like("slug", pattern);
+    .like("name", pattern);
 
   const orgIds = (testOrgs ?? []).map((o) => o.id);
 
@@ -99,10 +104,11 @@ export async function countTestData(): Promise<{
   users: number;
 }> {
   const admin = adminClient();
+  // Match by name — see note in cleanupByPattern on why slug doesn't catch these.
   const { count: orgs } = await admin
     .from("organizations")
     .select("*", { count: "exact", head: true })
-    .like("slug", `${TEST_PREFIX_ROOT}%`);
+    .like("name", `${TEST_PREFIX_ROOT}%`);
 
   const { data } = await admin.auth.admin.listUsers();
   const users = (data?.users ?? []).filter((u) =>
