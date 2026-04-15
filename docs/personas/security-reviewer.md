@@ -27,7 +27,7 @@ When reviewing a change, flag:
 - [ ] **Secret-bearing column returned from a list query?** (`github_token`, any future tokens.) Must be owner-only and only from the settings page.
 - [ ] **Input validated server-side?** Client validation doesn't count — can be bypassed.
 - [ ] **Error messages don't leak internals?** No SQL errors or user IDs in user-facing text.
-- [ ] **Destructive action has a typed / 2FA confirm?** Delete org, void invoice, wipe org data, etc.
+- [ ] **Destructive action has a typed / 2FA confirm?** Delete team, void invoice, wipe team data, etc.
 - [ ] **If a security bug was introduced or fixed, is `docs/security/SECURITY_AUDIT_LOG.md` updated** with a new `SAL-*` entry?
 - [ ] **New ENV var documented in `.env.example`?**
 - [ ] **Any logging that might capture secrets?** Redact in `logger.ts` and similar.

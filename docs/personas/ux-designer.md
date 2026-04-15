@@ -14,7 +14,7 @@ Cross-cutting reviewer for visible pixels. Not pixel-perfection; rather, is the 
 - **Form behavior predictable.** Enter submits. Autofocus on the first field that needs input. Pending / success / error are distinct states.
 - **Keyboard shortcuts visible.** If a shortcut exists, show a `<kbd>` badge. Don't make users guess.
 - **Modal / popup discipline.** Inline expansion first, dropdown panel second, centered modal only when truly destructive or multi-step.
-- **Context never hidden.** Org selectors, filters, and date scopes stay visible even when there's only one option (per project feedback).
+- **Context never hidden.** Team selectors, filters, and date scopes stay visible even when there's only one option (per project feedback).
 
 ## Review checklist
 
@@ -29,5 +29,5 @@ When reviewing a change, flag:
 - [ ] **Destructive action requires a deliberate gesture?** (typed confirmation, disabled-until-match, etc.) And hides the original trigger when the confirm form opens.
 - [ ] **Modal usage justified?** Could this be inline or a dropdown instead?
 - [ ] **New user-facing strings routed through i18n?** No hardcoded text.
-- [ ] **Context elements (org, date range, active filters) visible without scrolling?**
+- [ ] **Context elements (team, date range, active filters) visible without scrolling?**
 - [ ] **Keyboard shortcuts present where warranted, and labeled visibly?**

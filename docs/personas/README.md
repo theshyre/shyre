@@ -11,7 +11,7 @@ Each persona file defines a role, their priorities, and what they look for when 
 | Persona | File | Focus |
 |---|---|---|
 | Solo Consultant | [solo-consultant.md](solo-consultant.md) | Daily time tracking friction, invoice-in-2-clicks, data portability, pricing fairness |
-| Agency Owner | [agency-owner.md](agency-owner.md) | Multi-user scenarios, org roles, shared customers, cross-user reports |
+| Agency Owner | [agency-owner.md](agency-owner.md) | Multi-user scenarios, team roles, shared customers, cross-user reports |
 | Bookkeeper | [bookkeeper.md](bookkeeper.md) | Categorization accuracy, CSV/QB exports, 1099 boundaries, audit trail |
 
 ### Craft reviewers

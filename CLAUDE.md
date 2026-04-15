@@ -147,7 +147,7 @@ These rules apply to EVERY form and button in the app. Non-negotiable.
 
 ### Destructive confirmation flows:
 1. **One action button at a time** — when a destructive action reveals a confirmation form, HIDE the original trigger button. Don't show both "Delete" and "Permanently Delete" simultaneously.
-2. **Require typed confirmation for irreversible actions** — delete org, void invoice, etc. Require the user to type the exact name.
+2. **Require typed confirmation for irreversible actions** — delete team, void invoice, etc. Require the user to type the exact name.
 3. **Confirm button disabled until confirmation matches** — typed name must match exactly before the destructive button enables.
 4. **Cancel button always present** — easy escape from destructive flows.
 
@@ -375,7 +375,7 @@ Apply the relevant persona review alongside regular work whenever these file pat
 | Persona | Auto-engages on |
 |---|---|
 | QA Tester | Any `src/**/*.ts(x)` or `supabase/migrations/**/*.sql` change |
-| Security Reviewer | `supabase/migrations/**`, `src/lib/supabase/**`, `src/lib/safe-action.ts`, `src/lib/system-admin.ts`, `src/lib/org-context.ts`, any `**/actions.ts`, `src/app/auth/**` |
+| Security Reviewer | `supabase/migrations/**`, `src/lib/supabase/**`, `src/lib/safe-action.ts`, `src/lib/system-admin.ts`, `src/lib/team-context.ts`, any `**/actions.ts`, `src/app/auth/**` |
 | UX Designer | `src/app/**/*.tsx`, `src/components/**/*.tsx` |
 | Accessibility Auditor | Same as UX Designer (separate pass, different lens) |
 | Platform Architect | `src/lib/modules/**`, `supabase/migrations/**`, new top-level `src/app/(dashboard)/*/page.tsx` |

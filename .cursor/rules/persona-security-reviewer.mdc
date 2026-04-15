@@ -5,7 +5,7 @@ globs:
   - src/lib/supabase/**
   - src/lib/safe-action.ts
   - src/lib/system-admin.ts
-  - src/lib/org-context.ts
+  - src/lib/team-context.ts
   - src/app/**/actions.ts
   - src/app/auth/**
   - src/lib/backup-codes.ts
