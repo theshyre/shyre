@@ -36,11 +36,21 @@ export default async function TeamDetailPage({
     .eq("team_id", id)
     .single();
 
-  const { data: members } = await supabase
+  // Fetch all members, then sort client-side: owner first, then admins,
+  // then plain members, with joined_at breaking ties. This guarantees
+  // the owner is always at the top of the list — important both for
+  // visibility now and as a prerequisite for any future transfer-
+  // ownership action (which would pick from this same list).
+  const { data: rawMembers } = await supabase
     .from("team_members")
     .select("id, user_id, role, joined_at, user_profiles(display_name)")
-    .eq("team_id", id)
-    .order("joined_at");
+    .eq("team_id", id);
+  const ROLE_RANK: Record<string, number> = { owner: 0, admin: 1, member: 2 };
+  const members = (rawMembers ?? []).slice().sort((a, b) => {
+    const rankDiff = (ROLE_RANK[a.role] ?? 99) - (ROLE_RANK[b.role] ?? 99);
+    if (rankDiff !== 0) return rankDiff;
+    return (a.joined_at ?? "").localeCompare(b.joined_at ?? "");
+  });
 
   const { data: invites } = await supabase
     .from("team_invites")
@@ -208,7 +218,7 @@ export default async function TeamDetailPage({
         isPersonalOrg={false}
         currentRole={role}
         currentUserId={userId}
-        members={members ?? []}
+        members={members}
         invites={invites ?? []}
       />
 

@@ -85,6 +85,11 @@ export function TeamSection({
   const tc = useTranslations("common");
   const isAdmin = currentRole === "owner" || currentRole === "admin";
 
+  // A team without an owner is a data-integrity issue — every team
+  // should have exactly one. Surface it so ownership-transfer flows
+  // don't silently operate on broken state.
+  const hasOwner = members.some((m) => m.role === "owner");
+
   return (
     <div className="mt-8 space-y-6">
       {/* Team name */}
@@ -175,12 +180,25 @@ export function TeamSection({
           </form>
         )}
 
+        {/* No-owner warning: should never happen in healthy data, but if
+            the trigger failed or an owner was removed manually, surface it. */}
+        {!hasOwner && (
+          <div className="flex items-start gap-2 rounded-lg border border-error/40 bg-error-soft px-3 py-2 text-body text-error">
+            <AlertTriangle size={16} className="shrink-0 mt-0.5" />
+            <span>
+              This team has no owner. Contact support — transferring
+              ownership is blocked until this is resolved.
+            </span>
+          </div>
+        )}
+
         {/* Members list */}
         <ul className="space-y-2">
           {members.map((member) => {
             const RoleIcon = ROLE_ICONS[member.role] ?? User;
             const roleColor = ROLE_COLORS[member.role] ?? ROLE_COLORS.member;
             const isSelf = member.user_id === currentUserId;
+            const isOwner = member.role === "owner";
             const profileRaw = member.user_profiles;
             const profile = Array.isArray(profileRaw) ? profileRaw[0] : profileRaw;
             const displayName = profile && typeof profile === "object" && "display_name" in profile
@@ -190,7 +208,9 @@ export function TeamSection({
             return (
               <li
                 key={member.id}
-                className="flex items-center justify-between rounded-lg border border-edge px-4 py-3"
+                className={`flex items-center justify-between rounded-lg border px-4 py-3 ${
+                  isOwner ? "border-warning/40 bg-warning-soft/30" : "border-edge"
+                }`}
               >
                 <div className="flex items-center gap-3">
                   <div
@@ -211,7 +231,7 @@ export function TeamSection({
                       className={`inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[10px] font-medium ${roleColor}`}
                     >
                       <RoleIcon size={10} />
-                      {member.role}
+                      {isOwner ? "Team owner" : member.role}
                     </span>
                   </div>
                 </div>
