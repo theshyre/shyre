@@ -44,7 +44,13 @@ jobs:
       - name: Apply migrations
         env:
           SUPABASE_DB_URL: ${{ secrets.SUPABASE_DB_URL }}
+        # `pipefail` is the important bit: without it, piping the CLI into
+        # sed masked `db push` failures as success (the sed filter exited 0
+        # even when the migration errored). Two migrations silently
+        # rolled back on prod while CI stayed green. Never again.
+        shell: bash
         run: |
+          set -eo pipefail
           if [ -z "$SUPABASE_DB_URL" ]; then
             echo "::error::SUPABASE_DB_URL secret is not set on this repo. Add it under Settings → Secrets → Actions."
             exit 1

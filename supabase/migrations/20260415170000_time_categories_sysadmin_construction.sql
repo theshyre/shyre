@@ -12,7 +12,11 @@ DECLARE
   sysadmin_id     UUID := gen_random_uuid();
   construction_id UUID := gen_random_uuid();
 BEGIN
-  INSERT INTO category_sets (id, organization_id, name, description, is_system) VALUES
+  -- Column was renamed from organization_id → team_id in 20260415120000.
+  -- These migrations were authored against the old schema; the original
+  -- push errored on prod (SQLSTATE 42703) and the whole DO block rolled
+  -- back, so editing in place is safe — Supabase never marked it applied.
+  INSERT INTO category_sets (id, team_id, name, description, is_system) VALUES
     (sysadmin_id,     NULL, 'System Administration', 'Incident response, maintenance, provisioning, support for IT / devops / SRE work', true),
     (construction_id, NULL, 'Construction', 'Estimating, supervision, permits, procurement, client meetings for general contractors', true);
 

@@ -9,7 +9,8 @@ DO $$
 DECLARE
   sec_id UUID := gen_random_uuid();
 BEGIN
-  INSERT INTO category_sets (id, organization_id, name, description, is_system) VALUES
+  -- Column is team_id post-20260415120000, not organization_id.
+  INSERT INTO category_sets (id, team_id, name, description, is_system) VALUES
     (sec_id, NULL, 'Security & Compliance',
      'Audits, evidence, risk, policy, incident, and vendor work for security / compliance / vCISO engagements',
      true);
