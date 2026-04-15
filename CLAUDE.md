@@ -199,6 +199,23 @@ When a security issue is discovered:
 
 This ensures accessibility for colorblind users and provides clear communication at a glance.
 
+## Navigation feedback — MANDATORY
+
+**Every nav-triggering action must give visible feedback within 100ms.** A user clicking and seeing nothing happen is a bug, full stop. The slowest server render still has to feel responsive.
+
+The standard pattern, already wired:
+
+- **Global**: `<TopProgressBar />` (mounted in root layout). Slim accent bar at the top of the viewport. Fires on any in-app link click, snaps + fades on completion. Use as-is — don't roll a per-page bar.
+- **Per-link**: `<LinkPendingSpinner />` placed inside any `<Link>`'s children. Uses Next 16's `useLinkStatus` to show a small spinner on the specific link that was clicked. Mandatory in all sidebar items and in any other navigation list (cards on `/business`, doc index links, etc.).
+- **Per-route segment**: `loading.tsx` at the route-group level (currently `(dashboard)/loading.tsx`). Renders a skeleton if the server render takes >300ms. Add a `loading.tsx` next to a `page.tsx` whenever the route does non-trivial server work.
+
+For non-Link interactions (buttons that trigger server actions, mutations), the existing rule applies: `<SubmitButton>` shows the spinner / pending state, errors render inline, success is acknowledged. See "Form & button rules".
+
+Don't:
+- Don't build a custom progress bar per page. There's one global bar.
+- Don't omit `<LinkPendingSpinner />` from a navigation link "because the destination is fast." Speed varies — feedback shouldn't.
+- Don't show the progress bar for non-navigation interactions (use `<SubmitButton>` for those).
+
 ## Keyboard shortcuts — MANDATORY
 
 **Every primary action on a page must have a keyboard shortcut with a visible indicator.**

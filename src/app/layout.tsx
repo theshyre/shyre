@@ -3,6 +3,7 @@ import { Geist, Geist_Mono } from "next/font/google";
 import { NextIntlClientProvider } from "next-intl";
 import { getLocale, getMessages } from "next-intl/server";
 import { ThemeProvider } from "@/components/theme-provider";
+import { TopProgressBar } from "@/components/TopProgressBar";
 import "./globals.css";
 
 const geistSans = Geist({
@@ -54,7 +55,10 @@ export default async function RootLayout({
       </head>
       <body className="h-full bg-surface text-content">
         <NextIntlClientProvider messages={messages}>
-          <ThemeProvider>{children}</ThemeProvider>
+          <ThemeProvider>
+            <TopProgressBar />
+            {children}
+          </ThemeProvider>
         </NextIntlClientProvider>
       </body>
     </html>

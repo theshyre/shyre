@@ -25,6 +25,7 @@ import {
 import type { ComponentType } from "react";
 import Timer from "./Timer";
 import { Avatar } from "./Avatar";
+import { LinkPendingSpinner } from "./LinkPendingSpinner";
 import { navItemsForSection } from "@/lib/modules/registry";
 
 interface NavItem {
@@ -221,6 +222,7 @@ export default function Sidebar({
                 >
                   <Icon size={18} />
                   {t(`nav.${item.labelKey}`)}
+                  <LinkPendingSpinner />
                 </Link>
               );
             })}
@@ -257,6 +259,7 @@ export default function Sidebar({
                       {unresolvedErrorCount}
                     </span>
                   )}
+                  {!showBadge && <LinkPendingSpinner />}
                 </Link>
               );
             })}
@@ -279,6 +282,7 @@ export default function Sidebar({
         >
           <BookOpen size={18} />
           {t("nav.docs")}
+          <LinkPendingSpinner />
         </Link>
         <button
           onClick={handleSignOut}

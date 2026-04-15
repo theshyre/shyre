@@ -99,6 +99,14 @@ Every meaningful UI element uses 2+ of: icon, text, color.
 - Modal: destructive confirmations or complex multi-step only
 - All overlays dismissible via Escape. No nested modals.
 
+## Navigation feedback (MANDATORY)
+
+- Every in-app navigation must give visible feedback within 100ms.
+- `<TopProgressBar />` is mounted in the root layout; it fires on any in-app `<a>` click and snaps to complete on pathname change. Don't roll a per-page bar.
+- `<LinkPendingSpinner />` (uses `useLinkStatus` from `next/link`) goes inside every navigation `<Link>`'s children — sidebar items, dashboard cards, doc index links. Per-link spinner so users see *which* link they hit.
+- Add a `loading.tsx` next to any `page.tsx` whose server render does non-trivial work. Keep skeletons simple — TopProgressBar already signals "loading"; loading.tsx just keeps the layout from emptying.
+- For non-link interactions (server actions, mutations), use `<SubmitButton>` per the form rules — not the progress bar.
+
 ## Documentation (MANDATORY)
 
 - Docs live in `docs/` and are served in-app at `/docs` via react-markdown + remark-gfm.
