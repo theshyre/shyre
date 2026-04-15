@@ -18,7 +18,8 @@
     "adminErrors": "Error Log",
     "adminUsers": "Users",
     "adminOrgs": "All Organizations",
-    "adminSampleData": "Sample Data"
+    "adminSampleData": "Sample Data",
+    "docs": "Documentation"
   },
   "navSections": {
     "track": "Track",

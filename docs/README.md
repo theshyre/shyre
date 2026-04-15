@@ -1,21 +1,31 @@
-# Stint Documentation
+# Shyre Documentation
 
-## Architecture
+Shyre is a platform for running a consulting business. Time tracking, customers, invoicing, and business identity live under one roof.
 
-- [Architecture Overview](./ARCHITECTURE.md) — System design, stack, and deployment
-- [Database Schema](./DATABASE_SCHEMA.md) — Tables, relationships, and RLS policies
+This folder is the single source of truth for all documentation. Everything here is also served in-app at `/docs`.
+
+## Guides
+
+User-facing how-tos, organized by who you are.
+
+- **[Getting started](guides/getting-started.md)** — first login to first invoice, for everyone
+- **[For solo consultants](guides/solo/)** — the daily workflow
+- **[For agency owners](guides/agency/)** — multi-user, roles, sharing
+- **[For bookkeepers](guides/bookkeeper/)** — exports, reconciliation, close
+- **[For system admins](guides/admin/)** — the tools behind the admin sidebar
+
+## Reference
+
+Technical documentation.
+
+- **[Architecture](reference/architecture.md)** — stack, module layout, data flow
+- **[Database schema](reference/database-schema.md)** — tables, RLS, functions
+- **[Modules](reference/modules.md)** — Shyre platform, shell vs modules, module registry
 
 ## Security
 
-- [Security Audit Log](./security/SECURITY_AUDIT_LOG.md) — Append-only record of security findings
+- **[Audit log](security/SECURITY_AUDIT_LOG.md)** — append-only record of findings and resolutions
 
-## Design
+## Personas
 
-- Design system documented in `CLAUDE.md` under "Design system" section
-- Semantic tokens: surface/content/edge/accent/status
-- 3 themes: light, dark, high-contrast
-
-## Development
-
-- See `CONTRIBUTING.md` for setup instructions
-- See `CLAUDE.md` for all code conventions and rules
+AI review personas used by Claude Code and Cursor. See [personas/README.md](personas/README.md).

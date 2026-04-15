@@ -19,6 +19,7 @@ import {
   Bookmark,
   Upload,
   Database,
+  BookOpen,
   User as UserIcon,
 } from "lucide-react";
 import type { ComponentType } from "react";
@@ -267,7 +268,18 @@ export default function Sidebar({
         <Timer />
       </div>
 
-      <div className="border-t border-edge p-4">
+      <div className="border-t border-edge p-4 space-y-1">
+        <Link
+          href="/docs"
+          className={`flex items-center gap-3 rounded-lg px-3 py-2 text-sm font-medium transition-colors ${
+            isItemActive("/docs")
+              ? "bg-accent-soft text-accent-text"
+              : "text-content-muted hover:bg-hover hover:text-content"
+          }`}
+        >
+          <BookOpen size={18} />
+          {t("nav.docs")}
+        </Link>
         <button
           onClick={handleSignOut}
           className="flex items-center gap-3 rounded-lg px-3 py-2 text-sm font-medium text-content-muted hover:bg-hover hover:text-content transition-colors w-full"

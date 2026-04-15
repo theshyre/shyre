@@ -262,29 +262,74 @@ This ensures accessibility for colorblind users and provides clear communication
 
 ## Documentation — MANDATORY
 
-> **This is not optional.** Every piece of work must be documented before it is considered complete.
+> **This is not optional.** Every piece of work must be documented before it is considered complete. "Shipped but undocumented" is not shipped.
 
-### Documentation is deployed with the app
+### Layout
 
-Documentation lives in `docs/` AND is served as an in-app `/docs` route so it's always accessible alongside the running application. This includes:
-- Technical architecture docs
-- API/data model reference
-- User guides
-- Security documentation
+Documentation lives in `docs/` and is served in-app at `/docs`:
+
+```
+docs/
+├── README.md                # index
+├── guides/                  # user-facing how-tos, by audience
+│   ├── getting-started.md
+│   ├── solo/                # Solo Consultant
+│   ├── agency/              # Agency Owner
+│   ├── bookkeeper/          # Bookkeeper
+│   └── admin/               # System Admin
+├── reference/               # technical
+│   ├── architecture.md
+│   ├── database-schema.md
+│   └── modules.md
+├── security/                # audit log
+└── personas/                # AI review personas
+```
+
+Guides are segmented by **audience** (matches the persona system). A feature that affects multiple audiences gets one entry in each relevant audience's guide — don't write a single generic page.
 
 ### When you build, modify, or add anything
 
-- **New features**: Create or update a doc in `docs/`, update `docs/README.md` index
-- **Database changes**: Update `docs/DATABASE_SCHEMA.md`
-- **New environment variables**: Update `.env.example`
-- **Security changes**: Update `docs/security/SECURITY_AUDIT_LOG.md`
-- **Infrastructure changes**: Update `CONTRIBUTING.md` and any affected docs
+The relevant user-facing guide gets created or updated **in the same commit**.
+
+| Change | Must update |
+|---|---|
+| New user-facing feature | Guide entry in every affected audience folder under `docs/guides/` |
+| UI / flow change | Existing guide entry for that feature |
+| Schema / migration | `docs/reference/database-schema.md` |
+| New module / shell concept | `docs/reference/modules.md` |
+| New env var | `.env.example` AND `docs/guides/admin/env-configuration.md` |
+| Security change | `docs/security/SECURITY_AUDIT_LOG.md` (append-only) |
+| Deferred / unshipped feature | Note in the relevant guide + in `docs/personas/README.md` Deferred section |
 
 ### What "documented" means
 
-- A developer who wasn't in this conversation can understand what was built and why
-- Architecture decisions are recorded — not just code
-- The docs index links to every document
+- A user of the relevant audience can follow the guide without asking anyone questions.
+- A developer who wasn't in the conversation can understand what was built and why.
+- Keyboard shortcuts listed on every page that has them; shown in the UI with a `<kbd>` badge.
+- Limits and known work are called out in a "What isn't built yet" section when relevant — better to document absence than let users hunt for it.
+
+### Guide format
+
+Each audience-specific guide follows the same structure:
+
+1. **Title** (H1 — feature name)
+2. **Where it lives** — sidebar path + URL
+3. **How to do X** — numbered steps for the primary flows
+4. **Constraints / permissions** — who can do what
+5. **Keyboard shortcuts** (if any)
+6. **Related** — links to sibling guides
+
+Keep each guide ≤ ~200 lines. If a feature grows beyond one guide, split by sub-feature.
+
+### Rendering
+
+`/docs` uses `react-markdown` + `remark-gfm`. GFM tables, task lists, strikethrough, and fenced code blocks all work. Relative `[text](./foo.md)` links are rewritten to `/docs/...` routes.
+
+### Do not
+
+- **Don't duplicate content across guides.** If solo and agency both need to know how customers work, write it once (solo), and link from agency.
+- **Don't leave stale guides.** If a feature is removed, its guide is removed (or moved to a "Deprecated" section with the removal date).
+- **Don't skip guides because the feature is "simple".** The guide is how someone NEW to Shyre learns it exists.
 
 ## Proactive development — MANDATORY
 

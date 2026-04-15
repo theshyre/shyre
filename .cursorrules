@@ -101,9 +101,20 @@ Every meaningful UI element uses 2+ of: icon, text, color.
 
 ## Documentation (MANDATORY)
 
-- Docs deployed with the app at `/docs` route
-- Every feature must be documented before complete
-- Update docs index, schema docs, and .env.example as needed
+- Docs live in `docs/` and are served in-app at `/docs` via react-markdown + remark-gfm.
+- Structure: `docs/guides/{solo,agency,bookkeeper,admin}/` for user-facing (audience-segmented), `docs/reference/` for technical, `docs/security/` for audit log, `docs/personas/` for AI personas.
+- Every user-facing feature has a guide entry in every relevant audience folder, shipped in the same commit as the feature.
+- Required updates per change:
+  - New feature → audience guides under `docs/guides/`
+  - Schema change → `docs/reference/database-schema.md`
+  - New module / shell concept → `docs/reference/modules.md`
+  - New env var → `.env.example` AND `docs/guides/admin/env-configuration.md`
+  - Security change → `docs/security/SECURITY_AUDIT_LOG.md` (append-only)
+  - Deferred / unshipped → noted in the relevant guide + `docs/personas/README.md`
+- Guide format: title → where it lives → how-to steps → constraints / permissions → keyboard shortcuts → related links. ≤ ~200 lines; split if it grows.
+- Don't duplicate content across guides. Write once; link from the others.
+- Don't leave stale guides when features are removed. Delete or mark deprecated with a date.
+- "Shipped but undocumented" is not shipped.
 
 ## Proactive development
 

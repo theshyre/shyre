@@ -18,7 +18,8 @@
     "adminErrors": "Registro de Errores",
     "adminUsers": "Usuarios",
     "adminOrgs": "Todas las Organizaciones",
-    "adminSampleData": "Datos de Ejemplo"
+    "adminSampleData": "Datos de Ejemplo",
+    "docs": "Documentación"
   },
   "navSections": {
     "track": "Registrar",
