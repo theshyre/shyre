@@ -28,11 +28,11 @@ export default async function ProjectDetailPage({
 
   if (!project) notFound();
 
-  const categorySetsFull = await getVisibleCategorySets(project.organization_id);
+  const categorySetsFull = await getVisibleCategorySets(project.team_id);
   const categorySets = categorySetsFull.map(
-    ({ id, organization_id, name, description, is_system, created_by, created_at }) => ({
+    ({ id, team_id, name, description, is_system, created_by, created_at }) => ({
       id,
-      organization_id,
+      team_id,
       name,
       description,
       is_system,

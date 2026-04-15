@@ -7,7 +7,7 @@ export interface UserContext {
   displayName: string;
 }
 
-export interface OrgListItem {
+export interface TeamListItem {
   id: string;
   name: string;
   slug: string;
@@ -15,7 +15,7 @@ export interface OrgListItem {
 }
 
 /**
- * Get the authenticated user's context (identity, not org-scoped).
+ * Get the authenticated user's context (identity, not team-scoped).
  * Redirects to /login if not authenticated.
  */
 export async function getUserContext(): Promise<UserContext> {
@@ -39,10 +39,8 @@ export async function getUserContext(): Promise<UserContext> {
   };
 }
 
-/**
- * Get all organizations the current user belongs to.
- */
-export async function getUserOrgs(): Promise<OrgListItem[]> {
+/** Get all teams the current user belongs to. */
+export async function getUserTeams(): Promise<TeamListItem[]> {
   const supabase = await createClient();
   const {
     data: { user },
@@ -51,44 +49,42 @@ export async function getUserOrgs(): Promise<OrgListItem[]> {
   if (!user) return [];
 
   const { data } = await supabase
-    .from("organization_members")
-    .select("role, organizations(id, name, slug)")
+    .from("team_members")
+    .select("role, teams(id, name, slug)")
     .eq("user_id", user.id)
     .order("joined_at", { ascending: true });
 
   return (data ?? [])
     .map((m) => {
-      const org =
-        m.organizations &&
-        typeof m.organizations === "object" &&
-        "id" in m.organizations
-          ? (m.organizations as unknown as { id: string; name: string; slug: string })
+      const team =
+        m.teams &&
+        typeof m.teams === "object" &&
+        "id" in m.teams
+          ? (m.teams as unknown as { id: string; name: string; slug: string })
           : null;
-      if (!org) return null;
+      if (!team) return null;
       return {
-        id: org.id,
-        name: org.name,
-        slug: org.slug,
+        id: team.id,
+        name: team.name,
+        slug: team.slug,
         role: m.role as "owner" | "admin" | "member",
       };
     })
     .filter((x): x is NonNullable<typeof x> => x !== null);
 }
 
-/**
- * Get all org IDs the current user belongs to.
- */
-export async function getUserOrgIds(): Promise<string[]> {
-  const orgs = await getUserOrgs();
-  return orgs.map((o) => o.id);
+/** Get all team IDs the current user belongs to. */
+export async function getUserTeamIds(): Promise<string[]> {
+  const teams = await getUserTeams();
+  return teams.map((t) => t.id);
 }
 
 /**
- * Validate that the current user has access to a specific org.
+ * Validate that the current user has access to a specific team.
  * Returns the user's role if they have access, throws if they don't.
  */
-export async function validateOrgAccess(
-  orgId: string
+export async function validateTeamAccess(
+  teamId: string,
 ): Promise<{ userId: string; role: "owner" | "admin" | "member" }> {
   const supabase = await createClient();
   const {
@@ -98,14 +94,14 @@ export async function validateOrgAccess(
   if (!user) redirect("/login");
 
   const { data: membership } = await supabase
-    .from("organization_members")
+    .from("team_members")
     .select("role")
     .eq("user_id", user.id)
-    .eq("organization_id", orgId)
+    .eq("team_id", teamId)
     .single();
 
   if (!membership) {
-    throw new Error("You do not have access to this organization.");
+    throw new Error("You do not have access to this team.");
   }
 
   return {

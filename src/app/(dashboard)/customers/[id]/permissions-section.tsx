@@ -32,7 +32,7 @@ interface PrincipalOption {
   type: PrincipalType;
   id: string;
   name: string;
-  orgName: string;
+  teamName: string;
 }
 
 const LEVEL_BADGE: Record<PermissionLevel, string> = {
@@ -136,7 +136,7 @@ export function PermissionsSection({
                     <optgroup label="Users">
                       {availableUsers.map((p) => (
                         <option key={`user:${p.id}`} value={`user:${p.id}`}>
-                          {p.name} ({p.orgName})
+                          {p.name} ({p.teamName})
                         </option>
                       ))}
                     </optgroup>
@@ -145,7 +145,7 @@ export function PermissionsSection({
                     <optgroup label="Groups">
                       {availableGroups.map((p) => (
                         <option key={`group:${p.id}`} value={`group:${p.id}`}>
-                          {p.name} ({p.orgName})
+                          {p.name} ({p.teamName})
                         </option>
                       ))}
                     </optgroup>

@@ -21,11 +21,11 @@ const project = {
   id: "p1",
   name: "Alpha",
   github_repo: null,
-  organization_id: "o1",
+  team_id: "o1",
   category_set_id: null,
   require_timestamps: true,
 };
-const orgs = [
+const teams = [
   { id: "o1", name: "Org", slug: "org", role: "owner" as const },
 ];
 
@@ -36,7 +36,7 @@ describe("RunningTimerCard", () => {
         running={null}
         projects={[project]}
         recentProjects={[]}
-        orgs={orgs}
+        teams={teams}
         categories={[]}
       />,
     );
@@ -53,7 +53,7 @@ describe("RunningTimerCard", () => {
         running={null}
         projects={[project]}
         recentProjects={[]}
-        orgs={orgs}
+        teams={teams}
         categories={[]}
       />,
     );
@@ -69,7 +69,7 @@ describe("RunningTimerCard", () => {
         running={null}
         projects={[project]}
         recentProjects={[]}
-        orgs={orgs}
+        teams={teams}
         categories={[]}
       />,
     );
@@ -80,7 +80,7 @@ describe("RunningTimerCard", () => {
   it("renders running state with project name and elapsed", () => {
     const running: TimeEntry = {
       id: "e1",
-      organization_id: "o1",
+      team_id: "o1",
       user_id: "u1",
       project_id: "p1",
       description: "hacking",
@@ -97,7 +97,7 @@ describe("RunningTimerCard", () => {
         running={running}
         projects={[project]}
         recentProjects={[]}
-        orgs={orgs}
+        teams={teams}
         categories={[]}
       />,
     );
@@ -109,15 +109,15 @@ describe("RunningTimerCard", () => {
 
   it("shows recent project chips after expanding", () => {
     const recent = [
-      { id: "p1", name: "Alpha", github_repo: null, organization_id: "o1", category_set_id: null, require_timestamps: true },
-      { id: "p2", name: "Beta", github_repo: null, organization_id: "o1", category_set_id: null, require_timestamps: true },
+      { id: "p1", name: "Alpha", github_repo: null, team_id: "o1", category_set_id: null, require_timestamps: true },
+      { id: "p2", name: "Beta", github_repo: null, team_id: "o1", category_set_id: null, require_timestamps: true },
     ];
     renderWithIntl(
       <RunningTimerCard
         running={null}
         projects={[project]}
         recentProjects={recent}
-        orgs={orgs}
+        teams={teams}
         categories={[]}
       />,
     );
@@ -132,7 +132,7 @@ describe("RunningTimerCard", () => {
         running={null}
         projects={[project]}
         recentProjects={[]}
-        orgs={orgs}
+        teams={teams}
         categories={[]}
       />,
     );

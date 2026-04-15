@@ -4,8 +4,8 @@ import { cleanupPrefix } from "../helpers/cleanup";
 import { createAuthedClient } from "../helpers/authed-client";
 import { adminClient } from "../helpers/admin";
 import {
-  twoOrgSharingScenario,
-  TwoOrgSharingScenario,
+  twoTeamSharingScenario,
+  TwoTeamSharingScenario,
 } from "../helpers/fixtures";
 import { createTestTimeEntry } from "../helpers/customers";
 
@@ -19,26 +19,26 @@ import { createTestTimeEntry } from "../helpers/customers";
  */
 describe("time_entries mutations (RLS defense + duplicate semantics)", () => {
   let prefix: string;
-  let scenario: TwoOrgSharingScenario;
+  let scenario: TwoTeamSharingScenario;
   let aliceEntryId: string;
 
   beforeAll(async () => {
     prefix = makeRunPrefix();
-    scenario = await twoOrgSharingScenario(prefix);
+    scenario = await twoTeamSharingScenario(prefix);
 
-    // Share the client with participatingOrg so Dave has visibility paths,
+    // Share the client with participatingTeam so Dave has visibility paths,
     // but RLS on time_entries mutations is still per-user.
     const admin = adminClient();
     await admin.from("customer_shares").insert({
       customer_id: scenario.client.id,
-      organization_id: scenario.participatingOrg.id,
+      team_id: scenario.participatingTeam.id,
       can_see_others_entries: true,
       created_by: scenario.alice.id,
     });
 
     const entry = await createTestTimeEntry(
       prefix,
-      scenario.primaryOrg.id,
+      scenario.primaryTeam.id,
       scenario.project.id,
       scenario.alice.id,
       { description: "alice-original" },
@@ -94,7 +94,7 @@ describe("time_entries mutations (RLS defense + duplicate semantics)", () => {
     const { data: running } = await admin
       .from("time_entries")
       .insert({
-        organization_id: scenario.primaryOrg.id,
+        team_id: scenario.primaryTeam.id,
         user_id: scenario.alice.id,
         project_id: scenario.project.id,
         description: `${prefix}alice-running`,
@@ -132,7 +132,7 @@ describe("time_entries mutations (RLS defense + duplicate semantics)", () => {
     const { data: runningBefore } = await admin
       .from("time_entries")
       .insert({
-        organization_id: scenario.primaryOrg.id,
+        team_id: scenario.primaryTeam.id,
         user_id: scenario.alice.id,
         project_id: scenario.project.id,
         description: `${prefix}alice-running-for-dup`,
@@ -151,7 +151,7 @@ describe("time_entries mutations (RLS defense + duplicate semantics)", () => {
     );
     const { data: source, error: sourceErr } = await alice
       .from("time_entries")
-      .select("organization_id, project_id, description, billable, github_issue")
+      .select("team_id, project_id, description, billable, github_issue")
       .eq("id", aliceEntryId)
       .single();
     expect(sourceErr).toBeNull();
@@ -169,7 +169,7 @@ describe("time_entries mutations (RLS defense + duplicate semantics)", () => {
     const { data: inserted, error: insertErr } = await alice
       .from("time_entries")
       .insert({
-        organization_id: source!.organization_id,
+        team_id: source!.team_id,
         user_id: scenario.alice.id,
         project_id: source!.project_id,
         description: source!.description,
@@ -209,7 +209,7 @@ describe("time_entries mutations (RLS defense + duplicate semantics)", () => {
     const { error: insertErr } = await dave
       .from("time_entries")
       .insert({
-        organization_id: scenario.primaryOrg.id,
+        team_id: scenario.primaryTeam.id,
         user_id: scenario.alice.id, // spoofing Alice
         project_id: scenario.project.id,
         description: `${prefix}spoofed-dup`,

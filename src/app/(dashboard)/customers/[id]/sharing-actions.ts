@@ -8,15 +8,15 @@ export async function addCustomerShareAction(formData: FormData): Promise<void> 
     formData,
     async (formData, { supabase }) => {
       const customerId = formData.get("customer_id") as string;
-      const organizationId = formData.get("organization_id") as string;
+      const organizationId = formData.get("team_id") as string;
       const canSeeOthers = formData.get("can_see_others") === "on";
 
       if (!customerId) throw new Error("Client ID is required.");
-      if (!organizationId) throw new Error("Organization is required.");
+      if (!organizationId) throw new Error("Team is required.");
 
       const { error } = await supabase.rpc("add_customer_share", {
         p_customer_id: customerId,
-        p_org_id: organizationId,
+        p_team_id: organizationId,
         p_can_see_others: canSeeOthers,
       });
       if (error) throw new Error(error.message);

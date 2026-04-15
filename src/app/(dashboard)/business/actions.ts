@@ -2,7 +2,7 @@
 
 import { runSafeAction } from "@/lib/safe-action";
 import { assertSupabaseOk } from "@/lib/errors";
-import { validateOrgAccess } from "@/lib/org-context";
+import { validateTeamAccess } from "@/lib/team-context";
 import { revalidatePath } from "next/cache";
 
 const ALLOWED_ENTITY_TYPES = new Set([
@@ -23,14 +23,14 @@ function blankToNull(v: FormDataEntryValue | null): string | null {
 
 /**
  * Update business identity on organization_settings (upsert).
- * Owner/admin only — matches updateOrgSettingsAction's authorization model.
+ * Owner/admin only — matches updateTeamSettingsAction's authorization model.
  */
 export async function updateBusinessIdentityAction(
   formData: FormData,
 ): Promise<void> {
   return runSafeAction(formData, async (formData, { supabase }) => {
-    const orgId = formData.get("organization_id") as string;
-    const { role } = await validateOrgAccess(orgId);
+    const teamId = formData.get("team_id") as string;
+    const { role } = await validateTeamAccess(teamId);
 
     if (role !== "owner" && role !== "admin") {
       throw new Error("Only owners and admins can update business identity.");
@@ -57,8 +57,8 @@ export async function updateBusinessIdentityAction(
     }
 
     assertSupabaseOk(
-      await supabase.from("organization_settings").upsert({
-        organization_id: orgId,
+      await supabase.from("team_settings").upsert({
+        team_id: teamId,
         legal_name,
         entity_type,
         tax_id,
@@ -70,6 +70,6 @@ export async function updateBusinessIdentityAction(
     );
 
     revalidatePath("/business");
-    revalidatePath("/business/info");
+    revalidatePath("/business");
   }, "updateBusinessIdentityAction") as unknown as void;
 }

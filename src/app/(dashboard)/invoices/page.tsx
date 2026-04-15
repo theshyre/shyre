@@ -1,11 +1,11 @@
 import { createClient } from "@/lib/supabase/server";
-import { getUserOrgs } from "@/lib/org-context";
+import { getUserTeams } from "@/lib/team-context";
 import { getTranslations } from "next-intl/server";
 import Link from "next/link";
 import { FileText, Plus } from "lucide-react";
 import { buttonPrimaryClass } from "@/lib/form-styles";
 import { formatCurrency } from "@/lib/invoice-utils";
-import { OrgFilter } from "@/components/OrgFilter";
+import { TeamFilter } from "@/components/TeamFilter";
 
 export default async function InvoicesPage({
   searchParams,
@@ -13,18 +13,18 @@ export default async function InvoicesPage({
   searchParams: Promise<{ org?: string }>;
 }): Promise<React.JSX.Element> {
   const supabase = await createClient();
-  const orgs = await getUserOrgs();
-  const { org: selectedOrgId } = await searchParams;
+  const teams = await getUserTeams();
+  const { org: selectedTeamId } = await searchParams;
   const t = await getTranslations("invoices");
 
   let query = supabase
     .from("invoices")
     .select("*, customers(name)")
     .order("created_at", { ascending: false });
-  if (selectedOrgId) query = query.eq("organization_id", selectedOrgId);
+  if (selectedTeamId) query = query.eq("team_id", selectedTeamId);
   const { data: invoices } = await query;
 
-  const orgName = (orgId: string) => orgs.find(o => o.id === orgId)?.name ?? "\u2014";
+  const teamName = (teamId: string) => teams.find(o => o.id === teamId)?.name ?? "\u2014";
 
   return (
     <div>
@@ -32,7 +32,7 @@ export default async function InvoicesPage({
         <div className="flex items-center gap-3">
           <FileText size={24} className="text-accent" />
           <h1 className="text-2xl font-bold text-content">{t("title")}</h1>
-          <OrgFilter orgs={orgs} selectedOrgId={selectedOrgId ?? null} />
+          <TeamFilter teams={teams} selectedTeamId={selectedTeamId ?? null} />
         </div>
         <Link href="/invoices/new" className={buttonPrimaryClass}>
           <Plus size={16} />
@@ -87,7 +87,7 @@ export default async function InvoicesPage({
                       </Link>
                     </td>
                     <td className="px-4 py-3 text-content-secondary text-xs">
-                      {orgName(inv.organization_id)}
+                      {teamName(inv.team_id)}
                     </td>
                     <td className="px-4 py-3 text-content-secondary">
                       {customerName}

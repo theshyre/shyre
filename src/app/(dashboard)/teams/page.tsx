@@ -1,12 +1,12 @@
-import { getUserOrgs } from "@/lib/org-context";
+import { getUserTeams } from "@/lib/team-context";
 import { getTranslations } from "next-intl/server";
 import Link from "next/link";
 import { Building2, Plus, Crown, ShieldCheck, User } from "lucide-react";
 import { buttonPrimaryClass, kbdClass } from "@/lib/form-styles";
-import { NewOrgForm } from "./new-org-form";
+import { NewTeamForm } from "./new-team-form";
 
 export default async function OrganizationsPage(): Promise<React.JSX.Element> {
-  const orgs = await getUserOrgs();
+  const teams = await getUserTeams();
   const tc = await getTranslations("common");
 
   const roleIcons: Record<string, typeof Crown> = {
@@ -27,21 +27,21 @@ export default async function OrganizationsPage(): Promise<React.JSX.Element> {
         <div className="flex items-center gap-3">
           <Building2 size={24} className="text-accent" />
           <h1 className="text-2xl font-bold text-content">
-            {tc("nav.organizations")}
+            {tc("nav.teams")}
           </h1>
         </div>
       </div>
 
-      <NewOrgForm />
+      <NewTeamForm />
 
       <div className="mt-6 space-y-3">
-        {orgs.map((org) => {
+        {teams.map((org) => {
           const RoleIcon = roleIcons[org.role] ?? User;
           const roleColor = roleColors[org.role] ?? roleColors.member;
           return (
             <Link
               key={org.id}
-              href={`/organizations/${org.id}`}
+              href={`/teams/${org.id}`}
               className="flex items-center justify-between rounded-lg border border-edge bg-surface-raised px-5 py-4 hover:bg-hover transition-colors"
             >
               <div className="flex items-center gap-4">
@@ -63,9 +63,9 @@ export default async function OrganizationsPage(): Promise<React.JSX.Element> {
           );
         })}
 
-        {orgs.length === 0 && (
+        {teams.length === 0 && (
           <p className="text-sm text-content-muted">
-            No organizations yet. Create one to get started.
+            No teams yet. Create one to get started.
           </p>
         )}
       </div>

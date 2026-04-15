@@ -10,8 +10,8 @@ import {
   labelClass,
   selectClass,
 } from "@/lib/form-styles";
-import { OrgSelector } from "@/components/OrgSelector";
-import type { OrgListItem } from "@/lib/org-context";
+import { TeamSelector } from "@/components/TeamSelector";
+import type { TeamListItem } from "@/lib/team-context";
 import { createInvoiceAction } from "../actions";
 
 interface CustomerOption {
@@ -23,11 +23,11 @@ interface CustomerOption {
 export function NewInvoiceForm({
   customers,
   defaultTaxRate,
-  orgs,
+  teams,
 }: {
   customers: CustomerOption[];
   defaultTaxRate: number;
-  orgs: OrgListItem[];
+  teams: TeamListItem[];
 }): React.JSX.Element {
   const t = useTranslations("invoices");
 
@@ -43,7 +43,7 @@ export function NewInvoiceForm({
       {serverError && (
         <p className="text-sm text-error bg-error-soft rounded-lg px-3 py-2">{serverError}</p>
       )}
-      <OrgSelector orgs={orgs} />
+      <TeamSelector teams={teams} />
       <div className="rounded-lg border border-edge bg-surface-raised p-4 space-y-4">
         <p className="text-sm text-content-secondary">
           {t("selectClientDescription")}

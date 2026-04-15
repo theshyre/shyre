@@ -1,6 +1,6 @@
 import { cookies } from "next/headers";
 import { createClient } from "@/lib/supabase/server";
-import { getUserOrgs } from "@/lib/org-context";
+import { getUserTeams } from "@/lib/team-context";
 import {
   TZ_COOKIE_NAME,
   parseTzOffset,
@@ -50,9 +50,9 @@ export default async function TimeEntriesPage({
   searchParams,
 }: PageProps): Promise<React.JSX.Element> {
   const supabase = await createClient();
-  const orgs = await getUserOrgs();
+  const teams = await getUserTeams();
   const sp = await searchParams;
-  const { org: selectedOrgId } = sp;
+  const { org: selectedTeamId } = sp;
 
   // User's effective tz: prefer the explicit IANA setting from user_settings,
   // falling back to the browser-detected offset cookie, falling back to UTC.
@@ -92,7 +92,7 @@ export default async function TimeEntriesPage({
     .gte("start_time", weekStartUtc.toISOString())
     .lt("start_time", weekEndUtc.toISOString())
     .order("start_time", { ascending: true });
-  if (selectedOrgId) weekQuery = weekQuery.eq("organization_id", selectedOrgId);
+  if (selectedTeamId) weekQuery = weekQuery.eq("team_id", selectedTeamId);
   if (billableOnly) weekQuery = weekQuery.eq("billable", true);
   const { data: rawWeekEntries } = await weekQuery;
   const weekEntries = (rawWeekEntries ?? []).map(normalizeEntry);
@@ -106,7 +106,7 @@ export default async function TimeEntriesPage({
     .gte("start_time", dayStartUtc.toISOString())
     .lt("start_time", dayEndUtc.toISOString())
     .order("start_time", { ascending: true });
-  if (selectedOrgId) dayQuery = dayQuery.eq("organization_id", selectedOrgId);
+  if (selectedTeamId) dayQuery = dayQuery.eq("team_id", selectedTeamId);
   if (billableOnly) dayQuery = dayQuery.eq("billable", true);
   const { data: rawDayEntries } = await dayQuery;
   const dayEntries = (rawDayEntries ?? []).map(normalizeEntry);
@@ -120,7 +120,7 @@ export default async function TimeEntriesPage({
     .is("end_time", null)
     .order("start_time", { ascending: false })
     .limit(1);
-  if (selectedOrgId) runningQuery = runningQuery.eq("organization_id", selectedOrgId);
+  if (selectedTeamId) runningQuery = runningQuery.eq("team_id", selectedTeamId);
   const { data: runningEntries } = await runningQuery;
   const running = runningEntries?.[0] ? normalizeEntry(runningEntries[0]) : null;
 
@@ -128,11 +128,11 @@ export default async function TimeEntriesPage({
   let projectsQuery = supabase
     .from("projects")
     .select(
-      "id, name, github_repo, organization_id, category_set_id, require_timestamps, customers(id, name)",
+      "id, name, github_repo, team_id, category_set_id, require_timestamps, customers(id, name)",
     )
     .eq("status", "active")
     .order("name");
-  if (selectedOrgId) projectsQuery = projectsQuery.eq("organization_id", selectedOrgId);
+  if (selectedTeamId) projectsQuery = projectsQuery.eq("team_id", selectedTeamId);
   const { data: rawProjects } = await projectsQuery;
   const projects = (rawProjects ?? []).map((p) => ({
     ...p,
@@ -164,7 +164,7 @@ export default async function TimeEntriesPage({
     .gte("start_time", recentSinceIso)
     .order("start_time", { ascending: false })
     .limit(50);
-  if (selectedOrgId) recentQuery = recentQuery.eq("organization_id", selectedOrgId);
+  if (selectedTeamId) recentQuery = recentQuery.eq("team_id", selectedTeamId);
   const { data: recentRows } = await recentQuery;
   const seen = new Set<string>();
   const recentProjectIds: string[] = [];
@@ -179,13 +179,13 @@ export default async function TimeEntriesPage({
     .map((id) => projects.find((p) => p.id === id))
     .filter((p): p is NonNullable<typeof p> => !!p);
 
-  const allTemplates = await getMyTemplates(selectedOrgId);
+  const allTemplates = await getMyTemplates(selectedTeamId);
   const templates = allTemplates.slice(0, 8);
 
   return (
     <TimeHome
-      orgs={orgs}
-      selectedOrgId={selectedOrgId ?? null}
+      teams={teams}
+      selectedTeamId={selectedTeamId ?? null}
       view={view}
       billableOnly={billableOnly}
       dayStr={day}

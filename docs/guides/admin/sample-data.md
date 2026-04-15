@@ -1,6 +1,6 @@
 # Sample data tool
 
-`/admin/sample-data`. Loads, replays, and clears fabricated customers / projects / time entries / expenses into an organization so you can test the UI with realistic density.
+`/admin/sample-data`. Loads, replays, and clears fabricated customers / projects / time entries / expenses into an team so you can test the UI with realistic density.
 
 Only visible to system administrators.
 
@@ -26,7 +26,7 @@ Deletes **only** rows with `is_sample = true` in the targeted org. Real customer
 
 ### Clear ALL org data
 
-Destructive. Deletes every customer / project / time entry / expense in the targeted org — sample and real alike. Requires typing the org name exactly to confirm. Invoices and organization settings are left alone.
+Destructive. Deletes every customer / project / time entry / expense in the targeted org — sample and real alike. Requires typing the org name exactly to confirm. Invoices and team settings are left alone.
 
 ## Permissions
 

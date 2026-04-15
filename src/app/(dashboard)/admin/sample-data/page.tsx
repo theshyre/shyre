@@ -1,16 +1,16 @@
 import { requireSystemAdmin } from "@/lib/system-admin";
 import { createClient } from "@/lib/supabase/server";
-import { getUserOrgs } from "@/lib/org-context";
+import { getUserTeams } from "@/lib/team-context";
 import { getTranslations } from "next-intl/server";
 import { Database, Building2 } from "lucide-react";
-import { OrgFilter } from "@/components/OrgFilter";
+import { TeamFilter } from "@/components/TeamFilter";
 import { SampleDataControls } from "./controls";
 
 interface PageProps {
   searchParams: Promise<{ org?: string }>;
 }
 
-interface OrgCounts {
+interface TeamCounts {
   customersTotal: number;
   customersSample: number;
   projectsTotal: number;
@@ -25,56 +25,56 @@ interface OrgCounts {
 
 async function fetchCounts(
   supabase: Awaited<ReturnType<typeof createClient>>,
-  orgId: string,
-): Promise<OrgCounts> {
+  teamId: string,
+): Promise<TeamCounts> {
   const [customersTotal, customersSample, projectsTotal, projectsSample, entriesTotal, entriesSample, expensesTotal, expensesSample, firstEntry, lastEntry] = await Promise.all([
     supabase
       .from("customers")
       .select("id", { count: "exact", head: true })
-      .eq("organization_id", orgId),
+      .eq("team_id", teamId),
     supabase
       .from("customers")
       .select("id", { count: "exact", head: true })
-      .eq("organization_id", orgId)
+      .eq("team_id", teamId)
       .eq("is_sample", true),
     supabase
       .from("projects")
       .select("id", { count: "exact", head: true })
-      .eq("organization_id", orgId),
+      .eq("team_id", teamId),
     supabase
       .from("projects")
       .select("id", { count: "exact", head: true })
-      .eq("organization_id", orgId)
+      .eq("team_id", teamId)
       .eq("is_sample", true),
     supabase
       .from("time_entries")
       .select("id", { count: "exact", head: true })
-      .eq("organization_id", orgId),
+      .eq("team_id", teamId),
     supabase
       .from("time_entries")
       .select("id", { count: "exact", head: true })
-      .eq("organization_id", orgId)
+      .eq("team_id", teamId)
       .eq("is_sample", true),
     supabase
       .from("expenses")
       .select("id", { count: "exact", head: true })
-      .eq("organization_id", orgId),
+      .eq("team_id", teamId),
     supabase
       .from("expenses")
       .select("id", { count: "exact", head: true })
-      .eq("organization_id", orgId)
+      .eq("team_id", teamId)
       .eq("is_sample", true),
     supabase
       .from("time_entries")
       .select("start_time")
-      .eq("organization_id", orgId)
+      .eq("team_id", teamId)
       .order("start_time", { ascending: true })
       .limit(1)
       .maybeSingle(),
     supabase
       .from("time_entries")
       .select("start_time")
-      .eq("organization_id", orgId)
+      .eq("team_id", teamId)
       .order("start_time", { ascending: false })
       .limit(1)
       .maybeSingle(),
@@ -106,14 +106,14 @@ export default async function SampleDataPage({
   const t = await getTranslations("sampleData");
   const tc = await getTranslations("common");
   const supabase = await createClient();
-  const orgs = await getUserOrgs();
+  const teams = await getUserTeams();
   const sp = await searchParams;
 
-  const selectedOrgId = sp.org ?? orgs[0]?.id ?? null;
-  const selectedOrg = orgs.find((o) => o.id === selectedOrgId) ?? null;
-  const counts = selectedOrgId ? await fetchCounts(supabase, selectedOrgId) : null;
+  const selectedTeamId = sp.org ?? teams[0]?.id ?? null;
+  const selectedTeam = teams.find((o) => o.id === selectedTeamId) ?? null;
+  const counts = selectedTeamId ? await fetchCounts(supabase, selectedTeamId) : null;
 
-  const multipleOrgs = orgs.length > 1;
+  const multipleOrgs = teams.length > 1;
 
   return (
     <div className="space-y-6">
@@ -124,7 +124,7 @@ export default async function SampleDataPage({
 
       <p className="text-sm text-content-secondary max-w-3xl">{t("subtitle")}</p>
 
-      {!selectedOrgId || !selectedOrg || !counts ? (
+      {!selectedTeamId || !selectedTeam || !counts ? (
         <div className="rounded-lg border border-edge bg-surface-raised p-6 text-sm text-content-muted">
           {t("noOrg")}
         </div>
@@ -141,7 +141,7 @@ export default async function SampleDataPage({
                 {t("operatingOn")}
               </p>
               <h2 className="mt-0.5 text-3xl font-bold text-content break-words">
-                {selectedOrg.name}
+                {selectedTeam.name}
               </h2>
               {!multipleOrgs && (
                 <p className="mt-0.5 text-xs text-content-muted">
@@ -154,7 +154,7 @@ export default async function SampleDataPage({
                 <p className="mb-1 text-[10px] font-semibold uppercase tracking-wider text-content-muted">
                   {t("switchOrg")}
                 </p>
-                <OrgFilter orgs={orgs} selectedOrgId={selectedOrgId} />
+                <TeamFilter teams={teams} selectedTeamId={selectedTeamId} />
               </div>
             )}
           </section>
@@ -199,8 +199,8 @@ export default async function SampleDataPage({
           </section>
 
           <SampleDataControls
-            orgId={selectedOrgId}
-            orgName={selectedOrg.name}
+            teamId={selectedTeamId}
+            teamName={selectedTeam.name}
             hasSample={
               counts.entriesSample > 0 ||
               counts.projectsSample > 0 ||

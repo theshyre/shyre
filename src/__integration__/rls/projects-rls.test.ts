@@ -4,18 +4,18 @@ import { cleanupPrefix } from "../helpers/cleanup";
 import { createAuthedClient } from "../helpers/authed-client";
 import { adminClient } from "../helpers/admin";
 import {
-  twoOrgSharingScenario,
-  TwoOrgSharingScenario,
+  twoTeamSharingScenario,
+  TwoTeamSharingScenario,
 } from "../helpers/fixtures";
 import { createTestProject } from "../helpers/customers";
 
 describe("projects RLS", () => {
   let prefix: string;
-  let scenario: TwoOrgSharingScenario;
+  let scenario: TwoTeamSharingScenario;
 
   beforeAll(async () => {
     prefix = makeRunPrefix();
-    scenario = await twoOrgSharingScenario(prefix);
+    scenario = await twoTeamSharingScenario(prefix);
   });
 
   afterAll(async () => {
@@ -23,26 +23,26 @@ describe("projects RLS", () => {
   });
 
   it("internal org project (null customer_id) is visible to primary org members only", async () => {
-    // Create internal project in primaryOrg (no client)
+    // Create internal project in primaryTeam (no client)
     const internal = await createTestProject(
       prefix,
-      scenario.primaryOrg.id,
+      scenario.primaryTeam.id,
       null,
       scenario.alice.id,
       "internal",
     );
 
-    // Share the scenario client with participatingOrg so Dave has a cross-org pathway
+    // Share the scenario client with participatingTeam so Dave has a cross-org pathway
     // that should NOT grant him access to this internal project.
     const admin = adminClient();
     await admin.from("customer_shares").upsert(
       {
         customer_id: scenario.client.id,
-        organization_id: scenario.participatingOrg.id,
+        team_id: scenario.participatingTeam.id,
         can_see_others_entries: false,
         created_by: scenario.alice.id,
       },
-      { onConflict: "customer_id,organization_id" },
+      { onConflict: "customer_id,team_id" },
     );
 
     // Primary member Carol can see it
@@ -74,11 +74,11 @@ describe("projects RLS", () => {
     await admin.from("customer_shares").upsert(
       {
         customer_id: scenario.client.id,
-        organization_id: scenario.participatingOrg.id,
+        team_id: scenario.participatingTeam.id,
         can_see_others_entries: false,
         created_by: scenario.alice.id,
       },
-      { onConflict: "customer_id,organization_id" },
+      { onConflict: "customer_id,team_id" },
     );
 
     // Dave (participating member) CAN see the scenario project (client-linked)
@@ -117,14 +117,14 @@ describe("projects RLS", () => {
     await admin.from("customer_shares").upsert(
       {
         customer_id: scenario.client.id,
-        organization_id: scenario.participatingOrg.id,
+        team_id: scenario.participatingTeam.id,
         can_see_others_entries: false,
         created_by: scenario.alice.id,
       },
-      { onConflict: "customer_id,organization_id" },
+      { onConflict: "customer_id,team_id" },
     );
 
-    // Dave is a regular member of participatingOrg — not a client admin.
+    // Dave is a regular member of participatingTeam — not a client admin.
     const dave = await createAuthedClient(
       scenario.dave.email,
       scenario.dave.password,
@@ -133,7 +133,7 @@ describe("projects RLS", () => {
     const { error } = await dave
       .from("projects")
       .insert({
-        organization_id: scenario.participatingOrg.id,
+        team_id: scenario.participatingTeam.id,
         user_id: scenario.dave.id,
         customer_id: scenario.client.id,
         name: `${prefix}dave-attempt`,

@@ -1,17 +1,17 @@
 {
   "title": "Sample Data",
-  "subtitle": "Load fabricated customers, projects, and time entries into the selected organization so you can exercise the app with realistic density. Sample rows are tagged and can be removed at any time without touching real data.",
-  "noOrg": "Pick an organization above to manage its sample data.",
+  "subtitle": "Load fabricated customers, projects, and time entries into the selected team so you can exercise the app with realistic density. Sample rows are tagged and can be removed at any time without touching real data.",
+  "noOrg": "Pick an team above to manage its sample data.",
   "sampleLabel": "sample",
   "expensesLabel": "Expenses",
   "operatingOn": "Operating on",
-  "onlyOrg": "Only organization you can target with this tool",
-  "switchOrg": "Switch organization",
-  "currentData": "Current data in this organization",
+  "onlyOrg": "Only team you can target with this tool",
+  "switchOrg": "Switch team",
+  "currentData": "Current data in this team",
   "entryRange": "Entries from {first} to {last}",
   "load": {
     "title": "Load sample data",
-    "description": "Insert ~12 weeks of customers, projects, and time entries into this organization. Each row is tagged as sample so it can be removed later.",
+    "description": "Insert ~12 weeks of customers, projects, and time entries into this team. Each row is tagged as sample so it can be removed later.",
     "button": "Load sample data",
     "pending": "Loading…"
   },
@@ -28,8 +28,8 @@
     "nothing": "No sample data in this org."
   },
   "clear": {
-    "title": "Clear ALL data in this organization",
-    "description": "Destructive. Deletes every customer, project, and time entry in this org — sample and real alike. Invoices and organization settings are left alone.",
+    "title": "Clear ALL data in this team",
+    "description": "Destructive. Deletes every customer, project, and time entry in this org — sample and real alike. Invoices and team settings are left alone.",
     "open": "Clear all org data",
     "confirmLabel": "Type \"{name}\" to confirm",
     "confirm": "Permanently clear data",

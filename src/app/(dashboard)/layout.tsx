@@ -1,7 +1,7 @@
 import Sidebar from "@/components/Sidebar";
 import { TimezoneSync } from "@/components/TimezoneSync";
 import { ThemeSync } from "@/components/ThemeSync";
-import { getUserContext } from "@/lib/org-context";
+import { getUserContext } from "@/lib/team-context";
 import { isSystemAdmin } from "@/lib/system-admin";
 import { createClient } from "@/lib/supabase/server";
 

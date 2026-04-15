@@ -13,8 +13,8 @@ import {
   selectClass,
   kbdClass,
 } from "@/lib/form-styles";
-import { OrgSelector } from "@/components/OrgSelector";
-import type { OrgListItem } from "@/lib/org-context";
+import { TeamSelector } from "@/components/TeamSelector";
+import type { TeamListItem } from "@/lib/team-context";
 import { startTimerAction, stopTimerAction } from "./actions";
 import { RecentProjectsChips } from "./recent-projects-chips";
 import { TemplateChips } from "./template-chips";
@@ -25,8 +25,8 @@ interface Props {
   running: TimeEntry | null;
   projects: ProjectOption[];
   recentProjects: ProjectOption[];
-  orgs: OrgListItem[];
-  defaultOrgId?: string;
+  teams: TeamListItem[];
+  defaultTeamId?: string;
   categories: CategoryOption[];
   templates?: TimeTemplate[];
   tzOffsetMin?: number;
@@ -36,8 +36,8 @@ export function RunningTimerCard({
   running,
   projects,
   recentProjects,
-  orgs,
-  defaultOrgId,
+  teams,
+  defaultTeamId,
   categories,
   templates = [],
 }: Props): React.JSX.Element {
@@ -93,7 +93,7 @@ export function RunningTimerCard({
         setExpanded(true);
       } else if (selectedProjectId) {
         const fd = new FormData();
-        fd.set("organization_id", defaultOrgId ?? orgs[0]?.id ?? "");
+        fd.set("team_id", defaultTeamId ?? teams[0]?.id ?? "");
         fd.set("project_id", selectedProjectId);
         fd.set("description", description);
         void startForm.handleSubmit(fd);
@@ -101,7 +101,7 @@ export function RunningTimerCard({
     }
     window.addEventListener("keydown", handleKey);
     return () => window.removeEventListener("keydown", handleKey);
-  }, [running, expanded, selectedProjectId, description, defaultOrgId, orgs, startForm]);
+  }, [running, expanded, selectedProjectId, description, defaultTeamId, teams, startForm]);
 
   // --- Running state: live clock + Stop button
   if (running) {
@@ -203,9 +203,9 @@ export function RunningTimerCard({
         </p>
       )}
 
-      {orgs.length > 1 && <OrgSelector orgs={orgs} defaultOrgId={defaultOrgId} />}
-      {orgs.length === 1 && (
-        <input type="hidden" name="organization_id" value={orgs[0]?.id ?? ""} />
+      {teams.length > 1 && <TeamSelector teams={teams} defaultTeamId={defaultTeamId} />}
+      {teams.length === 1 && (
+        <input type="hidden" name="team_id" value={teams[0]?.id ?? ""} />
       )}
 
       {/* Category first — primary field */}

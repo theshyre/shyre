@@ -3,12 +3,12 @@
 import { useCallback, useState } from "react";
 import { useTranslations } from "next-intl";
 import { Plus, Pencil, Trash2, Bookmark } from "lucide-react";
-import type { OrgListItem } from "@/lib/org-context";
+import type { TeamListItem } from "@/lib/team-context";
 import type { TimeTemplate } from "@/lib/templates/types";
 import { useKeyboardShortcut } from "@/hooks/use-keyboard-shortcut";
 import { useFormAction } from "@/hooks/use-form-action";
 import { SubmitButton } from "@/components/SubmitButton";
-import { OrgSelector } from "@/components/OrgSelector";
+import { TeamSelector } from "@/components/TeamSelector";
 import {
   buttonPrimaryClass,
   buttonSecondaryClass,
@@ -27,7 +27,7 @@ import {
 interface ProjectOpt {
   id: string;
   name: string;
-  organization_id: string;
+  team_id: string;
   category_set_id: string | null;
 }
 
@@ -40,14 +40,14 @@ interface CategoryOpt {
 }
 
 interface Props {
-  orgs: OrgListItem[];
+  teams: TeamListItem[];
   templates: TimeTemplate[];
   projects: ProjectOpt[];
   categories: CategoryOpt[];
 }
 
 export function TemplatesSection({
-  orgs,
+  teams,
   templates,
   projects,
   categories,
@@ -77,7 +77,7 @@ export function TemplatesSection({
       )}
       {showNew && (
         <TemplateForm
-          orgs={orgs}
+          teams={teams}
           projects={projects}
           categories={categories}
           onDone={() => setShowNew(false)}
@@ -93,7 +93,7 @@ export function TemplatesSection({
           editingId === tpl.id ? (
             <TemplateForm
               key={tpl.id}
-              orgs={orgs}
+              teams={teams}
               projects={projects}
               categories={categories}
               template={tpl}
@@ -200,13 +200,13 @@ function TemplateRow({
 }
 
 function TemplateForm({
-  orgs,
+  teams,
   projects,
   categories,
   template,
   onDone,
 }: {
-  orgs: OrgListItem[];
+  teams: TeamListItem[];
   projects: ProjectOpt[];
   categories: CategoryOpt[];
   template?: TimeTemplate;
@@ -241,12 +241,12 @@ function TemplateForm({
         </p>
       )}
       {template && <input type="hidden" name="id" value={template.id} />}
-      {!template && <OrgSelector orgs={orgs} />}
+      {!template && <TeamSelector teams={teams} />}
       {template && (
         <input
           type="hidden"
-          name="organization_id"
-          value={template.organization_id}
+          name="team_id"
+          value={template.team_id}
         />
       )}
 

@@ -1,10 +1,10 @@
-import { getUserOrgs } from "@/lib/org-context";
+import { getUserTeams } from "@/lib/team-context";
 import { getTranslations } from "next-intl/server";
 import { Upload } from "lucide-react";
 import { HarvestImport } from "./harvest-import";
 
 export default async function ImportPage(): Promise<React.JSX.Element> {
-  const orgs = await getUserOrgs();
+  const teams = await getUserTeams();
 
   return (
     <div>
@@ -17,7 +17,7 @@ export default async function ImportPage(): Promise<React.JSX.Element> {
         Import your existing data from other time tracking services.
       </p>
 
-      <HarvestImport orgs={orgs} />
+      <HarvestImport teams={teams} />
     </div>
   );
 }

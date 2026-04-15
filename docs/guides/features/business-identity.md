@@ -1,6 +1,6 @@
 # Business identity
 
-Legal identity for your organization. Used on invoices, for tax filing, and for forms your accountant or state asks for.
+Legal identity for your team. Used on invoices, for tax filing, and for forms your accountant or state asks for.
 
 ## Why this exists
 
@@ -30,9 +30,9 @@ Click **Edit** on the Business page → opens `/business/info` → fill in → *
 
 ## Privacy
 
-The EIN is sensitive. It's stored in `organization_settings`, which is gated by org-role RLS — only owners and admins can read or write it. There's no endpoint that returns it in a list query.
+The EIN is sensitive. It's stored in `team_settings`, which is gated by org-role RLS — only owners and admins can read or write it. There's no endpoint that returns it in a list query.
 
 ## Related
 
 - [Expenses](expenses.md) — same page hosts the Expenses tile
-- Agency guide to [orgs and roles](../agency/orgs-and-roles.md)
+- Agency guide to [orgs and roles](../agency/teams-and-roles.md)

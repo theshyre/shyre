@@ -2,13 +2,13 @@
 
 import { runSafeAction } from "@/lib/safe-action";
 import { assertSupabaseOk } from "@/lib/errors";
-import { validateOrgAccess } from "@/lib/org-context";
+import { validateTeamAccess } from "@/lib/team-context";
 import { revalidatePath } from "next/cache";
 
 export async function createTemplateAction(formData: FormData): Promise<void> {
   return runSafeAction(formData, async (formData, { supabase, userId }) => {
-    const orgId = formData.get("organization_id") as string;
-    await validateOrgAccess(orgId);
+    const teamId = formData.get("team_id") as string;
+    await validateTeamAccess(teamId);
 
     const name = (formData.get("name") as string)?.trim();
     const project_id = formData.get("project_id") as string;
@@ -22,7 +22,7 @@ export async function createTemplateAction(formData: FormData): Promise<void> {
 
     assertSupabaseOk(
       await supabase.from("time_templates").insert({
-        organization_id: orgId,
+        team_id: teamId,
         user_id: userId,
         project_id,
         category_id,
@@ -97,7 +97,7 @@ export async function startFromTemplateAction(
     const { data: tpl, error: tplErr } = await supabase
       .from("time_templates")
       .select(
-        "organization_id, project_id, category_id, description, billable",
+        "team_id, project_id, category_id, description, billable",
       )
       .eq("id", templateId)
       .eq("user_id", userId)
@@ -118,7 +118,7 @@ export async function startFromTemplateAction(
     // Insert new running entry from template
     assertSupabaseOk(
       await supabase.from("time_entries").insert({
-        organization_id: tpl.organization_id,
+        team_id: tpl.team_id,
         user_id: userId,
         project_id: tpl.project_id,
         category_id: tpl.category_id,

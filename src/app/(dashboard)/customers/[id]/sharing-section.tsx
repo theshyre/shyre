@@ -21,40 +21,40 @@ import { ChangePrimaryFlow } from "./change-primary-flow";
 
 interface Share {
   id: string;
-  organization_id: string;
+  team_id: string;
   can_see_others_entries: boolean;
-  organizations: { name: string } | { name: string }[] | null;
+  teams: { name: string } | { name: string }[] | null;
 }
 
-interface OrgOption {
+interface TeamOption {
   id: string;
   name: string;
 }
 
-function getOrgName(
-  orgs: { name: string } | { name: string }[] | null,
+function getTeamName(
+  teams: { name: string } | { name: string }[] | null,
 ): string {
-  if (!orgs) return "—";
-  return Array.isArray(orgs) ? orgs[0]?.name ?? "—" : orgs.name;
+  if (!teams) return "—";
+  return Array.isArray(teams) ? teams[0]?.name ?? "—" : teams.name;
 }
 
 export function SharingSection({
   customerId,
-  primaryOrgId,
-  primaryOrgName,
+  primaryTeamId,
+  primaryTeamName,
   shares,
-  availableOrgs,
+  availableTeams,
   userCanAdmin,
-  changePrimaryOrgs,
+  changePrimaryTeams,
   canChangePrimary,
 }: {
   customerId: string;
-  primaryOrgId: string;
-  primaryOrgName: string;
+  primaryTeamId: string;
+  primaryTeamName: string;
   shares: Share[];
-  availableOrgs: OrgOption[];
+  availableTeams: TeamOption[];
   userCanAdmin: boolean;
-  changePrimaryOrgs: OrgOption[];
+  changePrimaryTeams: TeamOption[];
   canChangePrimary: boolean;
 }): React.JSX.Element {
   const [addingOrg, setAddingOrg] = useState(false);
@@ -70,8 +70,8 @@ export function SharingSection({
     onSuccess: () => setAddingOrg(false),
   });
 
-  // primaryOrgId reserved for future use (permission display)
-  void primaryOrgId;
+  // primaryTeamId reserved for future use (permission display)
+  void primaryTeamId;
 
   return (
     <div className="mt-8 space-y-4">
@@ -89,21 +89,21 @@ export function SharingSection({
             </div>
             <div>
               <p className="text-xs uppercase tracking-wider text-content-muted">
-                {t("primaryOrg")}
+                {t("primaryTeam")}
               </p>
-              <p className="font-semibold text-content">{primaryOrgName}</p>
+              <p className="font-semibold text-content">{primaryTeamName}</p>
             </div>
           </div>
           <ChangePrimaryFlow
             customerId={customerId}
-            currentPrimaryOrgName={primaryOrgName}
-            availableOrgs={changePrimaryOrgs}
+            currentPrimaryTeamName={primaryTeamName}
+            availableTeams={changePrimaryTeams}
             canChange={canChangePrimary}
           />
         </div>
       </div>
 
-      {/* Participating orgs */}
+      {/* Participating teams */}
       <div>
         <p className="text-xs uppercase tracking-wider text-content-muted mb-2">
           {t("participatingOrgs")}
@@ -125,8 +125,8 @@ export function SharingSection({
         )}
       </div>
 
-      {/* Add organization */}
-      {userCanAdmin && availableOrgs.length > 0 && (
+      {/* Add team */}
+      {userCanAdmin && availableTeams.length > 0 && (
         <div>
           {addingOrg ? (
             <form
@@ -142,7 +142,7 @@ export function SharingSection({
               <div>
                 <label className={labelClass}>{t("addOrg")} *</label>
                 <select
-                  name="organization_id"
+                  name="team_id"
                   required
                   autoFocus
                   className={selectClass}
@@ -150,7 +150,7 @@ export function SharingSection({
                   defaultValue=""
                 >
                   <option value="">—</option>
-                  {availableOrgs.map((o) => (
+                  {availableTeams.map((o) => (
                     <option key={o.id} value={o.id}>
                       {o.name}
                     </option>
@@ -220,7 +220,7 @@ function ShareRow({
     handleSubmit: handleRemove,
   } = useFormAction({ action: removeCustomerShareAction });
 
-  const orgName = getOrgName(share.organizations);
+  const teamName = getTeamName(share.teams);
 
   return (
     <li className="rounded-lg border border-edge bg-surface-raised p-3">
@@ -228,7 +228,7 @@ function ShareRow({
         <div className="flex items-center gap-3">
           <Building2 size={16} className="text-content-muted" />
           <div>
-            <p className="text-sm font-medium text-content">{orgName}</p>
+            <p className="text-sm font-medium text-content">{teamName}</p>
           </div>
         </div>
         {userCanAdmin && (

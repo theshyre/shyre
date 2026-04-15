@@ -3,61 +3,61 @@
 import { useEffect, useState } from "react";
 import { Building2 } from "lucide-react";
 import { selectClass, inputClass, labelClass } from "@/lib/form-styles";
-import type { OrgListItem } from "@/lib/org-context";
+import type { TeamListItem } from "@/lib/team-context";
 
-interface OrgSelectorProps {
-  orgs: OrgListItem[];
+interface TeamSelectorProps {
+  teams: TeamListItem[];
   label?: string;
   /** Pre-select this org (e.g., from current page filter) */
-  defaultOrgId?: string | null;
+  defaultTeamId?: string | null;
 }
 
-const LAST_ORG_KEY = "stint-last-org";
+const LAST_TEAM_KEY = "stint-last-team";
 
 /**
  * Org selector for create forms.
  * Always visible — shows the org name even when there's only one.
  */
-export function OrgSelector({
-  orgs,
+export function TeamSelector({
+  teams,
   label,
-  defaultOrgId,
-}: OrgSelectorProps): React.JSX.Element | null {
-  const [selectedOrgId, setSelectedOrgId] = useState<string>("");
+  defaultTeamId,
+}: TeamSelectorProps): React.JSX.Element | null {
+  const [selectedTeamId, setSelectedTeamId] = useState<string>("");
 
   useEffect(() => {
-    if (orgs.length === 0) return;
+    if (teams.length === 0) return;
 
     // Priority: explicit default > last-used > first org
-    if (defaultOrgId && orgs.some((o) => o.id === defaultOrgId)) {
-      setSelectedOrgId(defaultOrgId);
+    if (defaultTeamId && teams.some((o) => o.id === defaultTeamId)) {
+      setSelectedTeamId(defaultTeamId);
       return;
     }
 
-    const lastOrg = localStorage.getItem(LAST_ORG_KEY);
-    const validLast = lastOrg && orgs.some((o) => o.id === lastOrg);
+    const lastTeam = localStorage.getItem(LAST_TEAM_KEY);
+    const validLast = lastTeam && teams.some((o) => o.id === lastTeam);
 
     if (validLast) {
-      setSelectedOrgId(lastOrg);
+      setSelectedTeamId(lastTeam);
     } else {
-      const firstOrg = orgs[0];
-      if (firstOrg) {
-        setSelectedOrgId(firstOrg.id);
+      const firstTeam = teams[0];
+      if (firstTeam) {
+        setSelectedTeamId(firstTeam.id);
       }
     }
-  }, [orgs, defaultOrgId]);
+  }, [teams, defaultTeamId]);
 
-  if (orgs.length === 0) return null;
+  if (teams.length === 0) return null;
 
   // Single org: show as read-only so user always sees where data goes
-  if (orgs.length === 1) {
-    const singleOrg = orgs[0];
+  if (teams.length === 1) {
+    const singleOrg = teams[0];
     return (
       <div>
         <label className={labelClass}>
           <span className="inline-flex items-center gap-1.5">
             <Building2 size={14} className="text-accent" />
-            {label ?? "Organization"}
+            {label ?? "Team"}
           </span>
         </label>
         <input
@@ -68,33 +68,33 @@ export function OrgSelector({
         />
         <input
           type="hidden"
-          name="organization_id"
+          name="team_id"
           value={singleOrg?.id ?? ""}
         />
       </div>
     );
   }
 
-  // Multiple orgs: dropdown
+  // Multiple teams: dropdown
   return (
     <div>
       <label className={labelClass}>
         <span className="inline-flex items-center gap-1.5">
           <Building2 size={14} className="text-accent" />
-          {label ?? "Organization"}
+          {label ?? "Team"}
         </span>
       </label>
       <select
-        name="organization_id"
+        name="team_id"
         required
-        value={selectedOrgId}
+        value={selectedTeamId}
         onChange={(e) => {
-          setSelectedOrgId(e.target.value);
-          localStorage.setItem(LAST_ORG_KEY, e.target.value);
+          setSelectedTeamId(e.target.value);
+          localStorage.setItem(LAST_TEAM_KEY, e.target.value);
         }}
         className={selectClass}
       >
-        {orgs.map((org) => (
+        {teams.map((org) => (
           <option key={org.id} value={org.id}>
             {org.name}
           </option>
@@ -107,6 +107,6 @@ export function OrgSelector({
 /**
  * Call after successful form submission to remember the last-used org.
  */
-export function updateLastOrg(orgId: string): void {
-  localStorage.setItem(LAST_ORG_KEY, orgId);
+export function updateLastOrg(teamId: string): void {
+  localStorage.setItem(LAST_TEAM_KEY, teamId);
 }

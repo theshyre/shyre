@@ -187,7 +187,7 @@ export default async function DocPage({
 
 /**
  * Rewrite relative markdown links (./customers.md,
- * ../agency/orgs-and-roles.md) so they work inside /docs.
+ * ../agency/teams-and-roles.md) so they work inside /docs.
  *
  * Limitations: without knowing the current doc's path in scope, relative
  * links work only when the link is already within the same subtree the

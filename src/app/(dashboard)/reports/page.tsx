@@ -1,9 +1,9 @@
 import { createClient } from "@/lib/supabase/server";
-import { getUserOrgs } from "@/lib/org-context";
+import { getUserTeams } from "@/lib/team-context";
 import { getTranslations } from "next-intl/server";
 import { BarChart3 } from "lucide-react";
 import { formatCurrency } from "@/lib/invoice-utils";
-import { OrgFilter } from "@/components/OrgFilter";
+import { TeamFilter } from "@/components/TeamFilter";
 
 interface ClientSummary {
   name: string;
@@ -29,8 +29,8 @@ export default async function ReportsPage({
   searchParams: Promise<{ org?: string }>;
 }): Promise<React.JSX.Element> {
   const supabase = await createClient();
-  const orgs = await getUserOrgs();
-  const { org: selectedOrgId } = await searchParams;
+  const teams = await getUserTeams();
+  const { org: selectedTeamId } = await searchParams;
   const t = await getTranslations("reports");
 
   // Fetch all time entries with project and client info
@@ -39,16 +39,16 @@ export default async function ReportsPage({
     .select("duration_min, billable, projects(name, hourly_rate, customers(name, default_rate))")
     .not("end_time", "is", null)
     .not("duration_min", "is", null);
-  if (selectedOrgId) entriesQuery = entriesQuery.eq("organization_id", selectedOrgId);
+  if (selectedTeamId) entriesQuery = entriesQuery.eq("team_id", selectedTeamId);
   const { data: entries } = await entriesQuery;
 
   // Get org's default rate (use selected org's settings if filtered, otherwise 0)
   let defaultRate = 0;
-  if (selectedOrgId) {
+  if (selectedTeamId) {
     const { data: settings } = await supabase
-      .from("organization_settings")
+      .from("team_settings")
       .select("default_rate")
-      .eq("organization_id", selectedOrgId)
+      .eq("team_id", selectedTeamId)
       .single();
     defaultRate = settings?.default_rate ? Number(settings.default_rate) : 0;
   }
@@ -132,7 +132,7 @@ export default async function ReportsPage({
       <div className="flex items-center gap-3">
         <BarChart3 size={24} className="text-accent" />
         <h1 className="text-2xl font-bold text-content">{t("title")}</h1>
-        <OrgFilter orgs={orgs} selectedOrgId={selectedOrgId ?? null} />
+        <TeamFilter teams={teams} selectedTeamId={selectedTeamId ?? null} />
       </div>
 
       {/* Summary cards */}

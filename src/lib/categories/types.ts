@@ -4,7 +4,7 @@
 
 export interface CategorySet {
   id: string;
-  organization_id: string | null;
+  team_id: string | null;
   name: string;
   description: string | null;
   is_system: boolean;

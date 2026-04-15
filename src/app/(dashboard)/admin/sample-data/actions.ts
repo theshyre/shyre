@@ -2,35 +2,35 @@
 
 import { runSafeAction } from "@/lib/safe-action";
 import { assertSupabaseOk } from "@/lib/errors";
-import { validateOrgAccess } from "@/lib/org-context";
+import { validateTeamAccess } from "@/lib/team-context";
 import { isSystemAdmin } from "@/lib/system-admin";
 import { revalidatePath } from "next/cache";
 import { generateSampleData } from "@/lib/sample-data/generate";
 
-async function requireAdminOfOrg(
+async function requireAdminOfTeam(
   supabase: import("@supabase/supabase-js").SupabaseClient,
-  orgId: string,
-): Promise<{ userId: string; orgName: string }> {
+  teamId: string,
+): Promise<{ userId: string; teamName: string }> {
   if (!(await isSystemAdmin())) {
     throw new Error("System admin access required.");
   }
-  const { userId, role } = await validateOrgAccess(orgId);
+  const { userId, role } = await validateTeamAccess(teamId);
   if (role !== "owner" && role !== "admin") {
     throw new Error("Only owners or admins of the target org can run this tool.");
   }
-  const { data: orgRow } = await supabase
-    .from("organizations")
+  const { data: teamRow } = await supabase
+    .from("teams")
     .select("name")
-    .eq("id", orgId)
+    .eq("id", teamId)
     .single();
-  if (!orgRow) throw new Error("Organization not found.");
-  return { userId, orgName: orgRow.name as string };
+  if (!teamRow) throw new Error("Team not found.");
+  return { userId, teamName: teamRow.name as string };
 }
 
-function asOrgId(formData: FormData): string {
-  const v = formData.get("organization_id");
+function asTeamId(formData: FormData): string {
+  const v = formData.get("team_id");
   if (typeof v !== "string" || v.length === 0) {
-    throw new Error("organization_id is required.");
+    throw new Error("team_id is required.");
   }
   return v;
 }
@@ -40,34 +40,34 @@ function asOrgId(formData: FormData): string {
  */
 async function deleteSampleRowsInOrg(
   supabase: import("@supabase/supabase-js").SupabaseClient,
-  orgId: string,
+  teamId: string,
 ): Promise<void> {
   assertSupabaseOk(
     await supabase
       .from("expenses")
       .delete()
-      .eq("organization_id", orgId)
+      .eq("team_id", teamId)
       .eq("is_sample", true),
   );
   assertSupabaseOk(
     await supabase
       .from("time_entries")
       .delete()
-      .eq("organization_id", orgId)
+      .eq("team_id", teamId)
       .eq("is_sample", true),
   );
   assertSupabaseOk(
     await supabase
       .from("projects")
       .delete()
-      .eq("organization_id", orgId)
+      .eq("team_id", teamId)
       .eq("is_sample", true),
   );
   assertSupabaseOk(
     await supabase
       .from("customers")
       .delete()
-      .eq("organization_id", orgId)
+      .eq("team_id", teamId)
       .eq("is_sample", true),
   );
 }
@@ -84,18 +84,18 @@ export async function loadSampleDataAction(formData: FormData): Promise<
   return runSafeAction(
     formData,
     async (fd, { supabase, userId }) => {
-      const orgId = asOrgId(fd);
-      await requireAdminOfOrg(supabase, orgId);
+      const teamId = asTeamId(fd);
+      await requireAdminOfTeam(supabase, teamId);
 
       // Wipe existing sample rows so this is idempotent.
-      await deleteSampleRowsInOrg(supabase, orgId);
+      await deleteSampleRowsInOrg(supabase, teamId);
 
       const data = generateSampleData({ now: new Date() });
 
       // 1. Customers
       const customerInserts = data.customers.map((c) => ({
         user_id: userId,
-        organization_id: orgId,
+        team_id: teamId,
         name: c.name,
         email: c.email,
         default_rate: c.default_rate,
@@ -115,7 +115,7 @@ export async function loadSampleDataAction(formData: FormData): Promise<
       // 2. Projects
       const projectInserts = data.projects.map((p) => ({
         user_id: userId,
-        organization_id: orgId,
+        team_id: teamId,
         customer_id: p.customerIndex === null ? null : customerIds[p.customerIndex],
         name: p.name,
         description: p.description,
@@ -137,7 +137,7 @@ export async function loadSampleDataAction(formData: FormData): Promise<
       // 3. Time entries — chunked to stay under reasonable payload sizes.
       const entryInserts = data.entries.map((e) => ({
         user_id: userId,
-        organization_id: orgId,
+        team_id: teamId,
         project_id: projectIds[e.projectIndex]!,
         description: e.description,
         start_time: e.startIso,
@@ -156,7 +156,7 @@ export async function loadSampleDataAction(formData: FormData): Promise<
       // 4. Expenses
       const expenseInserts = data.expenses.map((e) => ({
         user_id: userId,
-        organization_id: orgId,
+        team_id: teamId,
         project_id: e.projectIndex === null ? null : projectIds[e.projectIndex]!,
         incurred_on: e.incurredOn,
         amount: e.amount,
@@ -178,7 +178,6 @@ export async function loadSampleDataAction(formData: FormData): Promise<
       revalidatePath("/customers");
       revalidatePath("/projects");
       revalidatePath("/business");
-      revalidatePath("/business/expenses");
     },
     "loadSampleDataAction",
   );
@@ -194,15 +193,14 @@ export async function removeSampleDataAction(formData: FormData): Promise<
   return runSafeAction(
     formData,
     async (fd, { supabase }) => {
-      const orgId = asOrgId(fd);
-      await requireAdminOfOrg(supabase, orgId);
-      await deleteSampleRowsInOrg(supabase, orgId);
+      const teamId = asTeamId(fd);
+      await requireAdminOfTeam(supabase, teamId);
+      await deleteSampleRowsInOrg(supabase, teamId);
       revalidatePath("/admin/sample-data");
       revalidatePath("/time-entries");
       revalidatePath("/customers");
       revalidatePath("/projects");
       revalidatePath("/business");
-      revalidatePath("/business/expenses");
     },
     "removeSampleDataAction",
   );
@@ -213,33 +211,33 @@ export async function removeSampleDataAction(formData: FormData): Promise<
  * regardless of is_sample. Requires the user to type the org name as
  * confirmation.
  */
-export async function clearAllOrgDataAction(formData: FormData): Promise<
+export async function clearAllTeamDataAction(formData: FormData): Promise<
   | { success: true }
   | { success: false; error: import("@/lib/errors").SerializedAppError }
 > {
   return runSafeAction(
     formData,
     async (fd, { supabase }) => {
-      const orgId = asOrgId(fd);
+      const teamId = asTeamId(fd);
       const confirmName = String(fd.get("confirm_name") ?? "");
-      const { orgName } = await requireAdminOfOrg(supabase, orgId);
-      if (confirmName !== orgName) {
+      const { teamName } = await requireAdminOfTeam(supabase, teamId);
+      if (confirmName !== teamName) {
         throw new Error(
-          `Typed confirmation did not match the organization name "${orgName}".`,
+          `Typed confirmation did not match the team name "${teamName}".`,
         );
       }
 
       assertSupabaseOk(
-        await supabase.from("expenses").delete().eq("organization_id", orgId),
+        await supabase.from("expenses").delete().eq("team_id", teamId),
       );
       assertSupabaseOk(
-        await supabase.from("time_entries").delete().eq("organization_id", orgId),
+        await supabase.from("time_entries").delete().eq("team_id", teamId),
       );
       assertSupabaseOk(
-        await supabase.from("projects").delete().eq("organization_id", orgId),
+        await supabase.from("projects").delete().eq("team_id", teamId),
       );
       assertSupabaseOk(
-        await supabase.from("customers").delete().eq("organization_id", orgId),
+        await supabase.from("customers").delete().eq("team_id", teamId),
       );
 
       revalidatePath("/admin/sample-data");
@@ -247,8 +245,7 @@ export async function clearAllOrgDataAction(formData: FormData): Promise<
       revalidatePath("/customers");
       revalidatePath("/projects");
       revalidatePath("/business");
-      revalidatePath("/business/expenses");
     },
-    "clearAllOrgDataAction",
+    "clearAllTeamDataAction",
   );
 }

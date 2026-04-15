@@ -1,15 +1,15 @@
 import { createClient } from "@/lib/supabase/server";
-import { getUserOrgs } from "@/lib/org-context";
+import { getUserTeams } from "@/lib/team-context";
 import { getTranslations } from "next-intl/server";
 import Link from "next/link";
 import { Users, Share2 } from "lucide-react";
-import { OrgFilter } from "@/components/OrgFilter";
+import { TeamFilter } from "@/components/TeamFilter";
 import { NewCustomerForm } from "./new-customer-form";
 import { ArchiveButton } from "./archive-button";
 
 interface CustomerRow {
   id: string;
-  organization_id: string;
+  team_id: string;
   name: string;
   email: string | null;
   default_rate: number | null;
@@ -21,25 +21,25 @@ export default async function ClientsPage({
   searchParams: Promise<{ org?: string }>;
 }): Promise<React.JSX.Element> {
   const supabase = await createClient();
-  const orgs = await getUserOrgs();
-  const { org: selectedOrgId } = await searchParams;
+  const teams = await getUserTeams();
+  const { org: selectedTeamId } = await searchParams;
   const t = await getTranslations("customers");
   const tc = await getTranslations("common");
 
   let customers: CustomerRow[] = [];
 
-  if (selectedOrgId) {
+  if (selectedTeamId) {
     // Include customers owned by this org PLUS customers shared into this org
     const [ownedRes, sharedRes] = await Promise.all([
       supabase
         .from("customers")
-        .select("id, organization_id, name, email, default_rate")
+        .select("id, team_id, name, email, default_rate")
         .eq("archived", false)
-        .eq("organization_id", selectedOrgId),
+        .eq("team_id", selectedTeamId),
       supabase
         .from("customer_shares")
-        .select("customer_id, customers(id, organization_id, name, email, default_rate, archived)")
-        .eq("organization_id", selectedOrgId),
+        .select("customer_id, customers(id, team_id, name, email, default_rate, archived)")
+        .eq("team_id", selectedTeamId),
     ]);
 
     const owned = (ownedRes.data ?? []) as unknown as CustomerRow[];
@@ -59,7 +59,7 @@ export default async function ClientsPage({
       if (!byId.has(c.id))
         byId.set(c.id, {
           id: c.id,
-          organization_id: c.organization_id,
+          team_id: c.team_id,
           name: c.name,
           email: c.email,
           default_rate: c.default_rate,
@@ -71,7 +71,7 @@ export default async function ClientsPage({
   } else {
     const { data } = await supabase
       .from("customers")
-      .select("id, organization_id, name, email, default_rate")
+      .select("id, team_id, name, email, default_rate")
       .eq("archived", false)
       .order("name");
     customers = (data ?? []) as unknown as CustomerRow[];
@@ -90,18 +90,18 @@ export default async function ClientsPage({
     }
   }
 
-  const orgName = (orgId: string) =>
-    orgs.find((o) => o.id === orgId)?.name ?? "\u2014";
+  const teamName = (teamId: string) =>
+    teams.find((o) => o.id === teamId)?.name ?? "\u2014";
 
   return (
     <div>
       <div className="flex items-center gap-3">
         <Users size={24} className="text-accent" />
         <h1 className="text-2xl font-bold text-content">{t("title")}</h1>
-        <OrgFilter orgs={orgs} selectedOrgId={selectedOrgId ?? null} />
+        <TeamFilter teams={teams} selectedTeamId={selectedTeamId ?? null} />
       </div>
 
-      <NewCustomerForm orgs={orgs} defaultOrgId={selectedOrgId} />
+      <NewCustomerForm teams={teams} defaultTeamId={selectedTeamId} />
 
       {customers && customers.length > 0 ? (
         <div className="mt-6 overflow-hidden rounded-lg border border-edge bg-surface-raised">
@@ -153,7 +153,7 @@ export default async function ClientsPage({
                       </div>
                     </td>
                     <td className="px-4 py-3 text-content-secondary text-xs">
-                      {orgName(client.organization_id)}
+                      {teamName(client.team_id)}
                     </td>
                     <td className="px-4 py-3 text-content-secondary">
                       {client.email || "—"}

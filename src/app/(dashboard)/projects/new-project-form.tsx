@@ -16,8 +16,8 @@ import {
   buttonPrimaryClass,
   buttonSecondaryClass,
 } from "@/lib/form-styles";
-import { OrgSelector } from "@/components/OrgSelector";
-import type { OrgListItem } from "@/lib/org-context";
+import { TeamSelector } from "@/components/TeamSelector";
+import type { TeamListItem } from "@/lib/team-context";
 import type { CategorySet } from "@/lib/categories/types";
 import { createProjectAction } from "./actions";
 
@@ -28,13 +28,13 @@ interface CustomerOption {
 
 export function NewProjectForm({
   customers,
-  orgs,
-  defaultOrgId,
+  teams,
+  defaultTeamId,
   categorySets,
 }: {
   customers: CustomerOption[];
-  orgs: OrgListItem[];
-  defaultOrgId?: string;
+  teams: TeamListItem[];
+  defaultTeamId?: string;
   categorySets: CategorySet[];
 }): React.JSX.Element {
   const [open, setOpen] = useState(false);
@@ -73,7 +73,7 @@ export function NewProjectForm({
       {serverError && (
         <p className="text-sm text-error bg-error-soft rounded-lg px-3 py-2">{serverError}</p>
       )}
-      <OrgSelector orgs={orgs} defaultOrgId={defaultOrgId} />
+      <TeamSelector teams={teams} defaultTeamId={defaultTeamId} />
       <div className="grid gap-3 sm:grid-cols-2">
         <div>
           <label className={labelClass}>{t("fields.name")} *</label>

@@ -2,7 +2,7 @@
 
 import { runSafeAction } from "@/lib/safe-action";
 import { assertSupabaseOk } from "@/lib/errors";
-import { validateOrgAccess } from "@/lib/org-context";
+import { validateTeamAccess } from "@/lib/team-context";
 import { revalidatePath } from "next/cache";
 import { serializeAddress } from "@/lib/schemas/address";
 
@@ -23,13 +23,13 @@ function extractAddress(formData: FormData, prefix: string): string | null {
   return serializeAddress(address);
 }
 
-export async function updateOrgSettingsAction(formData: FormData): Promise<void> {
+export async function updateTeamSettingsAction(formData: FormData): Promise<void> {
   return runSafeAction(formData, async (formData, { supabase }) => {
-    const orgId = formData.get("organization_id") as string;
-    const { role } = await validateOrgAccess(orgId);
+    const teamId = formData.get("team_id") as string;
+    const { role } = await validateTeamAccess(teamId);
 
     if (role !== "owner" && role !== "admin") {
-      throw new Error("Only owners and admins can update organization settings.");
+      throw new Error("Only owners and admins can update team settings.");
     }
 
     const business_name = (formData.get("business_name") as string) || null;
@@ -46,9 +46,9 @@ export async function updateOrgSettingsAction(formData: FormData): Promise<void>
 
     assertSupabaseOk(
       await supabase
-        .from("organization_settings")
+        .from("team_settings")
         .upsert({
-          organization_id: orgId,
+          team_id: teamId,
           business_name,
           business_email,
           business_address,
@@ -60,6 +60,6 @@ export async function updateOrgSettingsAction(formData: FormData): Promise<void>
         })
     );
 
-    revalidatePath(`/organizations/${orgId}`);
-  }, "updateOrgSettingsAction") as unknown as void;
+    revalidatePath(`/teams/${teamId}`);
+  }, "updateTeamSettingsAction") as unknown as void;
 }

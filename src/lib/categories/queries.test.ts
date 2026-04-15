@@ -2,7 +2,7 @@ import { describe, it, expect, vi, beforeEach } from "vitest";
 
 interface MockSet {
   id: string;
-  organization_id: string | null;
+  team_id: string | null;
   name: string;
   description: string | null;
   is_system: boolean;
@@ -45,11 +45,11 @@ function setsQuery() {
     then: (resolve: (v: { data: MockSet[] }) => void) => {
       let data = setRows;
       if (filterOr) {
-        // parse "is_system.eq.true,organization_id.eq.X"
-        const orgIdMatch = filterOr.match(/organization_id\.eq\.([^,]+)/);
-        const orgId = orgIdMatch?.[1];
+        // parse "is_system.eq.true,team_id.eq.X"
+        const teamIdMatch = filterOr.match(/team_id\.eq\.([^,]+)/);
+        const teamId = teamIdMatch?.[1];
         data = setRows.filter(
-          (s) => s.is_system === true || s.organization_id === orgId,
+          (s) => s.is_system === true || s.team_id === teamId,
         );
       }
       resolve({ data });
@@ -87,7 +87,7 @@ describe("getVisibleCategorySets", () => {
     setRows = [
       {
         id: "sys1",
-        organization_id: null,
+        team_id: null,
         name: "System Set",
         description: null,
         is_system: true,
@@ -96,7 +96,7 @@ describe("getVisibleCategorySets", () => {
       },
       {
         id: "org1",
-        organization_id: "o1",
+        team_id: "o1",
         name: "Org Set",
         description: null,
         is_system: false,
@@ -105,7 +105,7 @@ describe("getVisibleCategorySets", () => {
       },
       {
         id: "org2",
-        organization_id: "o2",
+        team_id: "o2",
         name: "Other Org Set",
         description: null,
         is_system: false,
@@ -143,7 +143,7 @@ describe("getVisibleCategorySets", () => {
     expect(sys.categories[0]?.name).toBe("Feature");
   });
 
-  it("filters to system + one org when orgId provided", async () => {
+  it("filters to system + one org when teamId provided", async () => {
     const result = await getVisibleCategorySets("o1");
     const ids = result.map((s) => s.id).sort();
     expect(ids).toEqual(["org1", "sys1"]);
@@ -151,8 +151,8 @@ describe("getVisibleCategorySets", () => {
 
   it("returns sets with empty category arrays when a set has no categories", async () => {
     const result = await getVisibleCategorySets("o2");
-    const orgSet = result.find((s) => s.id === "org2");
-    expect(orgSet?.categories).toEqual([]);
+    const teamSet = result.find((s) => s.id === "org2");
+    expect(teamSet?.categories).toEqual([]);
   });
 
   it("returns empty array when there are no sets", async () => {

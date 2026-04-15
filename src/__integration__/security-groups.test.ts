@@ -2,7 +2,7 @@ import { beforeAll, afterAll, describe, it, expect } from "vitest";
 import { makeRunPrefix } from "./helpers/prefix";
 import { cleanupPrefix } from "./helpers/cleanup";
 import { createTestUser } from "./helpers/users";
-import { createTestOrg, addOrgMember } from "./helpers/orgs";
+import { createTestTeam, addTeamMember } from "./helpers/teams";
 import { createAuthedClient } from "./helpers/authed-client";
 import { adminClient } from "./helpers/admin";
 
@@ -19,13 +19,13 @@ describe("security groups", () => {
 
   it("owner can create a group in their org", async () => {
     const owner = await createTestUser(prefix, "owner1");
-    const org = await createTestOrg(prefix, owner.id, "org1");
+    const org = await createTestTeam(prefix, owner.id, "org1");
 
     const client = await createAuthedClient(owner.email, owner.password);
     const { data, error } = await client
       .from("security_groups")
       .insert({
-        organization_id: org.id,
+        team_id: org.id,
         name: `${prefix}group1`,
         created_by: owner.id,
       })
@@ -39,14 +39,14 @@ describe("security groups", () => {
   it("member cannot create a group", async () => {
     const owner = await createTestUser(prefix, "owner2");
     const member = await createTestUser(prefix, "member2");
-    const org = await createTestOrg(prefix, owner.id, "org2");
-    await addOrgMember(org.id, member.id, "member");
+    const org = await createTestTeam(prefix, owner.id, "org2");
+    await addTeamMember(org.id, member.id, "member");
 
     const client = await createAuthedClient(member.email, member.password);
     const { error } = await client
       .from("security_groups")
       .insert({
-        organization_id: org.id,
+        team_id: org.id,
         name: `${prefix}nope`,
         created_by: member.id,
       });
@@ -56,7 +56,7 @@ describe("security groups", () => {
 
   it("non-member cannot create a group in another org", async () => {
     const ownerA = await createTestUser(prefix, "ownerA");
-    const orgA = await createTestOrg(prefix, ownerA.id, "orgA");
+    const teamA = await createTestTeam(prefix, ownerA.id, "teamA");
 
     const outsider = await createTestUser(prefix, "outsider");
 
@@ -64,7 +64,7 @@ describe("security groups", () => {
     const { error } = await client
       .from("security_groups")
       .insert({
-        organization_id: orgA.id,
+        team_id: teamA.id,
         name: `${prefix}hack`,
         created_by: outsider.id,
       });
@@ -75,13 +75,13 @@ describe("security groups", () => {
   it("trigger rejects adding non-member user to a group", async () => {
     const owner = await createTestUser(prefix, "ownerT");
     const stranger = await createTestUser(prefix, "stranger");
-    const org = await createTestOrg(prefix, owner.id, "orgT");
+    const org = await createTestTeam(prefix, owner.id, "orgT");
 
     const admin = adminClient();
     const { data: group } = await admin
       .from("security_groups")
       .insert({
-        organization_id: org.id,
+        team_id: org.id,
         name: `${prefix}gT`,
         created_by: owner.id,
       })
@@ -96,20 +96,20 @@ describe("security groups", () => {
       });
 
     expect(error).not.toBeNull();
-    expect(error?.message).toMatch(/member of.*organization/i);
+    expect(error?.message).toMatch(/member of.*team/i);
   });
 
   it("owner can add and remove org members from a group", async () => {
     const owner = await createTestUser(prefix, "ownerAR");
     const member = await createTestUser(prefix, "memberAR");
-    const org = await createTestOrg(prefix, owner.id, "orgAR");
-    await addOrgMember(org.id, member.id, "member");
+    const org = await createTestTeam(prefix, owner.id, "orgAR");
+    await addTeamMember(org.id, member.id, "member");
 
     const ownerClient = await createAuthedClient(owner.email, owner.password);
     const { data: group } = await ownerClient
       .from("security_groups")
       .insert({
-        organization_id: org.id,
+        team_id: org.id,
         name: `${prefix}gAR`,
         created_by: owner.id,
       })
@@ -132,14 +132,14 @@ describe("security groups", () => {
   it("deleting a group cascades members", async () => {
     const owner = await createTestUser(prefix, "ownerC");
     const member = await createTestUser(prefix, "memberC");
-    const org = await createTestOrg(prefix, owner.id, "orgC");
-    await addOrgMember(org.id, member.id, "member");
+    const org = await createTestTeam(prefix, owner.id, "orgC");
+    await addTeamMember(org.id, member.id, "member");
 
     const admin = adminClient();
     const { data: group } = await admin
       .from("security_groups")
       .insert({
-        organization_id: org.id,
+        team_id: org.id,
         name: `${prefix}gC`,
         created_by: owner.id,
       })

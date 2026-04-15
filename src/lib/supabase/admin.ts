@@ -21,7 +21,7 @@ export function createAdminClient() {
     // when the thrown error is hidden behind Next's generic error page.
     console.error(
       `[createAdminClient] Missing required env var(s): ${missing}. ` +
-        "Admin-only pages (/admin/users, /admin/organizations) and the " +
+        "Admin-only pages (/admin/users, /admin/teams) and the " +
         "error logger will fail until this is set in the deployment " +
         "environment.",
     );

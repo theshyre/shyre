@@ -1,10 +1,23 @@
 {
   "title": "Negocio",
-  "subtitle": "Identidad legal, clientes, gastos y personas de esta organización.",
+  "subtitle": "Identidad legal, clientes, gastos y personas de este equipo.",
   "edit": "Editar",
-  "noOrg": "Elige una organización para ver la identidad del negocio.",
+  "listTitle": "Negocios",
+  "listSubtitle": "Cada equipo opera un negocio. Elige uno para ver su identidad, gastos y personas.",
+  "listEmpty": "Aún no tienes negocios. Crea un equipo para configurar el primero.",
+  "createBusiness": "Crear equipo",
+  "backToList": "Volver a todos los negocios",
+  "noTeam": "Elige un equipo para ver la identidad del negocio.",
   "sections": {
     "identity": "Identidad del negocio"
+  },
+  "subNav": {
+    "overview": "Resumen",
+    "identity": "Identidad",
+    "expenses": "Gastos",
+    "people": "Personas",
+    "soon": "Pronto",
+    "comingSoon": "Próximamente"
   },
   "fields": {
     "legalName": "Razón social",
@@ -17,7 +30,9 @@
   },
   "stats": {
     "customers": "Clientes",
-    "billableHours": "Hrs facturables · este mes"
+    "billableHours": "Hrs facturables · este mes",
+    "billableHoursShort": "Horas",
+    "expensesShort": "Gastos"
   },
   "tiles": {
     "expenses": {
@@ -32,12 +47,13 @@
   },
   "info": {
     "title": "Identidad del negocio",
+    "description": "Razón social, IDs fiscales, forma legal y año fiscal — los datos formales del negocio detrás de este equipo.",
     "back": "Volver a Negocio",
     "save": "Guardar identidad",
     "fields": {
       "legalName": "Razón social",
       "legalNamePlaceholder": "Como aparece en el registro",
-      "legalNameHelp": "Nombre formal registrado de la entidad. Déjalo vacío para usar el nombre de la organización.",
+      "legalNameHelp": "Nombre formal registrado de la entidad. Déjalo vacío para usar el nombre del equipo.",
       "entityType": "Tipo de entidad",
       "entityTypeAny": "— Selecciona —",
       "taxId": "ID Fiscal (EIN)",
@@ -46,7 +62,7 @@
       "registeredState": "Registrada en",
       "dateIncorporated": "Fecha de constitución",
       "fiscalYearStart": "Inicio del año fiscal (MM-DD)",
-      "fiscalYearStartHelp": "Usa 01-01 para año calendario, 07-01 para año fiscal julio–junio, etc."
+      "fiscalYearStartHelp": "Usa 01-01 para año calendario, 07-01 para año fiscal julio-junio, etc."
     }
   }
 }

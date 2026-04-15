@@ -2,7 +2,7 @@
 
 import { runSafeAction } from "@/lib/safe-action";
 import { assertSupabaseOk } from "@/lib/errors";
-import { validateOrgAccess } from "@/lib/org-context";
+import { validateTeamAccess } from "@/lib/team-context";
 import { localDateMidnightUtc } from "@/lib/time/tz";
 import { revalidatePath } from "next/cache";
 
@@ -34,8 +34,8 @@ function tzOffsetFromForm(formData: FormData): number {
 
 export async function createTimeEntryAction(formData: FormData): Promise<void> {
   return runSafeAction(formData, async (formData, { supabase }) => {
-    const orgId = formData.get("organization_id") as string;
-    const { userId } = await validateOrgAccess(orgId);
+    const teamId = formData.get("team_id") as string;
+    const { userId } = await validateTeamAccess(teamId);
 
     const project_id = formData.get("project_id") as string;
     const description = (formData.get("description") as string) || null;
@@ -64,7 +64,7 @@ export async function createTimeEntryAction(formData: FormData): Promise<void> {
 
     assertSupabaseOk(
       await supabase.from("time_entries").insert({
-        organization_id: orgId,
+        team_id: teamId,
         user_id: userId,
         project_id,
         description,
@@ -139,8 +139,8 @@ export async function deleteTimeEntryAction(formData: FormData): Promise<void> {
 
 export async function startTimerAction(formData: FormData): Promise<void> {
   return runSafeAction(formData, async (formData, { supabase }) => {
-    const orgId = formData.get("organization_id") as string;
-    const { userId } = await validateOrgAccess(orgId);
+    const teamId = formData.get("team_id") as string;
+    const { userId } = await validateTeamAccess(teamId);
 
     const project_id = formData.get("project_id") as string;
     const description = (formData.get("description") as string) || null;
@@ -148,7 +148,7 @@ export async function startTimerAction(formData: FormData): Promise<void> {
 
     assertSupabaseOk(
       await supabase.from("time_entries").insert({
-        organization_id: orgId,
+        team_id: teamId,
         user_id: userId,
         project_id,
         description,
@@ -191,7 +191,7 @@ export async function duplicateTimeEntryAction(formData: FormData): Promise<void
     const { data: source, error: fetchErr } = await supabase
       .from("time_entries")
       .select(
-        "organization_id, project_id, description, billable, github_issue, category_id",
+        "team_id, project_id, description, billable, github_issue, category_id",
       )
       .eq("id", sourceId)
       .eq("user_id", userId)
@@ -213,7 +213,7 @@ export async function duplicateTimeEntryAction(formData: FormData): Promise<void
     // Insert the duplicate as a running timer
     assertSupabaseOk(
       await supabase.from("time_entries").insert({
-        organization_id: source.organization_id,
+        team_id: source.team_id,
         user_id: userId,
         project_id: source.project_id,
         description: source.description,
@@ -245,11 +245,11 @@ export async function upsertTimesheetCellAction(
     const project_id = formData.get("project_id") as string;
     const category_id = (formData.get("category_id") as string) || null;
     const entry_date = formData.get("entry_date") as string;
-    const orgId = formData.get("organization_id") as string;
+    const teamId = formData.get("team_id") as string;
     const durationMinStr = formData.get("duration_min") as string;
     const durationMin = parseInt(durationMinStr, 10);
     const tzOffsetMin = tzOffsetFromForm(formData);
-    await validateOrgAccess(orgId);
+    await validateTeamAccess(teamId);
 
     const dayStart = localDateMidnightUtc(entry_date, tzOffsetMin);
     const dayEnd = new Date(dayStart.getTime() + 24 * 60 * 60 * 1000);
@@ -290,7 +290,7 @@ export async function upsertTimesheetCellAction(
       // Insert new
       assertSupabaseOk(
         await supabase.from("time_entries").insert({
-          organization_id: orgId,
+          team_id: teamId,
           user_id: userId,
           project_id,
           category_id,

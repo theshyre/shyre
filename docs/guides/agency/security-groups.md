@@ -1,6 +1,6 @@
 # Security groups
 
-Named groups of users within an organization, used to manage customer access at scale. Think "the Acme squad" instead of granting permissions to five users one at a time.
+Named groups of users within an team, used to manage customer access at scale. Think "the Acme squad" instead of granting permissions to five users one at a time.
 
 ## When to use groups
 
@@ -40,5 +40,5 @@ Adding a user to the group → they get access to every customer the group has p
 
 ## Related
 
-- [Orgs and roles](orgs-and-roles.md)
+- [Orgs and roles](teams-and-roles.md)
 - [Customer sharing](customer-sharing.md)

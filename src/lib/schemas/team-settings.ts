@@ -1,7 +1,7 @@
 import { z } from "zod";
 import { addressSchema } from "./address";
 
-export const orgSettingsSchema = z.object({
+export const teamSettingsSchema = z.object({
   business_name: z.string().max(200).optional().or(z.literal("")),
   business_email: z.string().email("Invalid email").optional().or(z.literal("")),
   business_address: addressSchema.optional(),
@@ -20,7 +20,7 @@ export const orgSettingsSchema = z.object({
     .max(100, "Tax rate cannot exceed 100%")
     .optional()
     .default(0),
-  organization_id: z.string().uuid("Invalid organization"),
+  team_id: z.string().uuid("Invalid team"),
 });
 
-export type OrgSettingsInput = z.infer<typeof orgSettingsSchema>;
+export type TeamSettingsInput = z.infer<typeof teamSettingsSchema>;

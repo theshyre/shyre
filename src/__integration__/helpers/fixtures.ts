@@ -1,12 +1,12 @@
 import { createTestUser, TestUser } from "./users";
-import { createTestOrg, addOrgMember, TestOrg } from "./orgs";
+import { createTestTeam, addTeamMember, TestTeam } from "./teams";
 import { createTestCustomer, createTestProject, TestClient } from "./customers";
 
-export interface TwoOrgSharingScenario {
+export interface TwoTeamSharingScenario {
   prefix: string;
-  primaryOrg: TestOrg;
-  participatingOrg: TestOrg;
-  outsiderOrg: TestOrg;
+  primaryTeam: TestTeam;
+  participatingTeam: TestTeam;
+  outsiderTeam: TestTeam;
   alice: TestUser;
   bob: TestUser;
   carol: TestUser;
@@ -17,47 +17,47 @@ export interface TwoOrgSharingScenario {
 }
 
 /**
- * Reusable scenario with 3 orgs, 5 users, and 1 shared client.
+ * Reusable scenario with 3 teams, 5 users, and 1 shared client.
  *
- * - Alice: owner of primaryOrg
- * - Bob: owner of participatingOrg
- * - Carol: member of primaryOrg
- * - Dave: member of participatingOrg
- * - Eve: owner of outsiderOrg (no relationship)
- * - client: owned by primaryOrg
+ * - Alice: owner of primaryTeam
+ * - Bob: owner of participatingTeam
+ * - Carol: member of primaryTeam
+ * - Dave: member of participatingTeam
+ * - Eve: owner of outsiderTeam (no relationship)
+ * - client: owned by primaryTeam
  * - project: under client
  *
  * Sharing is NOT set up — the test does that to exercise the sharing flow.
  */
-export async function twoOrgSharingScenario(
+export async function twoTeamSharingScenario(
   prefix: string,
-): Promise<TwoOrgSharingScenario> {
+): Promise<TwoTeamSharingScenario> {
   const alice = await createTestUser(prefix, "alice");
   const bob = await createTestUser(prefix, "bob");
   const carol = await createTestUser(prefix, "carol");
   const dave = await createTestUser(prefix, "dave");
   const eve = await createTestUser(prefix, "eve");
 
-  const primaryOrg = await createTestOrg(prefix, alice.id, "primary");
-  const participatingOrg = await createTestOrg(prefix, bob.id, "participating");
-  const outsiderOrg = await createTestOrg(prefix, eve.id, "outsider");
+  const primaryTeam = await createTestTeam(prefix, alice.id, "primary");
+  const participatingTeam = await createTestTeam(prefix, bob.id, "participating");
+  const outsiderTeam = await createTestTeam(prefix, eve.id, "outsider");
 
-  await addOrgMember(primaryOrg.id, carol.id, "member");
-  await addOrgMember(participatingOrg.id, dave.id, "member");
+  await addTeamMember(primaryTeam.id, carol.id, "member");
+  await addTeamMember(participatingTeam.id, dave.id, "member");
 
-  const client = await createTestCustomer(prefix, primaryOrg.id, alice.id);
+  const client = await createTestCustomer(prefix, primaryTeam.id, alice.id);
   const project = await createTestProject(
     prefix,
-    primaryOrg.id,
+    primaryTeam.id,
     client.id,
     alice.id,
   );
 
   return {
     prefix,
-    primaryOrg,
-    participatingOrg,
-    outsiderOrg,
+    primaryTeam,
+    participatingTeam,
+    outsiderTeam,
     alice,
     bob,
     carol,

@@ -6,7 +6,7 @@ import type { TimeTemplate } from "./types";
  * Ordered by last_used_at DESC, then sort_order, then name.
  */
 export async function getMyTemplates(
-  orgId?: string,
+  teamId?: string,
 ): Promise<TimeTemplate[]> {
   const supabase = await createClient();
   let q = supabase
@@ -15,7 +15,7 @@ export async function getMyTemplates(
     .order("last_used_at", { ascending: false, nullsFirst: false })
     .order("sort_order", { ascending: true })
     .order("name", { ascending: true });
-  if (orgId) q = q.eq("organization_id", orgId);
+  if (teamId) q = q.eq("team_id", teamId);
   const { data } = await q;
   return (data ?? []) as TimeTemplate[];
 }

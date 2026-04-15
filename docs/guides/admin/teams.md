@@ -1,6 +1,6 @@
-# All organizations
+# All teams
 
-`/admin/organizations`. Cross-org view of every organization on the platform. System admins only.
+`/admin/teams`. Cross-org view of every team on the platform. System admins only.
 
 ## What's shown
 
@@ -27,13 +27,13 @@ Queries are scoped to the current page's orgs — 5 queries over 50 orgs at most
 
 ## Integration-test leaks
 
-Test fixtures create orgs with names like `itest-{run-id}-{label}'s Organization`. If you see a stack of those:
+Test fixtures create orgs with names like `itest-{run-id}-{label}'s Team`. If you see a stack of those:
 
 1. Check the cleanup helper works — `cleanupAllTestData()` in `src/__integration__/helpers/cleanup.ts`. It filters by `name LIKE 'itest-%'`.
 2. Manual nuke:
 
    ```sql
-   DELETE FROM public.organizations WHERE name LIKE 'itest-%';
+   DELETE FROM public.teams WHERE name LIKE 'itest-%';
    ```
 
    Cascades to members, settings, projects, customers, time entries. Does **not** delete auth.users (they're not FK'd from orgs); use the Supabase admin API to delete test users.

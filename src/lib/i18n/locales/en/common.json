@@ -8,7 +8,7 @@
     "projects": "Projects",
     "invoices": "Invoices",
     "reports": "Reports",
-    "organizations": "Organizations",
+    "teams": "Teams",
     "securityGroups": "Security Groups",
     "categories": "Categories",
     "templates": "Templates",
@@ -17,7 +17,7 @@
     "business": "Business",
     "adminErrors": "Error Log",
     "adminUsers": "Users",
-    "adminOrgs": "All Organizations",
+    "adminOrgs": "All Teams",
     "adminSampleData": "Sample Data",
     "docs": "Documentation"
   },
@@ -63,15 +63,15 @@
   "confirm": {
     "archive": "Archive this {item}?"
   },
-  "org": {
-    "create": "Create Organization",
-    "leave": "Leave Organization",
-    "delete": "Delete Organization",
+  "team": {
+    "create": "Create Team",
+    "leave": "Leave Team",
+    "delete": "Delete Team",
     "personal": "Personal",
-    "namePlaceholder": "Organization name",
+    "namePlaceholder": "Team name",
     "leaveConfirm": "Are you sure you want to leave {name}?",
     "deleteConfirm": "Type \"{name}\" to confirm deletion",
-    "cannotDeletePersonal": "Your personal organization cannot be deleted.",
+    "cannotDeletePersonal": "Your personal team cannot be deleted.",
     "cannotLeaveOwner": "Transfer ownership before leaving.",
     "dangerZone": "Danger Zone"
   }

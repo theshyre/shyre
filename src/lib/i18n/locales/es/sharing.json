@@ -8,23 +8,23 @@
     "fields": {
       "name": "Nombre del Grupo",
       "description": "Descripción",
-      "organization": "Organización"
+      "team": "Equipo"
     },
     "addMember": "Agregar Miembro",
     "removeMember": "Eliminar",
-    "noMembers": "Aún no hay miembros. Agrega usuarios de esta organización.",
+    "noMembers": "Aún no hay miembros. Agrega usuarios de esta equipo.",
     "confirmDelete": "¿Eliminar este grupo? Se revocarán los permisos otorgados a través de este grupo."
   },
   "clientSharing": {
     "title": "Compartir",
-    "primaryOrg": "Organización Principal",
+    "primaryOrg": "Equipo Principal",
     "changePrimary": "Cambiar Org Principal",
-    "participatingOrgs": "Organizaciones Participantes",
-    "addOrg": "Agregar Organización",
-    "noParticipants": "Solo la organización principal tiene acceso. Agrega orgs participantes para compartir este cliente.",
-    "canSeeOtherEntries": "Puede ver registros de tiempo de otras organizaciones",
+    "participatingOrgs": "Equipos Participantes",
+    "addOrg": "Agregar Equipo",
+    "noParticipants": "Solo la equipo principal tiene acceso. Agrega teams participantes para compartir este cliente.",
+    "canSeeOtherEntries": "Puede ver registros de tiempo de otras equipos",
     "removeOrg": "Eliminar",
-    "confirmRemove": "¿Eliminar el acceso de esta organización? Sus registros históricos permanecerán pero perderán acceso.",
+    "confirmRemove": "¿Eliminar el acceso de esta equipo? Sus registros históricos permanecerán pero perderán acceso.",
     "permissions": "Permisos",
     "grantPermission": "Otorgar Permiso",
     "noPermissions": "No hay permisos explícitos otorgados. Los miembros tienen acceso según su org.",
@@ -44,14 +44,14 @@
     "confirmRevoke": "¿Revocar este permiso?"
   },
   "orgRelationships": {
-    "title": "Relaciones de Organización",
-    "parentOrgs": "Organizaciones Padre",
-    "childOrgs": "Organizaciones Hijas",
+    "title": "Relaciones de Equipo",
+    "parentOrgs": "Equipos Padre",
+    "childOrgs": "Equipos Hijas",
     "propose": "Proponer Vínculo",
     "accept": "Aceptar",
     "pending": "Pendiente",
     "pendingChild": "Esperando aceptación de la otra org",
-    "pendingParent": "Invitación para unirse como organización hija",
+    "pendingParent": "Invitación para unirse como equipo hija",
     "noRelationships": "Aún no hay relaciones.",
     "sharingLevel": "Nivel de Acceso",
     "levels": {
@@ -60,8 +60,8 @@
     }
   },
   "changePrimary": {
-    "title": "Cambiar Organización Principal",
-    "warning": "Esto transfiere la propiedad del cliente a la organización destino. Debes ser propietario de la org actual y miembro de la destino.",
+    "title": "Cambiar Equipo Principal",
+    "warning": "Esto transfiere la propiedad del cliente a la equipo destino. Debes ser propietario de la org actual y miembro de la destino.",
     "consequence": "La org principal actual se convertirá automáticamente en participante para que sus registros sigan funcionando.",
     "confirmTransfer": "Transferir Propiedad"
   }

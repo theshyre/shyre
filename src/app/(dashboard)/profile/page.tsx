@@ -1,5 +1,5 @@
 import { createClient } from "@/lib/supabase/server";
-import { getUserContext } from "@/lib/org-context";
+import { getUserContext } from "@/lib/team-context";
 import { getTranslations } from "next-intl/server";
 import { User as UserIcon } from "lucide-react";
 import { ProfileForm } from "./profile-form";

@@ -1,5 +1,5 @@
 import { createClient } from "@/lib/supabase/server";
-import { validateOrgAccess } from "@/lib/org-context";
+import { validateTeamAccess } from "@/lib/team-context";
 import {
   validateHarvestCredentials,
   fetchHarvestClients,
@@ -35,10 +35,10 @@ export async function POST(request: Request): Promise<NextResponse> {
 
   // Validate org access
   try {
-    await validateOrgAccess(organizationId);
+    await validateTeamAccess(organizationId);
   } catch {
     return NextResponse.json(
-      { error: "No access to this organization" },
+      { error: "No access to this team" },
       { status: 403 }
     );
   }
@@ -98,7 +98,7 @@ export async function POST(request: Request): Promise<NextResponse> {
         const { data: existing } = await supabase
           .from("customers")
           .select("id")
-          .eq("organization_id", organizationId)
+          .eq("team_id", organizationId)
           .eq("name", hc.name)
           .limit(1);
 
@@ -111,7 +111,7 @@ export async function POST(request: Request): Promise<NextResponse> {
         const { data: inserted, error } = await supabase
           .from("customers")
           .insert({
-            organization_id: organizationId,
+            team_id: organizationId,
             user_id: user.id,
             name: hc.name,
             address: hc.address,
@@ -140,7 +140,7 @@ export async function POST(request: Request): Promise<NextResponse> {
         const { data: existing } = await supabase
           .from("projects")
           .select("id")
-          .eq("organization_id", organizationId)
+          .eq("team_id", organizationId)
           .eq("name", hp.name)
           .limit(1);
 
@@ -153,7 +153,7 @@ export async function POST(request: Request): Promise<NextResponse> {
         const { data: inserted, error } = await supabase
           .from("projects")
           .insert({
-            organization_id: organizationId,
+            team_id: organizationId,
             user_id: user.id,
             customer_id: customerId,
             name: hp.name,
@@ -211,7 +211,7 @@ export async function POST(request: Request): Promise<NextResponse> {
           }
 
           rows.push({
-            organization_id: organizationId,
+            team_id: organizationId,
             user_id: user.id,
             project_id: projectId,
             description: hte.notes

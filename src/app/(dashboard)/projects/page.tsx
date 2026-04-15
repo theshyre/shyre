@@ -1,9 +1,9 @@
 import { createClient } from "@/lib/supabase/server";
-import { getUserOrgs } from "@/lib/org-context";
+import { getUserTeams } from "@/lib/team-context";
 import { getTranslations } from "next-intl/server";
 import Link from "next/link";
 import { FolderKanban } from "lucide-react";
-import { OrgFilter } from "@/components/OrgFilter";
+import { TeamFilter } from "@/components/TeamFilter";
 import { getVisibleCategorySets } from "@/lib/categories/queries";
 import { NewProjectForm } from "./new-project-form";
 
@@ -13,8 +13,8 @@ export default async function ProjectsPage({
   searchParams: Promise<{ org?: string }>;
 }): Promise<React.JSX.Element> {
   const supabase = await createClient();
-  const orgs = await getUserOrgs();
-  const { org: selectedOrgId } = await searchParams;
+  const teams = await getUserTeams();
+  const { org: selectedTeamId } = await searchParams;
   const t = await getTranslations("projects");
   const tc = await getTranslations("common");
 
@@ -23,7 +23,7 @@ export default async function ProjectsPage({
     .select("*, customers(name)")
     .neq("status", "archived")
     .order("created_at", { ascending: false });
-  if (selectedOrgId) projectsQuery = projectsQuery.eq("organization_id", selectedOrgId);
+  if (selectedTeamId) projectsQuery = projectsQuery.eq("team_id", selectedTeamId);
   const { data: projects } = await projectsQuery;
 
   let clientsQuery = supabase
@@ -31,14 +31,14 @@ export default async function ProjectsPage({
     .select("id, name")
     .eq("archived", false)
     .order("name");
-  if (selectedOrgId) clientsQuery = clientsQuery.eq("organization_id", selectedOrgId);
+  if (selectedTeamId) clientsQuery = clientsQuery.eq("team_id", selectedTeamId);
   const { data: customers } = await clientsQuery;
 
-  const categorySetsFull = await getVisibleCategorySets(selectedOrgId);
+  const categorySetsFull = await getVisibleCategorySets(selectedTeamId);
   const categorySets = categorySetsFull.map(
-    ({ id, organization_id, name, description, is_system, created_by, created_at }) => ({
+    ({ id, team_id, name, description, is_system, created_by, created_at }) => ({
       id,
-      organization_id,
+      team_id,
       name,
       description,
       is_system,
@@ -47,20 +47,20 @@ export default async function ProjectsPage({
     }),
   );
 
-  const orgName = (orgId: string) => orgs.find(o => o.id === orgId)?.name ?? "\u2014";
+  const teamName = (teamId: string) => teams.find(o => o.id === teamId)?.name ?? "\u2014";
 
   return (
     <div>
       <div className="flex items-center gap-3">
         <FolderKanban size={24} className="text-accent" />
         <h1 className="text-2xl font-bold text-content">{t("title")}</h1>
-        <OrgFilter orgs={orgs} selectedOrgId={selectedOrgId ?? null} />
+        <TeamFilter teams={teams} selectedTeamId={selectedTeamId ?? null} />
       </div>
 
       <NewProjectForm
         customers={customers ?? []}
-        orgs={orgs}
-        defaultOrgId={selectedOrgId}
+        teams={teams}
+        defaultTeamId={selectedTeamId}
         categorySets={categorySets}
       />
 
@@ -108,7 +108,7 @@ export default async function ProjectsPage({
                       </Link>
                     </td>
                     <td className="px-4 py-3 text-content-secondary text-xs">
-                      {orgName(project.organization_id)}
+                      {teamName(project.team_id)}
                     </td>
                     <td className="px-4 py-3 text-content-secondary">
                       {customerName}

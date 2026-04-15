@@ -8,23 +8,23 @@
     "fields": {
       "name": "Group Name",
       "description": "Description",
-      "organization": "Organization"
+      "team": "Team"
     },
     "addMember": "Add Member",
     "removeMember": "Remove",
-    "noMembers": "No members yet. Add users from this organization.",
+    "noMembers": "No members yet. Add users from this team.",
     "confirmDelete": "Delete this group? This will revoke any permissions granted via this group."
   },
   "clientSharing": {
     "title": "Sharing",
-    "primaryOrg": "Primary Organization",
+    "primaryOrg": "Primary Team",
     "changePrimary": "Change Primary Org",
-    "participatingOrgs": "Participating Organizations",
-    "addOrg": "Add Organization",
-    "noParticipants": "Only the primary organization has access. Add participating orgs to share this client.",
-    "canSeeOtherEntries": "Can see time entries from other organizations",
+    "participatingOrgs": "Participating Teams",
+    "addOrg": "Add Team",
+    "noParticipants": "Only the primary team has access. Add participating teams to share this client.",
+    "canSeeOtherEntries": "Can see time entries from other teams",
     "removeOrg": "Remove",
-    "confirmRemove": "Remove this organization's access? Their historical time entries will remain but they'll lose access to this client.",
+    "confirmRemove": "Remove this team's access? Their historical time entries will remain but they'll lose access to this client.",
     "permissions": "Permissions",
     "grantPermission": "Grant Permission",
     "noPermissions": "No explicit permissions granted. Members have baseline access based on their org.",
@@ -44,15 +44,15 @@
     "confirmRevoke": "Revoke this permission?"
   },
   "orgRelationships": {
-    "title": "Organization Relationships",
-    "parentOrgs": "Parent Organizations",
-    "childOrgs": "Child Organizations",
+    "title": "Team Relationships",
+    "parentOrgs": "Parent Teams",
+    "childOrgs": "Child Teams",
     "propose": "Propose Link",
     "accept": "Accept",
     "pending": "Pending",
     "pendingChild": "Waiting for the other org to accept",
-    "pendingParent": "Invitation to join as a child organization",
-    "noRelationships": "No organization relationships yet.",
+    "pendingParent": "Invitation to join as a child team",
+    "noRelationships": "No team relationships yet.",
     "sharingLevel": "Access Level",
     "levels": {
       "clients_read": "View clients (read-only)",
@@ -60,9 +60,9 @@
     }
   },
   "changePrimary": {
-    "title": "Change Primary Organization",
-    "warning": "This transfers ownership of the client to the target organization. You must be an owner of the current primary org and a member of the target.",
-    "consequence": "The current primary organization will automatically become a participating organization so their time entries continue to work.",
+    "title": "Change Primary Team",
+    "warning": "This transfers ownership of the client to the target team. You must be an owner of the current primary org and a member of the target.",
+    "consequence": "The current primary team will automatically become a participating team so their time entries continue to work.",
     "confirmTransfer": "Transfer Ownership"
   }
 }

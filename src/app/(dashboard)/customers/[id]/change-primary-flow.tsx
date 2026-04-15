@@ -11,22 +11,22 @@ import {
   selectClass,
   labelClass,
 } from "@/lib/form-styles";
-import { changePrimaryOrgAction } from "./change-primary-actions";
+import { changePrimaryTeamAction } from "./change-primary-actions";
 
-interface OrgOption {
+interface TeamOption {
   id: string;
   name: string;
 }
 
 export function ChangePrimaryFlow({
   customerId,
-  currentPrimaryOrgName,
-  availableOrgs,
+  currentPrimaryTeamName,
+  availableTeams,
   canChange,
 }: {
   customerId: string;
-  currentPrimaryOrgName: string;
-  availableOrgs: OrgOption[];
+  currentPrimaryTeamName: string;
+  availableTeams: TeamOption[];
   canChange: boolean;
 }): React.JSX.Element | null {
   const [confirming, setConfirming] = useState(false);
@@ -35,7 +35,7 @@ export function ChangePrimaryFlow({
   const tc = useTranslations("common");
 
   const { pending, serverError, handleSubmit } = useFormAction({
-    action: changePrimaryOrgAction,
+    action: changePrimaryTeamAction,
     onSuccess: () => {
       setConfirming(false);
       setSelected("");
@@ -78,7 +78,7 @@ export function ChangePrimaryFlow({
 
       <div>
         <label className={labelClass}>
-          {currentPrimaryOrgName} →
+          {currentPrimaryTeamName} →
         </label>
         <select
           name="new_org_id"
@@ -90,7 +90,7 @@ export function ChangePrimaryFlow({
           disabled={pending}
         >
           <option value="">—</option>
-          {availableOrgs.map((o) => (
+          {availableTeams.map((o) => (
             <option key={o.id} value={o.id}>
               {o.name}
             </option>

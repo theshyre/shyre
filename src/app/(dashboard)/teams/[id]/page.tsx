@@ -1,5 +1,5 @@
 import { createClient } from "@/lib/supabase/server";
-import { validateOrgAccess, getUserOrgs } from "@/lib/org-context";
+import { validateTeamAccess, getUserTeams } from "@/lib/team-context";
 import { getTranslations } from "next-intl/server";
 import { notFound } from "next/navigation";
 import Link from "next/link";
@@ -9,43 +9,43 @@ import {
   FolderKanban,
   ArrowRight,
 } from "lucide-react";
-import { OrgSettingsForm } from "./org-settings-form";
+import { TeamSettingsForm } from "./team-settings-form";
 import { TeamSection } from "../../../(dashboard)/settings/team-section";
 import { RelationshipsSection } from "./relationships-section";
 
-export default async function OrgDetailPage({
+export default async function TeamDetailPage({
   params,
 }: {
   params: Promise<{ id: string }>;
 }): Promise<React.JSX.Element> {
   const { id } = await params;
   const supabase = await createClient();
-  const { userId, role } = await validateOrgAccess(id);
+  const { userId, role } = await validateTeamAccess(id);
 
   const { data: org } = await supabase
-    .from("organizations")
+    .from("teams")
     .select("*")
     .eq("id", id)
     .single();
 
   if (!org) notFound();
 
-  const { data: orgSettings } = await supabase
-    .from("organization_settings")
+  const { data: teamSettings } = await supabase
+    .from("team_settings")
     .select("*")
-    .eq("organization_id", id)
+    .eq("team_id", id)
     .single();
 
   const { data: members } = await supabase
-    .from("organization_members")
+    .from("team_members")
     .select("id, user_id, role, joined_at, user_profiles(display_name)")
-    .eq("organization_id", id)
+    .eq("team_id", id)
     .order("joined_at");
 
   const { data: invites } = await supabase
-    .from("organization_invites")
+    .from("team_invites")
     .select("id, email, role, created_at, expires_at")
-    .eq("organization_id", id)
+    .eq("team_id", id)
     .is("accepted_at", null)
     .order("created_at", { ascending: false });
 
@@ -53,7 +53,7 @@ export default async function OrgDetailPage({
   const { data: customers } = await supabase
     .from("customers")
     .select("id, name, email, default_rate")
-    .eq("organization_id", id)
+    .eq("team_id", id)
     .eq("archived", false)
     .order("name");
 
@@ -61,42 +61,42 @@ export default async function OrgDetailPage({
   const { data: projects } = await supabase
     .from("projects")
     .select("id, name, status, hourly_rate, customer_id, customers(name)")
-    .eq("organization_id", id)
+    .eq("team_id", id)
     .neq("status", "archived")
     .order("created_at", { ascending: false });
 
   // Org parent/child shares
-  interface OrgShareRow {
+  interface TeamShareRow {
     id: string;
-    parent_org_id: string;
-    child_org_id: string;
+    parent_team_id: string;
+    child_team_id: string;
     sharing_level: string;
     accepted_at: string | null;
-    organizations: { name: string } | { name: string }[] | null;
+    teams: { name: string } | { name: string }[] | null;
   }
   const { data: parentSharesData } = await supabase
-    .from("organization_shares")
+    .from("team_shares")
     .select(
-      "id, parent_org_id, child_org_id, sharing_level, accepted_at, organizations:parent_org_id(name)",
+      "id, parent_team_id, child_team_id, sharing_level, accepted_at, teams:parent_team_id(name)",
     )
-    .eq("child_org_id", id);
+    .eq("child_team_id", id);
   const { data: childSharesData } = await supabase
-    .from("organization_shares")
+    .from("team_shares")
     .select(
-      "id, parent_org_id, child_org_id, sharing_level, accepted_at, organizations:child_org_id(name)",
+      "id, parent_team_id, child_team_id, sharing_level, accepted_at, teams:child_team_id(name)",
     )
-    .eq("parent_org_id", id);
+    .eq("parent_team_id", id);
 
-  const parentShares = (parentSharesData ?? []) as unknown as OrgShareRow[];
-  const childShares = (childSharesData ?? []) as unknown as OrgShareRow[];
+  const parentShares = (parentSharesData ?? []) as unknown as TeamShareRow[];
+  const childShares = (childSharesData ?? []) as unknown as TeamShareRow[];
 
-  const userOrgs = await getUserOrgs();
-  const linkedOrgIds = new Set<string>([
-    ...parentShares.map((s) => s.parent_org_id),
-    ...childShares.map((s) => s.child_org_id),
+  const userOrgs = await getUserTeams();
+  const linkedTeamIds = new Set<string>([
+    ...parentShares.map((s) => s.parent_team_id),
+    ...childShares.map((s) => s.child_team_id),
   ]);
   const availableOrgsForRelationship = userOrgs
-    .filter((o) => o.id !== id && !linkedOrgIds.has(o.id))
+    .filter((o) => o.id !== id && !linkedTeamIds.has(o.id))
     .map((o) => ({ id: o.id, name: o.name }));
 
   const tc = await getTranslations("common");
@@ -122,7 +122,7 @@ export default async function OrgDetailPage({
             </h2>
           </div>
           <Link
-            href={`/customers?org=${id}`}
+            href={`/customers?team=${id}`}
             className="flex items-center gap-1 text-xs text-accent hover:underline"
           >
             View all <ArrowRight size={12} />
@@ -160,7 +160,7 @@ export default async function OrgDetailPage({
             </h2>
           </div>
           <Link
-            href={`/projects?org=${id}`}
+            href={`/projects?team=${id}`}
             className="flex items-center gap-1 text-xs text-accent hover:underline"
           >
             View all <ArrowRight size={12} />
@@ -196,15 +196,15 @@ export default async function OrgDetailPage({
         )}
       </div>
 
-      <OrgSettingsForm
-        orgSettings={orgSettings}
-        orgId={id}
+      <TeamSettingsForm
+        teamSettings={teamSettings}
+        teamId={id}
         role={role}
       />
 
       <TeamSection
-        orgName={org.name}
-        orgId={id}
+        teamName={org.name}
+        teamId={id}
         isPersonalOrg={false}
         currentRole={role}
         currentUserId={userId}
@@ -213,11 +213,11 @@ export default async function OrgDetailPage({
       />
 
       <RelationshipsSection
-        orgId={id}
+        teamId={id}
         role={role}
-        parentOrgs={parentShares}
-        childOrgs={childShares}
-        availableOrgs={availableOrgsForRelationship}
+        parentTeams={parentShares}
+        childTeams={childShares}
+        availableTeams={availableOrgsForRelationship}
       />
     </div>
   );

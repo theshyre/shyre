@@ -13,14 +13,14 @@ import {
   buttonPrimaryClass,
   buttonSecondaryClass,
 } from "@/lib/form-styles";
-import { createOrgAction } from "./actions";
+import { createTeamAction } from "./actions";
 
-export function NewOrgForm(): React.JSX.Element {
+export function NewTeamForm(): React.JSX.Element {
   const [open, setOpen] = useState(false);
   const tc = useTranslations("common");
 
   const { pending, serverError, handleSubmit } = useFormAction({
-    action: createOrgAction,
+    action: createTeamAction,
     onSuccess: () => setOpen(false),
   });
 
@@ -37,7 +37,7 @@ export function NewOrgForm(): React.JSX.Element {
         className={`${buttonPrimaryClass} mt-4`}
       >
         <Plus size={16} />
-        {tc("org.create")}
+        {tc("team.create")}
         <kbd className={kbdClass}>N</kbd>
       </button>
     );
@@ -54,19 +54,19 @@ export function NewOrgForm(): React.JSX.Element {
         </p>
       )}
       <div>
-        <label className={labelClass}>{tc("org.namePlaceholder")} *</label>
+        <label className={labelClass}>{tc("team.namePlaceholder")} *</label>
         <input
-          name="org_name"
+          name="team_name"
           required
           autoFocus
-          placeholder={tc("org.namePlaceholder")}
+          placeholder={tc("team.namePlaceholder")}
           className={inputClass}
           disabled={pending}
         />
       </div>
       <div className="flex gap-2">
         <SubmitButton
-          label={tc("org.create")}
+          label={tc("team.create")}
           pending={pending}
           icon={Plus}
         />

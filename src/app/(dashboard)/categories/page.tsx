@@ -1,14 +1,14 @@
-import { getUserOrgs } from "@/lib/org-context";
+import { getUserTeams } from "@/lib/team-context";
 import { getVisibleCategorySets } from "@/lib/categories/queries";
 import { getTranslations } from "next-intl/server";
 import { Tags } from "lucide-react";
 import { CategoriesSection } from "./categories-section";
 
 export default async function CategoriesPage(): Promise<React.JSX.Element> {
-  const orgs = await getUserOrgs();
+  const teams = await getUserTeams();
   const t = await getTranslations("categories");
 
-  // Fetch visible sets across all user orgs + system sets
+  // Fetch visible sets across all user teams + system sets
   const sets = await getVisibleCategorySets();
 
   return (
@@ -19,7 +19,7 @@ export default async function CategoriesPage(): Promise<React.JSX.Element> {
       </div>
       <p className="mt-2 text-sm text-content-secondary">{t("description")}</p>
 
-      <CategoriesSection orgs={orgs} sets={sets} />
+      <CategoriesSection teams={teams} sets={sets} />
     </div>
   );
 }

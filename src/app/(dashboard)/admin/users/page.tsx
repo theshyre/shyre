@@ -26,11 +26,11 @@ export default async function AdminUsersPage(): Promise<React.JSX.Element> {
 
   // Get org memberships count per user
   const { data: memberships } = await admin
-    .from("organization_members")
+    .from("team_members")
     .select("user_id");
-  const orgCountByUser = new Map<string, number>();
+  const teamCountByUser = new Map<string, number>();
   for (const m of memberships ?? []) {
-    orgCountByUser.set(m.user_id, (orgCountByUser.get(m.user_id) ?? 0) + 1);
+    teamCountByUser.set(m.user_id, (teamCountByUser.get(m.user_id) ?? 0) + 1);
   }
 
   return (
@@ -71,7 +71,7 @@ export default async function AdminUsersPage(): Promise<React.JSX.Element> {
             {users.map((u) => {
               const displayName = profileMap.get(u.id) ?? u.email?.split("@")[0] ?? "";
               const isSystemAdmin = sysAdminIds.has(u.id);
-              const orgCount = orgCountByUser.get(u.id) ?? 0;
+              const teamCount = teamCountByUser.get(u.id) ?? 0;
 
               return (
                 <tr
@@ -104,7 +104,7 @@ export default async function AdminUsersPage(): Promise<React.JSX.Element> {
                     )}
                   </td>
                   <td className="px-4 py-3 text-right font-mono text-content-secondary">
-                    {orgCount}
+                    {teamCount}
                   </td>
                   <td className="px-4 py-3 text-content-muted text-xs">
                     {new Date(u.created_at).toLocaleDateString()}

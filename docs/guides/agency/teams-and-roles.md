@@ -1,10 +1,10 @@
-# Organizations and roles
+# Teams and roles
 
-In Shyre, every user belongs to at least one **organization** — their personal org, created automatically on signup. When you operate as an agency, you'll run most work in a second org with multiple members.
+In Shyre, every user belongs to at least one **team** — their personal org, created automatically on signup. When you operate as an agency, you'll run most work in a second org with multiple members.
 
-## Creating an organization
+## Creating an team
 
-1. Sidebar → **Organizations** → **Create organization**
+1. Sidebar → **Teams** → **Create team**
 2. Name it. A slug is generated; it's visible in admin views but users don't see it.
 3. You become its owner.
 

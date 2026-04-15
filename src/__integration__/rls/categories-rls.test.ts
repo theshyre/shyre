@@ -4,8 +4,8 @@ import { cleanupPrefix } from "../helpers/cleanup";
 import { createAuthedClient } from "../helpers/authed-client";
 import { adminClient } from "../helpers/admin";
 import {
-  twoOrgSharingScenario,
-  TwoOrgSharingScenario,
+  twoTeamSharingScenario,
+  TwoTeamSharingScenario,
 } from "../helpers/fixtures";
 
 /**
@@ -18,19 +18,19 @@ import {
  */
 describe("category_sets + categories RLS", () => {
   let prefix: string;
-  let scenario: TwoOrgSharingScenario;
+  let scenario: TwoTeamSharingScenario;
   let aliceSetId: string;
 
   beforeAll(async () => {
     prefix = makeRunPrefix();
-    scenario = await twoOrgSharingScenario(prefix);
+    scenario = await twoTeamSharingScenario(prefix);
 
     // Seed an org set owned by Alice's primary org
     const admin = adminClient();
     const { data: inserted, error } = await admin
       .from("category_sets")
       .insert({
-        organization_id: scenario.primaryOrg.id,
+        team_id: scenario.primaryTeam.id,
         name: `${prefix}alice-set`,
         description: "alice's categories",
         is_system: false,
@@ -110,7 +110,7 @@ describe("category_sets + categories RLS", () => {
     const { error } = await eve
       .from("category_sets")
       .insert({
-        organization_id: scenario.primaryOrg.id,
+        team_id: scenario.primaryTeam.id,
         name: `${prefix}eve-spoof`,
         is_system: false,
         created_by: scenario.eve.id,
@@ -195,7 +195,7 @@ describe("category_sets + categories RLS", () => {
     const { error } = await alice
       .from("time_entries")
       .insert({
-        organization_id: scenario.primaryOrg.id,
+        team_id: scenario.primaryTeam.id,
         user_id: scenario.alice.id,
         project_id: scenario.project.id,
         description: `${prefix}trigger-test`,
@@ -233,7 +233,7 @@ describe("category_sets + categories RLS", () => {
     const { data, error } = await alice
       .from("time_entries")
       .insert({
-        organization_id: scenario.primaryOrg.id,
+        team_id: scenario.primaryTeam.id,
         user_id: scenario.alice.id,
         project_id: scenario.project.id,
         description: `${prefix}trigger-match`,

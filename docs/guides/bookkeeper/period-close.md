@@ -24,7 +24,7 @@ Until a formal close control ships:
 
 - **Period close control** — lock time entries in a period so late edits require explicit re-open with an audit entry.
 - **Edit history** — who changed what, when, and the prior value. Especially for invoices.
-- **Fiscal year auto-rollover** based on `organization_settings.fiscal_year_start`.
+- **Fiscal year auto-rollover** based on `team_settings.fiscal_year_start`.
 
 ## Fiscal year
 

@@ -15,7 +15,7 @@ You can create multiple sets and assign different sets to different projects. Ex
 
 1. Sidebar → **Categories**
 2. Click **New set**
-3. Name it (e.g. "Engineering"), pick an organization, save
+3. Name it (e.g. "Engineering"), pick an team, save
 4. Inside the set, add categories: name, color, sort order
 
 ## Assigning a set to a project

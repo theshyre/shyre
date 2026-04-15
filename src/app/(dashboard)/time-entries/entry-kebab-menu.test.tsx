@@ -17,7 +17,7 @@ import type { TimeEntry } from "./types";
 
 const entry: TimeEntry = {
   id: "e1",
-  organization_id: "o1",
+  team_id: "o1",
   user_id: "u1",
   project_id: "p1",
   description: "test",

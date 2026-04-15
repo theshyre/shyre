@@ -12,7 +12,7 @@ export const customerSchema = z.object({
     .max(10000, "Rate seems too high")
     .optional()
     .nullable(),
-  organization_id: z.string().uuid("Invalid organization"),
+  team_id: z.string().uuid("Invalid team"),
 });
 
 export type CustomerInput = z.infer<typeof customerSchema>;

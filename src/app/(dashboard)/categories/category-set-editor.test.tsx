@@ -25,7 +25,7 @@ import type { CategorySetWithCategories } from "@/lib/categories/types";
 
 const set: CategorySetWithCategories = {
   id: "s1",
-  organization_id: "o1",
+  team_id: "o1",
   name: "My Set",
   description: "my desc",
   is_system: false,

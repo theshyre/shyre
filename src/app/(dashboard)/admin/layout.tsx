@@ -26,7 +26,7 @@ export default async function AdminLayout({
             </p>
             <p className="text-content-secondary mt-1">
               Pages that use the service-role Supabase client — /admin/users,
-              /admin/organizations — will fail until this is set in the
+              /admin/teams — will fail until this is set in the
               deployment environment. /admin/errors and /admin/sample-data will
               still work. The error logger falls back to a SECURITY DEFINER RPC
               (log_error_from_user) so new errors are still captured.

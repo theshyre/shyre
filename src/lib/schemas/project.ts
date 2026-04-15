@@ -20,7 +20,7 @@ export const projectSchema = z.object({
     .regex(/^[^/]+\/[^/]+$/, "Format: owner/repo")
     .optional()
     .or(z.literal("")),
-  organization_id: z.string().uuid("Invalid organization"),
+  team_id: z.string().uuid("Invalid team"),
 });
 
 export type ProjectInput = z.infer<typeof projectSchema>;

@@ -4,26 +4,26 @@ import { cleanupPrefix } from "../helpers/cleanup";
 import { createAuthedClient } from "../helpers/authed-client";
 import { adminClient } from "../helpers/admin";
 import {
-  twoOrgSharingScenario,
-  TwoOrgSharingScenario,
+  twoTeamSharingScenario,
+  TwoTeamSharingScenario,
 } from "../helpers/fixtures";
 import { createTestTimeEntry } from "../helpers/customers";
 
 describe("time_entries RLS (cross-org sharing)", () => {
   let prefix: string;
-  let scenario: TwoOrgSharingScenario;
+  let scenario: TwoTeamSharingScenario;
   let daveEntryId: string;
   let aliceEntryId: string;
 
   beforeAll(async () => {
     prefix = makeRunPrefix();
-    scenario = await twoOrgSharingScenario(prefix);
+    scenario = await twoTeamSharingScenario(prefix);
 
-    // Share the client with participatingOrg, initially without can_see_others_entries
+    // Share the client with participatingTeam, initially without can_see_others_entries
     const admin = adminClient();
     await admin.from("customer_shares").insert({
       customer_id: scenario.client.id,
-      organization_id: scenario.participatingOrg.id,
+      team_id: scenario.participatingTeam.id,
       can_see_others_entries: false,
       created_by: scenario.alice.id,
     });
@@ -31,7 +31,7 @@ describe("time_entries RLS (cross-org sharing)", () => {
     // Seed Alice's time entry (primary org user) directly via admin helper
     const aliceEntry = await createTestTimeEntry(
       prefix,
-      scenario.primaryOrg.id,
+      scenario.primaryTeam.id,
       scenario.project.id,
       scenario.alice.id,
       { description: "alice-entry" },
@@ -55,7 +55,7 @@ describe("time_entries RLS (cross-org sharing)", () => {
     const { data, error } = await dave
       .from("time_entries")
       .insert({
-        organization_id: scenario.participatingOrg.id,
+        team_id: scenario.participatingTeam.id,
         user_id: scenario.dave.id,
         project_id: scenario.project.id,
         description: `${prefix}dave-entry`,
@@ -104,7 +104,7 @@ describe("time_entries RLS (cross-org sharing)", () => {
       .from("customer_shares")
       .update({ can_see_others_entries: false })
       .eq("customer_id", scenario.client.id)
-      .eq("organization_id", scenario.participatingOrg.id);
+      .eq("team_id", scenario.participatingTeam.id);
 
     const dave = await createAuthedClient(
       scenario.dave.email,
@@ -124,7 +124,7 @@ describe("time_entries RLS (cross-org sharing)", () => {
       .from("customer_shares")
       .update({ can_see_others_entries: true })
       .eq("customer_id", scenario.client.id)
-      .eq("organization_id", scenario.participatingOrg.id);
+      .eq("team_id", scenario.participatingTeam.id);
 
     const dave = await createAuthedClient(
       scenario.dave.email,

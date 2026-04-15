@@ -4,18 +4,18 @@ import { cleanupPrefix } from "./helpers/cleanup";
 import { createAuthedClient } from "./helpers/authed-client";
 import { adminClient } from "./helpers/admin";
 import {
-  twoOrgSharingScenario,
-  TwoOrgSharingScenario,
+  twoTeamSharingScenario,
+  TwoTeamSharingScenario,
 } from "./helpers/fixtures";
 import { createTestSecurityGroup } from "./helpers/customers";
 
 describe("client permissions", () => {
   let prefix: string;
-  let scenario: TwoOrgSharingScenario;
+  let scenario: TwoTeamSharingScenario;
 
   beforeAll(async () => {
     prefix = makeRunPrefix();
-    scenario = await twoOrgSharingScenario(prefix);
+    scenario = await twoTeamSharingScenario(prefix);
   });
 
   afterAll(async () => {
@@ -81,15 +81,15 @@ describe("client permissions", () => {
     await clearClientPermissions();
 
     // Eve needs to see the client as participating for time-entry insert to pass RLS.
-    // Use a share with outsiderOrg so Eve (as outsiderOrg owner) has org access to a
-    // project on this client... but project.organization_id is primaryOrg.
+    // Use a share with outsiderTeam so Eve (as outsiderTeam owner) has org access to a
+    // project on this client... but project.team_id is primaryTeam.
     // For a cross-org time_entry we need Eve's insert context to reference a project that
-    // is visible to her and she has contributor on the client. Since time_entries.organization_id
-    // must equal project.organization_id (primaryOrg), Eve cannot have user_has_org_access
-    // to primaryOrg. So instead of granting contributor on the primaryOrg-owned project,
+    // is visible to her and she has contributor on the client. Since time_entries.team_id
+    // must equal project.team_id (primaryTeam), Eve cannot have user_has_org_access
+    // to primaryTeam. So instead of granting contributor on the primaryTeam-owned project,
     // we test contributor access by verifying Eve can now SELECT the client (she couldn't
-    // before even with viewer cleared) AND we seed a client_share for outsiderOrg and a
-    // project on outsiderOrg would be a different client. The cleanest confirmation that
+    // before even with viewer cleared) AND we seed a client_share for outsiderTeam and a
+    // project on outsiderTeam would be a different client. The cleanest confirmation that
     // contributor permission works is: Eve can now SELECT the client, which she couldn't
     // without any grant.
     const alice = await createAuthedClient(
@@ -182,10 +182,10 @@ describe("client permissions", () => {
   it("granting admin to a security group lets its members UPDATE the client", async () => {
     await clearClientPermissions();
 
-    // Create a group in participatingOrg (bob is owner), add Dave.
+    // Create a group in participatingTeam (bob is owner), add Dave.
     const group = await createTestSecurityGroup(
       prefix,
-      scenario.participatingOrg.id,
+      scenario.participatingTeam.id,
       scenario.bob.id,
       "daveGroup",
     );

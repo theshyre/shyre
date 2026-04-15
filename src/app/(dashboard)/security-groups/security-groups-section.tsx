@@ -23,7 +23,7 @@ import {
   buttonSecondaryClass,
   buttonGhostClass,
 } from "@/lib/form-styles";
-import type { OrgListItem } from "@/lib/org-context";
+import type { TeamListItem } from "@/lib/team-context";
 import {
   createGroupAction,
   deleteGroupAction,
@@ -33,7 +33,7 @@ import {
 
 interface Group {
   id: string;
-  organization_id: string;
+  team_id: string;
   name: string;
   description: string | null;
   created_at: string;
@@ -48,8 +48,8 @@ interface GroupMember {
     | null;
 }
 
-interface OrgMember {
-  organization_id: string;
+interface TeamMember {
+  team_id: string;
   user_id: string;
   user_profiles:
     | { display_name: string | null }[]
@@ -68,15 +68,15 @@ function getDisplayName(
 }
 
 export function SecurityGroupsSection({
-  orgs,
+  teams,
   groups,
   groupMembers,
-  orgMembers,
+  teamMembers,
 }: {
-  orgs: OrgListItem[];
+  teams: TeamListItem[];
   groups: Group[];
   groupMembers: GroupMember[];
-  orgMembers: OrgMember[];
+  teamMembers: TeamMember[];
 }): React.JSX.Element {
   const [creating, setCreating] = useState(false);
   const t = useTranslations("sharing.securityGroups");
@@ -93,7 +93,7 @@ export function SecurityGroupsSection({
     enabled: !creating,
   });
 
-  const orgNameById = new Map(orgs.map((o) => [o.id, o.name]));
+  const teamNameById = new Map(teams.map((o) => [o.id, o.name]));
 
   const membersByGroup = new Map<string, GroupMember[]>();
   for (const m of groupMembers) {
@@ -126,15 +126,15 @@ export function SecurityGroupsSection({
               />
             </div>
             <div>
-              <label className={labelClass}>{t("fields.organization")} *</label>
+              <label className={labelClass}>{t("fields.team")} *</label>
               <select
-                name="organization_id"
+                name="team_id"
                 required
                 className={selectClass}
-                disabled={pending || orgs.length === 1}
-                defaultValue={orgs[0]?.id ?? ""}
+                disabled={pending || teams.length === 1}
+                defaultValue={teams[0]?.id ?? ""}
               >
-                {orgs.map((o) => (
+                {teams.map((o) => (
                   <option key={o.id} value={o.id}>
                     {o.name}
                   </option>
@@ -184,15 +184,15 @@ export function SecurityGroupsSection({
         <div className="space-y-3">
           {groups.map((group) => {
             const members = membersByGroup.get(group.id) ?? [];
-            const orgName = orgNameById.get(group.organization_id) ?? "—";
+            const teamName = teamNameById.get(group.team_id) ?? "—";
             return (
               <GroupCard
                 key={group.id}
                 group={group}
-                orgName={orgName}
+                teamName={teamName}
                 members={members}
-                orgMembers={orgMembers.filter(
-                  (m) => m.organization_id === group.organization_id,
+                teamMembers={teamMembers.filter(
+                  (m) => m.team_id === group.team_id,
                 )}
               />
             );
@@ -205,14 +205,14 @@ export function SecurityGroupsSection({
 
 function GroupCard({
   group,
-  orgName,
+  teamName,
   members,
-  orgMembers,
+  teamMembers,
 }: {
   group: Group;
-  orgName: string;
+  teamName: string;
   members: GroupMember[];
-  orgMembers: OrgMember[];
+  teamMembers: TeamMember[];
 }): React.JSX.Element {
   const [addingMember, setAddingMember] = useState(false);
   const t = useTranslations("sharing.securityGroups");
@@ -234,7 +234,7 @@ function GroupCard({
   });
 
   const memberUserIds = new Set(members.map((m) => m.user_id));
-  const addableMembers = orgMembers.filter(
+  const addableMembers = teamMembers.filter(
     (om) => !memberUserIds.has(om.user_id),
   );
 
@@ -248,7 +248,7 @@ function GroupCard({
           <div>
             <p className="font-semibold text-content">{group.name}</p>
             <p className="text-xs text-content-muted">
-              {orgName} · {t("memberCount", { count: members.length })}
+              {teamName} · {t("memberCount", { count: members.length })}
             </p>
             {group.description && (
               <p className="text-sm text-content-secondary mt-1">
@@ -261,8 +261,8 @@ function GroupCard({
           <input type="hidden" name="group_id" value={group.id} />
           <input
             type="hidden"
-            name="organization_id"
-            value={group.organization_id}
+            name="team_id"
+            value={group.team_id}
           />
           <button
             type="submit"

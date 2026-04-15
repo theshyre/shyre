@@ -1,36 +1,36 @@
 {
   "title": "Datos de Ejemplo",
-  "subtitle": "Carga clientes, proyectos y entradas de tiempo ficticias en la organización seleccionada para probar la aplicación con densidad realista. Las filas de ejemplo están marcadas y se pueden eliminar en cualquier momento sin tocar los datos reales.",
-  "noOrg": "Elige una organización arriba para gestionar sus datos de ejemplo.",
+  "subtitle": "Carga clientes, proyectos y entradas de tiempo ficticias en la equipo seleccionada para probar la aplicación con densidad realista. Las filas de ejemplo están marcadas y se pueden eliminar en cualquier momento sin tocar los datos reales.",
+  "noOrg": "Elige una equipo arriba para gestionar sus datos de ejemplo.",
   "sampleLabel": "ejemplo",
   "expensesLabel": "Gastos",
   "operatingOn": "Operando sobre",
-  "onlyOrg": "Única organización que puedes gestionar con esta herramienta",
-  "switchOrg": "Cambiar organización",
-  "currentData": "Datos actuales en esta organización",
+  "onlyOrg": "Única equipo que puedes gestionar con esta herramienta",
+  "switchOrg": "Cambiar equipo",
+  "currentData": "Datos actuales en esta equipo",
   "entryRange": "Entradas de {first} a {last}",
   "load": {
     "title": "Cargar datos de ejemplo",
-    "description": "Inserta ~12 semanas de clientes, proyectos y entradas de tiempo en esta organización. Cada fila se marca como ejemplo para poder eliminarla después.",
+    "description": "Inserta ~12 semanas de clientes, proyectos y entradas de tiempo en esta equipo. Cada fila se marca como ejemplo para poder eliminarla después.",
     "button": "Cargar datos de ejemplo",
     "pending": "Cargando…"
   },
   "replay": {
     "title": "Reproducir datos de ejemplo",
-    "description": "Esta organización ya tiene datos de ejemplo. Ejecutar de nuevo elimina las filas de ejemplo existentes y reinserta un conjunto fresco — útil después de probar acciones destructivas.",
+    "description": "Esta equipo ya tiene datos de ejemplo. Ejecutar de nuevo elimina las filas de ejemplo existentes y reinserta un conjunto fresco — útil después de probar acciones destructivas.",
     "button": "Reproducir datos de ejemplo"
   },
   "remove": {
     "title": "Eliminar datos de ejemplo",
-    "description": "Elimina todas las filas marcadas como ejemplo en esta organización. Los clientes, proyectos y entradas reales permanecen intactos.",
+    "description": "Elimina todas las filas marcadas como ejemplo en esta equipo. Los clientes, proyectos y entradas reales permanecen intactos.",
     "button": "Eliminar datos de ejemplo",
     "pending": "Eliminando…",
-    "nothing": "No hay datos de ejemplo en esta organización."
+    "nothing": "No hay datos de ejemplo en esta equipo."
   },
   "clear": {
-    "title": "Eliminar TODOS los datos de esta organización",
-    "description": "Destructivo. Elimina todos los clientes, proyectos y entradas de tiempo en esta organización — tanto de ejemplo como reales. Las facturas y los ajustes de organización no se tocan.",
-    "open": "Eliminar todos los datos de la organización",
+    "title": "Eliminar TODOS los datos de esta equipo",
+    "description": "Destructivo. Elimina todos los clientes, proyectos y entradas de tiempo en esta equipo — tanto de ejemplo como reales. Las facturas y los ajustes de equipo no se tocan.",
+    "open": "Eliminar todos los datos de la equipo",
     "confirmLabel": "Escribe \"{name}\" para confirmar",
     "confirm": "Eliminar datos permanentemente",
     "cancel": "Cancelar",

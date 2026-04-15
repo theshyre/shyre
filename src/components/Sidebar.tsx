@@ -43,7 +43,7 @@ interface NavSection {
  * Nav sections (for all users):
  * - Track  : daily work (dashboard, time tracking)
  * - Manage : ongoing records (customers, projects, invoices, reports)
- * - Admin  : org-level admin (organizations, security groups, categories,
+ * - Admin  : org-level admin (teams, security groups, categories,
  *            templates, data import, business)
  *
  * Shell entries (dashboard, projects, reports, org-admin tooling) live in
@@ -79,7 +79,7 @@ const SHELL_SECTIONS: NavSection[] = [
   {
     titleKey: "navSections.admin",
     items: [
-      { labelKey: "organizations", href: "/organizations", icon: Building2 },
+      { labelKey: "teams", href: "/teams", icon: Building2 },
       // Business module injected here from the registry
       { labelKey: "securityGroups", href: "/security-groups", icon: Shield },
       { labelKey: "categories", href: "/categories", icon: Tags },
@@ -127,7 +127,7 @@ const sections: NavSection[] = buildSections();
 const systemAdminItems: NavItem[] = [
   { labelKey: "adminErrors", href: "/admin/errors", icon: AlertTriangle },
   { labelKey: "adminUsers", href: "/admin/users", icon: Users },
-  { labelKey: "adminOrgs", href: "/admin/organizations", icon: Building2 },
+  { labelKey: "adminOrgs", href: "/admin/teams", icon: Building2 },
   { labelKey: "adminSampleData", href: "/admin/sample-data", icon: Database },
 ];
 

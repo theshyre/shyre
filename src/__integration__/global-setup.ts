@@ -34,9 +34,9 @@ export async function setup(): Promise<void> {
   );
 
   const before = await countTestData();
-  if (before.orgs > 0 || before.users > 0) {
+  if (before.teams > 0 || before.users > 0) {
     console.log(
-      `[global-setup] Cleaning ${before.orgs} stale test orgs and ${before.users} stale test users...`,
+      `[global-setup] Cleaning ${before.teams} stale test teams and ${before.users} stale test users...`,
     );
     await cleanupAllTestData();
   }

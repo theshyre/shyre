@@ -1,5 +1,5 @@
 import { createClient } from "@/lib/supabase/server";
-import { getUserOrgs } from "@/lib/org-context";
+import { getUserTeams } from "@/lib/team-context";
 import { getMyTemplates } from "@/lib/templates/queries";
 import { getVisibleCategorySets } from "@/lib/categories/queries";
 import { getTranslations } from "next-intl/server";
@@ -8,14 +8,14 @@ import { TemplatesSection } from "./templates-section";
 
 export default async function TemplatesPage(): Promise<React.JSX.Element> {
   const supabase = await createClient();
-  const orgs = await getUserOrgs();
+  const teams = await getUserTeams();
   const t = await getTranslations("templates");
 
   const templates = await getMyTemplates();
 
   const { data: projects } = await supabase
     .from("projects")
-    .select("id, name, organization_id, category_set_id")
+    .select("id, name, team_id, category_set_id")
     .eq("status", "active")
     .order("name");
 
@@ -40,7 +40,7 @@ export default async function TemplatesPage(): Promise<React.JSX.Element> {
       <p className="mt-2 text-sm text-content-secondary">{t("description")}</p>
 
       <TemplatesSection
-        orgs={orgs}
+        teams={teams}
         templates={templates}
         projects={projects ?? []}
         categories={categories}

@@ -17,7 +17,7 @@ Client-side errors are not logged here. Add them explicitly from components that
 - `user_message_key` — i18n key used for the user-facing text
 - `details` — JSONB bag with context (pg error code, field names, hint, etc.)
 - `user_id` — who hit it (nullable)
-- `org_id` — org context if relevant
+- `team_id` — org context if relevant
 - `url` / `action` — where it happened
 - `stack_trace`
 - `severity` — `error` | `warning` | `info`

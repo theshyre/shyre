@@ -35,40 +35,40 @@ async function cleanupByPattern(pattern: string): Promise<void> {
 
   const admin = adminClient();
 
-  // Get all test orgs first — we'll cascade-delete most data via these.
+  // Get all test teams first — we'll cascade-delete most data via these.
   //
   // The handle_new_user trigger derives org NAME from the user's email
-  // ("itest-foo@stint-test.local" → "itest-foo's Organization") but auto-
+  // ("itest-foo@stint-test.local" → "itest-foo's Team") but auto-
   // generates the slug as "org-{uuid}". So name matches the test prefix;
   // slug does NOT. Filter by name to actually catch them.
   const { data: testOrgs } = await admin
-    .from("organizations")
+    .from("teams")
     .select("id")
     .like("name", pattern);
 
-  const orgIds = (testOrgs ?? []).map((o) => o.id);
+  const teamIds = (testOrgs ?? []).map((o) => o.id);
 
   // Delete child rows first (though FKs will cascade, we want explicit cleanup
-  // for anything not tied to an org — e.g. records using test user_ids in other orgs)
+  // for anything not tied to an org — e.g. records using test user_ids in other teams)
 
-  if (orgIds.length > 0) {
+  if (teamIds.length > 0) {
     // Cascade deletes will handle most of this, but do it explicitly for clarity.
-    await admin.from("time_entries").delete().in("organization_id", orgIds);
-    await admin.from("invoices").delete().in("organization_id", orgIds);
-    await admin.from("projects").delete().in("organization_id", orgIds);
-    await admin.from("category_sets").delete().in("organization_id", orgIds);
-    await admin.from("customer_shares").delete().in("organization_id", orgIds);
-    await admin.from("customers").delete().in("organization_id", orgIds);
+    await admin.from("time_entries").delete().in("team_id", teamIds);
+    await admin.from("invoices").delete().in("team_id", teamIds);
+    await admin.from("projects").delete().in("team_id", teamIds);
+    await admin.from("category_sets").delete().in("team_id", teamIds);
+    await admin.from("customer_shares").delete().in("team_id", teamIds);
+    await admin.from("customers").delete().in("team_id", teamIds);
     await admin.from("security_group_members").delete().in("group_id",
-      (await admin.from("security_groups").select("id").in("organization_id", orgIds)).data?.map(g => g.id) ?? []
+      (await admin.from("security_groups").select("id").in("team_id", teamIds)).data?.map(g => g.id) ?? []
     );
-    await admin.from("security_groups").delete().in("organization_id", orgIds);
-    await admin.from("organization_shares").delete().in("parent_org_id", orgIds);
-    await admin.from("organization_shares").delete().in("child_org_id", orgIds);
-    await admin.from("organization_invites").delete().in("organization_id", orgIds);
-    await admin.from("organization_members").delete().in("organization_id", orgIds);
-    await admin.from("organization_settings").delete().in("organization_id", orgIds);
-    await admin.from("organizations").delete().in("id", orgIds);
+    await admin.from("security_groups").delete().in("team_id", teamIds);
+    await admin.from("team_shares").delete().in("parent_team_id", teamIds);
+    await admin.from("team_shares").delete().in("child_team_id", teamIds);
+    await admin.from("team_invites").delete().in("team_id", teamIds);
+    await admin.from("team_members").delete().in("team_id", teamIds);
+    await admin.from("team_settings").delete().in("team_id", teamIds);
+    await admin.from("teams").delete().in("id", teamIds);
   }
 
   // Delete test auth users (they're prefixed by email)
@@ -100,13 +100,13 @@ async function cleanupByPattern(pattern: string): Promise<void> {
  * Count test data rows — for verification that cleanup worked.
  */
 export async function countTestData(): Promise<{
-  orgs: number;
+  teams: number;
   users: number;
 }> {
   const admin = adminClient();
   // Match by name — see note in cleanupByPattern on why slug doesn't catch these.
-  const { count: orgs } = await admin
-    .from("organizations")
+  const { count: teams } = await admin
+    .from("teams")
     .select("*", { count: "exact", head: true })
     .like("name", `${TEST_PREFIX_ROOT}%`);
 
@@ -115,5 +115,5 @@ export async function countTestData(): Promise<{
     u.email?.endsWith(TEST_EMAIL_DOMAIN) && u.email.includes(TEST_PREFIX_ROOT)
   ).length;
 
-  return { orgs: orgs ?? 0, users };
+  return { teams: teams ?? 0, users };
 }

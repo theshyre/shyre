@@ -30,9 +30,9 @@ export default async function InvoiceDetailPage({
     .order("id");
 
   const { data: settings } = await supabase
-    .from("organization_settings")
+    .from("team_settings")
     .select("business_name, business_email, business_address, business_phone")
-    .eq("organization_id", invoice.organization_id)
+    .eq("team_id", invoice.team_id)
     .single();
 
   const client =

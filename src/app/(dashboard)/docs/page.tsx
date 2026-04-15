@@ -12,7 +12,7 @@ import {
   Building2,
 } from "lucide-react";
 import Link from "next/link";
-import { getUserOrgs } from "@/lib/org-context";
+import { getUserTeams } from "@/lib/team-context";
 import { isSystemAdmin } from "@/lib/system-admin";
 
 interface ModuleCard {
@@ -100,14 +100,14 @@ function buildPersonalLinks(opts: {
   if (opts.isOwnerOrAdminOfAnyOrg) {
     links.push(
       {
-        title: "Organizations and roles",
-        href: "/docs/guides/agency/orgs-and-roles",
+        title: "Teams and roles",
+        href: "/docs/guides/agency/teams-and-roles",
         blurb: "Invite members, manage roles, transfer ownership.",
       },
       {
         title: "Customer sharing",
         href: "/docs/guides/agency/customer-sharing",
-        blurb: "Share a customer record across orgs without leaking the rest.",
+        blurb: "Share a customer record across teams without leaking the rest.",
       },
       {
         title: "Business identity",
@@ -170,12 +170,12 @@ const ROLE_BROWSE = [
 ];
 
 export default async function DocsIndexPage(): Promise<React.JSX.Element> {
-  const [orgs, sysadmin] = await Promise.all([getUserOrgs(), isSystemAdmin()]);
+  const [teams, sysadmin] = await Promise.all([getUserTeams(), isSystemAdmin()]);
 
-  const isOwnerOrAdminOfAnyOrg = orgs.some(
+  const isOwnerOrAdminOfAnyOrg = teams.some(
     (o) => o.role === "owner" || o.role === "admin",
   );
-  const isMemberOnly = orgs.length > 0 && !isOwnerOrAdminOfAnyOrg;
+  const isMemberOnly = teams.length > 0 && !isOwnerOrAdminOfAnyOrg;
 
   const personalLinks = buildPersonalLinks({
     isOwnerOrAdminOfAnyOrg,
@@ -183,7 +183,7 @@ export default async function DocsIndexPage(): Promise<React.JSX.Element> {
     isSysadmin: sysadmin,
   });
 
-  const roleSummary = describeRoleMix(orgs, sysadmin);
+  const roleSummary = describeRoleMix(teams, sysadmin);
 
   return (
     <div className="space-y-10">
@@ -337,14 +337,14 @@ export default async function DocsIndexPage(): Promise<React.JSX.Element> {
  * links were chosen.
  */
 function describeRoleMix(
-  orgs: { role: "owner" | "admin" | "member" }[],
+  teams: { role: "owner" | "admin" | "member" }[],
   isSysadmin: boolean,
 ): string {
   const labels: string[] = [];
   if (isSysadmin) labels.push("System admin");
-  if (orgs.some((o) => o.role === "owner")) labels.push("Owner");
-  else if (orgs.some((o) => o.role === "admin")) labels.push("Admin");
-  else if (orgs.length > 0) labels.push("Member");
-  if (orgs.length > 1) labels.push(`${orgs.length} orgs`);
+  if (teams.some((o) => o.role === "owner")) labels.push("Owner");
+  else if (teams.some((o) => o.role === "admin")) labels.push("Admin");
+  else if (teams.length > 0) labels.push("Member");
+  if (teams.length > 1) labels.push(`${teams.length} teams`);
   return labels.join(" · ");
 }

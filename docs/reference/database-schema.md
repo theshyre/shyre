@@ -1,10 +1,10 @@
 # Database Schema
 
-All tables live in the `public` schema with Row-Level Security (RLS) enabled. The app is **multi-tenant** — data tables have an `organization_id` column and RLS policies check org membership via `user_has_org_access(org_id)`.
+All tables live in the `public` schema with Row-Level Security (RLS) enabled. The app is **multi-tenant** — data tables have an `team_id` column and RLS policies check org membership via `user_has_org_access(team_id)`.
 
 ## Multi-tenancy
 
-### `organizations`
+### `teams`
 | Column | Type | Notes |
 |--------|------|-------|
 | id | UUID (PK) | `gen_random_uuid()` |
@@ -12,22 +12,22 @@ All tables live in the `public` schema with Row-Level Security (RLS) enabled. Th
 | slug | TEXT | Unique, auto-generated |
 | created_at | TIMESTAMPTZ | |
 
-### `organization_members`
+### `team_members`
 | Column | Type | Notes |
 |--------|------|-------|
 | id | UUID (PK) | |
-| organization_id | UUID | References `organizations(id)` CASCADE |
+| team_id | UUID | References `teams(id)` CASCADE |
 | user_id | UUID | References `auth.users(id)` CASCADE |
 | role | TEXT | `owner\|admin\|member` |
 | joined_at | TIMESTAMPTZ | |
 
-Unique constraint on `(organization_id, user_id)`.
+Unique constraint on `(team_id, user_id)`.
 
-### `organization_invites`
+### `team_invites`
 | Column | Type | Notes |
 |--------|------|-------|
 | id | UUID (PK) | |
-| organization_id | UUID | References `organizations(id)` CASCADE |
+| team_id | UUID | References `teams(id)` CASCADE |
 | email | TEXT | Invitee email |
 | role | TEXT | `admin\|member` |
 | invited_by | UUID | References `auth.users(id)` |
@@ -36,8 +36,8 @@ Unique constraint on `(organization_id, user_id)`.
 | accepted_at | TIMESTAMPTZ | NULL until accepted |
 
 ### Helper functions
-- `user_has_org_access(org_id)` — returns true if `auth.uid()` is a member of the org
-- `user_org_role(org_id)` — returns the user's role in the org
+- `user_has_org_access(team_id)` — returns true if `auth.uid()` is a member of the org
+- `user_org_role(team_id)` — returns the user's role in the org
 
 ## Tables
 
@@ -112,19 +112,19 @@ One row per user, auto-created on signup via trigger.
 | created_at | TIMESTAMPTZ | |
 
 ### `category_sets`
-Templates of time categories. System sets (`is_system=true`, `organization_id=NULL`) are seeded and visible to all users. Org sets are user-created copies or custom sets.
+Templates of time categories. System sets (`is_system=true`, `team_id=NULL`) are seeded and visible to all users. Org sets are user-created copies or custom sets.
 
 | Column | Type | Notes |
 |--------|------|-------|
 | id | UUID (PK) | |
-| organization_id | UUID | References `organizations(id)` CASCADE; NULL for system sets |
+| team_id | UUID | References `teams(id)` CASCADE; NULL for system sets |
 | name | TEXT | Required, unique per org |
 | description | TEXT | |
 | is_system | BOOLEAN | True for built-in templates |
 | created_by | UUID | References `auth.users(id)` |
 | created_at | TIMESTAMPTZ | |
 
-Check: `is_system` ↔ `organization_id IS NULL` (system sets have no org; org sets have one).
+Check: `is_system` ↔ `team_id IS NULL` (system sets have no org; org sets have one).
 
 ### `categories`
 Individual categories within a set.
@@ -144,7 +144,7 @@ Saved (project + category + description + billable) combos for one-click timer s
 | Column | Type | Notes |
 |--------|------|-------|
 | id | UUID (PK) | |
-| organization_id | UUID | References `organizations(id)` CASCADE |
+| team_id | UUID | References `teams(id)` CASCADE |
 | user_id | UUID | References `auth.users(id)` CASCADE |
 | project_id | UUID | References `projects(id)` CASCADE |
 | category_id | UUID | References `categories(id)` SET NULL |

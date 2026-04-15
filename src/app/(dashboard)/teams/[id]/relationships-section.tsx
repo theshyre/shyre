@@ -13,47 +13,47 @@ import {
   labelClass,
 } from "@/lib/form-styles";
 import {
-  proposeOrgShareAction,
-  acceptOrgShareAction,
-  removeOrgShareAction,
+  proposeTeamShareAction,
+  acceptTeamShareAction,
+  removeTeamShareAction,
 } from "./relationships-actions";
 
-interface OrgShare {
+interface TeamShare {
   id: string;
-  parent_org_id: string;
-  child_org_id: string;
+  parent_team_id: string;
+  child_team_id: string;
   sharing_level: string;
   accepted_at: string | null;
-  organizations: { name: string } | { name: string }[] | null;
+  teams: { name: string } | { name: string }[] | null;
 }
 
-interface OrgOption {
+interface TeamOption {
   id: string;
   name: string;
 }
 
-function getOrgName(
-  orgs: { name: string } | { name: string }[] | null,
+function getTeamName(
+  teams: { name: string } | { name: string }[] | null,
 ): string {
-  if (!orgs) return "—";
-  return Array.isArray(orgs) ? orgs[0]?.name ?? "—" : orgs.name;
+  if (!teams) return "—";
+  return Array.isArray(teams) ? teams[0]?.name ?? "—" : teams.name;
 }
 
 export function RelationshipsSection({
-  orgId,
+  teamId,
   role,
-  parentOrgs,
-  childOrgs,
-  availableOrgs,
+  parentTeams,
+  childTeams,
+  availableTeams,
 }: {
-  orgId: string;
+  teamId: string;
   role: string;
-  parentOrgs: OrgShare[];
-  childOrgs: OrgShare[];
-  availableOrgs: OrgOption[];
+  parentTeams: TeamShare[];
+  childTeams: TeamShare[];
+  availableTeams: TeamOption[];
 }): React.JSX.Element {
   const [proposing, setProposing] = useState(false);
-  const t = useTranslations("sharing.orgRelationships");
+  const t = useTranslations("sharing.teamRelationships");
   const tc = useTranslations("common");
 
   const canManage = role === "owner" || role === "admin";
@@ -63,11 +63,11 @@ export function RelationshipsSection({
     serverError: proposeError,
     handleSubmit: handlePropose,
   } = useFormAction({
-    action: proposeOrgShareAction,
+    action: proposeTeamShareAction,
     onSuccess: () => setProposing(false),
   });
 
-  const hasAny = parentOrgs.length + childOrgs.length > 0;
+  const hasAny = parentTeams.length + childTeams.length > 0;
 
   return (
     <div className="mt-8 space-y-4">
@@ -78,18 +78,18 @@ export function RelationshipsSection({
 
       {!hasAny && <p className="text-sm text-content-muted">{t("noRelationships")}</p>}
 
-      {/* Parent orgs (this org is a child of these) */}
-      {parentOrgs.length > 0 && (
+      {/* Parent teams (this org is a child of these) */}
+      {parentTeams.length > 0 && (
         <div>
           <p className="text-xs uppercase tracking-wider text-content-muted mb-2">
-            {t("parentOrgs")}
+            {t("parentTeams")}
           </p>
           <ul className="space-y-2">
-            {parentOrgs.map((s) => (
-              <ParentOrgRow
+            {parentTeams.map((s) => (
+              <ParentTeamRow
                 key={s.id}
                 share={s}
-                orgId={orgId}
+                teamId={teamId}
                 canManage={canManage}
               />
             ))}
@@ -97,18 +97,18 @@ export function RelationshipsSection({
         </div>
       )}
 
-      {/* Child orgs (this org is a parent to these) */}
-      {childOrgs.length > 0 && (
+      {/* Child teams (this org is a parent to these) */}
+      {childTeams.length > 0 && (
         <div>
           <p className="text-xs uppercase tracking-wider text-content-muted mb-2">
-            {t("childOrgs")}
+            {t("childTeams")}
           </p>
           <ul className="space-y-2">
-            {childOrgs.map((s) => (
-              <ChildOrgRow
+            {childTeams.map((s) => (
+              <ChildTeamRow
                 key={s.id}
                 share={s}
-                orgId={orgId}
+                teamId={teamId}
                 canManage={canManage}
               />
             ))}
@@ -117,23 +117,23 @@ export function RelationshipsSection({
       )}
 
       {/* Propose new link */}
-      {canManage && availableOrgs.length > 0 && (
+      {canManage && availableTeams.length > 0 && (
         <div>
           {proposing ? (
             <form
               action={handlePropose}
               className="rounded-lg border border-edge bg-surface-raised p-4 space-y-3"
             >
-              <input type="hidden" name="parent_org_id" value={orgId} />
+              <input type="hidden" name="parent_team_id" value={teamId} />
               {proposeError && (
                 <p className="text-sm text-error bg-error-soft rounded-lg px-3 py-2">
                   {proposeError}
                 </p>
               )}
               <div>
-                <label className={labelClass}>{t("childOrgs")} *</label>
+                <label className={labelClass}>{t("childTeams")} *</label>
                 <select
-                  name="child_org_id"
+                  name="child_team_id"
                   required
                   autoFocus
                   className={selectClass}
@@ -141,7 +141,7 @@ export function RelationshipsSection({
                   defaultValue=""
                 >
                   <option value="">—</option>
-                  {availableOrgs.map((o) => (
+                  {availableTeams.map((o) => (
                     <option key={o.id} value={o.id}>
                       {o.name}
                     </option>
@@ -197,31 +197,31 @@ export function RelationshipsSection({
   );
 }
 
-function ParentOrgRow({
+function ParentTeamRow({
   share,
-  orgId,
+  teamId,
   canManage,
 }: {
-  share: OrgShare;
-  orgId: string;
+  share: TeamShare;
+  teamId: string;
   canManage: boolean;
 }): React.JSX.Element {
-  const t = useTranslations("sharing.orgRelationships");
+  const t = useTranslations("sharing.teamRelationships");
   const pending_ = share.accepted_at === null;
 
   const {
     pending: acceptPending,
     serverError: acceptError,
     handleSubmit: handleAccept,
-  } = useFormAction({ action: acceptOrgShareAction });
+  } = useFormAction({ action: acceptTeamShareAction });
 
   const {
     pending: removePending,
     serverError: removeError,
     handleSubmit: handleRemove,
-  } = useFormAction({ action: removeOrgShareAction });
+  } = useFormAction({ action: removeTeamShareAction });
 
-  const orgName = getOrgName(share.organizations);
+  const teamName = getTeamName(share.teams);
 
   return (
     <li className="rounded-lg border border-edge bg-surface-raised p-3">
@@ -229,7 +229,7 @@ function ParentOrgRow({
         <div className="flex items-center gap-3">
           <Building2 size={16} className="text-content-muted" />
           <div>
-            <p className="text-sm font-medium text-content">{orgName}</p>
+            <p className="text-sm font-medium text-content">{teamName}</p>
             <p className="text-xs text-content-muted">
               {t(
                 `levels.${share.sharing_level as "clients_read" | "clients_participate"}`,
@@ -246,7 +246,7 @@ function ParentOrgRow({
           {pending_ && canManage && (
             <form action={handleAccept}>
               <input type="hidden" name="share_id" value={share.id} />
-              <input type="hidden" name="org_id" value={orgId} />
+              <input type="hidden" name="team_id" value={teamId} />
               <SubmitButton
                 label={t("accept")}
                 pending={acceptPending}
@@ -258,7 +258,7 @@ function ParentOrgRow({
           {canManage && (
             <form action={handleRemove}>
               <input type="hidden" name="share_id" value={share.id} />
-              <input type="hidden" name="org_id" value={orgId} />
+              <input type="hidden" name="team_id" value={teamId} />
               <button
                 type="submit"
                 disabled={removePending}
@@ -280,25 +280,25 @@ function ParentOrgRow({
   );
 }
 
-function ChildOrgRow({
+function ChildTeamRow({
   share,
-  orgId,
+  teamId,
   canManage,
 }: {
-  share: OrgShare;
-  orgId: string;
+  share: TeamShare;
+  teamId: string;
   canManage: boolean;
 }): React.JSX.Element {
-  const t = useTranslations("sharing.orgRelationships");
+  const t = useTranslations("sharing.teamRelationships");
   const pending_ = share.accepted_at === null;
 
   const {
     pending: removePending,
     serverError: removeError,
     handleSubmit: handleRemove,
-  } = useFormAction({ action: removeOrgShareAction });
+  } = useFormAction({ action: removeTeamShareAction });
 
-  const orgName = getOrgName(share.organizations);
+  const teamName = getTeamName(share.teams);
 
   return (
     <li className="rounded-lg border border-edge bg-surface-raised p-3">
@@ -306,7 +306,7 @@ function ChildOrgRow({
         <div className="flex items-center gap-3">
           <Building2 size={16} className="text-content-muted" />
           <div>
-            <p className="text-sm font-medium text-content">{orgName}</p>
+            <p className="text-sm font-medium text-content">{teamName}</p>
             <p className="text-xs text-content-muted">
               {t(
                 `levels.${share.sharing_level as "clients_read" | "clients_participate"}`,
@@ -322,7 +322,7 @@ function ChildOrgRow({
         {canManage && (
           <form action={handleRemove}>
             <input type="hidden" name="share_id" value={share.id} />
-            <input type="hidden" name="org_id" value={orgId} />
+            <input type="hidden" name="team_id" value={teamId} />
             <button
               type="submit"
               disabled={removePending}

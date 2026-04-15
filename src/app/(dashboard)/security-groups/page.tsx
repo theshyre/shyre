@@ -1,20 +1,20 @@
 import { createClient } from "@/lib/supabase/server";
-import { getUserOrgs } from "@/lib/org-context";
+import { getUserTeams } from "@/lib/team-context";
 import { getTranslations } from "next-intl/server";
 import { ShieldCheck } from "lucide-react";
 import { SecurityGroupsSection } from "./security-groups-section";
 
 export default async function SecurityGroupsPage(): Promise<React.JSX.Element> {
   const supabase = await createClient();
-  const orgs = await getUserOrgs();
-  const orgIds = orgs.map((o) => o.id);
+  const teams = await getUserTeams();
+  const teamIds = teams.map((o) => o.id);
   const t = await getTranslations("sharing.securityGroups");
 
-  // Groups across user's orgs
+  // Groups across user's teams
   const { data: groups } = await supabase
     .from("security_groups")
     .select("*")
-    .in("organization_id", orgIds)
+    .in("team_id", teamIds)
     .order("created_at", { ascending: false });
 
   // Members of those groups (with profiles)
@@ -26,11 +26,11 @@ export default async function SecurityGroupsPage(): Promise<React.JSX.Element> {
         .in("group_id", groupIds)
     : { data: [] };
 
-  // All members of user's orgs (for the "add member" dropdown)
-  const { data: orgMembers } = await supabase
-    .from("organization_members")
-    .select("organization_id, user_id, user_profiles(display_name)")
-    .in("organization_id", orgIds);
+  // All members of user's teams (for the "add member" dropdown)
+  const { data: teamMembers } = await supabase
+    .from("team_members")
+    .select("team_id, user_id, user_profiles(display_name)")
+    .in("team_id", teamIds);
 
   return (
     <div>
@@ -41,10 +41,10 @@ export default async function SecurityGroupsPage(): Promise<React.JSX.Element> {
       <p className="mt-2 text-sm text-content-secondary">{t("description")}</p>
 
       <SecurityGroupsSection
-        orgs={orgs}
+        teams={teams}
         groups={groups ?? []}
         groupMembers={groupMembers ?? []}
-        orgMembers={orgMembers ?? []}
+        teamMembers={teamMembers ?? []}
       />
     </div>
   );

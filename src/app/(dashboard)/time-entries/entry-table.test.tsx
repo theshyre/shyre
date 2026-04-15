@@ -25,7 +25,7 @@ function makeEntry(id: string, opts?: {
   const end = new Date(start.getTime() + dur * 60 * 1000);
   return {
     id,
-    organization_id: "o1",
+    team_id: "o1",
     user_id: "u1",
     project_id: "p1",
     description: opts?.description ?? `entry ${id}`,

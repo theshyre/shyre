@@ -26,7 +26,7 @@ export async function GET(request: Request): Promise<Response> {
     return new Response("Unauthorized", { status: 401 });
   }
 
-  const orgId = url.searchParams.get("org") ?? undefined;
+  const teamId = url.searchParams.get("team") ?? undefined;
   const billableOnly = url.searchParams.get("billable") === "1";
   const view = url.searchParams.get("view") === "day" ? "day" : "week";
   const anchor =
@@ -55,7 +55,7 @@ export async function GET(request: Request): Promise<Response> {
     .gte("start_time", rangeStart.toISOString())
     .lt("start_time", rangeEnd.toISOString())
     .order("start_time", { ascending: true });
-  if (orgId) q = q.eq("organization_id", orgId);
+  if (teamId) q = q.eq("team_id", teamId);
   if (billableOnly) q = q.eq("billable", true);
 
   const { data, error } = await q;

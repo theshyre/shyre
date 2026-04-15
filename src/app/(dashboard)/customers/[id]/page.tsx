@@ -1,5 +1,5 @@
 import { createClient } from "@/lib/supabase/server";
-import { getUserOrgs } from "@/lib/org-context";
+import { getUserTeams } from "@/lib/team-context";
 import { getTranslations } from "next-intl/server";
 import { notFound } from "next/navigation";
 import { FolderKanban } from "lucide-react";
@@ -9,9 +9,9 @@ import { PermissionsSection } from "./permissions-section";
 
 interface ShareRow {
   id: string;
-  organization_id: string;
+  team_id: string;
   can_see_others_entries: boolean;
-  organizations: { name: string } | { name: string }[] | null;
+  teams: { name: string } | { name: string }[] | null;
 }
 
 interface PermRow {
@@ -21,8 +21,8 @@ interface PermRow {
   permission_level: "viewer" | "contributor" | "admin";
 }
 
-interface OrgMemberRow {
-  organization_id: string;
+interface TeamMemberRow {
+  team_id: string;
   user_id: string;
   user_profiles:
     | { display_name: string | null }[]
@@ -32,7 +32,7 @@ interface OrgMemberRow {
 
 interface SecurityGroupRow {
   id: string;
-  organization_id: string;
+  team_id: string;
   name: string;
 }
 
@@ -73,7 +73,7 @@ export default async function ClientDetailPage({
   // Sharing data
   const { data: sharesData } = await supabase
     .from("customer_shares")
-    .select("id, organization_id, can_see_others_entries, organizations(name)")
+    .select("id, team_id, can_see_others_entries, teams(name)")
     .eq("customer_id", id);
   const shares = (sharesData ?? []) as unknown as ShareRow[];
 
@@ -83,28 +83,28 @@ export default async function ClientDetailPage({
   });
   const userCanAdmin = permLevel === "admin";
 
-  // User's orgs (for available orgs & primary change)
-  const userOrgs = await getUserOrgs();
-  const sharedOrgIds = new Set(shares.map((s) => s.organization_id));
-  const availableOrgs = userOrgs
-    .filter((o) => o.id !== client.organization_id && !sharedOrgIds.has(o.id))
+  // User's teams (for available teams & primary change)
+  const userOrgs = await getUserTeams();
+  const sharedTeamIds = new Set(shares.map((s) => s.team_id));
+  const availableTeams = userOrgs
+    .filter((o) => o.id !== client.team_id && !sharedTeamIds.has(o.id))
     .map((o) => ({ id: o.id, name: o.name }));
 
   // Primary org name
-  const { data: primaryOrg } = await supabase
-    .from("organizations")
+  const { data: primaryTeam } = await supabase
+    .from("teams")
     .select("id, name")
-    .eq("id", client.organization_id)
+    .eq("id", client.team_id)
     .single();
-  const primaryOrgName = primaryOrg?.name ?? "—";
+  const primaryTeamName = primaryTeam?.name ?? "—";
 
   // Can change primary: user is owner of current primary
   const currentPrimaryMembership = userOrgs.find(
-    (o) => o.id === client.organization_id,
+    (o) => o.id === client.team_id,
   );
   const canChangePrimary = currentPrimaryMembership?.role === "owner";
-  const changePrimaryOrgs = userOrgs
-    .filter((o) => o.id !== client.organization_id)
+  const changePrimaryTeams = userOrgs
+    .filter((o) => o.id !== client.team_id)
     .map((o) => ({ id: o.id, name: o.name }));
 
   // Permissions data
@@ -115,37 +115,37 @@ export default async function ClientDetailPage({
   const perms = (permsData ?? []) as unknown as PermRow[];
 
   // Participating org ids (primary + shared) for member/group lookup
-  const allOrgIds = [
-    client.organization_id,
-    ...shares.map((s) => s.organization_id),
+  const allTeamIds = [
+    client.team_id,
+    ...shares.map((s) => s.team_id),
   ];
 
-  // Members of all those orgs
-  const { data: orgMembersData } = allOrgIds.length
+  // Members of all those teams
+  const { data: teamMembersData } = allTeamIds.length
     ? await supabase
-        .from("organization_members")
-        .select("organization_id, user_id, user_profiles(display_name)")
-        .in("organization_id", allOrgIds)
+        .from("team_members")
+        .select("team_id, user_id, user_profiles(display_name)")
+        .in("team_id", allTeamIds)
     : { data: [] };
-  const orgMembers = (orgMembersData ?? []) as unknown as OrgMemberRow[];
+  const teamMembers = (teamMembersData ?? []) as unknown as TeamMemberRow[];
 
-  // Security groups of all those orgs
-  const { data: groupsData } = allOrgIds.length
+  // Security groups of all those teams
+  const { data: groupsData } = allTeamIds.length
     ? await supabase
         .from("security_groups")
-        .select("id, organization_id, name")
-        .in("organization_id", allOrgIds)
+        .select("id, team_id, name")
+        .in("team_id", allTeamIds)
     : { data: [] };
   const groups = (groupsData ?? []) as unknown as SecurityGroupRow[];
 
   // Org name lookup for display
-  const orgNameById = new Map<string, string>();
-  orgNameById.set(client.organization_id, primaryOrgName);
+  const teamNameById = new Map<string, string>();
+  teamNameById.set(client.team_id, primaryTeamName);
   for (const s of shares) {
-    const name = Array.isArray(s.organizations)
-      ? s.organizations[0]?.name
-      : s.organizations?.name;
-    if (name) orgNameById.set(s.organization_id, name);
+    const name = Array.isArray(s.teams)
+      ? s.teams[0]?.name
+      : s.teams?.name;
+    if (name) teamNameById.set(s.team_id, name);
   }
 
   // Build available principals list (dedupe users by id)
@@ -154,16 +154,16 @@ export default async function ClientDetailPage({
     type: "user" | "group";
     id: string;
     name: string;
-    orgName: string;
+    teamName: string;
   }> = [];
-  for (const m of orgMembers) {
+  for (const m of teamMembers) {
     if (seenUserIds.has(m.user_id)) continue;
     seenUserIds.add(m.user_id);
     availablePrincipals.push({
       type: "user",
       id: m.user_id,
       name: displayName(m.user_profiles, m.user_id.slice(0, 8) + "…"),
-      orgName: orgNameById.get(m.organization_id) ?? "—",
+      teamName: teamNameById.get(m.team_id) ?? "—",
     });
   }
   for (const g of groups) {
@@ -171,13 +171,13 @@ export default async function ClientDetailPage({
       type: "group",
       id: g.id,
       name: g.name,
-      orgName: orgNameById.get(g.organization_id) ?? "—",
+      teamName: teamNameById.get(g.team_id) ?? "—",
     });
   }
 
   // Resolve principal_name for existing permissions
   const userNameById = new Map<string, string>();
-  for (const m of orgMembers) {
+  for (const m of teamMembers) {
     if (!userNameById.has(m.user_id)) {
       userNameById.set(
         m.user_id,
@@ -243,12 +243,12 @@ export default async function ClientDetailPage({
 
       <SharingSection
         customerId={id}
-        primaryOrgId={client.organization_id}
-        primaryOrgName={primaryOrgName}
+        primaryTeamId={client.team_id}
+        primaryTeamName={primaryTeamName}
         shares={shares}
-        availableOrgs={availableOrgs}
+        availableTeams={availableTeams}
         userCanAdmin={userCanAdmin}
-        changePrimaryOrgs={changePrimaryOrgs}
+        changePrimaryTeams={changePrimaryTeams}
         canChangePrimary={canChangePrimary}
       />
 

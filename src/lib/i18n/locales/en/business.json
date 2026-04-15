@@ -1,10 +1,23 @@
 {
   "title": "Business",
-  "subtitle": "Legal identity, customers, expenses, and people for this organization.",
+  "subtitle": "Legal identity, customers, expenses, and people for this team.",
   "edit": "Edit",
-  "noOrg": "Pick an organization to see business identity.",
+  "listTitle": "Businesses",
+  "listSubtitle": "Each team runs one business. Pick one to see its identity, expenses, and people.",
+  "listEmpty": "You don't have any businesses yet. Create a team to set up your first one.",
+  "createBusiness": "Create team",
+  "backToList": "Back to all businesses",
+  "noTeam": "Pick a team to see business identity.",
   "sections": {
     "identity": "Business identity"
+  },
+  "subNav": {
+    "overview": "Overview",
+    "identity": "Identity",
+    "expenses": "Expenses",
+    "people": "People",
+    "soon": "Soon",
+    "comingSoon": "Coming soon"
   },
   "fields": {
     "legalName": "Legal name",
@@ -17,7 +30,9 @@
   },
   "stats": {
     "customers": "Customers",
-    "billableHours": "Billable hrs · this month"
+    "billableHours": "Billable hrs · this month",
+    "billableHoursShort": "Hours",
+    "expensesShort": "Expenses"
   },
   "tiles": {
     "expenses": {
@@ -32,12 +47,13 @@
   },
   "info": {
     "title": "Business identity",
+    "description": "Legal name, tax IDs, entity form, and fiscal year — the formal details of the business behind this team.",
     "back": "Back to Business",
     "save": "Save business identity",
     "fields": {
       "legalName": "Legal name",
       "legalNamePlaceholder": "As registered with the state",
-      "legalNameHelp": "The formal registered name of the entity. Leave blank to use the organization's display name.",
+      "legalNameHelp": "The formal registered name of the entity. Leave blank to use the team's display name.",
       "entityType": "Entity type",
       "entityTypeAny": "— Select —",
       "taxId": "Tax ID (EIN)",
@@ -46,7 +62,7 @@
       "registeredState": "Registered in",
       "dateIncorporated": "Date of incorporation",
       "fiscalYearStart": "Fiscal year start (MM-DD)",
-      "fiscalYearStartHelp": "Use 01-01 for calendar-year businesses, 07-01 for July–June fiscal year, etc."
+      "fiscalYearStartHelp": "Use 01-01 for calendar-year businesses, 07-01 for July-June fiscal year, etc."
     }
   }
 }

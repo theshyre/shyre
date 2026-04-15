@@ -2,7 +2,7 @@
 
 import { runSafeAction } from "@/lib/safe-action";
 import { assertSupabaseOk } from "@/lib/errors";
-import { validateOrgAccess } from "@/lib/org-context";
+import { validateTeamAccess } from "@/lib/team-context";
 import { revalidatePath } from "next/cache";
 
 const ALLOWED_CATEGORIES = new Set([
@@ -75,14 +75,14 @@ export async function createExpenseAction(formData: FormData): Promise<
   return runSafeAction(
     formData,
     async (fd, { supabase, userId }) => {
-      const orgId = String(fd.get("organization_id") ?? "");
-      await validateOrgAccess(orgId);
+      const teamId = String(fd.get("team_id") ?? "");
+      await validateTeamAccess(teamId);
       const expense = readExpense(fd);
 
       assertSupabaseOk(
         await supabase.from("expenses").insert({
           user_id: userId,
-          organization_id: orgId,
+          team_id: teamId,
           ...expense,
         }),
       );

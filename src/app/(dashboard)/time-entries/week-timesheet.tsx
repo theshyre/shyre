@@ -24,7 +24,7 @@ interface Props {
   entries: TimeEntry[];
   projects: ProjectOption[];
   categories: CategoryOption[];
-  defaultOrgId?: string;
+  defaultTeamId?: string;
 }
 
 interface Row {
@@ -49,7 +49,7 @@ export function WeekTimesheet({
   entries,
   projects,
   categories,
-  defaultOrgId,
+  defaultTeamId,
 }: Props): React.JSX.Element {
   const t = useTranslations("time.timesheet");
 
@@ -154,7 +154,7 @@ export function WeekTimesheet({
     fd.set("project_id", projectId);
     if (categoryId) fd.set("category_id", categoryId);
     fd.set("entry_date", dateStr);
-    fd.set("organization_id", project.organization_id);
+    fd.set("team_id", project.team_id);
     fd.set("duration_min", String(minutes));
     fd.set("tz_offset_min", String(tzOffsetMin));
     await upsertTimesheetCellAction(fd);
@@ -259,7 +259,7 @@ export function WeekTimesheet({
         categories={categories}
         existingRows={rows}
         onAdd={addRow}
-        defaultOrgId={defaultOrgId}
+        defaultTeamId={defaultTeamId}
       />
     </div>
   );
@@ -366,21 +366,21 @@ function AddRowControl({
   categories,
   existingRows,
   onAdd,
-  defaultOrgId,
+  defaultTeamId,
 }: {
   projects: ProjectOption[];
   categories: CategoryOption[];
   existingRows: Row[];
   onAdd: (projectId: string, categoryId: string | null) => void;
-  defaultOrgId?: string;
+  defaultTeamId?: string;
 }): React.JSX.Element {
   const t = useTranslations("time.timesheet");
   const [open, setOpen] = useState(false);
   const [projectId, setProjectId] = useState("");
   const [categoryId, setCategoryId] = useState("");
 
-  const availableProjects = defaultOrgId
-    ? projects.filter((p) => p.organization_id === defaultOrgId)
+  const availableProjects = defaultTeamId
+    ? projects.filter((p) => p.team_id === defaultTeamId)
     : projects;
 
   const selectedProject = projects.find((p) => p.id === projectId);

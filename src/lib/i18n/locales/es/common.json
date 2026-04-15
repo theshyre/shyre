@@ -8,7 +8,7 @@
     "projects": "Proyectos",
     "invoices": "Facturas",
     "reports": "Informes",
-    "organizations": "Organizaciones",
+    "teams": "Equipos",
     "securityGroups": "Grupos de Seguridad",
     "categories": "Categorías",
     "templates": "Plantillas",
@@ -17,7 +17,7 @@
     "business": "Negocio",
     "adminErrors": "Registro de Errores",
     "adminUsers": "Usuarios",
-    "adminOrgs": "Todas las Organizaciones",
+    "adminOrgs": "Todas las Equipos",
     "adminSampleData": "Datos de Ejemplo",
     "docs": "Documentación"
   },
@@ -63,15 +63,15 @@
   "confirm": {
     "archive": "¿Archivar este {item}?"
   },
-  "org": {
-    "create": "Crear Organización",
-    "leave": "Abandonar Organización",
-    "delete": "Eliminar Organización",
+  "team": {
+    "create": "Crear Equipo",
+    "leave": "Abandonar Equipo",
+    "delete": "Eliminar Equipo",
     "personal": "Personal",
-    "namePlaceholder": "Nombre de la organización",
+    "namePlaceholder": "Nombre de la equipo",
     "leaveConfirm": "¿Estás seguro de que quieres abandonar {name}?",
     "deleteConfirm": "Escribe \"{name}\" para confirmar la eliminación",
-    "cannotDeletePersonal": "Tu organización personal no puede ser eliminada.",
+    "cannotDeletePersonal": "Tu equipo personal no puede ser eliminada.",
     "cannotLeaveOwner": "Transfiere la propiedad antes de abandonar.",
     "dangerZone": "Zona de Peligro"
   }

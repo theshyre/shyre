@@ -1,6 +1,6 @@
 # Expenses
 
-Business expenses — subscriptions, hardware, travel, meals, fees. Tracked per organization, with optional links back to projects for billable-to-customer expenses.
+Business expenses — subscriptions, hardware, travel, meals, fees. Tracked per team, with optional links back to projects for billable-to-customer expenses.
 
 ## Where it lives
 

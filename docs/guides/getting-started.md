@@ -6,13 +6,13 @@ A guided tour from first login to first invoice. Works for any account.
 
 Open your Shyre URL and sign in with the account that was set up for you. Shyre uses Supabase Auth; email + password today, MFA optional from user settings.
 
-On first sign-in, a **personal organization** is created automatically. You are its owner. Everything you create lives inside an organization, even if you never invite anyone else.
+On first sign-in, a **personal team** is created automatically. You are its owner. Everything you create lives inside an team, even if you never invite anyone else.
 
 ## 2. The sidebar
 
 - **Track** — Dashboard, Time
 - **Manage** — Customers, Projects, Invoices, Reports
-- **Admin** — Organizations, Security Groups, Categories, Templates, Import, Business
+- **Admin** — Teams, Security Groups, Categories, Templates, Import, Business
 - **System Admin** — only visible if you are a platform administrator
 
 Your profile lives behind your name/avatar at the top of the sidebar.

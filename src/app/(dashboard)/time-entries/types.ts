@@ -18,7 +18,7 @@ export interface ProjectInfo {
 
 export interface TimeEntry {
   id: string;
-  organization_id: string;
+  team_id: string;
   user_id: string;
   project_id: string;
   description: string | null;
@@ -35,7 +35,7 @@ export interface ProjectOption {
   id: string;
   name: string;
   github_repo: string | null;
-  organization_id: string;
+  team_id: string;
   category_set_id: string | null;
   require_timestamps: boolean;
   customers?: CustomerRef | null;

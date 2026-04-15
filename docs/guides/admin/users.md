@@ -50,5 +50,5 @@ Deleting a user in Supabase cascades to their memberships; their personal org (c
 
 ## Related
 
-- [All organizations](organizations.md)
+- [All teams](teams.md)
 - [Env configuration](env-configuration.md)

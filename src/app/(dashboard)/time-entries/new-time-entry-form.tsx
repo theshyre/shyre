@@ -16,8 +16,8 @@ import {
   buttonSecondaryClass,
 } from "@/lib/form-styles";
 import { GitHubIssuePicker } from "@/components/GitHubIssuePicker";
-import { OrgSelector } from "@/components/OrgSelector";
-import type { OrgListItem } from "@/lib/org-context";
+import { TeamSelector } from "@/components/TeamSelector";
+import type { TeamListItem } from "@/lib/team-context";
 import { createTimeEntryAction } from "./actions";
 import { CategoryPicker } from "./category-picker";
 import { DurationInput } from "./duration-input";
@@ -33,14 +33,14 @@ interface ProjectOption {
 
 export function NewTimeEntryForm({
   projects,
-  orgs,
-  defaultOrgId,
+  teams,
+  defaultTeamId,
   categories,
   tzOffsetMin,
 }: {
   projects: ProjectOption[];
-  orgs: OrgListItem[];
-  defaultOrgId?: string;
+  teams: TeamListItem[];
+  defaultTeamId?: string;
   categories: CategoryOption[];
   tzOffsetMin?: number;
 }): React.JSX.Element {
@@ -92,7 +92,7 @@ export function NewTimeEntryForm({
       {tzOffsetMin !== undefined && (
         <input type="hidden" name="tz_offset_min" value={String(tzOffsetMin)} />
       )}
-      <OrgSelector orgs={orgs} defaultOrgId={defaultOrgId} />
+      <TeamSelector teams={teams} defaultTeamId={defaultTeamId} />
       <div className="grid gap-3 sm:grid-cols-2">
         <div>
           <label className={labelClass}>{t("fields.project")} *</label>

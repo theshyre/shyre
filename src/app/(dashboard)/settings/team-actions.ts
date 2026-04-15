@@ -2,13 +2,13 @@
 
 import { runSafeAction } from "@/lib/safe-action";
 import { assertSupabaseOk } from "@/lib/errors";
-import { validateOrgAccess } from "@/lib/org-context";
+import { validateTeamAccess } from "@/lib/team-context";
 import { revalidatePath } from "next/cache";
 
 export async function inviteMemberAction(formData: FormData): Promise<void> {
   return runSafeAction(formData, async (formData, { supabase }) => {
-    const orgId = formData.get("org_id") as string;
-    const { userId, role } = await validateOrgAccess(orgId);
+    const teamId = formData.get("org_id") as string;
+    const { userId, role } = await validateTeamAccess(teamId);
 
     if (role !== "owner" && role !== "admin") {
       throw new Error("Only owners and admins can invite members.");
@@ -22,22 +22,22 @@ export async function inviteMemberAction(formData: FormData): Promise<void> {
     }
 
     assertSupabaseOk(
-      await supabase.from("organization_invites").insert({
-        organization_id: orgId,
+      await supabase.from("team_invites").insert({
+        team_id: teamId,
         email,
         role: inviteRole,
         invited_by: userId,
       })
     );
 
-    revalidatePath(`/organizations/${orgId}`);
+    revalidatePath(`/teams/${teamId}`);
   }, "inviteMemberAction") as unknown as void;
 }
 
 export async function removeMemberAction(formData: FormData): Promise<void> {
   return runSafeAction(formData, async (formData, { supabase }) => {
-    const orgId = formData.get("org_id") as string;
-    const { userId, role } = await validateOrgAccess(orgId);
+    const teamId = formData.get("org_id") as string;
+    const { userId, role } = await validateTeamAccess(teamId);
 
     if (role !== "owner" && role !== "admin") {
       throw new Error("Only owners and admins can remove members.");
@@ -51,30 +51,30 @@ export async function removeMemberAction(formData: FormData): Promise<void> {
     }
 
     const { data: member } = await supabase
-      .from("organization_members")
+      .from("team_members")
       .select("role")
       .eq("id", memberId)
       .single();
 
     if (member?.role === "owner") {
-      throw new Error("Cannot remove the organization owner.");
+      throw new Error("Cannot remove the team owner.");
     }
 
     assertSupabaseOk(
       await supabase
-        .from("organization_members")
+        .from("team_members")
         .delete()
         .eq("id", memberId)
     );
 
-    revalidatePath(`/organizations/${orgId}`);
+    revalidatePath(`/teams/${teamId}`);
   }, "removeMemberAction") as unknown as void;
 }
 
 export async function revokeInviteAction(formData: FormData): Promise<void> {
   return runSafeAction(formData, async (formData, { supabase }) => {
-    const orgId = formData.get("org_id") as string;
-    const { role } = await validateOrgAccess(orgId);
+    const teamId = formData.get("org_id") as string;
+    const { role } = await validateTeamAccess(teamId);
 
     if (role !== "owner" && role !== "admin") {
       throw new Error("Only owners and admins can revoke invites.");
@@ -84,33 +84,33 @@ export async function revokeInviteAction(formData: FormData): Promise<void> {
 
     assertSupabaseOk(
       await supabase
-        .from("organization_invites")
+        .from("team_invites")
         .delete()
         .eq("id", inviteId)
     );
 
-    revalidatePath(`/organizations/${orgId}`);
+    revalidatePath(`/teams/${teamId}`);
   }, "revokeInviteAction") as unknown as void;
 }
 
-export async function updateOrgNameAction(formData: FormData): Promise<void> {
+export async function updateTeamNameAction(formData: FormData): Promise<void> {
   return runSafeAction(formData, async (formData, { supabase }) => {
-    const orgId = formData.get("org_id") as string;
-    const { role } = await validateOrgAccess(orgId);
+    const teamId = formData.get("org_id") as string;
+    const { role } = await validateTeamAccess(teamId);
 
     if (role !== "owner") {
-      throw new Error("Only the owner can rename the organization.");
+      throw new Error("Only the owner can rename the team.");
     }
 
-    const name = formData.get("org_name") as string;
+    const name = formData.get("team_name") as string;
 
     assertSupabaseOk(
       await supabase
-        .from("organizations")
+        .from("teams")
         .update({ name })
-        .eq("id", orgId)
+        .eq("id", teamId)
     );
 
-    revalidatePath(`/organizations/${orgId}`);
-  }, "updateOrgNameAction") as unknown as void;
+    revalidatePath(`/teams/${teamId}`);
+  }, "updateTeamNameAction") as unknown as void;
 }

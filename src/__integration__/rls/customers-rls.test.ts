@@ -4,17 +4,17 @@ import { cleanupPrefix } from "../helpers/cleanup";
 import { createAuthedClient } from "../helpers/authed-client";
 import { adminClient } from "../helpers/admin";
 import {
-  twoOrgSharingScenario,
-  TwoOrgSharingScenario,
+  twoTeamSharingScenario,
+  TwoTeamSharingScenario,
 } from "../helpers/fixtures";
 
 describe("customers RLS", () => {
   let prefix: string;
-  let scenario: TwoOrgSharingScenario;
+  let scenario: TwoTeamSharingScenario;
 
   beforeAll(async () => {
     prefix = makeRunPrefix();
-    scenario = await twoOrgSharingScenario(prefix);
+    scenario = await twoTeamSharingScenario(prefix);
   });
 
   afterAll(async () => {
@@ -61,12 +61,12 @@ describe("customers RLS", () => {
     expect(data ?? []).toHaveLength(0);
   });
 
-  it("after a client_share for participatingOrg, its members can SELECT the client", async () => {
+  it("after a client_share for participatingTeam, its members can SELECT the client", async () => {
     await resetSharing();
     const admin = adminClient();
     await admin.from("customer_shares").insert({
       customer_id: scenario.client.id,
-      organization_id: scenario.participatingOrg.id,
+      team_id: scenario.participatingTeam.id,
       can_see_others_entries: false,
       created_by: scenario.alice.id,
     });

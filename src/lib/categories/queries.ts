@@ -4,11 +4,11 @@ import type { Category, CategorySet, CategorySetWithCategories } from "./types";
 /**
  * Fetch all category sets visible to the current user:
  * - all system sets
- * - the user's org(s) sets (if `orgId` is provided, filter to that org)
+ * - the user's org(s) sets (if `teamId` is provided, filter to that org)
  * Ordered: system sets first (alphabetical), then org sets (alphabetical).
  */
 export async function getVisibleCategorySets(
-  orgId?: string,
+  teamId?: string,
 ): Promise<CategorySetWithCategories[]> {
   const supabase = await createClient();
 
@@ -18,9 +18,9 @@ export async function getVisibleCategorySets(
     .order("is_system", { ascending: false })
     .order("name", { ascending: true });
 
-  if (orgId) {
+  if (teamId) {
     // system OR this org
-    setsQuery = setsQuery.or(`is_system.eq.true,organization_id.eq.${orgId}`);
+    setsQuery = setsQuery.or(`is_system.eq.true,team_id.eq.${teamId}`);
   }
 
   const { data: sets } = await setsQuery;

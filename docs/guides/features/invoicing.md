@@ -21,7 +21,7 @@ Generate and send invoices from tracked time. This surface is early — the basi
 
 ## Numbering
 
-Invoices are numbered sequentially per organization, in the format `INV-{YYYY}-{NNN}`. Numbers can't be reused.
+Invoices are numbered sequentially per team, in the format `INV-{YYYY}-{NNN}`. Numbers can't be reused.
 
 ## What goes on the invoice
 

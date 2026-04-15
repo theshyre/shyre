@@ -18,8 +18,8 @@ import {
   buttonPrimaryClass,
   buttonSecondaryClass,
 } from "@/lib/form-styles";
-import { OrgSelector } from "@/components/OrgSelector";
-import type { OrgListItem } from "@/lib/org-context";
+import { TeamSelector } from "@/components/TeamSelector";
+import type { TeamListItem } from "@/lib/team-context";
 
 type Step = "credentials" | "preview" | "importing" | "done";
 
@@ -43,14 +43,14 @@ interface ImportResult {
 }
 
 export function HarvestImport({
-  orgs,
+  teams,
 }: {
-  orgs: OrgListItem[];
+  teams: TeamListItem[];
 }): React.JSX.Element {
   const [step, setStep] = useState<Step>("credentials");
   const [token, setToken] = useState("");
   const [accountId, setAccountId] = useState("");
-  const [orgId, setOrgId] = useState(orgs[0]?.id ?? "");
+  const [teamId, setTeamId] = useState(teams[0]?.id ?? "");
   const [companyName, setCompanyName] = useState("");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -68,7 +68,7 @@ export function HarvestImport({
         body: JSON.stringify({
           token,
           accountId,
-          organizationId: orgId,
+          organizationId: teamId,
           action: "validate",
         }),
       });
@@ -89,7 +89,7 @@ export function HarvestImport({
         body: JSON.stringify({
           token,
           accountId,
-          organizationId: orgId,
+          organizationId: teamId,
           action: "preview",
         }),
       });
@@ -121,7 +121,7 @@ export function HarvestImport({
         body: JSON.stringify({
           token,
           accountId,
-          organizationId: orgId,
+          organizationId: teamId,
           action: "import",
         }),
       });
@@ -223,28 +223,28 @@ export function HarvestImport({
                 />
               </div>
               <div>
-                <label className={labelClass}>Import into Organization</label>
-                {orgs.length === 1 ? (
+                <label className={labelClass}>Import into Team</label>
+                {teams.length === 1 ? (
                   <>
                     <input
                       type="text"
-                      value={orgs[0]?.name ?? ""}
+                      value={teams[0]?.name ?? ""}
                       disabled
                       className={inputClass}
                     />
                     <input
                       type="hidden"
-                      value={orgs[0]?.id ?? ""}
-                      onChange={(e) => setOrgId(e.target.value)}
+                      value={teams[0]?.id ?? ""}
+                      onChange={(e) => setTeamId(e.target.value)}
                     />
                   </>
                 ) : (
                   <select
-                    value={orgId}
-                    onChange={(e) => setOrgId(e.target.value)}
+                    value={teamId}
+                    onChange={(e) => setTeamId(e.target.value)}
                     className={inputClass}
                   >
-                    {orgs.map((org) => (
+                    {teams.map((org) => (
                       <option key={org.id} value={org.id}>
                         {org.name}
                       </option>

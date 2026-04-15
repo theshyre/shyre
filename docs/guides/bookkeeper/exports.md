@@ -15,8 +15,8 @@ Columns:
 - `id`
 - `user_id`
 - `user_email`
-- `organization_id`
-- `organization_name`
+- `team_id`
+- `team_name`
 - `customer_id`
 - `customer_name`
 - `project_id`

@@ -4,7 +4,7 @@
 
 export interface TimeTemplate {
   id: string;
-  organization_id: string;
+  team_id: string;
   user_id: string;
   project_id: string;
   category_id: string | null;

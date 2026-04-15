@@ -10,7 +10,7 @@ Environment variables Shyre requires to function, split by where they're used.
 | `NEXT_PUBLIC_SUPABASE_ANON_KEY` | Everything | Public; RLS protects data. |
 | `SUPABASE_SERVICE_ROLE_KEY` | Admin pages, logger primary path | **Secret.** Bypasses RLS. Never commit. |
 
-If `SUPABASE_SERVICE_ROLE_KEY` is missing at runtime, `/admin/users` and `/admin/organizations` crash; the `/admin` layout shows a red banner identifying the missing var. The error logger falls back to a `SECURITY DEFINER` RPC so errors are still captured.
+If `SUPABASE_SERVICE_ROLE_KEY` is missing at runtime, `/admin/users` and `/admin/teams` crash; the `/admin` layout shows a red banner identifying the missing var. The error logger falls back to a `SECURITY DEFINER` RPC so errors are still captured.
 
 ## Required on the server for migrations + CLI
 
@@ -48,7 +48,7 @@ Redeploy after changing env vars (Deployments → ⋯ → Redeploy, or push a co
 
 - Hit `/admin` — no banner = env looks good.
 - `/admin/test-error?log=1` — click the button, then check `/admin/errors`. If the test error shows up, the full logging path works.
-- `/admin/users` and `/admin/organizations` — should render without error.
+- `/admin/users` and `/admin/teams` — should render without error.
 
 ## Related
 

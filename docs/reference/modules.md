@@ -4,7 +4,7 @@ Shyre is a platform for running a consulting business. Stint is one module; Busi
 
 ## Shell vs modules
 
-**Shell** (platform-level): auth, user profile, organizations, `user_settings`, layout, theme. Shell code lives under `src/app/(dashboard)/` at the top level (`profile/`, `settings/`, `organizations/`) plus `src/lib/` helpers. Modules never reach into other modules; they go through the platform API.
+**Shell** (platform-level): auth, user profile, teams, `user_settings`, layout, theme. Shell code lives under `src/app/(dashboard)/` at the top level (`profile/`, `settings/`, `teams/`) plus `src/lib/` helpers. Modules never reach into other modules; they go through the platform API.
 
 **Modules** (feature verticals): siblings of each other.
 - **Stint** — time tracking (`time-entries/`, `categories/`, `templates/`, `reports/` — time-related portions)
@@ -37,9 +37,9 @@ Don't hardcode new items into `Sidebar.tsx`; go through the registry.
 
 ## Naming rules
 
-- Shell tables: unprefixed. `user_profiles`, `organizations`, `organization_settings`, `customers`.
+- Shell tables: unprefixed. `user_profiles`, `teams`, `team_settings`, `customers`.
 - Module tables: prefixed when clearly module-owned. `time_entries`, `time_templates`, future `invoicing_*`, future `business_expenses_*` if Business grows.
-- Every user-data table must have `user_id` and `organization_id` columns. Ownership + partitioning always explicit.
+- Every user-data table must have `user_id` and `team_id` columns. Ownership + partitioning always explicit.
 
 ## Customer is platform-level
 

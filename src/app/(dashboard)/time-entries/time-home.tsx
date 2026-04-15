@@ -2,8 +2,8 @@
 
 import { useTranslations } from "next-intl";
 import { Clock } from "lucide-react";
-import { OrgFilter } from "@/components/OrgFilter";
-import type { OrgListItem } from "@/lib/org-context";
+import { TeamFilter } from "@/components/TeamFilter";
+import type { TeamListItem } from "@/lib/team-context";
 import {
   formatDurationHM,
   sumBillableMin,
@@ -20,8 +20,8 @@ import { NewTimeEntryForm } from "./new-time-entry-form";
 import type { CategoryOption, ProjectOption, TimeEntry } from "./types";
 
 interface TimeHomeProps {
-  orgs: OrgListItem[];
-  selectedOrgId: string | null;
+  teams: TeamListItem[];
+  selectedTeamId: string | null;
   view: TimeView;
   billableOnly: boolean;
   /** Local date being viewed (YYYY-MM-DD in user's TZ) */
@@ -40,8 +40,8 @@ interface TimeHomeProps {
 }
 
 export function TimeHome({
-  orgs,
-  selectedOrgId,
+  teams,
+  selectedTeamId,
   view,
   billableOnly,
   dayStr,
@@ -68,7 +68,7 @@ export function TimeHome({
       <div className="flex items-center gap-3 flex-wrap">
         <Clock size={24} className="text-accent" />
         <h1 className="text-2xl font-bold text-content">{t("title")}</h1>
-        <OrgFilter orgs={orgs} selectedOrgId={selectedOrgId} />
+        <TeamFilter teams={teams} selectedTeamId={selectedTeamId} />
         <div className="ml-auto">
           <ViewToggle view={view} />
         </div>
@@ -78,8 +78,8 @@ export function TimeHome({
         running={running}
         projects={projects}
         recentProjects={recentProjects}
-        orgs={orgs}
-        defaultOrgId={selectedOrgId ?? undefined}
+        teams={teams}
+        defaultTeamId={selectedTeamId ?? undefined}
         categories={categories}
         templates={templates}
         tzOffsetMin={tzOffsetMin}
@@ -122,14 +122,14 @@ export function TimeHome({
           entries={weekEntries}
           projects={projects}
           categories={categories}
-          defaultOrgId={selectedOrgId ?? undefined}
+          defaultTeamId={selectedTeamId ?? undefined}
         />
       )}
 
       <NewTimeEntryForm
         projects={projects}
-        orgs={orgs}
-        defaultOrgId={selectedOrgId ?? undefined}
+        teams={teams}
+        defaultTeamId={selectedTeamId ?? undefined}
         categories={categories}
         tzOffsetMin={tzOffsetMin}
       />

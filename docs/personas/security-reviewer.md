@@ -23,7 +23,7 @@ When reviewing a change, flag:
 - [ ] **Policy subquery references the same table?** Use a `SECURITY DEFINER` helper to avoid recursion (SAL-003).
 - [ ] **Update / delete policy is tighter than insert / select?** Write policies are the dangerous ones.
 - [ ] **Server action verifies `auth.getUser()` first?** And handles the `!user` case explicitly.
-- [ ] **Server action filters by `user_id` / `organization_id` even when RLS would block?** Defense in depth.
+- [ ] **Server action filters by `user_id` / `team_id` even when RLS would block?** Defense in depth.
 - [ ] **Secret-bearing column returned from a list query?** (`github_token`, any future tokens.) Must be owner-only and only from the settings page.
 - [ ] **Input validated server-side?** Client validation doesn't count — can be bypassed.
 - [ ] **Error messages don't leak internals?** No SQL errors or user IDs in user-facing text.

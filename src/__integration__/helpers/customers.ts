@@ -4,12 +4,12 @@ import { assertTestPrefix } from "./prefix";
 export interface TestClient {
   id: string;
   name: string;
-  orgId: string;
+  teamId: string;
 }
 
 export async function createTestCustomer(
   prefix: string,
-  orgId: string,
+  teamId: string,
   userId: string,
   label = "client",
 ): Promise<TestClient> {
@@ -19,7 +19,7 @@ export async function createTestCustomer(
   const { data, error } = await adminClient()
     .from("customers")
     .insert({
-      organization_id: orgId,
+      team_id: teamId,
       user_id: userId,
       name,
     })
@@ -27,12 +27,12 @@ export async function createTestCustomer(
     .single();
 
   if (error || !data) throw new Error(`Failed to create client: ${error?.message}`);
-  return { id: data.id, name, orgId };
+  return { id: data.id, name, teamId };
 }
 
 export async function createTestProject(
   prefix: string,
-  orgId: string,
+  teamId: string,
   customerId: string | null,
   userId: string,
   label = "project",
@@ -43,7 +43,7 @@ export async function createTestProject(
   const { data, error } = await adminClient()
     .from("projects")
     .insert({
-      organization_id: orgId,
+      team_id: teamId,
       user_id: userId,
       customer_id: customerId,
       name,
@@ -58,7 +58,7 @@ export async function createTestProject(
 
 export async function createTestTimeEntry(
   prefix: string,
-  orgId: string,
+  teamId: string,
   projectId: string,
   userId: string,
   overrides?: { description?: string; hoursAgo?: number },
@@ -72,7 +72,7 @@ export async function createTestTimeEntry(
   const { data, error } = await adminClient()
     .from("time_entries")
     .insert({
-      organization_id: orgId,
+      team_id: teamId,
       user_id: userId,
       project_id: projectId,
       description,
@@ -89,7 +89,7 @@ export async function createTestTimeEntry(
 
 export async function createTestSecurityGroup(
   prefix: string,
-  orgId: string,
+  teamId: string,
   userId: string,
   label = "group",
 ): Promise<{ id: string; name: string }> {
@@ -99,7 +99,7 @@ export async function createTestSecurityGroup(
   const { data, error } = await adminClient()
     .from("security_groups")
     .insert({
-      organization_id: orgId,
+      team_id: teamId,
       name,
       created_by: userId,
     })

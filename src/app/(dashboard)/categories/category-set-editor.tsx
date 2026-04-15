@@ -45,8 +45,8 @@ export function CategorySetEditor({ set, onDone }: Props): React.JSX.Element {
         <input type="hidden" name="id" value={set.id} />
         <input
           type="hidden"
-          name="organization_id"
-          value={set.organization_id ?? ""}
+          name="team_id"
+          value={set.team_id ?? ""}
         />
         <div className="grid gap-3 sm:grid-cols-2">
           <div>

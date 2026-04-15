@@ -1,6 +1,6 @@
 # Projects
 
-Work you track time against. Projects belong to an organization and optionally to a customer.
+Work you track time against. Projects belong to an team and optionally to a customer.
 
 ## Creating a project
 

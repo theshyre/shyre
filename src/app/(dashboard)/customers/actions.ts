@@ -2,7 +2,7 @@
 
 import { runSafeAction } from "@/lib/safe-action";
 import { assertSupabaseOk } from "@/lib/errors";
-import { validateOrgAccess } from "@/lib/org-context";
+import { validateTeamAccess } from "@/lib/team-context";
 import { revalidatePath } from "next/cache";
 import { serializeAddress } from "@/lib/schemas/address";
 
@@ -20,8 +20,8 @@ function extractAddress(formData: FormData, prefix: string): string | null {
 
 export async function createCustomerAction(formData: FormData): Promise<void> {
   return runSafeAction(formData, async (formData, { supabase }) => {
-    const orgId = formData.get("organization_id") as string;
-    const { userId } = await validateOrgAccess(orgId);
+    const teamId = formData.get("team_id") as string;
+    const { userId } = await validateTeamAccess(teamId);
 
     const name = formData.get("name") as string;
     const email = (formData.get("email") as string) || null;
@@ -32,7 +32,7 @@ export async function createCustomerAction(formData: FormData): Promise<void> {
 
     assertSupabaseOk(
       await supabase.from("customers").insert({
-        organization_id: orgId,
+        team_id: teamId,
         user_id: userId,
         name,
         email,

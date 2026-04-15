@@ -4,28 +4,28 @@ import { cleanupPrefix } from "../helpers/cleanup";
 import { createAuthedClient } from "../helpers/authed-client";
 import { adminClient } from "../helpers/admin";
 import {
-  twoOrgSharingScenario,
-  TwoOrgSharingScenario,
+  twoTeamSharingScenario,
+  TwoTeamSharingScenario,
 } from "../helpers/fixtures";
 
 /**
  * RLS for time_templates: each user only sees/modifies their own, and only
- * within orgs they belong to.
+ * within teams they belong to.
  */
 describe("time_templates RLS", () => {
   let prefix: string;
-  let scenario: TwoOrgSharingScenario;
+  let scenario: TwoTeamSharingScenario;
   let aliceTplId: string;
 
   beforeAll(async () => {
     prefix = makeRunPrefix();
-    scenario = await twoOrgSharingScenario(prefix);
+    scenario = await twoTeamSharingScenario(prefix);
 
     const admin = adminClient();
     const { data, error } = await admin
       .from("time_templates")
       .insert({
-        organization_id: scenario.primaryOrg.id,
+        team_id: scenario.primaryTeam.id,
         user_id: scenario.alice.id,
         project_id: scenario.project.id,
         name: `${prefix}alice-tpl`,
@@ -87,7 +87,7 @@ describe("time_templates RLS", () => {
     const { error } = await carol
       .from("time_templates")
       .insert({
-        organization_id: scenario.primaryOrg.id,
+        team_id: scenario.primaryTeam.id,
         user_id: scenario.alice.id,
         project_id: scenario.project.id,
         name: `${prefix}carol-spoof`,
@@ -137,7 +137,7 @@ describe("time_templates RLS", () => {
     const { data, error } = await alice
       .from("time_templates")
       .insert({
-        organization_id: scenario.primaryOrg.id,
+        team_id: scenario.primaryTeam.id,
         user_id: scenario.alice.id,
         project_id: scenario.project.id,
         name: `${prefix}alice-second`,

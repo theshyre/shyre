@@ -13,21 +13,21 @@ import {
   buttonPrimaryClass,
   buttonSecondaryClass,
 } from "@/lib/form-styles";
-import { OrgSelector } from "@/components/OrgSelector";
+import { TeamSelector } from "@/components/TeamSelector";
 import { AddressFields } from "@/components/AddressFields";
 import { FieldError } from "@/components/FieldError";
 import { SubmitButton } from "@/components/SubmitButton";
 import { customerSchema } from "@/lib/schemas/customer";
 import { deserializeAddress } from "@/lib/schemas/address";
-import type { OrgListItem } from "@/lib/org-context";
+import type { TeamListItem } from "@/lib/team-context";
 import { createCustomerAction } from "./actions";
 
 export function NewCustomerForm({
-  orgs,
-  defaultOrgId,
+  teams,
+  defaultTeamId,
 }: {
-  orgs: OrgListItem[];
-  defaultOrgId?: string;
+  teams: TeamListItem[];
+  defaultTeamId?: string;
 }): React.JSX.Element {
   const [open, setOpen] = useState(false);
   const t = useTranslations("customers");
@@ -52,7 +52,7 @@ export function NewCustomerForm({
         default_rate: fd.get("default_rate")
           ? parseFloat(fd.get("default_rate") as string)
           : undefined,
-        organization_id: fd.get("organization_id"),
+        team_id: fd.get("team_id"),
       }),
       onSuccess: () => setOpen(false),
     });
@@ -83,7 +83,7 @@ export function NewCustomerForm({
       action={handleSubmit}
       className="mt-4 space-y-3 rounded-lg border border-edge bg-surface-raised p-4"
     >
-      <OrgSelector orgs={orgs} defaultOrgId={defaultOrgId} />
+      <TeamSelector teams={teams} defaultTeamId={defaultTeamId} />
 
       {serverError && (
         <p className="text-sm text-error bg-error-soft rounded-lg px-3 py-2">

@@ -19,7 +19,7 @@ import { EXPENSE_CATEGORIES } from "./categories";
 import type { ProjectOption } from "./page";
 
 interface Props {
-  orgId: string;
+  teamId: string;
   projects: ProjectOption[];
 }
 
@@ -28,7 +28,7 @@ function todayStr(): string {
   return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
 }
 
-export function NewExpenseForm({ orgId, projects }: Props): React.JSX.Element {
+export function NewExpenseForm({ teamId, projects }: Props): React.JSX.Element {
   const [open, setOpen] = useState(false);
   const t = useTranslations("expenses");
   const tc = useTranslations("common");
@@ -63,7 +63,7 @@ export function NewExpenseForm({ orgId, projects }: Props): React.JSX.Element {
       action={handleSubmit}
       className="space-y-3 rounded-lg border border-edge bg-surface-raised p-4"
     >
-      <input type="hidden" name="organization_id" value={orgId} />
+      <input type="hidden" name="team_id" value={teamId} />
 
       {serverError && (
         <p className="text-sm text-error bg-error-soft rounded-lg px-3 py-2">

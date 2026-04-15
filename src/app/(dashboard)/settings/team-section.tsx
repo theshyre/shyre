@@ -30,9 +30,9 @@ import {
   inviteMemberAction,
   removeMemberAction,
   revokeInviteAction,
-  updateOrgNameAction,
+  updateTeamNameAction,
 } from "./team-actions";
-import { leaveOrgAction, deleteOrgAction } from "../organizations/actions";
+import { leaveTeamAction, deleteTeamAction } from "../teams/actions";
 
 interface Member {
   id: string;
@@ -51,8 +51,8 @@ interface Invite {
 }
 
 interface TeamSectionProps {
-  orgName: string;
-  orgId: string;
+  teamName: string;
+  teamId: string;
   isPersonalOrg: boolean;
   currentRole: string;
   currentUserId: string;
@@ -73,8 +73,8 @@ const ROLE_COLORS: Record<string, string> = {
 };
 
 export function TeamSection({
-  orgName,
-  orgId,
+  teamName,
+  teamId,
   isPersonalOrg,
   currentRole,
   currentUserId,
@@ -87,23 +87,23 @@ export function TeamSection({
 
   return (
     <div className="mt-8 space-y-6">
-      {/* Organization name */}
+      {/* Team name */}
       {currentRole === "owner" && (
         <section className="rounded-lg border border-edge bg-surface-raised p-4 space-y-3">
           <div className="flex items-center gap-2 mb-2">
             <Building2 size={18} className="text-accent" />
             <h2 className="text-sm font-semibold uppercase tracking-wider text-content-muted">
-              Organization
+              Team
             </h2>
           </div>
-          <form action={updateOrgNameAction} className="flex gap-3 items-end">
-            <input type="hidden" name="org_id" value={orgId} />
+          <form action={updateTeamNameAction} className="flex gap-3 items-end">
+            <input type="hidden" name="team_id" value={teamId} />
             <div className="flex-1">
-              <label className={labelClass}>Organization Name</label>
+              <label className={labelClass}>Team Name</label>
               <input
-                name="org_name"
+                name="team_name"
                 required
-                defaultValue={orgName}
+                defaultValue={teamName}
                 className={inputClass}
               />
             </div>
@@ -143,7 +143,7 @@ export function TeamSection({
             }}
             className="flex gap-3 items-end border-b border-edge pb-4 mb-4 flex-wrap"
           >
-            <input type="hidden" name="org_id" value={orgId} />
+            <input type="hidden" name="team_id" value={teamId} />
             <div className="flex-1">
               <label className={labelClass}>Email</label>
               <input
@@ -217,7 +217,7 @@ export function TeamSection({
                 </div>
                 {isAdmin && !isSelf && member.role !== "owner" && (
                   <form action={removeMemberAction}>
-                    <input type="hidden" name="org_id" value={orgId} />
+                    <input type="hidden" name="team_id" value={teamId} />
                     <input type="hidden" name="member_id" value={member.id} />
                     <input
                       type="hidden"
@@ -269,7 +269,7 @@ export function TeamSection({
                   </div>
                   {isAdmin && (
                     <form action={revokeInviteAction}>
-                      <input type="hidden" name="org_id" value={orgId} />
+                      <input type="hidden" name="team_id" value={teamId} />
                       <input
                         type="hidden"
                         name="invite_id"
@@ -294,18 +294,18 @@ export function TeamSection({
           <div className="flex items-center gap-2 mb-2">
             <AlertTriangle size={18} className="text-error" />
             <h2 className="text-sm font-semibold uppercase tracking-wider text-error">
-              {tc("org.dangerZone")}
+              {tc("team.dangerZone")}
             </h2>
           </div>
 
           {/* Leave org (non-owners, or owners with multiple owners) */}
           {currentRole !== "owner" && (
-            <LeaveOrgFlow orgId={orgId} orgName={orgName} />
+            <LeaveTeamFlow teamId={teamId} teamName={teamName} />
           )}
 
           {/* Delete org (owners only) */}
           {currentRole === "owner" && (
-            <DeleteOrgFlow orgId={orgId} orgName={orgName} />
+            <DeleteTeamFlow teamId={teamId} teamName={teamName} />
           )}
         </section>
       )}
@@ -317,26 +317,26 @@ export function TeamSection({
  * Leave org with confirmation flow.
  * Hides original button when confirming.
  */
-function LeaveOrgFlow({
-  orgId,
-  orgName,
+function LeaveTeamFlow({
+  teamId,
+  teamName,
 }: {
-  orgId: string;
-  orgName: string;
+  teamId: string;
+  teamName: string;
 }): React.JSX.Element {
   const [confirming, setConfirming] = useState(false);
   const tc = useTranslations("common");
   const { pending, serverError, handleSubmit } = useFormAction({
-    action: leaveOrgAction,
+    action: leaveTeamAction,
   });
 
   if (!confirming) {
     return (
       <div className="flex items-center justify-between">
         <div>
-          <p className="text-sm font-medium text-content">{tc("org.leave")}</p>
+          <p className="text-sm font-medium text-content">{tc("team.leave")}</p>
           <p className="text-xs text-content-muted">
-            You will lose access to all data in this organization.
+            You will lose access to all data in this team.
           </p>
         </div>
         <button
@@ -344,7 +344,7 @@ function LeaveOrgFlow({
           className={buttonDangerClass}
         >
           <LogOut size={16} />
-          {tc("org.leave")}
+          {tc("team.leave")}
         </button>
       </div>
     );
@@ -355,18 +355,18 @@ function LeaveOrgFlow({
       action={handleSubmit}
       className="rounded-lg border border-error/30 bg-error-soft p-4 space-y-3"
     >
-      <input type="hidden" name="org_id" value={orgId} />
+      <input type="hidden" name="team_id" value={teamId} />
       {serverError && (
         <p className="text-sm text-error bg-error-soft rounded-lg px-3 py-2">
           {serverError}
         </p>
       )}
       <p className="text-sm text-content">
-        {tc("org.leaveConfirm", { name: orgName })}
+        {tc("team.leaveConfirm", { name: teamName })}
       </p>
       <div className="flex gap-2">
         <SubmitButton
-          label={tc("org.leave")}
+          label={tc("team.leave")}
           pending={pending}
           icon={LogOut}
           className="inline-flex items-center gap-2 rounded-lg bg-error px-4 py-2 text-sm font-medium text-content-inverse hover:opacity-90 disabled:opacity-50 transition-colors"
@@ -388,18 +388,18 @@ function LeaveOrgFlow({
  * Delete org with typed-name confirmation.
  * Hides original button when confirm form is shown.
  */
-function DeleteOrgFlow({
-  orgId,
-  orgName,
+function DeleteTeamFlow({
+  teamId,
+  teamName,
 }: {
-  orgId: string;
-  orgName: string;
+  teamId: string;
+  teamName: string;
 }): React.JSX.Element {
   const [confirming, setConfirming] = useState(false);
   const [typedName, setTypedName] = useState("");
   const tc = useTranslations("common");
   const { pending, serverError, handleSubmit } = useFormAction({
-    action: deleteOrgAction,
+    action: deleteTeamAction,
   });
 
   if (!confirming) {
@@ -407,7 +407,7 @@ function DeleteOrgFlow({
       <div className="flex items-center justify-between">
         <div>
           <p className="text-sm font-medium text-content">
-            {tc("org.delete")}
+            {tc("team.delete")}
           </p>
           <p className="text-xs text-content-muted">
             This will permanently delete all data, members, and settings.
@@ -418,33 +418,33 @@ function DeleteOrgFlow({
           className={buttonDangerClass}
         >
           <Trash2 size={16} />
-          {tc("org.delete")}
+          {tc("team.delete")}
         </button>
       </div>
     );
   }
 
-  const canDelete = typedName === orgName && !pending;
+  const canDelete = typedName === teamName && !pending;
 
   return (
     <form
       action={handleSubmit}
       className="rounded-lg border border-error/30 bg-error-soft p-4 space-y-3"
     >
-      <input type="hidden" name="org_id" value={orgId} />
+      <input type="hidden" name="team_id" value={teamId} />
       {serverError && (
         <p className="text-sm text-error bg-error-soft rounded-lg px-3 py-2">
           {serverError}
         </p>
       )}
       <p className="text-sm text-content">
-        {tc("org.deleteConfirm", { name: orgName })}
+        {tc("team.deleteConfirm", { name: teamName })}
       </p>
       <input
         name="confirm_name"
         value={typedName}
         onChange={(e) => setTypedName(e.target.value)}
-        placeholder={orgName}
+        placeholder={teamName}
         className={inputClass}
         autoFocus
         disabled={pending}

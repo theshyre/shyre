@@ -18,7 +18,7 @@ import type { ProjectOption } from "./page";
 
 interface ExpenseRecord {
   id: string;
-  organization_id: string;
+  team_id: string;
   incurred_on: string;
   amount: number;
   currency: string;

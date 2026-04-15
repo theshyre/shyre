@@ -3,7 +3,7 @@
 import { useState } from "react";
 import { useTranslations } from "next-intl";
 import { Plus, Copy, Trash2, Pencil } from "lucide-react";
-import type { OrgListItem } from "@/lib/org-context";
+import type { TeamListItem } from "@/lib/team-context";
 import type { CategorySetWithCategories } from "@/lib/categories/types";
 import {
   buttonPrimaryClass,
@@ -15,7 +15,7 @@ import {
 } from "@/lib/form-styles";
 import { useFormAction } from "@/hooks/use-form-action";
 import { SubmitButton } from "@/components/SubmitButton";
-import { OrgSelector } from "@/components/OrgSelector";
+import { TeamSelector } from "@/components/TeamSelector";
 import { useKeyboardShortcut } from "@/hooks/use-keyboard-shortcut";
 import {
   createCategorySetAction,
@@ -25,18 +25,18 @@ import {
 import { CategorySetEditor } from "./category-set-editor";
 
 interface Props {
-  orgs: OrgListItem[];
+  teams: TeamListItem[];
   sets: CategorySetWithCategories[];
 }
 
-export function CategoriesSection({ orgs, sets }: Props): React.JSX.Element {
+export function CategoriesSection({ teams, sets }: Props): React.JSX.Element {
   const t = useTranslations("categories");
   const tc = useTranslations("common");
   const [showCreate, setShowCreate] = useState(false);
   const [editingSetId, setEditingSetId] = useState<string | null>(null);
 
   const systemSets = sets.filter((s) => s.is_system);
-  const orgSets = sets.filter((s) => !s.is_system);
+  const teamSets = sets.filter((s) => !s.is_system);
 
   useKeyboardShortcut({
     key: "n",
@@ -54,7 +54,7 @@ export function CategoriesSection({ orgs, sets }: Props): React.JSX.Element {
         <p className="text-xs text-content-muted mb-3">{t("systemSetsHelp")}</p>
         <div className="space-y-2">
           {systemSets.map((set) => (
-            <SystemSetRow key={set.id} set={set} orgs={orgs} />
+            <SystemSetRow key={set.id} set={set} teams={teams} />
           ))}
         </div>
       </section>
@@ -80,17 +80,17 @@ export function CategoriesSection({ orgs, sets }: Props): React.JSX.Element {
 
         {showCreate && (
           <NewSetForm
-            orgs={orgs}
+            teams={teams}
             onCancel={() => setShowCreate(false)}
             onCreated={() => setShowCreate(false)}
           />
         )}
 
         <div className="mt-3 space-y-2">
-          {orgSets.length === 0 && !showCreate && (
+          {teamSets.length === 0 && !showCreate && (
             <p className="text-sm text-content-muted">{t("noSetsYet")}</p>
           )}
-          {orgSets.map((set) =>
+          {teamSets.map((set) =>
             editingSetId === set.id ? (
               <CategorySetEditor
                 key={set.id}
@@ -98,7 +98,7 @@ export function CategoriesSection({ orgs, sets }: Props): React.JSX.Element {
                 onDone={() => setEditingSetId(null)}
               />
             ) : (
-              <OrgSetRow
+              <TeamSetRow
                 key={set.id}
                 set={set}
                 onEdit={() => setEditingSetId(set.id)}
@@ -113,10 +113,10 @@ export function CategoriesSection({ orgs, sets }: Props): React.JSX.Element {
 
 function SystemSetRow({
   set,
-  orgs,
+  teams,
 }: {
   set: CategorySetWithCategories;
-  orgs: OrgListItem[];
+  teams: TeamListItem[];
 }): React.JSX.Element {
   const t = useTranslations("categories");
   const [cloning, setCloning] = useState(false);
@@ -165,7 +165,7 @@ function SystemSetRow({
             </p>
           )}
           <input type="hidden" name="source_id" value={set.id} />
-          <OrgSelector orgs={orgs} label={t("cloneToOrg")} />
+          <TeamSelector teams={teams} label={t("cloneToOrg")} />
           <div>
             <label className={labelClass}>{t("nameOptional")}</label>
             <input
@@ -191,7 +191,7 @@ function SystemSetRow({
   );
 }
 
-function OrgSetRow({
+function TeamSetRow({
   set,
   onEdit,
 }: {
@@ -242,8 +242,8 @@ function OrgSetRow({
               <input type="hidden" name="id" value={set.id} />
               <input
                 type="hidden"
-                name="organization_id"
-                value={set.organization_id ?? ""}
+                name="team_id"
+                value={set.team_id ?? ""}
               />
               <SubmitButton
                 label={t("confirmDelete")}
@@ -269,11 +269,11 @@ function OrgSetRow({
 }
 
 function NewSetForm({
-  orgs,
+  teams,
   onCancel,
   onCreated,
 }: {
-  orgs: OrgListItem[];
+  teams: TeamListItem[];
   onCancel: () => void;
   onCreated: () => void;
 }): React.JSX.Element {
@@ -293,7 +293,7 @@ function NewSetForm({
           {serverError}
         </p>
       )}
-      <OrgSelector orgs={orgs} />
+      <TeamSelector teams={teams} />
       <div>
         <label className={labelClass}>{t("name")} *</label>
         <input

@@ -2,7 +2,7 @@
 
 import { runSafeAction } from "@/lib/safe-action";
 import { assertSupabaseOk } from "@/lib/errors";
-import { validateOrgAccess } from "@/lib/org-context";
+import { validateTeamAccess } from "@/lib/team-context";
 import { revalidatePath } from "next/cache";
 
 /**
@@ -10,8 +10,8 @@ import { revalidatePath } from "next/cache";
  */
 export async function createCategorySetAction(formData: FormData): Promise<void> {
   return runSafeAction(formData, async (formData, { supabase, userId }) => {
-    const orgId = formData.get("organization_id") as string;
-    await validateOrgAccess(orgId);
+    const teamId = formData.get("team_id") as string;
+    await validateTeamAccess(teamId);
 
     const name = (formData.get("name") as string)?.trim();
     const description = (formData.get("description") as string) || null;
@@ -19,7 +19,7 @@ export async function createCategorySetAction(formData: FormData): Promise<void>
 
     assertSupabaseOk(
       await supabase.from("category_sets").insert({
-        organization_id: orgId,
+        team_id: teamId,
         name,
         description,
         is_system: false,
@@ -35,10 +35,10 @@ export async function createCategorySetAction(formData: FormData): Promise<void>
  */
 export async function cloneCategorySetAction(formData: FormData): Promise<void> {
   return runSafeAction(formData, async (formData, { supabase, userId }) => {
-    const orgId = formData.get("organization_id") as string;
+    const teamId = formData.get("team_id") as string;
     const sourceId = formData.get("source_id") as string;
     const name = ((formData.get("name") as string) || "").trim();
-    await validateOrgAccess(orgId);
+    await validateTeamAccess(teamId);
 
     const { data: source, error: srcErr } = await supabase
       .from("category_sets")
@@ -56,7 +56,7 @@ export async function cloneCategorySetAction(formData: FormData): Promise<void> 
     const { data: created, error: insertErr } = await supabase
       .from("category_sets")
       .insert({
-        organization_id: orgId,
+        team_id: teamId,
         name: name || source.name,
         description: source.description,
         is_system: false,
@@ -86,8 +86,8 @@ export async function cloneCategorySetAction(formData: FormData): Promise<void> 
 export async function updateCategorySetAction(formData: FormData): Promise<void> {
   return runSafeAction(formData, async (formData, { supabase }) => {
     const id = formData.get("id") as string;
-    const orgId = formData.get("organization_id") as string;
-    await validateOrgAccess(orgId);
+    const teamId = formData.get("team_id") as string;
+    await validateTeamAccess(teamId);
 
     const name = (formData.get("name") as string)?.trim();
     const description = (formData.get("description") as string) || null;
@@ -98,7 +98,7 @@ export async function updateCategorySetAction(formData: FormData): Promise<void>
         .from("category_sets")
         .update({ name, description })
         .eq("id", id)
-        .eq("organization_id", orgId),
+        .eq("team_id", teamId),
     );
     revalidatePath("/categories");
   }, "updateCategorySetAction") as unknown as void;
@@ -107,15 +107,15 @@ export async function updateCategorySetAction(formData: FormData): Promise<void>
 export async function deleteCategorySetAction(formData: FormData): Promise<void> {
   return runSafeAction(formData, async (formData, { supabase }) => {
     const id = formData.get("id") as string;
-    const orgId = formData.get("organization_id") as string;
-    await validateOrgAccess(orgId);
+    const teamId = formData.get("team_id") as string;
+    await validateTeamAccess(teamId);
 
     assertSupabaseOk(
       await supabase
         .from("category_sets")
         .delete()
         .eq("id", id)
-        .eq("organization_id", orgId),
+        .eq("team_id", teamId),
     );
     revalidatePath("/categories");
   }, "deleteCategorySetAction") as unknown as void;

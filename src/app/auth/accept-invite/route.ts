@@ -23,7 +23,7 @@ export async function GET(request: Request): Promise<NextResponse> {
 
   // Look up the invite
   const { data: invite, error: inviteError } = await supabase
-    .from("organization_invites")
+    .from("team_invites")
     .select("*")
     .eq("token", token)
     .is("accepted_at", null)
@@ -45,9 +45,9 @@ export async function GET(request: Request): Promise<NextResponse> {
 
   // Check if already a member
   const { data: existing } = await supabase
-    .from("organization_members")
+    .from("team_members")
     .select("id")
-    .eq("organization_id", invite.organization_id)
+    .eq("team_id", invite.team_id)
     .eq("user_id", user.id)
     .single();
 
@@ -58,9 +58,9 @@ export async function GET(request: Request): Promise<NextResponse> {
 
   // Add user to org
   const { error: memberError } = await supabase
-    .from("organization_members")
+    .from("team_members")
     .insert({
-      organization_id: invite.organization_id,
+      team_id: invite.team_id,
       user_id: user.id,
       role: invite.role,
     });
@@ -71,7 +71,7 @@ export async function GET(request: Request): Promise<NextResponse> {
 
   // Mark invite as accepted
   await supabase
-    .from("organization_invites")
+    .from("team_invites")
     .update({ accepted_at: new Date().toISOString() })
     .eq("id", invite.id);
 

@@ -2,7 +2,7 @@
 
 import { runSafeAction } from "@/lib/safe-action";
 import { assertSupabaseOk } from "@/lib/errors";
-import { validateOrgAccess } from "@/lib/org-context";
+import { validateTeamAccess } from "@/lib/team-context";
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import {
@@ -15,8 +15,8 @@ import type { LineItemResult } from "@/lib/invoice-utils";
 
 export async function createInvoiceAction(formData: FormData): Promise<void> {
   return runSafeAction(formData, async (formData, { supabase }) => {
-    const orgId = formData.get("organization_id") as string;
-    const { userId } = await validateOrgAccess(orgId);
+    const teamId = formData.get("team_id") as string;
+    const { userId } = await validateTeamAccess(teamId);
 
     const customer_id = (formData.get("customer_id") as string) || null;
     const notes = (formData.get("notes") as string) || null;
@@ -26,9 +26,9 @@ export async function createInvoiceAction(formData: FormData): Promise<void> {
 
     // Get org settings for invoice number
     const { data: settings } = await supabase
-      .from("organization_settings")
+      .from("team_settings")
       .select("invoice_prefix, invoice_next_num, default_rate")
-      .eq("organization_id", orgId)
+      .eq("team_id", teamId)
       .single();
 
     const prefix = settings?.invoice_prefix ?? "INV";
@@ -39,7 +39,7 @@ export async function createInvoiceAction(formData: FormData): Promise<void> {
     const query = supabase
       .from("time_entries")
       .select("id, description, duration_min, project_id, projects(name, hourly_rate, customer_id, customers(default_rate))")
-      .eq("organization_id", orgId)
+      .eq("team_id", teamId)
       .eq("invoiced", false)
       .eq("billable", true)
       .not("end_time", "is", null)
@@ -103,7 +103,7 @@ export async function createInvoiceAction(formData: FormData): Promise<void> {
       await supabase
         .from("invoices")
         .insert({
-          organization_id: orgId,
+          team_id: teamId,
           user_id: userId,
           customer_id,
           invoice_number: invoiceNumber,
@@ -144,9 +144,9 @@ export async function createInvoiceAction(formData: FormData): Promise<void> {
 
     // Increment invoice number
     await supabase
-      .from("organization_settings")
+      .from("team_settings")
       .update({ invoice_next_num: nextNum + 1 })
-      .eq("organization_id", orgId);
+      .eq("team_id", teamId);
 
     revalidatePath("/invoices");
     revalidatePath("/time-entries");

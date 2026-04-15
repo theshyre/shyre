@@ -16,7 +16,7 @@ import type { TimeTemplate } from "@/lib/templates/types";
 function makeTemplate(id: string, name: string): TimeTemplate {
   return {
     id,
-    organization_id: "o1",
+    team_id: "o1",
     user_id: "u1",
     project_id: "p1",
     category_id: null,

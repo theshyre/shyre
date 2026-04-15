@@ -6,7 +6,7 @@ Shyre can bulk-import time data from Harvest today. More integrations will come 
 
 1. Sidebar → **Import**
 2. Enter your Harvest account credentials (account ID + personal access token).
-3. Pick the date range and the target organization in Shyre.
+3. Pick the date range and the target team in Shyre.
 4. Shyre fetches customers, projects, and time entries from Harvest and creates matching records.
 
 **Before you run the import:**

@@ -11,11 +11,11 @@
  *   2. Add a manifest to `MODULES` below with your id, label, icon, and
  *      sidebar entries.
  *   3. Module code only calls the shell's platform API (createClient,
- *      getUserContext, getUserOrgs, validateOrgAccess, runSafeAction, shared
+ *      getUserContext, getUserTeams, validateTeamAccess, runSafeAction, shared
  *      UI). Modules never import from other modules.
  *   4. DB tables are prefixed by the module when domain-specific
  *      (e.g. `time_entries`, future `business_expenses`). Shell tables
- *      stay unprefixed (`user_profiles`, `organizations`, `customers`).
+ *      stay unprefixed (`user_profiles`, `teams`, `customers`).
  */
 
 import type { ComponentType } from "react";

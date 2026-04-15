@@ -15,16 +15,16 @@ import { useFormAction } from "@/hooks/use-form-action";
 import {
   loadSampleDataAction,
   removeSampleDataAction,
-  clearAllOrgDataAction,
+  clearAllTeamDataAction,
 } from "./actions";
 
 interface Props {
-  orgId: string;
-  orgName: string;
+  teamId: string;
+  teamName: string;
   hasSample: boolean;
 }
 
-export function SampleDataControls({ orgId, orgName, hasSample }: Props): React.JSX.Element {
+export function SampleDataControls({ teamId, teamName, hasSample }: Props): React.JSX.Element {
   const t = useTranslations("sampleData");
   const router = useRouter();
 
@@ -37,7 +37,7 @@ export function SampleDataControls({ orgId, orgName, hasSample }: Props): React.
     onSuccess: () => router.refresh(),
   });
   const clearAll = useFormAction({
-    action: clearAllOrgDataAction,
+    action: clearAllTeamDataAction,
     onSuccess: () => {
       setConfirmOpen(false);
       setConfirmName("");
@@ -60,7 +60,7 @@ export function SampleDataControls({ orgId, orgName, hasSample }: Props): React.
           {hasSample ? t("replay.description") : t("load.description")}
         </p>
         <form action={load.handleSubmit}>
-          <input type="hidden" name="organization_id" value={orgId} />
+          <input type="hidden" name="team_id" value={teamId} />
           <button
             type="submit"
             disabled={load.pending}
@@ -91,7 +91,7 @@ export function SampleDataControls({ orgId, orgName, hasSample }: Props): React.
         </h2>
         <p className="text-sm text-content-secondary">{t("remove.description")}</p>
         <form action={remove.handleSubmit}>
-          <input type="hidden" name="organization_id" value={orgId} />
+          <input type="hidden" name="team_id" value={teamId} />
           <button
             type="submit"
             disabled={remove.pending || !hasSample}
@@ -132,10 +132,10 @@ export function SampleDataControls({ orgId, orgName, hasSample }: Props): React.
           </button>
         ) : (
           <form action={clearAll.handleSubmit} className="space-y-3">
-            <input type="hidden" name="organization_id" value={orgId} />
+            <input type="hidden" name="team_id" value={teamId} />
             <div>
               <label className={labelClass} htmlFor="confirm_name">
-                {t("clear.confirmLabel", { name: orgName })}
+                {t("clear.confirmLabel", { name: teamName })}
               </label>
               <input
                 id="confirm_name"
@@ -146,14 +146,14 @@ export function SampleDataControls({ orgId, orgName, hasSample }: Props): React.
                 value={confirmName}
                 onChange={(e) => setConfirmName(e.target.value)}
                 className={inputClass}
-                placeholder={orgName}
+                placeholder={teamName}
                 disabled={clearAll.pending}
               />
             </div>
             <div className="flex items-center gap-3">
               <button
                 type="submit"
-                disabled={clearAll.pending || confirmName !== orgName}
+                disabled={clearAll.pending || confirmName !== teamName}
                 className={buttonDangerClass}
               >
                 {clearAll.pending ? (

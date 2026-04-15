@@ -13,7 +13,7 @@ The people and companies you bill. Customers are a platform-level concept — re
    - Notes — free text, private
 4. **Save**.
 
-Customers always belong to an **organization**. When you have multiple orgs, pick one from the **Org** dropdown in the form.
+Customers always belong to an **team**. When you have multiple orgs, pick one from the **Org** dropdown in the form.
 
 ## Editing and archiving
 

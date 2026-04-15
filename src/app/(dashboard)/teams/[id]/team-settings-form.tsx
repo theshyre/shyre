@@ -11,9 +11,9 @@ import {
   inputClass,
   labelClass,
 } from "@/lib/form-styles";
-import { updateOrgSettingsAction } from "../../settings/actions";
+import { updateTeamSettingsAction } from "../../settings/actions";
 
-interface OrgSettings {
+interface TeamSettings {
   business_name: string | null;
   business_email: string | null;
   business_address: string | null;
@@ -24,7 +24,7 @@ interface OrgSettings {
   tax_rate: number | null;
 }
 
-const DEFAULTS: OrgSettings = {
+const DEFAULTS: TeamSettings = {
   business_name: null,
   business_email: null,
   business_address: null,
@@ -35,22 +35,22 @@ const DEFAULTS: OrgSettings = {
   tax_rate: 0,
 };
 
-export function OrgSettingsForm({
-  orgSettings,
-  orgId,
+export function TeamSettingsForm({
+  teamSettings,
+  teamId,
   role,
 }: {
-  orgSettings: OrgSettings | null;
-  orgId: string;
+  teamSettings: TeamSettings | null;
+  teamId: string;
   role: string;
 }): React.JSX.Element {
   const t = useTranslations("settings");
-  const org = orgSettings ?? DEFAULTS;
+  const org = teamSettings ?? DEFAULTS;
   const isAdmin = role === "owner" || role === "admin";
   const businessAddress = deserializeAddress(org.business_address ?? null);
 
   const { pending, success, serverError, fieldErrors, handleSubmit } = useFormAction({
-    action: updateOrgSettingsAction,
+    action: updateTeamSettingsAction,
   });
 
   return (
@@ -61,7 +61,7 @@ export function OrgSettingsForm({
       {serverError && (
         <p className="text-sm text-error bg-error-soft rounded-lg px-3 py-2">{serverError}</p>
       )}
-      <input type="hidden" name="organization_id" value={orgId} />
+      <input type="hidden" name="team_id" value={teamId} />
 
       <section className="rounded-lg border border-edge bg-surface-raised p-4 space-y-3">
         <div className="flex items-center gap-2 mb-2">

@@ -12,12 +12,12 @@ vi.mock("./actions", () => ({
 import { TemplatesSection } from "./templates-section";
 import type { TimeTemplate } from "@/lib/templates/types";
 
-const orgs = [
+const teams = [
   { id: "o1", name: "Org One", slug: "org-one", role: "owner" as const },
 ];
 
 const projects = [
-  { id: "p1", name: "Alpha", organization_id: "o1", category_set_id: "s1" },
+  { id: "p1", name: "Alpha", team_id: "o1", category_set_id: "s1" },
 ];
 
 const categories = [
@@ -27,7 +27,7 @@ const categories = [
 function makeTpl(id: string, name: string): TimeTemplate {
   return {
     id,
-    organization_id: "o1",
+    team_id: "o1",
     user_id: "u1",
     project_id: "p1",
     category_id: "c1",
@@ -44,7 +44,7 @@ describe("TemplatesSection", () => {
   it("renders empty state + create button when no templates", () => {
     renderWithIntl(
       <TemplatesSection
-        orgs={orgs}
+        teams={teams}
         templates={[]}
         projects={projects}
         categories={categories}
@@ -57,7 +57,7 @@ describe("TemplatesSection", () => {
   it("renders existing templates with project + category", () => {
     renderWithIntl(
       <TemplatesSection
-        orgs={orgs}
+        teams={teams}
         templates={[makeTpl("t1", "Daily standup")]}
         projects={projects}
         categories={categories}
@@ -71,7 +71,7 @@ describe("TemplatesSection", () => {
   it("opens the new-template form when the button is clicked", () => {
     renderWithIntl(
       <TemplatesSection
-        orgs={orgs}
+        teams={teams}
         templates={[]}
         projects={projects}
         categories={categories}
@@ -84,7 +84,7 @@ describe("TemplatesSection", () => {
   it("requires two clicks to delete a template", () => {
     renderWithIntl(
       <TemplatesSection
-        orgs={orgs}
+        teams={teams}
         templates={[makeTpl("t1", "X")]}
         projects={projects}
         categories={categories}

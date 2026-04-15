@@ -1,21 +1,18 @@
 "use client";
 
 import { useTranslations } from "next-intl";
-import type { OrgListItem } from "@/lib/org-context";
 import { useFormAction } from "@/hooks/use-form-action";
 import { SubmitButton } from "@/components/SubmitButton";
-import { OrgSelector } from "@/components/OrgSelector";
 import {
   inputClass,
   labelClass,
   selectClass,
   buttonPrimaryClass,
 } from "@/lib/form-styles";
-import { updateBusinessIdentityAction } from "../actions";
+import { updateBusinessIdentityAction } from "../../actions";
 
 interface Props {
-  orgs: OrgListItem[];
-  orgId: string | null;
+  teamId: string;
   legalName: string;
   entityType: string;
   taxId: string;
@@ -35,9 +32,18 @@ const ENTITY_TYPES = [
   "other",
 ] as const;
 
-export function BusinessInfoForm({
-  orgs,
-  orgId,
+const ENTITY_LABEL: Record<string, string> = {
+  sole_prop: "Sole Proprietorship",
+  llc: "LLC",
+  s_corp: "S-Corp",
+  c_corp: "C-Corp",
+  partnership: "Partnership",
+  nonprofit: "Nonprofit",
+  other: "Other",
+};
+
+export function IdentityForm({
+  teamId,
   legalName,
   entityType,
   taxId,
@@ -57,13 +63,13 @@ export function BusinessInfoForm({
       action={handleSubmit}
       className="space-y-4 rounded-lg border border-edge bg-surface-raised p-5"
     >
+      <input type="hidden" name="team_id" value={teamId} />
+
       {serverError && (
         <p className="text-sm text-error bg-error-soft rounded-lg px-3 py-2">
           {serverError}
         </p>
       )}
-
-      <OrgSelector orgs={orgs} defaultOrgId={orgId ?? undefined} />
 
       <div className="grid gap-3 sm:grid-cols-2">
         <div className="sm:col-span-2">
@@ -87,9 +93,9 @@ export function BusinessInfoForm({
             className={selectClass}
           >
             <option value="">{t("fields.entityTypeAny")}</option>
-            {ENTITY_TYPES.map((t) => (
-              <option key={t} value={t}>
-                {labelForEntity(t)}
+            {ENTITY_TYPES.map((type) => (
+              <option key={type} value={type}>
+                {ENTITY_LABEL[type] ?? type}
               </option>
             ))}
           </select>
@@ -160,19 +166,5 @@ export function BusinessInfoForm({
         className={buttonPrimaryClass}
       />
     </form>
-  );
-}
-
-function labelForEntity(key: string): string {
-  return (
-    {
-      sole_prop: "Sole Proprietorship",
-      llc: "LLC",
-      s_corp: "S-Corp",
-      c_corp: "C-Corp",
-      partnership: "Partnership",
-      nonprofit: "Nonprofit",
-      other: "Other",
-    }[key] ?? key
   );
 }

@@ -3,15 +3,15 @@ import { makeRunPrefix } from "./helpers/prefix";
 import { cleanupPrefix } from "./helpers/cleanup";
 import { createAuthedClient } from "./helpers/authed-client";
 import { adminClient } from "./helpers/admin";
-import { twoOrgSharingScenario, TwoOrgSharingScenario } from "./helpers/fixtures";
+import { twoTeamSharingScenario, TwoTeamSharingScenario } from "./helpers/fixtures";
 
 describe("client sharing", () => {
   let prefix: string;
-  let scenario: TwoOrgSharingScenario;
+  let scenario: TwoTeamSharingScenario;
 
   beforeAll(async () => {
     prefix = makeRunPrefix();
-    scenario = await twoOrgSharingScenario(prefix);
+    scenario = await twoTeamSharingScenario(prefix);
   });
 
   afterAll(async () => {
@@ -23,7 +23,7 @@ describe("client sharing", () => {
 
     const { data, error } = await alice.rpc("add_customer_share", {
       p_customer_id: scenario.client.id,
-      p_org_id: scenario.participatingOrg.id,
+      p_team_id: scenario.participatingTeam.id,
       p_can_see_others: false,
     });
 
@@ -33,9 +33,9 @@ describe("client sharing", () => {
     // Verify row exists
     const { data: shares } = await adminClient()
       .from("customer_shares")
-      .select("id, organization_id, can_see_others_entries")
+      .select("id, team_id, can_see_others_entries")
       .eq("customer_id", scenario.client.id)
-      .eq("organization_id", scenario.participatingOrg.id);
+      .eq("team_id", scenario.participatingTeam.id);
 
     expect(shares).toHaveLength(1);
     expect(shares?.[0]?.can_see_others_entries).toBe(false);
@@ -46,12 +46,12 @@ describe("client sharing", () => {
 
     const { error } = await alice.rpc("add_customer_share", {
       p_customer_id: scenario.client.id,
-      p_org_id: scenario.primaryOrg.id,
+      p_team_id: scenario.primaryTeam.id,
       p_can_see_others: false,
     });
 
     expect(error).not.toBeNull();
-    expect(error?.message).toMatch(/primary organization/i);
+    expect(error?.message).toMatch(/primary team/i);
   });
 
   it("primary org member (not admin) cannot add a share", async () => {
@@ -59,7 +59,7 @@ describe("client sharing", () => {
 
     const { error } = await carol.rpc("add_customer_share", {
       p_customer_id: scenario.client.id,
-      p_org_id: scenario.outsiderOrg.id,
+      p_team_id: scenario.outsiderTeam.id,
       p_can_see_others: false,
     });
 
@@ -75,11 +75,11 @@ describe("client sharing", () => {
       .upsert(
         {
           customer_id: scenario.client.id,
-          organization_id: scenario.participatingOrg.id,
+          team_id: scenario.participatingTeam.id,
           can_see_others_entries: false,
           created_by: scenario.alice.id,
         },
-        { onConflict: "customer_id,organization_id" },
+        { onConflict: "customer_id,team_id" },
       );
 
     const alice = await createAuthedClient(scenario.alice.email, scenario.alice.password);
@@ -88,7 +88,7 @@ describe("client sharing", () => {
       .from("customer_shares")
       .update({ can_see_others_entries: true })
       .eq("customer_id", scenario.client.id)
-      .eq("organization_id", scenario.participatingOrg.id);
+      .eq("team_id", scenario.participatingTeam.id);
 
     expect(error).toBeNull();
 
@@ -96,7 +96,7 @@ describe("client sharing", () => {
       .from("customer_shares")
       .select("can_see_others_entries")
       .eq("customer_id", scenario.client.id)
-      .eq("organization_id", scenario.participatingOrg.id)
+      .eq("team_id", scenario.participatingTeam.id)
       .single();
 
     expect(rows?.can_see_others_entries).toBe(true);
@@ -109,11 +109,11 @@ describe("client sharing", () => {
       .upsert(
         {
           customer_id: scenario.client.id,
-          organization_id: scenario.participatingOrg.id,
+          team_id: scenario.participatingTeam.id,
           can_see_others_entries: false,
           created_by: scenario.alice.id,
         },
-        { onConflict: "customer_id,organization_id" },
+        { onConflict: "customer_id,team_id" },
       );
 
     const alice = await createAuthedClient(scenario.alice.email, scenario.alice.password);
@@ -122,7 +122,7 @@ describe("client sharing", () => {
       .from("customer_shares")
       .delete()
       .eq("customer_id", scenario.client.id)
-      .eq("organization_id", scenario.participatingOrg.id);
+      .eq("team_id", scenario.participatingTeam.id);
 
     expect(error).toBeNull();
 
@@ -130,7 +130,7 @@ describe("client sharing", () => {
       .from("customer_shares")
       .select("id")
       .eq("customer_id", scenario.client.id)
-      .eq("organization_id", scenario.participatingOrg.id);
+      .eq("team_id", scenario.participatingTeam.id);
 
     expect(rows).toHaveLength(0);
   });

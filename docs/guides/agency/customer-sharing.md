@@ -1,6 +1,6 @@
 # Customer sharing
 
-When two organizations work on the same customer — subcontracting, agency + freelancer, parent / subsidiary — Shyre can share a single customer record across them without exposing either org's unrelated data.
+When two teams work on the same customer — subcontracting, agency + freelancer, parent / subsidiary — Shyre can share a single customer record across them without exposing either org's unrelated data.
 
 ## The shapes of sharing
 
@@ -11,7 +11,7 @@ Org A owns the customer. Org B is granted access to *that customer only*.
 - Org B can see the customer, log time against it (on Org B's projects), and optionally see Org A's time entries on that customer (governed by share settings).
 - Org B does not see any of Org A's other customers, projects, or time.
 
-### 2. Organization share
+### 2. Team share
 
 Org A shares *its entire customer roster* with Org B. Child-parent relationship.
 
@@ -60,5 +60,5 @@ A user's effective access on a customer is the union of:
 
 ## Related
 
-- [Orgs and roles](orgs-and-roles.md)
+- [Orgs and roles](teams-and-roles.md)
 - [Security groups](security-groups.md)

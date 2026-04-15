@@ -19,7 +19,7 @@ const project: ProjectOption = {
   id: "p1",
   name: "Alpha",
   github_repo: null,
-  organization_id: "o1",
+  team_id: "o1",
   category_set_id: null,
   require_timestamps: false,
 };
@@ -34,7 +34,7 @@ function makeEntry(
   const end = new Date(start.getTime() + opts.durationMin * 60 * 1000);
   return {
     id,
-    organization_id: "o1",
+    team_id: "o1",
     user_id: "u1",
     project_id: opts.projectId ?? "p1",
     description: null,
@@ -164,7 +164,7 @@ describe("WeekTimesheet", () => {
         entries={[]}
         projects={[project]}
         categories={[]}
-        defaultOrgId="o1"
+        defaultTeamId="o1"
       />,
     );
     fireEvent.click(screen.getByRole("button", { name: /add row/i }));
