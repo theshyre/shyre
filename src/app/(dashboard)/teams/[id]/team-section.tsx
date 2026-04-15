@@ -32,7 +32,7 @@ import {
   revokeInviteAction,
   updateTeamNameAction,
 } from "./team-actions";
-import { leaveTeamAction, deleteTeamAction } from "../teams/actions";
+import { leaveTeamAction, deleteTeamAction } from "../actions";
 
 interface Member {
   id: string;

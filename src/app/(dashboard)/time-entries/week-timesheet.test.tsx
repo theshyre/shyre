@@ -2,18 +2,25 @@ import { describe, it, expect, vi, beforeEach } from "vitest";
 import { screen, fireEvent, waitFor } from "@testing-library/react";
 import { renderWithIntl } from "@/test/intl";
 
-const { upsertCellMock, deleteMock } = vi.hoisted(() => ({
+const { upsertCellMock, deleteMock, restoreBatchMock } = vi.hoisted(() => ({
   upsertCellMock: vi.fn(async (_fd: FormData) => {}),
   deleteMock: vi.fn(async (_fd: FormData) => {}),
+  restoreBatchMock: vi.fn(async (_fd: FormData) => {}),
 }));
 
 vi.mock("./actions", () => ({
   upsertTimesheetCellAction: upsertCellMock,
   deleteTimeEntryAction: deleteMock,
+  restoreTimeEntriesAction: restoreBatchMock,
 }));
 
 import { WeekTimesheet } from "./week-timesheet";
+import { ToastProvider } from "@/components/Toast";
 import type { ProjectOption, TimeEntry } from "./types";
+
+function renderTimesheet(ui: React.ReactElement): ReturnType<typeof renderWithIntl> {
+  return renderWithIntl(<ToastProvider>{ui}</ToastProvider>);
+}
 
 const project: ProjectOption = {
   id: "p1",
@@ -55,10 +62,11 @@ describe("WeekTimesheet", () => {
   beforeEach(() => {
     upsertCellMock.mockClear();
     deleteMock.mockClear();
+    restoreBatchMock.mockClear();
   });
 
   it("renders Mon..Sun headers with day numbers", () => {
-    renderWithIntl(
+    renderTimesheet(
       <WeekTimesheet
         weekStartStr={weekStartStr}
         tzOffsetMin={tzOffsetMin}
@@ -73,7 +81,7 @@ describe("WeekTimesheet", () => {
   });
 
   it("groups entries into project rows", () => {
-    renderWithIntl(
+    renderTimesheet(
       <WeekTimesheet
         weekStartStr={weekStartStr}
         tzOffsetMin={tzOffsetMin}
@@ -89,7 +97,7 @@ describe("WeekTimesheet", () => {
   });
 
   it("sums daily totals in the footer", () => {
-    renderWithIntl(
+    renderTimesheet(
       <WeekTimesheet
         weekStartStr={weekStartStr}
         tzOffsetMin={tzOffsetMin}
@@ -106,7 +114,7 @@ describe("WeekTimesheet", () => {
   });
 
   it("calls upsert when a cell is edited and blurred", async () => {
-    renderWithIntl(
+    renderTimesheet(
       <WeekTimesheet
         weekStartStr={weekStartStr}
         tzOffsetMin={tzOffsetMin}
@@ -127,7 +135,7 @@ describe("WeekTimesheet", () => {
   });
 
   it("does not fire upsert when cell value is unchanged", () => {
-    renderWithIntl(
+    renderTimesheet(
       <WeekTimesheet
         weekStartStr={weekStartStr}
         tzOffsetMin={tzOffsetMin}
@@ -144,7 +152,7 @@ describe("WeekTimesheet", () => {
   });
 
   it("shows empty state when no rows", () => {
-    renderWithIntl(
+    renderTimesheet(
       <WeekTimesheet
         weekStartStr={weekStartStr}
         tzOffsetMin={tzOffsetMin}
@@ -156,8 +164,35 @@ describe("WeekTimesheet", () => {
     expect(screen.getByText(/no time logged/i)).toBeInTheDocument();
   });
 
+  it("delete row → soft-deletes entries and pushes an Undo toast that restores them", async () => {
+    renderTimesheet(
+      <WeekTimesheet
+        weekStartStr={weekStartStr}
+        tzOffsetMin={tzOffsetMin}
+        entries={[
+          makeEntry("e1", { day: 0, durationMin: 60 }),
+          makeEntry("e2", { day: 1, durationMin: 90 }),
+        ]}
+        projects={[project]}
+        categories={[]}
+      />,
+    );
+    // Open row confirm + click Confirm
+    fireEvent.click(screen.getByRole("button", { name: /delete row/i }));
+    fireEvent.click(screen.getByRole("button", { name: /confirm delete/i }));
+    await waitFor(() => expect(deleteMock).toHaveBeenCalledTimes(2));
+    // Undo toast is present
+    const undo = await screen.findByRole("button", { name: /undo/i });
+    expect(undo).toBeInTheDocument();
+    // Clicking Undo calls the restore-batch action with both ids
+    fireEvent.click(undo);
+    await waitFor(() => expect(restoreBatchMock).toHaveBeenCalled());
+    const fd = restoreBatchMock.mock.calls[0]?.[0];
+    expect(fd?.getAll("id")).toEqual(["e1", "e2"]);
+  });
+
   it("'Add row' reveals a project picker", () => {
-    renderWithIntl(
+    renderTimesheet(
       <WeekTimesheet
         weekStartStr={weekStartStr}
         tzOffsetMin={tzOffsetMin}

@@ -1,7 +1,8 @@
 "use client";
 
+import Link from "next/link";
 import { useTranslations } from "next-intl";
-import { Clock } from "lucide-react";
+import { Clock, Trash2 } from "lucide-react";
 import { TeamFilter } from "@/components/TeamFilter";
 import type { TeamListItem } from "@/lib/team-context";
 import {
@@ -37,6 +38,8 @@ interface TimeHomeProps {
   recentProjects: ProjectOption[];
   categories: CategoryOption[];
   templates: TimeTemplate[];
+  /** Number of soft-deleted entries — renders a Trash link when > 0. */
+  trashCount: number;
 }
 
 export function TimeHome({
@@ -54,6 +57,7 @@ export function TimeHome({
   recentProjects,
   categories,
   templates,
+  trashCount,
 }: TimeHomeProps): React.JSX.Element {
   const t = useTranslations("time");
 
@@ -69,7 +73,16 @@ export function TimeHome({
         <Clock size={24} className="text-accent" />
         <h1 className="text-2xl font-bold text-content">{t("title")}</h1>
         <TeamFilter teams={teams} selectedTeamId={selectedTeamId} />
-        <div className="ml-auto">
+        <div className="ml-auto flex items-center gap-2">
+          {trashCount > 0 && (
+            <Link
+              href="/time-entries/trash"
+              className="inline-flex items-center gap-1.5 rounded-md border border-edge bg-surface px-2.5 py-1 text-xs text-content-muted hover:text-content hover:bg-hover transition-colors"
+            >
+              <Trash2 size={12} />
+              {t("trashLink", { count: trashCount })}
+            </Link>
+          )}
           <ViewToggle view={view} />
         </div>
       </div>

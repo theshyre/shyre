@@ -34,25 +34,29 @@ export default async function DashboardPage(): Promise<React.JSX.Element> {
         .select("duration_min")
 
         .gte("start_time", todayStart)
-        .not("end_time", "is", null),
+        .not("end_time", "is", null)
+        .is("deleted_at", null),
       supabase
         .from("time_entries")
         .select("duration_min")
 
         .gte("start_time", weekStart)
-        .not("end_time", "is", null),
+        .not("end_time", "is", null)
+        .is("deleted_at", null),
       supabase
         .from("time_entries")
         .select("id")
 
-        .is("end_time", null),
+        .is("end_time", null)
+        .is("deleted_at", null),
       supabase
         .from("time_entries")
         .select("duration_min")
 
         .eq("invoiced", false)
         .eq("billable", true)
-        .not("end_time", "is", null),
+        .not("end_time", "is", null)
+        .is("deleted_at", null),
       supabase
         .from("customers")
         .select("id")
@@ -67,6 +71,7 @@ export default async function DashboardPage(): Promise<React.JSX.Element> {
         .from("time_entries")
         .select("id, description, start_time, end_time, duration_min, projects(name)")
 
+        .is("deleted_at", null)
         .order("start_time", { ascending: false })
         .limit(5),
     ]);

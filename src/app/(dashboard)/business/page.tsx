@@ -155,6 +155,7 @@ async function fetchSummary(
       .eq("team_id", teamId)
       .eq("billable", true)
       .not("end_time", "is", null)
+      .is("deleted_at", null)
       .gte("start_time", monthStart.toISOString()),
     supabase
       .from("expenses")

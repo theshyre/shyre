@@ -11,7 +11,7 @@ import {
   inputClass,
   labelClass,
 } from "@/lib/form-styles";
-import { updateTeamSettingsAction } from "../../settings/actions";
+import { updateTeamSettingsAction } from "./team-settings-actions";
 
 interface TeamSettings {
   business_name: string | null;

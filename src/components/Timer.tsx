@@ -28,6 +28,7 @@ export default function Timer(): React.JSX.Element {
       .from("time_entries")
       .select("id, project_id, description, start_time, projects(name)")
       .is("end_time", null)
+      .is("deleted_at", null)
       .order("start_time", { ascending: false })
       .limit(1);
 

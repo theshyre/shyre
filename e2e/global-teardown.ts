@@ -14,15 +14,15 @@ async function globalTeardown(): Promise<void> {
   });
 
   // Clean up all itest- data
-  const { data: orgs } = await admin
-    .from("organizations")
+  const { data: teams } = await admin
+    .from("teams")
     .select("id")
     .like("slug", "itest-%");
 
-  const orgIds = (orgs ?? []).map((o) => o.id);
+  const teamIds = (teams ?? []).map((t) => t.id);
 
-  if (orgIds.length > 0) {
-    await admin.from("organizations").delete().in("id", orgIds);
+  if (teamIds.length > 0) {
+    await admin.from("teams").delete().in("id", teamIds);
   }
 
   const { data: users } = await admin.auth.admin.listUsers();

@@ -2,18 +2,23 @@
 
 import { useCallback, useMemo, useState } from "react";
 import { useTranslations } from "next-intl";
-import { Plus, Trash2 } from "lucide-react";
+import { Plus } from "lucide-react";
 import { formatDurationHMZero } from "@/lib/time/week";
 import { addLocalDays, utcToLocalDateStr } from "@/lib/time/tz";
 import { DurationInput } from "./duration-input";
 import {
   upsertTimesheetCellAction,
   deleteTimeEntryAction,
+  restoreTimeEntriesAction,
 } from "./actions";
 import {
   buttonSecondaryClass,
   selectClass,
 } from "@/lib/form-styles";
+import { InlineDeleteButton } from "@/components/InlineDeleteButton";
+import { SaveStatus } from "@/components/SaveStatus";
+import { useAutosaveStatus } from "@/hooks/useAutosaveStatus";
+import { useToast } from "@/components/Toast";
 import type { CategoryOption, ProjectOption, TimeEntry } from "./types";
 
 interface Props {
@@ -52,6 +57,9 @@ export function WeekTimesheet({
   defaultTeamId,
 }: Props): React.JSX.Element {
   const t = useTranslations("time.timesheet");
+  const tToast = useTranslations("time.toast");
+  const save = useAutosaveStatus();
+  const toast = useToast();
 
   // Precompute local-date strings for each column (Mon..Sun)
   const weekDays = useMemo(
@@ -157,24 +165,56 @@ export function WeekTimesheet({
     fd.set("team_id", project.team_id);
     fd.set("duration_min", String(minutes));
     fd.set("tz_offset_min", String(tzOffsetMin));
-    await upsertTimesheetCellAction(fd);
+    await save.wrap(upsertTimesheetCellAction(fd));
   }
 
   async function deleteRow(projectId: string, categoryId: string | null): Promise<void> {
-    // Find all entries in this row and delete them
+    // Capture ids so the undo toast can restore them as a batch.
     const rowEntries = entries.filter(
       (e) => e.project_id === projectId && e.category_id === categoryId,
     );
-    for (const e of rowEntries) {
-      const fd = new FormData();
-      fd.set("id", e.id);
-      await deleteTimeEntryAction(fd);
-    }
+    const ids = rowEntries.map((e) => e.id);
+
+    await save.wrap(
+      (async () => {
+        for (const e of rowEntries) {
+          const fd = new FormData();
+          fd.set("id", e.id);
+          await deleteTimeEntryAction(fd);
+        }
+      })(),
+    );
     removeEmptyRow(projectId, categoryId);
+
+    if (ids.length > 0) {
+      toast.push({
+        kind: "info",
+        message:
+          ids.length === 1
+            ? tToast("entryDeleted")
+            : tToast("entriesDeleted", { count: ids.length }),
+        actionLabel: tToast("undo"),
+        onAction: async () => {
+          const fd = new FormData();
+          for (const id of ids) fd.append("id", id);
+          await save.wrap(restoreTimeEntriesAction(fd));
+        },
+      });
+    }
   }
 
   return (
     <div className="rounded-lg border border-edge bg-surface-raised overflow-x-auto">
+      <div className="flex items-center justify-between gap-2 px-3 py-2 border-b border-edge bg-surface-inset">
+        <span className="text-[11px] font-semibold uppercase tracking-wider text-content-muted">
+          {t("frameTitle")}
+        </span>
+        <SaveStatus
+          status={save.status}
+          lastSavedAt={save.lastSavedAt}
+          lastError={save.lastError}
+        />
+      </div>
       <table className="w-full text-sm">
         <thead>
           <tr className="border-b border-edge bg-surface-inset">
@@ -282,11 +322,14 @@ function TimesheetRow({
   weekDays: string[];
   todayStr: string;
 }): React.JSX.Element {
+  const t = useTranslations("time.timesheet");
+  const tc = useTranslations("common.actions");
   const project = projects.find((p) => p.id === row.projectId);
   const category = row.categoryId
     ? categories.find((c) => c.id === row.categoryId)
     : null;
   const rowTotalActual = row.byDay.reduce((s, n) => s + n, 0);
+  const entryCount = row.byDay.filter((m) => m > 0).length;
 
   return (
     <tr className="border-b border-edge last:border-0 hover:bg-hover">
@@ -348,14 +391,13 @@ function TimesheetRow({
         {rowTotalActual > 0 ? formatDurationHMZero(rowTotalActual) : "—"}
       </td>
       <td className="px-2 py-2 text-right">
-        <button
-          type="button"
-          onClick={onDelete}
-          aria-label="Delete row"
-          className="rounded p-1 text-content-muted hover:bg-hover hover:text-error transition-colors"
-        >
-          <Trash2 size={14} />
-        </button>
+        <InlineDeleteButton
+          ariaLabel={t("deleteRow")}
+          onConfirm={onDelete}
+          confirmDescription={
+            entryCount > 1 ? tc("deleteCount", { count: entryCount }) : undefined
+          }
+        />
       </td>
     </tr>
   );

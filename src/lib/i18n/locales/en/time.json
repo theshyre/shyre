@@ -124,8 +124,36 @@
     "chooseProject": "Choose project",
     "chooseCategory": "Choose category",
     "noCategory": "No category",
-    "empty": "No time logged this week. Add a row to start."
+    "empty": "No time logged this week. Add a row to start.",
+    "deleteRow": "Delete row",
+    "frameTitle": "Weekly timesheet"
   },
+  "toast": {
+    "entryDeleted": "Entry moved to trash",
+    "entriesDeleted": "{count, plural, one {# entry} other {# entries}} moved to trash",
+    "undo": "Undo"
+  },
+  "trash": {
+    "title": "Trash",
+    "back": "Back to time entries",
+    "description": "Deleted entries stay here until you restore or permanently delete them. They are excluded from reports, invoices, and totals.",
+    "empty": "Nothing in the trash.",
+    "restore": "Restore",
+    "permanentlyDelete": "Permanently delete",
+    "irreversible": "forever",
+    "restoredToast": "Entry restored",
+    "restoreFailed": "Could not restore entry",
+    "permanentlyDeletedToast": "Entry permanently deleted",
+    "permanentlyDeleteFailed": "Could not delete entry",
+    "columns": {
+      "deletedAt": "Deleted",
+      "category": "Category",
+      "project": "Project · Customer",
+      "entryDate": "Entry date",
+      "duration": "Duration"
+    }
+  },
+  "trashLink": "{count, plural, one {Trash (#)} other {Trash (#)}}",
   "dayView": {
     "today": "Today: {date}",
     "weekTotal": "Week total",

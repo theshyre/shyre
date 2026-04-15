@@ -124,8 +124,36 @@
     "chooseProject": "Elegir proyecto",
     "chooseCategory": "Elegir categoría",
     "noCategory": "Sin categoría",
-    "empty": "Sin tiempo registrado esta semana. Agrega una fila para comenzar."
+    "empty": "Sin tiempo registrado esta semana. Agrega una fila para comenzar.",
+    "deleteRow": "Eliminar fila",
+    "frameTitle": "Parte de horas semanal"
   },
+  "toast": {
+    "entryDeleted": "Entrada movida a la papelera",
+    "entriesDeleted": "{count, plural, one {# entrada movida a la papelera} other {# entradas movidas a la papelera}}",
+    "undo": "Deshacer"
+  },
+  "trash": {
+    "title": "Papelera",
+    "back": "Volver a entradas",
+    "description": "Las entradas eliminadas quedan aquí hasta que las restaures o las borres para siempre. No aparecen en informes, facturas ni totales.",
+    "empty": "La papelera está vacía.",
+    "restore": "Restaurar",
+    "permanentlyDelete": "Eliminar definitivamente",
+    "irreversible": "para siempre",
+    "restoredToast": "Entrada restaurada",
+    "restoreFailed": "No se pudo restaurar la entrada",
+    "permanentlyDeletedToast": "Entrada eliminada definitivamente",
+    "permanentlyDeleteFailed": "No se pudo eliminar la entrada",
+    "columns": {
+      "deletedAt": "Eliminada",
+      "category": "Categoría",
+      "project": "Proyecto · Cliente",
+      "entryDate": "Fecha",
+      "duration": "Duración"
+    }
+  },
+  "trashLink": "{count, plural, one {Papelera (#)} other {Papelera (#)}}",
   "dayView": {
     "today": "Hoy: {date}",
     "weekTotal": "Total semanal",

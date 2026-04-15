@@ -38,7 +38,8 @@ export default async function ReportsPage({
     .from("time_entries")
     .select("duration_min, billable, projects(name, hourly_rate, customers(name, default_rate))")
     .not("end_time", "is", null)
-    .not("duration_min", "is", null);
+    .not("duration_min", "is", null)
+    .is("deleted_at", null);
   if (selectedTeamId) entriesQuery = entriesQuery.eq("team_id", selectedTeamId);
   const { data: entries } = await entriesQuery;
 

@@ -125,16 +125,99 @@ export async function updateTimeEntryAction(formData: FormData): Promise<void> {
   }, "updateTimeEntryAction") as unknown as void;
 }
 
+/**
+ * Soft-delete a time entry. Sets deleted_at = now() so the entry is hidden
+ * from normal listings but recoverable via restoreTimeEntryAction or the
+ * /time-entries/trash page. Use permanentlyDeleteTimeEntryAction to wipe.
+ */
 export async function deleteTimeEntryAction(formData: FormData): Promise<void> {
   return runSafeAction(formData, async (formData, { supabase, userId }) => {
     const id = formData.get("id") as string;
 
     assertSupabaseOk(
-      await supabase.from("time_entries").delete().eq("id", id).eq("user_id", userId)
+      await supabase
+        .from("time_entries")
+        .update({ deleted_at: new Date().toISOString() })
+        .eq("id", id)
+        .eq("user_id", userId)
+        .is("deleted_at", null)
     );
 
     revalidatePath("/time-entries");
+    revalidatePath("/time-entries/trash");
   }, "deleteTimeEntryAction") as unknown as void;
+}
+
+/**
+ * Restore a soft-deleted entry (clear deleted_at). Only affects entries
+ * owned by the caller — RLS enforces user_id match.
+ */
+export async function restoreTimeEntryAction(formData: FormData): Promise<void> {
+  return runSafeAction(formData, async (formData, { supabase, userId }) => {
+    const id = formData.get("id") as string;
+
+    assertSupabaseOk(
+      await supabase
+        .from("time_entries")
+        .update({ deleted_at: null })
+        .eq("id", id)
+        .eq("user_id", userId)
+        .not("deleted_at", "is", null)
+    );
+
+    revalidatePath("/time-entries");
+    revalidatePath("/time-entries/trash");
+  }, "restoreTimeEntryAction") as unknown as void;
+}
+
+/**
+ * Hard delete a soft-deleted entry from the trash. Only trashed rows
+ * (deleted_at IS NOT NULL) can be permanently deleted — a safety guard
+ * against accidentally wiping an active entry.
+ */
+export async function permanentlyDeleteTimeEntryAction(
+  formData: FormData,
+): Promise<void> {
+  return runSafeAction(formData, async (formData, { supabase, userId }) => {
+    const id = formData.get("id") as string;
+
+    assertSupabaseOk(
+      await supabase
+        .from("time_entries")
+        .delete()
+        .eq("id", id)
+        .eq("user_id", userId)
+        .not("deleted_at", "is", null)
+    );
+
+    revalidatePath("/time-entries");
+    revalidatePath("/time-entries/trash");
+  }, "permanentlyDeleteTimeEntryAction") as unknown as void;
+}
+
+/**
+ * Bulk restore — used by the Undo toast when an entire timesheet row
+ * (multiple day cells) was soft-deleted in one action.
+ */
+export async function restoreTimeEntriesAction(
+  formData: FormData,
+): Promise<void> {
+  return runSafeAction(formData, async (formData, { supabase, userId }) => {
+    const ids = formData.getAll("id").map((v) => String(v));
+    if (ids.length === 0) return;
+
+    assertSupabaseOk(
+      await supabase
+        .from("time_entries")
+        .update({ deleted_at: null })
+        .in("id", ids)
+        .eq("user_id", userId)
+        .not("deleted_at", "is", null)
+    );
+
+    revalidatePath("/time-entries");
+    revalidatePath("/time-entries/trash");
+  }, "restoreTimeEntriesAction") as unknown as void;
 }
 
 export async function startTimerAction(formData: FormData): Promise<void> {
@@ -195,6 +278,7 @@ export async function duplicateTimeEntryAction(formData: FormData): Promise<void
       )
       .eq("id", sourceId)
       .eq("user_id", userId)
+      .is("deleted_at", null)
       .single();
     if (fetchErr) throw fetchErr;
     if (!source) throw new Error("Entry not found");
@@ -208,6 +292,7 @@ export async function duplicateTimeEntryAction(formData: FormData): Promise<void
         .update({ end_time: now })
         .eq("user_id", userId)
         .is("end_time", null)
+        .is("deleted_at", null)
     );
 
     // Insert the duplicate as a running timer
@@ -254,12 +339,13 @@ export async function upsertTimesheetCellAction(
     const dayStart = localDateMidnightUtc(entry_date, tzOffsetMin);
     const dayEnd = new Date(dayStart.getTime() + 24 * 60 * 60 * 1000);
 
-    // Find existing entries in this (project, category, day) cell
+    // Find existing (non-deleted) entries in this (project, category, day) cell
     let q = supabase
       .from("time_entries")
       .select("id, description, billable, github_issue, duration_min")
       .eq("project_id", project_id)
       .eq("user_id", userId)
+      .is("deleted_at", null)
       .gte("start_time", dayStart.toISOString())
       .lt("start_time", dayEnd.toISOString());
     if (category_id) q = q.eq("category_id", category_id);
@@ -267,13 +353,14 @@ export async function upsertTimesheetCellAction(
     const { data: existing, error: existingErr } = await q;
     if (existingErr) throw existingErr;
 
-    // Zero duration → delete everything in the cell
+    // Zero duration → soft-delete everything in the cell so it can be
+    // recovered via the trash. Matches row-level delete semantics.
     if (!durationMinStr || durationMin <= 0) {
       if (existing && existing.length > 0) {
         assertSupabaseOk(
           await supabase
             .from("time_entries")
-            .delete()
+            .update({ deleted_at: new Date().toISOString() })
             .in(
               "id",
               existing.map((e) => e.id),
@@ -281,6 +368,7 @@ export async function upsertTimesheetCellAction(
         );
       }
       revalidatePath("/time-entries");
+      revalidatePath("/time-entries/trash");
       return;
     }
 

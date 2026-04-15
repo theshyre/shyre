@@ -12,23 +12,20 @@ test("timer redirect sends to time-entries", async ({ page }) => {
   await expect(page).toHaveURL(/\/time-entries/);
 });
 
-test("interval nav updates URL when next is clicked", async ({ page }) => {
+test("view toggle switches to day view and sets ?view=day", async ({ page }) => {
   await page.goto("/time-entries");
-  await page.getByRole("button", { name: /^next$/i }).click();
-  await expect(page).toHaveURL(/anchor=\d{4}-\d{2}-\d{2}/);
+  await page.getByRole("button", { name: /^day/i }).click();
+  await expect(page).toHaveURL(/view=day/);
 });
 
-test("switching interval kind to month persists in URL", async ({ page }) => {
-  await page.goto("/time-entries");
-  await page.getByRole("button", { name: /choose interval/i }).click();
-  await page.getByRole("menuitemradio", { name: /month/i }).click();
-  await expect(page).toHaveURL(/interval=month/);
+test("view toggle back to week clears ?view param", async ({ page }) => {
+  await page.goto("/time-entries?view=day");
+  await page.getByRole("button", { name: /^week/i }).click();
+  await expect(page).not.toHaveURL(/view=day/);
 });
 
-test("grouping toggle sets groupBy param", async ({ page }) => {
+test("billable filter toggles ?billable=1 in URL", async ({ page }) => {
   await page.goto("/time-entries");
-  // Open group-by picker via its label prefix
-  await page.getByRole("button", { name: /group by/i }).click();
-  await page.getByRole("menuitemradio", { name: /project/i }).click();
-  await expect(page).toHaveURL(/groupBy=project/);
+  await page.getByRole("button", { name: /all entries/i }).click();
+  await expect(page).toHaveURL(/billable=1/);
 });

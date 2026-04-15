@@ -45,6 +45,7 @@ export default async function ProjectDetailPage({
     .from("time_entries")
     .select("*")
     .eq("project_id", id)
+    .is("deleted_at", null)
     .order("start_time", { ascending: false });
 
   const allEntries = timeEntries ?? [];

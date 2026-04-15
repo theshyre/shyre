@@ -67,10 +67,11 @@ Every button:
 - Disabled buttons look disabled (not ambiguous)
 - Never silently succeeds or fails
 
-Destructive flows:
-- HIDE the original trigger when confirmation form is shown
-- Typed-name confirmation for irreversible actions
-- Cancel always present
+Destructive flows (tiered):
+- **Row-level recoverable** (single time-entry row, etc.) → inline `<InlineDeleteButton />` confirm (no modal, no typed name). Soft-delete + 10s Undo toast (`useToast()`) + persistent `/trash` view for later recovery.
+- **Multi-entity or record-level** (delete customer/project/team, void invoice) → typed-name confirmation.
+- **Irreversible hard delete from trash** → inline confirm with an explicit "forever" label (second-click safety).
+- HIDE the original trigger when confirmation form is shown. Cancel always present.
 
 ## Redundant visual encoding (MANDATORY)
 
@@ -98,6 +99,13 @@ Every meaningful UI element uses 2+ of: icon, text, color.
 - Dropdown panel: forms needing more space
 - Modal: destructive confirmations or complex multi-step only
 - All overlays dismissible via Escape. No nested modals.
+
+## Autosave feedback (MANDATORY)
+
+- Silent saves are a bug. Any form that writes on blur/debounce/toggle without an explicit Save button must render `<SaveStatus />`.
+- Source of truth: `useAutosaveStatus()` from `@/hooks/useAutosaveStatus`. Wrap each server-action call with `save.wrap(action(fd))`.
+- Indicator: `<SaveStatus status={...} lastSavedAt={...} />` from `@/components/SaveStatus`. Three-channel (icon + color + text): "Saving…" / "Saved just now / Nm ago" / "Save failed".
+- Pair with Undo toast + `/trash` when the autosave can destroy data (see Destructive flows).
 
 ## Navigation feedback (MANDATORY)
 

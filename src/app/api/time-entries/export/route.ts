@@ -52,6 +52,7 @@ export async function GET(request: Request): Promise<Response> {
     .select(
       "start_time, end_time, duration_min, description, billable, github_issue, category_id, projects(name, customers(name)), categories(name)",
     )
+    .is("deleted_at", null)
     .gte("start_time", rangeStart.toISOString())
     .lt("start_time", rangeEnd.toISOString())
     .order("start_time", { ascending: true });

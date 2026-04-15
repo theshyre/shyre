@@ -89,6 +89,7 @@ export default async function TimeEntriesPage({
     .select(
       "*, projects(id, name, github_repo, category_set_id, require_timestamps, customers(id, name))",
     )
+    .is("deleted_at", null)
     .gte("start_time", weekStartUtc.toISOString())
     .lt("start_time", weekEndUtc.toISOString())
     .order("start_time", { ascending: true });
@@ -103,6 +104,7 @@ export default async function TimeEntriesPage({
     .select(
       "*, projects(id, name, github_repo, category_set_id, require_timestamps, customers(id, name))",
     )
+    .is("deleted_at", null)
     .gte("start_time", dayStartUtc.toISOString())
     .lt("start_time", dayEndUtc.toISOString())
     .order("start_time", { ascending: true });
@@ -118,6 +120,7 @@ export default async function TimeEntriesPage({
       "*, projects(id, name, github_repo, category_set_id, require_timestamps, customers(id, name))",
     )
     .is("end_time", null)
+    .is("deleted_at", null)
     .order("start_time", { ascending: false })
     .limit(1);
   if (selectedTeamId) runningQuery = runningQuery.eq("team_id", selectedTeamId);
@@ -161,6 +164,7 @@ export default async function TimeEntriesPage({
   let recentQuery = supabase
     .from("time_entries")
     .select("project_id, start_time")
+    .is("deleted_at", null)
     .gte("start_time", recentSinceIso)
     .order("start_time", { ascending: false })
     .limit(50);
@@ -182,6 +186,14 @@ export default async function TimeEntriesPage({
   const allTemplates = await getMyTemplates(selectedTeamId);
   const templates = allTemplates.slice(0, 8);
 
+  // Trash count — only surfaced in the UI if > 0
+  let trashQuery = supabase
+    .from("time_entries")
+    .select("id", { count: "exact", head: true })
+    .not("deleted_at", "is", null);
+  if (selectedTeamId) trashQuery = trashQuery.eq("team_id", selectedTeamId);
+  const { count: trashCount } = await trashQuery;
+
   return (
     <TimeHome
       teams={teams}
@@ -198,6 +210,7 @@ export default async function TimeEntriesPage({
       recentProjects={recentProjects}
       categories={categories}
       templates={templates}
+      trashCount={trashCount ?? 0}
     />
   );
 }

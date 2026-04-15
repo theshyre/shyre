@@ -112,7 +112,8 @@ export async function startFromTemplateAction(
         .from("time_entries")
         .update({ end_time: now })
         .eq("user_id", userId)
-        .is("end_time", null),
+        .is("end_time", null)
+        .is("deleted_at", null),
     );
 
     // Insert new running entry from template

@@ -8,6 +8,7 @@ Shyre does not have an explicit "close the period" control yet. What exists:
 
 - Invoices have immutable send history (sent invoices can only be voided, not deleted).
 - Time entries are freely editable. There's no "freeze" mechanism.
+- Time entry deletions are **soft** — every deletion goes through the [Trash](../features/time-tracking.md#the-trash-page) and can be restored. A deleted entry is excluded from reports, totals, exports, and invoicing, but the row still exists in the database with a `deleted_at` timestamp. This matters for reconciliation: if a prior month's total changes after you closed, check the Trash first.
 - Audit trail for mutations is basic (`created_at` on everything; full edit history is planned).
 
 ## Recommended month-end workflow

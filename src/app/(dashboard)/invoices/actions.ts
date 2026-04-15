@@ -43,7 +43,8 @@ export async function createInvoiceAction(formData: FormData): Promise<void> {
       .eq("invoiced", false)
       .eq("billable", true)
       .not("end_time", "is", null)
-      .not("duration_min", "is", null);
+      .not("duration_min", "is", null)
+      .is("deleted_at", null);
 
     const { data: entries } = await query;
 

@@ -41,7 +41,9 @@
     "archive": "Archivar",
     "edit": "Editar",
     "create": "Crear",
-    "signOut": "Cerrar sesión"
+    "signOut": "Cerrar sesión",
+    "confirmDelete": "Confirmar eliminación",
+    "deleteCount": "{count, plural, one {# entrada} other {# entradas}}"
   },
   "status": {
     "active": "Activo",
@@ -62,6 +64,19 @@
   },
   "confirm": {
     "archive": "¿Archivar este {item}?"
+  },
+  "toast": {
+    "dismiss": "Cerrar"
+  },
+  "saveStatus": {
+    "idle": "Sin guardar",
+    "saving": "Guardando…",
+    "savedJustNow": "Guardado ahora",
+    "savedSecondsAgo": "Guardado hace {seconds}s",
+    "savedMinutesAgo": "Guardado hace {minutes}m",
+    "savedHoursAgo": "Guardado hace {hours}h",
+    "error": "Error al guardar",
+    "errorRetry": "Error al guardar — reintentar"
   },
   "team": {
     "create": "Crear Equipo",

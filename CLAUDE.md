@@ -147,9 +147,14 @@ These rules apply to EVERY form and button in the app. Non-negotiable.
 
 ### Destructive confirmation flows:
 1. **One action button at a time** — when a destructive action reveals a confirmation form, HIDE the original trigger button. Don't show both "Delete" and "Permanently Delete" simultaneously.
-2. **Require typed confirmation for irreversible actions** — delete team, void invoice, etc. Require the user to type the exact name.
-3. **Confirm button disabled until confirmation matches** — typed name must match exactly before the destructive button enables.
-4. **Cancel button always present** — easy escape from destructive flows.
+2. **Tiered confirmation based on blast radius:**
+   - **Row-level delete (one entity, recoverable)** → inline `[Confirm][Cancel]` pair via `<InlineDeleteButton />` from `@/components/InlineDeleteButton`. No modal. No typed confirmation. Auto-reverts to idle after ~4s.
+   - **Multi-entity or record-level delete (client, project, team, invoice void)** → typed-name confirmation in an inline form or modal.
+   - **Irreversible hard delete of soft-deleted data (emptying trash)** → inline confirm is acceptable because the user already decided once to trash the row; the second confirm guards against a stray click. Label it "forever" or equivalent.
+3. **Soft delete + Undo toast is mandatory for any row-level delete a user could realistically want back.** After a row-level destructive action completes, push an `Undo` toast (`useToast()`) for 10s that restores the soft-deleted row(s). Example: time entry row → `deleteTimeEntryAction` sets `deleted_at`, toast offers `restoreTimeEntriesAction`. A `/trash` surface must exist for the entity so users can recover from the grave after the toast expires.
+4. **Require typed confirmation for irreversible record-level actions** — delete team, void invoice, etc. Require the user to type the exact name.
+5. **Confirm button disabled until confirmation matches** — typed name must match exactly before the destructive button enables.
+6. **Cancel button always present** — easy escape from destructive flows.
 
 ## Supabase patterns
 
@@ -215,6 +220,16 @@ Don't:
 - Don't build a custom progress bar per page. There's one global bar.
 - Don't omit `<LinkPendingSpinner />` from a navigation link "because the destination is fast." Speed varies — feedback shouldn't.
 - Don't show the progress bar for non-navigation interactions (use `<SubmitButton>` for those).
+
+## Autosave feedback — MANDATORY
+
+**Silent saves are a bug.** Any form that writes to the server without an explicit submit button — blur-commits, debounced inputs, optimistic toggles, inline-edit grids — must render a visible save-state indicator.
+
+- **Source of truth**: `useAutosaveStatus()` from `@/hooks/useAutosaveStatus`. The hook exposes `{ status, wrap, lastSavedAt, lastError, reset }`. Wrap every server-action call with `save.wrap(action(fd))`.
+- **Indicator**: `<SaveStatus status={...} lastSavedAt={...} />` from `@/components/SaveStatus`. Render it next to the form's header or frame title. Three-channel encoding (icon + color + text): spinner+muted "Saving…", check+success "Saved just now / Nm ago", alert+error "Save failed".
+- **Surfaces that need it**: weekly timesheet, client/customer edit, project edit, settings pages, invoice editor, any future autosaving form.
+- **Don't**: render a custom pill per form, log to console only, rely on React Transitions alone, or display "Saved" permanently without the relative timestamp.
+- **Paired with undo**: if the autosave can destroy data (e.g., zeroing a timesheet cell soft-deletes entries), combine `<SaveStatus/>` with the Undo-toast pattern (see "Destructive confirmation flows").
 
 ## Keyboard shortcuts — MANDATORY
 

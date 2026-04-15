@@ -1,6 +1,7 @@
 import Sidebar from "@/components/Sidebar";
 import { TimezoneSync } from "@/components/TimezoneSync";
 import { ThemeSync } from "@/components/ThemeSync";
+import { ToastProvider } from "@/components/Toast";
 import { getUserContext } from "@/lib/team-context";
 import { isSystemAdmin } from "@/lib/system-admin";
 import { createClient } from "@/lib/supabase/server";
@@ -48,19 +49,21 @@ export default async function DashboardLayout({
   }
 
   return (
-    <div className="flex h-full">
-      <TimezoneSync />
-      <ThemeSync preferredTheme={preferredTheme} />
-      <Sidebar
-        displayName={user.displayName}
-        email={user.userEmail}
-        avatarUrl={avatarUrl}
-        isSystemAdmin={admin}
-        unresolvedErrorCount={unresolvedErrorCount}
-      />
-      <main className="flex-1 overflow-y-auto">
-        <div className="mx-auto max-w-7xl px-8 py-8">{children}</div>
-      </main>
-    </div>
+    <ToastProvider>
+      <div className="flex h-full">
+        <TimezoneSync />
+        <ThemeSync preferredTheme={preferredTheme} />
+        <Sidebar
+          displayName={user.displayName}
+          email={user.userEmail}
+          avatarUrl={avatarUrl}
+          isSystemAdmin={admin}
+          unresolvedErrorCount={unresolvedErrorCount}
+        />
+        <main className="flex-1 overflow-y-auto">
+          <div className="mx-auto max-w-7xl px-8 py-8">{children}</div>
+        </main>
+      </div>
+    </ToastProvider>
   );
 }

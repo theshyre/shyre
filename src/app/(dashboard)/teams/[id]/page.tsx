@@ -10,7 +10,7 @@ import {
   ArrowRight,
 } from "lucide-react";
 import { TeamSettingsForm } from "./team-settings-form";
-import { TeamSection } from "../../../(dashboard)/settings/team-section";
+import { TeamSection } from "./team-section";
 import { RelationshipsSection } from "./relationships-section";
 
 export default async function TeamDetailPage({

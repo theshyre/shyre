@@ -41,7 +41,9 @@
     "archive": "Archive",
     "edit": "Edit",
     "create": "Create",
-    "signOut": "Sign Out"
+    "signOut": "Sign Out",
+    "confirmDelete": "Confirm delete",
+    "deleteCount": "{count, plural, one {# entry} other {# entries}}"
   },
   "status": {
     "active": "Active",
@@ -62,6 +64,19 @@
   },
   "confirm": {
     "archive": "Archive this {item}?"
+  },
+  "toast": {
+    "dismiss": "Dismiss"
+  },
+  "saveStatus": {
+    "idle": "Not saved yet",
+    "saving": "Saving…",
+    "savedJustNow": "Saved just now",
+    "savedSecondsAgo": "Saved {seconds}s ago",
+    "savedMinutesAgo": "Saved {minutes}m ago",
+    "savedHoursAgo": "Saved {hours}h ago",
+    "error": "Save failed",
+    "errorRetry": "Save failed — retry"
   },
   "team": {
     "create": "Create Team",

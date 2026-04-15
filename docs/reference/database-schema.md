@@ -109,7 +109,12 @@ One row per user, auto-created on signup via trigger.
 | category_id | UUID | References `categories(id)` SET NULL — trigger enforces set matches project |
 | invoiced | BOOLEAN | Default: false |
 | invoice_id | UUID | References `invoices(id)` SET NULL |
+| deleted_at | TIMESTAMPTZ | Soft delete. NULL for active entries; set to `now()` when trashed. Normal listings, reports, invoicing, and exports must include `WHERE deleted_at IS NULL`. The `/time-entries/trash` view reads rows where it's NOT NULL. RLS is unchanged — the owner can read, restore, or permanently delete their own trashed rows. |
 | created_at | TIMESTAMPTZ | |
+
+Partial indexes:
+- `idx_time_entries_active_start_time (user_id, start_time) WHERE deleted_at IS NULL` — fast week/day listings without paying for trashed rows.
+- `idx_time_entries_deleted_at (user_id, deleted_at DESC) WHERE deleted_at IS NOT NULL` — fast trash queries.
 
 ### `category_sets`
 Templates of time categories. System sets (`is_system=true`, `team_id=NULL`) are seeded and visible to all users. Org sets are user-created copies or custom sets.

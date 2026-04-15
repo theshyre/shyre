@@ -32,6 +32,40 @@ Click a card. It expands in place into an edit form.
 
 **Duplicate** is a one-click "start this again". It creates a new entry with the same project/description/billable/github_issue, `start_time = now()`, `end_time = null`. If a timer is already running, it's stopped first.
 
+## Deleting, undoing, and the Trash
+
+### Row delete from the weekly timesheet
+
+Each row in the weekly timesheet has a trash button on the right. Click it once → the same cell flips to a red **Delete** + muted **Cancel** pair. Click **Delete** again to soft-delete every entry in that row. You won't get a browser confirm dialog — the two-click inline pattern is the confirmation.
+
+If you walk away for a few seconds, the confirm state auto-reverts to the trash icon.
+
+### Undo
+
+When you delete a row, a toast pops up at the bottom of the screen:
+
+> `Entry moved to trash · [Undo]`
+
+Click **Undo** within 10 seconds and every deleted entry in that batch is restored exactly where it was. Press `Esc` to dismiss the toast without undoing.
+
+### The Trash page
+
+If you miss the undo window, the deletion isn't lost — entries are soft-deleted, not hard-deleted. Go to **Trash** (link appears on the Time page when there's anything trashed, count in the badge) or hit `/time-entries/trash` directly.
+
+From there you can:
+- **Restore** — puts the entry back and it reappears in the week grid, reports, totals, and unbilled invoice queries.
+- **Permanently delete** — inline two-click confirm labelled "forever". This one can't be undone.
+
+Soft-deleted entries are excluded from reports, invoicing, dashboards, exports, and totals until you restore them.
+
+### Per-entry delete (day view / kebab menu)
+
+Deleting a single entry from the kebab menu follows the same rules: soft-delete, Undo toast, recoverable from the Trash page.
+
+### Autosave indicator
+
+The weekly timesheet autosaves each cell on blur. A "Saving…" / "Saved just now" pill in the top-right of the grid tells you when a save has landed. If a save fails, the pill shows **Save failed** in red — retry by editing the cell again.
+
 ## Categories
 
 If the project has a category set attached, you can tag entries. Category is the primary organizing axis for time — more useful than project for "what was I doing last Tuesday?" See [categories](categories.md).
