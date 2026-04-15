@@ -34,15 +34,26 @@ function tzOffsetFromForm(formData: FormData): number {
 
 export async function createTimeEntryAction(formData: FormData): Promise<void> {
   return runSafeAction(formData, async (formData, { supabase }) => {
-    const teamId = formData.get("team_id") as string;
-    const { userId } = await validateTeamAccess(teamId);
-
     const project_id = formData.get("project_id") as string;
     const description = (formData.get("description") as string) || null;
     const billable = formData.get("billable") === "on";
     const issueStr = formData.get("github_issue") as string;
     const github_issue = issueStr ? parseInt(issueStr, 10) : null;
     const category_id = (formData.get("category_id") as string) || null;
+
+    if (!project_id) throw new Error("project_id is required");
+
+    // Derive team_id from the project — see startTimerAction for rationale.
+    const { data: project, error: projErr } = await supabase
+      .from("projects")
+      .select("team_id")
+      .eq("id", project_id)
+      .single();
+    if (projErr || !project) {
+      throw new Error("Project not found or not accessible");
+    }
+    const teamId = project.team_id as string;
+    const { userId } = await validateTeamAccess(teamId);
 
     // Duration-only mode: form submits `entry_date` (YYYY-MM-DD) + `duration_min`
     // Timestamp mode: form submits `start_time` + optional `end_time`
@@ -222,12 +233,30 @@ export async function restoreTimeEntriesAction(
 
 export async function startTimerAction(formData: FormData): Promise<void> {
   return runSafeAction(formData, async (formData, { supabase }) => {
-    const teamId = formData.get("team_id") as string;
-    const { userId } = await validateTeamAccess(teamId);
-
     const project_id = formData.get("project_id") as string;
     const description = (formData.get("description") as string) || null;
     const category_id = (formData.get("category_id") as string) || null;
+
+    if (!project_id) throw new Error("project_id is required");
+
+    // Derive team_id from the project — NEVER trust the form's team_id
+    // field. When a user clicks a "recent project" chip the Team dropdown
+    // doesn't re-sync; inserting with mismatched team_id trips the RLS
+    // policy `project.team_id = time_entries.team_id` and the user sees
+    // a generic "permission denied" error.
+    const { data: project, error: projErr } = await supabase
+      .from("projects")
+      .select("team_id")
+      .eq("id", project_id)
+      .single();
+    if (projErr || !project) {
+      throw new Error("Project not found or not accessible");
+    }
+    const teamId = project.team_id as string;
+
+    // Still validate the caller has access to that team — defense in
+    // depth. RLS would block it too, but we want a clean userMessage.
+    const { userId } = await validateTeamAccess(teamId);
 
     assertSupabaseOk(
       await supabase.from("time_entries").insert({
