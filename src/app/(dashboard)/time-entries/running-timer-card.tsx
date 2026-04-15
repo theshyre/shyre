@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState, useSyncExternalStore } from "react";
+import { useEffect, useState } from "react";
 import { useTranslations } from "next-intl";
 import { Play, Square, X } from "lucide-react";
 import { useFormAction } from "@/hooks/use-form-action";
@@ -52,13 +52,10 @@ export function RunningTimerCard({
   const [selectedProjectId, setSelectedProjectId] = useState("");
   const [description, setDescription] = useState("");
 
-  // Live elapsed clock via useSyncExternalStore — avoids the setState-in-
-  // effect pattern and keeps Date.now() off the render path.
-  const nowMs = useSyncExternalStore(
-    subscribeToSecond,
-    getNowMs,
-    getServerNowMs,
-  );
+  // Live elapsed clock. Ticks every second only while a timer is running;
+  // the interval's setState fires inside the timer callback, not the effect
+  // body itself, so it doesn't trip `react-hooks/set-state-in-effect`.
+  const nowMs = useNowMs(running !== null);
   const elapsed = running
     ? formatElapsed(nowMs - new Date(running.start_time).getTime())
     : "00:00:00";
@@ -279,18 +276,21 @@ export function RunningTimerCard({
   );
 }
 
-// Module-scope helpers for useSyncExternalStore so the subscribe and
-// getSnapshot references are stable across renders.
-function subscribeToSecond(onChange: () => void): () => void {
-  const id = setInterval(onChange, 1000);
-  return () => clearInterval(id);
+/**
+ * Tick every second when active — returns Date.now() from state so renders
+ * between ticks reuse the same snapshot. useSyncExternalStore is unusable
+ * here because Date.now() isn't a stable source during a render.
+ */
+function useNowMs(active: boolean): number {
+  const [now, setNow] = useState<number>(() => Date.now());
+  useEffect(() => {
+    if (!active) return;
+    const id = setInterval(() => setNow(Date.now()), 1000);
+    return () => clearInterval(id);
+  }, [active]);
+  return now;
 }
-function getNowMs(): number {
-  return Date.now();
-}
-function getServerNowMs(): number {
-  return 0;
-}
+
 function formatElapsed(diffMs: number): string {
   const totalSec = Math.max(0, Math.floor(diffMs / 1000));
   const h = Math.floor(totalSec / 3600);

@@ -1,11 +1,6 @@
 "use client";
 
-import {
-  useCallback,
-  useEffect,
-  useState,
-  useSyncExternalStore,
-} from "react";
+import { useCallback, useEffect, useState } from "react";
 import { useTranslations } from "next-intl";
 import { useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
@@ -66,13 +61,10 @@ export default function Timer(): React.JSX.Element {
     return () => clearTimeout(id);
   }, [fetchRunning]);
 
-  // Live elapsed clock via useSyncExternalStore — keeps Date.now() off the
-  // render path and avoids setState-in-effect.
-  const nowMs = useSyncExternalStore(
-    subscribeToSecond,
-    getNowMs,
-    getServerNowMs,
-  );
+  // Live elapsed clock. setInterval ticks state once a second while a timer
+  // is running — the setState is inside the interval callback, not the
+  // effect body, so it's fine with the set-state-in-effect lint rule.
+  const nowMs = useNowMs(running !== null);
   const elapsed = running
     ? formatElapsed(nowMs - new Date(running.start_time).getTime())
     : "00:00:00";
@@ -144,16 +136,16 @@ export default function Timer(): React.JSX.Element {
   );
 }
 
-function subscribeToSecond(onChange: () => void): () => void {
-  const id = setInterval(onChange, 1000);
-  return () => clearInterval(id);
+function useNowMs(active: boolean): number {
+  const [now, setNow] = useState<number>(() => Date.now());
+  useEffect(() => {
+    if (!active) return;
+    const id = setInterval(() => setNow(Date.now()), 1000);
+    return () => clearInterval(id);
+  }, [active]);
+  return now;
 }
-function getNowMs(): number {
-  return Date.now();
-}
-function getServerNowMs(): number {
-  return 0;
-}
+
 function formatElapsed(diffMs: number): string {
   const totalSec = Math.max(0, Math.floor(diffMs / 1000));
   const h = Math.floor(totalSec / 3600);
