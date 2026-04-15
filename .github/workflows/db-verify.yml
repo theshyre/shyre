@@ -1,0 +1,41 @@
+name: Verify Supabase migrations
+
+# On pull requests that touch migrations, spin up a full local Supabase stack
+# (Postgres + auth schema + storage + realtime) and apply every migration in
+# order. Catches bad SQL, ordering issues, or references to auth.users /
+# storage.* schemas that a bare Postgres would miss.
+#
+# This mirrors what `supabase db reset` does locally and what db-migrate.yml
+# runs against prod — so green here is a strong signal that merge won't
+# break main.
+
+on:
+  pull_request:
+    paths:
+      - "supabase/migrations/**"
+      - ".github/workflows/db-verify.yml"
+
+jobs:
+  verify:
+    name: supabase db reset (ephemeral)
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install Supabase CLI
+        uses: supabase/setup-cli@v1
+        with:
+          version: latest
+
+      - name: Start local Supabase and apply migrations
+        run: |
+          # `supabase start` boots Postgres + auth + storage via Docker and
+          # applies every file under supabase/migrations in lexical order.
+          # It exits non-zero if any migration fails.
+          supabase start
+
+      - name: Tear down
+        if: always()
+        run: supabase stop --no-backup || true
