@@ -1,20 +1,41 @@
-# Contributing to Stint
+# Contributing to Shyre
 
 ## Prerequisites
 
 - Node.js 22+
 - npm
 - A Supabase project (free tier)
+- GitHub account with **read access to the `theshyre` org** (ask Marcus). Needed to install `@theshyre/*` private packages from GitHub Packages.
+
+## One-time: GitHub Packages auth
+
+Shyre depends on `@theshyre/design-tokens` and `@theshyre/theme`, which are published privately under the `theshyre` org. Every environment that runs `npm install` needs a token with `read:packages` scope.
+
+1. Create a **classic** personal access token: https://github.com/settings/tokens → **Generate new token (classic)**.
+   - Name: whatever's memorable (e.g. `shyre-dev`).
+   - Scopes: just `read:packages`.
+   - Expiration: pick something — 1 year is reasonable.
+2. Export it in your shell profile so every terminal has it:
+   ```bash
+   # add to ~/.zshrc or ~/.bash_profile
+   export NODE_AUTH_TOKEN='ghp_YOUR_TOKEN_HERE'
+   ```
+3. Open a new terminal or `source` the file.
+4. Verify: `echo $NODE_AUTH_TOKEN` prints the token.
+
+The repo's `.npmrc` reads this env var at install time. CI and Vercel have their own copies of the token (via `secrets.GITHUB_TOKEN` and a Vercel env var, respectively) — no manual config on your side for those.
+
+If you leave the org or your token is revoked, regenerate and update the env var. No code change needed.
 
 ## Setup
 
 1. Clone the repo:
    ```bash
-   git clone git@github.com:Malcom-IO/stint.git
-   cd stint
+   git clone git@github.com:theshyre/shyre.git
+   cd shyre
    ```
 
-2. Install dependencies:
+2. Install dependencies (requires the `NODE_AUTH_TOKEN` export above):
    ```bash
    npm install
    ```
