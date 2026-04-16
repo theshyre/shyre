@@ -50,6 +50,7 @@
     "addCategory": "Agregar categoría",
     "removeCategory": "Quitar categoría",
     "deleteSet": "Eliminar categorías específicas",
-    "deleteSummary": "categorías extra del proyecto"
+    "deleteSummary": "categorías extra del proyecto",
+    "duplicateWarning": "\"{name}\" ya existe en el conjunto base. Renómbrala para evitar confusión."
   }
 }

@@ -143,10 +143,33 @@ export async function upsertProjectCategoriesAction(
       );
     }
 
+    // Cross-set overlap check: extension names must not collide (case-
+    // insensitive) with categories in the base set. Two "Admin" items
+    // in the picker would be confusing and unresolvable.
+    const effectiveBaseId = baseSetUpdateRequested
+      ? baseSetId
+      : (project.category_set_id as string | null);
+    if (effectiveBaseId && categories.length > 0) {
+      const { data: baseCats } = await supabase
+        .from("categories")
+        .select("name")
+        .eq("category_set_id", effectiveBaseId);
+      const baseNames = new Set(
+        (baseCats ?? []).map((c) => (c.name as string).toLowerCase()),
+      );
+      const overlapping = categories.filter((c) =>
+        baseNames.has(c.name.trim().toLowerCase()),
+      );
+      if (overlapping.length > 0) {
+        const names = overlapping.map((c) => c.name).join(", ");
+        throw new Error(
+          `These names already exist in the base set: ${names}. Rename or remove them to avoid duplicates in the picker.`,
+        );
+      }
+    }
+
     // Find or create the project-scoped set. It's identified by
-    // project_id (one project-scoped set per project — if the project
-    // already has a team/system set, creating a project-scoped one
-    // replaces that pointer).
+    // project_id (one project-scoped set per project).
     const { data: existingSet } = await supabase
       .from("category_sets")
       .select("id")

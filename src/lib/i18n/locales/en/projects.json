@@ -50,6 +50,7 @@
     "addCategory": "Add category",
     "removeCategory": "Remove category",
     "deleteSet": "Delete project-specific categories",
-    "deleteSummary": "project's extra categories"
+    "deleteSummary": "project's extra categories",
+    "duplicateWarning": "\"{name}\" already exists in the base set. Rename it to avoid confusion in the picker."
   }
 }

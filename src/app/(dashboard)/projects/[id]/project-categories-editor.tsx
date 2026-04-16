@@ -96,11 +96,14 @@ export function ProjectCategoriesEditor({
   const previewCategories =
     selectedAvailable && selectedAvailable.id === initialBaseSetId
       ? baseCategories
-      : // We only have server-fetched categories for the INITIAL base set.
-        // Switching to a different one in the dropdown shows its name but
-        // defers the category preview until save (matches how other sets'
-        // contents aren't loaded in this component).
-        [];
+      : [];
+
+  // Case-insensitive lookup of base-category names so the inline editor
+  // can flag duplicates as the user types, before they hit Save and get
+  // a server-side rejection.
+  const baseNames = new Set(
+    previewCategories.map((c) => c.name.toLowerCase()),
+  );
 
   const upsert = useFormAction({ action: upsertProjectCategoriesAction });
   const removeForm = useFormAction({ action: deleteProjectCategoriesAction });
@@ -241,31 +244,42 @@ export function ProjectCategoriesEditor({
         {categories.length === 0 && (
           <p className="text-caption text-content-muted">{t("emptyHint")}</p>
         )}
-        {categories.map((cat, i) => (
-          <div
-            key={cat.id ?? `new-${i}`}
-            className="flex items-center gap-2"
-          >
-            <ColorSwatchPicker
-              value={cat.color}
-              onChange={(c) => updateRow(i, { color: c })}
-            />
-            <input
-              value={cat.name}
-              onChange={(e) => updateRow(i, { name: e.target.value })}
-              placeholder={t("categoryNamePlaceholder")}
-              className={`${inputClass} flex-1`}
-            />
-            <button
-              type="button"
-              onClick={() => removeRow(i)}
-              aria-label={t("removeCategory")}
-              className="rounded p-1 text-content-muted hover:bg-hover hover:text-error transition-colors"
-            >
-              <Trash2 size={14} />
-            </button>
-          </div>
-        ))}
+        {categories.map((cat, i) => {
+          const isDuplicate =
+            cat.name.trim() !== "" &&
+            baseNames.has(cat.name.trim().toLowerCase());
+          return (
+            <div key={cat.id ?? `new-${i}`} className="space-y-0.5">
+              <div className="flex items-center gap-2">
+                <ColorSwatchPicker
+                  value={cat.color}
+                  onChange={(c) => updateRow(i, { color: c })}
+                />
+                <input
+                  value={cat.name}
+                  onChange={(e) => updateRow(i, { name: e.target.value })}
+                  placeholder={t("categoryNamePlaceholder")}
+                  className={`${inputClass} flex-1 ${
+                    isDuplicate ? "border-error" : ""
+                  }`}
+                />
+                <button
+                  type="button"
+                  onClick={() => removeRow(i)}
+                  aria-label={t("removeCategory")}
+                  className="rounded p-1 text-content-muted hover:bg-hover hover:text-error transition-colors"
+                >
+                  <Trash2 size={14} />
+                </button>
+              </div>
+              {isDuplicate && (
+                <p className="text-caption text-error pl-10">
+                  {t("duplicateWarning", { name: cat.name.trim() })}
+                </p>
+              )}
+            </div>
+          );
+        })}
         <button
           type="button"
           onClick={addRow}
@@ -295,7 +309,14 @@ export function ProjectCategoriesEditor({
         <button
           type="button"
           onClick={() => void handleSave()}
-          disabled={upsert.pending}
+          disabled={
+            upsert.pending ||
+            categories.some(
+              (c) =>
+                c.name.trim() !== "" &&
+                baseNames.has(c.name.trim().toLowerCase()),
+            )
+          }
           className={buttonPrimaryClass}
         >
           {upsert.pending
