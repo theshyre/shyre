@@ -33,9 +33,12 @@
     "totalHours": "Total: {hours}h"
   },
   "projectCategories": {
-    "title": "Categorías específicas del proyecto",
+    "title": "Categorías",
+    "baseSetLabel": "Conjunto base de categorías",
+    "baseSetNone": "Sin conjunto base",
+    "baseSetPreviewPending": "Guarda para cargar las categorías del conjunto seleccionado.",
     "enableTitle": "¿Necesitas categorías puntuales solo para este proyecto?",
-    "enableHint": "Lo que agregues aquí se suma a las categorías base del proyecto — los usuarios eligen de ambas listas.",
+    "enableHint": "Lo que agregues aquí se suma a las del conjunto base — los usuarios eligen de ambas listas.",
     "enableButton": "Agregar categorías específicas",
     "baseFromNamed": "Del conjunto base: {name}",
     "baseFromUnnamed": "Categorías base",

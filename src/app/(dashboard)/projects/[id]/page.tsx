@@ -131,7 +131,7 @@ export default async function ProjectDetailPage({
 
   return (
     <div>
-      <ProjectEditForm project={project} categorySets={categorySets} />
+      <ProjectEditForm project={project} />
 
       <div className="mt-6">
         <ProjectCategoriesEditor
@@ -139,8 +139,14 @@ export default async function ProjectDetailPage({
           setId={projectSet?.id ?? null}
           setName={projectSet?.name ?? ""}
           initialCategories={projectSetCategories}
+          initialBaseSetId={project.category_set_id}
           baseSetName={baseSetName}
           baseCategories={baseCategories}
+          availableSets={categorySets.map((s) => ({
+            id: s.id,
+            name: s.name,
+            is_system: s.is_system,
+          }))}
         />
       </div>
 

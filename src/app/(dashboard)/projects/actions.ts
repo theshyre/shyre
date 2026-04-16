@@ -85,17 +85,18 @@ interface ProjectCategoryInput {
 }
 
 /**
- * Upsert a project-scoped category set. Creates the set (bound to the
- * project via category_sets.project_id, team_id NULL) if it doesn't
- * exist, then syncs the categories list: inserts new ones, updates
- * edited ones, deletes ones the user removed.
+ * Upsert the project's full category configuration in one call:
+ *   - base_category_set_id: pointer to a system or team set (nullable)
+ *   - project-scoped extension set + its categories (additive)
  *
  * Form contract:
  *   project_id — required
- *   set_name — name of the set (defaults to "Project categories")
- *   categories — JSON array of { id?, name, color, sort_order }
- *
- * On first create, also links `projects.category_set_id` to the new set.
+ *   base_category_set_id — optional; if present (including empty string
+ *     to mean "none") updates projects.category_set_id
+ *   set_name — name of the extension set (defaults to "Project categories")
+ *   categories — JSON array of { id?, name, color, sort_order } for the
+ *     extension set. Empty array clears the extension (extension set is
+ *     preserved for re-use but has no categories).
  */
 export async function upsertProjectCategoriesAction(
   formData: FormData,
@@ -109,6 +110,14 @@ export async function upsertProjectCategoriesAction(
     const categories: ProjectCategoryInput[] = categoriesRaw
       ? (JSON.parse(categoriesRaw) as ProjectCategoryInput[])
       : [];
+    // base_category_set_id is optional — only set when the caller is
+    // also changing the base. Empty string means "no base set".
+    const baseSetRaw = formData.get("base_category_set_id");
+    const baseSetUpdateRequested = baseSetRaw !== null;
+    const baseSetId =
+      typeof baseSetRaw === "string" && baseSetRaw.length > 0
+        ? baseSetRaw
+        : null;
 
     // Resolve the project's team (membership check) — derive server-side
     // so a stale form can't target a project the user can't edit.
@@ -119,6 +128,20 @@ export async function upsertProjectCategoriesAction(
       .single();
     if (!project) throw new Error("Project not found");
     await validateTeamAccess(project.team_id as string);
+
+    // Update the base pointer first so the picker's read-side stays
+    // consistent if the extension upsert is expensive.
+    if (
+      baseSetUpdateRequested &&
+      project.category_set_id !== baseSetId
+    ) {
+      assertSupabaseOk(
+        await supabase
+          .from("projects")
+          .update({ category_set_id: baseSetId })
+          .eq("id", project_id),
+      );
+    }
 
     // Find or create the project-scoped set. It's identified by
     // project_id (one project-scoped set per project — if the project

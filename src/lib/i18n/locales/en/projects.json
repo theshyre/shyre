@@ -33,9 +33,12 @@
     "totalHours": "Total: {hours}h"
   },
   "projectCategories": {
-    "title": "Project-specific categories",
+    "title": "Categories",
+    "baseSetLabel": "Base category set",
+    "baseSetNone": "No base set",
+    "baseSetPreviewPending": "Save to load the selected set's categories.",
     "enableTitle": "Need one-off categories for this project?",
-    "enableHint": "Anything you add here stacks on top of the project's base categories — users pick from both.",
+    "enableHint": "Anything you add here stacks on top of the base set — users pick from both.",
     "enableButton": "Add project-specific categories",
     "baseFromNamed": "From base set: {name}",
     "baseFromUnnamed": "Base categories",

@@ -11,7 +11,6 @@ import {
   labelClass,
   selectClass,
 } from "@/lib/form-styles";
-import type { CategorySet } from "@/lib/categories/types";
 import { updateProjectAction } from "../actions";
 
 interface Project {
@@ -30,10 +29,8 @@ const STATUSES = ["active", "paused", "completed", "archived"] as const;
 
 export function ProjectEditForm({
   project,
-  categorySets,
 }: {
   project: Project;
-  categorySets: CategorySet[];
 }): React.JSX.Element {
   const t = useTranslations("projects");
   const tc = useTranslations("common");
@@ -48,6 +45,14 @@ export function ProjectEditForm({
         <p className="text-sm text-error bg-error-soft rounded-lg px-3 py-2">{serverError}</p>
       )}
       <input type="hidden" name="id" value={project.id} />
+      {/* Preserve category_set_id on save — it's managed by the
+          ProjectCategoriesEditor below, but updateProjectAction reads
+          this field and would null it out if absent. */}
+      <input
+        type="hidden"
+        name="category_set_id"
+        value={project.category_set_id ?? ""}
+      />
 
       <div className="flex items-center gap-3">
         <FolderKanban size={24} className="text-accent" />
@@ -110,21 +115,6 @@ export function ProjectEditForm({
               defaultValue={project.github_repo ?? ""}
               className={inputClass}
             />
-          </div>
-          <div className="sm:col-span-2">
-            <label className={labelClass}>{t("fields.categorySet")}</label>
-            <select
-              name="category_set_id"
-              defaultValue={project.category_set_id ?? ""}
-              className={selectClass}
-            >
-              <option value="">{t("fields.noCategorySet")}</option>
-              {categorySets.map((s) => (
-                <option key={s.id} value={s.id}>
-                  {s.is_system ? `${s.name} (built-in)` : s.name}
-                </option>
-              ))}
-            </select>
           </div>
           <div className="sm:col-span-2">
             <label className="flex items-start gap-2 text-sm font-medium text-content cursor-pointer">
