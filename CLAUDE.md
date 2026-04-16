@@ -1,12 +1,12 @@
 @AGENTS.md
 
-# CLAUDE.md — Stint
+# CLAUDE.md — Shyre
 
 > **Dual-tool project**: This repo uses both Claude Code and Cursor. This file (`CLAUDE.md`) is for Claude Code. Cursor reads `.cursorrules`. Both files enforce identical conventions — if you update one, update the other.
 
 ## Project overview
 
-Stint is a time-tracking and invoicing app for a solo consultant. Built with Next.js 16 (App Router), Supabase (Postgres + Auth + RLS), and Tailwind CSS 4. Deployed free on Vercel + Supabase Cloud.
+Shyre is a platform for running a consulting business. The time-tracking and invoicing surface ships as the `stint` module inside that platform (see `src/lib/modules/registry.ts`). Built with Next.js 16 (App Router), Supabase (Postgres + Auth + RLS), and Tailwind CSS 4. Deployed on Vercel + Supabase Cloud. Shared UI, theme, and design-token packages come from the `@theshyre/*` scope (source: `/Users/marcus/projects/theshyre-core`, consumed via GitHub Packages).
 
 ## Project structure
 

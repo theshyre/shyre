@@ -87,7 +87,7 @@ export function MfaSetup(): React.JSX.Element {
 
     const { data, error: err } = await supabase.auth.mfa.enroll({
       factorType: "totp",
-      friendlyName: "Stint",
+      friendlyName: "Shyre",
       issuer: "malcom.io",
     });
 
@@ -256,12 +256,12 @@ export function MfaSetup(): React.JSX.Element {
   }
 
   function handleDownloadCodes(): void {
-    const text = formatCodesForDownload(backupCodes, "Stint");
+    const text = formatCodesForDownload(backupCodes, "Shyre");
     const blob = new Blob([text], { type: "text/plain" });
     const url = URL.createObjectURL(blob);
     const a = document.createElement("a");
     a.href = url;
-    a.download = "stint-backup-codes.txt";
+    a.download = "shyre-backup-codes.txt";
     a.click();
     URL.revokeObjectURL(url);
   }

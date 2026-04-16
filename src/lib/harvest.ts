@@ -61,7 +61,7 @@ async function harvestFetch<T>(
     headers: {
       Authorization: `Bearer ${opts.token}`,
       "Harvest-Account-Id": opts.accountId,
-      "User-Agent": "Stint Import (stint.malcom.io)",
+      "User-Agent": "Shyre Import (shyre.malcom.io)",
       "Content-Type": "application/json",
     },
   });

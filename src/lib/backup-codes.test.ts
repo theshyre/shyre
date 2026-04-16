@@ -62,19 +62,19 @@ describe("backup-codes", () => {
 
   describe("formatCodesForDownload", () => {
     it("includes app name in header", () => {
-      const result = formatCodesForDownload(["ABCD-EFGH"], "Stint");
-      expect(result).toContain("Stint");
+      const result = formatCodesForDownload(["ABCD-EFGH"], "Shyre");
+      expect(result).toContain("Shyre");
     });
 
     it("includes all codes numbered", () => {
       const codes = ["AAAA-BBBB", "CCCC-DDDD"];
-      const result = formatCodesForDownload(codes, "Stint");
+      const result = formatCodesForDownload(codes, "Shyre");
       expect(result).toContain("1. AAAA-BBBB");
       expect(result).toContain("2. CCCC-DDDD");
     });
 
     it("includes warning about single use", () => {
-      const result = formatCodesForDownload(["ABCD-EFGH"], "Stint");
+      const result = formatCodesForDownload(["ABCD-EFGH"], "Shyre");
       expect(result).toContain("only be used once");
     });
   });

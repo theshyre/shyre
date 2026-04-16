@@ -6,7 +6,7 @@
 
 ## Project
 
-Stint is a time-tracking and invoicing app. Next.js 16 (App Router) + Supabase + Tailwind CSS 4. Deployed on Vercel.
+Shyre is a platform for running a consulting business. Time tracking + invoicing ship as the `stint` module inside it. Next.js 16 (App Router) + Supabase + Tailwind CSS 4. Deployed on Vercel. Shared UI / theme / tokens come from `@theshyre/*`.
 
 ## TypeScript — strict, no exceptions
 

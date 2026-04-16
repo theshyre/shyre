@@ -84,7 +84,7 @@ export async function POST(request: Request): Promise<NextResponse> {
           fetchHarvestTimeEntries(opts),
         ]);
 
-      // Track Harvest ID → Stint ID mapping
+      // Track Harvest ID → Shyre ID mapping
       const clientMap = new Map<number, string>();
       const projectMap = new Map<number, string>();
 

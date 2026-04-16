@@ -86,7 +86,7 @@ export async function GET(request: Request): Promise<Response> {
   });
 
   const csv = toCsv(rows);
-  const filename = `stint-time-${toDateOnly(rangeStart)}-to-${toDateOnly(
+  const filename = `shyre-time-${toDateOnly(rangeStart)}-to-${toDateOnly(
     new Date(rangeEnd.getTime() - 1),
   )}.csv`;
 
