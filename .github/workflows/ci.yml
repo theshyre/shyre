@@ -34,13 +34,14 @@ jobs:
         with:
           node-version: "22"
           cache: "npm"
+          # Writes a .npmrc auth line reading ${NODE_AUTH_TOKEN} so npm
+          # can pull @theshyre/* from the org's private GH Packages.
+          registry-url: "https://npm.pkg.github.com"
 
       - name: Install dependencies
         env:
-          # Reads @theshyre/* from the org's private GitHub Packages
-          # registry. Since this repo lives in the theshyre org and
-          # the workflow declares `packages: read` above, the auto
-          # GITHUB_TOKEN is sufficient — no PAT needed.
+          # Auto GITHUB_TOKEN carries packages: read (granted in the
+          # workflow permissions block above) — no PAT required.
           NODE_AUTH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: npm ci
 
