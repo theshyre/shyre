@@ -1,0 +1,645 @@
+import { describe, it, expect, vi, beforeEach } from "vitest";
+
+// --- Mock runSafeAction to strip the auth boundary.
+// safe-action.test.ts already covers the auth wrap — here we care about
+// the inside: orchestration, DB calls, totals, and side effects.
+const fakeUserId = "u-author";
+vi.mock("@/lib/safe-action", () => ({
+  runSafeAction: async (
+    formData: FormData,
+    fn: (fd: FormData, ctx: { supabase: unknown; userId: string }) => Promise<void>,
+  ) => {
+    await fn(formData, { supabase: mockSupabase(), userId: fakeUserId });
+    return { success: true };
+  },
+}));
+
+// validateTeamAccess — stubbed to succeed and return the caller's role.
+const mockValidateTeamAccess = vi.fn();
+vi.mock("@/lib/team-context", () => ({
+  validateTeamAccess: (...args: unknown[]) => mockValidateTeamAccess(...args),
+}));
+
+// revalidatePath + redirect — observed but inert.
+const mockRevalidatePath = vi.fn();
+vi.mock("next/cache", () => ({
+  revalidatePath: (p: string) => mockRevalidatePath(p),
+}));
+
+const mockRedirect = vi.fn((path: string): never => {
+  const err = new Error(`NEXT_REDIRECT ${path}`) as Error & { digest: string };
+  err.digest = `NEXT_REDIRECT;replace;${path};307;`;
+  throw err;
+});
+vi.mock("next/navigation", () => ({
+  redirect: (path: string) => mockRedirect(path),
+}));
+
+// --- Mock supabase client.
+// Shape: from(table) returns a chain of .select() / .eq() / .insert() / .update() /
+// .single(), with a terminal that resolves to { data, error }. Tests mutate
+// `tables` and `inserts` before invoking the action.
+
+interface TimeEntry {
+  id: string;
+  duration_min: number | null;
+  description: string | null;
+  projects: {
+    name: string;
+    hourly_rate: number | null;
+    customer_id: string | null;
+    customers: { default_rate: number | null } | null;
+  } | null;
+}
+
+interface Settings {
+  invoice_prefix: string | null;
+  invoice_next_num: number;
+  default_rate: number | null;
+}
+
+const state: {
+  timeEntries: TimeEntry[];
+  settings: Settings | null;
+  invoiceIdToInsert: string;
+  inserts: { table: string; rows: unknown }[];
+  updates: { table: string; patch: unknown; where: Record<string, string | string[]> }[];
+  insertShouldError: boolean;
+} = {
+  timeEntries: [],
+  settings: null,
+  invoiceIdToInsert: "inv-1",
+  inserts: [],
+  updates: [],
+  insertShouldError: false,
+};
+
+function mockSupabase() {
+  function fromTable(table: string): unknown {
+    if (table === "team_settings") {
+      return settingsChain();
+    }
+    if (table === "time_entries") {
+      return timeEntriesChain();
+    }
+    if (table === "invoices") {
+      return invoicesChain();
+    }
+    if (table === "invoice_line_items") {
+      return lineItemsChain();
+    }
+    throw new Error(`unexpected table ${table}`);
+  }
+
+  function settingsChain() {
+    const q = {
+      select: () => q,
+      eq: () => q,
+      single: () => Promise.resolve({ data: state.settings }),
+      update: (patch: unknown) => ({
+        eq: (col: string, val: string) => {
+          state.updates.push({
+            table: "team_settings",
+            patch,
+            where: { [col]: val },
+          });
+          return Promise.resolve({ data: null, error: null });
+        },
+      }),
+    };
+    return q;
+  }
+
+  function timeEntriesChain() {
+    // The query chain accumulates filters but we don't use them — the test
+    // controls which entries live in state.timeEntries.
+    const q = {
+      select: () => q,
+      eq: () => q,
+      not: () => q,
+      is: () => q,
+      update: (patch: unknown) => ({
+        in: (col: string, vals: string[]) => {
+          state.updates.push({
+            table: "time_entries",
+            patch,
+            where: { [col]: vals },
+          });
+          return Promise.resolve({ data: null, error: null });
+        },
+      }),
+      then: (resolve: (v: { data: TimeEntry[] }) => void) => {
+        resolve({ data: state.timeEntries });
+      },
+    };
+    return q;
+  }
+
+  function invoicesChain() {
+    return {
+      insert: (rows: unknown) => {
+        state.inserts.push({ table: "invoices", rows });
+        return {
+          select: () => ({
+            single: () =>
+              state.insertShouldError
+                ? Promise.resolve({
+                    data: null,
+                    error: { message: "insert failed", code: "X" },
+                  })
+                : Promise.resolve({
+                    data: { id: state.invoiceIdToInsert },
+                    error: null,
+                  }),
+          }),
+        };
+      },
+      update: (patch: unknown) => ({
+        eq: (col: string, val: string) => {
+          state.updates.push({
+            table: "invoices",
+            patch,
+            where: { [col]: val },
+          });
+          return Promise.resolve({ data: null, error: null });
+        },
+      }),
+    };
+  }
+
+  function lineItemsChain() {
+    return {
+      insert: (rows: unknown) => {
+        state.inserts.push({ table: "invoice_line_items", rows });
+        return Promise.resolve({ data: null, error: null });
+      },
+    };
+  }
+
+  return { from: fromTable };
+}
+
+vi.mock("@/lib/supabase/server", () => ({
+  createClient: async () => mockSupabase(),
+}));
+
+import {
+  createInvoiceAction,
+  updateInvoiceStatusAction,
+} from "./actions";
+
+function resetState() {
+  state.timeEntries = [];
+  state.settings = null;
+  state.invoiceIdToInsert = "inv-1";
+  state.inserts = [];
+  state.updates = [];
+  state.insertShouldError = false;
+  mockValidateTeamAccess.mockReset();
+  mockRevalidatePath.mockReset();
+  mockRedirect.mockClear();
+}
+
+function fd(entries: Record<string, string>) {
+  const f = new FormData();
+  for (const [k, v] of Object.entries(entries)) f.set(k, v);
+  return f;
+}
+
+describe("updateInvoiceStatusAction", () => {
+  beforeEach(resetState);
+
+  it("updates the invoice's status and revalidates list + detail paths", async () => {
+    await updateInvoiceStatusAction(
+      fd({ id: "inv-7", status: "sent" }),
+    );
+    expect(state.updates).toContainEqual({
+      table: "invoices",
+      patch: { status: "sent" },
+      where: { id: "inv-7" },
+    });
+    expect(mockRevalidatePath).toHaveBeenCalledWith("/invoices");
+    expect(mockRevalidatePath).toHaveBeenCalledWith("/invoices/inv-7");
+  });
+
+  it("accepts arbitrary status strings as passed — the DB CHECK constraint enforces validity", async () => {
+    await updateInvoiceStatusAction(fd({ id: "x", status: "paid" }));
+    expect(state.updates[0]?.patch).toEqual({ status: "paid" });
+  });
+});
+
+describe("createInvoiceAction", () => {
+  beforeEach(resetState);
+
+  it("validates team access before touching any invoice table", async () => {
+    mockValidateTeamAccess.mockResolvedValue({ userId: fakeUserId, role: "owner" });
+    state.settings = {
+      invoice_prefix: "INV",
+      invoice_next_num: 42,
+      default_rate: 100,
+    };
+    state.timeEntries = [
+      {
+        id: "t1",
+        duration_min: 60,
+        description: "work",
+        projects: {
+          name: "Proj A",
+          hourly_rate: 100,
+          customer_id: "c1",
+          customers: null,
+        },
+      },
+    ];
+    try {
+      await createInvoiceAction(fd({ team_id: "team-1" }));
+    } catch {
+      // redirect throws; expected
+    }
+    expect(mockValidateTeamAccess).toHaveBeenCalledWith("team-1");
+  });
+
+  it("throws when there are no unbilled entries (no invoice / no redirect)", async () => {
+    mockValidateTeamAccess.mockResolvedValue({ userId: fakeUserId, role: "owner" });
+    state.settings = {
+      invoice_prefix: "INV",
+      invoice_next_num: 1,
+      default_rate: 150,
+    };
+    state.timeEntries = [];
+    // In production this error is caught by runSafeAction and returned as
+    // { success: false }; in this unit test we bypass that wrapper, so the
+    // throw propagates here.
+    await expect(
+      createInvoiceAction(fd({ team_id: "team-1" })),
+    ).rejects.toThrow(/No unbilled time entries/);
+    expect(state.inserts.find((i) => i.table === "invoices")).toBeUndefined();
+    expect(mockRedirect).not.toHaveBeenCalled();
+  });
+
+  it("builds line items using project rate first, customer default second, team default last", async () => {
+    mockValidateTeamAccess.mockResolvedValue({ userId: fakeUserId, role: "owner" });
+    state.settings = {
+      invoice_prefix: "INV",
+      invoice_next_num: 1,
+      default_rate: 50, // team default
+    };
+    state.timeEntries = [
+      // Project rate takes priority
+      {
+        id: "e1",
+        duration_min: 60,
+        description: "work 1",
+        projects: {
+          name: "P1",
+          hourly_rate: 200,
+          customer_id: "c1",
+          customers: { default_rate: 120 },
+        },
+      },
+      // No project rate → customer default
+      {
+        id: "e2",
+        duration_min: 30,
+        description: "work 2",
+        projects: {
+          name: "P2",
+          hourly_rate: null,
+          customer_id: "c1",
+          customers: { default_rate: 120 },
+        },
+      },
+      // No project rate, no customer → team default
+      {
+        id: "e3",
+        duration_min: 120,
+        description: "work 3",
+        projects: {
+          name: "P3",
+          hourly_rate: null,
+          customer_id: null,
+          customers: null,
+        },
+      },
+    ];
+    try {
+      await createInvoiceAction(fd({ team_id: "team-1" }));
+    } catch {
+      // redirect
+    }
+    const lineInsert = state.inserts.find(
+      (i) => i.table === "invoice_line_items",
+    );
+    expect(lineInsert).toBeDefined();
+    const rows = lineInsert?.rows as Array<{
+      description: string;
+      unit_price: number;
+      quantity: number;
+    }>;
+    expect(rows).toHaveLength(3);
+    // e1: 1hr × 200 from project rate
+    expect(rows[0]?.unit_price).toBe(200);
+    // e2: 0.5hr × 120 from customer default
+    expect(rows[1]?.unit_price).toBe(120);
+    // e3: 2hr × 50 from team default
+    expect(rows[2]?.unit_price).toBe(50);
+  });
+
+  it("filters to the selected customer when customer_id is in the form", async () => {
+    mockValidateTeamAccess.mockResolvedValue({ userId: fakeUserId, role: "owner" });
+    state.settings = {
+      invoice_prefix: "INV",
+      invoice_next_num: 1,
+      default_rate: 100,
+    };
+    state.timeEntries = [
+      {
+        id: "keep",
+        duration_min: 60,
+        description: "a",
+        projects: {
+          name: "P",
+          hourly_rate: 100,
+          customer_id: "target",
+          customers: null,
+        },
+      },
+      {
+        id: "skip",
+        duration_min: 60,
+        description: "b",
+        projects: {
+          name: "P",
+          hourly_rate: 100,
+          customer_id: "other",
+          customers: null,
+        },
+      },
+    ];
+    try {
+      await createInvoiceAction(
+        fd({ team_id: "team-1", customer_id: "target" }),
+      );
+    } catch {
+      // redirect
+    }
+    const lineInsert = state.inserts.find(
+      (i) => i.table === "invoice_line_items",
+    );
+    const rows = lineInsert?.rows as Array<{ time_entry_id: string }>;
+    expect(rows).toHaveLength(1);
+    expect(rows[0]?.time_entry_id).toBe("keep");
+  });
+
+  it("computes subtotal / tax / total correctly and writes them on the invoice row", async () => {
+    mockValidateTeamAccess.mockResolvedValue({ userId: fakeUserId, role: "owner" });
+    state.settings = {
+      invoice_prefix: "INV",
+      invoice_next_num: 1,
+      default_rate: 100,
+    };
+    state.timeEntries = [
+      {
+        id: "e1",
+        duration_min: 60,
+        description: "a",
+        projects: {
+          name: "P",
+          hourly_rate: 100,
+          customer_id: null,
+          customers: null,
+        },
+      },
+    ];
+    try {
+      await createInvoiceAction(
+        fd({ team_id: "team-1", tax_rate: "10" }),
+      );
+    } catch {
+      // redirect
+    }
+    const inv = state.inserts.find((i) => i.table === "invoices");
+    const row = inv?.rows as {
+      subtotal: number;
+      tax_rate: number;
+      tax_amount: number;
+      total: number;
+      invoice_number: string;
+      user_id: string;
+      team_id: string;
+    };
+    expect(row.subtotal).toBe(100);
+    expect(row.tax_rate).toBe(10);
+    expect(row.tax_amount).toBe(10);
+    expect(row.total).toBe(110);
+    // Format: `{prefix}-{year}-{nextNum:3}` per generateInvoiceNumber.
+    expect(row.invoice_number).toMatch(/^INV-\d{4}-001$/);
+    expect(row.user_id).toBe(fakeUserId);
+    expect(row.team_id).toBe("team-1");
+  });
+
+  it("defaults tax to 0 when tax_rate is not in the form", async () => {
+    mockValidateTeamAccess.mockResolvedValue({ userId: fakeUserId, role: "owner" });
+    state.settings = {
+      invoice_prefix: "INV",
+      invoice_next_num: 1,
+      default_rate: 100,
+    };
+    state.timeEntries = [
+      {
+        id: "e1",
+        duration_min: 60,
+        description: "a",
+        projects: {
+          name: "P",
+          hourly_rate: 100,
+          customer_id: null,
+          customers: null,
+        },
+      },
+    ];
+    try {
+      await createInvoiceAction(fd({ team_id: "team-1" }));
+    } catch {
+      // redirect
+    }
+    const inv = state.inserts.find((i) => i.table === "invoices");
+    const row = inv?.rows as { tax_rate: number; tax_amount: number };
+    expect(row.tax_rate).toBe(0);
+    expect(row.tax_amount).toBe(0);
+  });
+
+  it("uses default prefix 'INV' and start num 1 when team has no settings row", async () => {
+    mockValidateTeamAccess.mockResolvedValue({ userId: fakeUserId, role: "owner" });
+    state.settings = null;
+    state.timeEntries = [
+      {
+        id: "e1",
+        duration_min: 60,
+        description: "a",
+        projects: {
+          name: "P",
+          hourly_rate: 100,
+          customer_id: null,
+          customers: null,
+        },
+      },
+    ];
+    try {
+      await createInvoiceAction(fd({ team_id: "team-1" }));
+    } catch {
+      // redirect
+    }
+    const inv = state.inserts.find((i) => i.table === "invoices");
+    expect(
+      (inv?.rows as { invoice_number: string }).invoice_number,
+    ).toMatch(/^INV-\d{4}-001$/);
+  });
+
+  it("marks the invoiced time entries and increments invoice_next_num", async () => {
+    mockValidateTeamAccess.mockResolvedValue({ userId: fakeUserId, role: "owner" });
+    state.settings = {
+      invoice_prefix: "INV",
+      invoice_next_num: 9,
+      default_rate: 100,
+    };
+    state.invoiceIdToInsert = "inv-new";
+    state.timeEntries = [
+      {
+        id: "e1",
+        duration_min: 60,
+        description: "a",
+        projects: {
+          name: "P",
+          hourly_rate: 100,
+          customer_id: null,
+          customers: null,
+        },
+      },
+      {
+        id: "e2",
+        duration_min: 30,
+        description: "b",
+        projects: {
+          name: "P",
+          hourly_rate: 100,
+          customer_id: null,
+          customers: null,
+        },
+      },
+    ];
+    try {
+      await createInvoiceAction(fd({ team_id: "team-1" }));
+    } catch {
+      // redirect
+    }
+    const entryUpdate = state.updates.find(
+      (u) => u.table === "time_entries",
+    );
+    expect(entryUpdate?.patch).toEqual({
+      invoiced: true,
+      invoice_id: "inv-new",
+    });
+    expect(entryUpdate?.where.id).toEqual(["e1", "e2"]);
+
+    const counterUpdate = state.updates.find(
+      (u) => u.table === "team_settings",
+    );
+    expect(counterUpdate?.patch).toEqual({ invoice_next_num: 10 });
+  });
+
+  it("revalidates /invoices + /time-entries and redirects to the new invoice detail", async () => {
+    mockValidateTeamAccess.mockResolvedValue({ userId: fakeUserId, role: "owner" });
+    state.settings = {
+      invoice_prefix: "INV",
+      invoice_next_num: 1,
+      default_rate: 100,
+    };
+    state.invoiceIdToInsert = "inv-fresh";
+    state.timeEntries = [
+      {
+        id: "e1",
+        duration_min: 60,
+        description: "a",
+        projects: {
+          name: "P",
+          hourly_rate: 100,
+          customer_id: null,
+          customers: null,
+        },
+      },
+    ];
+    try {
+      await createInvoiceAction(fd({ team_id: "team-1" }));
+    } catch {
+      // redirect
+    }
+    expect(mockRevalidatePath).toHaveBeenCalledWith("/invoices");
+    expect(mockRevalidatePath).toHaveBeenCalledWith("/time-entries");
+    expect(mockRedirect).toHaveBeenCalledWith("/invoices/inv-fresh");
+  });
+
+  it("prefixes the line-item description with the project name when a description exists", async () => {
+    mockValidateTeamAccess.mockResolvedValue({ userId: fakeUserId, role: "owner" });
+    state.settings = {
+      invoice_prefix: "INV",
+      invoice_next_num: 1,
+      default_rate: 100,
+    };
+    state.timeEntries = [
+      {
+        id: "e1",
+        duration_min: 60,
+        description: "implement the feature",
+        projects: {
+          name: "Alpha",
+          hourly_rate: 100,
+          customer_id: null,
+          customers: null,
+        },
+      },
+    ];
+    try {
+      await createInvoiceAction(fd({ team_id: "team-1" }));
+    } catch {
+      // redirect
+    }
+    const lineInsert = state.inserts.find(
+      (i) => i.table === "invoice_line_items",
+    );
+    const rows = lineInsert?.rows as Array<{ description: string }>;
+    expect(rows[0]?.description).toBe("Alpha: implement the feature");
+  });
+
+  it("uses a project-only description when the time entry has no description", async () => {
+    mockValidateTeamAccess.mockResolvedValue({ userId: fakeUserId, role: "owner" });
+    state.settings = {
+      invoice_prefix: "INV",
+      invoice_next_num: 1,
+      default_rate: 100,
+    };
+    state.timeEntries = [
+      {
+        id: "e1",
+        duration_min: 60,
+        description: null,
+        projects: {
+          name: "Alpha",
+          hourly_rate: 100,
+          customer_id: null,
+          customers: null,
+        },
+      },
+    ];
+    try {
+      await createInvoiceAction(fd({ team_id: "team-1" }));
+    } catch {
+      // redirect
+    }
+    const lineInsert = state.inserts.find(
+      (i) => i.table === "invoice_line_items",
+    );
+    const rows = lineInsert?.rows as Array<{ description: string }>;
+    expect(rows[0]?.description).toBe("Alpha");
+  });
+});
