@@ -5,10 +5,17 @@ import { selectClass, labelClass } from "@/lib/form-styles";
 import type { CategoryOption } from "./types";
 
 interface Props {
-  /** Full list of categories across all sets — we filter by setId */
+  /** Full list of categories across all sets — we filter by setIds */
   categories: CategoryOption[];
-  /** The project's category_set_id (null if project has no set) */
-  categorySetId: string | null;
+  /**
+   * Category set ids to pull from — typically the project's base set +
+   * its project-scoped extension set (if any). Callers pass the array
+   * so a project with both can show base + project-specific categories
+   * in one dropdown. Accepts the legacy single-id prop for compatibility.
+   */
+  categorySetIds?: Array<string | null | undefined>;
+  /** @deprecated pass categorySetIds instead */
+  categorySetId?: string | null;
   /** Pre-selected category */
   defaultValue?: string | null;
   /** Controlled value (optional) */
@@ -25,6 +32,7 @@ interface Props {
  */
 export function CategoryPicker({
   categories,
+  categorySetIds,
   categorySetId,
   defaultValue,
   value,
@@ -33,7 +41,13 @@ export function CategoryPicker({
 }: Props): React.JSX.Element | null {
   const t = useTranslations("categories.entry");
 
-  if (!categorySetId) {
+  // Build the effective set-id list from either the new array prop or
+  // the legacy single id, stripping nullish.
+  const effectiveSetIds = (
+    categorySetIds ?? (categorySetId ? [categorySetId] : [])
+  ).filter((id): id is string => !!id);
+
+  if (effectiveSetIds.length === 0) {
     if (hideWhenEmpty) return null;
     return (
       <div>
@@ -43,7 +57,9 @@ export function CategoryPicker({
     );
   }
 
-  const filtered = categories.filter((c) => c.category_set_id === categorySetId);
+  const filtered = categories.filter((c) =>
+    effectiveSetIds.includes(c.category_set_id),
+  );
   if (filtered.length === 0) {
     if (hideWhenEmpty) return null;
     return (

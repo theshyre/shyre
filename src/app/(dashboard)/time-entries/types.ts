@@ -36,7 +36,12 @@ export interface ProjectOption {
   name: string;
   github_repo: string | null;
   team_id: string;
+  /** The project's base category set (system or team). */
   category_set_id: string | null;
+  /** The project's extension category set, if any (category_sets.project_id
+   *  = project.id). Merged with the base at picker time so the user sees
+   *  built-in + project-specific categories together. */
+  extension_category_set_id?: string | null;
   require_timestamps: boolean;
   customers?: CustomerRef | null;
 }

@@ -152,16 +152,34 @@ export default async function TimeEntriesPage({
     .order("name");
   if (selectedTeamId) projectsQuery = projectsQuery.eq("team_id", selectedTeamId);
   const { data: rawProjects } = await projectsQuery;
-  const projects = (rawProjects ?? []).map((p) => ({
+  const projectsRaw = (rawProjects ?? []).map((p) => ({
     ...p,
     customers: Array.isArray(p.customers) ? (p.customers[0] ?? null) : (p.customers ?? null),
   }));
 
-  // Categories visible to any project's category set
+  // Project-scoped extension category sets, if any. A project's picker
+  // shows categories from its base set UNION its extension set.
+  const projectIds = projectsRaw.map((p) => p.id);
+  const { data: extensionSets } = projectIds.length
+    ? await supabase
+        .from("category_sets")
+        .select("id, project_id")
+        .in("project_id", projectIds)
+    : { data: [] };
+  const extensionByProject = new Map<string, string>();
+  for (const row of extensionSets ?? []) {
+    extensionByProject.set(row.project_id as string, row.id as string);
+  }
+  const projects = projectsRaw.map((p) => ({
+    ...p,
+    extension_category_set_id: extensionByProject.get(p.id) ?? null,
+  }));
+
+  // Categories visible to any project's category set (base OR extension).
   const setIds = Array.from(
     new Set(
       projects
-        .map((p) => p.category_set_id)
+        .flatMap((p) => [p.category_set_id, p.extension_category_set_id])
         .filter((id): id is string => !!id),
     ),
   );

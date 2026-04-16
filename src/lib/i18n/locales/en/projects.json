@@ -34,19 +34,19 @@
   },
   "projectCategories": {
     "title": "Project-specific categories",
-    "enableTitle": "Need categories only for this project?",
-    "enableHint": "Built-in and team sets are great for standard work. Create project-specific ones when this project needs its own taxonomy.",
-    "enableHintSharedActive": "This project uses a shared set. Adding project-specific categories will replace that selection for this project only.",
+    "enableTitle": "Need one-off categories for this project?",
+    "enableHint": "Anything you add here stacks on top of the project's base categories — users pick from both.",
     "enableButton": "Add project-specific categories",
-    "setName": "Set name",
+    "baseFromNamed": "From base set: {name}",
+    "baseFromUnnamed": "Base categories",
+    "setName": "Your additions label",
     "defaultSetName": "Project categories",
-    "categoriesLabel": "Categories",
-    "emptyHint": "Add your first category below.",
+    "additionsLabel": "Additional categories for this project",
+    "emptyHint": "Add your first project-specific category below.",
     "categoryNamePlaceholder": "e.g. Design review",
     "addCategory": "Add category",
     "removeCategory": "Remove category",
-    "replacesSharedWarning": "Saving will replace the currently selected shared set for this project.",
     "deleteSet": "Delete project-specific categories",
-    "deleteSummary": "project's custom categories"
+    "deleteSummary": "project's extra categories"
   }
 }

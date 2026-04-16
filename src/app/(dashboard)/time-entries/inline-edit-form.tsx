@@ -190,7 +190,13 @@ export function InlineEditForm({
         <div className="sm:col-span-2">
           <CategoryPicker
             categories={categories}
-            categorySetId={entry.projects?.category_set_id ?? null}
+            categorySetIds={[
+              entry.projects?.category_set_id,
+              // Look up the project's extension set via the projects list so
+              // edit pickers see base + project-specific additions.
+              projects.find((p) => p.id === entry.project_id)
+                ?.extension_category_set_id,
+            ]}
             defaultValue={entry.category_id}
           />
         </div>

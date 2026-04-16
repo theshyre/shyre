@@ -561,8 +561,14 @@ function AddRowControl({
     : projects;
 
   const selectedProject = projects.find((p) => p.id === projectId);
-  const availableCategories = selectedProject?.category_set_id
-    ? categories.filter((c) => c.category_set_id === selectedProject.category_set_id)
+  // Base set + project-scoped extension set, so the picker surfaces
+  // built-in categories + project-specific additions together.
+  const availableSetIds = [
+    selectedProject?.category_set_id,
+    selectedProject?.extension_category_set_id,
+  ].filter((id): id is string => !!id);
+  const availableCategories = availableSetIds.length
+    ? categories.filter((c) => availableSetIds.includes(c.category_set_id))
     : [];
 
   function handleAdd(): void {

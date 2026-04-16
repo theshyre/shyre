@@ -24,16 +24,24 @@ interface Category {
   sort_order: number;
 }
 
+interface BaseCategory {
+  id: string;
+  name: string;
+  color: string;
+}
+
 interface Props {
   projectId: string;
-  /** Null when the project has no project-scoped set yet. */
+  /** Null when the project has no project-scoped extension set yet. */
   setId: string | null;
   setName: string;
   initialCategories: Category[];
-  /** True when the project is currently using a non-project-scoped set
-   *  (built-in / team). Used to warn that "Create project-specific" will
-   *  take over the category_set_id pointer. */
-  hasSharedSet: boolean;
+  /** Name of the project's base (system/team) set, if any, for header. */
+  baseSetName: string | null;
+  /** Categories from the base set — rendered read-only above the
+   *  editable list so the user can see what they already have before
+   *  adding project-specific extensions. */
+  baseCategories: BaseCategory[];
 }
 
 // Curated palette — same hues the system seed sets use so project and
@@ -54,7 +62,8 @@ export function ProjectCategoriesEditor({
   setId,
   setName: initialSetName,
   initialCategories,
-  hasSharedSet,
+  baseSetName,
+  baseCategories,
 }: Props): React.JSX.Element {
   const t = useTranslations("projects.projectCategories");
   const tc = useTranslations("common");
@@ -109,26 +118,30 @@ export function ProjectCategoriesEditor({
 
   if (!expanded && !setId) {
     return (
-      <div className="rounded-lg border border-dashed border-edge bg-surface-inset px-4 py-3 flex items-center gap-3">
-        <Tags size={18} className="text-accent shrink-0" />
-        <div className="flex-1">
-          <p className="text-body-lg font-medium text-content">
-            {t("enableTitle")}
-          </p>
-          <p className="text-caption text-content-muted">
-            {hasSharedSet
-              ? t("enableHintSharedActive")
-              : t("enableHint")}
-          </p>
+      <div className="rounded-lg border border-dashed border-edge bg-surface-inset p-4 space-y-3">
+        <div className="flex items-center gap-3">
+          <Tags size={18} className="text-accent shrink-0" />
+          <div className="flex-1">
+            <p className="text-body-lg font-medium text-content">
+              {t("enableTitle")}
+            </p>
+            <p className="text-caption text-content-muted">{t("enableHint")}</p>
+          </div>
+          <button
+            type="button"
+            onClick={() => setExpanded(true)}
+            className={buttonSecondaryClass}
+          >
+            <Plus size={14} />
+            {t("enableButton")}
+          </button>
         </div>
-        <button
-          type="button"
-          onClick={() => setExpanded(true)}
-          className={buttonSecondaryClass}
-        >
-          <Plus size={14} />
-          {t("enableButton")}
-        </button>
+        {baseCategories.length > 0 && (
+          <BaseCategoriesPreview
+            baseSetName={baseSetName}
+            baseCategories={baseCategories}
+          />
+        )}
       </div>
     );
   }
@@ -157,6 +170,13 @@ export function ProjectCategoriesEditor({
         </p>
       )}
 
+      {baseCategories.length > 0 && (
+        <BaseCategoriesPreview
+          baseSetName={baseSetName}
+          baseCategories={baseCategories}
+        />
+      )}
+
       <div>
         <label className={labelClass}>{t("setName")}</label>
         <input
@@ -168,7 +188,7 @@ export function ProjectCategoriesEditor({
       </div>
 
       <div className="space-y-2">
-        <label className={labelClass}>{t("categoriesLabel")}</label>
+        <label className={labelClass}>{t("additionsLabel")}</label>
         {categories.length === 0 && (
           <p className="text-caption text-content-muted">{t("emptyHint")}</p>
         )}
@@ -207,12 +227,6 @@ export function ProjectCategoriesEditor({
         </button>
       </div>
 
-      {hasSharedSet && !setId && (
-        <p className="text-caption text-warning bg-warning-soft rounded-lg px-3 py-2">
-          {t("replacesSharedWarning")}
-        </p>
-      )}
-
       <div className="flex items-center justify-end gap-2 pt-2 border-t border-edge">
         <button
           type="button"
@@ -235,6 +249,39 @@ export function ProjectCategoriesEditor({
               : tc("actions.save")}
         </button>
       </div>
+    </div>
+  );
+}
+
+function BaseCategoriesPreview({
+  baseSetName,
+  baseCategories,
+}: {
+  baseSetName: string | null;
+  baseCategories: BaseCategory[];
+}): React.JSX.Element {
+  const t = useTranslations("projects.projectCategories");
+  return (
+    <div className="rounded-md border border-edge-muted bg-surface-inset px-3 py-2">
+      <p className="text-caption text-content-muted mb-1.5">
+        {baseSetName
+          ? t("baseFromNamed", { name: baseSetName })
+          : t("baseFromUnnamed")}
+      </p>
+      <ul className="flex flex-wrap gap-1.5">
+        {baseCategories.map((c) => (
+          <li
+            key={c.id}
+            className="inline-flex items-center gap-1.5 rounded-full bg-surface px-2 py-0.5 text-caption text-content"
+          >
+            <span
+              className="h-2 w-2 rounded-full shrink-0"
+              style={{ backgroundColor: c.color }}
+            />
+            {c.name}
+          </li>
+        ))}
+      </ul>
     </div>
   );
 }

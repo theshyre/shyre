@@ -196,15 +196,11 @@ export async function upsertProjectCategoriesAction(
       }
     }
 
-    // Link the project to this set if it wasn't already pointed at it.
-    if (project.category_set_id !== setId) {
-      assertSupabaseOk(
-        await supabase
-          .from("projects")
-          .update({ category_set_id: setId })
-          .eq("id", project_id),
-      );
-    }
+    // Intentionally DO NOT repoint `projects.category_set_id`. The project
+    // keeps whatever base set (system or team) it's using; the project-
+    // scoped set here is an *extension* discovered via
+    // `category_sets.project_id = project.id`. Time-entry pickers union
+    // the two at read time.
 
     revalidatePath(`/projects/${project_id}`);
     revalidatePath("/time-entries");
@@ -212,10 +208,12 @@ export async function upsertProjectCategoriesAction(
 }
 
 /**
- * Remove the project's project-scoped category set entirely. Drops the
- * set (categories cascade via FK) and nulls projects.category_set_id.
- * Doesn't touch the project's time entries — their `category_id`s were
- * set to NULL by the ON DELETE SET NULL on time_entries.category_id.
+ * Remove the project's project-scoped extension category set. Drops the
+ * set (categories cascade via FK). The project's base `category_set_id`
+ * is intentionally left alone — the user keeps whatever system / team
+ * set they had. Time entries that referenced extension categories get
+ * their `category_id` nulled automatically via ON DELETE SET NULL on
+ * time_entries.category_id.
  */
 export async function deleteProjectCategoriesAction(
   formData: FormData,
@@ -244,13 +242,6 @@ export async function deleteProjectCategoriesAction(
         await supabase.from("category_sets").delete().eq("id", set.id),
       );
     }
-    // Null the project's link (even if the set wasn't there — idempotent).
-    assertSupabaseOk(
-      await supabase
-        .from("projects")
-        .update({ category_set_id: null })
-        .eq("id", project_id),
-    );
 
     revalidatePath(`/projects/${project_id}`);
     revalidatePath("/time-entries");

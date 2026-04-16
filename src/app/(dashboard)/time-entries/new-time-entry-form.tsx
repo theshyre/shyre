@@ -28,6 +28,7 @@ interface ProjectOption {
   name: string;
   github_repo: string | null;
   category_set_id?: string | null;
+  extension_category_set_id?: string | null;
   require_timestamps?: boolean;
 }
 
@@ -195,7 +196,10 @@ export function NewTimeEntryForm({
         <div className="sm:col-span-2">
           <CategoryPicker
             categories={categories}
-            categorySetId={selectedProject?.category_set_id ?? null}
+            categorySetIds={[
+              selectedProject?.category_set_id,
+              selectedProject?.extension_category_set_id,
+            ]}
           />
         </div>
       </div>

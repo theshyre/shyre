@@ -42,8 +42,10 @@ export default async function ProjectDetailPage({
     }),
   );
 
-  // Fetch project-scoped category set (if any) + its categories. Used
-  // by the ProjectCategoriesEditor below.
+  // Fetch project-scoped extension set (if any) + its categories. Also
+  // fetch the categories of the project's base set so the editor can
+  // render them read-only — you can't add meaningful extensions without
+  // knowing what's already available.
   const { data: projectSet } = await supabase
     .from("category_sets")
     .select("id, name, categories(id, name, color, sort_order)")
@@ -60,6 +62,34 @@ export default async function ProjectDetailPage({
           .slice()
           .sort((a, b) => a.sort_order - b.sort_order)
       : [];
+
+  let baseSetName: string | null = null;
+  let baseCategories: Array<{ id: string; name: string; color: string }> = [];
+  if (project.category_set_id) {
+    const { data: baseSet } = await supabase
+      .from("category_sets")
+      .select("name, categories(id, name, color, sort_order)")
+      .eq("id", project.category_set_id)
+      .maybeSingle();
+    baseSetName = (baseSet?.name as string) ?? null;
+    if (baseSet && Array.isArray(baseSet.categories)) {
+      baseCategories = (
+        baseSet.categories as Array<{
+          id: string;
+          name: string;
+          color: string;
+          sort_order: number;
+        }>
+      )
+        .slice()
+        .sort((a, b) => a.sort_order - b.sort_order)
+        .map(({ id: cid, name: cname, color }) => ({
+          id: cid,
+          name: cname,
+          color,
+        }));
+    }
+  }
 
   const { data: timeEntries } = await supabase
     .from("time_entries")
@@ -109,10 +139,8 @@ export default async function ProjectDetailPage({
           setId={projectSet?.id ?? null}
           setName={projectSet?.name ?? ""}
           initialCategories={projectSetCategories}
-          hasSharedSet={
-            project.category_set_id !== null &&
-            project.category_set_id !== (projectSet?.id ?? null)
-          }
+          baseSetName={baseSetName}
+          baseCategories={baseCategories}
         />
       </div>
 
