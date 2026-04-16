@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
 import { NextIntlClientProvider } from "next-intl";
 import { getLocale, getMessages } from "next-intl/server";
+import { buildAntiFlashScript } from "@theshyre/theme";
 import { ThemeProvider } from "@/components/theme-provider";
 import { TextSizeProvider } from "@/components/text-size-provider";
 import { TopProgressBar } from "@/components/TopProgressBar";
@@ -39,22 +40,10 @@ export default async function RootLayout({
       <head>
         <script
           dangerouslySetInnerHTML={{
-            __html: `
-              (function() {
-                try {
-                  var theme = localStorage.getItem('stint-theme') || 'system';
-                  var resolved = theme;
-                  if (theme === 'system') {
-                    resolved = window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
-                  }
-                  document.documentElement.setAttribute('data-theme', resolved);
-                  var size = localStorage.getItem('stint-text-size');
-                  if (size === 'compact' || size === 'regular' || size === 'large') {
-                    document.documentElement.setAttribute('data-text-size', size);
-                  }
-                } catch (e) {}
-              })();
-            `,
+            __html: buildAntiFlashScript({
+              themeKey: "stint-theme",
+              textSizeKey: "stint-text-size",
+            }),
           }}
         />
       </head>

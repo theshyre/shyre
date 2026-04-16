@@ -30,6 +30,13 @@ jobs:
           cache: "npm"
 
       - name: Install dependencies
+        env:
+          # Needed to read @theshyre/* from the theshyre org's private
+          # GitHub Packages registry. PAT with read:packages scope,
+          # stored as the NODE_AUTH_TOKEN secret. Once this repo moves
+          # under the theshyre org the built-in GITHUB_TOKEN will work
+          # without the PAT and this env line can drop.
+          NODE_AUTH_TOKEN: ${{ secrets.NODE_AUTH_TOKEN }}
         run: npm ci
 
       - name: Lint (zero warnings allowed)
