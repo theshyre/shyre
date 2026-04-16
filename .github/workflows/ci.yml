@@ -11,6 +11,12 @@ on:
     branches: [main]
   pull_request: {}
 
+# Grants the built-in GITHUB_TOKEN read access to packages in the
+# theshyre org — needed to install @theshyre/* from GitHub Packages.
+permissions:
+  contents: read
+  packages: read
+
 concurrency:
   # Cancel in-progress CI for the same ref so rapid pushes don't queue up.
   group: ci-${{ github.ref }}
@@ -28,8 +34,15 @@ jobs:
         with:
           node-version: "22"
           cache: "npm"
+          # Writes a .npmrc auth line reading ${NODE_AUTH_TOKEN} so npm
+          # can pull @theshyre/* from the org's private GH Packages.
+          registry-url: "https://npm.pkg.github.com"
 
       - name: Install dependencies
+        env:
+          # Auto GITHUB_TOKEN carries packages: read (granted in the
+          # workflow permissions block above) — no PAT required.
+          NODE_AUTH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: npm ci
 
       - name: Lint (zero warnings allowed)

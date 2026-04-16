@@ -11,6 +11,9 @@ const nextConfig: NextConfig = {
     // (client bundles can't require it cleanly).
     NEXT_PUBLIC_APP_VERSION: pkg.version,
   },
+  // @theshyre/theme ships TypeScript sources (no build step). Turbopack
+  // transpiles it like app code.
+  transpilePackages: ["@theshyre/theme"],
   async redirects() {
     return [
       { source: "/clients", destination: "/customers", permanent: true },
