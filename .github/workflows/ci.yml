@@ -53,3 +53,8 @@ jobs:
 
       - name: Unit tests
         run: npm run test
+
+      - name: Coverage gate
+        # Fails if coverage drops below the anti-regression floor in
+        # vitest.config.ts. See the RATCHET RULE comment there.
+        run: npm run test:coverage
