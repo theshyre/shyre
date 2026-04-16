@@ -159,4 +159,64 @@ describe("time_entries RLS (cross-org sharing)", () => {
     expect(error).toBeNull();
     expect(data ?? []).toHaveLength(0);
   });
+
+  describe("SAL-006: same-team member visibility is tight by default", () => {
+    it("Carol (member of primaryTeam) cannot SELECT Alice's (owner) entry in the same team", async () => {
+      // Alice is owner of primaryTeam; Carol is a plain member of the same team.
+      // Under the tight default, a member sees only their own entries — even
+      // though they share a team with the entry's author.
+      const carol = await createAuthedClient(
+        scenario.carol.email,
+        scenario.carol.password,
+      );
+      const { data, error } = await carol
+        .from("time_entries")
+        .select("id")
+        .eq("id", aliceEntryId);
+      expect(error).toBeNull();
+      expect(data ?? []).toHaveLength(0);
+    });
+
+    it("Carol CAN still SELECT her own entry", async () => {
+      // Seed a Carol-owned entry via admin, then confirm she can read it.
+      const carolEntry = await createTestTimeEntry(
+        prefix,
+        scenario.primaryTeam.id,
+        scenario.project.id,
+        scenario.carol.id,
+        { description: "carol-own-entry" },
+      );
+      const carol = await createAuthedClient(
+        scenario.carol.email,
+        scenario.carol.password,
+      );
+      const { data, error } = await carol
+        .from("time_entries")
+        .select("id")
+        .eq("id", carolEntry.id);
+      expect(error).toBeNull();
+      expect(data).toHaveLength(1);
+    });
+
+    it("Alice (owner of primaryTeam) CAN SELECT Carol's entry in the same team", async () => {
+      // The owner still sees everything in their team — own + admin bypass.
+      const carolEntry = await createTestTimeEntry(
+        prefix,
+        scenario.primaryTeam.id,
+        scenario.project.id,
+        scenario.carol.id,
+        { description: "carol-for-alice" },
+      );
+      const alice = await createAuthedClient(
+        scenario.alice.email,
+        scenario.alice.password,
+      );
+      const { data, error } = await alice
+        .from("time_entries")
+        .select("id")
+        .eq("id", carolEntry.id);
+      expect(error).toBeNull();
+      expect(data).toHaveLength(1);
+    });
+  });
 });

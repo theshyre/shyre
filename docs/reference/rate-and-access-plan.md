@@ -1,20 +1,24 @@
 # Rate & cross-member access plan
 
-> **Status:** Phase 1 in flight. Phase 2 design under review. Phases 3–4 queued.
+> **Status:** Phase 1 shipped (SAL-006). Phase 2 design under review. Phases 3–4 queued.
 >
 > **Principle:** Every rate and every piece of cross-member data is **closed by default**. Visibility is opt-in at the object level (per-team, per-project, per-customer, per-member). A team member logging their hours sees only their own hours and no rates at all, unless the owner has explicitly opened one of those surfaces up.
 
 ## Context
 
-An audit on 2026-04-16 surfaced three RLS gaps inherited from the multi-tenant refactor in migration 002:
+An audit on 2026-04-16 initially flagged three RLS gaps. Verifying against `pg_policies` on the live DB showed only **one** is a current issue — the other two had already been resolved in later migrations and the initial audit relied on a stale reading of migration 002 alone:
 
-- `user_settings` readable/writable by any team member (including `github_token`)
-- `time_entries` fully mutable by any team member (any member can delete any other member's entries)
-- `projects` / `customers` — rate fields writable by any member
+| Original finding | Current state |
+|---|---|
+| `user_settings` readable by any team member | **Already resolved** in migration 004 (`user_settings` was slimmed down and the policy reverted to `USING (auth.uid() = user_id)`) |
+| `time_entries` fully mutable by any team member | **Partially wrong.** Write-side (INSERT / UPDATE / DELETE) was tightened in migration 009 — members can only insert / update / delete their own entries, admins/owners the rest. **SELECT remained loose** — any team member can still read any other member's entries. This is the one real Phase 1 fix. |
+| `projects` / `customers` writes | **Already resolved.** Migration 009 split project UPDATE/DELETE to owner/admin only (internal) or customer-admin (customer-linked). Migration 20260414213128 tightened `customers_update` to customer-admin only. A member cannot modify a project's `hourly_rate` or a customer's `default_rate`. |
 
-These map to `SAL-006`, `SAL-007`, `SAL-008`. Phase 1 resolves them.
+So Phase 1 ships a **single** SAL fix (`SAL-006`): tighten `time_entries_select`.
 
-The audit also exposed that Shyre has no per-member bill rate at all — only project / customer / team defaults. Multi-person teams can't represent "senior dev at $200/hr, junior at $100/hr." Phase 2 adds the per-member rate plus a per-object permission model.
+The audit also exposed that Shyre has no per-member bill rate at all — only project / customer / team defaults. Multi-person teams can't represent "senior dev at $200/hr, junior at $100/hr." Phase 2 adds the per-member rate plus a per-object permission model. That work is unchanged by the correction — it's new feature work, not a security fix.
+
+A separate concern the audit also surfaced: **rate columns are currently readable by every team member** (via the various `_select` policies on `projects`, `customers`, `team_settings`). Writes are gated, reads are not. This is not a bug per se — it's the current model — but it's exactly what the rate-visibility work in Phase 2 addresses via column-masked views.
 
 ## Principles
 
@@ -26,17 +30,17 @@ The audit also exposed that Shyre has no per-member bill rate at all — only pr
 
 ## The four phases
 
-### Phase 1 — security fixes (urgent, in flight)
+### Phase 1 — tighten `time_entries_select` (one SAL, shipped)
 
-Each lands as an atomic commit with migration + integration test + `SAL-*` entry.
+Single migration + integration test + audit log entry.
 
 | SAL | Table | Fix |
 |---|---|---|
-| SAL-006 | `user_settings` | Revert to `USING (user_id = auth.uid())`. Drop the team-wide policy from migration 002. |
-| SAL-007 | `time_entries` | Default RLS: member CRUDs their own entries; admin/owner CRUDs all. Configurable levels come in Phase 3; Phase 1 ships the tight default. |
-| SAL-008 | `projects`, `customers` | Read for any team member; write for admin/owner only. Rate-column-specific gating lands in Phase 2. |
+| SAL-006 | `time_entries` | Replace middle `USING` clause from `user_has_team_access(team_id)` to `user_team_role(team_id) IN ('owner', 'admin')`. Members now see only their own entries; owner/admin see everything; the cross-team customer-share clause is preserved. |
 
-**What Phase 1 does NOT do:** add new features, change schema beyond RLS policy bodies, touch the rate model. It only tightens existing tables to correct defaults.
+**What Phase 1 does NOT do:** add new features, change schema, touch the rate model, alter any INSERT / UPDATE / DELETE policy (those were already correct), or add a config surface for opt-in looser defaults (that's Phase 3).
+
+**App impact:** server components that queried `time_entries` without an explicit `user_id` filter used to return all team entries; under the tight default they now return only the caller's own entries when the caller is a plain member. Owner/admin views are unchanged. The reports page, business dashboard, and time-entries list all behave correctly — in fact they now match the design intent ("members log their own time and nothing else").
 
 ### Phase 2 — rate model + permission views (design under review)
 
@@ -142,6 +146,6 @@ Once these are answered, Phase 2 is buildable.
 
 ## Related
 
-- `docs/security/SECURITY_AUDIT_LOG.md` — `SAL-006` / `SAL-007` / `SAL-008`
+- `docs/security/SECURITY_AUDIT_LOG.md` — `SAL-006`
 - `docs/reference/database-schema.md` — will be updated as each phase lands
-- `docs/personas/security-reviewer.md` — the lens that should have caught the original over-permissive policies in code review
+- `docs/personas/security-reviewer.md` — the lens that should catch over-permissive policies in review; needs a check for "latest policy on each table via pg_policies, not just the policy body in the latest touching migration"
