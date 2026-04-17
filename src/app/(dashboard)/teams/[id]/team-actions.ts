@@ -114,3 +114,40 @@ export async function updateTeamNameAction(formData: FormData): Promise<void> {
     revalidatePath(`/teams/${teamId}`);
   }, "updateTeamNameAction") as unknown as void;
 }
+
+export async function setMemberRateAction(formData: FormData): Promise<void> {
+  return runSafeAction(formData, async (formData, { supabase }) => {
+    const membershipId = formData.get("membership_id") as string;
+    if (!membershipId) throw new Error("membership_id is required.");
+
+    const { data: canSet } = await supabase.rpc("can_set_member_rate", {
+      p_membership_id: membershipId,
+    });
+    if (!canSet) {
+      throw new Error("Not authorized to set this member's rate.");
+    }
+
+    const rateStr = formData.get("default_rate") as string;
+    const default_rate = rateStr ? parseFloat(rateStr) : null;
+
+    // Look up team_id so the revalidation targets the right page. The
+    // caller has already passed the can_set_member_rate check, so
+    // reading the base row for team_id is safe.
+    const { data: membership } = await supabase
+      .from("team_members")
+      .select("team_id")
+      .eq("id", membershipId)
+      .single();
+
+    assertSupabaseOk(
+      await supabase
+        .from("team_members")
+        .update({ default_rate })
+        .eq("id", membershipId),
+    );
+
+    if (membership?.team_id) {
+      revalidatePath(`/teams/${membership.team_id}`);
+    }
+  }, "setMemberRateAction") as unknown as void;
+}

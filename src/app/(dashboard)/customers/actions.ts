@@ -53,19 +53,57 @@ export async function updateCustomerAction(formData: FormData): Promise<void> {
     const email = (formData.get("email") as string) || null;
     const address = extractAddress(formData, "address");
     const notes = (formData.get("notes") as string) || null;
+
+    const patch: Record<string, unknown> = { name, email, address, notes };
+
+    // Guardrail: honor rate_editability on the default_rate column. See
+    // the equivalent guardrail in projects/actions.ts updateProjectAction.
+    if (formData.has("default_rate")) {
+      const { data: canSet } = await supabase.rpc("can_set_customer_rate", {
+        p_customer_id: id,
+      });
+      if (canSet) {
+        const rateStr = formData.get("default_rate") as string;
+        patch.default_rate = rateStr ? parseFloat(rateStr) : null;
+      }
+    }
+
+    assertSupabaseOk(
+      await supabase.from("customers").update(patch).eq("id", id),
+    );
+
+    revalidatePath("/customers");
+    revalidatePath(`/customers/${id}`);
+  }, "updateCustomerAction") as unknown as void;
+}
+
+export async function setCustomerRateAction(
+  formData: FormData,
+): Promise<void> {
+  return runSafeAction(formData, async (formData, { supabase }) => {
+    const id = formData.get("id") as string;
+    if (!id) throw new Error("Customer id is required.");
+
+    const { data: canSet } = await supabase.rpc("can_set_customer_rate", {
+      p_customer_id: id,
+    });
+    if (!canSet) {
+      throw new Error("Not authorized to set this customer's rate.");
+    }
+
     const rateStr = formData.get("default_rate") as string;
     const default_rate = rateStr ? parseFloat(rateStr) : null;
 
     assertSupabaseOk(
       await supabase
         .from("customers")
-        .update({ name, email, address, notes, default_rate })
-        .eq("id", id)
+        .update({ default_rate })
+        .eq("id", id),
     );
 
     revalidatePath("/customers");
     revalidatePath(`/customers/${id}`);
-  }, "updateCustomerAction") as unknown as void;
+  }, "setCustomerRateAction") as unknown as void;
 }
 
 export async function archiveCustomerAction(formData: FormData): Promise<void> {

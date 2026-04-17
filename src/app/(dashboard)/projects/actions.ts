@@ -46,8 +46,6 @@ export async function updateProjectAction(formData: FormData): Promise<void> {
     const id = formData.get("id") as string;
     const name = formData.get("name") as string;
     const description = (formData.get("description") as string) || null;
-    const rateStr = formData.get("hourly_rate") as string;
-    const hourly_rate = rateStr ? parseFloat(rateStr) : null;
     const budgetStr = formData.get("budget_hours") as string;
     const budget_hours = budgetStr ? parseFloat(budgetStr) : null;
     const github_repo = (formData.get("github_repo") as string) || null;
@@ -55,25 +53,65 @@ export async function updateProjectAction(formData: FormData): Promise<void> {
     const category_set_id = (formData.get("category_set_id") as string) || null;
     const require_timestamps = formData.get("require_timestamps") === "on";
 
+    const patch: Record<string, unknown> = {
+      name,
+      description,
+      budget_hours,
+      github_repo,
+      status,
+      category_set_id,
+      require_timestamps,
+    };
+
+    // Guardrail: only include hourly_rate in the UPDATE if the caller is
+    // authorized by rate_editability. Existing form submissions and
+    // forged direct POSTs that include hourly_rate for an unauthorized
+    // caller get silently dropped — the rest of the update applies so
+    // a non-rate edit still succeeds. The dedicated setProjectRateAction
+    // below is the right path for rate-only updates.
+    if (formData.has("hourly_rate")) {
+      const { data: canSet } = await supabase.rpc("can_set_project_rate", {
+        p_project_id: id,
+      });
+      if (canSet) {
+        const rateStr = formData.get("hourly_rate") as string;
+        patch.hourly_rate = rateStr ? parseFloat(rateStr) : null;
+      }
+    }
+
     assertSupabaseOk(
-      await supabase
-        .from("projects")
-        .update({
-          name,
-          description,
-          hourly_rate,
-          budget_hours,
-          github_repo,
-          status,
-          category_set_id,
-          require_timestamps,
-        })
-        .eq("id", id)
+      await supabase.from("projects").update(patch).eq("id", id),
     );
 
     revalidatePath("/projects");
     revalidatePath(`/projects/${id}`);
   }, "updateProjectAction") as unknown as void;
+}
+
+export async function setProjectRateAction(
+  formData: FormData,
+): Promise<void> {
+  return runSafeAction(formData, async (formData, { supabase }) => {
+    const id = formData.get("id") as string;
+    if (!id) throw new Error("Project id is required.");
+
+    const { data: canSet } = await supabase.rpc("can_set_project_rate", {
+      p_project_id: id,
+    });
+    if (!canSet) {
+      throw new Error("Not authorized to set this project's rate.");
+    }
+
+    const rateStr = formData.get("hourly_rate") as string;
+    const hourly_rate = rateStr ? parseFloat(rateStr) : null;
+
+    assertSupabaseOk(
+      await supabase.from("projects").update({ hourly_rate }).eq("id", id),
+    );
+
+    revalidatePath("/projects");
+    revalidatePath(`/projects/${id}`);
+  }, "setProjectRateAction") as unknown as void;
 }
 
 interface ProjectCategoryInput {
