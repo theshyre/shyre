@@ -3,6 +3,7 @@
   "sections": {
     "business": "Business Information",
     "defaults": "Defaults",
+    "rateAccess": "Rate & Access",
     "profile": "Profile",
     "preferences": "Preferences",
     "appearance": "Appearance",
@@ -53,7 +54,22 @@
     "taxRate": "Tax Rate (%)",
     "githubToken": "GitHub Personal Access Token",
     "githubTokenPlaceholder": "ghp_...",
-    "githubTokenHelp": "Used to fetch issues from linked repos. Stored encrypted."
+    "githubTokenHelp": "Used to fetch issues from linked repos. Stored encrypted.",
+    "rateVisibility": "Who can see the team default rate",
+    "rateEditability": "Who can change the team default rate",
+    "timeEntriesVisibility": "Who can see team members' time entries",
+    "adminsCanSetRatePermissions": "Let admins change rate permissions on any object",
+    "adminsCanSetRatePermissionsHelp": "When on, admins can change who can see / set rates on projects, customers, team members, and the team default. When off, only the owner can."
+  },
+  "rateLevels": {
+    "owner": "Owner only",
+    "admins": "Owner + admins",
+    "all_members": "Everyone on the team"
+  },
+  "timeEntriesLevels": {
+    "own_only": "Each member sees only their own",
+    "read_all": "Members read all, write own only",
+    "read_write_all": "Members full read / write"
   },
   "theme": {
     "title": "Theme",

@@ -31,7 +31,7 @@ export default async function TeamDetailPage({
   if (!org) notFound();
 
   const { data: teamSettings } = await supabase
-    .from("team_settings")
+    .from("team_settings_v")
     .select("*")
     .eq("team_id", id)
     .single();

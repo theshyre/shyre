@@ -23,6 +23,13 @@ function extractAddress(formData: FormData, prefix: string): string | null {
   return serializeAddress(address);
 }
 
+const RATE_LEVELS = new Set(["owner", "admins", "all_members"]);
+const TIME_ENTRIES_LEVELS = new Set([
+  "own_only",
+  "read_all",
+  "read_write_all",
+]);
+
 export async function updateTeamSettingsAction(formData: FormData): Promise<void> {
   return runSafeAction(formData, async (formData, { supabase }) => {
     const teamId = formData.get("team_id") as string;
@@ -65,6 +72,47 @@ export async function updateTeamSettingsAction(formData: FormData): Promise<void
         const rateStr = formData.get("default_rate") as string;
         patch.default_rate = rateStr ? parseFloat(rateStr) : 0;
       }
+    }
+
+    // time_entries_visibility: role-check only (owner/admin already
+    // passed), no rate-permission gate — this is an operations setting,
+    // not a rate-security one.
+    if (formData.has("time_entries_visibility")) {
+      const level = formData.get("time_entries_visibility") as string;
+      if (TIME_ENTRIES_LEVELS.has(level)) {
+        patch.time_entries_visibility = level;
+      }
+    }
+
+    // rate_visibility / rate_editability on team_settings: gated by
+    // can_set_rate_permissions (owner always; admin only if the
+    // delegation flag is on).
+    const wantsRatePermChange =
+      formData.has("rate_visibility") || formData.has("rate_editability");
+    if (wantsRatePermChange) {
+      const { data: canSet } = await supabase.rpc(
+        "can_set_rate_permissions",
+        { p_team_id: teamId },
+      );
+      if (canSet) {
+        if (formData.has("rate_visibility")) {
+          const v = formData.get("rate_visibility") as string;
+          if (RATE_LEVELS.has(v)) patch.rate_visibility = v;
+        }
+        if (formData.has("rate_editability")) {
+          const v = formData.get("rate_editability") as string;
+          if (RATE_LEVELS.has(v)) patch.rate_editability = v;
+        }
+      }
+    }
+
+    // Delegation flag: owner-only.
+    if (
+      formData.has("admins_can_set_rate_permissions") &&
+      role === "owner"
+    ) {
+      patch.admins_can_set_rate_permissions =
+        formData.get("admins_can_set_rate_permissions") === "on";
     }
 
     assertSupabaseOk(

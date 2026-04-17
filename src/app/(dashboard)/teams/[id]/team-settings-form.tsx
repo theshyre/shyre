@@ -1,7 +1,7 @@
 "use client";
 
 import { useTranslations } from "next-intl";
-import { Building2 } from "lucide-react";
+import { Building2, Lock } from "lucide-react";
 import { useFormAction } from "@/hooks/use-form-action";
 import { SubmitButton } from "@/components/SubmitButton";
 import { FieldError } from "@/components/FieldError";
@@ -10,6 +10,7 @@ import { deserializeAddress } from "@/lib/schemas/address";
 import {
   inputClass,
   labelClass,
+  selectClass,
 } from "@/lib/form-styles";
 import { updateTeamSettingsAction } from "./team-settings-actions";
 
@@ -22,6 +23,10 @@ interface TeamSettings {
   invoice_prefix: string | null;
   invoice_next_num: number | null;
   tax_rate: number | null;
+  rate_visibility: string | null;
+  rate_editability: string | null;
+  time_entries_visibility: string | null;
+  admins_can_set_rate_permissions: boolean | null;
 }
 
 const DEFAULTS: TeamSettings = {
@@ -33,6 +38,10 @@ const DEFAULTS: TeamSettings = {
   invoice_prefix: "INV",
   invoice_next_num: 1,
   tax_rate: 0,
+  rate_visibility: "owner",
+  rate_editability: "owner",
+  time_entries_visibility: "own_only",
+  admins_can_set_rate_permissions: false,
 };
 
 export function TeamSettingsForm({
@@ -46,7 +55,11 @@ export function TeamSettingsForm({
 }): React.JSX.Element {
   const t = useTranslations("settings");
   const org = teamSettings ?? DEFAULTS;
-  const isAdmin = role === "owner" || role === "admin";
+  const isOwner = role === "owner";
+  const isAdmin = isOwner || role === "admin";
+  // canSetRatePerms = owner always; admin only if the delegation flag is on.
+  const canSetRatePerms =
+    isOwner || (role === "admin" && !!org.admins_can_set_rate_permissions);
   const businessAddress = deserializeAddress(org.business_address ?? null);
 
   const { pending, success, serverError, fieldErrors, handleSubmit } = useFormAction({
@@ -162,6 +175,92 @@ export function TeamSettingsForm({
               className={inputClass}
             />
           </div>
+        </div>
+      </section>
+
+      <section className="rounded-lg border border-edge bg-surface-raised p-4 space-y-3">
+        <div className="flex items-center gap-2 mb-2">
+          <Lock size={18} className="text-accent" />
+          <h2 className="text-sm font-semibold uppercase tracking-wider text-content-muted">
+            {t("sections.rateAccess")}
+          </h2>
+        </div>
+        <div className="grid gap-3 sm:grid-cols-2">
+          <div>
+            <label className={labelClass}>
+              {t("fields.rateVisibility")}
+            </label>
+            <select
+              name="rate_visibility"
+              defaultValue={org.rate_visibility ?? "owner"}
+              disabled={!canSetRatePerms}
+              className={selectClass}
+            >
+              <option value="owner">{t("rateLevels.owner")}</option>
+              <option value="admins">{t("rateLevels.admins")}</option>
+              <option value="all_members">
+                {t("rateLevels.all_members")}
+              </option>
+            </select>
+          </div>
+          <div>
+            <label className={labelClass}>
+              {t("fields.rateEditability")}
+            </label>
+            <select
+              name="rate_editability"
+              defaultValue={org.rate_editability ?? "owner"}
+              disabled={!canSetRatePerms}
+              className={selectClass}
+            >
+              <option value="owner">{t("rateLevels.owner")}</option>
+              <option value="admins">{t("rateLevels.admins")}</option>
+              <option value="all_members">
+                {t("rateLevels.all_members")}
+              </option>
+            </select>
+          </div>
+          <div className="sm:col-span-2">
+            <label className={labelClass}>
+              {t("fields.timeEntriesVisibility")}
+            </label>
+            <select
+              name="time_entries_visibility"
+              defaultValue={org.time_entries_visibility ?? "own_only"}
+              disabled={!isAdmin}
+              className={selectClass}
+            >
+              <option value="own_only">
+                {t("timeEntriesLevels.own_only")}
+              </option>
+              <option value="read_all">
+                {t("timeEntriesLevels.read_all")}
+              </option>
+              <option value="read_write_all">
+                {t("timeEntriesLevels.read_write_all")}
+              </option>
+            </select>
+          </div>
+          {isOwner && (
+            <div className="sm:col-span-2">
+              <label className="flex items-start gap-2 text-body text-content">
+                <input
+                  type="checkbox"
+                  name="admins_can_set_rate_permissions"
+                  defaultChecked={!!org.admins_can_set_rate_permissions}
+                  className="mt-1"
+                />
+                <span>
+                  <span className="font-medium">
+                    {t("fields.adminsCanSetRatePermissions")}
+                  </span>
+                  <span className="block text-caption text-content-muted mt-0.5">
+                    {t("fields.adminsCanSetRatePermissionsHelp")}
+                  </span>
+                </span>
+              </label>
+            </div>
+          )}
         </div>
       </section>
 

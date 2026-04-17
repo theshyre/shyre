@@ -3,6 +3,7 @@
   "sections": {
     "business": "Información del Negocio",
     "defaults": "Valores por Defecto",
+    "rateAccess": "Tarifas y Acceso",
     "profile": "Perfil",
     "preferences": "Preferencias",
     "appearance": "Apariencia",
@@ -53,7 +54,22 @@
     "taxRate": "Tasa de Impuesto (%)",
     "githubToken": "Token de Acceso Personal de GitHub",
     "githubTokenPlaceholder": "ghp_...",
-    "githubTokenHelp": "Usado para obtener issues de repos vinculados. Se almacena encriptado."
+    "githubTokenHelp": "Usado para obtener issues de repos vinculados. Se almacena encriptado.",
+    "rateVisibility": "Quién puede ver la tarifa por defecto del equipo",
+    "rateEditability": "Quién puede cambiar la tarifa por defecto del equipo",
+    "timeEntriesVisibility": "Quién puede ver las entradas de tiempo de los miembros del equipo",
+    "adminsCanSetRatePermissions": "Permitir a los administradores cambiar los permisos de tarifa",
+    "adminsCanSetRatePermissionsHelp": "Cuando está activado, los administradores pueden cambiar quién puede ver / establecer tarifas en proyectos, clientes, miembros del equipo y el valor predeterminado del equipo. Cuando está desactivado, solo el propietario puede."
+  },
+  "rateLevels": {
+    "owner": "Solo el propietario",
+    "admins": "Propietario + administradores",
+    "all_members": "Todos los miembros del equipo"
+  },
+  "timeEntriesLevels": {
+    "own_only": "Cada miembro ve solo las suyas",
+    "read_all": "Los miembros leen todo, escriben solo las suyas",
+    "read_write_all": "Los miembros leen / escriben todo"
   },
   "theme": {
     "title": "Tema",
