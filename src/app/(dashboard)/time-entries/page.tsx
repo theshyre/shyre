@@ -321,31 +321,56 @@ export default async function TimeEntriesPage({
   const allTemplates = await getMyTemplates(selectedTeamId);
   const templates = allTemplates.slice(0, 8);
 
-  // Team-member list for the member-filter dropdown. Only fetched when a
-  // team is selected; without team scoping the filter is hidden.
+  // Team-member list for the member-filter dropdown.
+  //
+  // Scope depends on the team-filter state:
+  //   - A specific team is selected → members of that team.
+  //   - Team filter is "All" (no selection) → members across every team
+  //     the caller belongs to, deduplicated by user_id so someone who
+  //     belongs to multiple teams shows up once.
+  //
+  // The filter is useful in both modes. When viewing "All", the user
+  // still wants to say "show only me + Jordan + Riley" even if entries
+  // may come from multiple teams.
+  const memberTeamIds = selectedTeamId ? [selectedTeamId] : userTeamIds;
   let memberOptions: Array<{
     user_id: string;
     display_name: string | null;
     avatar_url: string | null;
     isSelf: boolean;
   }> = [];
-  if (selectedTeamId) {
+  if (memberTeamIds.length > 0) {
     const { data: memberRows } = await supabase
       .from("team_members")
       .select("user_id, role, joined_at, user_profiles(display_name, avatar_url)")
-      .eq("team_id", selectedTeamId)
+      .in("team_id", memberTeamIds)
       .order("joined_at", { ascending: true });
-    memberOptions = (memberRows ?? []).map((m) => {
+    const byUserId = new Map<
+      string,
+      {
+        user_id: string;
+        display_name: string | null;
+        avatar_url: string | null;
+        isSelf: boolean;
+      }
+    >();
+    for (const m of memberRows ?? []) {
+      const userId = m.user_id as string;
+      if (byUserId.has(userId)) continue;
       const profile = m.user_profiles as unknown as
         | { display_name?: string | null; avatar_url?: string | null }
         | null;
-      return {
-        user_id: m.user_id as string,
+      byUserId.set(userId, {
+        user_id: userId,
         display_name: profile?.display_name ?? null,
         avatar_url: profile?.avatar_url ?? null,
-        isSelf: m.user_id === callerId,
-      };
-    });
+        isSelf: userId === callerId,
+      });
+    }
+    // Move self to the top for consistent ordering.
+    const self = [...byUserId.values()].find((m) => m.isSelf);
+    const others = [...byUserId.values()].filter((m) => !m.isSelf);
+    memberOptions = self ? [self, ...others] : others;
   }
 
   // Trash count — only surfaced in the UI if > 0
