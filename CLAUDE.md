@@ -268,6 +268,24 @@ When a security issue is discovered:
 
 This ensures accessibility for colorblind users and provides clear communication at a glance.
 
+## Time-entry authorship — MANDATORY
+
+**Every time entry displayed anywhere in the app must show who logged it.** Avatar + display name, or avatar with name-on-hover in dense contexts. No exceptions — consistent across solo and team scenarios so the UI doesn't change behavior based on how many authors exist in the row set.
+
+Applies to (not exhaustive):
+- `/time-entries` weekly grid + day view + running-timer cards + trash view
+- Reports page aggregations (per-member breakdown, billable totals)
+- Dashboard recent-entries
+- Customer detail / project detail entry lists
+- Invoice detail line items (each line item traces back to a time entry)
+- Any future list/card that surfaces a `time_entries` row
+
+**Rendering primitive**: `<Avatar>` from `@theshyre/ui`. Pair with `user_profiles.display_name`. Fetch `user_profiles(display_name, avatar_url)` on every query that returns a time entry destined for display.
+
+**Why**: without this, a viewer on a multi-author team can't tell whose work they're looking at — a silent data-attribution bug that gets worse as teams grow. A solo consultant sees their own avatar and gains a visual signal that the data is theirs, so the consistency cost is small.
+
+**Generalizes**: the same rule extends to any future user-authored content (comments, notes, log lines). When adding such an entity, route display through an author slot as a first-class concern, not an afterthought.
+
 ## Navigation feedback — MANDATORY
 
 **Every nav-triggering action must give visible feedback within 100ms.** A user clicking and seeing nothing happen is a bug, full stop. The slowest server render still has to feel responsive.

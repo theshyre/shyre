@@ -2,6 +2,12 @@
 
 Time is the core daily surface. All of it lives at `/time-entries` (the old `/timer` route redirects here).
 
+## Authorship
+
+Every time entry in Shyre is owned by the user who logged it, and that ownership is always visible. Wherever a time entry appears — the weekly grid, the day list, running-timer card, reports page, dashboard, customer / project detail pages, invoice line items, and the trash view — the author's avatar and display name are rendered next to the entry. That's true whether you're a solo consultant or on a team of twenty.
+
+This is non-negotiable in the code (see `CLAUDE.md` → "Time-entry authorship — MANDATORY"): a surface that displays time entries without the author is a bug, not a design choice. The primitive is the `<Avatar>` component from `@theshyre/ui`, paired with `user_profiles.display_name`.
+
 ## The running-timer card
 
 The top of the Time page is always either a running timer or a start form.

@@ -15,6 +15,7 @@ Cross-cutting reviewer for visible pixels. Not pixel-perfection; rather, is the 
 - **Keyboard shortcuts visible.** If a shortcut exists, show a `<kbd>` badge. Don't make users guess.
 - **Modal / popup discipline.** Inline expansion first, dropdown panel second, centered modal only when truly destructive or multi-step.
 - **Context never hidden.** Team selectors, filters, and date scopes stay visible even when there's only one option (per project feedback).
+- **Authorship shown on every time entry.** Any list / card / row / line item that surfaces a `time_entries` record MUST render the author's avatar + display name via `<Avatar>` from `@theshyre/ui`. No conditional hide-when-single-author — consistent across solo + team. See `CLAUDE.md` → "Time-entry authorship — MANDATORY".
 
 ## Review checklist
 
@@ -31,3 +32,4 @@ When reviewing a change, flag:
 - [ ] **New user-facing strings routed through i18n?** No hardcoded text.
 - [ ] **Context elements (team, date range, active filters) visible without scrolling?**
 - [ ] **Keyboard shortcuts present where warranted, and labeled visibly?**
+- [ ] **Any surface that displays time entries shows the author** (avatar + display_name) — including dense layouts, invoice line items, and aggregate reports?

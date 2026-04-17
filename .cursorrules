@@ -8,6 +8,10 @@
 
 Shyre is a platform for running a consulting business. Time tracking + invoicing ship as the `stint` module inside it. Next.js 16 (App Router) + Supabase + Tailwind CSS 4. Deployed on Vercel. Shared UI / theme / tokens come from `@theshyre/*`.
 
+## Time-entry authorship — MANDATORY
+
+Every time entry displayed anywhere must show the author via `<Avatar>` from `@theshyre/ui` + `user_profiles.display_name`. Applies to time-entries list, reports, dashboard, customer + project detail, invoice line items, trash — anywhere a `time_entries` row surfaces. Consistent behavior across solo + team scenarios, not conditional on author count. See `CLAUDE.md` → "Time-entry authorship — MANDATORY".
+
 ## TypeScript — strict, no exceptions
 
 - `strict: true` + `noUncheckedIndexedAccess`. Never loosen.
