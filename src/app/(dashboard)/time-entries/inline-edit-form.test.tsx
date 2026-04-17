@@ -29,6 +29,7 @@ const entry: TimeEntry = {
   github_issue: null,
   category_id: null,
   projects: project,
+  author: null,
 };
 
 describe("InlineEditForm", () => {

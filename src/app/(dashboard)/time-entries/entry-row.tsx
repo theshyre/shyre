@@ -3,6 +3,7 @@
 import { useTranslations } from "next-intl";
 import { DollarSign, Minus } from "lucide-react";
 import { formatDurationHM } from "@/lib/time/week";
+import { EntryAuthor } from "@/components/EntryAuthor";
 import { EntryKebabMenu } from "./entry-kebab-menu";
 import { InlineEditForm } from "./inline-edit-form";
 import type { CategoryOption, ProjectOption, TimeEntry } from "./types";
@@ -94,6 +95,11 @@ export function EntryRow({
               {t("entry.untitled")}
             </div>
           )}
+        </td>
+
+        {/* Author — per the MANDATORY authorship rule */}
+        <td className="px-3 py-2.5 align-middle whitespace-nowrap">
+          <EntryAuthor author={entry.author} size={20} />
         </td>
 
         {/* Start time (small, muted) */}

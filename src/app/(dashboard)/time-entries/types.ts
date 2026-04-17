@@ -16,6 +16,12 @@ export interface ProjectInfo {
   customers?: CustomerRef | null;
 }
 
+export interface AuthorInfo {
+  user_id: string;
+  display_name: string | null;
+  avatar_url: string | null;
+}
+
 export interface TimeEntry {
   id: string;
   team_id: string;
@@ -29,6 +35,8 @@ export interface TimeEntry {
   github_issue: number | null;
   category_id: string | null;
   projects: ProjectInfo | null;
+  /** Per the mandatory authorship rule — present on every display-bound entry. */
+  author: AuthorInfo | null;
 }
 
 export interface ProjectOption {

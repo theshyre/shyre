@@ -34,6 +34,43 @@ function normalizeEntry<T extends { projects: unknown }>(row: T): T {
   };
 }
 
+interface ProfileRow {
+  user_id: string;
+  display_name: string | null;
+  avatar_url: string | null;
+}
+
+/**
+ * time_entries.user_id FK points at auth.users, not user_profiles, so
+ * PostgREST can't auto-join the profile. Batch-fetch profiles for the
+ * set of authors once, then attach to each entry. Null when the profile
+ * row is missing (shouldn't happen post-signup trigger, but be tolerant).
+ */
+async function attachAuthors<T extends { user_id: string }>(
+  supabase: Awaited<ReturnType<typeof createClient>>,
+  entries: T[],
+): Promise<(T & { author: ProfileRow | null })[]> {
+  const userIds = Array.from(
+    new Set(entries.map((e) => e.user_id).filter(Boolean)),
+  );
+  if (userIds.length === 0) return entries.map((e) => ({ ...e, author: null }));
+  const { data: profiles } = await supabase
+    .from("user_profiles")
+    .select("user_id, display_name, avatar_url")
+    .in("user_id", userIds);
+  const byId = new Map<string, ProfileRow>(
+    (profiles ?? []).map((p) => [
+      p.user_id as string,
+      {
+        user_id: p.user_id as string,
+        display_name: (p.display_name as string | null) ?? null,
+        avatar_url: (p.avatar_url as string | null) ?? null,
+      },
+    ]),
+  );
+  return entries.map((e) => ({ ...e, author: byId.get(e.user_id) ?? null }));
+}
+
 interface PageProps {
   searchParams: Promise<{
     org?: string;
@@ -105,7 +142,10 @@ export default async function TimeEntriesPage({
   if (selectedTeamId) weekQuery = weekQuery.eq("team_id", selectedTeamId);
   if (billableOnly) weekQuery = weekQuery.eq("billable", true);
   const { data: rawWeekEntries } = await weekQuery;
-  const weekEntries = (rawWeekEntries ?? []).map(normalizeEntry);
+  const weekEntries = await attachAuthors(
+    supabase,
+    (rawWeekEntries ?? []).map(normalizeEntry),
+  );
 
   // Day entries — used by day view's entry list
   let dayQuery = supabase
@@ -120,7 +160,10 @@ export default async function TimeEntriesPage({
   if (selectedTeamId) dayQuery = dayQuery.eq("team_id", selectedTeamId);
   if (billableOnly) dayQuery = dayQuery.eq("billable", true);
   const { data: rawDayEntries } = await dayQuery;
-  const dayEntries = (rawDayEntries ?? []).map(normalizeEntry);
+  const dayEntries = await attachAuthors(
+    supabase,
+    (rawDayEntries ?? []).map(normalizeEntry),
+  );
 
   // Running timer
   let runningQuery = supabase
@@ -134,7 +177,12 @@ export default async function TimeEntriesPage({
     .limit(1);
   if (selectedTeamId) runningQuery = runningQuery.eq("team_id", selectedTeamId);
   const { data: runningEntries } = await runningQuery;
-  const running = runningEntries?.[0] ? normalizeEntry(runningEntries[0]) : null;
+  const runningAttached = runningEntries?.[0]
+    ? (
+        await attachAuthors(supabase, [normalizeEntry(runningEntries[0])])
+      )[0] ?? null
+    : null;
+  const running = runningAttached;
 
   // Active projects — scoped to teams the user is an actual member of.
   // RLS would also let through customer-shared projects from other teams,

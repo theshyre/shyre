@@ -36,6 +36,7 @@ function makeEntry(id: string, opts?: {
     github_issue: null,
     category_id: opts?.categoryId ?? null,
     projects: { id: "p1", name: opts?.projectName ?? "Alpha", github_repo: null },
+    author: null,
   };
 }
 

@@ -14,6 +14,7 @@ import {
   kbdClass,
 } from "@/lib/form-styles";
 import { TeamSelector } from "@/components/TeamSelector";
+import { EntryAuthor } from "@/components/EntryAuthor";
 import type { TeamListItem } from "@/lib/team-context";
 import { startTimerAction, stopTimerAction } from "./actions";
 import { RecentProjectsChips } from "./recent-projects-chips";
@@ -115,6 +116,9 @@ export function RunningTimerCard({
               {running.description}
             </p>
           )}
+          <div className="mt-1">
+            <EntryAuthor author={running.author} size={18} />
+          </div>
         </div>
         {stopForm.serverError && (
           <p className="text-xs text-error bg-error-soft rounded-md px-2 py-1">

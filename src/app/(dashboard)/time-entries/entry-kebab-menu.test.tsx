@@ -28,6 +28,7 @@ const entry: TimeEntry = {
   github_issue: null,
   category_id: null,
   projects: { id: "p1", name: "Alpha", github_repo: null },
+  author: null,
 };
 
 describe("EntryKebabMenu", () => {
