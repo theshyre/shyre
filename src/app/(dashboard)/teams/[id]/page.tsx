@@ -61,7 +61,7 @@ export default async function TeamDetailPage({
 
   // Org's customers
   const { data: customers } = await supabase
-    .from("customers")
+    .from("customers_v")
     .select("id, name, email, default_rate")
     .eq("team_id", id)
     .eq("archived", false)
@@ -69,7 +69,7 @@ export default async function TeamDetailPage({
 
   // Org's projects
   const { data: projects } = await supabase
-    .from("projects")
+    .from("projects_v")
     .select("id, name, status, hourly_rate, customer_id, customers(name)")
     .eq("team_id", id)
     .neq("status", "archived")

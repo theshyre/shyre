@@ -10,13 +10,13 @@ export default async function NewInvoicePage(): Promise<React.JSX.Element> {
   const t = await getTranslations("invoices");
 
   const { data: customers } = await supabase
-    .from("customers")
+    .from("customers_v")
     .select("id, name, default_rate")
     .eq("archived", false)
     .order("name");
 
   const { data: settings } = await supabase
-    .from("team_settings")
+    .from("team_settings_v")
     .select("invoice_prefix, invoice_next_num, tax_rate, default_rate")
     .limit(1)
     .maybeSingle();

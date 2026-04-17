@@ -19,7 +19,7 @@ export default async function ProjectsPage({
   const tc = await getTranslations("common");
 
   let projectsQuery = supabase
-    .from("projects")
+    .from("projects_v")
     .select("*, customers(name)")
     .neq("status", "archived")
     .order("created_at", { ascending: false });

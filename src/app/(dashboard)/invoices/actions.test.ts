@@ -44,6 +44,7 @@ interface TimeEntry {
   id: string;
   duration_min: number | null;
   description: string | null;
+  user_id?: string;
   projects: {
     name: string;
     hourly_rate: number | null;
@@ -58,9 +59,15 @@ interface Settings {
   default_rate: number | null;
 }
 
+interface TeamMemberRate {
+  user_id: string;
+  default_rate: number | null;
+}
+
 const state: {
   timeEntries: TimeEntry[];
   settings: Settings | null;
+  memberRates: TeamMemberRate[];
   invoiceIdToInsert: string;
   inserts: { table: string; rows: unknown }[];
   updates: { table: string; patch: unknown; where: Record<string, string | string[]> }[];
@@ -68,6 +75,7 @@ const state: {
 } = {
   timeEntries: [],
   settings: null,
+  memberRates: [],
   invoiceIdToInsert: "inv-1",
   inserts: [],
   updates: [],
@@ -82,6 +90,9 @@ function mockSupabase() {
     if (table === "time_entries") {
       return timeEntriesChain();
     }
+    if (table === "team_members") {
+      return teamMembersChain();
+    }
     if (table === "invoices") {
       return invoicesChain();
     }
@@ -89,6 +100,21 @@ function mockSupabase() {
       return lineItemsChain();
     }
     throw new Error(`unexpected table ${table}`);
+  }
+
+  function teamMembersChain() {
+    // Used for the per-member default_rate cascade layer. Tests populate
+    // state.memberRates; the chain ignores filter args because the
+    // production code only filters by team_id and tests set memberRates
+    // scoped to the team under test.
+    const q = {
+      select: () => q,
+      eq: () => q,
+      then: (resolve: (v: { data: TeamMemberRate[] }) => void) => {
+        resolve({ data: state.memberRates });
+      },
+    };
+    return q;
   }
 
   function settingsChain() {
@@ -191,6 +217,7 @@ import {
 function resetState() {
   state.timeEntries = [];
   state.settings = null;
+  state.memberRates = [];
   state.invoiceIdToInsert = "inv-1";
   state.inserts = [];
   state.updates = [];
@@ -641,5 +668,156 @@ describe("createInvoiceAction", () => {
     );
     const rows = lineInsert?.rows as Array<{ description: string }>;
     expect(rows[0]?.description).toBe("Alpha");
+  });
+
+  it("rejects a plain member (role='member') — only owner/admin can invoice", async () => {
+    mockValidateTeamAccess.mockResolvedValue({
+      userId: fakeUserId,
+      role: "member",
+    });
+    state.settings = {
+      invoice_prefix: "INV",
+      invoice_next_num: 1,
+      default_rate: 100,
+    };
+    state.timeEntries = [
+      {
+        id: "e1",
+        duration_min: 60,
+        description: "x",
+        projects: {
+          name: "P",
+          hourly_rate: 100,
+          customer_id: null,
+          customers: null,
+        },
+      },
+    ];
+    await expect(
+      createInvoiceAction(fd({ team_id: "team-1" })),
+    ).rejects.toThrow(/Only owners and admins can create invoices/);
+    expect(state.inserts.find((i) => i.table === "invoices")).toBeUndefined();
+  });
+
+  it("admins can create invoices (role='admin' passes the gate)", async () => {
+    mockValidateTeamAccess.mockResolvedValue({
+      userId: fakeUserId,
+      role: "admin",
+    });
+    state.settings = {
+      invoice_prefix: "INV",
+      invoice_next_num: 1,
+      default_rate: 100,
+    };
+    state.timeEntries = [
+      {
+        id: "e1",
+        duration_min: 60,
+        description: "x",
+        projects: {
+          name: "P",
+          hourly_rate: 100,
+          customer_id: null,
+          customers: null,
+        },
+      },
+    ];
+    try {
+      await createInvoiceAction(fd({ team_id: "team-1" }));
+    } catch {
+      // redirect — expected on success path
+    }
+    expect(state.inserts.find((i) => i.table === "invoices")).toBeDefined();
+  });
+
+  it("cascade uses team_members.default_rate when no project and no customer rate is set", async () => {
+    mockValidateTeamAccess.mockResolvedValue({ userId: fakeUserId, role: "owner" });
+    state.settings = {
+      invoice_prefix: "INV",
+      invoice_next_num: 1,
+      default_rate: 30, // team default (last fallback)
+    };
+    // Carol has a per-member default rate of 175. Her entry has no project
+    // rate and no customer rate — cascade should resolve to 175 (above
+    // the team default of 30).
+    state.memberRates = [{ user_id: "u-carol", default_rate: 175 }];
+    state.timeEntries = [
+      {
+        id: "e-carol",
+        duration_min: 60,
+        description: "carol work",
+        user_id: "u-carol",
+        projects: {
+          name: "Internal",
+          hourly_rate: null,
+          customer_id: null,
+          customers: null,
+        },
+      },
+      // Bob has no per-member rate → should fall through to team default 30.
+      {
+        id: "e-bob",
+        duration_min: 60,
+        description: "bob work",
+        user_id: "u-bob",
+        projects: {
+          name: "Internal",
+          hourly_rate: null,
+          customer_id: null,
+          customers: null,
+        },
+      },
+    ];
+    try {
+      await createInvoiceAction(fd({ team_id: "team-1" }));
+    } catch {
+      // redirect
+    }
+    const lineInsert = state.inserts.find(
+      (i) => i.table === "invoice_line_items",
+    );
+    const rows = lineInsert?.rows as Array<{
+      unit_price: number;
+      time_entry_id: string;
+    }>;
+    expect(rows).toHaveLength(2);
+    const carolRow = rows.find((r) => r.time_entry_id === "e-carol");
+    const bobRow = rows.find((r) => r.time_entry_id === "e-bob");
+    expect(carolRow?.unit_price).toBe(175); // member rate wins
+    expect(bobRow?.unit_price).toBe(30); // no member rate → team default
+  });
+
+  it("cascade: project rate still beats the per-member rate", async () => {
+    mockValidateTeamAccess.mockResolvedValue({ userId: fakeUserId, role: "owner" });
+    state.settings = {
+      invoice_prefix: "INV",
+      invoice_next_num: 1,
+      default_rate: 30,
+    };
+    state.memberRates = [{ user_id: "u-carol", default_rate: 175 }];
+    state.timeEntries = [
+      {
+        id: "e",
+        duration_min: 60,
+        description: "x",
+        user_id: "u-carol",
+        projects: {
+          name: "P",
+          hourly_rate: 300, // beats member rate
+          customer_id: null,
+          customers: null,
+        },
+      },
+    ];
+    try {
+      await createInvoiceAction(fd({ team_id: "team-1" }));
+    } catch {
+      // redirect
+    }
+    const lineInsert = state.inserts.find(
+      (i) => i.table === "invoice_line_items",
+    );
+    const rows = lineInsert?.rows as Array<{ unit_price: number }>;
+    expect(rows[0]?.unit_price).toBe(300);
   });
 });

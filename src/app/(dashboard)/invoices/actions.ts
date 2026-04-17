@@ -16,7 +16,16 @@ import type { LineItemResult } from "@/lib/invoice-utils";
 export async function createInvoiceAction(formData: FormData): Promise<void> {
   return runSafeAction(formData, async (formData, { supabase }) => {
     const teamId = formData.get("team_id") as string;
-    const { userId } = await validateTeamAccess(teamId);
+    const { userId, role } = await validateTeamAccess(teamId);
+
+    // Invoice creation is a commercial/administrative action: it touches
+    // every team member's billable hours and surfaces team-wide rates.
+    // Restrict to owner + admin. A member invoking this would also hit
+    // the tight time_entries SELECT (SAL-006) and only see their own
+    // rows, producing an incomplete invoice.
+    if (role !== "owner" && role !== "admin") {
+      throw new Error("Only owners and admins can create invoices.");
+    }
 
     const customer_id = (formData.get("customer_id") as string) || null;
     const notes = (formData.get("notes") as string) || null;
@@ -24,7 +33,7 @@ export async function createInvoiceAction(formData: FormData): Promise<void> {
     const taxRateStr = formData.get("tax_rate") as string;
     const taxRate = taxRateStr ? parseFloat(taxRateStr) : 0;
 
-    // Get org settings for invoice number
+    // Get team settings for invoice number + team-level default rate.
     const { data: settings } = await supabase
       .from("team_settings")
       .select("invoice_prefix, invoice_next_num, default_rate")
@@ -35,10 +44,26 @@ export async function createInvoiceAction(formData: FormData): Promise<void> {
     const nextNum = settings?.invoice_next_num ?? 1;
     const defaultRate = settings?.default_rate ? Number(settings.default_rate) : 0;
 
-    // Get unbilled time entries — filter by client if specified, otherwise all org entries
+    // Per-member default rate map (the new cascade layer). Base table
+    // read is safe here: this action is restricted to owner/admin above,
+    // and they're authorized to see every member's rate.
+    const { data: memberRows } = await supabase
+      .from("team_members")
+      .select("user_id, default_rate")
+      .eq("team_id", teamId);
+    const memberRateByUserId = new Map<string, number | null>(
+      (memberRows ?? []).map((m) => [
+        m.user_id as string,
+        m.default_rate !== null && m.default_rate !== undefined
+          ? Number(m.default_rate)
+          : null,
+      ]),
+    );
+
+    // Get unbilled time entries — filter by client if specified, otherwise all team entries
     const query = supabase
       .from("time_entries")
-      .select("id, description, duration_min, project_id, projects(name, hourly_rate, customer_id, customers(default_rate))")
+      .select("id, description, duration_min, project_id, user_id, projects(name, hourly_rate, customer_id, customers(default_rate))")
       .eq("team_id", teamId)
       .eq("invoiced", false)
       .eq("billable", true)
@@ -66,7 +91,11 @@ export async function createInvoiceAction(formData: FormData): Promise<void> {
       throw new Error("No unbilled time entries found.");
     }
 
-    // Build line items
+    // Build line items. Rate cascade (highest non-null wins):
+    //   project.hourly_rate
+    //     → customer.default_rate
+    //       → team_members.default_rate (the user who logged this entry)
+    //         → team_settings.default_rate
     const lineItems: (LineItemResult & { time_entry_id: string })[] =
       filteredEntries.map((entry) => {
         const projRaw = entry.projects;
@@ -78,9 +107,12 @@ export async function createInvoiceAction(formData: FormData): Promise<void> {
             })
           : null;
         const hours = minutesToHours(entry.duration_min ?? 0);
+        const entryUserId = (entry as { user_id: string }).user_id;
+        const memberRate = memberRateByUserId.get(entryUserId) ?? null;
         const rate =
           (proj?.hourly_rate ? Number(proj.hourly_rate) : null) ??
           (proj?.customers?.default_rate ? Number(proj.customers.default_rate) : null) ??
+          memberRate ??
           defaultRate;
         const amount = calculateLineItemAmount(hours, rate);
         const desc = entry.description

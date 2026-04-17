@@ -22,7 +22,7 @@ export default async function ProjectDetailPage({
   const t = await getTranslations("projects");
 
   const { data: project } = await supabase
-    .from("projects")
+    .from("projects_v")
     .select("*, customers(name)")
     .eq("id", id)
     .single();

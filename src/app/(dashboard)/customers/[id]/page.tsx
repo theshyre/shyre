@@ -57,7 +57,7 @@ export default async function ClientDetailPage({
   const t = await getTranslations("customers");
 
   const { data: client } = await supabase
-    .from("customers")
+    .from("customers_v")
     .select("*")
     .eq("id", id)
     .single();
@@ -65,7 +65,7 @@ export default async function ClientDetailPage({
   if (!client) notFound();
 
   const { data: projects } = await supabase
-    .from("projects")
+    .from("projects_v")
     .select("*")
     .eq("customer_id", id)
     .order("created_at", { ascending: false });

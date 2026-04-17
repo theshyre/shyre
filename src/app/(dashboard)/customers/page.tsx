@@ -32,20 +32,21 @@ export default async function ClientsPage({
     // Include customers owned by this org PLUS customers shared into this org
     const [ownedRes, sharedRes] = await Promise.all([
       supabase
-        .from("customers")
+        .from("customers_v")
         .select("id, team_id, name, email, default_rate")
         .eq("archived", false)
         .eq("team_id", selectedTeamId),
       supabase
         .from("customer_shares")
-        .select("customer_id, customers(id, team_id, name, email, default_rate, archived)")
+        .select("customer_id, customers_v(id, team_id, name, email, default_rate, archived)")
         .eq("team_id", selectedTeamId),
     ]);
 
     const owned = (ownedRes.data ?? []) as unknown as CustomerRow[];
     const shared = ((sharedRes.data ?? [])
       .map((r) => {
-        const c = Array.isArray(r.customers) ? r.customers[0] : r.customers;
+        const embedded = (r as unknown as { customers_v: unknown }).customers_v;
+        const c = Array.isArray(embedded) ? embedded[0] : embedded;
         return c as (CustomerRow & { archived: boolean }) | null;
       })
       .filter(
@@ -70,7 +71,7 @@ export default async function ClientsPage({
     );
   } else {
     const { data } = await supabase
-      .from("customers")
+      .from("customers_v")
       .select("id, team_id, name, email, default_rate")
       .eq("archived", false)
       .order("name");
