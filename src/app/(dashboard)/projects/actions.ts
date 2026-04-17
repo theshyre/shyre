@@ -114,6 +114,65 @@ export async function setProjectRateAction(
   }, "setProjectRateAction") as unknown as void;
 }
 
+const PROJECT_TIME_ENTRIES_VISIBILITY = new Set([
+  "own_only",
+  "read_all",
+  "read_write_all",
+]);
+
+/**
+ * Set the per-project time_entries_visibility override. Pass `null`
+ * (or omit the level field) to clear and fall back to the team value.
+ * Owner/admin only.
+ */
+export async function setProjectTimeEntriesVisibilityAction(
+  formData: FormData,
+): Promise<void> {
+  return runSafeAction(formData, async (formData, { supabase }) => {
+    const id = formData.get("id") as string;
+    if (!id) throw new Error("Project id is required.");
+
+    const { data: project } = await supabase
+      .from("projects")
+      .select("team_id")
+      .eq("id", id)
+      .single();
+    const teamId = (project as { team_id?: string } | null)?.team_id;
+    if (!teamId) throw new Error("Project not found.");
+
+    const { role } = await validateTeamAccess(teamId);
+    if (role !== "owner" && role !== "admin") {
+      throw new Error(
+        "Only owners and admins can change project time-entry visibility.",
+      );
+    }
+
+    const rawLevel = formData.get("level");
+    let level: string | null;
+    if (rawLevel === null || rawLevel === "") {
+      level = null; // inherit team
+    } else {
+      level = rawLevel as string;
+      if (!PROJECT_TIME_ENTRIES_VISIBILITY.has(level)) {
+        throw new Error(
+          `Invalid level "${level}". Allowed: own_only, read_all, read_write_all, or empty to inherit.`,
+        );
+      }
+    }
+
+    assertSupabaseOk(
+      await supabase
+        .from("projects")
+        .update({ time_entries_visibility: level })
+        .eq("id", id),
+    );
+
+    revalidatePath("/projects");
+    revalidatePath(`/projects/${id}`);
+    revalidatePath(`/teams/${teamId}`);
+  }, "setProjectTimeEntriesVisibilityAction") as unknown as void;
+}
+
 interface ProjectCategoryInput {
   /** Existing category id — present when editing an already-saved category. */
   id?: string;

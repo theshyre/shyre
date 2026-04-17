@@ -99,3 +99,49 @@ export async function setTeamRateAction(formData: FormData): Promise<void> {
     revalidatePath(`/teams/${teamId}`);
   }, "setTeamRateAction") as unknown as void;
 }
+
+const TIME_ENTRIES_VISIBILITY = new Set([
+  "own_only",
+  "read_all",
+  "read_write_all",
+]);
+
+/**
+ * Set the team-level time_entries_visibility config. Per-project
+ * overrides live on `projects.time_entries_visibility`
+ * (setProjectTimeEntriesVisibilityAction).
+ *
+ * Owner/admin only — this is a team-operations decision, not a rate-
+ * security one, so it doesn't go through the rate-permission
+ * delegation flag.
+ */
+export async function setTeamTimeEntriesVisibilityAction(
+  formData: FormData,
+): Promise<void> {
+  return runSafeAction(formData, async (formData, { supabase }) => {
+    const teamId = formData.get("team_id") as string;
+    if (!teamId) throw new Error("Team id is required.");
+
+    const { role } = await validateTeamAccess(teamId);
+    if (role !== "owner" && role !== "admin") {
+      throw new Error(
+        "Only owners and admins can change time-entry visibility.",
+      );
+    }
+
+    const level = formData.get("level") as string;
+    if (!TIME_ENTRIES_VISIBILITY.has(level)) {
+      throw new Error(
+        `Invalid level "${level}". Allowed: own_only, read_all, read_write_all.`,
+      );
+    }
+
+    assertSupabaseOk(
+      await supabase
+        .from("team_settings")
+        .upsert({ team_id: teamId, time_entries_visibility: level }),
+    );
+
+    revalidatePath(`/teams/${teamId}`);
+  }, "setTeamTimeEntriesVisibilityAction") as unknown as void;
+}
