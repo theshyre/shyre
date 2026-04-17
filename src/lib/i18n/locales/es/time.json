@@ -36,6 +36,15 @@
     "billable": "Facturable"
   },
   "totalsSummary": "{billable} facturable · {nonBillable} no facturable",
+  "memberFilter": {
+    "justYou": "Tú",
+    "allTeam": "Todo el equipo ({count})",
+    "nMembers": "{count} miembros",
+    "youPlus": "Tú + {count}",
+    "none": "Nadie",
+    "unknownMember": "Desconocido",
+    "youSuffix": "tú"
+  },
   "timer": {
     "title": "Cronómetro",
     "start": "Iniciar",

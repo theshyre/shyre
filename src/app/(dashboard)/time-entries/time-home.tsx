@@ -4,6 +4,8 @@ import Link from "next/link";
 import { useTranslations } from "next-intl";
 import { Clock, Trash2 } from "lucide-react";
 import { TeamFilter } from "@/components/TeamFilter";
+import { MemberFilter, type MemberOption } from "./member-filter";
+import type { MemberSelection } from "./page";
 import type { TeamListItem } from "@/lib/team-context";
 import {
   formatDurationHM,
@@ -40,6 +42,8 @@ interface TimeHomeProps {
   templates: TimeTemplate[];
   /** Number of soft-deleted entries — renders a Trash link when > 0. */
   trashCount: number;
+  memberOptions: MemberOption[];
+  memberSelection: MemberSelection;
 }
 
 export function TimeHome({
@@ -58,6 +62,8 @@ export function TimeHome({
   categories,
   templates,
   trashCount,
+  memberOptions,
+  memberSelection,
 }: TimeHomeProps): React.JSX.Element {
   const t = useTranslations("time");
 
@@ -73,6 +79,17 @@ export function TimeHome({
         <Clock size={24} className="text-accent" />
         <h1 className="text-page-title font-bold text-content">{t("title")}</h1>
         <TeamFilter teams={teams} selectedTeamId={selectedTeamId} />
+        <MemberFilter
+          members={memberOptions}
+          selection={
+            memberSelection === "none"
+              ? []
+              : memberSelection === "me" ||
+                  memberSelection === "all"
+                ? memberSelection
+                : memberSelection
+          }
+        />
         <div className="ml-auto flex items-center gap-2">
           {trashCount > 0 && (
             <Link

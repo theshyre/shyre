@@ -1,6 +1,6 @@
 import { cookies } from "next/headers";
 import { createClient } from "@/lib/supabase/server";
-import { getUserTeams } from "@/lib/team-context";
+import { getUserContext, getUserTeams } from "@/lib/team-context";
 import {
   TZ_COOKIE_NAME,
   parseTzOffset,
@@ -77,6 +77,7 @@ interface PageProps {
     view?: string;
     anchor?: string;
     billable?: string;
+    members?: string;
   }>;
 }
 
@@ -84,13 +85,46 @@ function asView(v: string | undefined): TimeView {
   return v === "day" ? "day" : "week";
 }
 
+/** URL-param serialization for the members filter. */
+export type MemberSelection = "me" | "all" | "none" | string[];
+
+function parseMembers(raw: string | undefined): MemberSelection {
+  if (!raw) return "me";
+  if (raw === "all") return "all";
+  if (raw === "none") return "none";
+  if (raw === "me") return "me";
+  const ids = raw
+    .split(",")
+    .map((s) => s.trim())
+    .filter((s) => s.length > 0);
+  return ids.length === 0 ? "me" : ids;
+}
+
+/**
+ * Resolve the MemberSelection to the concrete user_id list we filter
+ * queries by. Returns null to mean "no user filter" (the `all` case —
+ * RLS still narrows to what the caller can see).
+ */
+function resolveMemberFilter(
+  selection: MemberSelection,
+  callerId: string,
+): string[] | null {
+  if (selection === "all") return null;
+  if (selection === "me") return [callerId];
+  if (selection === "none") return [];
+  return selection;
+}
+
 export default async function TimeEntriesPage({
   searchParams,
 }: PageProps): Promise<React.JSX.Element> {
   const supabase = await createClient();
+  const { userId: callerId } = await getUserContext();
   const teams = await getUserTeams();
   const sp = await searchParams;
   const { org: selectedTeamId } = sp;
+  const memberSelection = parseMembers(sp.members);
+  const memberFilter = resolveMemberFilter(memberSelection, callerId);
 
   // No teams → no surface to log time into. Short-circuit to a guidance
   // page instead of rendering the Timer form against a void of projects.
@@ -141,6 +175,14 @@ export default async function TimeEntriesPage({
     .order("start_time", { ascending: true });
   if (selectedTeamId) weekQuery = weekQuery.eq("team_id", selectedTeamId);
   if (billableOnly) weekQuery = weekQuery.eq("billable", true);
+  if (memberFilter !== null) {
+    if (memberFilter.length === 0) {
+      // "none" — return no rows by filtering on an impossible user_id.
+      weekQuery = weekQuery.eq("user_id", "00000000-0000-0000-0000-000000000000");
+    } else {
+      weekQuery = weekQuery.in("user_id", memberFilter);
+    }
+  }
   const { data: rawWeekEntries } = await weekQuery;
   const weekEntries = await attachAuthors(
     supabase,
@@ -159,6 +201,13 @@ export default async function TimeEntriesPage({
     .order("start_time", { ascending: true });
   if (selectedTeamId) dayQuery = dayQuery.eq("team_id", selectedTeamId);
   if (billableOnly) dayQuery = dayQuery.eq("billable", true);
+  if (memberFilter !== null) {
+    if (memberFilter.length === 0) {
+      dayQuery = dayQuery.eq("user_id", "00000000-0000-0000-0000-000000000000");
+    } else {
+      dayQuery = dayQuery.in("user_id", memberFilter);
+    }
+  }
   const { data: rawDayEntries } = await dayQuery;
   const dayEntries = await attachAuthors(
     supabase,
@@ -272,6 +321,33 @@ export default async function TimeEntriesPage({
   const allTemplates = await getMyTemplates(selectedTeamId);
   const templates = allTemplates.slice(0, 8);
 
+  // Team-member list for the member-filter dropdown. Only fetched when a
+  // team is selected; without team scoping the filter is hidden.
+  let memberOptions: Array<{
+    user_id: string;
+    display_name: string | null;
+    avatar_url: string | null;
+    isSelf: boolean;
+  }> = [];
+  if (selectedTeamId) {
+    const { data: memberRows } = await supabase
+      .from("team_members")
+      .select("user_id, role, joined_at, user_profiles(display_name, avatar_url)")
+      .eq("team_id", selectedTeamId)
+      .order("joined_at", { ascending: true });
+    memberOptions = (memberRows ?? []).map((m) => {
+      const profile = m.user_profiles as unknown as
+        | { display_name?: string | null; avatar_url?: string | null }
+        | null;
+      return {
+        user_id: m.user_id as string,
+        display_name: profile?.display_name ?? null,
+        avatar_url: profile?.avatar_url ?? null,
+        isSelf: m.user_id === callerId,
+      };
+    });
+  }
+
   // Trash count — only surfaced in the UI if > 0
   let trashQuery = supabase
     .from("time_entries")
@@ -297,6 +373,8 @@ export default async function TimeEntriesPage({
       categories={categories}
       templates={templates}
       trashCount={trashCount ?? 0}
+      memberOptions={memberOptions}
+      memberSelection={memberSelection}
     />
   );
 }
