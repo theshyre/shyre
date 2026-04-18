@@ -3,7 +3,7 @@
 import { useCallback, useState } from "react";
 import { useTranslations } from "next-intl";
 import { Plus } from "lucide-react";
-import { useKeyboardShortcut } from "@/hooks/use-keyboard-shortcut";
+import { useKeyboardShortcut } from "@theshyre/ui";
 import { useFormAction } from "@/hooks/use-form-action";
 import { SubmitButton } from "@/components/SubmitButton";
 import {

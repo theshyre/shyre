@@ -10,7 +10,7 @@ import {
   buttonSecondaryClass,
   kbdClass,
 } from "@/lib/form-styles";
-import { useKeyboardShortcut } from "@/hooks/use-keyboard-shortcut";
+import { useKeyboardShortcut } from "@theshyre/ui";
 import { EntryTable } from "./entry-table";
 import type { CategoryOption, ProjectOption, TimeEntry } from "./types";
 import type { EntryGroup } from "@/lib/time/grouping";

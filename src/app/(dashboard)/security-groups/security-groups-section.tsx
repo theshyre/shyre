@@ -10,7 +10,7 @@ import {
   UserPlus,
   X,
 } from "lucide-react";
-import { useKeyboardShortcut } from "@/hooks/use-keyboard-shortcut";
+import { useKeyboardShortcut } from "@theshyre/ui";
 import { useFormAction } from "@/hooks/use-form-action";
 import { SubmitButton } from "@/components/SubmitButton";
 import {

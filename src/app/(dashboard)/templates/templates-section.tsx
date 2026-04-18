@@ -5,7 +5,7 @@ import { useTranslations } from "next-intl";
 import { Plus, Pencil, Trash2, Bookmark } from "lucide-react";
 import type { TeamListItem } from "@/lib/team-context";
 import type { TimeTemplate } from "@/lib/templates/types";
-import { useKeyboardShortcut } from "@/hooks/use-keyboard-shortcut";
+import { useKeyboardShortcut } from "@theshyre/ui";
 import { useFormAction } from "@/hooks/use-form-action";
 import { SubmitButton } from "@/components/SubmitButton";
 import { TeamSelector } from "@/components/TeamSelector";

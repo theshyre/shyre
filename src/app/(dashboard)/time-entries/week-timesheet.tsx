@@ -18,9 +18,8 @@ import {
   ChevronsUp,
   Plus,
 } from "lucide-react";
-import { Avatar } from "@theshyre/ui";
+import { Avatar, resolveAvatarUrl } from "@theshyre/ui";
 import { formatDurationHMZero } from "@/lib/time/week";
-import { resolveAvatarUrl } from "@/lib/avatar-preset";
 import { addLocalDays, utcToLocalDateStr } from "@/lib/time/tz";
 import { DurationInput } from "./duration-input";
 import {

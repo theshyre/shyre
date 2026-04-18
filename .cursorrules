@@ -42,6 +42,22 @@ Every time entry displayed anywhere must show the author via `<Avatar>` from `@t
 - Server Actions: always verify `auth.getUser()` first
 - RLS handles authorization — never bypass it
 
+## Shared packages — @theshyre/* (MANDATORY)
+
+Shyre consumes `@theshyre/ui`, `@theshyre/theme`, `@theshyre/design-tokens` from GitHub Packages. Source is `/Users/marcus/projects/theshyre-core`. Liv consumes the same packages. All three repos stay in step.
+
+- **Stay on latest.** Shyre's `@theshyre/*` carets in `package.json` must be ≥ the latest published version. When `theshyre-core` publishes, bump + install + `typecheck`/`lint`/`test`/`build` same day. No carrying drift into the next feature commit.
+- **TS compiler + `@types/node` major** track `theshyre-core` and Liv. A TS major is a cross-repo change, never Shyre-local.
+- **Promotion criteria — all four required.** Code belongs in `@theshyre/*` only when:
+  1. App-agnostic (no time entries, invoices, customers, projects, teams domain).
+  2. No Supabase / no DB knowledge.
+  3. React 19 + Next 16 compatible.
+  4. Concrete consumer beyond Shyre — Liv uses it or is planned to. "Could be generic" isn't enough.
+- **Author generic primitives in-core first.** Before writing a new generic utility/hook/component in Shyre, stop and author it in `theshyre-core/packages/ui`. Import from `@theshyre/ui`. Avoid the "inline today, promote later" churn.
+- **Promotion workflow.** PR in `theshyre-core` (add + tests + changeset). `pnpm version-packages` → commit → push → `pnpm release`. Then a Shyre PR bumps the caret, deletes local copies (or converts to re-exports), rewires imports. Never merge the Shyre side before `npm view @theshyre/<pkg> version` confirms publish.
+- **Re-export wrappers** (`src/components/Foo.tsx` → `export { Foo } from "@theshyre/ui";`) are valid only when the wrapper adds i18n labels (`SaveStatus`, `InlineDeleteButton`) or call sites are entrenched on the `@/components/Foo` path. Not for their own sake.
+- **App-specific stays in Shyre.** `EntryAuthor`, `InvoicePDF`, `Timer`, `Sidebar`, `TeamFilter`, server actions, `safe-action.ts`, RLS helpers, Supabase clients, Next.js routes, Shyre Zod schemas, Shyre i18n bundles. These are never promotion candidates — if the concept moves, create a new package, don't stuff it into `@theshyre/ui`.
+
 ## Migrations & deploy ordering (MANDATORY)
 
 Vercel (app code) and `.github/workflows/db-migrate.yml` (SQL migrations) run in **parallel** on every push to `main`. There is no sequencing.

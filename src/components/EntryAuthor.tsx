@@ -1,6 +1,5 @@
 import { useTranslations } from "next-intl";
-import { Avatar } from "@theshyre/ui";
-import { resolveAvatarUrl } from "@/lib/avatar-preset";
+import { Avatar, resolveAvatarUrl } from "@theshyre/ui";
 
 export interface EntryAuthorInfo {
   user_id: string;
