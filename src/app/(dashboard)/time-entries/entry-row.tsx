@@ -64,14 +64,14 @@ export function EntryRow({
                 className="h-2.5 w-2.5 rounded-full shrink-0"
                 style={{ backgroundColor: category.color }}
               />
-              <span className="text-sm font-semibold text-content">
+              <span className="text-body font-semibold text-content">
                 {category.name}
               </span>
             </div>
           ) : (
             <div className="flex items-center gap-2 border-l-4 border-edge pl-3">
               <span className="h-2.5 w-2.5 rounded-full bg-content-muted shrink-0" />
-              <span className="text-sm text-content-muted italic">
+              <span className="text-body text-content-muted italic">
                 {t("entry.noCategory")}
               </span>
             </div>
@@ -80,18 +80,18 @@ export function EntryRow({
 
         {/* Project · Client + Description */}
         <td className="px-3 py-2.5 align-middle min-w-0">
-          <div className="text-xs text-content-secondary truncate">
+          <div className="text-caption text-content-secondary truncate">
             <span className="text-content">{projectName}</span>
             {customerName && (
               <span className="text-content-muted"> · {customerName}</span>
             )}
           </div>
           {entry.description ? (
-            <div className="text-sm text-content truncate mt-0.5">
+            <div className="text-body text-content truncate mt-0.5">
               {entry.description}
             </div>
           ) : (
-            <div className="text-sm text-content-muted italic truncate mt-0.5">
+            <div className="text-body text-content-muted italic truncate mt-0.5">
               {t("entry.untitled")}
             </div>
           )}
@@ -104,7 +104,7 @@ export function EntryRow({
 
         {/* Start time (small, muted) */}
         <td className="px-3 py-2.5 align-middle whitespace-nowrap text-right">
-          <span className="font-mono text-[11px] text-content-muted">
+          <span className="font-mono text-caption text-content-muted">
             {startTime}
           </span>
         </td>
@@ -112,12 +112,12 @@ export function EntryRow({
         {/* Duration */}
         <td className="px-3 py-2.5 align-middle text-right whitespace-nowrap">
           {isRunning ? (
-            <span className="inline-flex items-center gap-1.5 text-xs font-medium text-success">
+            <span className="inline-flex items-center gap-1.5 text-caption font-medium text-success">
               <span className="h-1.5 w-1.5 rounded-full bg-success animate-pulse" />
               {tt("running")}
             </span>
           ) : (
-            <span className="font-mono text-base font-semibold text-content tabular-nums">
+            <span className="font-mono text-body-lg font-semibold text-content tabular-nums">
               {formatDurationHM(entry.duration_min)}
             </span>
           )}

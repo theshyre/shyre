@@ -32,6 +32,7 @@
     "projectDescription": "Project · Description",
     "description": "Description",
     "category": "Category",
+    "member": "Member",
     "duration": "Duration",
     "billable": "Billable"
   },
@@ -124,6 +125,7 @@
   },
   "timesheet": {
     "project": "Project",
+    "category": "Category",
     "categoryProject": "Category · Project",
     "total": "Total",
     "dailyTotals": "Daily totals",
@@ -137,7 +139,24 @@
     "deleteRow": "Delete row",
     "discardRow": "Discard row",
     "columnActions": "Row actions",
-    "frameTitle": "Weekly timesheet"
+    "frameTitle": "Weekly timesheet",
+    "expandAll": "Expand all",
+    "collapseAll": "Collapse all",
+    "dayJumpAria": "Jump to {day}",
+    "groupBy": {
+      "label": "Group by",
+      "member": "Member",
+      "project": "Project",
+      "category": "Category"
+    },
+    "groupHeader": {
+      "you": "You",
+      "unknownMember": "Unknown",
+      "noCategory": "No category",
+      "collapse": "Collapse group",
+      "expand": "Expand group",
+      "rowCount": "{count, plural, one {# row} other {# rows}}"
+    }
   },
   "rowDelete": {
     "prompt": "Type {word} to confirm",

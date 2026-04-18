@@ -25,6 +25,9 @@
     "docs": "Documentación",
     "unresolvedBadge": "{count, plural, one {# ítem pendiente} other {# ítems pendientes}}"
   },
+  "authorship": {
+    "unknownUser": "Usuario desconocido"
+  },
   "navSections": {
     "track": "Registrar",
     "manage": "Gestionar",

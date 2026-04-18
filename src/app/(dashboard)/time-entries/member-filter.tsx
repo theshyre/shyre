@@ -5,6 +5,7 @@ import { Users, ChevronDown, Check } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 import { useTranslations } from "next-intl";
 import { Avatar } from "@theshyre/ui";
+import { resolveAvatarUrl } from "@/lib/avatar-preset";
 
 export interface MemberOption {
   user_id: string;
@@ -141,10 +142,10 @@ export function MemberFilter({
       <button
         type="button"
         onClick={() => setOpen(!open)}
-        className={`inline-flex items-center gap-1.5 rounded-full px-3 py-1 text-xs font-medium transition-colors ${
+        className={`inline-flex items-center gap-1.5 rounded-full px-3 py-1 text-caption font-medium transition-colors ${
           selectionActive
-            ? "bg-accent-soft text-accent-text"
-            : "bg-surface-inset text-content-secondary hover:bg-hover"
+            ? "bg-accent-soft text-accent-text border border-accent/30"
+            : "bg-surface-inset text-content-secondary border border-edge hover:bg-hover"
         }`}
       >
         <Users size={12} />
@@ -160,7 +161,7 @@ export function MemberFilter({
               pushSelection("me");
               setOpen(false);
             }}
-            className={`flex items-center gap-2 w-full px-3 py-2 text-sm text-left transition-colors border-b border-edge ${
+            className={`flex items-center gap-2 w-full px-3 py-2 text-body text-left transition-colors border-b border-edge ${
               hasSelfExactly
                 ? "bg-accent-soft text-accent-text"
                 : "text-content-secondary hover:bg-hover"
@@ -177,7 +178,7 @@ export function MemberFilter({
               pushSelection("all");
               setOpen(false);
             }}
-            className={`flex items-center gap-2 w-full px-3 py-2 text-sm text-left transition-colors border-b border-edge ${
+            className={`flex items-center gap-2 w-full px-3 py-2 text-body text-left transition-colors border-b border-edge ${
               hasAll
                 ? "bg-accent-soft text-accent-text"
                 : "text-content-secondary hover:bg-hover"
@@ -198,14 +199,14 @@ export function MemberFilter({
                   key={m.user_id}
                   type="button"
                   onClick={() => toggleMember(m.user_id)}
-                  className={`flex items-center gap-2 w-full px-3 py-2 text-sm text-left transition-colors ${
+                  className={`flex items-center gap-2 w-full px-3 py-2 text-body text-left transition-colors ${
                     checked
                       ? "bg-accent-soft/50 text-content"
                       : "text-content-secondary hover:bg-hover"
                   }`}
                 >
                   <Avatar
-                    avatarUrl={m.avatar_url}
+                    avatarUrl={resolveAvatarUrl(m.avatar_url, m.user_id)}
                     displayName={m.display_name ?? t("unknownMember")}
                     size={20}
                   />

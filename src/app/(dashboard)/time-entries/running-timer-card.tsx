@@ -95,15 +95,15 @@ export function RunningTimerCard({
       <div className="rounded-lg border border-success/30 bg-success-soft p-4 flex items-center gap-4 flex-wrap">
         <div className="flex items-center gap-2">
           <span className="h-2.5 w-2.5 rounded-full bg-success animate-pulse" />
-          <span className="text-xs font-medium text-success uppercase tracking-wider">
+          <span className="text-label font-semibold text-success uppercase tracking-wider">
             {th("runningHeader")}
           </span>
         </div>
-        <span className="font-mono text-2xl font-semibold text-content tabular-nums">
+        <span className="font-mono text-hero font-bold text-content tabular-nums">
           {elapsed}
         </span>
         <div className="min-w-0 flex-1">
-          <p className="text-sm text-content truncate">
+          <p className="text-body text-content truncate">
             {projectName}
             {customerName && (
               <span className="text-content-muted">
@@ -112,7 +112,7 @@ export function RunningTimerCard({
             )}
           </p>
           {running.description && (
-            <p className="text-xs text-content-secondary truncate">
+            <p className="text-caption text-content-secondary truncate">
               {running.description}
             </p>
           )}
@@ -121,7 +121,7 @@ export function RunningTimerCard({
           </div>
         </div>
         {stopForm.serverError && (
-          <p className="text-xs text-error bg-error-soft rounded-md px-2 py-1">
+          <p className="text-caption text-error bg-error-soft rounded-md px-2 py-1">
             {stopForm.serverError}
           </p>
         )}
@@ -131,7 +131,7 @@ export function RunningTimerCard({
             label={tt("stop")}
             pending={stopForm.pending}
             icon={Square}
-            className="flex items-center gap-2 rounded-lg bg-error px-3 py-2 text-sm font-medium text-content-inverse hover:opacity-90 transition-colors disabled:opacity-50"
+            className="flex items-center gap-2 rounded-lg bg-error px-3 py-2 text-body-lg font-medium text-content-inverse hover:opacity-90 transition-colors disabled:opacity-50"
           />
         </form>
       </div>
@@ -171,7 +171,7 @@ export function RunningTimerCard({
       className="space-y-3 rounded-lg border border-accent bg-surface-raised p-4"
     >
       <div className="flex items-center justify-between">
-        <span className="text-xs font-semibold uppercase tracking-wider text-content-muted">
+        <span className="text-label font-semibold uppercase tracking-wider text-content-muted">
           {th("startNewTimer")}
         </span>
         <button
@@ -185,7 +185,7 @@ export function RunningTimerCard({
       </div>
 
       {startForm.serverError && (
-        <p className="text-sm text-error bg-error-soft rounded-lg px-3 py-2">
+        <p className="text-body text-error bg-error-soft rounded-lg px-3 py-2">
           {startForm.serverError}
         </p>
       )}
@@ -217,11 +217,11 @@ export function RunningTimerCard({
             ))}
           </select>
         ) : selectedProject ? (
-          <p className="text-xs text-content-muted italic">
+          <p className="text-caption text-content-muted italic">
             {tf("categoryUnavailable")}
           </p>
         ) : (
-          <p className="text-xs text-content-muted italic">
+          <p className="text-caption text-content-muted italic">
             {tf("categoryPickProjectFirst")}
           </p>
         )}

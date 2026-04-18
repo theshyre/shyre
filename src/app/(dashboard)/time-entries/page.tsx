@@ -340,11 +340,35 @@ export default async function TimeEntriesPage({
     isSelf: boolean;
   }> = [];
   if (memberTeamIds.length > 0) {
+    // Two-step: team_members has no FK to user_profiles (both go through
+    // auth.users), so PostgREST can't embed. Fetch memberships first,
+    // then batch-fetch profiles.
     const { data: memberRows } = await supabase
       .from("team_members")
-      .select("user_id, role, joined_at, user_profiles(display_name, avatar_url)")
+      .select("user_id, role, joined_at")
       .in("team_id", memberTeamIds)
       .order("joined_at", { ascending: true });
+    const memberUserIds = Array.from(
+      new Set((memberRows ?? []).map((m) => m.user_id as string)),
+    );
+    const { data: profiles } = memberUserIds.length > 0
+      ? await supabase
+          .from("user_profiles")
+          .select("user_id, display_name, avatar_url")
+          .in("user_id", memberUserIds)
+      : { data: [] };
+    const profileByUserId = new Map<
+      string,
+      { display_name: string | null; avatar_url: string | null }
+    >(
+      (profiles ?? []).map((p) => [
+        p.user_id as string,
+        {
+          display_name: (p.display_name as string | null) ?? null,
+          avatar_url: (p.avatar_url as string | null) ?? null,
+        },
+      ]),
+    );
     const byUserId = new Map<
       string,
       {
@@ -354,12 +378,9 @@ export default async function TimeEntriesPage({
         isSelf: boolean;
       }
     >();
-    for (const m of memberRows ?? []) {
-      const userId = m.user_id as string;
+    for (const userId of memberUserIds) {
       if (byUserId.has(userId)) continue;
-      const profile = m.user_profiles as unknown as
-        | { display_name?: string | null; avatar_url?: string | null }
-        | null;
+      const profile = profileByUserId.get(userId);
       byUserId.set(userId, {
         user_id: userId,
         display_name: profile?.display_name ?? null,
@@ -390,6 +411,7 @@ export default async function TimeEntriesPage({
       dayStr={day}
       weekStartStr={weekStart}
       tzOffsetMin={tzOffsetMin}
+      currentUserId={callerId}
       weekEntries={weekEntries}
       dayEntries={dayEntries}
       running={running}

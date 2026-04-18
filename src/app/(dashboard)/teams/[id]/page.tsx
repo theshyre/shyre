@@ -41,16 +41,38 @@ export default async function TeamDetailPage({
   // the owner is always at the top of the list — important both for
   // visibility now and as a prerequisite for any future transfer-
   // ownership action (which would pick from this same list).
+  // Two-step fetch: team_members has no FK to user_profiles (both go
+  // through auth.users), so PostgREST can't embed the profile join.
   const { data: rawMembers } = await supabase
     .from("team_members")
-    .select("id, user_id, role, joined_at, user_profiles(display_name)")
+    .select("id, user_id, role, joined_at")
     .eq("team_id", id);
+  const memberUserIds = (rawMembers ?? []).map((m) => m.user_id as string);
+  const { data: profileRows } = memberUserIds.length > 0
+    ? await supabase
+        .from("user_profiles")
+        .select("user_id, display_name")
+        .in("user_id", memberUserIds)
+    : { data: [] };
+  const displayNameByUserId = new Map<string, string | null>(
+    (profileRows ?? []).map((p) => [
+      p.user_id as string,
+      (p.display_name as string | null) ?? null,
+    ]),
+  );
   const ROLE_RANK: Record<string, number> = { owner: 0, admin: 1, member: 2 };
-  const members = (rawMembers ?? []).slice().sort((a, b) => {
-    const rankDiff = (ROLE_RANK[a.role] ?? 99) - (ROLE_RANK[b.role] ?? 99);
-    if (rankDiff !== 0) return rankDiff;
-    return (a.joined_at ?? "").localeCompare(b.joined_at ?? "");
-  });
+  const members = (rawMembers ?? [])
+    .map((m) => ({
+      ...m,
+      user_profiles: {
+        display_name: displayNameByUserId.get(m.user_id as string) ?? null,
+      },
+    }))
+    .sort((a, b) => {
+      const rankDiff = (ROLE_RANK[a.role] ?? 99) - (ROLE_RANK[b.role] ?? 99);
+      if (rankDiff !== 0) return rankDiff;
+      return (a.joined_at ?? "").localeCompare(b.joined_at ?? "");
+    });
 
   const { data: invites } = await supabase
     .from("team_invites")

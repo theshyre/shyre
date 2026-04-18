@@ -32,6 +32,7 @@
     "projectDescription": "Proyecto · Descripción",
     "description": "Descripción",
     "category": "Categoría",
+    "member": "Miembro",
     "duration": "Duración",
     "billable": "Facturable"
   },
@@ -124,6 +125,7 @@
   },
   "timesheet": {
     "project": "Proyecto",
+    "category": "Categoría",
     "categoryProject": "Categoría · Proyecto",
     "total": "Total",
     "dailyTotals": "Totales diarios",
@@ -137,7 +139,24 @@
     "deleteRow": "Eliminar fila",
     "discardRow": "Descartar fila",
     "columnActions": "Acciones de fila",
-    "frameTitle": "Parte de horas semanal"
+    "frameTitle": "Parte de horas semanal",
+    "expandAll": "Expandir todo",
+    "collapseAll": "Contraer todo",
+    "dayJumpAria": "Ir a {day}",
+    "groupBy": {
+      "label": "Agrupar por",
+      "member": "Miembro",
+      "project": "Proyecto",
+      "category": "Categoría"
+    },
+    "groupHeader": {
+      "you": "Tú",
+      "unknownMember": "Desconocido",
+      "noCategory": "Sin categoría",
+      "collapse": "Contraer grupo",
+      "expand": "Expandir grupo",
+      "rowCount": "{count, plural, one {# fila} other {# filas}}"
+    }
   },
   "rowDelete": {
     "prompt": "Escribe {word} para confirmar",

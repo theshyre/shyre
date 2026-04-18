@@ -44,7 +44,7 @@ export function TeamFilter({
   if (teams.length === 1) {
     const singleOrg = teams[0];
     return (
-      <span className="inline-flex items-center gap-1.5 rounded-full bg-surface-inset px-3 py-1 text-xs font-medium text-content-secondary">
+      <span className="inline-flex items-center gap-1.5 rounded-full border border-edge bg-surface-inset px-3 py-1 text-caption font-medium text-content-secondary">
         <Building2 size={12} />
         {singleOrg?.name ?? ""}
       </span>
@@ -55,10 +55,13 @@ export function TeamFilter({
 
   function selectTeam(teamId: string | null): void {
     const params = new URLSearchParams(searchParams.toString());
+    // Note: URL param is "org" for legacy reasons — all list pages read
+    // from `searchParams.org`. Renaming everywhere would be a coordinated
+    // change; for now this writer has to match that reader.
     if (teamId) {
-      params.set("team", teamId);
+      params.set("org", teamId);
     } else {
-      params.delete("team");
+      params.delete("org");
     }
     router.push(`${pathname}?${params.toString()}`);
     setOpen(false);
@@ -68,10 +71,10 @@ export function TeamFilter({
     <div ref={ref} className="relative">
       <button
         onClick={() => setOpen(!open)}
-        className={`inline-flex items-center gap-1.5 rounded-full px-3 py-1 text-xs font-medium transition-colors ${
+        className={`inline-flex items-center gap-1.5 rounded-full px-3 py-1 text-caption font-medium transition-colors ${
           selectedTeamId
-            ? "bg-accent-soft text-accent-text"
-            : "bg-surface-inset text-content-secondary hover:bg-hover"
+            ? "bg-accent-soft text-accent-text border border-accent/30"
+            : "bg-surface-inset text-content-secondary border border-edge hover:bg-hover"
         }`}
       >
         <Building2 size={12} />

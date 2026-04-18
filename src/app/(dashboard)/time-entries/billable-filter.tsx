@@ -30,10 +30,10 @@ export function BillableFilter({ active }: Props): React.JSX.Element {
       type="button"
       onClick={toggle}
       aria-pressed={active}
-      className={`inline-flex items-center gap-1.5 rounded-full px-3 py-1 text-xs font-medium transition-colors ${
+      className={`inline-flex items-center gap-1.5 rounded-full px-3 py-1 text-caption font-medium transition-colors ${
         active
-          ? "bg-success-soft text-success"
-          : "bg-surface-inset text-content-secondary hover:bg-hover"
+          ? "bg-success-soft text-success border border-success/30"
+          : "bg-surface-inset text-content-secondary border border-edge hover:bg-hover"
       }`}
     >
       <DollarSign size={12} />

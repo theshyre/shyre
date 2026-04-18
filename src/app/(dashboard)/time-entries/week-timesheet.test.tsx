@@ -205,7 +205,228 @@ describe("WeekTimesheet", () => {
         defaultTeamId="o1"
       />,
     );
+    // Before clicking: just the group-by selector is in the DOM.
+    const before = screen.getAllByRole("combobox").length;
     fireEvent.click(screen.getByRole("button", { name: /add row/i }));
-    expect(screen.getByRole("combobox")).toBeInTheDocument();
+    // After clicking: project picker (and category picker when applicable)
+    // get added on top of the group-by selector.
+    expect(screen.getAllByRole("combobox").length).toBeGreaterThan(before);
+  });
+
+  it("splits into per-author rows when entries span multiple users", () => {
+    // u1 (viewer) and u2 both logged to the same project/category on the
+    // same day. The grid should render two rows, not a single summed row.
+    const mine = makeEntry("m1", { day: 0, durationMin: 60 });
+    const theirs: TimeEntry = {
+      ...makeEntry("t1", { day: 0, durationMin: 120 }),
+      user_id: "u2",
+      author: { user_id: "u2", display_name: "Riley Member", avatar_url: null },
+    };
+    renderTimesheet(
+      <WeekTimesheet
+        weekStartStr={weekStartStr}
+        tzOffsetMin={tzOffsetMin}
+        entries={[mine, theirs]}
+        projects={[project]}
+        categories={[]}
+        currentUserId="u1"
+      />,
+    );
+    // Author chip appears in the foreign row only.
+    expect(screen.getByText(/riley member/i)).toBeInTheDocument();
+  });
+
+  it("renders other-author rows as read-only (no editable textbox for their cells)", async () => {
+    const theirs: TimeEntry = {
+      ...makeEntry("t1", { day: 0, durationMin: 120 }),
+      user_id: "u2",
+      author: { user_id: "u2", display_name: "Riley", avatar_url: null },
+    };
+    renderTimesheet(
+      <WeekTimesheet
+        weekStartStr={weekStartStr}
+        tzOffsetMin={tzOffsetMin}
+        entries={[theirs]}
+        projects={[project]}
+        categories={[]}
+        currentUserId="u1"
+      />,
+    );
+    // No DurationInput textboxes render for the foreign-only grid; the
+    // cell shows the duration as static text.
+    expect(screen.queryAllByRole("textbox")).toHaveLength(0);
+    // And the read-only cell still shows the duration value (repeated
+    // across cell + row total + daily total).
+    expect(screen.getAllByText("2:00").length).toBeGreaterThanOrEqual(1);
+  });
+
+  it("hides the delete button on other-author rows", () => {
+    const theirs: TimeEntry = {
+      ...makeEntry("t1", { day: 0, durationMin: 60 }),
+      user_id: "u2",
+      author: { user_id: "u2", display_name: "Riley", avatar_url: null },
+    };
+    renderTimesheet(
+      <WeekTimesheet
+        weekStartStr={weekStartStr}
+        tzOffsetMin={tzOffsetMin}
+        entries={[theirs]}
+        projects={[project]}
+        categories={[]}
+        currentUserId="u1"
+      />,
+    );
+    expect(
+      screen.queryByRole("button", { name: /delete row/i }),
+    ).not.toBeInTheDocument();
+  });
+
+  it("renders a group header for the current user when grouping by member", () => {
+    // Clear localStorage so the default "member" grouping applies.
+    window.localStorage.removeItem("shyre.weekTimesheet.groupBy");
+    renderTimesheet(
+      <WeekTimesheet
+        weekStartStr={weekStartStr}
+        tzOffsetMin={tzOffsetMin}
+        entries={[makeEntry("e1", { day: 0, durationMin: 60 })]}
+        projects={[project]}
+        categories={[]}
+        currentUserId="u1"
+      />,
+    );
+    // The current-user group's label is "You".
+    expect(screen.getByText(/^you$/i)).toBeInTheDocument();
+  });
+
+  it("collapses a group when its chevron is clicked", async () => {
+    window.localStorage.removeItem("shyre.weekTimesheet.groupBy");
+    renderTimesheet(
+      <WeekTimesheet
+        weekStartStr={weekStartStr}
+        tzOffsetMin={tzOffsetMin}
+        entries={[makeEntry("e1", { day: 0, durationMin: 60 })]}
+        projects={[project]}
+        categories={[]}
+        currentUserId="u1"
+      />,
+    );
+    // DurationInput renders as a textbox while the group is expanded.
+    expect(screen.getAllByRole("textbox").length).toBeGreaterThan(0);
+    fireEvent.click(screen.getByRole("button", { name: /collapse group/i }));
+    // When collapsed, no row textboxes are in the DOM — only the header row.
+    expect(screen.queryAllByRole("textbox")).toHaveLength(0);
+  });
+
+  it("switching to project grouping renders per-row author chips", () => {
+    window.localStorage.setItem("shyre.weekTimesheet.groupBy", "project");
+    const theirs: TimeEntry = {
+      ...makeEntry("t1", { day: 0, durationMin: 60 }),
+      user_id: "u2",
+      author: { user_id: "u2", display_name: "Riley Member", avatar_url: null },
+    };
+    renderTimesheet(
+      <WeekTimesheet
+        weekStartStr={weekStartStr}
+        tzOffsetMin={tzOffsetMin}
+        entries={[makeEntry("m1", { day: 0, durationMin: 30 }), theirs]}
+        projects={[project]}
+        categories={[]}
+        currentUserId="u1"
+      />,
+    );
+    // With member as the non-grouping dimension, each row carries an author
+    // chip. Riley's name shows up on the non-own row.
+    expect(screen.getByText(/riley member/i)).toBeInTheDocument();
+    // Project name appears once — in the group header, not on every row.
+    window.localStorage.removeItem("shyre.weekTimesheet.groupBy");
+  });
+
+  it("collapses other-member groups by default when grouping by member", () => {
+    // 2 groups: own ("You") and Riley's. Default should keep "You"
+    // expanded and Riley's collapsed so the editable work stays on top
+    // without drowning the grid in other people's entries.
+    window.localStorage.removeItem("shyre.weekTimesheet.groupBy");
+    const theirs: TimeEntry = {
+      ...makeEntry("t1", { day: 0, durationMin: 120 }),
+      user_id: "u2",
+      author: { user_id: "u2", display_name: "Riley", avatar_url: null },
+    };
+    renderTimesheet(
+      <WeekTimesheet
+        weekStartStr={weekStartStr}
+        tzOffsetMin={tzOffsetMin}
+        entries={[makeEntry("m1", { day: 0, durationMin: 60 }), theirs]}
+        projects={[project]}
+        categories={[]}
+        currentUserId="u1"
+      />,
+    );
+    // Own-group expanded → at least one DurationInput renders.
+    expect(screen.getAllByRole("textbox").length).toBeGreaterThan(0);
+    // Riley's group is collapsed by default → the "Collapse group" button
+    // (expanded state) only appears for the "You" group. Exactly one
+    // expanded chevron is present.
+    const collapseButtons = screen.getAllByRole("button", {
+      name: /collapse group/i,
+    });
+    expect(collapseButtons).toHaveLength(1);
+  });
+
+  it("day headers link to the day view with anchor set to that day", () => {
+    renderTimesheet(
+      <WeekTimesheet
+        weekStartStr={weekStartStr}
+        tzOffsetMin={tzOffsetMin}
+        entries={[]}
+        projects={[project]}
+        categories={[]}
+      />,
+    );
+    // One day-jump link per day column (7 total). Each link carries
+    // view=day and its own anchor param — Monday → 2026-04-13, etc.
+    const dayLinks = screen
+      .getAllByRole("link")
+      .filter((a) => a.getAttribute("href")?.includes("view=day"));
+    expect(dayLinks).toHaveLength(7);
+    const monday = dayLinks.find((a) =>
+      a.getAttribute("href")?.includes("anchor=2026-04-13"),
+    );
+    expect(monday).toBeTruthy();
+    const sunday = dayLinks.find((a) =>
+      a.getAttribute("href")?.includes("anchor=2026-04-19"),
+    );
+    expect(sunday).toBeTruthy();
+  });
+
+  it("Expand all / Collapse all buttons toggle every group at once", () => {
+    window.localStorage.removeItem("shyre.weekTimesheet.groupBy");
+    const theirs: TimeEntry = {
+      ...makeEntry("t1", { day: 0, durationMin: 120 }),
+      user_id: "u2",
+      author: { user_id: "u2", display_name: "Riley", avatar_url: null },
+    };
+    renderTimesheet(
+      <WeekTimesheet
+        weekStartStr={weekStartStr}
+        tzOffsetMin={tzOffsetMin}
+        entries={[makeEntry("m1", { day: 0, durationMin: 60 }), theirs]}
+        projects={[project]}
+        categories={[]}
+        currentUserId="u1"
+      />,
+    );
+    // Default: 1 expanded (You), 1 collapsed (Riley).
+    fireEvent.click(
+      screen.getByRole("button", { name: /^expand all/i }),
+    );
+    expect(
+      screen.getAllByRole("button", { name: /collapse group/i }),
+    ).toHaveLength(2);
+    fireEvent.click(
+      screen.getByRole("button", { name: /^collapse all/i }),
+    );
+    expect(
+      screen.queryAllByRole("button", { name: /collapse group/i }),
+    ).toHaveLength(0);
   });
 });

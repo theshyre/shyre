@@ -17,7 +17,7 @@ interface Props {
   tzOffsetMin?: number;
 }
 
-const COLUMN_COUNT = 6;
+const COLUMN_COUNT = 7;
 
 export function EntryTable({
   groups,
@@ -32,7 +32,7 @@ export function EntryTable({
 
   if (groups.length === 0 || groups.every((g) => g.entries.length === 0)) {
     return (
-      <div className="rounded-lg border border-edge bg-surface-raised p-6 text-center text-sm text-content-muted">
+      <div className="rounded-lg border border-edge bg-surface-raised p-6 text-center text-body text-content-muted">
         {t("noEntries")}
       </div>
     );
@@ -40,22 +40,25 @@ export function EntryTable({
 
   return (
     <div className="rounded-lg border border-edge bg-surface-raised overflow-hidden">
-      <table className="w-full text-sm">
+      <table className="w-full text-body">
         <thead className="bg-surface-inset">
           <tr>
-            <th className="py-2 pl-4 text-left text-[10px] font-semibold uppercase tracking-wider text-content-muted">
+            <th className="py-2 pl-4 text-left text-label font-semibold uppercase tracking-wider text-content-muted">
               {t("tableHeaders.category")}
             </th>
-            <th className="px-3 py-2 text-left text-[10px] font-semibold uppercase tracking-wider text-content-muted">
+            <th className="px-3 py-2 text-left text-label font-semibold uppercase tracking-wider text-content-muted">
               {t("tableHeaders.projectDescription")}
             </th>
-            <th className="px-3 py-2 text-right text-[10px] font-semibold uppercase tracking-wider text-content-muted">
+            <th className="px-3 py-2 text-left text-label font-semibold uppercase tracking-wider text-content-muted">
+              {t("tableHeaders.member")}
+            </th>
+            <th className="px-3 py-2 text-right text-label font-semibold uppercase tracking-wider text-content-muted">
               {t("tableHeaders.time")}
             </th>
-            <th className="px-3 py-2 text-right text-[10px] font-semibold uppercase tracking-wider text-content-muted">
+            <th className="px-3 py-2 text-right text-label font-semibold uppercase tracking-wider text-content-muted">
               {t("tableHeaders.duration")}
             </th>
-            <th className="px-2 py-2 text-center text-[10px] font-semibold uppercase tracking-wider text-content-muted">
+            <th className="px-2 py-2 text-center text-label font-semibold uppercase tracking-wider text-content-muted">
               {t("tableHeaders.billable")}
             </th>
             <th className="px-2 py-2" aria-label="actions" />
@@ -109,21 +112,21 @@ function GroupBlock({
                   style={{ backgroundColor: group.color }}
                 />
               )}
-              <span className="text-xs font-semibold uppercase tracking-wider text-content">
+              <span className="text-label font-semibold uppercase tracking-wider text-content">
                 {group.label}
               </span>
               {group.sublabel && (
-                <span className="text-[10px] text-content-muted">
+                <span className="text-label text-content-muted">
                   · {group.sublabel}
                 </span>
               )}
-              <span className="text-[10px] text-content-muted">
+              <span className="text-label text-content-muted">
                 · {group.entries.length}
               </span>
             </div>
           </td>
           <td className="px-3 py-1.5 text-right">
-            <span className="font-mono text-xs font-semibold text-content tabular-nums">
+            <span className="font-mono text-caption font-semibold text-content tabular-nums">
               {formatDurationHM(group.totalMin)}
             </span>
           </td>

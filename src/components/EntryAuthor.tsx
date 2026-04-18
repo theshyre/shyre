@@ -1,4 +1,6 @@
+import { useTranslations } from "next-intl";
 import { Avatar } from "@theshyre/ui";
+import { resolveAvatarUrl } from "@/lib/avatar-preset";
 
 export interface EntryAuthorInfo {
   user_id: string;
@@ -23,7 +25,9 @@ interface Props {
  * item, trash view).
  *
  * A null author renders an unknown placeholder rather than omitting the
- * slot, so the layout is predictable.
+ * slot, so the layout is predictable. When `avatar_url` isn't stored,
+ * the tile color is deterministically derived from `user_id` so the
+ * same person gets the same color everywhere.
  */
 export function EntryAuthor({
   author,
@@ -31,17 +35,18 @@ export function EntryAuthor({
   compact = false,
   className = "",
 }: Props): React.JSX.Element {
-  const name = author?.display_name ?? "Unknown user";
+  const t = useTranslations("common.authorship");
+  const name = author?.display_name ?? t("unknownUser");
+  const avatarUrl = resolveAvatarUrl(
+    author?.avatar_url ?? null,
+    author?.user_id ?? null,
+  );
   return (
     <span
       className={`inline-flex items-center gap-1.5 text-caption text-content-secondary ${className}`}
       title={compact ? name : undefined}
     >
-      <Avatar
-        avatarUrl={author?.avatar_url ?? null}
-        displayName={name}
-        size={size}
-      />
+      <Avatar avatarUrl={avatarUrl} displayName={name} size={size} />
       {compact ? (
         <span className="sr-only">{name}</span>
       ) : (

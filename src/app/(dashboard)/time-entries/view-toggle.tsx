@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback } from "react";
+import { useCallback, useEffect } from "react";
 import { useRouter, usePathname, useSearchParams } from "next/navigation";
 import { useTranslations } from "next-intl";
 import { kbdClass } from "@/lib/form-styles";
@@ -35,8 +35,37 @@ export function ViewToggle({ view }: Props): React.JSX.Element {
     [router, pathname, searchParams],
   );
 
+  // `D` / `W` shortcuts — the kbd badges rendered next to each button were
+  // purely decorative until now. Matches the global shortcut convention
+  // (bare key, no modifiers, bail when an input has focus) used elsewhere
+  // on /time-entries (N for add row, Shift+E/C for group expand/collapse).
+  useEffect(() => {
+    function handleKey(e: KeyboardEvent): void {
+      const target = e.target as HTMLElement | null;
+      const tag = target?.tagName.toLowerCase();
+      if (
+        tag === "input" ||
+        tag === "textarea" ||
+        tag === "select" ||
+        target?.isContentEditable
+      )
+        return;
+      if (e.metaKey || e.ctrlKey || e.altKey || e.shiftKey) return;
+      const k = e.key.toLowerCase();
+      if (k === "d") {
+        e.preventDefault();
+        setView("day");
+      } else if (k === "w") {
+        e.preventDefault();
+        setView("week");
+      }
+    }
+    window.addEventListener("keydown", handleKey);
+    return () => window.removeEventListener("keydown", handleKey);
+  }, [setView]);
+
   const btnClass = (active: boolean): string =>
-    `inline-flex items-center gap-1.5 px-3 py-1.5 text-sm font-medium transition-colors ${
+    `inline-flex items-center gap-1.5 px-3 py-1.5 text-body-lg font-medium transition-colors ${
       active
         ? "bg-accent text-content-inverse"
         : "bg-surface-raised text-content-secondary hover:bg-hover"

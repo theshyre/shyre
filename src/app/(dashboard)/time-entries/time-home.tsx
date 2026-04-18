@@ -33,6 +33,8 @@ interface TimeHomeProps {
   weekStartStr: string;
   /** User's TZ offset in minutes west of UTC */
   tzOffsetMin: number;
+  /** Viewer's own user_id — used by week-timesheet to separate own vs. other-member rows */
+  currentUserId: string;
   weekEntries: TimeEntry[];
   dayEntries: TimeEntry[];
   running: TimeEntry | null;
@@ -54,6 +56,7 @@ export function TimeHome({
   dayStr,
   weekStartStr,
   tzOffsetMin,
+  currentUserId,
   weekEntries,
   dayEntries,
   running,
@@ -75,21 +78,11 @@ export function TimeHome({
 
   return (
     <div className="space-y-6">
+      {/* Row 1: page title + view toggle. Filters moved to row 2 so the
+          H1 keeps a stable anchor as filters grow across pages. */}
       <div className="flex items-center gap-3 flex-wrap">
         <Clock size={24} className="text-accent" />
         <h1 className="text-page-title font-bold text-content">{t("title")}</h1>
-        <TeamFilter teams={teams} selectedTeamId={selectedTeamId} />
-        <MemberFilter
-          members={memberOptions}
-          selection={
-            memberSelection === "none"
-              ? []
-              : memberSelection === "me" ||
-                  memberSelection === "all"
-                ? memberSelection
-                : memberSelection
-          }
-        />
         <div className="ml-auto flex items-center gap-2">
           {trashCount > 0 && (
             <Link
@@ -104,33 +97,65 @@ export function TimeHome({
         </div>
       </div>
 
-      <RunningTimerCard
-        running={running}
-        projects={projects}
-        recentProjects={recentProjects}
-        teams={teams}
-        defaultTeamId={selectedTeamId ?? undefined}
-        categories={categories}
-        templates={templates}
-        tzOffsetMin={tzOffsetMin}
-      />
+      {/* Row 2: all the filter pills in one place. Team + Member scope
+          *which* entries are shown; Billable scopes *what kind*. Keeping
+          them together so the user has one place to think about filters
+          and a consistent pill style across the three. */}
+      <div className="flex items-center gap-2 flex-wrap">
+        <TeamFilter teams={teams} selectedTeamId={selectedTeamId} />
+        <MemberFilter
+          members={memberOptions}
+          selection={
+            memberSelection === "none"
+              ? []
+              : memberSelection === "me" ||
+                  memberSelection === "all"
+                ? memberSelection
+                : memberSelection
+          }
+        />
+        <BillableFilter active={billableOnly} />
+      </div>
 
+      {/* Row 3: entry-creation cluster. Start timer (primary) + Add past
+          entry (secondary) sit together — both create time entries, just
+          via different UX paths. Flex-wrap lets the card grow when the
+          timer is running or a form is expanded; the add-past button
+          then wraps below gracefully. */}
+      <div className="flex items-start gap-3 flex-wrap">
+        <RunningTimerCard
+          running={running}
+          projects={projects}
+          recentProjects={recentProjects}
+          teams={teams}
+          defaultTeamId={selectedTeamId ?? undefined}
+          categories={categories}
+          templates={templates}
+          tzOffsetMin={tzOffsetMin}
+        />
+        <NewTimeEntryForm
+          projects={projects}
+          teams={teams}
+          defaultTeamId={selectedTeamId ?? undefined}
+          categories={categories}
+          tzOffsetMin={tzOffsetMin}
+        />
+      </div>
+
+      {/* Row 4: hero total on the left, export on the right. The hero
+          number is the loudest glyph on the page — nothing on its
+          baseline but the action that acts on it. */}
       <div className="flex items-end justify-between flex-wrap gap-3">
-        <div className="flex items-end gap-4 flex-wrap">
-          {/* Hero + breakdown stacked — hero is the dominant number,
-              breakdown is context underneath it (not inline-baselined). */}
-          <div className="flex flex-col">
-            <span className="font-mono text-hero font-semibold text-content tabular-nums leading-none">
-              {formatDurationHM(totalMin)}
-            </span>
-            <span className="text-caption text-content-muted font-mono tabular-nums mt-1">
-              {t("totalsSummary", {
-                billable: formatDurationHM(billableMin),
-                nonBillable: formatDurationHM(nonBillableMin),
-              })}
-            </span>
-          </div>
-          <BillableFilter active={billableOnly} />
+        <div className="flex flex-col">
+          <span className="font-mono text-hero font-bold text-content tabular-nums leading-none">
+            {formatDurationHM(totalMin)}
+          </span>
+          <span className="text-caption text-content-muted font-mono tabular-nums mt-1">
+            {t("totalsSummary", {
+              billable: formatDurationHM(billableMin),
+              nonBillable: formatDurationHM(nonBillableMin),
+            })}
+          </span>
         </div>
         <div className="flex items-center gap-2 flex-wrap">
           <ExportButton />
@@ -155,16 +180,9 @@ export function TimeHome({
           projects={projects}
           categories={categories}
           defaultTeamId={selectedTeamId ?? undefined}
+          currentUserId={currentUserId}
         />
       )}
-
-      <NewTimeEntryForm
-        projects={projects}
-        teams={teams}
-        defaultTeamId={selectedTeamId ?? undefined}
-        categories={categories}
-        tzOffsetMin={tzOffsetMin}
-      />
     </div>
   );
 }

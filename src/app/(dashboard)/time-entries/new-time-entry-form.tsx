@@ -1,9 +1,8 @@
 "use client";
 
-import { useCallback, useState } from "react";
+import { useState } from "react";
 import { useTranslations } from "next-intl";
 import { Plus } from "lucide-react";
-import { useKeyboardShortcut } from "@/hooks/use-keyboard-shortcut";
 import { useFormAction } from "@/hooks/use-form-action";
 import { SubmitButton } from "@/components/SubmitButton";
 import { FieldError } from "@/components/FieldError";
@@ -11,8 +10,6 @@ import {
   inputClass,
   labelClass,
   selectClass,
-  kbdClass,
-  buttonPrimaryClass,
   buttonSecondaryClass,
 } from "@/lib/form-styles";
 import { GitHubIssuePicker } from "@/components/GitHubIssuePicker";
@@ -63,21 +60,16 @@ export function NewTimeEntryForm({
   const selectedProject = projects.find((p) => p.id === selectedProjectId);
   const linkedRepo = selectedProject?.github_repo ?? null;
 
-  useKeyboardShortcut({
-    key: "n",
-    onTrigger: useCallback(() => setOpen(true), []),
-    enabled: !open,
-  });
+  // Note: no global `N` shortcut here. The week-timesheet's inline "Add
+  // row" already owns `N`, and both surfaces are visible at once in Week
+  // view — a shared shortcut would be ambiguous. This button stays a
+  // click-only action; the inline timesheet covers fast keyboard add.
 
   if (!open) {
     return (
-      <button
-        onClick={() => setOpen(true)}
-        className={`${buttonPrimaryClass} mt-4`}
-      >
+      <button onClick={() => setOpen(true)} className={buttonSecondaryClass}>
         <Plus size={16} />
         {t("addEntry")}
-        <kbd className={kbdClass}>N</kbd>
       </button>
     );
   }
@@ -85,10 +77,10 @@ export function NewTimeEntryForm({
   return (
     <form
       action={handleSubmit}
-      className="mt-4 space-y-3 rounded-lg border border-edge bg-surface-raised p-4"
+      className="space-y-3 rounded-lg border border-edge bg-surface-raised p-4"
     >
       {serverError && (
-        <p className="text-sm text-error bg-error-soft rounded-lg px-3 py-2">{serverError}</p>
+        <p className="text-body text-error bg-error-soft rounded-lg px-3 py-2">{serverError}</p>
       )}
       {tzOffsetMin !== undefined && (
         <input type="hidden" name="tz_offset_min" value={String(tzOffsetMin)} />
@@ -183,7 +175,7 @@ export function NewTimeEntryForm({
           </div>
         )}
         <div className="flex items-end pb-1">
-          <label className="flex items-center gap-2 text-sm font-medium text-content cursor-pointer">
+          <label className="flex items-center gap-2 text-body-lg font-medium text-content cursor-pointer">
             <input
               name="billable"
               type="checkbox"

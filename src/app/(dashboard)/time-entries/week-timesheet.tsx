@@ -6,10 +6,21 @@ import {
   useMemo,
   useRef,
   useState,
+  useSyncExternalStore,
 } from "react";
+import Link from "next/link";
+import { useSearchParams } from "next/navigation";
 import { useTranslations } from "next-intl";
-import { Plus } from "lucide-react";
+import {
+  ChevronDown,
+  ChevronRight,
+  ChevronsDown,
+  ChevronsUp,
+  Plus,
+} from "lucide-react";
+import { Avatar } from "@theshyre/ui";
 import { formatDurationHMZero } from "@/lib/time/week";
+import { resolveAvatarUrl } from "@/lib/avatar-preset";
 import { addLocalDays, utcToLocalDateStr } from "@/lib/time/tz";
 import { DurationInput } from "./duration-input";
 import {
@@ -27,7 +38,8 @@ import { InlineDeleteRowConfirm } from "@/components/InlineDeleteRowConfirm";
 import { SaveStatus } from "@/components/SaveStatus";
 import { useAutosaveStatus } from "@/hooks/useAutosaveStatus";
 import { useToast } from "@/components/Toast";
-import type { CategoryOption, ProjectOption, TimeEntry } from "./types";
+import { EntryAuthor } from "@/components/EntryAuthor";
+import type { AuthorInfo, CategoryOption, ProjectOption, TimeEntry } from "./types";
 
 interface Props {
   /** Local date of Monday of the visible week (YYYY-MM-DD) */
@@ -38,15 +50,80 @@ interface Props {
   projects: ProjectOption[];
   categories: CategoryOption[];
   defaultTeamId?: string;
+  /**
+   * Viewer's own user_id. When provided, rows belonging to other authors
+   * render read-only and per-author rows are separated. When omitted,
+   * every row is treated as the viewer's own (single-user legacy path).
+   */
+  currentUserId?: string;
 }
 
 interface Row {
   projectId: string;
   categoryId: string | null;
+  /** Which author these cells belong to */
+  userId: string;
+  author: AuthorInfo | null;
+  /** True when userId matches the viewer — editable cells */
+  isOwn: boolean;
   /** When this is a brand-new blank row, no entries exist yet */
   isNew?: boolean;
   /** Per-day duration in minutes, length 7 (Mon..Sun) */
   byDay: number[];
+}
+
+/** Dimension the grid collapses rows under. Changes the visual hierarchy
+ *  but never the stored (project, category, user) row identity. */
+type GroupBy = "member" | "project" | "category";
+
+const GROUP_BY_VALUES: readonly GroupBy[] = ["member", "project", "category"];
+const GROUP_BY_STORAGE_KEY = "shyre.weekTimesheet.groupBy";
+const GROUP_BY_EVENT = "shyre:weekTimesheet:groupBy";
+
+function parseGroupBy(v: string | null): GroupBy {
+  return v === "project" || v === "category" ? v : "member";
+}
+
+function subscribeGroupBy(cb: () => void): () => void {
+  if (typeof window === "undefined") return () => {};
+  // `storage` only fires on cross-tab writes; the custom event covers
+  // same-tab updates when the user flips the selector here.
+  window.addEventListener("storage", cb);
+  window.addEventListener(GROUP_BY_EVENT, cb);
+  return () => {
+    window.removeEventListener("storage", cb);
+    window.removeEventListener(GROUP_BY_EVENT, cb);
+  };
+}
+
+function getGroupBySnapshot(): GroupBy {
+  if (typeof window === "undefined") return "member";
+  return parseGroupBy(window.localStorage.getItem(GROUP_BY_STORAGE_KEY));
+}
+
+function getServerGroupBySnapshot(): GroupBy {
+  return "member";
+}
+
+function writeGroupBy(next: GroupBy): void {
+  if (typeof window === "undefined") return;
+  window.localStorage.setItem(GROUP_BY_STORAGE_KEY, next);
+  window.dispatchEvent(new Event(GROUP_BY_EVENT));
+}
+
+interface RowGroup {
+  /** Stable key for the group — used for collapse state + React keys */
+  key: string;
+  label: string;
+  /** The author of the group when grouping by member — drives avatar display */
+  author: AuthorInfo | null;
+  /** Category color swatch when grouping by category */
+  categoryColor: string | null;
+  /** "You" group sorts to the top when grouping by member */
+  isOwnGroup: boolean;
+  rows: Row[];
+  byDay: number[];
+  totalMin: number;
 }
 
 const DAYS_IN_WEEK = 7;
@@ -63,11 +140,19 @@ export function WeekTimesheet({
   projects,
   categories,
   defaultTeamId,
+  currentUserId,
 }: Props): React.JSX.Element {
   const t = useTranslations("time.timesheet");
   const tToast = useTranslations("time.toast");
   const save = useAutosaveStatus();
   const toast = useToast();
+  // URL state for day-jump links in the column headers — preserves every
+  // other filter/search param (org, billable, members, …) so the user
+  // doesn't lose their context when they click a day. `useSearchParams`
+  // can be null outside a Next router context (e.g. in unit tests), so
+  // coerce to an empty string rather than blowing up the whole grid.
+  const searchParams = useSearchParams();
+  const searchParamsStr = searchParams?.toString() ?? "";
 
   // Precompute local-date strings for each column (Mon..Sun)
   const weekDays = useMemo(
@@ -83,19 +168,30 @@ export function WeekTimesheet({
 
   const rows = useMemo<Row[]>(() => {
     const byKey = new Map<string, Row>();
-    const rowKey = (projectId: string, categoryId: string | null) =>
-      `${projectId}::${categoryId ?? ""}`;
+    // (project, category, user) triple — when multiple authors contribute
+    // to the same (project, category) cell they get their own rows so the
+    // grid is never showing someone-else's minutes in a cell you can edit.
+    const rowKey = (
+      projectId: string,
+      categoryId: string | null,
+      userId: string,
+    ) => `${projectId}::${categoryId ?? ""}::${userId}`;
 
     const dayIndexOf = (dateStr: string): number => weekDays.indexOf(dateStr);
 
     // Aggregate existing entries into rows
     for (const e of entries) {
-      const key = rowKey(e.project_id, e.category_id);
+      const key = rowKey(e.project_id, e.category_id, e.user_id);
       let row = byKey.get(key);
       if (!row) {
         row = {
           projectId: e.project_id,
           categoryId: e.category_id,
+          userId: e.user_id,
+          author: e.author,
+          // When currentUserId isn't threaded (legacy / tests), treat every
+          // row as own — mirrors pre-multi-author behavior.
+          isOwn: currentUserId === undefined || e.user_id === currentUserId,
           byDay: Array.from({ length: DAYS_IN_WEEK }, () => 0),
         };
         byKey.set(key, row);
@@ -107,13 +203,18 @@ export function WeekTimesheet({
       }
     }
 
-    // Add any user-added blank rows (for combos not yet in entries)
+    // Add any user-added blank rows (always attributed to the current user —
+    // the week-timesheet upsert action can only write for auth.uid()).
+    const selfId = currentUserId ?? "self";
     for (const extra of extraRows) {
-      const key = rowKey(extra.projectId, extra.categoryId);
+      const key = rowKey(extra.projectId, extra.categoryId, selfId);
       if (!byKey.has(key)) {
         byKey.set(key, {
           projectId: extra.projectId,
           categoryId: extra.categoryId,
+          userId: selfId,
+          author: null,
+          isOwn: true,
           isNew: true,
           byDay: Array.from({ length: DAYS_IN_WEEK }, () => 0),
         });
@@ -121,11 +222,157 @@ export function WeekTimesheet({
     }
 
     return Array.from(byKey.values()).sort((a, b) => {
+      // Own rows first so the editable work is always on top.
+      if (a.isOwn !== b.isOwn) return a.isOwn ? -1 : 1;
       const pa = projects.find((p) => p.id === a.projectId)?.name ?? "";
       const pb = projects.find((p) => p.id === b.projectId)?.name ?? "";
-      return pa.localeCompare(pb);
+      const cmp = pa.localeCompare(pb);
+      if (cmp !== 0) return cmp;
+      const na = a.author?.display_name ?? "";
+      const nb = b.author?.display_name ?? "";
+      return na.localeCompare(nb);
     });
-  }, [entries, projects, extraRows, weekDays, tzOffsetMin]);
+  }, [entries, projects, extraRows, weekDays, tzOffsetMin, currentUserId]);
+
+  // Row-grouping dimension backed by localStorage via `useSyncExternalStore`
+  // — SSR renders the default ("member"), client reconciles to the stored
+  // value post-hydration without the setState-in-effect anti-pattern.
+  const groupBy = useSyncExternalStore(
+    subscribeGroupBy,
+    getGroupBySnapshot,
+    getServerGroupBySnapshot,
+  );
+  const setGroupBy = useCallback((next: GroupBy) => writeGroupBy(next), []);
+
+  // Collapse state is two-layered:
+  //   - `collapsed`: the literal "these keys are collapsed" set.
+  //   - `userOverridden`: which keys the user has explicitly toggled (vs.
+  //     keys that fall through to the auto-default rule).
+  // Both are keyed by `${groupBy}:${groupKey}` so switching dimensions
+  // preserves the user's prior choices in each.
+  const [collapsed, setCollapsed] = useState<Set<string>>(new Set());
+  const [userOverridden, setUserOverridden] = useState<Set<string>>(new Set());
+  const collapseKey = useCallback(
+    (key: string) => `${groupBy}:${key}`,
+    [groupBy],
+  );
+  const toggleCollapsed = useCallback(
+    (key: string) => {
+      const full = `${groupBy}:${key}`;
+      setUserOverridden((prev) => {
+        const next = new Set(prev);
+        next.add(full);
+        return next;
+      });
+      setCollapsed((prev) => {
+        const next = new Set(prev);
+        if (next.has(full)) next.delete(full);
+        else next.add(full);
+        return next;
+      });
+    },
+    [groupBy],
+  );
+
+  const tHeader = useTranslations("time.timesheet.groupHeader");
+  const groups = useMemo<RowGroup[]>(() => {
+    const byKey = new Map<string, RowGroup>();
+    for (const row of rows) {
+      let key: string;
+      let label: string;
+      let author: AuthorInfo | null = null;
+      let categoryColor: string | null = null;
+      let isOwnGroup = false;
+
+      if (groupBy === "member") {
+        key = row.userId;
+        author = row.author;
+        label = row.isOwn
+          ? tHeader("you")
+          : (row.author?.display_name ?? tHeader("unknownMember"));
+        isOwnGroup = row.isOwn;
+      } else if (groupBy === "project") {
+        key = row.projectId;
+        const project = projects.find((p) => p.id === row.projectId);
+        label = project?.name ?? "—";
+      } else {
+        key = row.categoryId ?? "__no_category__";
+        if (row.categoryId) {
+          const cat = categories.find((c) => c.id === row.categoryId);
+          label = cat?.name ?? tHeader("noCategory");
+          categoryColor = cat?.color ?? null;
+        } else {
+          label = tHeader("noCategory");
+        }
+      }
+
+      let g = byKey.get(key);
+      if (!g) {
+        g = {
+          key,
+          label,
+          author,
+          categoryColor,
+          isOwnGroup,
+          rows: [],
+          byDay: Array.from({ length: DAYS_IN_WEEK }, () => 0),
+          totalMin: 0,
+        };
+        byKey.set(key, g);
+      }
+      g.rows.push(row);
+      for (let i = 0; i < DAYS_IN_WEEK; i++) {
+        const m = row.byDay[i] ?? 0;
+        g.byDay[i] = (g.byDay[i] ?? 0) + m;
+        g.totalMin += m;
+      }
+    }
+
+    return Array.from(byKey.values()).sort((a, b) => {
+      if (groupBy === "member" && a.isOwnGroup !== b.isOwnGroup) {
+        return a.isOwnGroup ? -1 : 1;
+      }
+      return a.label.localeCompare(b.label);
+    });
+  }, [rows, groupBy, projects, categories, tHeader]);
+
+  /**
+   * Auto-collapse rule applied when the user hasn't explicitly opened or
+   * closed a group. Goal: cut noise on multi-group views without hiding
+   * the viewer's own work.
+   *   - 1 group → always expanded (nothing to collapse around).
+   *   - groupBy = member → only the "You" group expanded; others collapsed.
+   *   - other dimensions → first alpha-sorted group expanded; rest collapsed.
+   */
+  const isDefaultCollapsed = useCallback(
+    (group: RowGroup, index: number): boolean => {
+      if (groups.length <= 1) return false;
+      if (groupBy === "member") return !group.isOwnGroup;
+      return index !== 0;
+    },
+    [groups, groupBy],
+  );
+
+  const isCollapsedForGroup = useCallback(
+    (group: RowGroup, index: number): boolean => {
+      const ck = collapseKey(group.key);
+      if (userOverridden.has(ck)) return collapsed.has(ck);
+      return isDefaultCollapsed(group, index);
+    },
+    [collapseKey, userOverridden, collapsed, isDefaultCollapsed],
+  );
+
+  const expandAll = useCallback(() => {
+    const overrides = new Set(groups.map((g) => collapseKey(g.key)));
+    setUserOverridden(overrides);
+    setCollapsed(new Set());
+  }, [groups, collapseKey]);
+
+  const collapseAll = useCallback(() => {
+    const overrides = new Set(groups.map((g) => collapseKey(g.key)));
+    setUserOverridden(overrides);
+    setCollapsed(overrides);
+  }, [groups, collapseKey]);
 
   const dailyTotals = useMemo<number[]>(() => {
     const totals = Array.from({ length: DAYS_IN_WEEK }, () => 0);
@@ -177,10 +424,19 @@ export function WeekTimesheet({
     await save.wrap(upsertTimesheetCellAction(fd));
   }
 
-  async function deleteRow(projectId: string, categoryId: string | null): Promise<void> {
+  async function deleteRow(
+    projectId: string,
+    categoryId: string | null,
+    userId: string,
+  ): Promise<void> {
     // Capture ids so the undo toast can restore them as a batch.
+    // Scope to the row's author so a delete on one member's row doesn't
+    // cascade into another member's same-project entries.
     const rowEntries = entries.filter(
-      (e) => e.project_id === projectId && e.category_id === categoryId,
+      (e) =>
+        e.project_id === projectId &&
+        e.category_id === categoryId &&
+        e.user_id === userId,
     );
     const ids = rowEntries.map((e) => e.id);
 
@@ -221,14 +477,26 @@ export function WeekTimesheet({
     if (el) cellRefs.current.set(key, el);
     else cellRefs.current.delete(key);
   }
-  function focusCell(rowIdx: number, dayIdx: number): void {
-    // Clamp indices to the visible grid.
-    const targetRow = Math.max(0, Math.min(rows.length - 1, rowIdx));
+  function focusCell(
+    rowIdx: number,
+    dayIdx: number,
+    dir?: "up" | "down",
+  ): void {
     const targetDay = Math.max(0, Math.min(DAYS_IN_WEEK - 1, dayIdx));
-    const el = cellRefs.current.get(`${targetRow}:${targetDay}`);
-    if (el) {
-      el.focus();
-      el.select();
+    // Walk in the nav direction past any read-only (non-own) rows, which
+    // don't register refs. Without this the cursor would get stuck behind
+    // another member's row when arrowing up/down.
+    let r = Math.max(0, Math.min(rows.length - 1, rowIdx));
+    while (r >= 0 && r < rows.length) {
+      const el = cellRefs.current.get(`${r}:${targetDay}`);
+      if (el) {
+        el.focus();
+        el.select();
+        return;
+      }
+      if (dir === "up") r -= 1;
+      else if (dir === "down") r += 1;
+      else return;
     }
   }
 
@@ -237,7 +505,6 @@ export function WeekTimesheet({
   const [addRowOpen, setAddRowOpen] = useState(false);
   useEffect(() => {
     function handleKey(e: KeyboardEvent): void {
-      if (e.key !== "n" && e.key !== "N") return;
       const target = e.target as HTMLElement | null;
       const tag = target?.tagName.toLowerCase();
       if (
@@ -247,12 +514,26 @@ export function WeekTimesheet({
         target?.isContentEditable
       )
         return;
-      e.preventDefault();
-      setAddRowOpen(true);
+      if (e.metaKey || e.ctrlKey || e.altKey) return;
+      const k = e.key.toLowerCase();
+      if (e.shiftKey && k === "e") {
+        e.preventDefault();
+        expandAll();
+        return;
+      }
+      if (e.shiftKey && k === "c") {
+        e.preventDefault();
+        collapseAll();
+        return;
+      }
+      if (!e.shiftKey && k === "n") {
+        e.preventDefault();
+        setAddRowOpen(true);
+      }
     }
     window.addEventListener("keydown", handleKey);
     return () => window.removeEventListener("keydown", handleKey);
-  }, []);
+  }, [expandAll, collapseAll]);
 
   return (
     <div className="rounded-lg border border-edge bg-surface-raised overflow-x-auto">
@@ -260,11 +541,47 @@ export function WeekTimesheet({
         <span className="text-label font-semibold uppercase text-content-muted">
           {t("frameTitle")}
         </span>
-        <SaveStatus
-          status={save.status}
-          lastSavedAt={save.lastSavedAt}
-          lastError={save.lastError}
-        />
+        <div className="flex items-center gap-3">
+          <label className="flex items-center gap-2 text-caption text-content-muted whitespace-nowrap">
+            <span>{t("groupBy.label")}</span>
+            <select
+              value={groupBy}
+              onChange={(e) => setGroupBy(e.target.value as GroupBy)}
+              className={`${selectClass} py-1 text-caption`}
+            >
+              {GROUP_BY_VALUES.map((v) => (
+                <option key={v} value={v}>
+                  {t(`groupBy.${v}`)}
+                </option>
+              ))}
+            </select>
+          </label>
+          <div className="flex items-center gap-1">
+            <button
+              type="button"
+              onClick={expandAll}
+              className="inline-flex items-center gap-1.5 rounded-md border border-edge bg-surface px-2 py-1 text-caption text-content-secondary hover:bg-hover transition-colors whitespace-nowrap"
+            >
+              <ChevronsDown size={14} />
+              {t("expandAll")}
+              <kbd className={kbdClass}>⇧E</kbd>
+            </button>
+            <button
+              type="button"
+              onClick={collapseAll}
+              className="inline-flex items-center gap-1.5 rounded-md border border-edge bg-surface px-2 py-1 text-caption text-content-secondary hover:bg-hover transition-colors whitespace-nowrap"
+            >
+              <ChevronsUp size={14} />
+              {t("collapseAll")}
+              <kbd className={kbdClass}>⇧C</kbd>
+            </button>
+          </div>
+          <SaveStatus
+            status={save.status}
+            lastSavedAt={save.lastSavedAt}
+            lastError={save.lastError}
+          />
+        </div>
       </div>
       <table className="w-full text-body border-separate border-spacing-0">
         <colgroup>
@@ -281,18 +598,40 @@ export function WeekTimesheet({
               scope="col"
               className="py-2 pl-4 text-left text-label font-semibold uppercase text-content-muted border-b border-edge"
             >
-              {t("categoryProject")}
+              {/* First-column label mirrors the dimensions actually shown
+                  in the row. The grouped dimension moves into the group
+                  header, so the row only carries the remaining one(s). */}
+              {groupBy === "project"
+                ? t("category")
+                : groupBy === "category"
+                  ? t("project")
+                  : t("categoryProject")}
             </th>
             {weekDays.map((dStr, i) => {
               const [y, m, d] = dStr.split("-").map(Number);
               const dateObj = new Date(y!, m! - 1, d!);
               const isToday = dStr === todayStr;
               const isWeekend = i >= 5;
+              // Build a Day-view href for this column: keep every existing
+              // URL param and overwrite view/anchor so the viewer lands on
+              // that specific day without losing their team/member filter.
+              const dayParams = new URLSearchParams(searchParamsStr);
+              dayParams.set("view", "day");
+              dayParams.set("anchor", dStr);
+              const dayHref = `/time-entries?${dayParams.toString()}`;
+              const weekday = dateObj.toLocaleDateString(undefined, {
+                weekday: "short",
+              });
+              const fullLabel = dateObj.toLocaleDateString(undefined, {
+                weekday: "long",
+                month: "short",
+                day: "numeric",
+              });
               return (
                 <th
                   key={dStr}
                   scope="col"
-                  className={`px-2 py-2 text-center text-label font-semibold uppercase border-b border-edge ${
+                  className={`p-0 text-center text-label font-semibold uppercase border-b border-edge ${
                     isWeekend ? "bg-surface-inset/60" : ""
                   } ${
                     isToday
@@ -300,16 +639,20 @@ export function WeekTimesheet({
                       : "text-content-muted"
                   }`}
                 >
-                  <div>
-                    {dateObj.toLocaleDateString(undefined, { weekday: "short" })}
-                  </div>
-                  <div
-                    className={`text-label mt-0.5 ${
-                      isToday ? "font-bold text-accent" : "font-normal"
-                    }`}
+                  <Link
+                    href={dayHref}
+                    aria-label={t("dayJumpAria", { day: fullLabel })}
+                    className="block px-2 py-2 hover:bg-hover transition-colors cursor-pointer"
                   >
-                    {d}
-                  </div>
+                    <div>{weekday}</div>
+                    <div
+                      className={`text-label mt-0.5 ${
+                        isToday ? "font-bold text-accent" : "font-normal"
+                      }`}
+                    >
+                      {d}
+                    </div>
+                  </Link>
                 </th>
               );
             })}
@@ -326,8 +669,8 @@ export function WeekTimesheet({
             />
           </tr>
         </thead>
-        <tbody>
-          {rows.length === 0 && (
+        {rows.length === 0 && (
+          <tbody>
             <tr>
               <td
                 colSpan={DAYS_IN_WEEK + 3}
@@ -336,34 +679,33 @@ export function WeekTimesheet({
                 {t("empty")}
               </td>
             </tr>
-          )}
-          {rows.map((row, rowIdx) => (
-            <TimesheetRow
-              key={`${row.projectId}::${row.categoryId ?? ""}`}
-              rowIndex={rowIdx}
-              row={row}
+          </tbody>
+        )}
+        {groups.map((group, i) => {
+          const groupCollapsed = isCollapsedForGroup(group, i);
+          return (
+            <GroupBlock
+              key={`${groupBy}:${group.key}`}
+              group={group}
+              groupBy={groupBy}
+              collapsed={groupCollapsed}
+              onToggleCollapsed={() => toggleCollapsed(group.key)}
+              rowsFlat={rows}
               projects={projects}
               categories={categories}
-              onCellCommit={(dayIndex, minutes) =>
-                submitCell(row.projectId, row.categoryId, dayIndex, minutes)
-              }
-              onDelete={() => deleteRow(row.projectId, row.categoryId)}
-              onDiscardEmpty={() =>
-                removeEmptyRow(row.projectId, row.categoryId)
-              }
               weekDays={weekDays}
               todayStr={todayStr}
               setCellRef={setCellRef}
-              onArrowNav={(dir, dayIdx) => {
-                if (dir === "up") focusCell(rowIdx - 1, dayIdx);
-                else if (dir === "down") focusCell(rowIdx + 1, dayIdx);
-                else if (dir === "left") focusCell(rowIdx, dayIdx - 1);
-                else focusCell(rowIdx, dayIdx + 1);
-              }}
+              focusCell={focusCell}
+              onCellCommit={submitCell}
+              onDelete={deleteRow}
+              onDiscardEmpty={removeEmptyRow}
             />
-          ))}
-          {/* Add-row lives as the last tbody row so it feels like part of
-              the grid, not an appendix. */}
+          );
+        })}
+        {/* Add-row lives as the last tbody row so it feels like part of
+            the grid, not an appendix. */}
+        <tbody>
           <tr className="bg-surface-raised">
             <td colSpan={DAYS_IN_WEEK + 3} className="px-3 py-2 border-t border-dashed border-edge-muted">
               <AddRowControl
@@ -416,6 +758,7 @@ function TimesheetRow({
   row,
   projects,
   categories,
+  groupBy,
   onCellCommit,
   onDelete,
   onDiscardEmpty,
@@ -428,6 +771,11 @@ function TimesheetRow({
   row: Row;
   projects: ProjectOption[];
   categories: CategoryOption[];
+  /** Controls which dimensions are redundant (shown in the group header)
+   *  and therefore hidden from the row itself. Also drives author-chip
+   *  placement — the chip appears on non-member groupings so the viewer
+   *  can always tell whose time they're looking at. */
+  groupBy: GroupBy;
   onCellCommit: (dayIndex: number, minutes: number) => void | Promise<void>;
   onDelete: () => void;
   onDiscardEmpty: () => void;
@@ -445,41 +793,74 @@ function TimesheetRow({
   const rowTotalActual = row.byDay.reduce((s, n) => s + n, 0);
   const entryCount = row.byDay.filter((m) => m > 0).length;
   const hasSavedData = rowTotalActual > 0 || entryCount > 0;
+  // Other members' rows are read-only: the upsert action only touches
+  // auth.uid()'s entries, so showing an editable input would be misleading.
+  const editable = row.isOwn;
+
+  const hideCategory = groupBy === "category";
+  const hideProject = groupBy === "project";
+  const showAuthorChip = groupBy !== "member";
 
   return (
-    <tr className="hover:ring-1 hover:ring-inset hover:ring-edge-muted odd:bg-surface-raised even:bg-surface">
+    <tr
+      className={`bg-surface hover:bg-hover border-b border-edge-muted last:border-b-0 transition-colors ${
+        !editable ? "opacity-90" : ""
+      }`}
+    >
       <td className="py-2 align-middle">
-        {/* Category as hero — colored left border + name */}
         <div
           className="border-l-4 pl-3"
           style={{ borderColor: category?.color ?? "var(--edge)" }}
         >
-          <div className="flex items-center gap-1.5">
-            {category ? (
-              <>
-                <span
-                  className="h-2 w-2 rounded-full shrink-0"
-                  style={{ backgroundColor: category.color }}
-                />
-                <span className="text-body-lg font-semibold text-content truncate">
-                  {category.name}
+          {!hideCategory && (
+            <div className="flex items-center gap-1.5">
+              {category ? (
+                <>
+                  <span
+                    className="h-2 w-2 rounded-full shrink-0"
+                    style={{ backgroundColor: category.color }}
+                  />
+                  <span className="text-body-lg font-semibold text-content truncate">
+                    {category.name}
+                  </span>
+                </>
+              ) : (
+                <span className="text-body-lg text-content-muted italic truncate">
+                  —
                 </span>
-              </>
-            ) : (
-              <span className="text-body-lg text-content-muted italic truncate">
-                —
+              )}
+            </div>
+          )}
+          {!hideProject && (
+            <div
+              className={
+                hideCategory
+                  ? "text-body-lg font-semibold text-content truncate"
+                  : "text-caption text-content-muted truncate mt-0.5"
+              }
+            >
+              <span
+                className={
+                  hideCategory ? "text-content" : "text-content-secondary"
+                }
+              >
+                {project?.name ?? "—"}
               </span>
-            )}
-          </div>
-          {/* Project · Client as muted subline */}
-          <div className="text-caption text-content-muted truncate mt-0.5">
-            <span className="text-content-secondary">
-              {project?.name ?? "—"}
-            </span>
-            {project?.customers?.name && (
-              <span> · {project.customers.name}</span>
-            )}
-          </div>
+              {project?.customers?.name && (
+                <span
+                  className={hideCategory ? "text-content-muted" : undefined}
+                >
+                  {" · "}
+                  {project.customers.name}
+                </span>
+              )}
+            </div>
+          )}
+          {showAuthorChip && (
+            <div className="mt-1">
+              <EntryAuthor author={row.author} size={16} />
+            </div>
+          )}
         </div>
       </td>
       {row.byDay.map((min, i) => {
@@ -493,18 +874,24 @@ function TimesheetRow({
               isWeekend ? "bg-surface-inset/40" : ""
             } ${isToday ? "border-l-2 border-accent/40" : ""}`}
           >
-            <DurationInput
-              ref={(el) => setCellRef(rowIndex, i, el)}
-              name={`cell-${row.projectId}-${row.categoryId ?? ""}-${i}`}
-              defaultMinutes={min}
-              onCommit={(committed) => {
-                if (committed !== null && committed !== min) {
-                  void onCellCommit(i, committed);
-                }
-              }}
-              onArrowNav={(dir) => onArrowNav(dir, i)}
-              className="w-full rounded-md border border-transparent bg-transparent px-1.5 py-1 text-body outline-none transition-colors hover:border-edge-muted focus:border-focus-ring focus:bg-surface-raised focus:ring-2 focus:ring-focus-ring/30"
-            />
+            {editable ? (
+              <DurationInput
+                ref={(el) => setCellRef(rowIndex, i, el)}
+                name={`cell-${row.projectId}-${row.categoryId ?? ""}-${i}`}
+                defaultMinutes={min}
+                onCommit={(committed) => {
+                  if (committed !== null && committed !== min) {
+                    void onCellCommit(i, committed);
+                  }
+                }}
+                onArrowNav={(dir) => onArrowNav(dir, i)}
+                className="w-full rounded-md border border-transparent bg-transparent px-1.5 py-1 text-body outline-none transition-colors hover:border-edge-muted focus:border-focus-ring focus:bg-surface-raised focus:ring-2 focus:ring-focus-ring/30"
+              />
+            ) : (
+              <div className="w-full px-1.5 py-1 text-center font-mono text-body tabular-nums text-content-muted">
+                {min > 0 ? formatDurationHMZero(min) : <span className="opacity-50">·</span>}
+              </div>
+            )}
           </td>
         );
       })}
@@ -516,22 +903,212 @@ function TimesheetRow({
         )}
       </td>
       <td className="px-2 py-2 text-right">
-        {hasSavedData ? (
+        {editable && hasSavedData ? (
           <InlineDeleteRowConfirm
             ariaLabel={t("deleteRow")}
             onConfirm={onDelete}
             summary={tc("deleteCount", { count: entryCount })}
           />
-        ) : (
+        ) : editable ? (
           // Blank row (user added it, never typed anything). No persisted
           // data — just drop from local state, no confirm needed.
           <InlineDeleteButton
             ariaLabel={t("discardRow")}
             onConfirm={onDiscardEmpty}
           />
-        )}
+        ) : null}
       </td>
     </tr>
+  );
+}
+
+/**
+ * One collapsible group in the weekly grid. Renders a header <tr> with the
+ * group label + per-day totals + week total, then (when not collapsed) the
+ * rows inside the group via `TimesheetRow`.
+ */
+function GroupBlock({
+  group,
+  groupBy,
+  collapsed,
+  onToggleCollapsed,
+  rowsFlat,
+  projects,
+  categories,
+  weekDays,
+  todayStr,
+  setCellRef,
+  focusCell,
+  onCellCommit,
+  onDelete,
+  onDiscardEmpty,
+}: {
+  group: RowGroup;
+  groupBy: GroupBy;
+  collapsed: boolean;
+  onToggleCollapsed: () => void;
+  /** Flat row list — used to derive each row's absolute index for
+   *  keyboard navigation through the cell grid. */
+  rowsFlat: Row[];
+  projects: ProjectOption[];
+  categories: CategoryOption[];
+  weekDays: string[];
+  todayStr: string;
+  setCellRef: (row: number, day: number, el: HTMLInputElement | null) => void;
+  focusCell: (
+    rowIdx: number,
+    dayIdx: number,
+    dir?: "up" | "down",
+  ) => void;
+  onCellCommit: (
+    projectId: string,
+    categoryId: string | null,
+    dayIndex: number,
+    minutes: number,
+  ) => void | Promise<void>;
+  onDelete: (
+    projectId: string,
+    categoryId: string | null,
+    userId: string,
+  ) => void | Promise<void>;
+  onDiscardEmpty: (projectId: string, categoryId: string | null) => void;
+}): React.JSX.Element {
+  const tHeader = useTranslations("time.timesheet.groupHeader");
+
+  return (
+    <tbody>
+      <tr className="bg-surface-inset border-y border-edge">
+        <td className="py-1.5 pl-2 align-middle">
+          <button
+            type="button"
+            onClick={onToggleCollapsed}
+            aria-expanded={!collapsed}
+            aria-label={collapsed ? tHeader("expand") : tHeader("collapse")}
+            className="flex items-center gap-2 w-full text-left hover:text-accent transition-colors"
+          >
+            {collapsed ? (
+              <ChevronRight size={14} className="shrink-0 text-content-muted" />
+            ) : (
+              <ChevronDown size={14} className="shrink-0 text-content-muted" />
+            )}
+            <GroupLabel group={group} groupBy={groupBy} />
+            {/* Weight + count, in that order — collapsed groups should
+                surface their load first (weight), not just row count. */}
+            <span className="text-caption text-content-muted font-mono tabular-nums ml-auto pr-2">
+              {formatDurationHMZero(group.totalMin)}
+              <span className="font-sans"> · </span>
+              {tHeader("rowCount", { count: group.rows.length })}
+            </span>
+          </button>
+        </td>
+        {group.byDay.map((min, i) => {
+          const dayStr = weekDays[i];
+          const isToday = dayStr === todayStr;
+          const isWeekend = i >= 5;
+          return (
+            <td
+              key={dayStr ?? i}
+              className={`px-2 py-1.5 text-center font-mono text-caption font-semibold tabular-nums ${
+                isWeekend ? "bg-surface-inset/80" : ""
+              } ${isToday ? "text-accent" : "text-content-secondary"}`}
+            >
+              {min > 0 ? (
+                formatDurationHMZero(min)
+              ) : (
+                <span className="text-content-muted/50">·</span>
+              )}
+            </td>
+          );
+        })}
+        <td className="px-2 py-1.5 text-right font-mono text-body-lg font-semibold tabular-nums text-content">
+          {formatDurationHMZero(group.totalMin)}
+        </td>
+        <td className="px-2 py-1.5" />
+      </tr>
+      {!collapsed &&
+        group.rows.map((row) => {
+          const rowIdx = rowsFlat.indexOf(row);
+          return (
+            <TimesheetRow
+              key={`${row.projectId}::${row.categoryId ?? ""}::${row.userId}`}
+              rowIndex={rowIdx}
+              row={row}
+              projects={projects}
+              categories={categories}
+              groupBy={groupBy}
+              onCellCommit={(dayIndex, minutes) =>
+                onCellCommit(row.projectId, row.categoryId, dayIndex, minutes)
+              }
+              onDelete={() => {
+                void onDelete(row.projectId, row.categoryId, row.userId);
+              }}
+              onDiscardEmpty={() =>
+                onDiscardEmpty(row.projectId, row.categoryId)
+              }
+              weekDays={weekDays}
+              todayStr={todayStr}
+              setCellRef={setCellRef}
+              onArrowNav={(dir, dayIdx) => {
+                if (dir === "up") focusCell(rowIdx - 1, dayIdx, "up");
+                else if (dir === "down") focusCell(rowIdx + 1, dayIdx, "down");
+                else if (dir === "left") focusCell(rowIdx, dayIdx - 1);
+                else focusCell(rowIdx, dayIdx + 1);
+              }}
+            />
+          );
+        })}
+    </tbody>
+  );
+}
+
+function GroupLabel({
+  group,
+  groupBy,
+}: {
+  group: RowGroup;
+  groupBy: GroupBy;
+}): React.JSX.Element {
+  if (groupBy === "member") {
+    // Hash user_id into a preset color when no stored avatar_url — keeps
+    // every member visually distinct in the grid without asking them to
+    // upload a photo. Same hash is used in EntryAuthor so the tile color
+    // stays consistent across surfaces.
+    const avatarUrl = resolveAvatarUrl(
+      group.author?.avatar_url ?? null,
+      group.author?.user_id ?? null,
+    );
+    return (
+      <span className="flex items-center gap-2 min-w-0">
+        <Avatar
+          avatarUrl={avatarUrl}
+          displayName={group.label}
+          size={20}
+        />
+        <span className="text-body-lg font-semibold text-content truncate">
+          {group.label}
+        </span>
+      </span>
+    );
+  }
+  if (groupBy === "category") {
+    return (
+      <span className="flex items-center gap-2 min-w-0">
+        <span
+          className="h-2.5 w-2.5 rounded-full shrink-0"
+          style={{
+            backgroundColor: group.categoryColor ?? "var(--content-muted)",
+          }}
+        />
+        <span className="text-body-lg font-semibold text-content truncate">
+          {group.label}
+        </span>
+      </span>
+    );
+  }
+  return (
+    <span className="text-body-lg font-semibold text-content truncate">
+      {group.label}
+    </span>
   );
 }
 

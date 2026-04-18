@@ -49,4 +49,44 @@ describe("ViewToggle", () => {
     expect(call).not.toMatch(/view=/);
     expect(call).toMatch(/org=o1/);
   });
+
+  it("pressing D switches to day view", () => {
+    renderWithIntl(<ViewToggle view="week" />);
+    // Fire on document.body — it bubbles to the window-level listener
+    // the component registers, and testing-library's fireEvent reliably
+    // attaches the `key` field here (unlike with `window` as target).
+    fireEvent.keyDown(document.body, { key: "d" });
+    const call = pushMock.mock.calls[0]?.[0] as string;
+    expect(call).toMatch(/view=day/);
+  });
+
+  it("pressing W switches to week view", () => {
+    renderWithIntl(<ViewToggle view="day" />);
+    fireEvent.keyDown(document.body, { key: "w" });
+    const call = pushMock.mock.calls[0]?.[0] as string;
+    expect(call).not.toMatch(/view=/);
+  });
+
+  it("ignores D / W when typing in an input", () => {
+    const { container } = renderWithIntl(
+      <>
+        <input data-testid="sink" />
+        <ViewToggle view="week" />
+      </>,
+    );
+    const input = container.querySelector<HTMLInputElement>(
+      "input[data-testid=sink]",
+    )!;
+    input.focus();
+    fireEvent.keyDown(input, { key: "d" });
+    fireEvent.keyDown(input, { key: "w" });
+    expect(pushMock).not.toHaveBeenCalled();
+  });
+
+  it("ignores modified keystrokes so Cmd/Ctrl+D (bookmark) still works", () => {
+    renderWithIntl(<ViewToggle view="week" />);
+    fireEvent.keyDown(document.body, { key: "d", metaKey: true });
+    fireEvent.keyDown(document.body, { key: "d", ctrlKey: true });
+    expect(pushMock).not.toHaveBeenCalled();
+  });
 });
