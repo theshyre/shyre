@@ -1058,14 +1058,18 @@ function TimesheetRow({
             } ${isToday ? "border-l-2 border-accent/40" : ""}`}
           >
             {i === runningDayIndex && runningStartIso ? (
-              // Live running cell — overrides the editable input for the
-              // day the running entry started on. Ticks every minute.
+              // Live running cell — overrides the editable input for
+              // the day the running entry started on. Displays the
+              // sum of any already-saved entries on this cell PLUS
+              // the elapsed minutes of the running timer, so clicking
+              // Play on a row that already had a 4:00 entry doesn't
+              // visually "blank" that 4:00 down to 0:00.
               <div
                 className="flex items-center justify-center gap-1.5 w-full px-1.5 py-1 font-mono text-body font-semibold text-success tabular-nums"
                 title={tEntry("stopTimerFromRow")}
               >
                 <span className="h-1.5 w-1.5 rounded-full bg-success animate-pulse" />
-                {formatDurationHMZero(liveElapsedMin)}
+                {formatDurationHMZero(min + liveElapsedMin)}
               </div>
             ) : editable ? (
               <DurationInput
