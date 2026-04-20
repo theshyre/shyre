@@ -66,6 +66,13 @@ export interface SampleProject {
    * The project-scoped extension (if any) is attached via extendsProjectName.
    */
   baseCategorySet: string | null;
+  /**
+   * When true, time entries on this project require explicit start + end
+   * timestamps. Default in real Shyre use is false — most consulting work
+   * is logged as "date + duration". We keep exactly one sample project
+   * with `true` so the timestamp-mode path is still exercised.
+   */
+  require_timestamps: boolean;
 }
 
 export interface SampleCategorySet {
@@ -275,6 +282,7 @@ const PROJECT_SEED: ReadonlyArray<SampleProject> = [
     rate_editability: "owner",
     time_entries_visibility: "read_write_all",
     baseCategorySet: BASE_SET_NAME,
+    require_timestamps: false,
   },
   {
     customerIndex: 0,
@@ -287,6 +295,7 @@ const PROJECT_SEED: ReadonlyArray<SampleProject> = [
     rate_editability: "admins",
     time_entries_visibility: null,
     baseCategorySet: BASE_SET_NAME,
+    require_timestamps: false,
   },
   {
     customerIndex: 1,
@@ -299,6 +308,7 @@ const PROJECT_SEED: ReadonlyArray<SampleProject> = [
     rate_editability: "owner",
     time_entries_visibility: null,
     baseCategorySet: null,
+    require_timestamps: false,
   },
   {
     customerIndex: 2,
@@ -311,8 +321,13 @@ const PROJECT_SEED: ReadonlyArray<SampleProject> = [
     rate_editability: "owner",
     time_entries_visibility: null,
     baseCategorySet: BASE_SET_NAME,
+    require_timestamps: false,
   },
   {
+    // The one timestamp-required project. Nucleus bills by calendar
+    // block, so start/end precision matters here — keeps that code
+    // path exercised in sample data without polluting the majority
+    // case, which is "date + duration only".
     customerIndex: 3,
     name: "Nucleus Backend",
     description: "API and service layer for the Nucleus product.",
@@ -323,6 +338,7 @@ const PROJECT_SEED: ReadonlyArray<SampleProject> = [
     rate_editability: "admins",
     time_entries_visibility: null,
     baseCategorySet: BASE_SET_NAME,
+    require_timestamps: true,
   },
   {
     customerIndex: null,
@@ -335,6 +351,7 @@ const PROJECT_SEED: ReadonlyArray<SampleProject> = [
     rate_editability: "owner",
     time_entries_visibility: null,
     baseCategorySet: null,
+    require_timestamps: false,
   },
 ];
 

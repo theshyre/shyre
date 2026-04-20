@@ -299,6 +299,7 @@ async function loadSample(
     rate_visibility: p.rate_visibility,
     rate_editability: p.rate_editability,
     time_entries_visibility: p.time_entries_visibility,
+    require_timestamps: p.require_timestamps,
     category_set_id:
       p.baseCategorySet === null
         ? null

@@ -129,6 +129,16 @@ describe("generateSampleData", () => {
       expect(noSet.length).toBeGreaterThanOrEqual(1);
     });
 
+    it("exactly one project requires start/end timestamps; the rest are date+duration", () => {
+      // Mirrors real-world distribution: most consulting work is logged
+      // as "I spent 3h yesterday", not with precise timestamps. We keep
+      // a single project in timestamp-required mode so the code path
+      // stays exercised in sample data without flipping the default.
+      const data = generateSampleData({ now: FIXED_NOW });
+      const requiring = data.projects.filter((p) => p.require_timestamps);
+      expect(requiring).toHaveLength(1);
+    });
+
     it("all other projects reference a real category set name", () => {
       const data = generateSampleData({ now: FIXED_NOW });
       const known = new Set(data.categorySets.map((s) => s.name));
