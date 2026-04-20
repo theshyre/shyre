@@ -18,6 +18,9 @@ interface Props {
   /** Total number of columns in the parent table — used for the edit row span */
   columnCount: number;
   tzOffsetMin?: number;
+  /** True when this entry is in the multi-row selection set. */
+  selected: boolean;
+  onToggleSelect: (id: string) => void;
 }
 
 /**
@@ -35,6 +38,8 @@ export function EntryRow({
   onToggleExpand,
   columnCount,
   tzOffsetMin,
+  selected,
+  onToggleSelect,
 }: Props): React.JSX.Element {
   const t = useTranslations("time");
   const isRunning = !entry.end_time;
@@ -75,6 +80,20 @@ export function EntryRow({
   return (
     <>
       <tr className={rowClass} onClick={() => onToggleExpand(entry.id)}>
+        {/* Bulk-select checkbox — clicks here don't toggle the row
+            expansion; they mutate the parent's selectedIds set. */}
+        <td
+          className="w-10 pl-4 align-middle"
+          onClick={(e) => e.stopPropagation()}
+        >
+          <input
+            type="checkbox"
+            checked={selected}
+            onChange={() => onToggleSelect(entry.id)}
+            aria-label={t("entry.select")}
+            className="h-4 w-4 rounded border-edge text-accent focus:ring-focus-ring cursor-pointer"
+          />
+        </td>
         {/* Category — hero column */}
         <td className="py-2.5 align-middle">
           {category ? (

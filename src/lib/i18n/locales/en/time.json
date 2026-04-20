@@ -109,8 +109,16 @@
     "noToday": "No entries today.",
     "startedAt": "Started {time}"
   },
+  "bulk": {
+    "label": "Bulk actions",
+    "selectAll": "Select all visible",
+    "selectedCount": "{count, plural, one {# selected} other {# selected}}",
+    "clear": "Clear selection",
+    "delete": "Delete selected"
+  },
   "entry": {
     "edit": "Edit",
+    "select": "Select entry",
     "startTimer": "Start timer",
     "stopTimer": "Stop timer",
     "stopTimerFromRow": "Stop running timer",

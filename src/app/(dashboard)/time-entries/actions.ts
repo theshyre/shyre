@@ -207,6 +207,34 @@ export async function permanentlyDeleteTimeEntryAction(
 }
 
 /**
+ * Bulk soft-delete — used by multi-row selection on the day view.
+ * RLS + the explicit `.eq("user_id", userId)` clause mean only the
+ * caller's own rows will be affected; ids passed in that don't
+ * match will be silently no-oped instead of erroring. Pair with an
+ * Undo toast that calls `restoreTimeEntriesAction` on the same ids.
+ */
+export async function deleteTimeEntriesAction(
+  formData: FormData,
+): Promise<void> {
+  return runSafeAction(formData, async (formData, { supabase, userId }) => {
+    const ids = formData.getAll("id").map((v) => String(v));
+    if (ids.length === 0) return;
+
+    assertSupabaseOk(
+      await supabase
+        .from("time_entries")
+        .update({ deleted_at: new Date().toISOString() })
+        .in("id", ids)
+        .eq("user_id", userId)
+        .is("deleted_at", null),
+    );
+
+    revalidatePath("/time-entries");
+    revalidatePath("/time-entries/trash");
+  }, "deleteTimeEntriesAction") as unknown as void;
+}
+
+/**
  * Bulk restore — used by the Undo toast when an entire timesheet row
  * (multiple day cells) was soft-deleted in one action.
  */

@@ -1,9 +1,16 @@
 "use client";
 
+import { useCallback, useMemo, useState } from "react";
 import { useTranslations } from "next-intl";
 import { formatDurationHM } from "@/lib/time/week";
 import type { EntryGroup } from "@/lib/time/grouping";
 import { EntryRow } from "./entry-row";
+import { InlineDeleteRowConfirm } from "@/components/InlineDeleteRowConfirm";
+import { useToast } from "@/components/Toast";
+import {
+  deleteTimeEntriesAction,
+  restoreTimeEntriesAction,
+} from "./actions";
 import type { CategoryOption, ProjectOption, TimeEntry } from "./types";
 
 interface Props {
@@ -17,7 +24,8 @@ interface Props {
   tzOffsetMin?: number;
 }
 
-const COLUMN_COUNT = 7;
+// Leading select column + 6 content columns + kebab column.
+const COLUMN_COUNT = 8;
 
 export function EntryTable({
   groups,
@@ -29,6 +37,62 @@ export function EntryTable({
   tzOffsetMin,
 }: Props): React.JSX.Element {
   const t = useTranslations("time");
+  const tc = useTranslations("common.actions");
+  const tToast = useTranslations("time.toast");
+  const toast = useToast();
+
+  // Multi-row selection for bulk delete. Keyed by entry id; cleared
+  // after a bulk action commits or when the component unmounts.
+  const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
+  const visibleEntries = useMemo(
+    () => groups.flatMap((g) => g.entries),
+    [groups],
+  );
+  const visibleIds = useMemo(
+    () => visibleEntries.map((e) => e.id),
+    [visibleEntries],
+  );
+
+  const toggleOne = useCallback((id: string) => {
+    setSelectedIds((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    });
+  }, []);
+
+  const allSelected =
+    visibleIds.length > 0 && visibleIds.every((id) => selectedIds.has(id));
+  const someSelected = selectedIds.size > 0;
+
+  const toggleAll = useCallback(() => {
+    setSelectedIds((prev) => {
+      // If any are selected, clear everything; otherwise select every
+      // visible id. Matches the classic "master checkbox" behaviour.
+      if (prev.size > 0) return new Set();
+      return new Set(visibleIds);
+    });
+  }, [visibleIds]);
+
+  const bulkDelete = useCallback(async () => {
+    const ids = Array.from(selectedIds);
+    if (ids.length === 0) return;
+    const fd = new FormData();
+    for (const id of ids) fd.append("id", id);
+    await deleteTimeEntriesAction(fd);
+    setSelectedIds(new Set());
+    toast.push({
+      kind: "info",
+      message: tToast("entriesDeleted", { count: ids.length }),
+      actionLabel: tToast("undo"),
+      onAction: async () => {
+        const restoreFd = new FormData();
+        for (const id of ids) restoreFd.append("id", id);
+        await restoreTimeEntriesAction(restoreFd);
+      },
+    });
+  }, [selectedIds, toast, tToast]);
 
   if (groups.length === 0 || groups.every((g) => g.entries.length === 0)) {
     return (
@@ -39,46 +103,91 @@ export function EntryTable({
   }
 
   return (
-    <div className="rounded-lg border border-edge bg-surface-raised overflow-hidden">
-      <table className="w-full text-body">
-        <thead className="bg-surface-inset">
-          <tr>
-            <th className="py-2 pl-4 text-left text-label font-semibold uppercase tracking-wider text-content-muted">
-              {t("tableHeaders.category")}
-            </th>
-            <th className="px-3 py-2 text-left text-label font-semibold uppercase tracking-wider text-content-muted">
-              {t("tableHeaders.projectDescription")}
-            </th>
-            <th className="px-3 py-2 text-left text-label font-semibold uppercase tracking-wider text-content-muted">
-              {t("tableHeaders.member")}
-            </th>
-            <th className="px-3 py-2 text-right text-label font-semibold uppercase tracking-wider text-content-muted">
-              {t("tableHeaders.time")}
-            </th>
-            <th className="px-3 py-2 text-right text-label font-semibold uppercase tracking-wider text-content-muted">
-              {t("tableHeaders.duration")}
-            </th>
-            <th className="px-2 py-2 text-center text-label font-semibold uppercase tracking-wider text-content-muted">
-              {t("tableHeaders.billable")}
-            </th>
-            <th className="px-2 py-2" aria-label="actions" />
-          </tr>
-        </thead>
-        <tbody>
-          {groups.map((group) => (
-            <GroupBlock
-              key={group.id}
-              group={group}
-              projects={projects}
-              categories={categories}
-              expandedEntryId={expandedEntryId}
-              onToggleExpand={onToggleExpand}
-              showHeader={!hideGroupHeaders}
-              tzOffsetMin={tzOffsetMin}
+    <div className="space-y-2">
+      {/* Bulk action bar — appears only when at least one row is
+          selected. Sits above the table so it reads as "these N
+          selected below" rather than competing with the table header. */}
+      {someSelected && (
+        <div
+          role="toolbar"
+          aria-label={t("bulk.label")}
+          className="flex items-center justify-between gap-3 rounded-lg border border-accent bg-accent-soft px-3 py-2"
+        >
+          <span className="text-body text-accent-text">
+            {t("bulk.selectedCount", { count: selectedIds.size })}
+          </span>
+          <div className="flex items-center gap-2">
+            <button
+              type="button"
+              onClick={() => setSelectedIds(new Set())}
+              className="text-caption text-accent-text hover:underline"
+            >
+              {t("bulk.clear")}
+            </button>
+            <InlineDeleteRowConfirm
+              ariaLabel={t("bulk.delete")}
+              onConfirm={bulkDelete}
+              summary={tc("deleteCount", { count: selectedIds.size })}
             />
-          ))}
-        </tbody>
-      </table>
+          </div>
+        </div>
+      )}
+
+      <div className="rounded-lg border border-edge bg-surface-raised overflow-hidden">
+        <table className="w-full text-body">
+          <thead className="bg-surface-inset">
+            <tr>
+              <th className="w-10 pl-4 py-2 text-left">
+                <input
+                  type="checkbox"
+                  checked={allSelected}
+                  ref={(el) => {
+                    if (el) el.indeterminate = !allSelected && someSelected;
+                  }}
+                  onChange={toggleAll}
+                  aria-label={t("bulk.selectAll")}
+                  className="h-4 w-4 rounded border-edge text-accent focus:ring-focus-ring"
+                />
+              </th>
+              <th className="py-2 pr-3 text-left text-label font-semibold uppercase tracking-wider text-content-muted">
+                {t("tableHeaders.category")}
+              </th>
+              <th className="px-3 py-2 text-left text-label font-semibold uppercase tracking-wider text-content-muted">
+                {t("tableHeaders.projectDescription")}
+              </th>
+              <th className="px-3 py-2 text-left text-label font-semibold uppercase tracking-wider text-content-muted">
+                {t("tableHeaders.member")}
+              </th>
+              <th className="px-3 py-2 text-right text-label font-semibold uppercase tracking-wider text-content-muted">
+                {t("tableHeaders.time")}
+              </th>
+              <th className="px-3 py-2 text-right text-label font-semibold uppercase tracking-wider text-content-muted">
+                {t("tableHeaders.duration")}
+              </th>
+              <th className="px-2 py-2 text-center text-label font-semibold uppercase tracking-wider text-content-muted">
+                {t("tableHeaders.billable")}
+              </th>
+              <th className="px-2 py-2" aria-label="actions" />
+            </tr>
+          </thead>
+          <tbody>
+            {groups.map((group) => (
+              <GroupBlock
+                key={group.id}
+                group={group}
+                projects={projects}
+                categories={categories}
+                expandedEntryId={expandedEntryId}
+                onToggleExpand={onToggleExpand}
+                showHeader={!hideGroupHeaders}
+                tzOffsetMin={tzOffsetMin}
+                selectedIds={selectedIds}
+                onToggleSelect={toggleOne}
+              />
+            ))}
+          </tbody>
+        </table>
+      </div>
     </div>
   );
 }
@@ -91,6 +200,8 @@ function GroupBlock({
   onToggleExpand,
   showHeader,
   tzOffsetMin,
+  selectedIds,
+  onToggleSelect,
 }: {
   group: EntryGroup<TimeEntry>;
   projects: ProjectOption[];
@@ -99,11 +210,14 @@ function GroupBlock({
   onToggleExpand: (id: string) => void;
   showHeader: boolean;
   tzOffsetMin?: number;
+  selectedIds: Set<string>;
+  onToggleSelect: (id: string) => void;
 }): React.JSX.Element {
   return (
     <>
       {showHeader && (
         <tr className="bg-surface-inset/60 border-y border-edge">
+          <td className="pl-4 py-1.5 w-10" aria-hidden />
           <td colSpan={4} className="px-3 py-1.5">
             <div className="flex items-center gap-2">
               {group.color && (
@@ -143,6 +257,8 @@ function GroupBlock({
           onToggleExpand={onToggleExpand}
           columnCount={COLUMN_COUNT}
           tzOffsetMin={tzOffsetMin}
+          selected={selectedIds.has(entry.id)}
+          onToggleSelect={onToggleSelect}
         />
       ))}
     </>

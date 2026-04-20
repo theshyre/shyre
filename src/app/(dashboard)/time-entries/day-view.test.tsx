@@ -54,7 +54,7 @@ describe("DayView", () => {
       makeEntry("a", new Date(Date.UTC(2026, 3, 13, 9)), 60),
       makeEntry("b", new Date(Date.UTC(2026, 3, 14, 10)), 90),
     ];
-    renderWithIntl(
+    renderDay(
       <DayView
         dayStr="2026-04-14"
         weekStartStr={weekStartStr}
@@ -71,7 +71,7 @@ describe("DayView", () => {
   });
 
   it("prev navigates to the prior day", () => {
-    renderWithIntl(
+    renderDay(
       <DayView
         dayStr="2026-04-14"
         weekStartStr={weekStartStr}
@@ -89,7 +89,7 @@ describe("DayView", () => {
   });
 
   it("next navigates to the following day", () => {
-    renderWithIntl(
+    renderDay(
       <DayView
         dayStr="2026-04-14"
         weekStartStr={weekStartStr}
@@ -107,7 +107,7 @@ describe("DayView", () => {
   });
 
   it("clicking a day in the strip navigates to that day", () => {
-    renderWithIntl(
+    renderDay(
       <DayView
         dayStr="2026-04-14"
         weekStartStr={weekStartStr}

@@ -109,8 +109,16 @@
     "noToday": "No hay registros hoy.",
     "startedAt": "Iniciado {time}"
   },
+  "bulk": {
+    "label": "Acciones en lote",
+    "selectAll": "Seleccionar todo lo visible",
+    "selectedCount": "{count, plural, one {# seleccionado} other {# seleccionados}}",
+    "clear": "Limpiar selección",
+    "delete": "Eliminar seleccionados"
+  },
   "entry": {
     "edit": "Editar",
+    "select": "Seleccionar registro",
     "startTimer": "Iniciar cronómetro",
     "stopTimer": "Detener cronómetro",
     "stopTimerFromRow": "Detener cronómetro en ejecución",

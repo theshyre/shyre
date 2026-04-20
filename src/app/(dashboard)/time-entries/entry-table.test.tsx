@@ -2,11 +2,18 @@ import { describe, it, expect, vi } from "vitest";
 import { screen, fireEvent } from "@testing-library/react";
 import { renderWithIntl } from "@/test/intl";
 
+const { deleteManyMock, restoreManyMock } = vi.hoisted(() => ({
+  deleteManyMock: vi.fn(async (_fd: FormData) => {}),
+  restoreManyMock: vi.fn(async (_fd: FormData) => {}),
+}));
+
 vi.mock("./actions", () => ({
   updateTimeEntryAction: vi.fn(),
   deleteTimeEntryAction: vi.fn(),
   duplicateTimeEntryAction: vi.fn(),
   startTimerAction: vi.fn(),
+  deleteTimeEntriesAction: deleteManyMock,
+  restoreTimeEntriesAction: restoreManyMock,
 }));
 
 import { EntryTable } from "./entry-table";
@@ -155,6 +162,43 @@ describe("EntryTable", () => {
     );
     fireEvent.click(screen.getByText("entry a"));
     expect(onToggle).toHaveBeenCalledWith("a");
+  });
+
+  it("selects rows via the bulk checkbox and deletes them", async () => {
+    deleteManyMock.mockClear();
+    const { container } = renderTable(
+      <EntryTable
+        groups={[
+          group("g1", "T", [
+            makeEntry("a"),
+            makeEntry("b"),
+            makeEntry("c"),
+          ]),
+        ]}
+        projects={[]}
+        categories={[]}
+        expandedEntryId={null}
+        onToggleExpand={() => {}}
+        hideGroupHeaders
+      />,
+    );
+    // Select two of the three rows.
+    const rowCheckboxes = container.querySelectorAll<HTMLInputElement>(
+      "tbody input[type='checkbox']",
+    );
+    expect(rowCheckboxes.length).toBe(3);
+    rowCheckboxes[0]!.click();
+    rowCheckboxes[1]!.click();
+    // Bulk bar now shows "2 selected" + Delete.
+    expect(screen.getByText(/2 selected/i)).toBeInTheDocument();
+    fireEvent.click(screen.getByRole("button", { name: /delete selected/i }));
+    fireEvent.change(screen.getByLabelText(/type delete to confirm/i), {
+      target: { value: "delete" },
+    });
+    fireEvent.click(screen.getByRole("button", { name: /confirm delete/i }));
+    await vi.waitFor(() => expect(deleteManyMock).toHaveBeenCalled());
+    const fd = deleteManyMock.mock.calls[0]?.[0];
+    expect(fd?.getAll("id").sort()).toEqual(["a", "b"]);
   });
 
   it("renders the edit form spanning the table width when expanded", () => {
