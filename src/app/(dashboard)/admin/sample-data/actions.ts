@@ -64,6 +64,39 @@ async function deleteSampleRowsInOrg(
   supabase: SBClient,
   teamId: string,
 ): Promise<void> {
+  // Resolve the owning business so we can wipe its sample-seeded
+  // state registrations + registered agents. The business itself is
+  // shared with the user's real data (identity they may have filled
+  // in), so we don't drop the row — we just zero the sample-specific
+  // identity and remove the child rows.
+  const { data: teamRow } = await supabase
+    .from("teams")
+    .select("business_id")
+    .eq("id", teamId)
+    .maybeSingle();
+  const businessId = (teamRow?.business_id as string | null) ?? null;
+
+  if (businessId) {
+    assertSupabaseOk(
+      await supabase
+        .from("business_state_registrations")
+        .delete()
+        .eq("business_id", businessId),
+    );
+    assertSupabaseOk(
+      await supabase
+        .from("business_tax_registrations")
+        .delete()
+        .eq("business_id", businessId),
+    );
+    assertSupabaseOk(
+      await supabase
+        .from("business_registered_agents")
+        .delete()
+        .eq("business_id", businessId),
+    );
+  }
+
   // Invoice line items cascade when the invoice is deleted.
   assertSupabaseOk(
     await supabase
@@ -232,6 +265,85 @@ async function loadSample(
         data.teamSettings.admins_can_set_rate_permissions,
     }),
   );
+
+  // 1b. Business identity + state registrations. The business row itself
+  // was created at signup; here we fill in sample identity and seed
+  // state registrations so the multi-state shape is visible in demo.
+  const { data: teamForBiz } = await supabase
+    .from("teams")
+    .select("business_id")
+    .eq("id", teamId)
+    .single();
+  const businessId = (teamForBiz?.business_id as string | null) ?? null;
+
+  if (businessId) {
+    assertSupabaseOk(
+      await supabase
+        .from("businesses")
+        .update({
+          name: data.businessIdentity.display_name,
+          legal_name: data.businessIdentity.legal_name,
+          entity_type: data.businessIdentity.entity_type,
+          tax_id: data.businessIdentity.tax_id,
+          date_incorporated: data.businessIdentity.date_incorporated,
+          fiscal_year_start: data.businessIdentity.fiscal_year_start,
+        })
+        .eq("id", businessId),
+    );
+
+    const agentInserts = data.registeredAgents.map((a) => ({
+      business_id: businessId,
+      name: a.name,
+      address_line1: a.address_line1,
+      address_line2: a.address_line2,
+      city: a.city,
+      state: a.state,
+      postal_code: a.postal_code,
+      country: a.country,
+      contact_email: a.contact_email,
+      contact_phone: a.contact_phone,
+      notes: a.notes,
+    }));
+    const agentsRes = agentInserts.length
+      ? await supabase
+          .from("business_registered_agents")
+          .insert(agentInserts)
+          .select("id, name")
+      : { data: [] as { id: string; name: string }[], error: null };
+    assertSupabaseOk(agentsRes);
+    const agentIdByKey = new Map<string, string>();
+    for (const agent of data.registeredAgents) {
+      const row = (agentsRes.data ?? []).find(
+        (r) => (r.name as string) === agent.name,
+      );
+      if (row) agentIdByKey.set(agent.key, row.id as string);
+    }
+
+    const registrationInserts = data.stateRegistrations.map((r) => ({
+      business_id: businessId,
+      state: r.state,
+      is_formation: r.is_formation,
+      registration_type: r.registration_type,
+      entity_number: r.entity_number,
+      state_tax_id: r.state_tax_id,
+      registered_on: r.registered_on,
+      nexus_start_date: r.nexus_start_date,
+      registration_status: r.registration_status,
+      report_frequency: r.report_frequency,
+      due_rule: r.due_rule,
+      annual_report_due_mmdd: r.annual_report_due_mmdd,
+      annual_report_fee_cents: r.annual_report_fee_cents,
+      registered_agent_id: r.agentKey ? (agentIdByKey.get(r.agentKey) ?? null) : null,
+      notes: r.notes,
+    }));
+    if (registrationInserts.length) {
+      assertSupabaseOk(
+        await supabase
+          .from("business_state_registrations")
+          .insert(registrationInserts),
+      );
+    }
+  }
 
   // 2. Sample auth users + team_members (admin bypass for RLS).
   const sampleUsers = await createSampleUsers(admin, teamId, data);

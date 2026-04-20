@@ -24,8 +24,20 @@ import {
   ALLOWED_TEXT_SIZES,
   ALLOWED_TIME_FORMATS,
 } from "@/app/(dashboard)/profile/allow-lists";
-import { ALLOWED_ENTITY_TYPES } from "@/app/(dashboard)/business/allow-lists";
+import {
+  ALLOWED_ENTITY_TYPES,
+  ALLOWED_AFFILIATION_ROLES,
+} from "@/app/(dashboard)/business/allow-lists";
 import { ALLOWED_EXPENSE_CATEGORIES } from "@/app/(dashboard)/business/[id]/expenses/allow-lists";
+import {
+  ALLOWED_REGISTRATION_TYPES,
+  ALLOWED_REGISTRATION_STATUSES,
+  ALLOWED_REPORT_FREQUENCIES,
+  ALLOWED_DUE_RULES,
+  ALLOWED_TAX_TYPES,
+  ALLOWED_TAX_REGISTRATION_STATUSES,
+  ALLOWED_FILING_FREQUENCIES,
+} from "@/app/(dashboard)/business/registrations-allow-lists";
 
 const MIGRATIONS_DIR = join(process.cwd(), "supabase", "migrations");
 
@@ -86,6 +98,38 @@ const PAIRS: Pair[] = [
     name: "expenseCategories",
     appSet: ALLOWED_EXPENSE_CATEGORIES,
     column: "category",
+  },
+  {
+    name: "affiliationRoles",
+    appSet: ALLOWED_AFFILIATION_ROLES,
+    column: "affiliation_role",
+  },
+  {
+    name: "registrationTypes",
+    appSet: ALLOWED_REGISTRATION_TYPES,
+    column: "registration_type",
+  },
+  {
+    name: "registrationStatuses",
+    appSet: ALLOWED_REGISTRATION_STATUSES,
+    column: "registration_status",
+  },
+  {
+    name: "reportFrequencies",
+    appSet: ALLOWED_REPORT_FREQUENCIES,
+    column: "report_frequency",
+  },
+  { name: "dueRules", appSet: ALLOWED_DUE_RULES, column: "due_rule" },
+  { name: "taxTypes", appSet: ALLOWED_TAX_TYPES, column: "tax_type" },
+  {
+    name: "taxRegistrationStatuses",
+    appSet: ALLOWED_TAX_REGISTRATION_STATUSES,
+    column: "tax_registration_status",
+  },
+  {
+    name: "filingFrequencies",
+    appSet: ALLOWED_FILING_FREQUENCIES,
+    column: "filing_frequency",
   },
 ];
 

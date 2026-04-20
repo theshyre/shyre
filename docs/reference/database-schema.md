@@ -36,8 +36,98 @@ Unique constraint on `(team_id, user_id)`.
 | accepted_at | TIMESTAMPTZ | NULL until accepted |
 
 ### Helper functions
-- `user_has_org_access(team_id)` — returns true if `auth.uid()` is a member of the org
-- `user_org_role(team_id)` — returns the user's role in the org
+- `user_has_team_access(team_id)` — returns true if `auth.uid()` is a member of the team
+- `user_team_role(team_id)` — returns the user's role in the team
+- `user_has_business_access(business_id)` — true if the user is a member of any team owned by the business
+- `user_business_role(business_id)` — max role (`owner` > `admin` > `member`) across team memberships in the business
+
+## Businesses
+
+### `businesses`
+Legal business entity. Owns one or more teams. Identity columns are all nullable — a brand-new business exists as a shell until the user fills in legal details.
+
+| Column | Type | Notes |
+|--------|------|-------|
+| id | UUID (PK) | |
+| name | TEXT | Display name (may differ from legal_name) |
+| legal_name | TEXT | Registered legal name as filed with the state |
+| entity_type | TEXT | `sole_prop\|llc\|s_corp\|c_corp\|partnership\|nonprofit\|other` |
+| tax_id | TEXT | EIN or equivalent |
+| state_registration_id | TEXT | Legacy — canonical registration data lives on `business_state_registrations` |
+| registered_state | TEXT | Legacy — canonical formation state lives on `business_state_registrations` with `is_formation = true` |
+| date_incorporated | DATE | |
+| fiscal_year_start | TEXT | MM-DD format |
+| created_at, updated_at | TIMESTAMPTZ | |
+
+`teams.business_id` references `businesses(id)` NOT NULL — every team belongs to exactly one business. A trigger blocks `UPDATE teams SET business_id` once the team has invoices or expenses.
+
+### `user_business_affiliations`
+A user's "home business" — who they are employed by or contract through. Informational identity, not authorization (auth is derived from `team_members`).
+
+| Column | Type | Notes |
+|--------|------|-------|
+| id | UUID (PK) | |
+| user_id | UUID | References `auth.users(id)` CASCADE |
+| business_id | UUID | References `businesses(id)` CASCADE |
+| affiliation_role | TEXT | `owner\|employee\|contractor\|partner` |
+| is_primary | BOOLEAN | Partial unique index enforces one primary per user |
+| started_on, ended_on | DATE | Optional |
+| notes | TEXT | |
+
+### `business_state_registrations`
+Every state where the business is formed or foreign-qualified. Symmetric model — formation and foreign qualifications live in the same table, distinguished by `is_formation`.
+
+| Column | Type | Notes |
+|--------|------|-------|
+| id | UUID (PK) | |
+| business_id | UUID | References `businesses(id)` CASCADE |
+| state | TEXT | Two-letter USPS code |
+| is_formation | BOOLEAN | Partial unique index: exactly one formation per business |
+| registration_type | TEXT | `domestic\|foreign_qualification` |
+| entity_number | TEXT | State-assigned filing number |
+| state_tax_id | TEXT | Distinct from EIN in some states |
+| registered_on | DATE | State approval date |
+| nexus_start_date | DATE | When the business first had nexus — defends late-registration penalties |
+| registration_status | TEXT | `pending\|active\|delinquent\|withdrawn\|revoked` |
+| withdrawn_on, revoked_on | DATE | Required when status is `withdrawn` / `revoked` (CHECK constraint) |
+| report_frequency | TEXT | `annual\|biennial\|decennial` |
+| due_rule | TEXT | `fixed_date\|anniversary\|quarter_end` |
+| annual_report_due_mmdd | TEXT | MM-DD |
+| next_due_date | DATE | Currently user-maintained |
+| annual_report_fee_cents | INTEGER | Cents, never float |
+| registered_agent_id | UUID | References `business_registered_agents(id)` SET NULL |
+| notes | TEXT | |
+| deleted_at | TIMESTAMPTZ | Soft delete |
+
+### `business_tax_registrations`
+Sales/use tax and similar tax-specific registrations. Separate from state registrations because filing cadence and ID scheme differ.
+
+| Column | Type | Notes |
+|--------|------|-------|
+| id | UUID (PK) | |
+| business_id | UUID | References `businesses(id)` CASCADE |
+| state | TEXT | Two-letter USPS code |
+| tax_type | TEXT | `sales_use\|seller_use\|consumer_use\|gross_receipts` |
+| permit_number | TEXT | |
+| tax_registration_status | TEXT | `pending\|active\|delinquent\|closed` |
+| filing_frequency | TEXT | `monthly\|quarterly\|annual\|semi_annual` |
+| registered_on, nexus_start_date, closed_on, next_filing_due | DATE | |
+| notes | TEXT | |
+| deleted_at | TIMESTAMPTZ | Soft delete |
+
+### `business_registered_agents`
+Structured address for each registered agent. One agent commonly serves one business across many states.
+
+| Column | Type | Notes |
+|--------|------|-------|
+| id | UUID (PK) | |
+| business_id | UUID | References `businesses(id)` CASCADE |
+| name | TEXT | |
+| address_line1, city, state, postal_code, country | TEXT | Structured address — filings rejected on formatting |
+| address_line2 | TEXT | Optional |
+| contact_email, contact_phone | TEXT | Optional |
+| notes | TEXT | |
+| deleted_at | TIMESTAMPTZ | Soft delete |
 
 ## Tables
 
@@ -161,6 +251,8 @@ Saved (project + category + description + billable) combos for one-click timer s
 | created_at | TIMESTAMPTZ | |
 
 ### `invoices`
+Carries a denormalized `business_id` (NOT NULL) set at creation time via trigger from `teams.business_id`. Invoices are legal documents; issuer must be stable even if the team is re-parented later.
+
 | Column | Type | Notes |
 |--------|------|-------|
 | id | UUID (PK) | |

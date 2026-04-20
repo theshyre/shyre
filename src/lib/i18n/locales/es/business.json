@@ -64,5 +64,55 @@
       "fiscalYearStart": "Inicio del año fiscal (MM-DD)",
       "fiscalYearStartHelp": "Usa 01-01 para año calendario, 07-01 para año fiscal julio-junio, etc."
     }
+  },
+  "stateRegistrations": {
+    "sectionTitle": "Registros estatales",
+    "sectionDescription": "Cada estado donde el negocio está constituido o calificado como extranjero. Una fila es el estado de constitución; el resto son calificaciones extranjeras.",
+    "empty": "Aún no hay registros estatales. Agrega el estado de constitución para comenzar.",
+    "addButton": "Agregar registro estatal",
+    "cancel": "Cancelar",
+    "save": "Guardar registro",
+    "formationBadge": "Constitución",
+    "types": {
+      "domestic": "Doméstico",
+      "foreign_qualification": "Calificación extranjera"
+    },
+    "statuses": {
+      "pending": "Pendiente",
+      "active": "Activo",
+      "delinquent": "Moroso",
+      "withdrawn": "Retirado",
+      "revoked": "Revocado"
+    },
+    "reportFrequencies": {
+      "annual": "Anual",
+      "biennial": "Bianual",
+      "decennial": "Decenal"
+    },
+    "dueRules": {
+      "fixed_date": "Fecha fija",
+      "anniversary": "Aniversario de constitución",
+      "quarter_end": "Fin de trimestre"
+    },
+    "fields": {
+      "state": "Estado",
+      "statePlaceholder": "ej. DE",
+      "isFormation": "Este es el estado de constitución",
+      "registrationType": "Tipo de registro",
+      "entityNumber": "Número estatal de la entidad",
+      "stateTaxId": "ID fiscal estatal",
+      "registeredOn": "Registrado el",
+      "nexusStartDate": "Fecha de inicio del nexo",
+      "registrationStatus": "Estado",
+      "withdrawnOn": "Retirado el",
+      "revokedOn": "Revocado el",
+      "reportFrequency": "Frecuencia del reporte",
+      "dueRule": "Regla de vencimiento",
+      "annualReportDue": "Vencimiento del reporte anual (MM-DD)",
+      "nextDueDate": "Próxima fecha de vencimiento",
+      "annualReportFee": "Tarifa del reporte anual (centavos)",
+      "notes": "Notas"
+    },
+    "deleteSummary": "registro de {state}"
   }
 }

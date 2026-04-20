@@ -40,16 +40,26 @@ export default async function BusinessDetailLayout({
     notFound();
   }
 
-  const { data: settings } = await supabase
-    .from("team_settings")
-    .select("legal_name, entity_type")
-    .eq("team_id", id)
+  // Identity lives on businesses, accessed via teams.business_id.
+  const { data: teamRow } = await supabase
+    .from("teams")
+    .select("business_id")
+    .eq("id", id)
     .maybeSingle();
+  const businessId = (teamRow?.business_id as string | null) ?? null;
+
+  const { data: business } = businessId
+    ? await supabase
+        .from("businesses")
+        .select("legal_name, entity_type")
+        .eq("id", businessId)
+        .maybeSingle()
+    : { data: null };
 
   const displayName =
-    (settings?.legal_name as string | null) ?? membership.name;
-  const entityKey = settings?.entity_type
-    ? String(settings.entity_type)
+    (business?.legal_name as string | null) ?? membership.name;
+  const entityKey = business?.entity_type
+    ? String(business.entity_type)
     : null;
   const entityLabel = entityKey
     ? (ENTITY_LABEL[entityKey] ?? entityKey)

@@ -13,18 +13,31 @@ function blankToNull(v: FormDataEntryValue | null): string | null {
 }
 
 /**
- * Update business identity on team_settings (upsert).
- * Owner/admin only — matches updateTeamSettingsAction's authorization model.
+ * Update business identity on the businesses table.
+ * Owner/admin of any team owned by the business — authorization is
+ * derived through team_members; the businesses_update RLS policy
+ * enforces it at the DB layer, the early role check here gives a
+ * friendlier error message.
+ *
+ * The form posts both team_id (the URL anchor) and business_id (the
+ * row being written). We trust the team_id for authorization and use
+ * the business_id as the UPDATE target — the RLS policy re-checks
+ * that the business_id's teams include one the user is owner/admin of.
  */
 export async function updateBusinessIdentityAction(
   formData: FormData,
 ): Promise<void> {
   return runSafeAction(formData, async (formData, { supabase }) => {
     const teamId = formData.get("team_id") as string;
+    const businessId = formData.get("business_id") as string;
     const { role } = await validateTeamAccess(teamId);
 
     if (role !== "owner" && role !== "admin") {
       throw new Error("Only owners and admins can update business identity.");
+    }
+
+    if (!businessId) {
+      throw new Error("business_id is required.");
     }
 
     const legal_name = blankToNull(formData.get("legal_name"));
@@ -48,19 +61,21 @@ export async function updateBusinessIdentityAction(
     }
 
     assertSupabaseOk(
-      await supabase.from("team_settings").upsert({
-        team_id: teamId,
-        legal_name,
-        entity_type,
-        tax_id,
-        state_registration_id,
-        registered_state,
-        date_incorporated,
-        fiscal_year_start,
-      }),
+      await supabase
+        .from("businesses")
+        .update({
+          legal_name,
+          entity_type,
+          tax_id,
+          state_registration_id,
+          registered_state,
+          date_incorporated,
+          fiscal_year_start,
+        })
+        .eq("id", businessId),
     );
 
     revalidatePath("/business");
-    revalidatePath("/business");
+    revalidatePath(`/business/${teamId}`);
   }, "updateBusinessIdentityAction") as unknown as void;
 }

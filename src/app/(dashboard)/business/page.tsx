@@ -17,6 +17,9 @@ const ENTITY_LABEL: Record<string, string> = {
 };
 
 interface BusinessSummary {
+  /** Team id — still the anchor for /business/[id] until the route
+   * rename flips it to business_id. Identity is now fetched via the
+   * team's business_id. */
   id: string;
   name: string;
   legalName: string | null;
@@ -138,12 +141,23 @@ async function fetchSummary(
   monthStart.setHours(0, 0, 0, 0);
   const monthStartStr = `${monthStart.getFullYear()}-${String(monthStart.getMonth() + 1).padStart(2, "0")}-01`;
 
-  const [settings, customerCount, entries, expenseRows] = await Promise.all([
-    supabase
-      .from("team_settings")
-      .select("legal_name, entity_type")
-      .eq("team_id", teamId)
-      .maybeSingle(),
+  // Resolve team → business to fetch legal identity. Identity no
+  // longer lives on team_settings — PR-2 of the business/team split.
+  const { data: teamRow } = await supabase
+    .from("teams")
+    .select("business_id")
+    .eq("id", teamId)
+    .maybeSingle();
+  const businessId = (teamRow?.business_id as string | null) ?? null;
+
+  const [business, customerCount, entries, expenseRows] = await Promise.all([
+    businessId
+      ? supabase
+          .from("businesses")
+          .select("legal_name, entity_type")
+          .eq("id", businessId)
+          .maybeSingle()
+      : Promise.resolve({ data: null }),
     supabase
       .from("customers")
       .select("id", { count: "exact", head: true })
@@ -176,8 +190,8 @@ async function fetchSummary(
   return {
     id: teamId,
     name: fallbackName,
-    legalName: (settings.data?.legal_name as string | null) ?? null,
-    entityType: (settings.data?.entity_type as string | null) ?? null,
+    legalName: (business.data?.legal_name as string | null) ?? null,
+    entityType: (business.data?.entity_type as string | null) ?? null,
     customerCount: customerCount.count ?? 0,
     billableHoursThisMonth: Math.round((totalMin / 60) * 10) / 10,
     expensesThisMonth: expensesTotal,

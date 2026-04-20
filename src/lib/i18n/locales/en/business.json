@@ -64,5 +64,55 @@
       "fiscalYearStart": "Fiscal year start (MM-DD)",
       "fiscalYearStartHelp": "Use 01-01 for calendar-year businesses, 07-01 for July-June fiscal year, etc."
     }
+  },
+  "stateRegistrations": {
+    "sectionTitle": "State registrations",
+    "sectionDescription": "Every state where the business is formed or foreign-qualified. One row is the formation state; the rest are foreign qualifications.",
+    "empty": "No state registrations yet. Add the formation state to get started.",
+    "addButton": "Add state registration",
+    "cancel": "Cancel",
+    "save": "Save registration",
+    "formationBadge": "Formation",
+    "types": {
+      "domestic": "Domestic",
+      "foreign_qualification": "Foreign qualification"
+    },
+    "statuses": {
+      "pending": "Pending",
+      "active": "Active",
+      "delinquent": "Delinquent",
+      "withdrawn": "Withdrawn",
+      "revoked": "Revoked"
+    },
+    "reportFrequencies": {
+      "annual": "Annual",
+      "biennial": "Biennial",
+      "decennial": "Decennial"
+    },
+    "dueRules": {
+      "fixed_date": "Fixed date",
+      "anniversary": "Anniversary of formation",
+      "quarter_end": "Quarter end"
+    },
+    "fields": {
+      "state": "State",
+      "statePlaceholder": "e.g. DE",
+      "isFormation": "This is the formation state",
+      "registrationType": "Registration type",
+      "entityNumber": "State entity number",
+      "stateTaxId": "State tax ID",
+      "registeredOn": "Registered on",
+      "nexusStartDate": "Nexus start date",
+      "registrationStatus": "Status",
+      "withdrawnOn": "Withdrawn on",
+      "revokedOn": "Revoked on",
+      "reportFrequency": "Report frequency",
+      "dueRule": "Due rule",
+      "annualReportDue": "Annual report due (MM-DD)",
+      "nextDueDate": "Next due date",
+      "annualReportFee": "Annual report fee (cents)",
+      "notes": "Notes"
+    },
+    "deleteSummary": "{state} registration"
   }
 }

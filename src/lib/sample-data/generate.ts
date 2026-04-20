@@ -148,8 +148,65 @@ export interface SampleExpense {
   billable: boolean;
 }
 
+export interface SampleBusinessIdentity {
+  legal_name: string;
+  entity_type:
+    | "sole_prop"
+    | "llc"
+    | "s_corp"
+    | "c_corp"
+    | "partnership"
+    | "nonprofit"
+    | "other";
+  tax_id: string;
+  date_incorporated: string;
+  fiscal_year_start: string;
+  display_name: string;
+}
+
+export interface SampleRegisteredAgent {
+  /** Stable key to resolve the FK when inserting state registrations. */
+  key: string;
+  name: string;
+  address_line1: string;
+  address_line2: string | null;
+  city: string;
+  state: string;
+  postal_code: string;
+  country: string;
+  contact_email: string | null;
+  contact_phone: string | null;
+  notes: string | null;
+}
+
+export interface SampleStateRegistration {
+  state: string;
+  is_formation: boolean;
+  registration_type: "domestic" | "foreign_qualification";
+  entity_number: string | null;
+  state_tax_id: string | null;
+  registered_on: string | null;
+  nexus_start_date: string | null;
+  registration_status:
+    | "pending"
+    | "active"
+    | "delinquent"
+    | "withdrawn"
+    | "revoked";
+  report_frequency: "annual" | "biennial" | "decennial" | null;
+  due_rule: "fixed_date" | "anniversary" | "quarter_end" | null;
+  annual_report_due_mmdd: string | null;
+  annual_report_fee_cents: number | null;
+  /** References SampleRegisteredAgent.key. */
+  agentKey: string | null;
+  notes: string | null;
+}
+
 export interface SampleData {
   teamSettings: SampleTeamSettings;
+  businessIdentity: SampleBusinessIdentity;
+  registeredAgents: SampleRegisteredAgent[];
+  stateRegistrations: SampleStateRegistration[];
   teamMembers: SampleTeamMember[];
   customers: SampleCustomer[];
   projects: SampleProject[];
@@ -592,6 +649,90 @@ function buildEntries(opts: BuildEntriesOpts): SampleEntry[] {
 // Main generator
 // ────────────────────────────────────────────────────────────────
 
+// ────────────────────────────────────────────────────────────────
+// Business identity + registrations seeds
+// ────────────────────────────────────────────────────────────────
+//
+// A Delaware-formed LLC with foreign qualifications in CA and TX. Uses
+// CSC as the Delaware registered agent — a realistic setup for a small
+// consulting business operating across state lines.
+
+const BUSINESS_IDENTITY_SEED: SampleBusinessIdentity = {
+  display_name: "Acme Consulting",
+  legal_name: "Acme Consulting Partners LLC",
+  entity_type: "llc",
+  tax_id: "85-1234567",
+  date_incorporated: "2023-06-15",
+  fiscal_year_start: "01-01",
+};
+
+const REGISTERED_AGENTS_SEED: SampleRegisteredAgent[] = [
+  {
+    key: "csc-de",
+    name: "Corporation Service Company",
+    address_line1: "251 Little Falls Drive",
+    address_line2: null,
+    city: "Wilmington",
+    state: "DE",
+    postal_code: "19808",
+    country: "US",
+    contact_email: null,
+    contact_phone: "+1-302-636-5400",
+    notes: "Delaware formation agent. Serves filings in all states.",
+  },
+];
+
+const STATE_REGISTRATIONS_SEED: SampleStateRegistration[] = [
+  {
+    state: "DE",
+    is_formation: true,
+    registration_type: "domestic",
+    entity_number: "7654321",
+    state_tax_id: null,
+    registered_on: "2023-06-15",
+    nexus_start_date: "2023-06-15",
+    registration_status: "active",
+    report_frequency: "annual",
+    due_rule: "fixed_date",
+    annual_report_due_mmdd: "06-01",
+    annual_report_fee_cents: 30000,
+    agentKey: "csc-de",
+    notes: "Formation state. DE LLC franchise tax due June 1 annually.",
+  },
+  {
+    state: "CA",
+    is_formation: false,
+    registration_type: "foreign_qualification",
+    entity_number: "202400112233",
+    state_tax_id: "CA-TIN-9988776",
+    registered_on: "2024-02-10",
+    nexus_start_date: "2024-01-01",
+    registration_status: "active",
+    report_frequency: "biennial",
+    due_rule: "anniversary",
+    annual_report_due_mmdd: null,
+    annual_report_fee_cents: 2000,
+    agentKey: null,
+    notes: "Statement of Information filed every 2 years at anniversary.",
+  },
+  {
+    state: "TX",
+    is_formation: false,
+    registration_type: "foreign_qualification",
+    entity_number: "0804433221",
+    state_tax_id: null,
+    registered_on: "2024-09-01",
+    nexus_start_date: "2024-08-15",
+    registration_status: "pending",
+    report_frequency: "annual",
+    due_rule: "fixed_date",
+    annual_report_due_mmdd: "05-15",
+    annual_report_fee_cents: null,
+    agentKey: null,
+    notes: "Franchise tax report due May 15.",
+  },
+];
+
 export function generateSampleData(opts: {
   now: Date;
   seed?: number;
@@ -601,6 +742,9 @@ export function generateSampleData(opts: {
   const now = opts.now;
 
   const teamSettings = { ...TEAM_SETTINGS_SEED };
+  const businessIdentity = { ...BUSINESS_IDENTITY_SEED };
+  const registeredAgents = REGISTERED_AGENTS_SEED.map((a) => ({ ...a }));
+  const stateRegistrations = STATE_REGISTRATIONS_SEED.map((r) => ({ ...r }));
   const teamMembers = TEAM_MEMBER_SEED.map((m) => ({ ...m }));
   const customers = CUSTOMER_SEED.map((c) => ({ ...c }));
   const projects = PROJECT_SEED.map((p) => ({ ...p }));
@@ -613,6 +757,9 @@ export function generateSampleData(opts: {
 
   return {
     teamSettings,
+    businessIdentity,
+    registeredAgents,
+    stateRegistrations,
     teamMembers,
     customers,
     projects,
