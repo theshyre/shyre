@@ -960,12 +960,16 @@ function TimesheetRow({
   const hideProject = groupBy === "project";
   const showAuthorChip = groupBy !== "member";
 
-  // Live tick for the running cell (minute granularity is enough — the
-  // grid's H:MM format doesn't show seconds).
+  // Live tick for the running cell. Tick every second even though the
+  // display is H:MM granularity — a 60s interval that fires on an
+  // arbitrary mount-time offset leaves the cell showing a stale
+  // minute (e.g. "0:09" while the banner reads "0:10:04"). Ticking
+  // every second aligns the cell's minute rollover with the banner's.
+  // Cheap for a handful of running cells.
   const [runningNowMs, setRunningNowMs] = useState<number>(() => Date.now());
   useEffect(() => {
     if (!runningStartIso) return;
-    const id = setInterval(() => setRunningNowMs(Date.now()), 60_000);
+    const id = setInterval(() => setRunningNowMs(Date.now()), 1000);
     return () => clearInterval(id);
   }, [runningStartIso]);
   const liveElapsedMin = runningStartIso
