@@ -2,6 +2,7 @@
 
 import { useTranslations } from "next-intl";
 import { FolderKanban } from "lucide-react";
+import { AlertBanner } from "@theshyre/ui";
 import { useFormAction } from "@/hooks/use-form-action";
 import { SubmitButton } from "@/components/SubmitButton";
 import { FieldError } from "@/components/FieldError";
@@ -42,7 +43,7 @@ export function ProjectEditForm({
   return (
     <form action={handleSubmit} className="space-y-4">
       {serverError && (
-        <p className="text-sm text-error bg-error-soft rounded-lg px-3 py-2">{serverError}</p>
+        <AlertBanner tone="error">{serverError}</AlertBanner>
       )}
       <input type="hidden" name="id" value={project.id} />
       {/* Preserve category_set_id on save — it's managed by the

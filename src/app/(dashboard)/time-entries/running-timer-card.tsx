@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import { useTranslations } from "next-intl";
 import { Play, Square, X } from "lucide-react";
+import { AlertBanner } from "@theshyre/ui";
 import { useFormAction } from "@/hooks/use-form-action";
 import { SubmitButton } from "@/components/SubmitButton";
 import {
@@ -121,9 +122,7 @@ export function RunningTimerCard({
           </div>
         </div>
         {stopForm.serverError && (
-          <p className="text-caption text-error bg-error-soft rounded-md px-2 py-1">
-            {stopForm.serverError}
-          </p>
+          <AlertBanner tone="error">{stopForm.serverError}</AlertBanner>
         )}
         <form action={stopForm.handleSubmit}>
           <input type="hidden" name="id" value={running.id} />
@@ -185,9 +184,7 @@ export function RunningTimerCard({
       </div>
 
       {startForm.serverError && (
-        <p className="text-body text-error bg-error-soft rounded-lg px-3 py-2">
-          {startForm.serverError}
-        </p>
+        <AlertBanner tone="error">{startForm.serverError}</AlertBanner>
       )}
 
       {teams.length > 1 && <TeamSelector teams={teams} defaultTeamId={defaultTeamId} />}

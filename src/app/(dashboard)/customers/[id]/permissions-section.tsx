@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { useTranslations } from "next-intl";
 import { KeyRound, Plus, X, User, Users } from "lucide-react";
+import { AlertBanner } from "@theshyre/ui";
 import { useFormAction } from "@/hooks/use-form-action";
 import { SubmitButton } from "@/components/SubmitButton";
 import {
@@ -117,9 +118,7 @@ export function PermissionsSection({
             >
               <input type="hidden" name="customer_id" value={customerId} />
               {grantError && (
-                <p className="text-sm text-error bg-error-soft rounded-lg px-3 py-2">
-                  {grantError}
-                </p>
+                <AlertBanner tone="error">{grantError}</AlertBanner>
               )}
               <div>
                 <label className={labelClass}>{t("principal")} *</label>

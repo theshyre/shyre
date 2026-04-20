@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useRef } from "react";
 import { useTranslations } from "next-intl";
+import { AlertBanner } from "@theshyre/ui";
 import { useFormAction } from "@/hooks/use-form-action";
 import { SubmitButton } from "@/components/SubmitButton";
 import { FieldError } from "@/components/FieldError";
@@ -88,9 +89,7 @@ export function InlineEditForm({
       className="space-y-3"
     >
       {serverError && (
-        <p className="text-sm text-error bg-error-soft rounded-lg px-3 py-2">
-          {serverError}
-        </p>
+        <AlertBanner tone="error">{serverError}</AlertBanner>
       )}
       <input type="hidden" name="id" value={entry.id} />
       {tzOffsetMin !== undefined && (

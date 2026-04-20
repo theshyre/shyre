@@ -2,7 +2,8 @@
 
 import { useState } from "react";
 import { useTranslations } from "next-intl";
-import { Pencil, Trash2, Check, X, Loader2 } from "lucide-react";
+import { Pencil, Trash2, Check, X } from "lucide-react";
+import { AlertBanner, Spinner } from "@theshyre/ui";
 import {
   inputClass,
   textareaClass,
@@ -70,9 +71,7 @@ export function ExpenseRow({
           <form action={update.handleSubmit} className="space-y-3">
             <input type="hidden" name="id" value={expense.id} />
             {update.serverError && (
-              <p className="text-sm text-error bg-error-soft rounded-lg px-3 py-2">
-                {update.serverError}
-              </p>
+              <AlertBanner tone="error">{update.serverError}</AlertBanner>
             )}
             <div className="grid gap-3 sm:grid-cols-3">
               <div>
@@ -228,7 +227,7 @@ export function ExpenseRow({
               aria-label={t("confirmDelete")}
             >
               {del.pending ? (
-                <Loader2 size={12} className="animate-spin" />
+                <Spinner size="h-3 w-3" />
               ) : (
                 <Check size={12} />
               )}

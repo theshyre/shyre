@@ -10,7 +10,7 @@ import {
   UserPlus,
   X,
 } from "lucide-react";
-import { useKeyboardShortcut } from "@theshyre/ui";
+import { AlertBanner, useKeyboardShortcut } from "@theshyre/ui";
 import { useFormAction } from "@/hooks/use-form-action";
 import { SubmitButton } from "@/components/SubmitButton";
 import {
@@ -110,9 +110,7 @@ export function SecurityGroupsSection({
           className="rounded-lg border border-edge bg-surface-raised p-4 space-y-3"
         >
           {serverError && (
-            <p className="text-sm text-error bg-error-soft rounded-lg px-3 py-2">
-              {serverError}
-            </p>
+            <AlertBanner tone="error">{serverError}</AlertBanner>
           )}
           <div className="grid gap-3 sm:grid-cols-2">
             <div>
@@ -278,9 +276,7 @@ function GroupCard({
       </div>
 
       {deleteError && (
-        <p className="mt-2 text-sm text-error bg-error-soft rounded-lg px-3 py-2">
-          {deleteError}
-        </p>
+        <AlertBanner tone="error" className="mt-2">{deleteError}</AlertBanner>
       )}
 
       <div className="mt-3 border-t border-edge pt-3">

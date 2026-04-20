@@ -16,7 +16,7 @@ import {
 import { useFormAction } from "@/hooks/use-form-action";
 import { SubmitButton } from "@/components/SubmitButton";
 import { TeamSelector } from "@/components/TeamSelector";
-import { useKeyboardShortcut } from "@theshyre/ui";
+import { AlertBanner, useKeyboardShortcut } from "@theshyre/ui";
 import {
   createCategorySetAction,
   cloneCategorySetAction,
@@ -159,9 +159,7 @@ function SystemSetRow({
       {cloning && (
         <form action={handleSubmit} className="mt-3 space-y-2 border-t border-edge pt-3">
           {serverError && (
-            <p className="text-sm text-error bg-error-soft rounded-lg px-3 py-2">
-              {serverError}
-            </p>
+            <AlertBanner tone="error">{serverError}</AlertBanner>
           )}
           <input type="hidden" name="source_id" value={set.id} />
           <TeamSelector teams={teams} label={t("cloneToTeam")} />
@@ -288,9 +286,7 @@ function NewSetForm({
       className="space-y-3 rounded-lg border border-edge bg-surface-raised p-4"
     >
       {serverError && (
-        <p className="text-sm text-error bg-error-soft rounded-lg px-3 py-2">
-          {serverError}
-        </p>
+        <AlertBanner tone="error">{serverError}</AlertBanner>
       )}
       <TeamSelector teams={teams} />
       <div>

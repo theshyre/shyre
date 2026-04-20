@@ -4,8 +4,6 @@ import { useState } from "react";
 import Link from "next/link";
 import {
   CheckCircle,
-  Loader2,
-  AlertCircle,
   ArrowRight,
   Upload,
   Eye,
@@ -13,6 +11,7 @@ import {
   FolderKanban,
   Clock,
 } from "lucide-react";
+import { AlertBanner, Spinner } from "@theshyre/ui";
 import {
   inputClass,
   labelClass,
@@ -179,10 +178,7 @@ export function HarvestImport({
         </div>
 
         {error && (
-          <div className="mb-4 flex items-center gap-2 text-sm text-error bg-error-soft rounded-lg px-3 py-2">
-            <AlertCircle size={14} />
-            {error}
-          </div>
+          <AlertBanner tone="error" className="mb-4">{error}</AlertBanner>
         )}
 
         {/* Step 1: Credentials */}
@@ -260,7 +256,7 @@ export function HarvestImport({
               className={buttonPrimaryClass}
             >
               {loading ? (
-                <Loader2 size={16} className="animate-spin" />
+                <Spinner />
               ) : (
                 <Eye size={16} />
               )}
@@ -328,7 +324,7 @@ export function HarvestImport({
         {/* Step 3: Importing */}
         {step === "importing" && (
           <div className="flex flex-col items-center py-8 gap-3">
-            <Loader2 size={32} className="animate-spin text-accent" />
+            <Spinner size="h-8 w-8" />
             <p className="text-sm text-content-secondary">
               Importing data from Harvest...
             </p>

@@ -3,7 +3,8 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { useTranslations } from "next-intl";
-import { Sparkles, Trash2, AlertTriangle, Loader2 } from "lucide-react";
+import { Sparkles, Trash2, AlertTriangle } from "lucide-react";
+import { Spinner } from "@theshyre/ui";
 import {
   buttonPrimaryClass,
   buttonSecondaryClass,
@@ -67,7 +68,7 @@ export function SampleDataControls({ teamId, teamName, hasSample }: Props): Reac
             className={buttonPrimaryClass}
           >
             {load.pending ? (
-              <Loader2 size={16} className="animate-spin" />
+              <Spinner />
             ) : (
               <Sparkles size={16} />
             )}
@@ -98,7 +99,7 @@ export function SampleDataControls({ teamId, teamName, hasSample }: Props): Reac
             className={buttonSecondaryClass}
           >
             {remove.pending ? (
-              <Loader2 size={16} className="animate-spin" />
+              <Spinner />
             ) : (
               <Trash2 size={16} />
             )}
@@ -157,7 +158,7 @@ export function SampleDataControls({ teamId, teamName, hasSample }: Props): Reac
                 className={buttonDangerClass}
               >
                 {clearAll.pending ? (
-                  <Loader2 size={16} className="animate-spin" />
+                  <Spinner />
                 ) : (
                   <AlertTriangle size={16} />
                 )}

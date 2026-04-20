@@ -2,6 +2,7 @@ import { createClient } from "@/lib/supabase/server";
 import { getTranslations } from "next-intl/server";
 import { notFound } from "next/navigation";
 import { FileText } from "lucide-react";
+import { formatDate } from "@theshyre/ui";
 import { formatCurrency } from "@/lib/invoice-utils";
 import { InvoiceActions } from "./invoice-actions";
 import { InvoicePdfButton } from "./invoice-pdf-button";
@@ -113,13 +114,13 @@ export default async function InvoiceDetailPage({
         <div>
           <span className="text-content-muted">{t("pdf.date")}:</span>{" "}
           {invoice.issued_date
-            ? new Date(invoice.issued_date).toLocaleDateString()
+            ? formatDate(invoice.issued_date)
             : "—"}
         </div>
         <div>
           <span className="text-content-muted">{t("pdf.dueDate")}:</span>{" "}
           {invoice.due_date
-            ? new Date(invoice.due_date).toLocaleDateString()
+            ? formatDate(invoice.due_date)
             : "—"}
         </div>
       </div>

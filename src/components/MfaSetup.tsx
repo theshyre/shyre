@@ -9,11 +9,11 @@ import {
   Shield,
   CheckCircle,
   XCircle,
-  Loader2,
   Download,
   Copy,
   KeyRound,
 } from "lucide-react";
+import { Spinner } from "@theshyre/ui";
 import {
   inputClass,
   labelClass,
@@ -276,7 +276,7 @@ export function MfaSetup(): React.JSX.Element {
   if (checkingStatus) {
     return (
       <div className="flex items-center gap-2 text-sm text-content-muted">
-        <Loader2 size={14} className="animate-spin" />
+        <Spinner size="h-3.5 w-3.5" />
         Loading...
       </div>
     );

@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { useTranslations } from "next-intl";
 import { Network, Plus, X, Check, Building2 } from "lucide-react";
+import { AlertBanner } from "@theshyre/ui";
 import { useFormAction } from "@/hooks/use-form-action";
 import { SubmitButton } from "@/components/SubmitButton";
 import {
@@ -126,9 +127,7 @@ export function RelationshipsSection({
             >
               <input type="hidden" name="parent_team_id" value={teamId} />
               {proposeError && (
-                <p className="text-sm text-error bg-error-soft rounded-lg px-3 py-2">
-                  {proposeError}
-                </p>
+                <AlertBanner tone="error">{proposeError}</AlertBanner>
               )}
               <div>
                 <label className={labelClass}>{t("childTeams")} *</label>

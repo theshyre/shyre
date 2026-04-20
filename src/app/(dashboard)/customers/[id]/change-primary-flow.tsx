@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { useTranslations } from "next-intl";
 import { ArrowRightLeft } from "lucide-react";
+import { AlertBanner } from "@theshyre/ui";
 import { useFormAction } from "@/hooks/use-form-action";
 import { SubmitButton } from "@/components/SubmitButton";
 import {
@@ -71,9 +72,7 @@ export function ChangePrimaryFlow({
       </div>
 
       {serverError && (
-        <p className="text-sm text-error bg-error-soft rounded-lg px-3 py-2">
-          {serverError}
-        </p>
+        <AlertBanner tone="error">{serverError}</AlertBanner>
       )}
 
       <div>

@@ -1,7 +1,8 @@
 "use client";
 
 import { useCallback, useEffect, useRef, useState } from "react";
-import { Search, ExternalLink, Hash, Loader2 } from "lucide-react";
+import { Search, ExternalLink, Hash } from "lucide-react";
+import { Spinner } from "@theshyre/ui";
 import { inputClass } from "@/lib/form-styles";
 
 interface GitHubIssue {
@@ -162,7 +163,7 @@ export function GitHubIssuePicker({
           <div className="max-h-60 overflow-y-auto">
             {loading && (
               <div className="flex items-center gap-2 px-3 py-4 text-sm text-content-muted">
-                <Loader2 size={14} className="animate-spin" />
+                <Spinner size="h-3.5 w-3.5" />
                 Searching...
               </div>
             )}

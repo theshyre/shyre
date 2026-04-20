@@ -1,7 +1,8 @@
 "use client";
 
 import { useTranslations } from "next-intl";
-import { Send, CheckCircle, XCircle, Loader2 } from "lucide-react";
+import { Send, CheckCircle, XCircle } from "lucide-react";
+import { Spinner } from "@theshyre/ui";
 import { useFormAction } from "@/hooks/use-form-action";
 import { buttonSecondaryClass } from "@/lib/form-styles";
 import { updateInvoiceStatusAction } from "../actions";
@@ -68,7 +69,7 @@ function InvoiceActionButton({
         }}
       >
         {pending ? (
-          <Loader2 size={16} className="animate-spin" />
+          <Spinner />
         ) : (
           <Icon size={16} />
         )}

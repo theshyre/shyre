@@ -3,7 +3,7 @@
 import { useCallback, useState } from "react";
 import { useTranslations } from "next-intl";
 import { Plus } from "lucide-react";
-import { useKeyboardShortcut } from "@theshyre/ui";
+import { AlertBanner, useKeyboardShortcut } from "@theshyre/ui";
 import { useFormAction } from "@/hooks/use-form-action";
 import { SubmitButton } from "@/components/SubmitButton";
 import {
@@ -49,9 +49,7 @@ export function NewTeamForm(): React.JSX.Element {
       className="mt-4 space-y-3 rounded-lg border border-edge bg-surface-raised p-4"
     >
       {serverError && (
-        <p className="text-sm text-error bg-error-soft rounded-lg px-3 py-2">
-          {serverError}
-        </p>
+        <AlertBanner tone="error">{serverError}</AlertBanner>
       )}
       <div>
         <label className={labelClass}>{tc("team.namePlaceholder")} *</label>

@@ -3,31 +3,15 @@
  * MANDATORY: Never inline form field classes — use these constants.
  */
 
-export const inputClass = [
-  "w-full rounded-lg border border-edge bg-surface-raised px-3 py-2",
-  "text-sm text-content outline-none transition-colors",
-  "placeholder:text-content-muted",
-  "hover:border-content-muted",
-  "focus:border-focus-ring focus:ring-2 focus:ring-focus-ring/30",
-  "disabled:cursor-not-allowed disabled:opacity-60",
-].join(" ");
-
-export const textareaClass = `${inputClass} resize-none`;
-
-export const searchInputClass = inputClass
-  .replace("px-3", "pl-10 pr-4");
-
-export const selectClass = inputClass;
+export {
+  inputClass,
+  selectClass,
+  textareaClass,
+  searchInputClass,
+  buttonPrimaryClass,
+} from "@theshyre/ui";
 
 export const labelClass = "block text-sm font-medium text-content mb-1";
-
-export const buttonPrimaryClass = [
-  "inline-flex items-center gap-2 rounded-lg px-4 py-2",
-  "text-sm font-medium bg-accent text-content-inverse",
-  "hover:bg-accent-hover transition-colors",
-  "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus-ring focus-visible:ring-offset-2",
-  "disabled:opacity-50 disabled:cursor-not-allowed",
-].join(" ");
 
 export const buttonSecondaryClass = [
   "inline-flex items-center gap-2 rounded-lg px-4 py-2",

@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { useTranslations } from "next-intl";
 import { Plus, Trash2, Tags } from "lucide-react";
+import { AlertBanner } from "@theshyre/ui";
 import {
   inputClass,
   labelClass,
@@ -170,9 +171,7 @@ export function ProjectCategoriesEditor({
       </div>
 
       {upsert.serverError && (
-        <p className="text-body text-error bg-error-soft rounded-lg px-3 py-2">
-          {upsert.serverError}
-        </p>
+        <AlertBanner tone="error">{upsert.serverError}</AlertBanner>
       )}
 
       {/* Base set selection — built-in / team sets available to this

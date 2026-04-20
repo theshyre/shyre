@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { useTranslations } from "next-intl";
 import { Plus, Save, Trash2, X } from "lucide-react";
+import { AlertBanner } from "@theshyre/ui";
 import type { Category, CategorySetWithCategories } from "@/lib/categories/types";
 import {
   buttonSecondaryClass,
@@ -37,9 +38,7 @@ export function CategorySetEditor({ set, onDone }: Props): React.JSX.Element {
       {/* Set meta editor */}
       <form action={setForm.handleSubmit} className="space-y-3">
         {setForm.serverError && (
-          <p className="text-sm text-error bg-error-soft rounded-lg px-3 py-2">
-            {setForm.serverError}
-          </p>
+          <AlertBanner tone="error">{setForm.serverError}</AlertBanner>
         )}
         <input type="hidden" name="id" value={set.id} />
         <input

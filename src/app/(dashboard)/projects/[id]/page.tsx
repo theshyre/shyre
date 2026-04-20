@@ -2,6 +2,7 @@ import { createClient } from "@/lib/supabase/server";
 import { getTranslations } from "next-intl/server";
 import { notFound } from "next/navigation";
 import { Clock, Hash, ExternalLink } from "lucide-react";
+import { formatDate } from "@theshyre/ui";
 import { getVisibleCategorySets } from "@/lib/categories/queries";
 import { ProjectEditForm } from "./project-edit-form";
 import { ProjectCategoriesEditor } from "./project-categories-editor";
@@ -247,7 +248,7 @@ export default async function ProjectDetailPage({
                       </span>
                     )}
                     <span className="text-xs text-content-muted">
-                      {new Date(entry.start_time).toLocaleDateString()}
+                      {formatDate(entry.start_time)}
                     </span>
                   </div>
                   <span className="text-sm font-mono text-content-secondary">

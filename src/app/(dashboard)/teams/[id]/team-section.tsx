@@ -16,6 +16,7 @@ import {
   LogOut,
   Trash2,
 } from "lucide-react";
+import { AlertBanner, formatDate } from "@theshyre/ui";
 import {
   inputClass,
   labelClass,
@@ -283,7 +284,7 @@ export function TeamSection({
                       <p className="text-sm text-content">{invite.email}</p>
                       <p className="text-xs text-content-muted">
                         {invite.role} · expires{" "}
-                        {new Date(invite.expires_at).toLocaleDateString()}
+                        {formatDate(invite.expires_at)}
                       </p>
                     </div>
                   </div>
@@ -377,9 +378,7 @@ function LeaveTeamFlow({
     >
       <input type="hidden" name="team_id" value={teamId} />
       {serverError && (
-        <p className="text-sm text-error bg-error-soft rounded-lg px-3 py-2">
-          {serverError}
-        </p>
+        <AlertBanner tone="error">{serverError}</AlertBanner>
       )}
       <p className="text-sm text-content">
         {tc("team.leaveConfirm", { name: teamName })}
@@ -453,9 +452,7 @@ function DeleteTeamFlow({
     >
       <input type="hidden" name="team_id" value={teamId} />
       {serverError && (
-        <p className="text-sm text-error bg-error-soft rounded-lg px-3 py-2">
-          {serverError}
-        </p>
+        <AlertBanner tone="error">{serverError}</AlertBanner>
       )}
       <p className="text-sm text-content">
         {tc("team.deleteConfirm", { name: teamName })}

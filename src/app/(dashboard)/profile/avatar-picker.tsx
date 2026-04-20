@@ -2,7 +2,8 @@
 
 import { useCallback, useRef, useState, useTransition } from "react";
 import { useTranslations } from "next-intl";
-import { Upload, X, ImagePlus, Trash2 } from "lucide-react";
+import { Upload, ImagePlus, Trash2 } from "lucide-react";
+import { AlertBanner } from "@theshyre/ui";
 import { createClient } from "@/lib/supabase/client";
 import { Avatar, AVATAR_PRESETS } from "@/components/Avatar";
 import { buttonSecondaryClass, buttonGhostClass } from "@/lib/form-styles";
@@ -128,12 +129,7 @@ export function AvatarPicker({
         </div>
       </div>
 
-      {error && (
-        <p className="flex items-center gap-2 text-sm text-error bg-error-soft rounded-lg px-3 py-2">
-          <X size={14} />
-          <span>{error}</span>
-        </p>
-      )}
+      {error && <AlertBanner tone="error">{error}</AlertBanner>}
 
       {/* Presets */}
       <div>

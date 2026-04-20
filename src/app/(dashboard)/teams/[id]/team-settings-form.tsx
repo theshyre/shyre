@@ -2,6 +2,7 @@
 
 import { useTranslations } from "next-intl";
 import { Building2, Lock } from "lucide-react";
+import { AlertBanner } from "@theshyre/ui";
 import { useFormAction } from "@/hooks/use-form-action";
 import { SubmitButton } from "@/components/SubmitButton";
 import { FieldError } from "@/components/FieldError";
@@ -72,7 +73,7 @@ export function TeamSettingsForm({
       className="mt-6 space-y-6"
     >
       {serverError && (
-        <p className="text-sm text-error bg-error-soft rounded-lg px-3 py-2">{serverError}</p>
+        <AlertBanner tone="error">{serverError}</AlertBanner>
       )}
       <input type="hidden" name="team_id" value={teamId} />
 

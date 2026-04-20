@@ -3,6 +3,7 @@ import { getUserTeams } from "@/lib/team-context";
 import { getTranslations } from "next-intl/server";
 import Link from "next/link";
 import { FileText, Plus } from "lucide-react";
+import { formatDate } from "@theshyre/ui";
 import { buttonPrimaryClass } from "@/lib/form-styles";
 import { formatCurrency } from "@/lib/invoice-utils";
 import { TeamFilter } from "@/components/TeamFilter";
@@ -94,7 +95,7 @@ export default async function InvoicesPage({
                     </td>
                     <td className="px-4 py-3 text-content-secondary text-xs">
                       {inv.issued_date
-                        ? new Date(inv.issued_date).toLocaleDateString()
+                        ? formatDate(inv.issued_date)
                         : "—"}
                     </td>
                     <td className="px-4 py-3 font-mono text-content">

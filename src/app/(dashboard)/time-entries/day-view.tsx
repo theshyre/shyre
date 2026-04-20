@@ -3,14 +3,14 @@
 import { useCallback, useMemo, useState, useTransition } from "react";
 import { useRouter, usePathname, useSearchParams } from "next/navigation";
 import { useTranslations } from "next-intl";
-import { ChevronLeft, ChevronRight, Loader2 } from "lucide-react";
+import { ChevronLeft, ChevronRight } from "lucide-react";
 import { formatDurationHMZero } from "@/lib/time/week";
 import { addLocalDays, utcToLocalDateStr } from "@/lib/time/tz";
 import {
   buttonSecondaryClass,
   kbdClass,
 } from "@/lib/form-styles";
-import { useKeyboardShortcut } from "@theshyre/ui";
+import { Spinner, useKeyboardShortcut } from "@theshyre/ui";
 import { EntryTable } from "./entry-table";
 import type { CategoryOption, ProjectOption, TimeEntry } from "./types";
 import type { EntryGroup } from "@/lib/time/grouping";
@@ -167,7 +167,7 @@ export function DayView({
         <h2 className="text-lg font-semibold text-content inline-flex items-center gap-2">
           {titleLabel}
           {isPending && (
-            <Loader2 size={16} className="animate-spin text-content-muted" />
+            <Spinner color="border-t-content-muted" />
           )}
         </h2>
         <button

@@ -3,7 +3,7 @@
 import { useCallback, useState } from "react";
 import { useTranslations } from "next-intl";
 import { Plus } from "lucide-react";
-import { useKeyboardShortcut } from "@theshyre/ui";
+import { AlertBanner, useKeyboardShortcut } from "@theshyre/ui";
 import { useFormAction } from "@/hooks/use-form-action";
 import {
   inputClass,
@@ -66,9 +66,7 @@ export function NewExpenseForm({ teamId, projects }: Props): React.JSX.Element {
       <input type="hidden" name="team_id" value={teamId} />
 
       {serverError && (
-        <p className="text-sm text-error bg-error-soft rounded-lg px-3 py-2">
-          {serverError}
-        </p>
+        <AlertBanner tone="error">{serverError}</AlertBanner>
       )}
 
       <div className="grid gap-3 sm:grid-cols-3">

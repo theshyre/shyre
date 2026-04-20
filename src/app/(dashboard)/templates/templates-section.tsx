@@ -5,7 +5,7 @@ import { useTranslations } from "next-intl";
 import { Plus, Pencil, Trash2, Bookmark } from "lucide-react";
 import type { TeamListItem } from "@/lib/team-context";
 import type { TimeTemplate } from "@/lib/templates/types";
-import { useKeyboardShortcut } from "@theshyre/ui";
+import { AlertBanner, useKeyboardShortcut } from "@theshyre/ui";
 import { useFormAction } from "@/hooks/use-form-action";
 import { SubmitButton } from "@/components/SubmitButton";
 import { TeamSelector } from "@/components/TeamSelector";
@@ -236,9 +236,7 @@ function TemplateForm({
       className="space-y-3 rounded-lg border border-accent bg-surface-raised p-4"
     >
       {form.serverError && (
-        <p className="text-sm text-error bg-error-soft rounded-lg px-3 py-2">
-          {form.serverError}
-        </p>
+        <AlertBanner tone="error">{form.serverError}</AlertBanner>
       )}
       {template && <input type="hidden" name="id" value={template.id} />}
       {!template && <TeamSelector teams={teams} />}

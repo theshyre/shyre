@@ -2,6 +2,7 @@
 
 import { useTranslations } from "next-intl";
 import { Users } from "lucide-react";
+import { AlertBanner } from "@theshyre/ui";
 import {
   inputClass,
   textareaClass,
@@ -47,9 +48,7 @@ export function CustomerEditForm({
       </div>
 
       {serverError && (
-        <p className="text-sm text-error bg-error-soft rounded-lg px-3 py-2">
-          {serverError}
-        </p>
+        <AlertBanner tone="error">{serverError}</AlertBanner>
       )}
 
       <div className="rounded-lg border border-edge bg-surface-raised p-4 space-y-3">

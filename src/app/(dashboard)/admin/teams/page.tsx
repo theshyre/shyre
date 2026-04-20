@@ -10,6 +10,7 @@ import {
   ChevronLeft,
   ChevronRight,
 } from "lucide-react";
+import { formatDate } from "@theshyre/ui";
 
 const PAGE_SIZE = 50;
 const MAX_PAGE = 200; // Hard ceiling against absurd page-jumping.
@@ -88,7 +89,7 @@ export default async function AdminOrganizationsPage({
               <div className="text-right">
                 <p className="text-xs text-content-muted">Created</p>
                 <p className="text-xs text-content-secondary">
-                  {new Date(org.created_at).toLocaleDateString()}
+                  {formatDate(org.created_at)}
                 </p>
               </div>
             </div>

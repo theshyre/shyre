@@ -22,6 +22,7 @@ import {
   Calendar,
   ALargeSmall,
 } from "lucide-react";
+import { AlertBanner } from "@theshyre/ui";
 import { MfaSetup } from "@/components/MfaSetup";
 import { useFormAction } from "@/hooks/use-form-action";
 import { SubmitButton } from "@/components/SubmitButton";
@@ -416,11 +417,7 @@ function SectionHeader({
 }
 
 function ErrorBanner({ text }: { text: string }): React.JSX.Element {
-  return (
-    <p className="text-sm text-error bg-error-soft rounded-lg px-3 py-2">
-      {text}
-    </p>
-  );
+  return <AlertBanner tone="error">{text}</AlertBanner>;
 }
 
 // Browser-only helpers for useSyncExternalStore — the "store" here is the

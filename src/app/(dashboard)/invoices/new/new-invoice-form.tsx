@@ -2,6 +2,7 @@
 
 import { useTranslations } from "next-intl";
 import { FileText } from "lucide-react";
+import { AlertBanner } from "@theshyre/ui";
 import { useFormAction } from "@/hooks/use-form-action";
 import { SubmitButton } from "@/components/SubmitButton";
 import {
@@ -41,7 +42,7 @@ export function NewInvoiceForm({
       className="mt-6 space-y-4"
     >
       {serverError && (
-        <p className="text-sm text-error bg-error-soft rounded-lg px-3 py-2">{serverError}</p>
+        <AlertBanner tone="error">{serverError}</AlertBanner>
       )}
       <TeamSelector teams={teams} />
       <div className="rounded-lg border border-edge bg-surface-raised p-4 space-y-4">

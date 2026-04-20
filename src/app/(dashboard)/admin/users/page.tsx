@@ -1,6 +1,7 @@
 import { requireSystemAdmin } from "@/lib/system-admin";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { Users, Crown } from "lucide-react";
+import { formatDate } from "@theshyre/ui";
 
 export default async function AdminUsersPage(): Promise<React.JSX.Element> {
   await requireSystemAdmin();
@@ -107,7 +108,7 @@ export default async function AdminUsersPage(): Promise<React.JSX.Element> {
                     {teamCount}
                   </td>
                   <td className="px-4 py-3 text-content-muted text-xs">
-                    {new Date(u.created_at).toLocaleDateString()}
+                    {formatDate(u.created_at)}
                   </td>
                   <td className="px-4 py-3 text-content-muted text-xs">
                     {u.last_sign_in_at

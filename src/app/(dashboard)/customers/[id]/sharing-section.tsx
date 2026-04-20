@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { useTranslations } from "next-intl";
 import { Share2, Plus, X, Building2 } from "lucide-react";
+import { AlertBanner } from "@theshyre/ui";
 import { useFormAction } from "@/hooks/use-form-action";
 import { SubmitButton } from "@/components/SubmitButton";
 import {
@@ -135,9 +136,7 @@ export function SharingSection({
             >
               <input type="hidden" name="customer_id" value={customerId} />
               {addError && (
-                <p className="text-sm text-error bg-error-soft rounded-lg px-3 py-2">
-                  {addError}
-                </p>
+                <AlertBanner tone="error">{addError}</AlertBanner>
               )}
               <div>
                 <label className={labelClass}>{t("addTeam")} *</label>
