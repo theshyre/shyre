@@ -6,11 +6,17 @@ vi.mock("./actions", () => ({
   updateTimeEntryAction: vi.fn(),
   deleteTimeEntryAction: vi.fn(),
   duplicateTimeEntryAction: vi.fn(),
+  startTimerAction: vi.fn(),
 }));
 
 import { EntryTable } from "./entry-table";
+import { ToastProvider } from "@/components/Toast";
 import type { EntryGroup } from "@/lib/time/grouping";
 import type { TimeEntry } from "./types";
+
+function renderTable(ui: React.ReactElement): ReturnType<typeof renderWithIntl> {
+  return renderWithIntl(<ToastProvider>{ui}</ToastProvider>);
+}
 
 function makeEntry(id: string, opts?: {
   description?: string;
@@ -60,7 +66,7 @@ function group(
 
 describe("EntryTable", () => {
   it("renders table headers", () => {
-    renderWithIntl(
+    renderTable(
       <EntryTable
         groups={[group("g1", "Today", [makeEntry("a")])]}
         projects={[]}
@@ -75,7 +81,7 @@ describe("EntryTable", () => {
   });
 
   it("renders empty state when all groups are empty", () => {
-    renderWithIntl(
+    renderTable(
       <EntryTable
         groups={[]}
         projects={[]}
@@ -88,7 +94,7 @@ describe("EntryTable", () => {
   });
 
   it("renders group header with label and total in H:MM format", () => {
-    renderWithIntl(
+    renderTable(
       <EntryTable
         groups={[
           group("g1", "Feature", [makeEntry("a", { durationMin: 195 })], {
@@ -108,7 +114,7 @@ describe("EntryTable", () => {
   });
 
   it("hides group header when hideGroupHeaders=true", () => {
-    renderWithIntl(
+    renderTable(
       <EntryTable
         groups={[group("g1", "Feature", [makeEntry("a")])]}
         projects={[]}
@@ -122,7 +128,7 @@ describe("EntryTable", () => {
   });
 
   it("shows H:MM duration for each entry", () => {
-    renderWithIntl(
+    renderTable(
       <EntryTable
         groups={[group("g1", "T", [makeEntry("a", { durationMin: 45 })])]}
         projects={[]}
@@ -137,7 +143,7 @@ describe("EntryTable", () => {
 
   it("clicking a row calls onToggleExpand with the entry id", () => {
     const onToggle = vi.fn();
-    renderWithIntl(
+    renderTable(
       <EntryTable
         groups={[group("g1", "T", [makeEntry("a")])]}
         projects={[]}
@@ -152,7 +158,7 @@ describe("EntryTable", () => {
   });
 
   it("renders the edit form spanning the table width when expanded", () => {
-    renderWithIntl(
+    renderTable(
       <EntryTable
         groups={[
           group("g1", "T", [

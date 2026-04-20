@@ -109,6 +109,8 @@
   },
   "entry": {
     "edit": "Edit",
+    "startTimer": "Start timer",
+    "startTimerFromRow": "Start timer for this project",
     "duplicate": "Duplicate",
     "delete": "Delete",
     "confirmDelete": "Confirm delete",
@@ -174,7 +176,8 @@
   "toast": {
     "entryDeleted": "Entry moved to trash",
     "entriesDeleted": "{count, plural, one {# entry} other {# entries}} moved to trash",
-    "undo": "Undo"
+    "undo": "Undo",
+    "timerStarted": "Timer started"
   },
   "trash": {
     "title": "Trash",

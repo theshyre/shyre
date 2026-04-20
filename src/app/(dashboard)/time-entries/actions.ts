@@ -258,13 +258,28 @@ export async function startTimerAction(formData: FormData): Promise<void> {
     // depth. RLS would block it too, but we want a clean userMessage.
     const { userId } = await validateTeamAccess(teamId);
 
+    const now = new Date().toISOString();
+
+    // Stop any running timer the user already has before starting a new
+    // one. The running-timer card enforces stop-before-start in its own
+    // UI, but other entry points (week-row Play, day-row kebab "Start
+    // timer") don't — so we enforce it here, centrally.
+    assertSupabaseOk(
+      await supabase
+        .from("time_entries")
+        .update({ end_time: now })
+        .eq("user_id", userId)
+        .is("end_time", null)
+        .is("deleted_at", null),
+    );
+
     assertSupabaseOk(
       await supabase.from("time_entries").insert({
         team_id: teamId,
         user_id: userId,
         project_id,
         description,
-        start_time: new Date().toISOString(),
+        start_time: now,
         end_time: null,
         billable: true,
         category_id,

@@ -2,18 +2,25 @@ import { describe, it, expect, vi, beforeEach } from "vitest";
 import { screen, fireEvent, waitFor } from "@testing-library/react";
 import { renderWithIntl } from "@/test/intl";
 
-const { duplicateMock, deleteMock } = vi.hoisted(() => ({
+const { duplicateMock, deleteMock, startTimerMock } = vi.hoisted(() => ({
   duplicateMock: vi.fn(async (_fd: FormData) => {}),
   deleteMock: vi.fn(async (_fd: FormData) => {}),
+  startTimerMock: vi.fn(async (_fd: FormData) => {}),
 }));
 
 vi.mock("./actions", () => ({
   duplicateTimeEntryAction: duplicateMock,
   deleteTimeEntryAction: deleteMock,
+  startTimerAction: startTimerMock,
 }));
 
 import { EntryKebabMenu } from "./entry-kebab-menu";
+import { ToastProvider } from "@/components/Toast";
 import type { TimeEntry } from "./types";
+
+function renderMenu(ui: React.ReactElement): ReturnType<typeof renderWithIntl> {
+  return renderWithIntl(<ToastProvider>{ui}</ToastProvider>);
+}
 
 const entry: TimeEntry = {
   id: "e1",
@@ -38,12 +45,12 @@ describe("EntryKebabMenu", () => {
   });
 
   it("is closed by default", () => {
-    renderWithIntl(<EntryKebabMenu entry={entry} onEdit={() => {}} />);
+    renderMenu(<EntryKebabMenu entry={entry} onEdit={() => {}} />);
     expect(screen.queryByText(/edit/i)).not.toBeInTheDocument();
   });
 
   it("opens when the trigger is clicked", () => {
-    renderWithIntl(<EntryKebabMenu entry={entry} onEdit={() => {}} />);
+    renderMenu(<EntryKebabMenu entry={entry} onEdit={() => {}} />);
     fireEvent.click(screen.getByLabelText(/entry actions/i));
     expect(screen.getByText("Edit")).toBeInTheDocument();
     expect(screen.getByText("Duplicate")).toBeInTheDocument();
@@ -52,7 +59,7 @@ describe("EntryKebabMenu", () => {
 
   it("calls onEdit when Edit is clicked and closes the menu", () => {
     const onEdit = vi.fn();
-    renderWithIntl(<EntryKebabMenu entry={entry} onEdit={onEdit} />);
+    renderMenu(<EntryKebabMenu entry={entry} onEdit={onEdit} />);
     fireEvent.click(screen.getByLabelText(/entry actions/i));
     fireEvent.click(screen.getByText("Edit"));
     expect(onEdit).toHaveBeenCalled();
@@ -60,7 +67,7 @@ describe("EntryKebabMenu", () => {
   });
 
   it("calls duplicate action when Duplicate clicked", async () => {
-    renderWithIntl(<EntryKebabMenu entry={entry} onEdit={() => {}} />);
+    renderMenu(<EntryKebabMenu entry={entry} onEdit={() => {}} />);
     fireEvent.click(screen.getByLabelText(/entry actions/i));
     fireEvent.click(screen.getByText("Duplicate"));
     await waitFor(() => expect(duplicateMock).toHaveBeenCalled());
@@ -69,7 +76,7 @@ describe("EntryKebabMenu", () => {
   });
 
   it("requires two clicks to delete (Delete → Confirm delete)", async () => {
-    renderWithIntl(<EntryKebabMenu entry={entry} onEdit={() => {}} />);
+    renderMenu(<EntryKebabMenu entry={entry} onEdit={() => {}} />);
     fireEvent.click(screen.getByLabelText(/entry actions/i));
     // First click reveals confirm
     fireEvent.click(screen.getByText("Delete"));
@@ -80,10 +87,30 @@ describe("EntryKebabMenu", () => {
   });
 
   it("closes on Escape", () => {
-    renderWithIntl(<EntryKebabMenu entry={entry} onEdit={() => {}} />);
+    renderMenu(<EntryKebabMenu entry={entry} onEdit={() => {}} />);
     fireEvent.click(screen.getByLabelText(/entry actions/i));
     expect(screen.getByText("Edit")).toBeInTheDocument();
     fireEvent.keyDown(document, { key: "Escape" });
     expect(screen.queryByText("Edit")).not.toBeInTheDocument();
+  });
+
+  it("Start timer seeds the action with the entry's project + description", async () => {
+    startTimerMock.mockClear();
+    const entryWithCategory: TimeEntry = {
+      ...entry,
+      project_id: "p-seed",
+      category_id: "c-seed",
+      description: "seed description",
+    };
+    renderMenu(
+      <EntryKebabMenu entry={entryWithCategory} onEdit={() => {}} />,
+    );
+    fireEvent.click(screen.getByLabelText(/entry actions/i));
+    fireEvent.click(screen.getByText(/start timer/i));
+    await waitFor(() => expect(startTimerMock).toHaveBeenCalled());
+    const fd = startTimerMock.mock.calls[0]?.[0];
+    expect(fd?.get("project_id")).toBe("p-seed");
+    expect(fd?.get("category_id")).toBe("c-seed");
+    expect(fd?.get("description")).toBe("seed description");
   });
 });

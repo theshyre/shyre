@@ -13,10 +13,16 @@ vi.mock("./actions", () => ({
   updateTimeEntryAction: vi.fn(),
   deleteTimeEntryAction: vi.fn(),
   duplicateTimeEntryAction: vi.fn(),
+  startTimerAction: vi.fn(),
 }));
 
 import { DayView } from "./day-view";
+import { ToastProvider } from "@/components/Toast";
 import type { TimeEntry } from "./types";
+
+function renderDay(ui: React.ReactElement): ReturnType<typeof renderWithIntl> {
+  return renderWithIntl(<ToastProvider>{ui}</ToastProvider>);
+}
 
 function makeEntry(id: string, start: Date, durationMin = 60): TimeEntry {
   const end = new Date(start.getTime() + durationMin * 60 * 1000);
@@ -120,7 +126,7 @@ describe("DayView", () => {
   });
 
   it("renders the day's entries", () => {
-    renderWithIntl(
+    renderDay(
       <DayView
         dayStr="2026-04-14"
         weekStartStr={weekStartStr}

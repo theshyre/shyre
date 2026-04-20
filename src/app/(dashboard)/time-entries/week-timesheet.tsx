@@ -16,6 +16,7 @@ import {
   ChevronRight,
   ChevronsDown,
   ChevronsUp,
+  Play,
   Plus,
 } from "lucide-react";
 import { Avatar, resolveAvatarUrl } from "@theshyre/ui";
@@ -26,6 +27,7 @@ import {
   upsertTimesheetCellAction,
   deleteTimeEntryAction,
   restoreTimeEntriesAction,
+  startTimerAction,
 } from "./actions";
 import {
   buttonSecondaryClass,
@@ -467,6 +469,21 @@ export function WeekTimesheet({
     }
   }
 
+  // Start a new timer seeded with this row's project + category. Fires
+  // the shared `startTimerAction`, which server-side stops whatever the
+  // viewer had running before inserting the new entry — so the user can
+  // never end up with two concurrently-running timers.
+  async function startTimerFromRow(
+    projectId: string,
+    categoryId: string | null,
+  ): Promise<void> {
+    const fd = new FormData();
+    fd.set("project_id", projectId);
+    if (categoryId) fd.set("category_id", categoryId);
+    await save.wrap(startTimerAction(fd));
+    toast.push({ kind: "success", message: tToast("timerStarted") });
+  }
+
   // 2D ref map keyed by `${rowIndex}:${dayIndex}` for keyboard navigation
   // between cells. Parent keeps a Map so individual rows don't need to
   // thread a callback through React's DOM attribute surface.
@@ -699,6 +716,7 @@ export function WeekTimesheet({
               onCellCommit={submitCell}
               onDelete={deleteRow}
               onDiscardEmpty={removeEmptyRow}
+              onStartTimer={startTimerFromRow}
             />
           );
         })}
@@ -761,6 +779,7 @@ function TimesheetRow({
   onCellCommit,
   onDelete,
   onDiscardEmpty,
+  onStartTimer,
   weekDays,
   todayStr,
   setCellRef,
@@ -778,6 +797,8 @@ function TimesheetRow({
   onCellCommit: (dayIndex: number, minutes: number) => void | Promise<void>;
   onDelete: () => void;
   onDiscardEmpty: () => void;
+  /** Start a new timer seeded with this row's project + category. */
+  onStartTimer: () => void;
   weekDays: string[];
   todayStr: string;
   setCellRef: (row: number, day: number, el: HTMLInputElement | null) => void;
@@ -785,6 +806,7 @@ function TimesheetRow({
 }): React.JSX.Element {
   const t = useTranslations("time.timesheet");
   const tc = useTranslations("common.actions");
+  const tEntry = useTranslations("time.entry");
   const project = projects.find((p) => p.id === row.projectId);
   const category = row.categoryId
     ? categories.find((c) => c.id === row.categoryId)
@@ -902,20 +924,38 @@ function TimesheetRow({
         )}
       </td>
       <td className="px-2 py-2 text-right">
-        {editable && hasSavedData ? (
-          <InlineDeleteRowConfirm
-            ariaLabel={t("deleteRow")}
-            onConfirm={onDelete}
-            summary={tc("deleteCount", { count: entryCount })}
-          />
-        ) : editable ? (
-          // Blank row (user added it, never typed anything). No persisted
-          // data — just drop from local state, no confirm needed.
-          <InlineDeleteButton
-            ariaLabel={t("discardRow")}
-            onConfirm={onDiscardEmpty}
-          />
-        ) : null}
+        <div className="flex items-center justify-end gap-1">
+          {editable && (
+            // "Start timer" seeded from this row. Visible on every row
+            // the viewer owns — not only rows with saved data, since
+            // the user may want to kick off a timer on a just-added
+            // blank row too. Server-side auto-stops any other running
+            // timer, so a second click never doubles up.
+            <button
+              type="button"
+              onClick={onStartTimer}
+              aria-label={tEntry("startTimerFromRow")}
+              title={tEntry("startTimerFromRow")}
+              className="rounded p-1 text-content-muted hover:bg-hover hover:text-accent transition-colors"
+            >
+              <Play size={14} />
+            </button>
+          )}
+          {editable && hasSavedData ? (
+            <InlineDeleteRowConfirm
+              ariaLabel={t("deleteRow")}
+              onConfirm={onDelete}
+              summary={tc("deleteCount", { count: entryCount })}
+            />
+          ) : editable ? (
+            // Blank row (user added it, never typed anything). No persisted
+            // data — just drop from local state, no confirm needed.
+            <InlineDeleteButton
+              ariaLabel={t("discardRow")}
+              onConfirm={onDiscardEmpty}
+            />
+          ) : null}
+        </div>
       </td>
     </tr>
   );
@@ -941,6 +981,7 @@ function GroupBlock({
   onCellCommit,
   onDelete,
   onDiscardEmpty,
+  onStartTimer,
 }: {
   group: RowGroup;
   groupBy: GroupBy;
@@ -971,6 +1012,10 @@ function GroupBlock({
     userId: string,
   ) => void | Promise<void>;
   onDiscardEmpty: (projectId: string, categoryId: string | null) => void;
+  onStartTimer: (
+    projectId: string,
+    categoryId: string | null,
+  ) => void | Promise<void>;
 }): React.JSX.Element {
   const tHeader = useTranslations("time.timesheet.groupHeader");
 
@@ -1044,6 +1089,9 @@ function GroupBlock({
               onDiscardEmpty={() =>
                 onDiscardEmpty(row.projectId, row.categoryId)
               }
+              onStartTimer={() => {
+                void onStartTimer(row.projectId, row.categoryId);
+              }}
               weekDays={weekDays}
               todayStr={todayStr}
               setCellRef={setCellRef}
