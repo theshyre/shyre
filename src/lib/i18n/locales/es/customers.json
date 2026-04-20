@@ -18,5 +18,6 @@
   "projects": {
     "title": "Proyectos",
     "noProjects": "Aún no hay proyectos para este cliente."
-  }
+  },
+  "sharedWith": "{count, plural, one {Compartido con # organización} other {Compartido con # organizaciones}}"
 }

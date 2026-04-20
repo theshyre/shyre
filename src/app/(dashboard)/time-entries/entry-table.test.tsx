@@ -201,6 +201,49 @@ describe("EntryTable", () => {
     expect(fd?.getAll("id").sort()).toEqual(["a", "b"]);
   });
 
+  it("keeps column headers mounted and stable when selection is active", () => {
+    const { container } = renderTable(
+      <EntryTable
+        groups={[group("g1", "T", [makeEntry("a"), makeEntry("b")])]}
+        projects={[]}
+        categories={[]}
+        expandedEntryId={null}
+        onToggleExpand={() => {}}
+        hideGroupHeaders
+      />,
+    );
+    // Baseline: grab the <th> widths from the header row.
+    const theadBefore = container.querySelector("thead");
+    expect(theadBefore).toBeTruthy();
+    const headerCellsBefore = Array.from(
+      theadBefore!.querySelectorAll("th"),
+    );
+    const headerTextsBefore = headerCellsBefore.map(
+      (c) => c.textContent?.trim() ?? "",
+    );
+
+    // Select one row; the bulk strip should overlay, not swap headers.
+    const rowCheckboxes = container.querySelectorAll<HTMLInputElement>(
+      "tbody input[type='checkbox']",
+    );
+    rowCheckboxes[0]!.click();
+
+    // Column header <th> cells still present with the same text — the
+    // overlay is a separate element, the thead is not mutated.
+    const headerCellsAfter = Array.from(
+      container.querySelectorAll("thead th"),
+    );
+    const headerTextsAfter = headerCellsAfter.map(
+      (c) => c.textContent?.trim() ?? "",
+    );
+    expect(headerTextsAfter).toEqual(headerTextsBefore);
+
+    // Bulk strip is rendered as a sibling toolbar role, not inside thead.
+    const toolbar = screen.getByRole("toolbar", { name: /bulk/i });
+    expect(toolbar.tagName).toBe("DIV");
+    expect(toolbar.closest("thead")).toBeNull();
+  });
+
   it("renders the edit form spanning the table width when expanded", () => {
     renderTable(
       <EntryTable

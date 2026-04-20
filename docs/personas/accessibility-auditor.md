@@ -30,3 +30,8 @@ When reviewing a change, flag:
 - [ ] **No `user-select: none` on text content?** (Project rule: all on-screen text selectable.)
 - [ ] **Dynamic content updates announced where meaningful?** `aria-live` for errors, toasts, async results.
 - [ ] **Large interactive targets?** ≥24px hit area for icon-only controls (mobile / tremor-tolerant).
+- [ ] **Multi-select tables use `aria-hidden` on the `<thead>` when selection is active** and `<div role="toolbar">` for the overlay strip? Master checkbox inside the overlay is focused; the thead's checkbox gets `tabIndex={-1}` so Tab doesn't visit it twice. Escape clears selection.
+- [ ] **Tooltips wired via `aria-describedby` (default) or `aria-label` (`labelMode="label"`) — never both**, so screen readers don't double-announce the trigger's name?
+- [ ] **Every tooltip reachable via keyboard focus**, hoverable per WCAG 2.1 SC 1.4.13, Escape dismisses, one open at a time?
+- [ ] **No tooltip is load-bearing on mobile** — on `hover:none` devices the primitive is suppressed, so any mobile-required information is visible inline?
+- [ ] **`prefers-reduced-motion` honored** — tooltip fade transition is disabled under the media query?

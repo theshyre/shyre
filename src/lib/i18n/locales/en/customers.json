@@ -18,5 +18,6 @@
   "projects": {
     "title": "Projects",
     "noProjects": "No projects yet for this customer."
-  }
+  },
+  "sharedWith": "{count, plural, one {Shared with # organization} other {Shared with # organizations}}"
 }

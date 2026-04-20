@@ -18,6 +18,7 @@ import {
   Check,
 } from "lucide-react";
 import { useTheme } from "./theme-provider";
+import { Tooltip } from "./Tooltip";
 
 type Theme = "system" | "light" | "dark" | "high-contrast" | "warm";
 
@@ -72,16 +73,17 @@ export function ThemePickerPopover(): React.JSX.Element {
 
   return (
     <div ref={rootRef} className="relative">
-      <button
-        type="button"
-        onClick={() => setOpen((p) => !p)}
-        aria-label={`${t("title")}: ${currentLabel}`}
-        aria-expanded={open}
-        title={t("title")}
-        className="inline-flex h-8 w-8 items-center justify-center rounded-md border border-edge text-content-secondary hover:bg-hover transition-colors"
-      >
-        <Palette size={14} />
-      </button>
+      <Tooltip label={t("title")}>
+        <button
+          type="button"
+          onClick={() => setOpen((p) => !p)}
+          aria-label={`${t("title")}: ${currentLabel}`}
+          aria-expanded={open}
+          className="inline-flex h-8 w-8 items-center justify-center rounded-md border border-edge text-content-secondary hover:bg-hover transition-colors"
+        >
+          <Palette size={14} />
+        </button>
+      </Tooltip>
 
       {open && (
         <div

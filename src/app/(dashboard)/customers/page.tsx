@@ -4,6 +4,7 @@ import { getTranslations } from "next-intl/server";
 import Link from "next/link";
 import { Users, Share2 } from "lucide-react";
 import { TeamFilter } from "@/components/TeamFilter";
+import { Tooltip } from "@/components/Tooltip";
 import { NewCustomerForm } from "./new-customer-form";
 import { ArchiveButton } from "./archive-button";
 
@@ -143,13 +144,14 @@ export default async function ClientsPage({
                           {client.name}
                         </Link>
                         {shareCount > 0 && (
-                          <span
-                            title={`Shared with ${shareCount} org${shareCount === 1 ? "" : "s"}`}
-                            className="inline-flex items-center gap-1 rounded-full bg-accent-soft px-2 py-0.5 text-[10px] font-medium text-accent"
-                          >
-                            <Share2 size={10} />
-                            {shareCount}
-                          </span>
+                          <Tooltip label={t("sharedWith", { count: shareCount })}>
+                            <span
+                              className="inline-flex items-center gap-1 rounded-full bg-accent-soft px-2 py-0.5 text-[10px] font-medium text-accent"
+                            >
+                              <Share2 size={10} />
+                              {shareCount}
+                            </span>
+                          </Tooltip>
                         )}
                       </div>
                     </td>

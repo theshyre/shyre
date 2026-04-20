@@ -1,11 +1,12 @@
 "use client";
 
-import { useCallback, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useTranslations } from "next-intl";
 import { formatDurationHM } from "@/lib/time/week";
 import type { EntryGroup } from "@/lib/time/grouping";
 import { EntryRow } from "./entry-row";
 import { InlineDeleteRowConfirm } from "@/components/InlineDeleteRowConfirm";
+import { Tooltip } from "@/components/Tooltip";
 import { useToast } from "@/components/Toast";
 import {
   deleteTimeEntriesAction,
@@ -53,6 +54,23 @@ export function EntryTable({
     [visibleEntries],
   );
 
+  // Measure the header row's rendered height so the bulk-action strip can
+  // overlay it pixel-perfectly. Text-size preference scales typography, so
+  // the static "h-10" guess would drift at Compact / Large — ResizeObserver
+  // tracks the real value.
+  const theadRef = useRef<HTMLTableSectionElement>(null);
+  const [theadHeight, setTheadHeight] = useState<number>(0);
+  useEffect(() => {
+    const el = theadRef.current;
+    if (!el) return;
+    const update = (): void => setTheadHeight(el.getBoundingClientRect().height);
+    update();
+    if (typeof ResizeObserver === "undefined") return;
+    const ro = new ResizeObserver(update);
+    ro.observe(el);
+    return () => ro.disconnect();
+  }, []);
+
   const toggleOne = useCallback((id: string) => {
     setSelectedIds((prev) => {
       const next = new Set(prev);
@@ -74,6 +92,17 @@ export function EntryTable({
       return new Set(visibleIds);
     });
   }, [visibleIds]);
+
+  // Escape clears an active selection. Only bound while someSelected so
+  // we never swallow Escape when there's nothing to cancel out of.
+  useEffect(() => {
+    if (!someSelected) return;
+    function onKey(e: KeyboardEvent): void {
+      if (e.key === "Escape") setSelectedIds(new Set());
+    }
+    document.addEventListener("keydown", onKey);
+    return () => document.removeEventListener("keydown", onKey);
+  }, [someSelected]);
 
   const bulkDelete = useCallback(async () => {
     const ids = Array.from(selectedIds);
@@ -103,82 +132,53 @@ export function EntryTable({
   }
 
   return (
-    <div className="rounded-lg border border-edge bg-surface-raised overflow-hidden">
+    <div className="relative rounded-lg border border-edge bg-surface-raised overflow-hidden">
       <table className="w-full text-body">
-        <thead className="bg-surface-inset">
-          {someSelected ? (
-            /* Gmail-style toolbar: the header row's content swaps when
-               a selection is active. Row height stays the same, so
-               toggling selection never shifts the table. */
-            <tr role="toolbar" aria-label={t("bulk.label")}>
-              <th className="w-10 pl-4 py-2 text-left">
-                <input
-                  type="checkbox"
-                  checked={allSelected}
-                  ref={(el) => {
-                    if (el) el.indeterminate = !allSelected && someSelected;
-                  }}
-                  onChange={toggleAll}
-                  aria-label={t("bulk.selectAll")}
-                  className="h-4 w-4 rounded border-edge text-accent focus:ring-focus-ring"
-                />
-              </th>
-              <th
-                colSpan={6}
-                className="py-2 text-left text-body font-medium text-accent-text"
-              >
-                <span>{t("bulk.selectedCount", { count: selectedIds.size })}</span>
-                <button
-                  type="button"
-                  onClick={() => setSelectedIds(new Set())}
-                  className="ml-4 text-caption text-content-secondary hover:text-content hover:underline"
-                >
-                  {t("bulk.clear")}
-                </button>
-              </th>
-              <th className="px-2 py-1 text-right">
-                <InlineDeleteRowConfirm
-                  ariaLabel={t("bulk.delete")}
-                  onConfirm={bulkDelete}
-                  summary={tc("deleteCount", { count: selectedIds.size })}
-                />
-              </th>
-            </tr>
-          ) : (
-            <tr>
-              <th className="w-10 pl-4 py-2 text-left">
-                <input
-                  type="checkbox"
-                  checked={allSelected}
-                  ref={(el) => {
-                    if (el) el.indeterminate = !allSelected && someSelected;
-                  }}
-                  onChange={toggleAll}
-                  aria-label={t("bulk.selectAll")}
-                  className="h-4 w-4 rounded border-edge text-accent focus:ring-focus-ring"
-                />
-              </th>
-              <th className="py-2 pr-3 text-left text-label font-semibold uppercase tracking-wider text-content-muted">
-                {t("tableHeaders.category")}
-              </th>
-              <th className="px-3 py-2 text-left text-label font-semibold uppercase tracking-wider text-content-muted">
-                {t("tableHeaders.projectDescription")}
-              </th>
-              <th className="px-3 py-2 text-left text-label font-semibold uppercase tracking-wider text-content-muted">
-                {t("tableHeaders.member")}
-              </th>
-              <th className="px-3 py-2 text-right text-label font-semibold uppercase tracking-wider text-content-muted">
-                {t("tableHeaders.time")}
-              </th>
-              <th className="px-3 py-2 text-right text-label font-semibold uppercase tracking-wider text-content-muted">
-                {t("tableHeaders.duration")}
-              </th>
-              <th className="px-2 py-2 text-center text-label font-semibold uppercase tracking-wider text-content-muted">
-                {t("tableHeaders.billable")}
-              </th>
-              <th className="px-2 py-2" aria-label="actions" />
-            </tr>
-          )}
+        {/* Column headers stay mounted at all times. When a selection is
+            active the bulk strip overlays this row visually, but the
+            <th> cells remain the authoritative source of column widths
+            so toggling selection never shifts layout (vertical or
+            horizontal). AT hears the toolbar instead of stale headers
+            via aria-hidden. */}
+        <thead
+          ref={theadRef}
+          className="bg-surface-inset"
+          aria-hidden={someSelected || undefined}
+        >
+          <tr>
+            <th className="w-10 pl-4 py-2 text-left">
+              <input
+                type="checkbox"
+                checked={allSelected}
+                ref={(el) => {
+                  if (el) el.indeterminate = !allSelected && someSelected;
+                }}
+                onChange={toggleAll}
+                aria-label={t("bulk.selectAll")}
+                tabIndex={someSelected ? -1 : 0}
+                className="h-4 w-4 rounded border-edge text-accent focus:ring-focus-ring"
+              />
+            </th>
+            <th className="py-2 pr-3 text-left text-label font-semibold uppercase tracking-wider text-content-muted">
+              {t("tableHeaders.category")}
+            </th>
+            <th className="px-3 py-2 text-left text-label font-semibold uppercase tracking-wider text-content-muted">
+              {t("tableHeaders.projectDescription")}
+            </th>
+            <th className="px-3 py-2 text-left text-label font-semibold uppercase tracking-wider text-content-muted">
+              {t("tableHeaders.member")}
+            </th>
+            <th className="px-3 py-2 text-right text-label font-semibold uppercase tracking-wider text-content-muted">
+              {t("tableHeaders.time")}
+            </th>
+            <th className="px-3 py-2 text-right text-label font-semibold uppercase tracking-wider text-content-muted">
+              {t("tableHeaders.duration")}
+            </th>
+            <th className="px-2 py-2 text-center text-label font-semibold uppercase tracking-wider text-content-muted">
+              {t("tableHeaders.billable")}
+            </th>
+            <th className="px-2 py-2" aria-label="actions" />
+          </tr>
         </thead>
         <tbody>
           {groups.map((group) => (
@@ -197,6 +197,52 @@ export function EntryTable({
           ))}
         </tbody>
       </table>
+      {/* Bulk-action strip. Absolute-positioned over the header row so
+          column widths stay owned by <th> cells; height is measured from
+          the thead ref so Compact / Regular / Large text-size
+          preferences all align. Same background as the thead, so the
+          replacement reads as a mode change rather than a layout
+          shift. */}
+      {someSelected && (
+        <div
+          role="toolbar"
+          aria-label={t("bulk.label")}
+          className="absolute left-0 right-0 top-0 z-10 flex items-center gap-4 bg-surface-inset border-b border-edge px-4"
+          style={theadHeight > 0 ? { height: theadHeight } : undefined}
+        >
+          <input
+            type="checkbox"
+            checked={allSelected}
+            ref={(el) => {
+              if (el) el.indeterminate = !allSelected && someSelected;
+            }}
+            onChange={toggleAll}
+            aria-label={t("bulk.selectAll")}
+            className="h-4 w-4 rounded border-edge text-accent focus:ring-focus-ring"
+          />
+          <span className="text-body font-medium text-accent-text">
+            {t("bulk.selectedCount", { count: selectedIds.size })}
+          </span>
+          <button
+            type="button"
+            onClick={() => setSelectedIds(new Set())}
+            className="text-caption text-content-secondary hover:text-content hover:underline"
+          >
+            {t("bulk.clear")}
+          </button>
+          <div className="ml-auto">
+            <Tooltip label={t("bulk.delete")}>
+              <span style={{ display: "inline-flex" }}>
+                <InlineDeleteRowConfirm
+                  ariaLabel={t("bulk.delete")}
+                  onConfirm={bulkDelete}
+                  summary={tc("deleteCount", { count: selectedIds.size })}
+                />
+              </span>
+            </Tooltip>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
