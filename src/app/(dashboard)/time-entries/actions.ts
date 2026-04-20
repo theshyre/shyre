@@ -234,8 +234,18 @@ export async function restoreTimeEntriesAction(
 export async function startTimerAction(formData: FormData): Promise<void> {
   return runSafeAction(formData, async (formData, { supabase }) => {
     const project_id = formData.get("project_id") as string;
-    const description = (formData.get("description") as string) || null;
+    const rawDescription = formData.get("description");
+    const description =
+      typeof rawDescription === "string" && rawDescription.length > 0
+        ? rawDescription
+        : null;
     const category_id = (formData.get("category_id") as string) || null;
+    // Viewer's local-day bounds — used to decide whether an existing
+    // completed entry on (user, project, category) should be resumed
+    // instead of creating a new one. When omitted, falls back to
+    // server-local UTC day, which is approximate but safe.
+    const dayStartIso = formData.get("day_start_iso") as string | null;
+    const dayEndIso = formData.get("day_end_iso") as string | null;
 
     if (!project_id) throw new Error("project_id is required");
 
@@ -258,7 +268,8 @@ export async function startTimerAction(formData: FormData): Promise<void> {
     // depth. RLS would block it too, but we want a clean userMessage.
     const { userId } = await validateTeamAccess(teamId);
 
-    const now = new Date().toISOString();
+    const nowDate = new Date();
+    const now = nowDate.toISOString();
 
     // Stop any running timer the user already has before starting a new
     // one. The running-timer card enforces stop-before-start in its own
@@ -273,18 +284,78 @@ export async function startTimerAction(formData: FormData): Promise<void> {
         .is("deleted_at", null),
     );
 
-    assertSupabaseOk(
-      await supabase.from("time_entries").insert({
-        team_id: teamId,
-        user_id: userId,
-        project_id,
-        description,
-        start_time: now,
+    // Look for a completed entry today on the same (user, project,
+    // category). If one exists, RESUME it — backdate start_time so
+    // the generated `duration_min` picks up where it left off on the
+    // next stop, instead of spawning a fresh row. Keeps the day view
+    // clean (one row per project/category/day) and preserves the
+    // entry's accumulated duration automatically.
+    const dayStart =
+      dayStartIso ??
+      (() => {
+        const d = new Date(nowDate);
+        d.setUTCHours(0, 0, 0, 0);
+        return d.toISOString();
+      })();
+    const dayEnd =
+      dayEndIso ??
+      (() => {
+        const d = new Date(nowDate);
+        d.setUTCHours(0, 0, 0, 0);
+        d.setUTCDate(d.getUTCDate() + 1);
+        return d.toISOString();
+      })();
+
+    let existingQuery = supabase
+      .from("time_entries")
+      .select("id, duration_min, description")
+      .eq("user_id", userId)
+      .eq("project_id", project_id)
+      .not("end_time", "is", null)
+      .is("deleted_at", null)
+      .gte("start_time", dayStart)
+      .lt("start_time", dayEnd)
+      .order("start_time", { ascending: false })
+      .limit(1);
+    if (category_id) existingQuery = existingQuery.eq("category_id", category_id);
+    else existingQuery = existingQuery.is("category_id", null);
+    const { data: existingRows } = await existingQuery;
+    const existing = existingRows?.[0];
+
+    if (existing) {
+      const accumulatedMin = (existing.duration_min as number | null) ?? 0;
+      const backdatedStart = new Date(
+        nowDate.getTime() - accumulatedMin * 60_000,
+      ).toISOString();
+      // Only overwrite description when the caller supplied one. A
+      // week-row Play click (no description) should leave the existing
+      // entry's note intact.
+      const updatePayload: Record<string, unknown> = {
+        start_time: backdatedStart,
         end_time: null,
-        billable: true,
-        category_id,
-      })
-    );
+      };
+      if (description !== null) updatePayload.description = description;
+      assertSupabaseOk(
+        await supabase
+          .from("time_entries")
+          .update(updatePayload)
+          .eq("id", existing.id)
+          .eq("user_id", userId),
+      );
+    } else {
+      assertSupabaseOk(
+        await supabase.from("time_entries").insert({
+          team_id: teamId,
+          user_id: userId,
+          project_id,
+          description,
+          start_time: now,
+          end_time: null,
+          billable: true,
+          category_id,
+        }),
+      );
+    }
 
     revalidatePath("/time-entries");
   }, "startTimerAction") as unknown as void;

@@ -5,6 +5,7 @@ import { useTranslations } from "next-intl";
 import { MoreVertical, Pencil, Play, Square, Copy, Trash2 } from "lucide-react";
 import { useToast } from "@/components/Toast";
 import { notifyTimerChanged } from "@/lib/timer-events";
+import { localDayBoundsIso } from "@/lib/local-day-bounds";
 import {
   deleteTimeEntryAction,
   duplicateTimeEntryAction,
@@ -69,6 +70,9 @@ export function EntryKebabMenu({ entry, onEdit }: Props): React.JSX.Element {
     fd.set("project_id", entry.project_id);
     if (entry.category_id) fd.set("category_id", entry.category_id);
     if (entry.description) fd.set("description", entry.description);
+    const [dayStart, dayEnd] = localDayBoundsIso();
+    fd.set("day_start_iso", dayStart);
+    fd.set("day_end_iso", dayEnd);
     await startTimerAction(fd);
     notifyTimerChanged();
     toast.push({ kind: "success", message: tToast("timerStarted") });

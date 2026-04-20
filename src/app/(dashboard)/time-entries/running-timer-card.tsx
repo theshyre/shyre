@@ -19,6 +19,7 @@ import { TeamSelector } from "@/components/TeamSelector";
 import type { TeamListItem } from "@/lib/team-context";
 import { startTimerAction } from "./actions";
 import { notifyTimerChanged } from "@/lib/timer-events";
+import { localDayBoundsIso } from "@/lib/local-day-bounds";
 import { RecentProjectsChips } from "./recent-projects-chips";
 import { TemplateChips } from "./template-chips";
 import type { CategoryOption, ProjectOption, TimeEntry } from "./types";
@@ -91,6 +92,9 @@ export function RunningTimerCard({
         fd.set("team_id", defaultTeamId ?? teams[0]?.id ?? "");
         fd.set("project_id", selectedProjectId);
         fd.set("description", description);
+        const [dayStart, dayEnd] = localDayBoundsIso();
+        fd.set("day_start_iso", dayStart);
+        fd.set("day_end_iso", dayEnd);
         void startForm.handleSubmit(fd);
       }
     }
@@ -153,6 +157,17 @@ export function RunningTimerCard({
       {startForm.serverError && (
         <AlertBanner tone="error">{startForm.serverError}</AlertBanner>
       )}
+
+      {/* Local-day bounds so the server can decide resume vs. insert. */}
+      {(() => {
+        const [dayStart, dayEnd] = localDayBoundsIso();
+        return (
+          <>
+            <input type="hidden" name="day_start_iso" value={dayStart} />
+            <input type="hidden" name="day_end_iso" value={dayEnd} />
+          </>
+        );
+      })()}
 
       {/* Quick-path chip strip — the fastest route to start is "click a
           recent or saved template", so these live at the top above the

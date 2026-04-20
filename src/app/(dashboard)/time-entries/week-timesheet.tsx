@@ -24,6 +24,7 @@ import {
 import { Avatar, resolveAvatarUrl } from "@theshyre/ui";
 import { formatDurationHMZero } from "@/lib/time/week";
 import { notifyTimerChanged } from "@/lib/timer-events";
+import { localDayBoundsIso } from "@/lib/local-day-bounds";
 import { addLocalDays, utcToLocalDateStr } from "@/lib/time/tz";
 import { DurationInput } from "./duration-input";
 import {
@@ -529,6 +530,9 @@ export function WeekTimesheet({
     const fd = new FormData();
     fd.set("project_id", projectId);
     if (categoryId) fd.set("category_id", categoryId);
+    const [dayStart, dayEnd] = localDayBoundsIso();
+    fd.set("day_start_iso", dayStart);
+    fd.set("day_end_iso", dayEnd);
     await save.wrap(startTimerAction(fd));
     notifyTimerChanged();
     toast.push({ kind: "success", message: tToast("timerStarted") });
