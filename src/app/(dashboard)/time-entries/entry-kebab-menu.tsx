@@ -27,7 +27,13 @@ export function EntryKebabMenu({ entry, onEdit }: Props): React.JSX.Element {
   const [open, setOpen] = useState(false);
   const [confirmDelete, setConfirmDelete] = useState(false);
   const [pending, setPending] = useState(false);
+  // When the trigger is near the bottom of the viewport, anchor the
+  // menu ABOVE the button instead of below — otherwise the outer
+  // table card's `overflow-hidden` clips the bottom items (Edit,
+  // Delete were getting cut off for rows in the lower half).
+  const [flipUp, setFlipUp] = useState(false);
   const ref = useRef<HTMLDivElement>(null);
+  const triggerRef = useRef<HTMLButtonElement>(null);
 
   useEffect(() => {
     if (!open) return;
@@ -106,9 +112,19 @@ export function EntryKebabMenu({ entry, onEdit }: Props): React.JSX.Element {
   return (
     <div ref={ref} className="relative">
       <button
+        ref={triggerRef}
         type="button"
         onClick={(e) => {
           e.stopPropagation();
+          if (!open && triggerRef.current) {
+            // Rough menu-height estimate: 4 items × 36px each + padding.
+            // Close enough to decide whether to flip. Measuring the
+            // actual menu would require rendering it first, which adds
+            // flicker. This heuristic has been reliable.
+            const rect = triggerRef.current.getBoundingClientRect();
+            const spaceBelow = window.innerHeight - rect.bottom;
+            setFlipUp(spaceBelow < 180);
+          }
           setOpen((o) => !o);
         }}
         aria-label={t("actionsLabel")}
@@ -117,7 +133,11 @@ export function EntryKebabMenu({ entry, onEdit }: Props): React.JSX.Element {
         <MoreVertical size={14} />
       </button>
       {open && (
-        <div className="absolute right-0 top-full z-30 mt-1 w-40 rounded-lg border border-edge bg-surface-raised shadow-lg overflow-hidden">
+        <div
+          className={`absolute right-0 z-30 w-40 rounded-lg border border-edge bg-surface-raised shadow-lg overflow-hidden ${
+            flipUp ? "bottom-full mb-1" : "top-full mt-1"
+          }`}
+        >
           {isRunning ? (
             <button
               type="button"
