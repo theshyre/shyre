@@ -209,6 +209,7 @@
     "today": "Hoy: {date}",
     "weekTotal": "Total semanal",
     "prevDay": "Día anterior",
-    "nextDay": "Día siguiente"
+    "nextDay": "Día siguiente",
+    "jumpToToday": "Hoy"
   }
 }

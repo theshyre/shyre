@@ -179,6 +179,15 @@ export function DayView({
           <kbd className={kbdClass}>→</kbd>
           <ChevronRight size={16} />
         </button>
+        {visibleDay !== todayStr && (
+          <button
+            type="button"
+            onClick={() => navigateToDay(todayStr)}
+            className={buttonSecondaryClass}
+          >
+            {t("jumpToToday")}
+          </button>
+        )}
       </div>
 
       {/* 7-day strip with daily totals */}
