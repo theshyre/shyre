@@ -47,7 +47,7 @@ describe("EntryAuthor", () => {
     expect(nameEl.className).toContain("sr-only");
   });
 
-  it("compact mode reveals the name via a Tooltip describing the author", () => {
+  it("compact mode puts the name on title for hover discoverability", () => {
     const { container } = render(
       <EntryAuthor
         author={{
@@ -58,11 +58,8 @@ describe("EntryAuthor", () => {
         compact
       />,
     );
-    // Tooltip wires aria-describedby lazily (on focus/hover). The name
-    // is always available to AT via the sr-only span inside the wrapper,
-    // so assert the DOM carries it there — that's the contract.
-    const srOnly = container.querySelector(".sr-only");
-    expect(srOnly?.textContent).toBe("Riley Kim");
+    const wrapper = container.querySelector("[title]");
+    expect(wrapper?.getAttribute("title")).toBe("Riley Kim");
   });
 
   it("non-compact mode omits the title attr (name is already visible)", () => {

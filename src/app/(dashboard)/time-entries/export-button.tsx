@@ -11,7 +11,7 @@ export function ExportButton(): React.JSX.Element {
   const href = `/api/time-entries/export?${params.toString()}`;
 
   return (
-    <a href={href} download className={buttonSecondaryClass}>
+    <a href={href} download className={buttonSecondaryClass} title={t("hint")}>
       <Download size={14} />
       {t("label")}
     </a>

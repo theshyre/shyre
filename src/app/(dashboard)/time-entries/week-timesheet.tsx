@@ -43,7 +43,6 @@ import { useKeyboardShortcut } from "@theshyre/ui";
 import { InlineDeleteButton } from "@/components/InlineDeleteButton";
 import { InlineDeleteRowConfirm } from "@/components/InlineDeleteRowConfirm";
 import { SaveStatus } from "@/components/SaveStatus";
-import { Tooltip } from "@/components/Tooltip";
 import { useAutosaveStatus } from "@/hooks/useAutosaveStatus";
 import { useToast } from "@/components/Toast";
 import { EntryAuthor } from "@/components/EntryAuthor";
@@ -1068,11 +1067,10 @@ function TimesheetRow({
               // sum of any already-saved entries on this cell PLUS
               // the elapsed minutes of the running timer, so clicking
               // Play on a row that already had a 4:00 entry doesn't
-              // visually "blank" that 4:00 down to 0:00. The pulsing
-              // dot + ticking number is already two-channel state; a
-              // tooltip on a non-interactive cell would clutter.
+              // visually "blank" that 4:00 down to 0:00.
               <div
                 className="flex items-center justify-center gap-1.5 w-full px-1.5 py-1 font-mono text-body font-semibold text-success tabular-nums"
+                title={tEntry("stopTimerFromRow")}
               >
                 <span className="h-1.5 w-1.5 rounded-full bg-success animate-pulse" />
                 {formatDurationHMZero(min + liveElapsedMin)}
@@ -1113,32 +1111,30 @@ function TimesheetRow({
               // button. The live-ticking cell in the running day column
               // carries the "timer is running" signal on its own, so no
               // pulsing dot needed on the button itself.
-              <Tooltip label={tEntry("stopTimerFromRow")} shortcut="Space">
-                <button
-                  type="button"
-                  onClick={onStopTimer}
-                  aria-label={tEntry("stopTimerFromRow")}
-                  className="rounded p-1 text-error hover:bg-error-soft transition-colors"
-                >
-                  <Square size={14} className="fill-current" />
-                </button>
-              </Tooltip>
+              <button
+                type="button"
+                onClick={onStopTimer}
+                aria-label={tEntry("stopTimerFromRow")}
+                title={tEntry("stopTimerFromRow")}
+                className="rounded p-1 text-error hover:bg-error-soft transition-colors"
+              >
+                <Square size={14} className="fill-current" />
+              </button>
             ) : (
               // "Start timer" seeded from this row. Visible on every row
               // the viewer owns — not only rows with saved data, since
               // the user may want to kick off a timer on a just-added
               // blank row too. Server-side auto-stops any other running
               // timer, so a second click never doubles up.
-              <Tooltip label={tEntry("startTimerFromRow")} shortcut="Space">
-                <button
-                  type="button"
-                  onClick={onStartTimer}
-                  aria-label={tEntry("startTimerFromRow")}
-                  className="rounded p-1 text-content-muted hover:bg-hover hover:text-accent transition-colors"
-                >
-                  <Play size={14} />
-                </button>
-              </Tooltip>
+              <button
+                type="button"
+                onClick={onStartTimer}
+                aria-label={tEntry("startTimerFromRow")}
+                title={tEntry("startTimerFromRow")}
+                className="rounded p-1 text-content-muted hover:bg-hover hover:text-accent transition-colors"
+              >
+                <Play size={14} />
+              </button>
             ))}
           {editable && hasSavedData ? (
             <InlineDeleteRowConfirm

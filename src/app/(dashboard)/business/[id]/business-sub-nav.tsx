@@ -5,7 +5,6 @@ import { usePathname } from "next/navigation";
 import { useTranslations } from "next-intl";
 import { LayoutDashboard, FileBadge, Receipt, Users } from "lucide-react";
 import { LinkPendingSpinner } from "@/components/LinkPendingSpinner";
-import { Tooltip } from "@/components/Tooltip";
 
 interface Props {
   teamId: string;
@@ -53,17 +52,17 @@ export function BusinessSubNav({ teamId }: Props): React.JSX.Element {
 
         if (tab.disabled) {
           return (
-            <Tooltip key={tab.href} label={t("comingSoon")}>
-              <span
-                className="inline-flex items-center gap-2 px-3 py-2 text-sm font-medium text-content-muted opacity-50 cursor-not-allowed"
-              >
-                <Icon size={14} />
-                {t(tab.labelKey)}
-                <span className="text-[10px] uppercase tracking-wider">
-                  {t("soon")}
-                </span>
+            <span
+              key={tab.href}
+              className="inline-flex items-center gap-2 px-3 py-2 text-sm font-medium text-content-muted opacity-50 cursor-not-allowed"
+              title={t("comingSoon")}
+            >
+              <Icon size={14} />
+              {t(tab.labelKey)}
+              <span className="text-[10px] uppercase tracking-wider">
+                {t("soon")}
               </span>
-            </Tooltip>
+            </span>
           );
         }
 

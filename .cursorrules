@@ -119,18 +119,6 @@ Destructive flows (by what is actually being destroyed):
 - **Irreversible hard delete from trash** → inline `<InlineDeleteButton />` with "forever" label (second-click safety after the user already decided to trash it).
 - HIDE the original trigger when the confirmation form is shown. Cancel button + Escape key always work.
 
-## Multi-select tables (MANDATORY)
-
-Tables with row selection + bulk actions follow one pattern:
-- **Column headers stay mounted** — never swap `<thead>` contents on selection. Users lose column context when headers vanish.
-- **Bulk action strip overlays the header row** — absolute-positioned `<div role="toolbar">` inside a `position: relative` wrapper, `bg-surface-inset`, height measured from `<thead>` via `ResizeObserver` so text-size preferences align pixel-perfectly.
-- **Zero CLS on selection toggle** — vertical or horizontal. Column widths owned only by `<th>` cells; strip never mutates `colSpan`, never reserves empty space, never pushes rows.
-- `aria-hidden` the `<thead>` while selection is active; thead's master checkbox gets `tabIndex={-1}` so Tab-order doesn't visit it twice.
-- **Escape clears selection** when no more-specific handler is active. Master checkbox shows indeterminate when partial.
-- **Destructive bulk actions** use `<InlineDeleteRowConfirm />` + Undo toast (see Destructive flows above). Summary shows the count.
-- **Do not extract to `@theshyre/ui` yet** — Shyre owns the pattern in-place until Liv adopts it. Reference: `src/app/(dashboard)/time-entries/entry-table.tsx`.
-- Surfaces: `/time-entries`, `/customers`, `/projects`, `/invoices`, `/trash`, any future list-page table.
-
 ## Typography (MANDATORY)
 
 - Semantic scale defined in `globals.css`: `text-label` / `text-caption` / `text-body` / `text-body-lg` / `text-title` / `text-page-title` / `text-hero`. All rem-based so the text-size preference scales the whole UI.
@@ -185,15 +173,6 @@ Every meaningful UI element uses 2+ of: icon, text, color.
 - `<LinkPendingSpinner />` (uses `useLinkStatus` from `next/link`) goes inside every navigation `<Link>`'s children — sidebar items, dashboard cards, doc index links. Per-link spinner so users see *which* link they hit.
 - Add a `loading.tsx` next to any `page.tsx` whose server render does non-trivial work. Keep skeletons simple — TopProgressBar already signals "loading"; loading.tsx just keeps the layout from emptying.
 - For non-link interactions (server actions, mutations), use `<SubmitButton>` per the form rules — not the progress bar.
-
-## Tooltips (MANDATORY)
-
-- Use `<Tooltip>` from `@theshyre/ui` (via `@/components/Tooltip`). Native `title=` is banned in new TSX; ESLint enforces this.
-- **Required**: icon-only controls (incl. disabled, via `showOnDisabled`); ellipsis-truncated identity/state cells; abbreviations / initialisms / terse codes; color-only chips; "coming soon" placeholders.
-- **Forbidden**: form validation errors (use `<FieldError>`); critical info that must always be visible; long-form content (use a popover); duplicating a visible label; nesting.
-- **Content**: ≤80 chars, single line preferred, i18n'd, no HTML, never duplicates the trigger's visible label. Keyboard shortcuts render inside via the `shortcut` prop as `<kbd>`.
-- **Behavior**: 500 ms hover-open / 0 ms focus-open / 100 ms close; hoverable bubble (WCAG 2.1 SC 1.4.13); Escape dismisses; one tooltip open at a time; top-default auto-flipping; no arrow; `@media (hover: none)` suppresses; `prefers-reduced-motion` disables the fade.
-- **A11y**: `aria-describedby` default; `labelMode="label"` wires `aria-label` for icon-only no-other-name triggers (never double-announce). Bubble uses `bg-content` / `text-content-inverse` / `border-edge` — AA across all three themes.
 
 ## Documentation (MANDATORY)
 

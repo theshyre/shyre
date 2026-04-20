@@ -2,7 +2,6 @@
 
 import { useTranslations } from "next-intl";
 import { useTextSize, type TextSize } from "./text-size-provider";
-import { Tooltip } from "./Tooltip";
 
 const SIZES: TextSize[] = ["compact", "regular", "large"];
 
@@ -41,23 +40,23 @@ export function TextSizeSwitcher({ dense = false }: Props): React.JSX.Element {
       {SIZES.map((s) => {
         const isActive = textSize === s;
         return (
-          <Tooltip key={s} label={t(s)}>
-            <button
-              type="button"
-              role="radio"
-              aria-checked={isActive}
-              aria-label={t(s)}
-              onClick={() => setTextSize(s)}
-              className={`${sizeClass} inline-flex items-center justify-center rounded-md font-semibold transition-colors ${
-                isActive
-                  ? "bg-accent text-content-inverse"
-                  : "border border-edge text-content-secondary hover:bg-hover"
-              }`}
-              style={{ fontSize: PREVIEW_PX[s] }}
-            >
-              A
-            </button>
-          </Tooltip>
+          <button
+            key={s}
+            type="button"
+            role="radio"
+            aria-checked={isActive}
+            aria-label={t(s)}
+            title={t(s)}
+            onClick={() => setTextSize(s)}
+            className={`${sizeClass} inline-flex items-center justify-center rounded-md font-semibold transition-colors ${
+              isActive
+                ? "bg-accent text-content-inverse"
+                : "border border-edge text-content-secondary hover:bg-hover"
+            }`}
+            style={{ fontSize: PREVIEW_PX[s] }}
+          >
+            A
+          </button>
         );
       })}
     </div>

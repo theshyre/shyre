@@ -1,6 +1,5 @@
 import { useTranslations } from "next-intl";
 import { Avatar, resolveAvatarUrl } from "@theshyre/ui";
-import { Tooltip } from "./Tooltip";
 
 export interface EntryAuthorInfo {
   user_id: string;
@@ -41,9 +40,10 @@ export function EntryAuthor({
     author?.avatar_url ?? null,
     author?.user_id ?? null,
   );
-  const content = (
+  return (
     <span
       className={`inline-flex items-center gap-1.5 text-caption text-content-secondary ${className}`}
+      title={compact ? name : undefined}
     >
       <Avatar avatarUrl={avatarUrl} displayName={name} size={size} />
       {compact ? (
@@ -53,11 +53,4 @@ export function EntryAuthor({
       )}
     </span>
   );
-  // Compact mode hides the name visually (sr-only keeps it for AT), so
-  // sighted hover needs the tooltip to reveal it. Full mode shows the
-  // name inline and needs no tooltip.
-  if (compact) {
-    return <Tooltip label={name}>{content}</Tooltip>;
-  }
-  return content;
 }

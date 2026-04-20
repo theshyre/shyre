@@ -26,7 +26,6 @@ import { AlertBanner } from "@theshyre/ui";
 import { MfaSetup } from "@/components/MfaSetup";
 import { useFormAction } from "@/hooks/use-form-action";
 import { SubmitButton } from "@/components/SubmitButton";
-import { Tooltip } from "@/components/Tooltip";
 import {
   inputClass,
   labelClass,
@@ -233,29 +232,29 @@ export function ProfileForm({
               {(["compact", "regular", "large"] as const).map((size) => {
                 const isActive = textSize === size;
                 return (
-                  <Tooltip key={size} label={t(`textSize.${size}`)}>
-                    <button
-                      type="button"
-                      onClick={() => handleTextSizeChange(size)}
-                      aria-label={t(`textSize.${size}`)}
-                      aria-pressed={isActive}
-                      className={`flex h-8 w-8 items-center justify-center rounded-md font-semibold transition-colors ${
-                        isActive
-                          ? "bg-accent text-content-inverse"
-                          : "border border-edge text-content-secondary hover:bg-hover"
-                      }`}
-                      style={{
-                        fontSize:
-                          size === "compact"
-                            ? "11px"
-                            : size === "large"
-                              ? "16px"
-                              : "13px",
-                      }}
-                    >
-                      A
-                    </button>
-                  </Tooltip>
+                  <button
+                    key={size}
+                    type="button"
+                    onClick={() => handleTextSizeChange(size)}
+                    title={t(`textSize.${size}`)}
+                    aria-label={t(`textSize.${size}`)}
+                    aria-pressed={isActive}
+                    className={`flex h-8 w-8 items-center justify-center rounded-md font-semibold transition-colors ${
+                      isActive
+                        ? "bg-accent text-content-inverse"
+                        : "border border-edge text-content-secondary hover:bg-hover"
+                    }`}
+                    style={{
+                      fontSize:
+                        size === "compact"
+                          ? "11px"
+                          : size === "large"
+                            ? "16px"
+                            : "13px",
+                    }}
+                  >
+                    A
+                  </button>
                 );
               })}
               <span className="ml-2 text-caption text-content-muted">
