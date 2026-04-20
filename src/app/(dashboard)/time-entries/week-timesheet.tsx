@@ -37,6 +37,7 @@ import {
   selectClass,
   kbdClass,
 } from "@/lib/form-styles";
+import { useKeyboardShortcut } from "@theshyre/ui";
 import { InlineDeleteButton } from "@/components/InlineDeleteButton";
 import { InlineDeleteRowConfirm } from "@/components/InlineDeleteRowConfirm";
 import { SaveStatus } from "@/components/SaveStatus";
@@ -508,6 +509,13 @@ export function WeekTimesheet({
       ) ?? null,
     [entries, currentUserId],
   );
+  // Which weekday column the running entry's start date falls on, -1
+  // when there's no running entry (or it's outside this visible week).
+  const runningDayIndex = runningEntry
+    ? weekDays.indexOf(
+        utcToLocalDateStr(runningEntry.start_time, tzOffsetMin),
+      )
+    : -1;
 
   // Start a new timer seeded with this row's project + category. Fires
   // the shared `startTimerAction`, which server-side stops whatever the
@@ -622,46 +630,55 @@ export function WeekTimesheet({
   const viewingThisWeek = todayStrForNav >= weekStartStr &&
     todayStrForNav <= addLocalDays(weekStartStr, 6);
 
+  // Arrow-key shortcuts to match the DayView's navigation feel (← prev
+  // week, → next week). Bailing inside input/textarea/select is handled
+  // by the shared hook.
+  useKeyboardShortcut({ key: "ArrowLeft", onTrigger: prevWeek });
+  useKeyboardShortcut({ key: "ArrowRight", onTrigger: nextWeek });
+
   return (
-    <div className="rounded-lg border border-edge bg-surface-raised overflow-x-auto">
+    <div className="space-y-4">
+      {/* Prev / title / next — styled to match DayView's day navigator so
+          the two views feel like siblings, not separate widgets. */}
+      <div className="flex items-center gap-3">
+        <button
+          type="button"
+          onClick={prevWeek}
+          className={buttonSecondaryClass}
+          aria-label={tWeek("prev")}
+        >
+          <ChevronLeft size={16} />
+          <kbd className={kbdClass}>←</kbd>
+        </button>
+        <h2 className="text-lg font-semibold text-content inline-flex items-center gap-2">
+          {viewingThisWeek ? tWeek("thisWeek") : tWeek("weekOf")}
+          <span className="font-mono tabular-nums">{weekRangeLabel}</span>
+        </h2>
+        <button
+          type="button"
+          onClick={nextWeek}
+          className={buttonSecondaryClass}
+          aria-label={tWeek("next")}
+        >
+          <kbd className={kbdClass}>→</kbd>
+          <ChevronRight size={16} />
+        </button>
+        {!viewingThisWeek && (
+          <button
+            type="button"
+            onClick={thisWeek}
+            className={buttonSecondaryClass}
+          >
+            {tWeek("jumpToThisWeek")}
+          </button>
+        )}
+      </div>
+
+      <div className="rounded-lg border border-edge bg-surface-raised overflow-x-auto">
       <div className="flex items-center justify-between gap-2 px-3 py-2 border-b border-edge bg-surface-inset">
-        <div className="flex items-center gap-2">
-          <span className="text-label font-semibold uppercase text-content-muted">
-            {t("frameTitle")}
-          </span>
-          <div className="flex items-center gap-1 ml-2">
-            <button
-              type="button"
-              onClick={prevWeek}
-              aria-label={tWeek("prev")}
-              title={tWeek("prev")}
-              className="rounded-md border border-edge bg-surface p-1 text-content-muted hover:bg-hover hover:text-content transition-colors"
-            >
-              <ChevronLeft size={14} />
-            </button>
-            <span className="text-caption font-mono tabular-nums text-content whitespace-nowrap px-2">
-              {weekRangeLabel}
-            </span>
-            <button
-              type="button"
-              onClick={nextWeek}
-              aria-label={tWeek("next")}
-              title={tWeek("next")}
-              className="rounded-md border border-edge bg-surface p-1 text-content-muted hover:bg-hover hover:text-content transition-colors"
-            >
-              <ChevronRight size={14} />
-            </button>
-            {!viewingThisWeek && (
-              <button
-                type="button"
-                onClick={thisWeek}
-                className="rounded-md border border-edge bg-surface px-2 py-1 text-caption text-content-secondary hover:bg-hover hover:text-content transition-colors whitespace-nowrap"
-              >
-                {tWeek("thisWeek")}
-              </button>
-            )}
-          </div>
-        </div>
+        <span className="text-label font-semibold uppercase text-content-muted">
+          {t("frameTitle")}
+        </span>
         <div className="flex items-center gap-3">
           <label className="flex items-center gap-2 text-caption text-content-muted whitespace-nowrap">
             <span>{t("groupBy.label")}</span>
@@ -823,6 +840,7 @@ export function WeekTimesheet({
               onDiscardEmpty={removeEmptyRow}
               onStartTimer={startTimerFromRow}
               runningEntry={runningEntry}
+              runningDayIndex={runningDayIndex}
               onStopTimer={stopRunningTimer}
             />
           );
@@ -867,6 +885,7 @@ export function WeekTimesheet({
           </tr>
         </tfoot>
       </table>
+      </div>
     </div>
   );
 }
@@ -888,6 +907,8 @@ function TimesheetRow({
   onDiscardEmpty,
   onStartTimer,
   isRunningRow,
+  runningStartIso,
+  runningDayIndex,
   onStopTimer,
   weekDays,
   todayStr,
@@ -911,6 +932,10 @@ function TimesheetRow({
   /** True when this exact (project, category, user) has a running
    *  timer — we swap the Play button for Stop and show a pulse. */
   isRunningRow: boolean;
+  /** ISO start-time of the running entry on this row, or null. */
+  runningStartIso: string | null;
+  /** Day-column (0–6) of the running cell, or -1 when there isn't one. */
+  runningDayIndex: number;
   onStopTimer: (() => void) | undefined;
   weekDays: string[];
   todayStr: string;
@@ -934,6 +959,23 @@ function TimesheetRow({
   const hideCategory = groupBy === "category";
   const hideProject = groupBy === "project";
   const showAuthorChip = groupBy !== "member";
+
+  // Live tick for the running cell (minute granularity is enough — the
+  // grid's H:MM format doesn't show seconds).
+  const [runningNowMs, setRunningNowMs] = useState<number>(() => Date.now());
+  useEffect(() => {
+    if (!runningStartIso) return;
+    const id = setInterval(() => setRunningNowMs(Date.now()), 60_000);
+    return () => clearInterval(id);
+  }, [runningStartIso]);
+  const liveElapsedMin = runningStartIso
+    ? Math.max(
+        0,
+        Math.floor(
+          (runningNowMs - new Date(runningStartIso).getTime()) / 60_000,
+        ),
+      )
+    : 0;
 
   return (
     <tr
@@ -1008,7 +1050,17 @@ function TimesheetRow({
               isWeekend ? "bg-surface-inset/40" : ""
             } ${isToday ? "border-l-2 border-accent/40" : ""}`}
           >
-            {editable ? (
+            {i === runningDayIndex && runningStartIso ? (
+              // Live running cell — overrides the editable input for the
+              // day the running entry started on. Ticks every minute.
+              <div
+                className="flex items-center justify-center gap-1.5 w-full px-1.5 py-1 font-mono text-body font-semibold text-success tabular-nums"
+                title={tEntry("stopTimerFromRow")}
+              >
+                <span className="h-1.5 w-1.5 rounded-full bg-success animate-pulse" />
+                {formatDurationHMZero(liveElapsedMin)}
+              </div>
+            ) : editable ? (
               <DurationInput
                 ref={(el) => setCellRef(rowIndex, i, el)}
                 name={`cell-${row.projectId}-${row.categoryId ?? ""}-${i}`}
@@ -1041,17 +1093,17 @@ function TimesheetRow({
           {editable &&
             (isRunningRow && onStopTimer ? (
               // This exact row has a running timer — swap in a red Stop
-              // button (with pulsing dot) so the user can end it from
-              // the grid without scrolling up to the timer card.
+              // button. The live-ticking cell in the running day column
+              // carries the "timer is running" signal on its own, so no
+              // pulsing dot needed on the button itself.
               <button
                 type="button"
                 onClick={onStopTimer}
                 aria-label={tEntry("stopTimerFromRow")}
                 title={tEntry("stopTimerFromRow")}
-                className="inline-flex items-center gap-1 rounded p-1 text-success hover:bg-success-soft transition-colors"
+                className="rounded p-1 text-error hover:bg-error-soft transition-colors"
               >
-                <span className="h-1.5 w-1.5 rounded-full bg-success animate-pulse" />
-                <Square size={14} />
+                <Square size={14} className="fill-current" />
               </button>
             ) : (
               // "Start timer" seeded from this row. Visible on every row
@@ -1111,6 +1163,7 @@ function GroupBlock({
   onDiscardEmpty,
   onStartTimer,
   runningEntry,
+  runningDayIndex,
   onStopTimer,
 }: {
   group: RowGroup;
@@ -1147,6 +1200,8 @@ function GroupBlock({
     categoryId: string | null,
   ) => void | Promise<void>;
   runningEntry: TimeEntry | null;
+  /** Day-column (0–6) that `runningEntry` falls on in this week, or -1. */
+  runningDayIndex: number;
   onStopTimer: (entryId: string) => void | Promise<void>;
 }): React.JSX.Element {
   const tHeader = useTranslations("time.timesheet.groupHeader");
@@ -1229,6 +1284,22 @@ function GroupBlock({
                 runningEntry.project_id === row.projectId &&
                 runningEntry.category_id === row.categoryId &&
                 runningEntry.user_id === row.userId
+              }
+              runningStartIso={
+                runningEntry &&
+                runningEntry.project_id === row.projectId &&
+                runningEntry.category_id === row.categoryId &&
+                runningEntry.user_id === row.userId
+                  ? runningEntry.start_time
+                  : null
+              }
+              runningDayIndex={
+                runningEntry &&
+                runningEntry.project_id === row.projectId &&
+                runningEntry.category_id === row.categoryId &&
+                runningEntry.user_id === row.userId
+                  ? runningDayIndex
+                  : -1
               }
               onStopTimer={
                 runningEntry &&

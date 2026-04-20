@@ -61,9 +61,11 @@
     "minutes": "{m}m"
   },
   "week": {
-    "prev": "Prev",
-    "next": "Next",
-    "thisWeek": "This week",
+    "prev": "Previous week",
+    "next": "Next week",
+    "thisWeek": "This week:",
+    "weekOf": "Week of",
+    "jumpToThisWeek": "This week",
     "totals": "{total} · {billable} billable · {nonBillable} non-billable",
     "dayTotal": "{duration}",
     "emptyDay": "No entries"
