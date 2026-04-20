@@ -9,6 +9,7 @@ import { SubmitButton } from "@/components/SubmitButton";
 import {
   buttonPrimaryClass,
   buttonGhostClass,
+  buttonSecondaryClass,
   inputClass,
   labelClass,
   selectClass,
@@ -46,6 +47,7 @@ export function RunningTimerCard({
   const tf = useTranslations("time.fields");
   const tt = useTranslations("time.timer");
   const th = useTranslations("time.home");
+  const tc = useTranslations("common");
 
   const [expanded, setExpanded] = useState(false);
   const [selectedProjectId, setSelectedProjectId] = useState("");
@@ -127,10 +129,12 @@ export function RunningTimerCard({
   // Category is required when the project has a category set
   const categoryRequired = !!projectCategorySetId && availableCategories.length > 0;
 
+  const hasQuickPath = recentProjects.length > 0 || templates.length > 0;
+
   return (
     <form
       action={startForm.handleSubmit}
-      className="space-y-3 rounded-lg border border-accent bg-surface-raised p-4"
+      className="space-y-4 rounded-lg border border-accent bg-surface-raised p-4 max-w-2xl"
     >
       <div className="flex items-center justify-between">
         <span className="text-label font-semibold uppercase tracking-wider text-content-muted">
@@ -150,17 +154,59 @@ export function RunningTimerCard({
         <AlertBanner tone="error">{startForm.serverError}</AlertBanner>
       )}
 
+      {/* Quick-path chip strip — the fastest route to start is "click a
+          recent or saved template", so these live at the top above the
+          full fieldset. Wrapped in an inset panel so they read as one
+          affordance, not two bolt-ons below the form. */}
+      {hasQuickPath && (
+        <div className="rounded-md bg-surface-inset p-3 space-y-3">
+          {recentProjects.length > 0 && (
+            <RecentProjectsChips
+              projects={recentProjects}
+              onPick={(id) => setSelectedProjectId(id)}
+              selectedId={selectedProjectId}
+            />
+          )}
+          {templates.length > 0 && <TemplateChips templates={templates} />}
+        </div>
+      )}
+
       {teams.length > 1 && <TeamSelector teams={teams} defaultTeamId={defaultTeamId} />}
       {teams.length === 1 && (
         <input type="hidden" name="team_id" value={teams[0]?.id ?? ""} />
       )}
 
-      {/* Category first — primary field */}
+      {/* Project — the gating required field. Everything else downstream
+          (Category availability, description context) is derived from
+          this pick, so it leads. */}
       <div>
-        <label className={labelClass}>
-          {tf("category")} {categoryRequired ? "*" : ""}
-        </label>
-        {categoryRequired ? (
+        <label className={labelClass}>{tf("project")} *</label>
+        <select
+          name="project_id"
+          required
+          className={selectClass}
+          value={selectedProjectId}
+          onChange={(e) => setSelectedProjectId(e.target.value)}
+          autoFocus
+        >
+          <option value="">{tt("selectProject")}</option>
+          {projects.map((p) => (
+            <option key={p.id} value={p.id}>
+              {p.name}
+              {p.customers?.name ? ` · ${p.customers.name}` : ""}
+            </option>
+          ))}
+        </select>
+      </div>
+
+      {/* Category — only rendered when the picked project has a set and
+          a required selection is actually needed. When the project has
+          no category set we don't render anything; when no project is
+          picked we don't render either (Project is already autofocused
+          so the user knows what to do first). */}
+      {categoryRequired && (
+        <div>
+          <label className={labelClass}>{tf("category")} *</label>
           <select
             name="category_id"
             required
@@ -176,60 +222,28 @@ export function RunningTimerCard({
               </option>
             ))}
           </select>
-        ) : selectedProject ? (
-          <p className="text-caption text-content-muted italic">
-            {tf("categoryUnavailable")}
-          </p>
-        ) : (
-          <p className="text-caption text-content-muted italic">
-            {tf("categoryPickProjectFirst")}
-          </p>
-        )}
-      </div>
-
-      <div className="grid gap-3 sm:grid-cols-2">
-        <div>
-          <label className={labelClass}>{tf("project")} *</label>
-          <select
-            name="project_id"
-            required
-            className={selectClass}
-            value={selectedProjectId}
-            onChange={(e) => setSelectedProjectId(e.target.value)}
-            autoFocus
-          >
-            <option value="">{tt("selectProject")}</option>
-            {projects.map((p) => (
-              <option key={p.id} value={p.id}>
-                {p.name}
-                {p.customers?.name ? ` · ${p.customers.name}` : ""}
-              </option>
-            ))}
-          </select>
         </div>
-        <div>
-          <label className={labelClass}>{tf("description")}</label>
-          <input
-            name="description"
-            value={description}
-            onChange={(e) => setDescription(e.target.value)}
-            placeholder={tf("descriptionPlaceholder")}
-            className={inputClass}
-          />
-        </div>
-      </div>
-
-      {recentProjects.length > 0 && (
-        <RecentProjectsChips
-          projects={recentProjects}
-          onPick={(id) => setSelectedProjectId(id)}
-          selectedId={selectedProjectId}
-        />
       )}
 
-      {templates.length > 0 && <TemplateChips templates={templates} />}
+      <div>
+        <label className={labelClass}>{tf("description")}</label>
+        <input
+          name="description"
+          value={description}
+          onChange={(e) => setDescription(e.target.value)}
+          placeholder={tf("descriptionPlaceholder")}
+          className={inputClass}
+        />
+      </div>
 
-      <div className="flex gap-2">
+      <div className="flex justify-end gap-2">
+        <button
+          type="button"
+          onClick={() => setExpanded(false)}
+          className={buttonSecondaryClass}
+        >
+          {tc("actions.cancel")}
+        </button>
         <SubmitButton
           label={tt("start")}
           pending={startForm.pending}
