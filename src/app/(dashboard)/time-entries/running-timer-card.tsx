@@ -47,14 +47,27 @@ export function RunningTimerCard({
   const tt = useTranslations("time.timer");
   const th = useTranslations("time.home");
 
-  const startForm = useFormAction({
-    action: startTimerAction,
-    onSuccess: notifyTimerChanged,
-  });
-
   const [expanded, setExpanded] = useState(false);
   const [selectedProjectId, setSelectedProjectId] = useState("");
   const [description, setDescription] = useState("");
+
+  // Collapse + reset the start form when the action succeeds. Without
+  // this, the local `expanded` state persisted through the timer's
+  // lifecycle: user hits Start → form submits → `running` becomes
+  // non-null → the card returns empty. When the sidebar later stops
+  // the timer, `running` goes null and the card re-renders with
+  // `expanded === true` still, re-opening the form on top of the
+  // now-empty state. Doing the reset in onSuccess instead of an
+  // effect keeps it out of the running → null render path.
+  const startForm = useFormAction({
+    action: startTimerAction,
+    onSuccess: () => {
+      notifyTimerChanged();
+      setExpanded(false);
+      setSelectedProjectId("");
+      setDescription("");
+    },
+  });
 
   // Space shortcut: opens the start form when collapsed + no running timer;
   // submits it when expanded + project selected. The sidebar <Timer>

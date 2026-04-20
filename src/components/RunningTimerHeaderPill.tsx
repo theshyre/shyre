@@ -1,0 +1,96 @@
+"use client";
+
+import { useCallback, useEffect, useState } from "react";
+import { useTranslations } from "next-intl";
+import { useRouter } from "next/navigation";
+import { Square } from "lucide-react";
+import { stopTimerAction } from "@/app/(dashboard)/time-entries/actions";
+import { useRunningEntry } from "@/hooks/use-running-entry";
+import { notifyTimerChanged } from "@/lib/timer-events";
+
+/**
+ * Sticky running-timer strip at the top of the dashboard main column.
+ * Mounted once in the dashboard layout. Only renders when a timer is
+ * running — when stopped, it's nothing (the sidebar's quiet "Stopped"
+ * invitation is enough).
+ *
+ * Reads from the same `useRunningEntry` hook as the sidebar `<Timer>`,
+ * so they stay in sync via the shared `TIMER_CHANGED_EVENT`. Stopping
+ * from either one refreshes both.
+ */
+export function RunningTimerHeaderPill(): React.JSX.Element | null {
+  const { running } = useRunningEntry();
+  const [stopping, setStopping] = useState(false);
+  const t = useTranslations("time.timer");
+  const router = useRouter();
+
+  // Live elapsed clock — ticks per second whenever a timer is running.
+  const [nowMs, setNowMs] = useState<number>(() => Date.now());
+  useEffect(() => {
+    if (!running) return;
+    const id = setInterval(() => setNowMs(Date.now()), 1000);
+    return () => clearInterval(id);
+  }, [running]);
+
+  const handleStop = useCallback(async (): Promise<void> => {
+    if (!running || stopping) return;
+    setStopping(true);
+    const fd = new FormData();
+    fd.set("id", running.id);
+    await stopTimerAction(fd);
+    notifyTimerChanged();
+    router.refresh();
+    setStopping(false);
+  }, [running, stopping, router]);
+
+  if (!running) return null;
+
+  const elapsed = formatElapsed(nowMs - new Date(running.start_time).getTime());
+
+  return (
+    <div className="sticky top-0 z-20 border-b border-success/30 bg-success-soft">
+      <div className="mx-auto max-w-7xl flex items-center gap-3 px-8 py-2">
+        <span className="h-2 w-2 rounded-full bg-success animate-pulse shrink-0" />
+        <span className="text-label font-semibold uppercase tracking-wider text-success shrink-0">
+          {t("running")}
+        </span>
+        <span className="font-mono text-body-lg font-bold text-content tabular-nums shrink-0">
+          {elapsed}
+        </span>
+        <span className="min-w-0 flex-1 truncate text-body text-content">
+          {running.project_name}
+          {running.customer_name && (
+            <span className="text-content-muted">
+              {" · "}
+              {running.customer_name}
+            </span>
+          )}
+          {running.description && (
+            <span className="text-content-muted italic">
+              {" · "}
+              {running.description}
+            </span>
+          )}
+        </span>
+        <button
+          type="button"
+          onClick={handleStop}
+          disabled={stopping}
+          className="inline-flex items-center gap-1.5 rounded-md bg-error px-3 py-1 text-body-lg font-medium text-content-inverse hover:opacity-90 transition-colors disabled:opacity-50"
+          aria-label={t("stop")}
+        >
+          <Square size={14} />
+          {t("stop")}
+        </button>
+      </div>
+    </div>
+  );
+}
+
+function formatElapsed(diffMs: number): string {
+  const totalSec = Math.max(0, Math.floor(diffMs / 1000));
+  const h = Math.floor(totalSec / 3600);
+  const m = Math.floor((totalSec % 3600) / 60);
+  const s = totalSec % 60;
+  return `${String(h).padStart(2, "0")}:${String(m).padStart(2, "0")}:${String(s).padStart(2, "0")}`;
+}
