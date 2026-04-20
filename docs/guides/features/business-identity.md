@@ -17,10 +17,10 @@ The identity card shows:
 - **Legal name** — the formal registered name. Leave blank to fall back to the business's display name.
 - **Entity type** — Sole prop, LLC, S-Corp, C-Corp, Partnership, Nonprofit, Other.
 - **Tax ID (EIN)** — stored as-entered. Handle with care; don't screenshot.
-- **State registration ID** — optional, state-specific.
-- **Registered in** — display of the formation state (canonical value lives on state registrations; see below).
 - **Date of incorporation**
 - **Fiscal year start** — MM-DD. Defaults to 01-01 (calendar year). `07-01` for July–June fiscal year, etc.
+
+State-level identity — where the business is formed, the state-assigned entity number, the registered agent — lives in the **State registrations** section below this card, not on the identity row itself. The formation-state entry there (`is_formation = true`) is the single source of truth for "where is this business formed" and "what's its state entity number."
 
 Below the identity card, the **State registrations** section lists every state where the business is formed or foreign-qualified. See [State registrations](state-registrations.md).
 

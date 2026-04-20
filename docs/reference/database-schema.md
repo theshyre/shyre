@@ -53,8 +53,6 @@ Legal business entity. Owns one or more teams. Identity columns are all nullable
 | legal_name | TEXT | Registered legal name as filed with the state |
 | entity_type | TEXT | `sole_prop\|llc\|s_corp\|c_corp\|partnership\|nonprofit\|other` |
 | tax_id | TEXT | EIN or equivalent |
-| state_registration_id | TEXT | Legacy — canonical registration data lives on `business_state_registrations` |
-| registered_state | TEXT | Legacy — canonical formation state lives on `business_state_registrations` with `is_formation = true` |
 | date_incorporated | DATE | |
 | fiscal_year_start | TEXT | MM-DD format |
 | created_at, updated_at | TIMESTAMPTZ | |

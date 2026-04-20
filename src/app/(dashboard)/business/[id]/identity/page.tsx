@@ -33,7 +33,7 @@ export default async function BusinessIdentityPage({
       ? supabase
           .from("businesses")
           .select(
-            "id, legal_name, entity_type, tax_id, state_registration_id, registered_state, date_incorporated, fiscal_year_start",
+            "id, legal_name, entity_type, tax_id, date_incorporated, fiscal_year_start",
           )
           .eq("id", businessId)
           .maybeSingle()
@@ -62,8 +62,6 @@ export default async function BusinessIdentityPage({
         legalName={(business?.legal_name as string | null) ?? ""}
         entityType={(business?.entity_type as string | null) ?? ""}
         taxId={(business?.tax_id as string | null) ?? ""}
-        stateRegistrationId={(business?.state_registration_id as string | null) ?? ""}
-        registeredState={(business?.registered_state as string | null) ?? ""}
         dateIncorporated={(business?.date_incorporated as string | null) ?? ""}
         fiscalYearStart={(business?.fiscal_year_start as string | null) ?? ""}
       />

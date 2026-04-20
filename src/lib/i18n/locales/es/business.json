@@ -23,8 +23,6 @@
     "legalName": "Razón social",
     "entityType": "Tipo de entidad",
     "taxId": "ID Fiscal (EIN)",
-    "stateRegistrationId": "ID de registro estatal",
-    "registeredState": "Registrada en",
     "dateIncorporated": "Fecha de constitución",
     "fiscalYearStart": "Inicio del año fiscal"
   },
@@ -58,8 +56,6 @@
       "entityTypeAny": "— Selecciona —",
       "taxId": "ID Fiscal (EIN)",
       "taxIdHelp": "Se guarda tal cual. Maneja con cuidado.",
-      "stateRegistrationId": "ID de registro estatal",
-      "registeredState": "Registrada en",
       "dateIncorporated": "Fecha de constitución",
       "fiscalYearStart": "Inicio del año fiscal (MM-DD)",
       "fiscalYearStartHelp": "Usa 01-01 para año calendario, 07-01 para año fiscal julio-junio, etc."

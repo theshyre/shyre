@@ -18,8 +18,6 @@ interface Props {
   legalName: string;
   entityType: string;
   taxId: string;
-  stateRegistrationId: string;
-  registeredState: string;
   dateIncorporated: string;
   fiscalYearStart: string;
 }
@@ -50,8 +48,6 @@ export function IdentityForm({
   legalName,
   entityType,
   taxId,
-  stateRegistrationId,
-  registeredState,
   dateIncorporated,
   fiscalYearStart,
 }: Props): React.JSX.Element {
@@ -104,16 +100,6 @@ export function IdentityForm({
         </div>
 
         <div>
-          <label className={labelClass}>{t("fields.registeredState")}</label>
-          <input
-            name="registered_state"
-            defaultValue={registeredState}
-            placeholder="e.g. Delaware, CA"
-            className={inputClass}
-          />
-        </div>
-
-        <div>
           <label className={labelClass}>{t("fields.taxId")}</label>
           <input
             name="tax_id"
@@ -124,15 +110,6 @@ export function IdentityForm({
           <p className="mt-1 text-xs text-content-muted">
             {t("fields.taxIdHelp")}
           </p>
-        </div>
-
-        <div>
-          <label className={labelClass}>{t("fields.stateRegistrationId")}</label>
-          <input
-            name="state_registration_id"
-            defaultValue={stateRegistrationId}
-            className={`${inputClass} font-mono`}
-          />
         </div>
 
         <div>

@@ -43,10 +43,6 @@ export async function updateBusinessIdentityAction(
     const legal_name = blankToNull(formData.get("legal_name"));
     const entity_type = blankToNull(formData.get("entity_type"));
     const tax_id = blankToNull(formData.get("tax_id"));
-    const state_registration_id = blankToNull(
-      formData.get("state_registration_id"),
-    );
-    const registered_state = blankToNull(formData.get("registered_state"));
     const date_incorporated = blankToNull(formData.get("date_incorporated"));
     const fiscal_year_start = blankToNull(formData.get("fiscal_year_start"));
 
@@ -67,8 +63,6 @@ export async function updateBusinessIdentityAction(
           legal_name,
           entity_type,
           tax_id,
-          state_registration_id,
-          registered_state,
           date_incorporated,
           fiscal_year_start,
         })

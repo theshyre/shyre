@@ -23,8 +23,6 @@
     "legalName": "Legal name",
     "entityType": "Entity type",
     "taxId": "Tax ID (EIN)",
-    "stateRegistrationId": "State registration ID",
-    "registeredState": "Registered in",
     "dateIncorporated": "Incorporated",
     "fiscalYearStart": "Fiscal year start"
   },
@@ -58,8 +56,6 @@
       "entityTypeAny": "— Select —",
       "taxId": "Tax ID (EIN)",
       "taxIdHelp": "Stored as entered. Handle with care.",
-      "stateRegistrationId": "State registration ID",
-      "registeredState": "Registered in",
       "dateIncorporated": "Date of incorporation",
       "fiscalYearStart": "Fiscal year start (MM-DD)",
       "fiscalYearStartHelp": "Use 01-01 for calendar-year businesses, 07-01 for July-June fiscal year, etc."
