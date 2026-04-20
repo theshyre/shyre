@@ -77,7 +77,7 @@ describe("RunningTimerCard", () => {
     expect(document.querySelector('select[name="project_id"]')).toHaveFocus();
   });
 
-  it("renders running state with project name and elapsed", () => {
+  it("renders nothing when a timer is running — sidebar <Timer> owns that surface", () => {
     const running: TimeEntry = {
       id: "e1",
       team_id: "o1",
@@ -93,7 +93,7 @@ describe("RunningTimerCard", () => {
       projects: { id: "p1", name: "Alpha", github_repo: null },
       author: null,
     };
-    renderWithIntl(
+    const { container } = renderWithIntl(
       <RunningTimerCard
         running={running}
         projects={[project]}
@@ -102,10 +102,13 @@ describe("RunningTimerCard", () => {
         categories={[]}
       />,
     );
-    expect(screen.getByText(/Alpha/)).toBeInTheDocument();
-    expect(screen.getByText("hacking")).toBeInTheDocument();
-    expect(screen.getByRole("button", { name: /stop/i })).toBeInTheDocument();
-    expect(screen.getByText(/^\d\d:\d\d:\d\d$/)).toBeInTheDocument();
+    // The card used to render a green "RUNNING … Stop" banner in this
+    // state. That duplicated the sidebar Timer and caused desync bugs;
+    // the running surface now lives only in the sidebar.
+    expect(container.textContent).not.toMatch(/alpha/i);
+    expect(
+      screen.queryByRole("button", { name: /stop/i }),
+    ).not.toBeInTheDocument();
   });
 
   it("shows recent project chips after expanding", () => {

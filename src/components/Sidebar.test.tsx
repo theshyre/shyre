@@ -42,6 +42,7 @@ const defaults = {
   displayName: "Marcus",
   email: "marcus@malcom.io",
   avatarUrl: null,
+  userId: "test-user",
 };
 
 describe("Sidebar", () => {

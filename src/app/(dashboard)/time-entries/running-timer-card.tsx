@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { useTranslations } from "next-intl";
-import { Play, Square, X } from "lucide-react";
+import { Play, X } from "lucide-react";
 import { AlertBanner } from "@theshyre/ui";
 import { useFormAction } from "@/hooks/use-form-action";
 import { SubmitButton } from "@/components/SubmitButton";
@@ -15,9 +15,9 @@ import {
   kbdClass,
 } from "@/lib/form-styles";
 import { TeamSelector } from "@/components/TeamSelector";
-import { EntryAuthor } from "@/components/EntryAuthor";
 import type { TeamListItem } from "@/lib/team-context";
-import { startTimerAction, stopTimerAction } from "./actions";
+import { startTimerAction } from "./actions";
+import { notifyTimerChanged } from "@/lib/timer-events";
 import { RecentProjectsChips } from "./recent-projects-chips";
 import { TemplateChips } from "./template-chips";
 import type { CategoryOption, ProjectOption, TimeEntry } from "./types";
@@ -47,24 +47,19 @@ export function RunningTimerCard({
   const tt = useTranslations("time.timer");
   const th = useTranslations("time.home");
 
-  const startForm = useFormAction({ action: startTimerAction });
-  const stopForm = useFormAction({ action: stopTimerAction });
+  const startForm = useFormAction({
+    action: startTimerAction,
+    onSuccess: notifyTimerChanged,
+  });
 
   const [expanded, setExpanded] = useState(false);
   const [selectedProjectId, setSelectedProjectId] = useState("");
   const [description, setDescription] = useState("");
 
-  // Live elapsed clock. Ticks every second only while a timer is running;
-  // the interval's setState fires inside the timer callback, not the effect
-  // body itself, so it doesn't trip `react-hooks/set-state-in-effect`.
-  const nowMs = useNowMs(running !== null);
-  const elapsed = running
-    ? formatElapsed(nowMs - new Date(running.start_time).getTime())
-    : "00:00:00";
-
   // Space shortcut: opens the start form when collapsed + no running timer;
-  // submits it when expanded + project selected. Sidebar Timer widget handles
-  // stopping, so we don't bind that here.
+  // submits it when expanded + project selected. The sidebar <Timer>
+  // widget owns the running → stopped direction. This component only
+  // handles the stopped → start path.
   useEffect(() => {
     if (running) return;
     function handleKey(e: KeyboardEvent) {
@@ -88,54 +83,9 @@ export function RunningTimerCard({
     return () => window.removeEventListener("keydown", handleKey);
   }, [running, expanded, selectedProjectId, description, defaultTeamId, teams, startForm]);
 
-  // --- Running state: live clock + Stop button
-  if (running) {
-    const projectName = running.projects?.name ?? "—";
-    const customerName = running.projects?.customers?.name ?? null;
-    return (
-      <div className="rounded-lg border border-success/30 bg-success-soft p-4 flex items-center gap-4 flex-wrap">
-        <div className="flex items-center gap-2">
-          <span className="h-2.5 w-2.5 rounded-full bg-success animate-pulse" />
-          <span className="text-label font-semibold text-success uppercase tracking-wider">
-            {th("runningHeader")}
-          </span>
-        </div>
-        <span className="font-mono text-hero font-bold text-content tabular-nums">
-          {elapsed}
-        </span>
-        <div className="min-w-0 flex-1">
-          <p className="text-body text-content truncate">
-            {projectName}
-            {customerName && (
-              <span className="text-content-muted">
-                {" "}· {customerName}
-              </span>
-            )}
-          </p>
-          {running.description && (
-            <p className="text-caption text-content-secondary truncate">
-              {running.description}
-            </p>
-          )}
-          <div className="mt-1">
-            <EntryAuthor author={running.author} size={18} />
-          </div>
-        </div>
-        {stopForm.serverError && (
-          <AlertBanner tone="error">{stopForm.serverError}</AlertBanner>
-        )}
-        <form action={stopForm.handleSubmit}>
-          <input type="hidden" name="id" value={running.id} />
-          <SubmitButton
-            label={tt("stop")}
-            pending={stopForm.pending}
-            icon={Square}
-            className="flex items-center gap-2 rounded-lg bg-error px-3 py-2 text-body-lg font-medium text-content-inverse hover:opacity-90 transition-colors disabled:opacity-50"
-          />
-        </form>
-      </div>
-    );
-  }
+  // A running timer is owned by the sidebar <Timer> — this component
+  // renders nothing in that state so we don't duplicate the surface.
+  if (running) return <></>;
 
   // --- Collapsed state: just the Start button (Harvest-style)
   if (!expanded) {
@@ -277,25 +227,3 @@ export function RunningTimerCard({
   );
 }
 
-/**
- * Tick every second when active — returns Date.now() from state so renders
- * between ticks reuse the same snapshot. useSyncExternalStore is unusable
- * here because Date.now() isn't a stable source during a render.
- */
-function useNowMs(active: boolean): number {
-  const [now, setNow] = useState<number>(() => Date.now());
-  useEffect(() => {
-    if (!active) return;
-    const id = setInterval(() => setNow(Date.now()), 1000);
-    return () => clearInterval(id);
-  }, [active]);
-  return now;
-}
-
-function formatElapsed(diffMs: number): string {
-  const totalSec = Math.max(0, Math.floor(diffMs / 1000));
-  const h = Math.floor(totalSec / 3600);
-  const m = Math.floor((totalSec % 3600) / 60);
-  const s = totalSec % 60;
-  return `${String(h).padStart(2, "0")}:${String(m).padStart(2, "0")}:${String(s).padStart(2, "0")}`;
-}

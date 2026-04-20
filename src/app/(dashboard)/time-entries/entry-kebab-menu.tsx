@@ -4,6 +4,7 @@ import { useEffect, useRef, useState } from "react";
 import { useTranslations } from "next-intl";
 import { MoreVertical, Pencil, Play, Square, Copy, Trash2 } from "lucide-react";
 import { useToast } from "@/components/Toast";
+import { notifyTimerChanged } from "@/lib/timer-events";
 import {
   deleteTimeEntryAction,
   duplicateTimeEntryAction,
@@ -69,6 +70,7 @@ export function EntryKebabMenu({ entry, onEdit }: Props): React.JSX.Element {
     if (entry.category_id) fd.set("category_id", entry.category_id);
     if (entry.description) fd.set("description", entry.description);
     await startTimerAction(fd);
+    notifyTimerChanged();
     toast.push({ kind: "success", message: tToast("timerStarted") });
     setPending(false);
     setOpen(false);
@@ -81,6 +83,7 @@ export function EntryKebabMenu({ entry, onEdit }: Props): React.JSX.Element {
     const fd = new FormData();
     fd.set("id", entry.id);
     await stopTimerAction(fd);
+    notifyTimerChanged();
     toast.push({ kind: "success", message: tToast("timerStopped") });
     setPending(false);
     setOpen(false);

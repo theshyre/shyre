@@ -32,6 +32,9 @@ interface SidebarProps {
   displayName: string;
   email: string;
   avatarUrl?: string | null;
+  /** Viewer's user_id — threaded to the sidebar <Timer> so its author
+   *  chip can resolve a stable preset color. */
+  userId: string;
   isSystemAdmin?: boolean;
   unresolvedErrorCount?: number;
 }
@@ -49,6 +52,7 @@ interface SidebarProps {
 export default function Sidebar({
   displayName,
   email,
+  userId,
   avatarUrl,
   isSystemAdmin: isAdmin,
   unresolvedErrorCount,
@@ -141,7 +145,11 @@ export default function Sidebar({
 
       {/* Bottom block — ambient context + identity + controls */}
       <div className="border-t border-edge">
-        <Timer />
+        <Timer
+          displayName={displayName}
+          avatarUrl={avatarUrl ?? null}
+          userId={userId}
+        />
       </div>
 
       <Link

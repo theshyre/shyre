@@ -65,6 +65,7 @@ export default async function DashboardLayout({
           displayName={user.displayName}
           email={user.userEmail}
           avatarUrl={avatarUrl}
+          userId={user.userId}
           isSystemAdmin={admin}
           unresolvedErrorCount={unresolvedErrorCount}
         />

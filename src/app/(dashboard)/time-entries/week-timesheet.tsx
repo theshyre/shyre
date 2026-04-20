@@ -23,6 +23,7 @@ import {
 } from "lucide-react";
 import { Avatar, resolveAvatarUrl } from "@theshyre/ui";
 import { formatDurationHMZero } from "@/lib/time/week";
+import { notifyTimerChanged } from "@/lib/timer-events";
 import { addLocalDays, utcToLocalDateStr } from "@/lib/time/tz";
 import { DurationInput } from "./duration-input";
 import {
@@ -529,6 +530,7 @@ export function WeekTimesheet({
     fd.set("project_id", projectId);
     if (categoryId) fd.set("category_id", categoryId);
     await save.wrap(startTimerAction(fd));
+    notifyTimerChanged();
     toast.push({ kind: "success", message: tToast("timerStarted") });
   }
 
@@ -536,6 +538,7 @@ export function WeekTimesheet({
     const fd = new FormData();
     fd.set("id", entryId);
     await save.wrap(stopTimerAction(fd));
+    notifyTimerChanged();
     toast.push({ kind: "success", message: tToast("timerStopped") });
   }
 
