@@ -3,6 +3,8 @@ import { TimezoneSync } from "@/components/TimezoneSync";
 import { ThemeSync } from "@/components/ThemeSync";
 import { TextSizeSync } from "@/components/TextSizeSync";
 import { ToastProvider } from "@/components/Toast";
+import { GlobalKeyboardHelp } from "@/components/GlobalKeyboardHelp";
+import { GlobalCommandPalette } from "@/components/GlobalCommandPalette";
 import type { TextSize } from "@/components/text-size-provider";
 import { getUserContext } from "@/lib/team-context";
 import { isSystemAdmin } from "@/lib/system-admin";
@@ -69,6 +71,8 @@ export default async function DashboardLayout({
         <main className="flex-1 overflow-y-auto">
           <div className="mx-auto max-w-7xl px-8 py-8">{children}</div>
         </main>
+        <GlobalKeyboardHelp />
+        <GlobalCommandPalette isSystemAdmin={admin} />
       </div>
     </ToastProvider>
   );

@@ -28,6 +28,35 @@
   "authorship": {
     "unknownUser": "Unknown user"
   },
+  "commandPalette": {
+    "placeholder": "Jump to…",
+    "noResults": "No matches for \"{query}\"",
+    "navigate": "navigate",
+    "select": "jump",
+    "toggleHint": "K to toggle"
+  },
+  "keyboardHelp": {
+    "title": "Keyboard Shortcuts",
+    "groups": {
+      "global": "Global",
+      "time": "Time",
+      "forms": "Forms"
+    },
+    "shortcuts": {
+      "showHelp": "Show shortcuts",
+      "commandPalette": "Open command palette",
+      "focusSearch": "Focus search",
+      "newItem": "New item",
+      "closeOrCancel": "Close / cancel",
+      "startStopTimer": "Start / stop timer",
+      "dayView": "Day view",
+      "weekView": "Week view",
+      "expandAllGroups": "Expand all groups",
+      "collapseAllGroups": "Collapse all groups",
+      "save": "Save",
+      "submit": "Submit"
+    }
+  },
   "navSections": {
     "track": "Track",
     "manage": "Manage",

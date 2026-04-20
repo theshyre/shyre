@@ -28,6 +28,35 @@
   "authorship": {
     "unknownUser": "Usuario desconocido"
   },
+  "commandPalette": {
+    "placeholder": "Ir a…",
+    "noResults": "Sin coincidencias para \"{query}\"",
+    "navigate": "navegar",
+    "select": "ir",
+    "toggleHint": "K para abrir/cerrar"
+  },
+  "keyboardHelp": {
+    "title": "Atajos de teclado",
+    "groups": {
+      "global": "Global",
+      "time": "Tiempo",
+      "forms": "Formularios"
+    },
+    "shortcuts": {
+      "showHelp": "Mostrar atajos",
+      "commandPalette": "Abrir paleta de comandos",
+      "focusSearch": "Enfocar búsqueda",
+      "newItem": "Nuevo ítem",
+      "closeOrCancel": "Cerrar / cancelar",
+      "startStopTimer": "Iniciar / detener cronómetro",
+      "dayView": "Vista de día",
+      "weekView": "Vista de semana",
+      "expandAllGroups": "Expandir todos los grupos",
+      "collapseAllGroups": "Contraer todos los grupos",
+      "save": "Guardar",
+      "submit": "Enviar"
+    }
+  },
   "navSections": {
     "track": "Registrar",
     "manage": "Gestionar",
