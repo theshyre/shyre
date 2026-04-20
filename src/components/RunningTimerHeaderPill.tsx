@@ -45,7 +45,14 @@ export function RunningTimerHeaderPill(): React.JSX.Element | null {
 
   if (!running) return null;
 
-  const elapsed = formatElapsed(nowMs - new Date(running.start_time).getTime());
+  // Show today's row total (already-saved entries on the same
+  // project + category + user) plus the current live session, so a
+  // resume click on a row that had 0:03 logged reads 0:03:0X instead
+  // of jumping back to 00:00:00.
+  const elapsed = formatElapsed(
+    running.today_baseline_min * 60_000 +
+      (nowMs - new Date(running.start_time).getTime()),
+  );
 
   return (
     <div className="sticky top-0 z-20 border-b border-success/30 bg-success-soft">

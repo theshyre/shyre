@@ -39,8 +39,14 @@ export default function Timer({
   const router = useRouter();
 
   const nowMs = useNowMs(running !== null);
+  // Combine today's pre-existing entries on this row with the current
+  // session so the clock picks up from the row's previous value (e.g.
+  // 0:03) instead of jumping back to 00:00:00 on a resume click.
   const elapsed = running
-    ? formatElapsed(nowMs - new Date(running.start_time).getTime())
+    ? formatElapsed(
+        running.today_baseline_min * 60_000 +
+          (nowMs - new Date(running.start_time).getTime()),
+      )
     : "00:00:00";
 
   const handleStop = useCallback(async (): Promise<void> => {
