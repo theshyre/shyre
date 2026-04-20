@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
+import { createPortal } from "react-dom";
 import { useTranslations } from "next-intl";
 import { MoreVertical, Pencil, Play, Square, Copy, Trash2 } from "lucide-react";
 import { useToast } from "@/components/Toast";
@@ -27,18 +28,27 @@ export function EntryKebabMenu({ entry, onEdit }: Props): React.JSX.Element {
   const [open, setOpen] = useState(false);
   const [confirmDelete, setConfirmDelete] = useState(false);
   const [pending, setPending] = useState(false);
-  // When the trigger is near the bottom of the viewport, anchor the
-  // menu ABOVE the button instead of below — otherwise the outer
-  // table card's `overflow-hidden` clips the bottom items (Edit,
-  // Delete were getting cut off for rows in the lower half).
-  const [flipUp, setFlipUp] = useState(false);
-  const ref = useRef<HTMLDivElement>(null);
+  // The menu is rendered through a portal to `document.body` so the
+  // parent table card's `overflow-hidden` never clips it. Viewport
+  // coordinates are measured once at open-time; scroll / resize
+  // closes the menu so the trigger and panel can't drift apart.
+  const [panelPos, setPanelPos] = useState<{
+    top: number;
+    right: number;
+  } | null>(null);
   const triggerRef = useRef<HTMLButtonElement>(null);
+  const panelRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     if (!open) return;
     function handleClick(e: MouseEvent): void {
-      if (ref.current && !ref.current.contains(e.target as Node)) {
+      const target = e.target as Node;
+      // Outside-click covers both the trigger's original location and
+      // the portaled panel — each keeps its own ref because they
+      // render in different trees.
+      const insideTrigger = triggerRef.current?.contains(target);
+      const insidePanel = panelRef.current?.contains(target);
+      if (!insideTrigger && !insidePanel) {
         setOpen(false);
         setConfirmDelete(false);
       }
@@ -49,11 +59,22 @@ export function EntryKebabMenu({ entry, onEdit }: Props): React.JSX.Element {
         setConfirmDelete(false);
       }
     }
+    function handleScrollOrResize(): void {
+      // Fixed-positioned panel drifts from the trigger as the table
+      // scrolls — close rather than reposition, which matches user
+      // expectation ("I scrolled, the menu should go away").
+      setOpen(false);
+      setConfirmDelete(false);
+    }
     document.addEventListener("mousedown", handleClick);
     document.addEventListener("keydown", handleKey);
+    window.addEventListener("scroll", handleScrollOrResize, true);
+    window.addEventListener("resize", handleScrollOrResize);
     return () => {
       document.removeEventListener("mousedown", handleClick);
       document.removeEventListener("keydown", handleKey);
+      window.removeEventListener("scroll", handleScrollOrResize, true);
+      window.removeEventListener("resize", handleScrollOrResize);
     };
   }, [open]);
 
@@ -109,21 +130,95 @@ export function EntryKebabMenu({ entry, onEdit }: Props): React.JSX.Element {
     setConfirmDelete(false);
   }
 
+  const panel = open && panelPos && (
+    <div
+      ref={panelRef}
+      className="fixed z-50 w-40 rounded-lg border border-edge bg-surface-raised shadow-lg overflow-hidden"
+      style={{ top: panelPos.top, right: panelPos.right }}
+    >
+      {isRunning ? (
+        <button
+          type="button"
+          disabled={pending}
+          onClick={handleStopTimer}
+          className="flex items-center gap-2 w-full px-3 py-2 text-sm text-left text-success hover:bg-success-soft disabled:opacity-50"
+        >
+          <Square size={14} />
+          {t("stopTimer")}
+        </button>
+      ) : (
+        <button
+          type="button"
+          disabled={pending}
+          onClick={handleStartTimer}
+          className="flex items-center gap-2 w-full px-3 py-2 text-sm text-left text-content-secondary hover:bg-hover disabled:opacity-50"
+        >
+          <Play size={14} />
+          {t("startTimer")}
+        </button>
+      )}
+      <button
+        type="button"
+        onClick={() => {
+          onEdit();
+          setOpen(false);
+        }}
+        className="flex items-center gap-2 w-full px-3 py-2 text-sm text-left text-content-secondary hover:bg-hover"
+      >
+        <Pencil size={14} />
+        {t("edit")}
+      </button>
+      <button
+        type="button"
+        disabled={pending}
+        onClick={handleDuplicate}
+        className="flex items-center gap-2 w-full px-3 py-2 text-sm text-left text-content-secondary hover:bg-hover disabled:opacity-50"
+      >
+        <Copy size={14} />
+        {t("duplicate")}
+      </button>
+      {confirmDelete ? (
+        <button
+          type="button"
+          disabled={pending}
+          onClick={handleDelete}
+          className="flex items-center gap-2 w-full px-3 py-2 text-sm text-left text-error hover:bg-error-soft disabled:opacity-50"
+        >
+          <Trash2 size={14} />
+          {t("confirmDelete")}
+        </button>
+      ) : (
+        <button
+          type="button"
+          onClick={() => setConfirmDelete(true)}
+          className="flex items-center gap-2 w-full px-3 py-2 text-sm text-left text-error hover:bg-error-soft"
+        >
+          <Trash2 size={14} />
+          {t("delete")}
+        </button>
+      )}
+    </div>
+  );
+
   return (
-    <div ref={ref} className="relative">
+    <>
       <button
         ref={triggerRef}
         type="button"
         onClick={(e) => {
           e.stopPropagation();
           if (!open && triggerRef.current) {
-            // Rough menu-height estimate: 4 items × 36px each + padding.
-            // Close enough to decide whether to flip. Measuring the
-            // actual menu would require rendering it first, which adds
-            // flicker. This heuristic has been reliable.
+            // Measure once at open-time so the portaled panel lands
+            // exactly next to the trigger — flipping above when there
+            // isn't room below. Rough menu-height estimate: 4 items
+            // × 36px each + padding ≈ 160px.
             const rect = triggerRef.current.getBoundingClientRect();
+            const menuH = 200;
             const spaceBelow = window.innerHeight - rect.bottom;
-            setFlipUp(spaceBelow < 180);
+            const top =
+              spaceBelow >= menuH ? rect.bottom + 4 : rect.top - menuH - 4;
+            const right = window.innerWidth - rect.right;
+            setPanelPos({ top, right });
           }
           setOpen((o) => !o);
         }}
@@ -132,75 +227,12 @@ export function EntryKebabMenu({ entry, onEdit }: Props): React.JSX.Element {
       >
         <MoreVertical size={14} />
       </button>
-      {open && (
-        <div
-          className={`absolute right-0 z-30 w-40 rounded-lg border border-edge bg-surface-raised shadow-lg overflow-hidden ${
-            flipUp ? "bottom-full mb-1" : "top-full mt-1"
-          }`}
-        >
-          {isRunning ? (
-            <button
-              type="button"
-              disabled={pending}
-              onClick={handleStopTimer}
-              className="flex items-center gap-2 w-full px-3 py-2 text-sm text-left text-success hover:bg-success-soft disabled:opacity-50"
-            >
-              <Square size={14} />
-              {t("stopTimer")}
-            </button>
-          ) : (
-            <button
-              type="button"
-              disabled={pending}
-              onClick={handleStartTimer}
-              className="flex items-center gap-2 w-full px-3 py-2 text-sm text-left text-content-secondary hover:bg-hover disabled:opacity-50"
-            >
-              <Play size={14} />
-              {t("startTimer")}
-            </button>
-          )}
-          <button
-            type="button"
-            onClick={() => {
-              onEdit();
-              setOpen(false);
-            }}
-            className="flex items-center gap-2 w-full px-3 py-2 text-sm text-left text-content-secondary hover:bg-hover"
-          >
-            <Pencil size={14} />
-            {t("edit")}
-          </button>
-          <button
-            type="button"
-            disabled={pending}
-            onClick={handleDuplicate}
-            className="flex items-center gap-2 w-full px-3 py-2 text-sm text-left text-content-secondary hover:bg-hover disabled:opacity-50"
-          >
-            <Copy size={14} />
-            {t("duplicate")}
-          </button>
-          {confirmDelete ? (
-            <button
-              type="button"
-              disabled={pending}
-              onClick={handleDelete}
-              className="flex items-center gap-2 w-full px-3 py-2 text-sm text-left text-error hover:bg-error-soft disabled:opacity-50"
-            >
-              <Trash2 size={14} />
-              {t("confirmDelete")}
-            </button>
-          ) : (
-            <button
-              type="button"
-              onClick={() => setConfirmDelete(true)}
-              className="flex items-center gap-2 w-full px-3 py-2 text-sm text-left text-error hover:bg-error-soft"
-            >
-              <Trash2 size={14} />
-              {t("delete")}
-            </button>
-          )}
-        </div>
-      )}
-    </div>
+      {/* Portal the panel to document.body so table card's
+          overflow-hidden can't clip it. SSR-safe: createPortal is
+          called only when `open` is true (client-side). */}
+      {typeof document !== "undefined" && panel
+        ? createPortal(panel, document.body)
+        : null}
+    </>
   );
 }

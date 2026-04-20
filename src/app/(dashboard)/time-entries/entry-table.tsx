@@ -103,39 +103,48 @@ export function EntryTable({
   }
 
   return (
-    <div className="space-y-2">
-      {/* Bulk action bar — appears only when at least one row is
-          selected. Sits above the table so it reads as "these N
-          selected below" rather than competing with the table header. */}
-      {someSelected && (
-        <div
-          role="toolbar"
-          aria-label={t("bulk.label")}
-          className="flex items-center justify-between gap-3 rounded-lg border border-accent bg-accent-soft px-3 py-2"
-        >
-          <span className="text-body text-accent-text">
-            {t("bulk.selectedCount", { count: selectedIds.size })}
-          </span>
-          <div className="flex items-center gap-2">
-            <button
-              type="button"
-              onClick={() => setSelectedIds(new Set())}
-              className="text-caption text-accent-text hover:underline"
-            >
-              {t("bulk.clear")}
-            </button>
-            <InlineDeleteRowConfirm
-              ariaLabel={t("bulk.delete")}
-              onConfirm={bulkDelete}
-              summary={tc("deleteCount", { count: selectedIds.size })}
-            />
-          </div>
-        </div>
-      )}
-
-      <div className="rounded-lg border border-edge bg-surface-raised overflow-hidden">
-        <table className="w-full text-body">
-          <thead className="bg-surface-inset">
+    <div className="rounded-lg border border-edge bg-surface-raised overflow-hidden">
+      <table className="w-full text-body">
+        <thead className="bg-surface-inset">
+          {someSelected ? (
+            /* Gmail-style toolbar: the header row's content swaps when
+               a selection is active. Row height stays the same, so
+               toggling selection never shifts the table. */
+            <tr role="toolbar" aria-label={t("bulk.label")}>
+              <th className="w-10 pl-4 py-2 text-left">
+                <input
+                  type="checkbox"
+                  checked={allSelected}
+                  ref={(el) => {
+                    if (el) el.indeterminate = !allSelected && someSelected;
+                  }}
+                  onChange={toggleAll}
+                  aria-label={t("bulk.selectAll")}
+                  className="h-4 w-4 rounded border-edge text-accent focus:ring-focus-ring"
+                />
+              </th>
+              <th
+                colSpan={6}
+                className="py-2 text-left text-body font-medium text-accent-text"
+              >
+                <span>{t("bulk.selectedCount", { count: selectedIds.size })}</span>
+                <button
+                  type="button"
+                  onClick={() => setSelectedIds(new Set())}
+                  className="ml-4 text-caption text-content-secondary hover:text-content hover:underline"
+                >
+                  {t("bulk.clear")}
+                </button>
+              </th>
+              <th className="px-2 py-1 text-right">
+                <InlineDeleteRowConfirm
+                  ariaLabel={t("bulk.delete")}
+                  onConfirm={bulkDelete}
+                  summary={tc("deleteCount", { count: selectedIds.size })}
+                />
+              </th>
+            </tr>
+          ) : (
             <tr>
               <th className="w-10 pl-4 py-2 text-left">
                 <input
@@ -169,25 +178,25 @@ export function EntryTable({
               </th>
               <th className="px-2 py-2" aria-label="actions" />
             </tr>
-          </thead>
-          <tbody>
-            {groups.map((group) => (
-              <GroupBlock
-                key={group.id}
-                group={group}
-                projects={projects}
-                categories={categories}
-                expandedEntryId={expandedEntryId}
-                onToggleExpand={onToggleExpand}
-                showHeader={!hideGroupHeaders}
-                tzOffsetMin={tzOffsetMin}
-                selectedIds={selectedIds}
-                onToggleSelect={toggleOne}
-              />
-            ))}
-          </tbody>
-        </table>
-      </div>
+          )}
+        </thead>
+        <tbody>
+          {groups.map((group) => (
+            <GroupBlock
+              key={group.id}
+              group={group}
+              projects={projects}
+              categories={categories}
+              expandedEntryId={expandedEntryId}
+              onToggleExpand={onToggleExpand}
+              showHeader={!hideGroupHeaders}
+              tzOffsetMin={tzOffsetMin}
+              selectedIds={selectedIds}
+              onToggleSelect={toggleOne}
+            />
+          ))}
+        </tbody>
+      </table>
     </div>
   );
 }
