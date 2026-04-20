@@ -32,10 +32,16 @@ export function EntryKebabMenu({ entry, onEdit }: Props): React.JSX.Element {
   // parent table card's `overflow-hidden` never clips it. Viewport
   // coordinates are measured once at open-time; scroll / resize
   // closes the menu so the trigger and panel can't drift apart.
-  const [panelPos, setPanelPos] = useState<{
-    top: number;
-    right: number;
-  } | null>(null);
+  //
+  // When there's room below the trigger we anchor by `top`; when we
+  // have to flip up, we anchor by `bottom` so the panel's bottom
+  // edge sits against the trigger's top — that way the menu's
+  // actual rendered height doesn't matter, no height guessing.
+  const [panelPos, setPanelPos] = useState<
+    | { kind: "below"; top: number; right: number }
+    | { kind: "above"; bottom: number; right: number }
+    | null
+  >(null);
   const triggerRef = useRef<HTMLButtonElement>(null);
   const panelRef = useRef<HTMLDivElement>(null);
 
@@ -134,7 +140,11 @@ export function EntryKebabMenu({ entry, onEdit }: Props): React.JSX.Element {
     <div
       ref={panelRef}
       className="fixed z-50 w-40 rounded-lg border border-edge bg-surface-raised shadow-lg overflow-hidden"
-      style={{ top: panelPos.top, right: panelPos.right }}
+      style={
+        panelPos.kind === "below"
+          ? { top: panelPos.top, right: panelPos.right }
+          : { bottom: panelPos.bottom, right: panelPos.right }
+      }
     >
       {isRunning ? (
         <button
@@ -209,16 +219,23 @@ export function EntryKebabMenu({ entry, onEdit }: Props): React.JSX.Element {
           e.stopPropagation();
           if (!open && triggerRef.current) {
             // Measure once at open-time so the portaled panel lands
-            // exactly next to the trigger — flipping above when there
-            // isn't room below. Rough menu-height estimate: 4 items
-            // × 36px each + padding ≈ 160px.
+            // exactly next to the trigger. Estimate is only used to
+            // decide the flip direction — actual placement anchors
+            // to either top or bottom, so menu-height variance can't
+            // leave a gap or overlap.
             const rect = triggerRef.current.getBoundingClientRect();
-            const menuH = 200;
+            const menuH = 180;
             const spaceBelow = window.innerHeight - rect.bottom;
-            const top =
-              spaceBelow >= menuH ? rect.bottom + 4 : rect.top - menuH - 4;
             const right = window.innerWidth - rect.right;
-            setPanelPos({ top, right });
+            if (spaceBelow >= menuH) {
+              setPanelPos({ kind: "below", top: rect.bottom + 4, right });
+            } else {
+              setPanelPos({
+                kind: "above",
+                bottom: window.innerHeight - rect.top + 4,
+                right,
+              });
+            }
           }
           setOpen((o) => !o);
         }}
