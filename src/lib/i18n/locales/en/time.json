@@ -110,6 +110,8 @@
   "entry": {
     "edit": "Edit",
     "startTimer": "Start timer",
+    "stopTimer": "Stop timer",
+    "stopTimerFromRow": "Stop running timer",
     "startTimerFromRow": "Start timer for this project",
     "duplicate": "Duplicate",
     "delete": "Delete",
@@ -177,7 +179,8 @@
     "entryDeleted": "Entry moved to trash",
     "entriesDeleted": "{count, plural, one {# entry} other {# entries}} moved to trash",
     "undo": "Undo",
-    "timerStarted": "Timer started"
+    "timerStarted": "Timer started",
+    "timerStopped": "Timer stopped"
   },
   "trash": {
     "title": "Trash",

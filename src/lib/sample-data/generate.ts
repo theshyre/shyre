@@ -486,24 +486,42 @@ function buildEntries(opts: BuildEntriesOpts): SampleEntry[] {
     authorChoices.push([i, 2]);
   });
 
+  // Base day-weights Mon..Sun. Clamped per-week to only the days that
+  // have already elapsed, so current-week entries never land on a
+  // future day and dense morning loads still put work on "today".
+  const BASE_DAY_WEIGHTS: ReadonlyArray<readonly [number, number]> = [
+    [0, 5],
+    [1, 5],
+    [2, 5],
+    [3, 5],
+    [4, 4],
+    [5, 1],
+    [6, 1],
+  ];
+
   for (let w = 0; w < WEEKS; w++) {
     const weekStart = new Date(mondayOfThisWeek);
     weekStart.setDate(weekStart.getDate() - w * 7);
 
-    const weekCount =
+    // For the current week, only generate entries on Monday..today; for
+    // earlier weeks the full Mon..Sun window is valid.
+    const lastAllowedDayOffset = w === 0 ? daysSinceMonday : 6;
+    const dayWeights = BASE_DAY_WEIGHTS.slice(0, lastAllowedDayOffset + 1);
+    if (dayWeights.length === 0) continue;
+
+    const rawWeekCount =
       ENTRIES_PER_WEEK_MIN +
       Math.floor(rng() * (ENTRIES_PER_WEEK_MAX - ENTRIES_PER_WEEK_MIN + 1));
+    // Scale by fraction of the week that's actually elapsed for w=0,
+    // otherwise Monday-morning loads would dump 18–32 entries onto
+    // today (the only allowed day) and swamp the grid.
+    const weekCount =
+      w === 0
+        ? Math.max(3, Math.round(rawWeekCount * ((daysSinceMonday + 1) / 7)))
+        : rawWeekCount;
 
     for (let i = 0; i < weekCount; i++) {
-      const dayOffset = pickWeighted<number>(rng, [
-        [0, 5],
-        [1, 5],
-        [2, 5],
-        [3, 5],
-        [4, 4],
-        [5, 1],
-        [6, 1],
-      ]);
+      const dayOffset = pickWeighted<number>(rng, dayWeights);
       const day = new Date(weekStart);
       day.setDate(day.getDate() + dayOffset);
       if (day.getTime() > now.getTime()) continue;
@@ -535,8 +553,16 @@ function buildEntries(opts: BuildEntriesOpts): SampleEntry[] {
         [180, 2],
         [240, 1],
       ]);
-      const end = new Date(start.getTime() + durationMinutes * 60 * 1000);
-      if (end.getTime() > now.getTime()) continue;
+      let end = new Date(start.getTime() + durationMinutes * 60 * 1000);
+      // If this entry would still be running, clip its end to a few
+      // minutes before `now` instead of dropping it outright. Keeps
+      // morning "today" entries on the grid even when the naïve end
+      // time lands in the future.
+      if (end.getTime() > now.getTime()) {
+        const clippedEndMs = now.getTime() - 5 * 60 * 1000;
+        if (clippedEndMs - start.getTime() < 15 * 60 * 1000) continue;
+        end = new Date(clippedEndMs);
+      }
 
       const projectIndex = Math.floor(rng() * projects.length);
       const project = projects[projectIndex]!;

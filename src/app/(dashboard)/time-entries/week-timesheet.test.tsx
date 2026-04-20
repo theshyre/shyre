@@ -2,6 +2,13 @@ import { describe, it, expect, vi, beforeEach } from "vitest";
 import { screen, fireEvent, waitFor } from "@testing-library/react";
 import { renderWithIntl } from "@/test/intl";
 
+const pushMock = vi.fn();
+vi.mock("next/navigation", () => ({
+  useRouter: () => ({ push: pushMock }),
+  usePathname: () => "/time-entries",
+  useSearchParams: () => new URLSearchParams(),
+}));
+
 const { upsertCellMock, deleteMock, restoreBatchMock } = vi.hoisted(() => ({
   upsertCellMock: vi.fn(async (_fd: FormData) => {}),
   deleteMock: vi.fn(async (_fd: FormData) => {}),
@@ -12,6 +19,8 @@ vi.mock("./actions", () => ({
   upsertTimesheetCellAction: upsertCellMock,
   deleteTimeEntryAction: deleteMock,
   restoreTimeEntriesAction: restoreBatchMock,
+  startTimerAction: vi.fn(),
+  stopTimerAction: vi.fn(),
 }));
 
 import { WeekTimesheet } from "./week-timesheet";

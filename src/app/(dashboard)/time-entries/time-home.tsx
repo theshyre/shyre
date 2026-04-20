@@ -9,6 +9,7 @@ import type { MemberSelection } from "./page";
 import type { TeamListItem } from "@/lib/team-context";
 import {
   formatDurationHM,
+  formatDurationHMZero,
   sumBillableMin,
   sumDurationMin,
 } from "@/lib/time/week";
@@ -148,7 +149,10 @@ export function TimeHome({
       <div className="flex items-end justify-between flex-wrap gap-3">
         <div className="flex flex-col">
           <span className="font-mono text-hero font-bold text-content tabular-nums leading-none">
-            {formatDurationHM(totalMin)}
+            {/* Use the zero-pad variant so an empty week reads "0:00"
+                instead of the em-dash, which rendered at hero size
+                looked like a stray horizontal line under the buttons. */}
+            {formatDurationHMZero(totalMin)}
           </span>
           <span className="text-caption text-content-muted font-mono tabular-nums mt-1">
             {t("totalsSummary", {

@@ -110,6 +110,8 @@
   "entry": {
     "edit": "Editar",
     "startTimer": "Iniciar cronómetro",
+    "stopTimer": "Detener cronómetro",
+    "stopTimerFromRow": "Detener cronómetro en ejecución",
     "startTimerFromRow": "Iniciar cronómetro para este proyecto",
     "duplicate": "Duplicar",
     "delete": "Eliminar",
@@ -177,7 +179,8 @@
     "entryDeleted": "Entrada movida a la papelera",
     "entriesDeleted": "{count, plural, one {# entrada movida a la papelera} other {# entradas movidas a la papelera}}",
     "undo": "Deshacer",
-    "timerStarted": "Cronómetro iniciado"
+    "timerStarted": "Cronómetro iniciado",
+    "timerStopped": "Cronómetro detenido"
   },
   "trash": {
     "title": "Papelera",

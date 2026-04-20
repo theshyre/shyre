@@ -2,12 +2,13 @@
 
 import { useEffect, useRef, useState } from "react";
 import { useTranslations } from "next-intl";
-import { MoreVertical, Pencil, Play, Copy, Trash2 } from "lucide-react";
+import { MoreVertical, Pencil, Play, Square, Copy, Trash2 } from "lucide-react";
 import { useToast } from "@/components/Toast";
 import {
   deleteTimeEntryAction,
   duplicateTimeEntryAction,
   startTimerAction,
+  stopTimerAction,
 } from "./actions";
 import type { TimeEntry } from "./types";
 
@@ -20,6 +21,7 @@ export function EntryKebabMenu({ entry, onEdit }: Props): React.JSX.Element {
   const t = useTranslations("time.entry");
   const tToast = useTranslations("time.toast");
   const toast = useToast();
+  const isRunning = !entry.end_time;
   const [open, setOpen] = useState(false);
   const [confirmDelete, setConfirmDelete] = useState(false);
   const [pending, setPending] = useState(false);
@@ -72,6 +74,18 @@ export function EntryKebabMenu({ entry, onEdit }: Props): React.JSX.Element {
     setOpen(false);
   }
 
+  // Stop this specific running entry. Used when the entry is already
+  // running — the "Start timer" menu item is swapped for "Stop timer".
+  async function handleStopTimer(): Promise<void> {
+    setPending(true);
+    const fd = new FormData();
+    fd.set("id", entry.id);
+    await stopTimerAction(fd);
+    toast.push({ kind: "success", message: tToast("timerStopped") });
+    setPending(false);
+    setOpen(false);
+  }
+
   async function handleDelete(): Promise<void> {
     setPending(true);
     const fd = new FormData();
@@ -97,15 +111,27 @@ export function EntryKebabMenu({ entry, onEdit }: Props): React.JSX.Element {
       </button>
       {open && (
         <div className="absolute right-0 top-full z-30 mt-1 w-40 rounded-lg border border-edge bg-surface-raised shadow-lg overflow-hidden">
-          <button
-            type="button"
-            disabled={pending}
-            onClick={handleStartTimer}
-            className="flex items-center gap-2 w-full px-3 py-2 text-sm text-left text-content-secondary hover:bg-hover disabled:opacity-50"
-          >
-            <Play size={14} />
-            {t("startTimer")}
-          </button>
+          {isRunning ? (
+            <button
+              type="button"
+              disabled={pending}
+              onClick={handleStopTimer}
+              className="flex items-center gap-2 w-full px-3 py-2 text-sm text-left text-success hover:bg-success-soft disabled:opacity-50"
+            >
+              <Square size={14} />
+              {t("stopTimer")}
+            </button>
+          ) : (
+            <button
+              type="button"
+              disabled={pending}
+              onClick={handleStartTimer}
+              className="flex items-center gap-2 w-full px-3 py-2 text-sm text-left text-content-secondary hover:bg-hover disabled:opacity-50"
+            >
+              <Play size={14} />
+              {t("startTimer")}
+            </button>
+          )}
           <button
             type="button"
             onClick={() => {

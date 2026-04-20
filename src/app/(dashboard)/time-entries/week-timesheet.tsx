@@ -9,15 +9,17 @@ import {
   useSyncExternalStore,
 } from "react";
 import Link from "next/link";
-import { useSearchParams } from "next/navigation";
+import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { useTranslations } from "next-intl";
 import {
   ChevronDown,
+  ChevronLeft,
   ChevronRight,
   ChevronsDown,
   ChevronsUp,
   Play,
   Plus,
+  Square,
 } from "lucide-react";
 import { Avatar, resolveAvatarUrl } from "@theshyre/ui";
 import { formatDurationHMZero } from "@/lib/time/week";
@@ -28,6 +30,7 @@ import {
   deleteTimeEntryAction,
   restoreTimeEntriesAction,
   startTimerAction,
+  stopTimerAction,
 } from "./actions";
 import {
   buttonSecondaryClass,
@@ -144,6 +147,7 @@ export function WeekTimesheet({
   currentUserId,
 }: Props): React.JSX.Element {
   const t = useTranslations("time.timesheet");
+  const tWeek = useTranslations("time.week");
   const tToast = useTranslations("time.toast");
   const save = useAutosaveStatus();
   const toast = useToast();
@@ -154,6 +158,28 @@ export function WeekTimesheet({
   // coerce to an empty string rather than blowing up the whole grid.
   const searchParams = useSearchParams();
   const searchParamsStr = searchParams?.toString() ?? "";
+  const router = useRouter();
+  const pathname = usePathname();
+
+  // Week nav — shift the `anchor` URL param by ±7 days. The server
+  // recomputes the visible week from whatever date `anchor` lands on.
+  const navigateToWeek = useCallback(
+    (anchorDateStr: string) => {
+      const params = new URLSearchParams(searchParamsStr);
+      params.set("anchor", anchorDateStr);
+      router.push(`${pathname ?? "/time-entries"}?${params.toString()}`);
+    },
+    [router, pathname, searchParamsStr],
+  );
+  const prevWeek = useCallback(() => {
+    navigateToWeek(addLocalDays(weekStartStr, -7));
+  }, [navigateToWeek, weekStartStr]);
+  const nextWeek = useCallback(() => {
+    navigateToWeek(addLocalDays(weekStartStr, 7));
+  }, [navigateToWeek, weekStartStr]);
+  const thisWeek = useCallback(() => {
+    navigateToWeek(utcToLocalDateStr(new Date(), tzOffsetMin));
+  }, [navigateToWeek, tzOffsetMin]);
 
   // Precompute local-date strings for each column (Mon..Sun)
   const weekDays = useMemo(
@@ -469,6 +495,20 @@ export function WeekTimesheet({
     }
   }
 
+  // Running entry belonging to the viewer. When a row's (project,
+  // category) pair matches this entry, we flip its Play button to Stop
+  // so the user can end the timer from the grid without scrolling up to
+  // the running-timer card.
+  const runningEntry = useMemo(
+    () =>
+      entries.find(
+        (e) =>
+          !e.end_time &&
+          (currentUserId === undefined || e.user_id === currentUserId),
+      ) ?? null,
+    [entries, currentUserId],
+  );
+
   // Start a new timer seeded with this row's project + category. Fires
   // the shared `startTimerAction`, which server-side stops whatever the
   // viewer had running before inserting the new entry — so the user can
@@ -482,6 +522,13 @@ export function WeekTimesheet({
     if (categoryId) fd.set("category_id", categoryId);
     await save.wrap(startTimerAction(fd));
     toast.push({ kind: "success", message: tToast("timerStarted") });
+  }
+
+  async function stopRunningTimer(entryId: string): Promise<void> {
+    const fd = new FormData();
+    fd.set("id", entryId);
+    await save.wrap(stopTimerAction(fd));
+    toast.push({ kind: "success", message: tToast("timerStopped") });
   }
 
   // 2D ref map keyed by `${rowIndex}:${dayIndex}` for keyboard navigation
@@ -551,12 +598,70 @@ export function WeekTimesheet({
     return () => window.removeEventListener("keydown", handleKey);
   }, [expandAll, collapseAll]);
 
+  // Human-readable label for the currently-visible week:
+  // "Apr 20 – 26" when same month, "Apr 27 – May 3" when it straddles.
+  const weekRangeLabel = (() => {
+    const [sy, sm, sd] = weekStartStr.split("-").map(Number);
+    const startDate = new Date(sy!, sm! - 1, sd!);
+    const endDate = new Date(startDate);
+    endDate.setDate(endDate.getDate() + 6);
+    const startLabel = startDate.toLocaleDateString(undefined, {
+      month: "short",
+      day: "numeric",
+    });
+    const endLabel =
+      startDate.getMonth() === endDate.getMonth()
+        ? endDate.toLocaleDateString(undefined, { day: "numeric" })
+        : endDate.toLocaleDateString(undefined, {
+            month: "short",
+            day: "numeric",
+          });
+    return `${startLabel} – ${endLabel}`;
+  })();
+  const todayStrForNav = utcToLocalDateStr(new Date(), tzOffsetMin);
+  const viewingThisWeek = todayStrForNav >= weekStartStr &&
+    todayStrForNav <= addLocalDays(weekStartStr, 6);
+
   return (
     <div className="rounded-lg border border-edge bg-surface-raised overflow-x-auto">
       <div className="flex items-center justify-between gap-2 px-3 py-2 border-b border-edge bg-surface-inset">
-        <span className="text-label font-semibold uppercase text-content-muted">
-          {t("frameTitle")}
-        </span>
+        <div className="flex items-center gap-2">
+          <span className="text-label font-semibold uppercase text-content-muted">
+            {t("frameTitle")}
+          </span>
+          <div className="flex items-center gap-1 ml-2">
+            <button
+              type="button"
+              onClick={prevWeek}
+              aria-label={tWeek("prev")}
+              title={tWeek("prev")}
+              className="rounded-md border border-edge bg-surface p-1 text-content-muted hover:bg-hover hover:text-content transition-colors"
+            >
+              <ChevronLeft size={14} />
+            </button>
+            <span className="text-caption font-mono tabular-nums text-content whitespace-nowrap px-2">
+              {weekRangeLabel}
+            </span>
+            <button
+              type="button"
+              onClick={nextWeek}
+              aria-label={tWeek("next")}
+              title={tWeek("next")}
+              className="rounded-md border border-edge bg-surface p-1 text-content-muted hover:bg-hover hover:text-content transition-colors"
+            >
+              <ChevronRight size={14} />
+            </button>
+            {!viewingThisWeek && (
+              <button
+                type="button"
+                onClick={thisWeek}
+                className="rounded-md border border-edge bg-surface px-2 py-1 text-caption text-content-secondary hover:bg-hover hover:text-content transition-colors whitespace-nowrap"
+              >
+                {tWeek("thisWeek")}
+              </button>
+            )}
+          </div>
+        </div>
         <div className="flex items-center gap-3">
           <label className="flex items-center gap-2 text-caption text-content-muted whitespace-nowrap">
             <span>{t("groupBy.label")}</span>
@@ -717,6 +822,8 @@ export function WeekTimesheet({
               onDelete={deleteRow}
               onDiscardEmpty={removeEmptyRow}
               onStartTimer={startTimerFromRow}
+              runningEntry={runningEntry}
+              onStopTimer={stopRunningTimer}
             />
           );
         })}
@@ -780,6 +887,8 @@ function TimesheetRow({
   onDelete,
   onDiscardEmpty,
   onStartTimer,
+  isRunningRow,
+  onStopTimer,
   weekDays,
   todayStr,
   setCellRef,
@@ -799,6 +908,10 @@ function TimesheetRow({
   onDiscardEmpty: () => void;
   /** Start a new timer seeded with this row's project + category. */
   onStartTimer: () => void;
+  /** True when this exact (project, category, user) has a running
+   *  timer — we swap the Play button for Stop and show a pulse. */
+  isRunningRow: boolean;
+  onStopTimer: (() => void) | undefined;
   weekDays: string[];
   todayStr: string;
   setCellRef: (row: number, day: number, el: HTMLInputElement | null) => void;
@@ -826,7 +939,7 @@ function TimesheetRow({
     <tr
       className={`bg-surface hover:bg-hover border-b border-edge-muted last:border-b-0 transition-colors ${
         !editable ? "opacity-90" : ""
-      }`}
+      } ${isRunningRow ? "ring-2 ring-inset ring-success/40" : ""}`}
     >
       <td className="py-2 align-middle">
         <div
@@ -925,22 +1038,37 @@ function TimesheetRow({
       </td>
       <td className="px-2 py-2 text-right">
         <div className="flex items-center justify-end gap-1">
-          {editable && (
-            // "Start timer" seeded from this row. Visible on every row
-            // the viewer owns — not only rows with saved data, since
-            // the user may want to kick off a timer on a just-added
-            // blank row too. Server-side auto-stops any other running
-            // timer, so a second click never doubles up.
-            <button
-              type="button"
-              onClick={onStartTimer}
-              aria-label={tEntry("startTimerFromRow")}
-              title={tEntry("startTimerFromRow")}
-              className="rounded p-1 text-content-muted hover:bg-hover hover:text-accent transition-colors"
-            >
-              <Play size={14} />
-            </button>
-          )}
+          {editable &&
+            (isRunningRow && onStopTimer ? (
+              // This exact row has a running timer — swap in a red Stop
+              // button (with pulsing dot) so the user can end it from
+              // the grid without scrolling up to the timer card.
+              <button
+                type="button"
+                onClick={onStopTimer}
+                aria-label={tEntry("stopTimerFromRow")}
+                title={tEntry("stopTimerFromRow")}
+                className="inline-flex items-center gap-1 rounded p-1 text-success hover:bg-success-soft transition-colors"
+              >
+                <span className="h-1.5 w-1.5 rounded-full bg-success animate-pulse" />
+                <Square size={14} />
+              </button>
+            ) : (
+              // "Start timer" seeded from this row. Visible on every row
+              // the viewer owns — not only rows with saved data, since
+              // the user may want to kick off a timer on a just-added
+              // blank row too. Server-side auto-stops any other running
+              // timer, so a second click never doubles up.
+              <button
+                type="button"
+                onClick={onStartTimer}
+                aria-label={tEntry("startTimerFromRow")}
+                title={tEntry("startTimerFromRow")}
+                className="rounded p-1 text-content-muted hover:bg-hover hover:text-accent transition-colors"
+              >
+                <Play size={14} />
+              </button>
+            ))}
           {editable && hasSavedData ? (
             <InlineDeleteRowConfirm
               ariaLabel={t("deleteRow")}
@@ -982,6 +1110,8 @@ function GroupBlock({
   onDelete,
   onDiscardEmpty,
   onStartTimer,
+  runningEntry,
+  onStopTimer,
 }: {
   group: RowGroup;
   groupBy: GroupBy;
@@ -1016,6 +1146,8 @@ function GroupBlock({
     projectId: string,
     categoryId: string | null,
   ) => void | Promise<void>;
+  runningEntry: TimeEntry | null;
+  onStopTimer: (entryId: string) => void | Promise<void>;
 }): React.JSX.Element {
   const tHeader = useTranslations("time.timesheet.groupHeader");
 
@@ -1092,6 +1224,20 @@ function GroupBlock({
               onStartTimer={() => {
                 void onStartTimer(row.projectId, row.categoryId);
               }}
+              isRunningRow={
+                !!runningEntry &&
+                runningEntry.project_id === row.projectId &&
+                runningEntry.category_id === row.categoryId &&
+                runningEntry.user_id === row.userId
+              }
+              onStopTimer={
+                runningEntry &&
+                runningEntry.project_id === row.projectId &&
+                runningEntry.category_id === row.categoryId &&
+                runningEntry.user_id === row.userId
+                  ? () => void onStopTimer(runningEntry.id)
+                  : undefined
+              }
               weekDays={weekDays}
               todayStr={todayStr}
               setCellRef={setCellRef}

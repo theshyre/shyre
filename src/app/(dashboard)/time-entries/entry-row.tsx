@@ -1,5 +1,6 @@
 "use client";
 
+import { useEffect, useState } from "react";
 import { useTranslations } from "next-intl";
 import { DollarSign, Minus } from "lucide-react";
 import { formatDurationHM } from "@/lib/time/week";
@@ -36,7 +37,6 @@ export function EntryRow({
   tzOffsetMin,
 }: Props): React.JSX.Element {
   const t = useTranslations("time");
-  const tt = useTranslations("time.timer");
   const isRunning = !entry.end_time;
   const projectName = entry.projects?.name ?? "—";
   const customerName = entry.projects?.customers?.name ?? null;
@@ -48,6 +48,25 @@ export function EntryRow({
   const category = entry.category_id
     ? categories.find((c) => c.id === entry.category_id)
     : null;
+
+  // Live-tick when running. Interval only binds while isRunning so we
+  // don't burn cycles on every stopped row in the grid.
+  const [nowMs, setNowMs] = useState<number>(() => Date.now());
+  useEffect(() => {
+    if (!isRunning) return;
+    const id = setInterval(() => setNowMs(Date.now()), 1000);
+    return () => clearInterval(id);
+  }, [isRunning]);
+  const liveElapsed = (() => {
+    const diff = Math.max(0, nowMs - startDate.getTime());
+    const totalSec = Math.floor(diff / 1000);
+    const h = Math.floor(totalSec / 3600);
+    const m = Math.floor((totalSec % 3600) / 60);
+    const s = totalSec % 60;
+    return h > 0
+      ? `${h}:${String(m).padStart(2, "0")}:${String(s).padStart(2, "0")}`
+      : `${m}:${String(s).padStart(2, "0")}`;
+  })();
 
   const rowClass = `border-b border-edge last:border-0 hover:bg-hover transition-colors cursor-pointer ${
     expanded ? "bg-surface-inset" : ""
@@ -109,12 +128,13 @@ export function EntryRow({
           </span>
         </td>
 
-        {/* Duration */}
+        {/* Duration — live-ticks every second for running entries so the
+            grid shows the elapsed clock, not a frozen "Running" label. */}
         <td className="px-3 py-2.5 align-middle text-right whitespace-nowrap">
           {isRunning ? (
-            <span className="inline-flex items-center gap-1.5 text-caption font-medium text-success">
+            <span className="inline-flex items-center gap-1.5 font-mono text-body-lg font-semibold text-success tabular-nums">
               <span className="h-1.5 w-1.5 rounded-full bg-success animate-pulse" />
-              {tt("running")}
+              {liveElapsed}
             </span>
           ) : (
             <span className="font-mono text-body-lg font-semibold text-content tabular-nums">

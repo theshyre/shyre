@@ -3,13 +3,23 @@
  * MANDATORY: Never inline form field classes — use these constants.
  */
 
+import { buttonPrimaryClass as baseButtonPrimaryClass } from "@theshyre/ui";
+
 export {
   inputClass,
   selectClass,
   textareaClass,
   searchInputClass,
-  buttonPrimaryClass,
 } from "@theshyre/ui";
+
+/**
+ * Shyre's primary button wraps the shared `buttonPrimaryClass` and adds
+ * `gap-2` so icon + label + kbd hint get breathing room. The shared
+ * class intentionally omits the gap so consumers can choose their own
+ * spacing (Liv uses narrower gaps in dense headers). If enough consumers
+ * need gap-2, we can promote this convenience back to @theshyre/ui.
+ */
+export const buttonPrimaryClass = `${baseButtonPrimaryClass} gap-2`;
 
 export const labelClass = "block text-sm font-medium text-content mb-1";
 
