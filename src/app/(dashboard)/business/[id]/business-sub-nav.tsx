@@ -36,7 +36,7 @@ export function BusinessSubNav({ teamId }: Props): React.JSX.Element {
     { href: `/business/${teamId}`, labelKey: "overview", icon: LayoutDashboard },
     { href: `/business/${teamId}/identity`, labelKey: "identity", icon: FileBadge },
     { href: `/business/${teamId}/expenses`, labelKey: "expenses", icon: Receipt },
-    { href: `/business/${teamId}/people`, labelKey: "people", icon: Users, disabled: true },
+    { href: `/business/${teamId}/people`, labelKey: "people", icon: Users },
   ];
 
   return (

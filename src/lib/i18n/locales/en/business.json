@@ -111,5 +111,73 @@
       "notes": "Notes"
     },
     "deleteSummary": "{state} registration"
+  },
+  "people": {
+    "title": "People",
+    "description": "Everyone the business employs, contracts, or otherwise tracks on payroll. A person may be linked to a Shyre user account or stand on their own — a 1099 contractor you pay doesn't need a Shyre login.",
+    "empty": "No people yet. Add yourself first if you're the owner.",
+    "addButton": "Add person",
+    "save": "Save person",
+    "cancel": "Cancel",
+    "sections": {
+      "employees": "Employees",
+      "contractors": "Contractors",
+      "partnersOwners": "Partners & Owners",
+      "other": "Other"
+    },
+    "employmentTypes": {
+      "w2_employee": "W-2 Employee",
+      "1099_contractor": "1099 Contractor",
+      "partner": "Partner",
+      "owner": "Owner",
+      "unpaid": "Unpaid"
+    },
+    "compensationTypes": {
+      "salary": "Salary",
+      "hourly": "Hourly",
+      "project_based": "Project-based",
+      "equity_only": "Equity only",
+      "unpaid": "Unpaid"
+    },
+    "compensationSchedules": {
+      "annual": "Annual",
+      "monthly": "Monthly",
+      "biweekly": "Biweekly",
+      "weekly": "Weekly",
+      "per_hour": "Per hour",
+      "per_project": "Per project"
+    },
+    "fields": {
+      "legalName": "Legal name",
+      "legalNameHelp": "As on tax forms (W-2, 1099). Can differ from the person's Shyre display name.",
+      "preferredName": "Preferred name",
+      "preferredNameHelp": "Optional — override how this person appears in Shyre UI.",
+      "userLink": "Linked Shyre user",
+      "userLinkNone": "— Not linked —",
+      "userLinkHelp": "Optional. When linked, avatar and login email come from their Shyre account via join. Legal name and work email stay on this record.",
+      "workEmail": "Work email",
+      "workEmailHelp": "Payroll / HR contact. Distinct from login email.",
+      "workPhone": "Work phone",
+      "employmentType": "Employment type",
+      "title": "Title",
+      "department": "Department",
+      "employeeNumber": "Employee number",
+      "startedOn": "Started on",
+      "endedOn": "Ended on",
+      "compensationType": "Compensation type",
+      "compensationAmount": "Compensation amount",
+      "compensationCurrency": "Currency",
+      "compensationSchedule": "Schedule",
+      "addressLine1": "Address line 1",
+      "addressLine2": "Address line 2",
+      "city": "City",
+      "state": "State",
+      "postalCode": "Postal code",
+      "country": "Country",
+      "reportsTo": "Reports to",
+      "reportsToNone": "— Nobody —",
+      "notes": "Notes"
+    },
+    "deleteSummary": "{name}"
   }
 }

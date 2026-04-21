@@ -113,6 +113,31 @@ Sales/use tax and similar tax-specific registrations. Separate from state regist
 | notes | TEXT | |
 | deleted_at | TIMESTAMPTZ | Soft delete |
 
+### `business_people`
+Employment records — everyone the business employs, contracts, or otherwise tracks on payroll. A person MAY be linked to a Shyre user via `user_id` but does not have to be. Linking does NOT grant access (auth is via `team_members`).
+
+| Column | Type | Notes |
+|--------|------|-------|
+| id | UUID (PK) | |
+| business_id | UUID | References `businesses(id)` CASCADE |
+| user_id | UUID | References `auth.users(id)` SET NULL — nullable, optional link |
+| legal_name | TEXT | Required. As on tax forms. Distinct from `user_profiles.display_name` |
+| preferred_name | TEXT | Optional UI display override |
+| work_email, work_phone | TEXT | Payroll/HR contact, distinct from login email |
+| employment_type | TEXT | `w2_employee\|1099_contractor\|partner\|owner\|unpaid` |
+| title, department, employee_number | TEXT | Optional |
+| started_on, ended_on | DATE | CHECK ended >= started |
+| compensation_type | TEXT | `salary\|hourly\|project_based\|equity_only\|unpaid` |
+| compensation_amount_cents | INTEGER | Cents, never float |
+| compensation_currency | TEXT | Default `USD` |
+| compensation_schedule | TEXT | `annual\|monthly\|biweekly\|weekly\|per_hour\|per_project` |
+| address_line1/2, city, state, postal_code, country | TEXT | For 1099 mailing |
+| reports_to_person_id | UUID | Self-reference SET NULL |
+| notes | TEXT | |
+| deleted_at | TIMESTAMPTZ | Soft delete |
+
+Partial unique index on `(business_id, user_id) WHERE user_id IS NOT NULL AND deleted_at IS NULL` — one person-record per linked user per business. Unlinked rows (user_id null) can duplicate freely.
+
 ### `business_registered_agents`
 Structured address for each registered agent. One agent commonly serves one business across many states.
 

@@ -111,5 +111,73 @@
       "notes": "Notas"
     },
     "deleteSummary": "registro de {state}"
+  },
+  "people": {
+    "title": "Personas",
+    "description": "Todas las personas que el negocio emplea, contrata o registra en nómina. Una persona puede estar vinculada a una cuenta de Shyre o existir por sí misma — un contratista 1099 al que pagas no necesita acceso a Shyre.",
+    "empty": "Aún no hay personas. Agrégate primero si eres el dueño.",
+    "addButton": "Agregar persona",
+    "save": "Guardar persona",
+    "cancel": "Cancelar",
+    "sections": {
+      "employees": "Empleados",
+      "contractors": "Contratistas",
+      "partnersOwners": "Socios y dueños",
+      "other": "Otro"
+    },
+    "employmentTypes": {
+      "w2_employee": "Empleado W-2",
+      "1099_contractor": "Contratista 1099",
+      "partner": "Socio",
+      "owner": "Dueño",
+      "unpaid": "Sin pago"
+    },
+    "compensationTypes": {
+      "salary": "Salario",
+      "hourly": "Por hora",
+      "project_based": "Por proyecto",
+      "equity_only": "Sólo equity",
+      "unpaid": "Sin pago"
+    },
+    "compensationSchedules": {
+      "annual": "Anual",
+      "monthly": "Mensual",
+      "biweekly": "Quincenal",
+      "weekly": "Semanal",
+      "per_hour": "Por hora",
+      "per_project": "Por proyecto"
+    },
+    "fields": {
+      "legalName": "Nombre legal",
+      "legalNameHelp": "Como aparece en formularios fiscales (W-2, 1099). Puede diferir del nombre de Shyre.",
+      "preferredName": "Nombre preferido",
+      "preferredNameHelp": "Opcional — cómo aparece esta persona en la interfaz de Shyre.",
+      "userLink": "Usuario de Shyre vinculado",
+      "userLinkNone": "— Sin vincular —",
+      "userLinkHelp": "Opcional. Cuando está vinculado, el avatar y el correo de inicio de sesión vienen de su cuenta. El nombre legal y el correo de trabajo se guardan aquí.",
+      "workEmail": "Correo de trabajo",
+      "workEmailHelp": "Contacto para nómina/RR. HH. Distinto del correo de inicio de sesión.",
+      "workPhone": "Teléfono de trabajo",
+      "employmentType": "Tipo de empleo",
+      "title": "Cargo",
+      "department": "Departamento",
+      "employeeNumber": "Número de empleado",
+      "startedOn": "Inicio",
+      "endedOn": "Fin",
+      "compensationType": "Tipo de compensación",
+      "compensationAmount": "Monto de compensación",
+      "compensationCurrency": "Moneda",
+      "compensationSchedule": "Frecuencia",
+      "addressLine1": "Dirección línea 1",
+      "addressLine2": "Dirección línea 2",
+      "city": "Ciudad",
+      "state": "Estado",
+      "postalCode": "Código postal",
+      "country": "País",
+      "reportsTo": "Reporta a",
+      "reportsToNone": "— Nadie —",
+      "notes": "Notas"
+    },
+    "deleteSummary": "{name}"
   }
 }

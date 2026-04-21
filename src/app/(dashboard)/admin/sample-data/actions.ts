@@ -79,6 +79,12 @@ async function deleteSampleRowsInOrg(
   if (businessId) {
     assertSupabaseOk(
       await supabase
+        .from("business_people")
+        .delete()
+        .eq("business_id", businessId),
+    );
+    assertSupabaseOk(
+      await supabase
         .from("business_state_registrations")
         .delete()
         .eq("business_id", businessId),
@@ -350,6 +356,56 @@ async function loadSample(
   const userIdByMemberIdx = new Map<number, string>(
     sampleUsers.map((r) => [r.memberIdx, r.userId]),
   );
+
+  // 2b. Seed business_people. Owner row is linked to the caller
+  // (userId); employee rows are linked to the matching sample user
+  // (by memberSlug → memberIdx → sampleUsers.userId); contractor /
+  // partner rows stay unlinked (user_id = null) to exercise the
+  // non-user path.
+  if (businessId) {
+    const userIdBySlug = new Map<string, string>();
+    for (let i = 0; i < data.teamMembers.length; i++) {
+      const slug = data.teamMembers[i]!.slug;
+      const uid = userIdByMemberIdx.get(i);
+      if (uid) userIdBySlug.set(slug, uid);
+    }
+
+    const peopleInserts = data.people.map((p) => ({
+      business_id: businessId,
+      user_id:
+        p.linkMemberSlug === null
+          ? p.employment_type === "owner"
+            ? userId // the caller owns the business
+            : null
+          : (userIdBySlug.get(p.linkMemberSlug) ?? null),
+      legal_name: p.legal_name,
+      preferred_name: p.preferred_name,
+      work_email: p.work_email,
+      work_phone: p.work_phone,
+      employment_type: p.employment_type,
+      title: p.title,
+      department: p.department,
+      employee_number: p.employee_number,
+      started_on: p.started_on,
+      ended_on: p.ended_on,
+      compensation_type: p.compensation_type,
+      compensation_amount_cents: p.compensation_amount_cents,
+      compensation_currency: p.compensation_currency,
+      compensation_schedule: p.compensation_schedule,
+      address_line1: p.address_line1,
+      address_line2: p.address_line2,
+      city: p.city,
+      state: p.state,
+      postal_code: p.postal_code,
+      country: p.country,
+      notes: p.notes,
+    }));
+    if (peopleInserts.length) {
+      assertSupabaseOk(
+        await supabase.from("business_people").insert(peopleInserts),
+      );
+    }
+  }
 
   // 3. Customers.
   const customerInserts = data.customers.map((c) => ({

@@ -38,6 +38,11 @@ import {
   ALLOWED_TAX_REGISTRATION_STATUSES,
   ALLOWED_FILING_FREQUENCIES,
 } from "@/app/(dashboard)/business/registrations-allow-lists";
+import {
+  ALLOWED_EMPLOYMENT_TYPES,
+  ALLOWED_COMPENSATION_TYPES,
+  ALLOWED_COMPENSATION_SCHEDULES,
+} from "@/app/(dashboard)/business/people-allow-lists";
 
 const MIGRATIONS_DIR = join(process.cwd(), "supabase", "migrations");
 
@@ -130,6 +135,21 @@ const PAIRS: Pair[] = [
     name: "filingFrequencies",
     appSet: ALLOWED_FILING_FREQUENCIES,
     column: "filing_frequency",
+  },
+  {
+    name: "employmentTypes",
+    appSet: ALLOWED_EMPLOYMENT_TYPES,
+    column: "employment_type",
+  },
+  {
+    name: "compensationTypes",
+    appSet: ALLOWED_COMPENSATION_TYPES,
+    column: "compensation_type",
+  },
+  {
+    name: "compensationSchedules",
+    appSet: ALLOWED_COMPENSATION_SCHEDULES,
+    column: "compensation_schedule",
   },
 ];
 

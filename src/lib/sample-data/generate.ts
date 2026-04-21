@@ -179,6 +179,50 @@ export interface SampleRegisteredAgent {
   notes: string | null;
 }
 
+export interface SamplePerson {
+  /** Stable key — matches a team member slug when linkable, null otherwise. */
+  linkMemberSlug: string | null;
+  legal_name: string;
+  preferred_name: string | null;
+  work_email: string | null;
+  work_phone: string | null;
+  employment_type:
+    | "w2_employee"
+    | "1099_contractor"
+    | "partner"
+    | "owner"
+    | "unpaid";
+  title: string | null;
+  department: string | null;
+  employee_number: string | null;
+  started_on: string | null;
+  ended_on: string | null;
+  compensation_type:
+    | "salary"
+    | "hourly"
+    | "project_based"
+    | "equity_only"
+    | "unpaid"
+    | null;
+  compensation_amount_cents: number | null;
+  compensation_currency: string;
+  compensation_schedule:
+    | "annual"
+    | "monthly"
+    | "biweekly"
+    | "weekly"
+    | "per_hour"
+    | "per_project"
+    | null;
+  address_line1: string | null;
+  address_line2: string | null;
+  city: string | null;
+  state: string | null;
+  postal_code: string | null;
+  country: string;
+  notes: string | null;
+}
+
 export interface SampleStateRegistration {
   state: string;
   is_formation: boolean;
@@ -207,6 +251,7 @@ export interface SampleData {
   businessIdentity: SampleBusinessIdentity;
   registeredAgents: SampleRegisteredAgent[];
   stateRegistrations: SampleStateRegistration[];
+  people: SamplePerson[];
   teamMembers: SampleTeamMember[];
   customers: SampleCustomer[];
   projects: SampleProject[];
@@ -682,6 +727,143 @@ const REGISTERED_AGENTS_SEED: SampleRegisteredAgent[] = [
   },
 ];
 
+// ────────────────────────────────────────────────────────────────
+// People seed
+// ────────────────────────────────────────────────────────────────
+//
+// Exercises the four common employment_types:
+//   - owner (the sample team's owner, linked to the caller's user row
+//     via the "owner" slot with linkMemberSlug=null so the seeder can
+//     swap in the current user id)
+//   - w2_employee (Jordan Patel — linked to the sample Shyre user)
+//   - w2_employee (Riley Kim — linked)
+//   - 1099_contractor (freelance copy writer — NOT a Shyre user;
+//     user_id stays null to show the unlinked path)
+//   - partner (silent partner — also unlinked)
+
+const PEOPLE_SEED: SamplePerson[] = [
+  {
+    linkMemberSlug: null, // Owner is the caller — seeder fills user_id.
+    legal_name: "Marcus J. Malcom",
+    preferred_name: null,
+    work_email: "marcus@acme-consulting.example",
+    work_phone: "+1-415-555-0100",
+    employment_type: "owner",
+    title: "Founder & CEO",
+    department: "Leadership",
+    employee_number: "E-0001",
+    started_on: "2023-06-15",
+    ended_on: null,
+    compensation_type: "salary",
+    compensation_amount_cents: 15000000,
+    compensation_currency: "USD",
+    compensation_schedule: "annual",
+    address_line1: "1 Market St",
+    address_line2: "Suite 400",
+    city: "San Francisco",
+    state: "CA",
+    postal_code: "94105",
+    country: "US",
+    notes: "Sole founder. Draws on salary.",
+  },
+  {
+    linkMemberSlug: "jordan",
+    legal_name: "Jordan Patel",
+    preferred_name: null,
+    work_email: "jordan@acme-consulting.example",
+    work_phone: null,
+    employment_type: "w2_employee",
+    title: "Principal Consultant",
+    department: "Delivery",
+    employee_number: "E-0002",
+    started_on: "2024-01-15",
+    ended_on: null,
+    compensation_type: "salary",
+    compensation_amount_cents: 13500000,
+    compensation_currency: "USD",
+    compensation_schedule: "annual",
+    address_line1: "500 Terry A Francois Blvd",
+    address_line2: null,
+    city: "San Francisco",
+    state: "CA",
+    postal_code: "94158",
+    country: "US",
+    notes: null,
+  },
+  {
+    linkMemberSlug: "riley",
+    legal_name: "Riley Kim",
+    preferred_name: null,
+    work_email: "riley@acme-consulting.example",
+    work_phone: null,
+    employment_type: "w2_employee",
+    title: "Senior Consultant",
+    department: "Delivery",
+    employee_number: "E-0003",
+    started_on: "2024-08-01",
+    ended_on: null,
+    compensation_type: "hourly",
+    compensation_amount_cents: 12500,
+    compensation_currency: "USD",
+    compensation_schedule: "per_hour",
+    address_line1: "742 Evergreen Terrace",
+    address_line2: null,
+    city: "Austin",
+    state: "TX",
+    postal_code: "73301",
+    country: "US",
+    notes: null,
+  },
+  {
+    linkMemberSlug: null,
+    legal_name: "Avery Thompson",
+    preferred_name: "Av",
+    work_email: "av@thompsoncopy.example",
+    work_phone: null,
+    employment_type: "1099_contractor",
+    title: "Copywriter",
+    department: null,
+    employee_number: null,
+    started_on: "2025-03-01",
+    ended_on: null,
+    compensation_type: "project_based",
+    compensation_amount_cents: 500000,
+    compensation_currency: "USD",
+    compensation_schedule: "per_project",
+    address_line1: "PO Box 1123",
+    address_line2: null,
+    city: "Portland",
+    state: "OR",
+    postal_code: "97205",
+    country: "US",
+    notes: "Not a Shyre user. Invoices via email net-15.",
+  },
+  {
+    linkMemberSlug: null,
+    legal_name: "Dana Rodriguez",
+    preferred_name: null,
+    work_email: null,
+    work_phone: null,
+    employment_type: "partner",
+    title: "Silent Partner",
+    department: null,
+    employee_number: null,
+    started_on: "2023-06-15",
+    ended_on: null,
+    compensation_type: "equity_only",
+    compensation_amount_cents: null,
+    compensation_currency: "USD",
+    compensation_schedule: null,
+    address_line1: null,
+    address_line2: null,
+    city: null,
+    state: null,
+    postal_code: null,
+    country: "US",
+    notes: "25% equity. Takes K-1 distributions only.",
+  },
+];
+
 const STATE_REGISTRATIONS_SEED: SampleStateRegistration[] = [
   {
     state: "DE",
@@ -745,6 +927,7 @@ export function generateSampleData(opts: {
   const businessIdentity = { ...BUSINESS_IDENTITY_SEED };
   const registeredAgents = REGISTERED_AGENTS_SEED.map((a) => ({ ...a }));
   const stateRegistrations = STATE_REGISTRATIONS_SEED.map((r) => ({ ...r }));
+  const people = PEOPLE_SEED.map((p) => ({ ...p }));
   const teamMembers = TEAM_MEMBER_SEED.map((m) => ({ ...m }));
   const customers = CUSTOMER_SEED.map((c) => ({ ...c }));
   const projects = PROJECT_SEED.map((p) => ({ ...p }));
@@ -760,6 +943,7 @@ export function generateSampleData(opts: {
     businessIdentity,
     registeredAgents,
     stateRegistrations,
+    people,
     teamMembers,
     customers,
     projects,
