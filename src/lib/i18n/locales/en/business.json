@@ -93,7 +93,8 @@
     "fields": {
       "state": "State",
       "statePlaceholder": "e.g. DE",
-      "isFormation": "This is the formation state",
+      "isFormation": "This is where the business was originally formed",
+      "isFormationHelp": "Also called the formation state — where the business is legally domiciled. Exactly one per business; every other state registration is a foreign qualification.",
       "registrationType": "Registration type",
       "entityNumber": "State entity number",
       "stateTaxId": "State tax ID",

@@ -54,6 +54,16 @@ interface Props {
   canEdit: boolean;
 }
 
+/** True if the business already has a formation row (excluding the row being edited). */
+function hasExistingFormation(
+  registrations: StateRegistrationRow[],
+  excludeId: string | null,
+): boolean {
+  return registrations.some(
+    (r) => r.is_formation && r.id !== excludeId,
+  );
+}
+
 const STATUS_TONE: Record<StateRegistrationRow["registration_status"], string> = {
   pending: "bg-surface-inset text-content-secondary",
   active: "bg-success-soft text-success",
@@ -118,6 +128,7 @@ export function StateRegistrationsSection({
                 <RegistrationForm
                   businessId={businessId}
                   registration={row}
+                  defaultIsFormation={row.is_formation}
                   onDone={() => setEditingId(null)}
                 />
               </li>
@@ -140,6 +151,7 @@ export function StateRegistrationsSection({
           <RegistrationForm
             businessId={businessId}
             registration={null}
+            defaultIsFormation={!hasExistingFormation(registrations, null)}
             onDone={() => setAdding(false)}
           />
         </div>
@@ -253,10 +265,15 @@ function RegistrationRow({
 function RegistrationForm({
   businessId,
   registration,
+  defaultIsFormation,
   onDone,
 }: {
   businessId: string;
   registration: StateRegistrationRow | null;
+  /** Checked state for the formation toggle on first render. On create,
+   * this is true if the business has no other formation row yet — the
+   * user's first registration is almost always the formation state. */
+  defaultIsFormation: boolean;
   onDone: () => void;
 }): React.JSX.Element {
   const t = useTranslations("business.stateRegistrations");
@@ -270,8 +287,7 @@ function RegistrationForm({
 
   const initial = registration ?? {
     state: "",
-    is_formation: false,
-    registration_type: "foreign_qualification" as const,
+    is_formation: defaultIsFormation,
     entity_number: null,
     state_tax_id: null,
     registered_on: null,
@@ -311,30 +327,23 @@ function RegistrationForm({
           />
         </div>
 
-        <div>
-          <label className={labelClass}>{t("fields.registrationType")}</label>
-          <select
-            name="registration_type"
-            defaultValue={initial.registration_type}
-            className={selectClass}
-          >
-            <option value="domestic">{t("types.domestic")}</option>
-            <option value="foreign_qualification">
-              {t("types.foreign_qualification")}
-            </option>
-          </select>
+        <div className="sm:col-span-2 rounded-md border border-edge-muted bg-surface p-3">
+          <label className="flex items-start gap-2 text-body text-content">
+            <input
+              type="checkbox"
+              name="is_formation"
+              value="true"
+              defaultChecked={initial.is_formation}
+              className="h-4 w-4 mt-0.5 shrink-0"
+            />
+            <span className="flex-1">
+              <span className="font-medium">{t("fields.isFormation")}</span>
+              <span className="mt-1 block text-caption text-content-muted">
+                {t("fields.isFormationHelp")}
+              </span>
+            </span>
+          </label>
         </div>
-
-        <label className="sm:col-span-2 inline-flex items-center gap-2 text-body text-content">
-          <input
-            type="checkbox"
-            name="is_formation"
-            value="true"
-            defaultChecked={initial.is_formation}
-            className="h-4 w-4"
-          />
-          {t("fields.isFormation")}
-        </label>
 
         <div>
           <label className={labelClass}>{t("fields.entityNumber")}</label>

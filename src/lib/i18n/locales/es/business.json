@@ -93,7 +93,8 @@
     "fields": {
       "state": "Estado",
       "statePlaceholder": "ej. DE",
-      "isFormation": "Este es el estado de constitución",
+      "isFormation": "Aquí se constituyó originalmente el negocio",
+      "isFormationHelp": "También llamado estado de constitución — donde el negocio está legalmente domiciliado. Exactamente uno por negocio; los demás son calificaciones extranjeras.",
       "registrationType": "Tipo de registro",
       "entityNumber": "Número estatal de la entidad",
       "stateTaxId": "ID fiscal estatal",

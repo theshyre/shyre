@@ -4,7 +4,6 @@ import { runSafeAction } from "@/lib/safe-action";
 import { assertSupabaseOk } from "@/lib/errors";
 import { revalidatePath } from "next/cache";
 import {
-  ALLOWED_REGISTRATION_TYPES,
   ALLOWED_REGISTRATION_STATUSES,
   ALLOWED_REPORT_FREQUENCIES,
   ALLOWED_DUE_RULES,
@@ -195,11 +194,6 @@ function readStateRegistrationFields(formData: FormData): {
   const state = requiredString(formData, "state").toUpperCase();
   validateStateCode(state);
 
-  const registration_type = requiredString(formData, "registration_type");
-  if (!ALLOWED_REGISTRATION_TYPES.has(registration_type)) {
-    throw new Error(`Invalid registration_type: ${registration_type}`);
-  }
-
   const registration_status =
     blankToNull(formData.get("registration_status")) ?? "pending";
   if (!ALLOWED_REGISTRATION_STATUSES.has(registration_status)) {
@@ -221,12 +215,14 @@ function readStateRegistrationFields(formData: FormData): {
   );
   validateMmDd(annual_report_due_mmdd);
 
+  // registration_type is derived from is_formation — a business is formed
+  // in exactly one state ("domestic"); every other registration is a
+  // "foreign_qualification." Collapsing the two redundant form fields
+  // into the single formation checkbox prevents the CHECK-constraint
+  // conflict a user hit by leaving "Foreign qualification" selected
+  // while also ticking "This is the formation state."
   const is_formation = formData.get("is_formation") === "true";
-  if (is_formation && registration_type !== "domestic") {
-    throw new Error(
-      "A formation registration must have registration_type 'domestic'.",
-    );
-  }
+  const registration_type = is_formation ? "domestic" : "foreign_qualification";
 
   return {
     state,
