@@ -49,11 +49,19 @@ export interface ImportRunRow {
 
 interface Props {
   runs: ImportRunRow[];
-  canUndo: boolean;
+  /** Team IDs where the caller has owner/admin role; the Undo button
+   * only renders for runs whose team_id is in this list. The server
+   * action re-checks, but gating the UI per-run avoids showing a
+   * button that would definitely 403 on click. */
+  adminTeamIds: string[];
 }
 
-export function ImportHistory({ runs, canUndo }: Props): React.JSX.Element {
+export function ImportHistory({
+  runs,
+  adminTeamIds,
+}: Props): React.JSX.Element {
   const t = useTranslations("import.history");
+  const adminSet = new Set(adminTeamIds);
 
   if (runs.length === 0) {
     return (
@@ -76,7 +84,7 @@ export function ImportHistory({ runs, canUndo }: Props): React.JSX.Element {
       <ul className="mt-4 divide-y divide-edge-muted border-t border-edge-muted">
         {runs.map((run) => (
           <li key={run.id} className="py-3">
-            <RunRow run={run} canUndo={canUndo} />
+            <RunRow run={run} canUndo={adminSet.has(run.team_id)} />
           </li>
         ))}
       </ul>

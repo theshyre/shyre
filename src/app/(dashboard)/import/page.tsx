@@ -10,7 +10,7 @@ export default async function ImportPage(): Promise<React.JSX.Element> {
   const supabase = await createClient();
   const teams = await getUserTeams();
 
-  const [runs, canUndo] = await fetchImportHistory(supabase, teams);
+  const [runs, adminTeamIds] = await fetchImportHistory(supabase, teams);
 
   return (
     <div>
@@ -22,7 +22,7 @@ export default async function ImportPage(): Promise<React.JSX.Element> {
       <p className="mt-2 text-sm text-content-secondary">{t("subtitle")}</p>
 
       <HarvestImport teams={teams} />
-      <ImportHistory runs={runs} canUndo={canUndo} />
+      <ImportHistory runs={runs} adminTeamIds={adminTeamIds} />
     </div>
   );
 }
@@ -30,9 +30,9 @@ export default async function ImportPage(): Promise<React.JSX.Element> {
 async function fetchImportHistory(
   supabase: Awaited<ReturnType<typeof createClient>>,
   teams: Awaited<ReturnType<typeof getUserTeams>>,
-): Promise<[ImportRunRow[], boolean]> {
+): Promise<[ImportRunRow[], string[]]> {
   const teamIds = teams.map((t) => t.id);
-  if (teamIds.length === 0) return [[], false];
+  if (teamIds.length === 0) return [[], []];
 
   const { data: rawRuns } = await supabase
     .from("import_runs")
@@ -44,7 +44,11 @@ async function fetchImportHistory(
     .limit(50);
 
   const runs = rawRuns ?? [];
-  if (runs.length === 0) return [[], false];
+  const adminTeamIds = teams
+    .filter((team) => team.role === "owner" || team.role === "admin")
+    .map((team) => team.id);
+
+  if (runs.length === 0) return [[], adminTeamIds];
 
   // Resolve display names for triggered_by / undone_by in one query.
   const userIds = Array.from(
@@ -70,13 +74,6 @@ async function fetchImportHistory(
     }
   }
 
-  // Undo is gated by team-role on the server action too — we pre-compute
-  // a conservative "does the user have owner/admin on ANY of their
-  // teams?" here to decide whether to render the buttons at all.
-  const canUndo = teams.some(
-    (team) => team.role === "owner" || team.role === "admin",
-  );
-
   const result: ImportRunRow[] = runs.map((r) => ({
     id: r.id as string,
     team_id: r.team_id as string,
@@ -97,5 +94,5 @@ async function fetchImportHistory(
         : null,
   }));
 
-  return [result, canUndo];
+  return [result, adminTeamIds];
 }
