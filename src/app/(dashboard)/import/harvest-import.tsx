@@ -13,7 +13,7 @@ import {
   AlertTriangle,
   UserCog,
 } from "lucide-react";
-import { AlertBanner, Spinner } from "@theshyre/ui";
+import { Spinner } from "@theshyre/ui";
 import {
   inputClass,
   labelClass,
@@ -21,6 +21,7 @@ import {
   buttonPrimaryClass,
   buttonSecondaryClass,
 } from "@/lib/form-styles";
+import { InlineErrorCard } from "@/components/InlineErrorCard";
 import type { TeamListItem } from "@/lib/team-context";
 
 type Step = "credentials" | "preview" | "importing" | "done";
@@ -68,6 +69,21 @@ interface ImportResult {
   errors: string[];
 }
 
+/**
+ * Structured error body the route returns on failure. Matches the
+ * shape produced by `errorResponse()` in the route handler. The
+ * short `error` message drives the InlineErrorCard title; `detail`
+ * (the capped raw response body) goes behind the Show details
+ * toggle and into the clipboard on Copy details.
+ */
+interface ApiErrorBody {
+  error: string;
+  errorCode?: string;
+  status?: number;
+  endpoint?: string;
+  detail?: string;
+}
+
 export function HarvestImport({
   teams,
 }: {
@@ -80,7 +96,7 @@ export function HarvestImport({
   const [fromDate, setFromDate] = useState("");
   const [toDate, setToDate] = useState("");
   const [loading, setLoading] = useState(false);
-  const [error, setError] = useState<string | null>(null);
+  const [error, setError] = useState<ApiErrorBody | null>(null);
   const [preview, setPreview] = useState<PreviewData | null>(null);
   const [userMapping, setUserMapping] = useState<Record<number, UserMapChoice>>(
     {},
@@ -105,7 +121,7 @@ export function HarvestImport({
       const validateData = await validateRes.json();
 
       if (!validateData.valid) {
-        setError(validateData.error ?? "Invalid credentials");
+        setError({ error: validateData.error ?? "Invalid credentials" });
         setLoading(false);
         return;
       }
@@ -124,10 +140,10 @@ export function HarvestImport({
       });
       const previewData = (await previewRes.json()) as
         | PreviewData
-        | { error: string };
+        | ApiErrorBody;
 
       if ("error" in previewData) {
-        setError(previewData.error);
+        setError(previewData);
         setLoading(false);
         return;
       }
@@ -141,7 +157,9 @@ export function HarvestImport({
       setUserMapping(initial);
       setStep("preview");
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Connection failed");
+      setError({
+        error: err instanceof Error ? err.message : "Connection failed",
+      });
     } finally {
       setLoading(false);
     }
@@ -170,10 +188,10 @@ export function HarvestImport({
           to: toDate || undefined,
         }),
       });
-      const data = (await res.json()) as ImportResult | { error: string };
+      const data = (await res.json()) as ImportResult | ApiErrorBody;
 
       if ("error" in data) {
-        setError(data.error);
+        setError(data);
         setStep("preview");
         return;
       }
@@ -181,7 +199,9 @@ export function HarvestImport({
       setResult(data);
       setStep("done");
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Import failed");
+      setError({
+        error: err instanceof Error ? err.message : "Import failed",
+      });
       setStep("preview");
     }
   }
@@ -222,9 +242,21 @@ export function HarvestImport({
         </div>
 
         {error && (
-          <AlertBanner tone="error" className="mb-4">
-            {error}
-          </AlertBanner>
+          <div className="mb-4">
+            <InlineErrorCard
+              title={error.error}
+              detail={error.detail}
+              context={buildErrorContext(error)}
+              onRetry={() => {
+                setError(null);
+                if (step === "credentials") {
+                  void handleValidate();
+                } else if (step === "preview") {
+                  void handleImport();
+                }
+              }}
+            />
+          </div>
         )}
 
         {step === "credentials" && (
@@ -275,6 +307,17 @@ export function HarvestImport({
       </div>
     </div>
   );
+}
+
+/** Map the structured fields returned by the route into the
+ * `context` dict rendered by InlineErrorCard. We only include keys
+ * that have values so the card doesn't show "—" rows. */
+function buildErrorContext(err: ApiErrorBody): Record<string, string> {
+  const ctx: Record<string, string> = {};
+  if (err.status !== undefined) ctx.status = String(err.status);
+  if (err.endpoint) ctx.endpoint = err.endpoint;
+  if (err.errorCode) ctx.kind = err.errorCode;
+  return ctx;
 }
 
 // ────────────────────────────────────────────────────────────────

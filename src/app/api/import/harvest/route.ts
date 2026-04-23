@@ -6,6 +6,7 @@ import {
   fetchHarvestProjects,
   fetchHarvestTimeEntries,
   fetchHarvestUsers,
+  HarvestApiError,
 } from "@/lib/harvest";
 import {
   buildCustomerRow,
@@ -32,6 +33,35 @@ import { NextResponse } from "next/server";
 export const maxDuration = 300;
 
 type SBClient = Awaited<ReturnType<typeof createClient>>;
+
+/**
+ * Serialize a caught error into the JSON body returned to the client.
+ * HarvestApiError carries a clean user-facing message and a capped
+ * raw response body — we surface both so the UI's InlineErrorCard
+ * can render the short message and stash the raw body behind a
+ * "Copy details" toggle. Everything else becomes an unknown error.
+ */
+function errorResponse(err: unknown): NextResponse {
+  if (err instanceof HarvestApiError) {
+    return NextResponse.json(
+      {
+        error: err.message,
+        errorCode: err.kind,
+        status: err.status,
+        endpoint: err.endpoint,
+        detail: err.rawBody,
+      },
+      { status: 502 },
+    );
+  }
+  return NextResponse.json(
+    {
+      error: err instanceof Error ? err.message : "Import failed",
+      errorCode: "unknown",
+    },
+    { status: 500 },
+  );
+}
 
 interface ImportRequestBody {
   token: string;
@@ -150,10 +180,7 @@ export async function POST(request: Request): Promise<NextResponse> {
         defaultMapping,
       });
     } catch (err) {
-      return NextResponse.json(
-        { error: err instanceof Error ? err.message : "Failed to fetch data" },
-        { status: 500 },
-      );
+      return errorResponse(err);
     }
   }
 
@@ -446,10 +473,7 @@ export async function POST(request: Request): Promise<NextResponse> {
         })
         .eq("id", ctx.importRunId);
 
-      return NextResponse.json(
-        { error: err instanceof Error ? err.message : "Import failed" },
-        { status: 500 },
-      );
+      return errorResponse(err);
     }
   }
 

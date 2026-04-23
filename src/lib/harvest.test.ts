@@ -6,6 +6,7 @@ import {
   fetchHarvestTimeEntries,
   fetchHarvestUsers,
   fetchHarvestCompany,
+  HarvestApiError,
 } from "./harvest";
 
 /**
@@ -155,5 +156,92 @@ describe("Harvest endpoint names", () => {
     mockFetchOnce({ name: "Acme", time_zone: "UTC", week_start_day: "Mon" });
     await fetchHarvestCompany(opts);
     expect(lastFetchedUrl()).toContain("/v2/company");
+  });
+});
+
+describe("HarvestApiError classification", () => {
+  afterEach(() => {
+    vi.unstubAllGlobals();
+  });
+
+  function mockErrorOnce(status: number, body: string): void {
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async () => ({
+        ok: false,
+        status,
+        json: async () => ({}),
+        text: async () => body,
+        headers: new Headers(),
+      })),
+    );
+  }
+
+  it("401 → unauthorized with credentials message", async () => {
+    mockErrorOnce(401, '{"error":"invalid token"}');
+    await expect(fetchHarvestClients(opts)).rejects.toSatisfy((err) => {
+      if (!(err instanceof HarvestApiError)) return false;
+      return (
+        err.kind === "unauthorized" &&
+        err.status === 401 &&
+        err.message.includes("credentials")
+      );
+    });
+  });
+
+  it("403 → forbidden with scope hint", async () => {
+    mockErrorOnce(403, "forbidden");
+    await expect(fetchHarvestClients(opts)).rejects.toSatisfy((err) => {
+      if (!(err instanceof HarvestApiError)) return false;
+      return err.kind === "forbidden" && err.message.includes("scope");
+    });
+  });
+
+  it("404 → not_found with Shyre-bug attribution", async () => {
+    mockErrorOnce(404, "<html>not found</html>");
+    await expect(fetchHarvestClients(opts)).rejects.toSatisfy((err) => {
+      if (!(err instanceof HarvestApiError)) return false;
+      return (
+        err.kind === "not_found" && err.message.includes("Shyre bug")
+      );
+    });
+  });
+
+  it("400 → bad_request", async () => {
+    mockErrorOnce(400, '{"message":"Invalid from date"}');
+    await expect(fetchHarvestClients(opts)).rejects.toSatisfy((err) => {
+      return err instanceof HarvestApiError && err.kind === "bad_request";
+    });
+  });
+
+  it("500 → server_error", async () => {
+    mockErrorOnce(500, "internal");
+    await expect(fetchHarvestClients(opts)).rejects.toSatisfy((err) => {
+      return err instanceof HarvestApiError && err.kind === "server_error";
+    });
+  });
+
+  it("caps raw body at 2000 chars with a truncation marker", async () => {
+    const huge = "x".repeat(5000);
+    mockErrorOnce(400, huge);
+    try {
+      await fetchHarvestClients(opts);
+      throw new Error("should have thrown");
+    } catch (err) {
+      if (!(err instanceof HarvestApiError)) throw err;
+      expect(err.rawBody.length).toBeLessThan(2100);
+      expect(err.rawBody).toContain("truncated");
+    }
+  });
+
+  it("stashes the endpoint path (without query string)", async () => {
+    mockErrorOnce(404, "<html></html>");
+    try {
+      await fetchHarvestTimeEntries(opts, { from: "2026-04-01" });
+      throw new Error("should have thrown");
+    } catch (err) {
+      if (!(err instanceof HarvestApiError)) throw err;
+      expect(err.endpoint).toBe("/time_entries");
+    }
   });
 });

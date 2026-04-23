@@ -7,9 +7,8 @@ import {
   CheckCircle,
   XCircle,
   Undo2,
-  AlertTriangle,
 } from "lucide-react";
-import { AlertBanner } from "@theshyre/ui";
+import { InlineErrorCard } from "@/components/InlineErrorCard";
 import { InlineDeleteRowConfirm } from "@/components/InlineDeleteRowConfirm";
 import { buttonGhostClass } from "@/lib/form-styles";
 import { undoImportRunAction } from "./actions";
@@ -187,10 +186,7 @@ function RunRow({
       </div>
 
       {error ? (
-        <AlertBanner tone="error" className="flex items-start gap-2">
-          <AlertTriangle size={14} className="shrink-0 mt-0.5" />
-          <span>{error}</span>
-        </AlertBanner>
+        <InlineErrorCard title={error} />
       ) : null}
 
       {confirming ? (

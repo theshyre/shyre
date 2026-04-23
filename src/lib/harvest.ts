@@ -88,6 +88,83 @@ async function sleep(ms: number): Promise<void> {
   return new Promise((resolve) => setTimeout(resolve, ms));
 }
 
+/**
+ * Structured Harvest-client error. Carries a clean user-facing
+ * message (classified from the HTTP status) and a separate capped
+ * diagnostic payload (the raw response, trimmed) for the "Copy
+ * details" flow in the UI. The route converts this into the JSON
+ * error body; the UI renders both pieces via `InlineErrorCard`.
+ */
+export class HarvestApiError extends Error {
+  readonly status: number;
+  readonly endpoint: string;
+  readonly rawBody: string;
+  readonly kind:
+    | "unauthorized"
+    | "forbidden"
+    | "not_found"
+    | "rate_limited"
+    | "bad_request"
+    | "server_error"
+    | "unknown";
+
+  constructor(opts: {
+    status: number;
+    endpoint: string;
+    rawBody: string;
+  }) {
+    const kind = classifyHarvestStatus(opts.status);
+    super(userFacingMessage(kind, opts.status));
+    this.name = "HarvestApiError";
+    this.status = opts.status;
+    this.endpoint = opts.endpoint;
+    this.rawBody = opts.rawBody;
+    this.kind = kind;
+  }
+}
+
+function classifyHarvestStatus(
+  status: number,
+): HarvestApiError["kind"] {
+  if (status === 401) return "unauthorized";
+  if (status === 403) return "forbidden";
+  if (status === 404) return "not_found";
+  if (status === 429) return "rate_limited";
+  if (status === 400 || status === 422) return "bad_request";
+  if (status >= 500) return "server_error";
+  return "unknown";
+}
+
+function userFacingMessage(
+  kind: HarvestApiError["kind"],
+  status: number,
+): string {
+  switch (kind) {
+    case "unauthorized":
+      return "Harvest rejected the credentials. Check that the personal access token is valid and that the Account ID matches the account that issued the token.";
+    case "forbidden":
+      return "Harvest denied access to that resource. The token might lack the required scope (need access to time entries, projects, and clients).";
+    case "not_found":
+      return "Harvest returned 404. If the credentials are correct this is a Shyre bug — the importer is calling an endpoint Harvest doesn't have.";
+    case "rate_limited":
+      return "Harvest is rate-limiting the import. Shyre will retry automatically; if this persists, wait a minute and try again.";
+    case "bad_request":
+      return "Harvest rejected the request. Check the date range and any filters you set.";
+    case "server_error":
+      return `Harvest's servers returned a ${status}. This is usually transient — try again in a minute.`;
+    default:
+      return `Harvest returned an unexpected ${status}.`;
+  }
+}
+
+/** Trim raw response bodies so a giant HTML error page doesn't land
+ * on the wire or in the UI. The first ~2 KB is plenty to identify
+ * the failure during support. */
+function cappedBody(body: string, max = 2000): string {
+  if (body.length <= max) return body;
+  return `${body.slice(0, max)}\n…[truncated, ${body.length - max} bytes]`;
+}
+
 async function harvestFetch<T>(
   path: string,
   opts: HarvestRequestOptions,
@@ -129,7 +206,11 @@ async function harvestFetch<T>(
     break;
   }
 
-  throw new Error(`Harvest API error ${lastStatus}: ${lastBody}`);
+  throw new HarvestApiError({
+    status: lastStatus,
+    endpoint: path.split("?")[0] ?? path,
+    rawBody: cappedBody(lastBody),
+  });
 }
 
 /**

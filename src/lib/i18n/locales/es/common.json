@@ -104,6 +104,13 @@
   "toast": {
     "dismiss": "Cerrar"
   },
+  "errors": {
+    "copyDetails": "Copiar detalles",
+    "copied": "¡Copiado!",
+    "showDetails": "Ver detalles",
+    "hideDetails": "Ocultar detalles",
+    "retry": "Reintentar"
+  },
   "saveStatus": {
     "idle": "Sin guardar",
     "saving": "Guardando…",
