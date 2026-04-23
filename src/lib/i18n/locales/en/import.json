@@ -1,0 +1,25 @@
+{
+  "title": "Import Data",
+  "subtitle": "Import your existing data from other time tracking services.",
+  "history": {
+    "title": "Import history",
+    "description": "Every import creates a run you can undo from here. Runs that added data still attached to other work (invoiced time entries, invoices on imported customers) refuse to undo until you clean up the blocking rows first.",
+    "empty": "No imports yet. Your next Harvest import will show up here with an Undo button.",
+    "undoButton": "Undo",
+    "undoing": "Undoing — this may take a moment.",
+    "undoneAt": "Undone on {date}",
+    "undoneBy": "by {name}",
+    "confirmSummary": "import from {source} on {date}",
+    "counts": {
+      "customers": "{count, plural, =1 {customer} other {customers}}",
+      "projects": "{count, plural, =1 {project} other {projects}}",
+      "timeEntries": "{count, plural, =1 {time entry} other {time entries}}"
+    },
+    "statuses": {
+      "running": "Running",
+      "completed": "Imported",
+      "failed": "Failed",
+      "undone": "Undone"
+    }
+  }
+}

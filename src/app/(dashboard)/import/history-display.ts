@@ -1,0 +1,94 @@
+/**
+ * Pure display helpers for the Import History UI. Extracted so the
+ * string-munging + status logic can be tested without wrapping a
+ * React renderer — the component just passes its props through these.
+ */
+
+import type { ImportRunRow } from "./import-history";
+
+export type StatusKind = "running" | "completed" | "failed" | "undone";
+
+/** Resolve the effective status for display. Undone always wins over
+ * the underlying status (a completed-then-undone row reads as "Undone"). */
+export function effectiveStatusKind(run: {
+  status: ImportRunRow["status"];
+  undone_at: string | null;
+}): StatusKind {
+  if (run.undone_at) return "undone";
+  return run.status;
+}
+
+/**
+ * Build the count-string list for the row header
+ * (e.g. ["42 customers", "15 projects", "1200 time entries"]).
+ * Only non-zero counts are returned.
+ *
+ * `labels` is passed in (rather than hardcoded) so the caller can
+ * run it through next-intl's ICU-plural formatter for locale-
+ * correct singulars ("1 customer") vs. plurals.
+ */
+export function buildCountsList(
+  summary: ImportRunRow["summary"],
+  labels: {
+    customer: (n: number) => string;
+    project: (n: number) => string;
+    timeEntry: (n: number) => string;
+  },
+): string[] {
+  const out: string[] = [];
+  const imp = summary?.imported;
+  if (!imp) return out;
+
+  if (imp.customers && imp.customers > 0) {
+    out.push(`${imp.customers} ${labels.customer(imp.customers)}`);
+  }
+  if (imp.projects && imp.projects > 0) {
+    out.push(`${imp.projects} ${labels.project(imp.projects)}`);
+  }
+  if (imp.timeEntries && imp.timeEntries > 0) {
+    out.push(`${imp.timeEntries} ${labels.timeEntry(imp.timeEntries)}`);
+  }
+
+  return out;
+}
+
+/**
+ * Source label for a run — "Harvest" alone when no account id is
+ * stored, "Harvest · 123456" when it is. Currently only Harvest is
+ * supported as an importer; adding more providers would map their
+ * ids here.
+ */
+export function sourceLabel(run: {
+  imported_from: string;
+  source_account_identifier: string | null;
+}): string {
+  const base =
+    run.imported_from === "harvest"
+      ? "Harvest"
+      : // Capitalize the first letter as a fallback.
+        run.imported_from.charAt(0).toUpperCase() +
+        run.imported_from.slice(1);
+  if (run.source_account_identifier) {
+    return `${base} · ${run.source_account_identifier}`;
+  }
+  return base;
+}
+
+/**
+ * Whether an undo button should render for this row given the
+ * caller's role in the owning team. We render only when:
+ *   - the run is not already undone, and
+ *   - the caller is an owner/admin on the team that owns the run.
+ *
+ * The server action re-checks this and rejects mismatches, so the
+ * UI check is purely cosmetic — no security consequence if we flip
+ * it the wrong way.
+ */
+export function canRenderUndo(
+  run: { undone_at: string | null; status: StatusKind | ImportRunRow["status"] },
+  callerIsTeamAdmin: boolean,
+): boolean {
+  if (run.undone_at) return false;
+  if (run.status === "running") return false;
+  return callerIsTeamAdmin;
+}

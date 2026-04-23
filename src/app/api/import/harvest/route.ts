@@ -140,20 +140,42 @@ export async function POST(request: Request): Promise<NextResponse> {
   }
 
   if (action === "import") {
+    const timeZone = body.timeZone ?? "UTC";
+    const userMapping: Record<number, UserMapChoice> = {};
+    for (const [k, v] of Object.entries(body.userMapping ?? {})) {
+      userMapping[Number(k)] = v;
+    }
+
+    const ctx: ImportContext = {
+      teamId: organizationId,
+      importerUserId: user.id,
+      importRunId: crypto.randomUUID(),
+      importedAt: new Date().toISOString(),
+    };
+
+    // Record the run upfront so a mid-import failure still leaves a
+    // trace (status=failed) for the user to see in the import
+    // history — otherwise a crash would leave orphan rows stamped
+    // with a run_id no parent row knows about.
+    const { error: runInsertError } = await supabase
+      .from("import_runs")
+      .insert({
+        id: ctx.importRunId,
+        team_id: ctx.teamId,
+        triggered_by_user_id: user.id,
+        imported_from: "harvest",
+        source_account_identifier: accountId,
+        started_at: ctx.importedAt,
+        status: "running",
+      });
+    if (runInsertError) {
+      return NextResponse.json(
+        { error: `Could not record import run: ${runInsertError.message}` },
+        { status: 500 },
+      );
+    }
+
     try {
-      const timeZone = body.timeZone ?? "UTC";
-      const userMapping: Record<number, UserMapChoice> = {};
-      for (const [k, v] of Object.entries(body.userMapping ?? {})) {
-        userMapping[Number(k)] = v;
-      }
-
-      const ctx: ImportContext = {
-        teamId: organizationId,
-        importerUserId: user.id,
-        importRunId: crypto.randomUUID(),
-        importedAt: new Date().toISOString(),
-      };
-
       const [harvestClients, harvestProjects, harvestTimeEntries] =
         await Promise.all([
           fetchHarvestClients(opts),
@@ -338,9 +360,7 @@ export async function POST(request: Request): Promise<NextResponse> {
         timeEntriesImported += batch.length;
       }
 
-      return NextResponse.json({
-        success: true,
-        importRunId: ctx.importRunId,
+      const summary = {
         imported: {
           customers: customersImported,
           projects: projectsImported,
@@ -351,8 +371,37 @@ export async function POST(request: Request): Promise<NextResponse> {
           reasons: Object.fromEntries(skipReasons),
         },
         errors,
+      };
+
+      await supabase
+        .from("import_runs")
+        .update({
+          status: "completed",
+          completed_at: new Date().toISOString(),
+          summary,
+        })
+        .eq("id", ctx.importRunId);
+
+      return NextResponse.json({
+        success: true,
+        importRunId: ctx.importRunId,
+        ...summary,
       });
     } catch (err) {
+      // Leave a trace in the import_runs record so the user can see
+      // what happened in the history list — partial writes stay
+      // addressable via undo even when the request itself crashed.
+      await supabase
+        .from("import_runs")
+        .update({
+          status: "failed",
+          completed_at: new Date().toISOString(),
+          summary: {
+            errors: [err instanceof Error ? err.message : String(err)],
+          },
+        })
+        .eq("id", ctx.importRunId);
+
       return NextResponse.json(
         { error: err instanceof Error ? err.message : "Import failed" },
         { status: 500 },

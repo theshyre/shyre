@@ -37,17 +37,20 @@ Each Harvest user who logged time becomes the author of their entries in Shyre. 
 
 Each imported row stores `imported_from`, `imported_at`, `import_run_id`, and `import_source_id` (the external system's id). A partial unique index on `(team_id, imported_from, import_source_id)` means running the importer twice won't create duplicates — already-imported rows are detected by source id and counted as "skipped."
 
-A run id is displayed on the success screen. If you ever need to undo an import run:
+## Undoing an import
 
-```sql
-DELETE FROM time_entries WHERE import_run_id = '<run-id>';
-DELETE FROM projects     WHERE import_run_id = '<run-id>';
-DELETE FROM customers    WHERE import_run_id = '<run-id>';
-DELETE FROM categories   WHERE import_run_id = '<run-id>';
-DELETE FROM category_sets WHERE import_run_id = '<run-id>';
-```
+Every import creates a row in the `import_runs` table with a summary (who triggered it, counts, status). The **Import history** section at `/import` lists your runs with an **Undo** button per row.
 
-A UI "undo this import run" button is on the roadmap; for now it's a manual DB operation.
+Undo hard-deletes every row carrying that `import_run_id` across `customers`, `projects`, `time_entries`, `category_sets`, and `categories`, then marks the run as `undone_at`. The run record itself stays (not deleted) so the audit trail shows "imported on X, undone on Y."
+
+**Undo refuses when imported data is load-bearing.** Two blockers:
+
+- **Invoiced time entries.** If any time entry from this run has an `invoice_id` set, Undo tells you which invoice(s) and asks you to void or delete them first.
+- **Invoices on imported customers.** If any invoice points at a customer this run created, Undo asks you to clean up those invoices first.
+
+This is intentional — deleting the underlying data would leave stranded invoices or orphaned line items. The refusal path points at exactly what to clean up.
+
+**Only owners and admins can undo a run** — same bar as running the import in the first place.
 
 ## Rate limiting
 
@@ -72,7 +75,6 @@ Harvest rate-limits the public API at ~100 requests per 15 seconds. Shyre retrie
 
 ## What's planned
 
-- In-app "undo this import run" instead of manual SQL.
 - Expense import from Harvest.
 - Ongoing Harvest sync (one-way mirror during migration).
 - Other providers on request.

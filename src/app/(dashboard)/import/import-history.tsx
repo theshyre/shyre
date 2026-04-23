@@ -1,0 +1,282 @@
+"use client";
+
+import { useState } from "react";
+import { useTranslations } from "next-intl";
+import {
+  History,
+  CheckCircle,
+  XCircle,
+  Undo2,
+  AlertTriangle,
+} from "lucide-react";
+import { AlertBanner } from "@theshyre/ui";
+import { InlineDeleteRowConfirm } from "@/components/InlineDeleteRowConfirm";
+import { buttonGhostClass } from "@/lib/form-styles";
+import { undoImportRunAction } from "./actions";
+import {
+  buildCountsList,
+  canRenderUndo,
+  effectiveStatusKind,
+  sourceLabel,
+} from "./history-display";
+
+export interface ImportRunRow {
+  id: string;
+  team_id: string;
+  imported_from: string;
+  source_account_identifier: string | null;
+  started_at: string;
+  completed_at: string | null;
+  status: "running" | "completed" | "failed";
+  summary:
+    | {
+        imported?: {
+          customers?: number;
+          projects?: number;
+          timeEntries?: number;
+        };
+        skipped?: {
+          timeEntries?: number;
+          reasons?: Record<string, number>;
+        };
+        errors?: string[];
+      }
+    | null;
+  undone_at: string | null;
+  triggered_by_display_name: string | null;
+  undone_by_display_name: string | null;
+}
+
+interface Props {
+  runs: ImportRunRow[];
+  canUndo: boolean;
+}
+
+export function ImportHistory({ runs, canUndo }: Props): React.JSX.Element {
+  const t = useTranslations("import.history");
+
+  if (runs.length === 0) {
+    return (
+      <section className="mt-6 rounded-lg border border-edge bg-surface-raised p-6">
+        <SectionHeader />
+        <p className="mt-2 text-body text-content-muted italic">
+          {t("empty")}
+        </p>
+      </section>
+    );
+  }
+
+  return (
+    <section className="mt-6 rounded-lg border border-edge bg-surface-raised p-6">
+      <SectionHeader />
+      <p className="mt-2 text-body text-content-secondary max-w-3xl">
+        {t("description")}
+      </p>
+
+      <ul className="mt-4 divide-y divide-edge-muted border-t border-edge-muted">
+        {runs.map((run) => (
+          <li key={run.id} className="py-3">
+            <RunRow run={run} canUndo={canUndo} />
+          </li>
+        ))}
+      </ul>
+    </section>
+  );
+}
+
+function SectionHeader(): React.JSX.Element {
+  const t = useTranslations("import.history");
+  return (
+    <div className="flex items-center gap-3">
+      <History size={20} className="text-accent shrink-0" />
+      <h2 className="text-title font-semibold text-content">{t("title")}</h2>
+    </div>
+  );
+}
+
+function RunRow({
+  run,
+  canUndo,
+}: {
+  run: ImportRunRow;
+  canUndo: boolean;
+}): React.JSX.Element {
+  const t = useTranslations("import.history");
+  const [confirming, setConfirming] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [pending, setPending] = useState(false);
+
+  const counts = buildCountsList(run.summary, {
+    customer: (n) => t("counts.customers", { count: n }),
+    project: (n) => t("counts.projects", { count: n }),
+    timeEntry: (n) => t("counts.timeEntries", { count: n }),
+  });
+
+  const source = sourceLabel(run);
+  const shouldShowUndo = canRenderUndo(
+    { undone_at: run.undone_at, status: run.status },
+    canUndo,
+  );
+
+  return (
+    <div className="space-y-2">
+      <div className="flex items-start gap-3 flex-wrap">
+        <StatusBadge status={run.status} undone={run.undone_at !== null} />
+
+        <div className="flex-1 min-w-[220px] space-y-0.5">
+          <div className="flex items-baseline gap-2 flex-wrap">
+            <span className="font-medium text-content">{source}</span>
+            <span className="text-caption text-content-muted">
+              {formatDateTime(run.started_at)}
+            </span>
+            {run.triggered_by_display_name ? (
+              <span className="text-caption text-content-muted">
+                · by {run.triggered_by_display_name}
+              </span>
+            ) : null}
+          </div>
+
+          {counts.length > 0 ? (
+            <div className="text-caption text-content-secondary">
+              {counts.join(" · ")}
+            </div>
+          ) : null}
+
+          {run.undone_at ? (
+            <div className="text-caption text-content-muted italic">
+              {t("undoneAt", { date: formatDateTime(run.undone_at) })}
+              {run.undone_by_display_name
+                ? ` · ${t("undoneBy", { name: run.undone_by_display_name })}`
+                : ""}
+            </div>
+          ) : null}
+
+          {run.status === "failed" && run.summary?.errors?.length ? (
+            <div className="text-caption text-error">
+              {run.summary.errors[0]}
+            </div>
+          ) : null}
+
+          <div className="text-caption text-content-muted font-mono">
+            {run.id}
+          </div>
+        </div>
+
+        {shouldShowUndo && !confirming ? (
+          <button
+            type="button"
+            onClick={() => {
+              setConfirming(true);
+              setError(null);
+            }}
+            className={`${buttonGhostClass} inline-flex items-center gap-1 text-error hover:bg-error-soft`}
+            aria-label={t("undoButton")}
+          >
+            <Undo2 size={14} />
+            {t("undoButton")}
+          </button>
+        ) : null}
+      </div>
+
+      {error ? (
+        <AlertBanner tone="error" className="flex items-start gap-2">
+          <AlertTriangle size={14} className="shrink-0 mt-0.5" />
+          <span>{error}</span>
+        </AlertBanner>
+      ) : null}
+
+      {confirming ? (
+        <div className="pt-1">
+          <InlineDeleteRowConfirm
+            summary={t("confirmSummary", {
+              source,
+              date: formatDateTime(run.started_at),
+            })}
+            ariaLabel={t("undoButton")}
+            onConfirm={async () => {
+              setPending(true);
+              setError(null);
+              const fd = new FormData();
+              fd.set("run_id", run.id);
+              fd.set("team_id", run.team_id);
+              try {
+                await undoImportRunAction(fd);
+                // Success — the page revalidates and the run re-renders
+                // with undone_at set, so this row collapses the undo UI
+                // naturally on the next render.
+                setConfirming(false);
+              } catch (err) {
+                setError(
+                  err instanceof Error ? err.message : "Undo failed",
+                );
+                setConfirming(false);
+              } finally {
+                setPending(false);
+              }
+            }}
+          />
+          {pending ? (
+            <p className="mt-1 text-caption text-content-muted">
+              {t("undoing")}
+            </p>
+          ) : null}
+        </div>
+      ) : null}
+    </div>
+  );
+}
+
+function StatusBadge({
+  status,
+  undone,
+}: {
+  status: ImportRunRow["status"];
+  undone: boolean;
+}): React.JSX.Element {
+  const t = useTranslations("import.history");
+  const kind = effectiveStatusKind({
+    status,
+    undone_at: undone ? "x" : null,
+  });
+
+  if (kind === "undone") {
+    return (
+      <span className="inline-flex items-center gap-1 rounded-full bg-surface-inset px-2 py-0.5 text-caption font-medium text-content-muted">
+        <Undo2 size={10} />
+        {t("statuses.undone")}
+      </span>
+    );
+  }
+  if (kind === "completed") {
+    return (
+      <span className="inline-flex items-center gap-1 rounded-full bg-success-soft px-2 py-0.5 text-caption font-medium text-success">
+        <CheckCircle size={10} />
+        {t("statuses.completed")}
+      </span>
+    );
+  }
+  if (kind === "failed") {
+    return (
+      <span className="inline-flex items-center gap-1 rounded-full bg-error-soft px-2 py-0.5 text-caption font-medium text-error">
+        <XCircle size={10} />
+        {t("statuses.failed")}
+      </span>
+    );
+  }
+  return (
+    <span className="inline-flex items-center gap-1 rounded-full bg-accent-soft px-2 py-0.5 text-caption font-medium text-accent-text">
+      {t("statuses.running")}
+    </span>
+  );
+}
+
+function formatDateTime(iso: string): string {
+  const d = new Date(iso);
+  return d.toLocaleString(undefined, {
+    year: "numeric",
+    month: "short",
+    day: "numeric",
+    hour: "numeric",
+    minute: "2-digit",
+  });
+}
