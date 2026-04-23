@@ -182,7 +182,14 @@ async function fetchAllPages<T>(
 export async function fetchHarvestClients(
   opts: HarvestRequestOptions,
 ): Promise<HarvestClient[]> {
-  return fetchAllPages<HarvestClient>("/customers", "customers", opts);
+  // Harvest's API endpoint is /v2/clients and the response envelope
+  // key is "clients". When Shyre renamed its own internal concept
+  // from `clients` → `customers`, an over-broad search-and-replace
+  // hit the Harvest API URL here too and returned 404 against
+  // https://api.harvestapp.com/v2/customers. Endpoint + key are
+  // part of Harvest's contract, not Shyre's vocabulary — they stay
+  // "clients" regardless of what we call them internally.
+  return fetchAllPages<HarvestClient>("/clients", "clients", opts);
 }
 
 export async function fetchHarvestProjects(
