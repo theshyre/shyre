@@ -6,19 +6,63 @@ Shyre can bulk-import time data from Harvest today. More integrations will come 
 
 1. Sidebar → **Import**
 2. Enter your Harvest account credentials (account ID + personal access token).
-3. Pick the date range and the target team in Shyre.
-4. Shyre fetches customers, projects, and time entries from Harvest and creates matching records.
+3. **Connect & preview** — Shyre pulls counts, your Harvest users, and a suggested mapping from Harvest user → Shyre team member.
+4. Review and adjust the **user mapping table** — pick a Shyre user for each Harvest user who logged time, fall back to "me" to attribute them to you, or "skip" to drop a user's entries entirely.
+5. Click **Import** — Shyre fetches the full dataset and writes it into the target team. Re-runs dedupe automatically.
 
-**Before you run the import:**
-- Run it against a fresh org if you can, or at least back up your existing data first. The importer is idempotent on re-runs (won't create duplicates of the same Harvest entries) but creates new customers and projects every time if there are naming mismatches.
-- Harvest "clients" map to Shyre **customers**, preserving the name and default rate.
-- Harvest projects map to Shyre projects. Hourly rate, code, and status are carried over.
-- Harvest time entries map to Shyre time entries, preserving project, start/end, duration, description, and billable flag.
+## How Harvest fields map to Shyre
 
-**What isn't imported:**
-- Invoices — ongoing billing should be done in Shyre, not imported mid-flight.
-- Expenses (on the roadmap; categories don't map cleanly yet).
-- Tasks — Shyre uses [categories](categories.md) instead; Harvest tasks are logged in the description field.
+| Harvest | Shyre | Notes |
+|---|---|---|
+| Client | Customer | Name and address preserved. |
+| Project | Project | Hourly rate, description (from Harvest notes), budget, status. Inactive Harvest projects land as `archived` in Shyre (not skipped) so their historical entries still have somewhere to attach. |
+| Task | Category (under set "Harvest Tasks") | Shyre creates one team-level category set per import with one category per unique task name. Entries are tagged with the matching category. |
+| Time entry user | Time entry author | Resolved via the user mapping table on the preview step. Default: match by email, then display name, else fall back to the importing user. |
+| Time entry `billable_rate` | Prefixed on the description when it differs from project rate | Shyre's `time_entries` has no per-entry rate column (rate is a project attribute). For historical entries where the rate differed, the snapshot is preserved as `[$200/hr] Task: notes`. |
+| Time entry `started_time` / `ended_time` | `start_time` / `end_time` (UTC) | Parsed in the Harvest account's time zone, stored as UTC. DST handled correctly. |
+
+## Time-zone correctness
+
+Harvest stores wall-clock times ("09:30") in the account's time zone. Shyre stores UTC. The importer reads the account's `time_zone` field off the `/company` endpoint and converts each entry using the correct offset for the date — so a 9:30am entry on 2024-01-15 (EST) and 2024-07-15 (EDT) both round-trip to the right UTC moment.
+
+## Multi-user imports
+
+Each Harvest user who logged time becomes the author of their entries in Shyre. On the preview step, Shyre proposes a default mapping by matching on email, then display name. You can override any row:
+
+- **Shyre team member** — attribute all entries from this Harvest user to that member.
+- **Me (attribute to caller)** — fall back to you. Use when a Harvest user left or isn't in Shyre.
+- **Skip** — drop every entry this user logged. Useful when importing a partial team.
+
+## Idempotent re-runs
+
+Each imported row stores `imported_from`, `imported_at`, `import_run_id`, and `import_source_id` (the external system's id). A partial unique index on `(team_id, imported_from, import_source_id)` means running the importer twice won't create duplicates — already-imported rows are detected by source id and counted as "skipped."
+
+A run id is displayed on the success screen. If you ever need to undo an import run:
+
+```sql
+DELETE FROM time_entries WHERE import_run_id = '<run-id>';
+DELETE FROM projects     WHERE import_run_id = '<run-id>';
+DELETE FROM customers    WHERE import_run_id = '<run-id>';
+DELETE FROM categories   WHERE import_run_id = '<run-id>';
+DELETE FROM category_sets WHERE import_run_id = '<run-id>';
+```
+
+A UI "undo this import run" button is on the roadmap; for now it's a manual DB operation.
+
+## Rate limiting
+
+Harvest rate-limits the public API at ~100 requests per 15 seconds. Shyre retries on `429` with exponential backoff (1s, 2s, 4s) and respects the `Retry-After` header when Harvest sends one. Large imports may take several minutes; the importer keeps chugging without user intervention.
+
+## What isn't imported
+
+- **Invoices** — ongoing billing should be done in Shyre, not imported mid-flight.
+- **Expenses** — on the roadmap; Harvest's categorization doesn't map cleanly to Shyre's expense taxonomy yet.
+
+## Before you run the import
+
+- Run it against a fresh team if you can, or at least back up your existing data first.
+- **Import is owner/admin only** — plain team members can't trigger it.
+- For large accounts, the full preview + import can take a few minutes. The UI retries automatically on rate limits.
 
 ## After the import
 
@@ -28,11 +72,14 @@ Shyre can bulk-import time data from Harvest today. More integrations will come 
 
 ## What's planned
 
-- **Ongoing Harvest sync** — one-way mirror so you can run both for a while during migration. Deferred; tell me if you need it.
-- **Toggl, Clockify importers** — TBD based on demand.
+- In-app "undo this import run" instead of manual SQL.
+- Expense import from Harvest.
+- Ongoing Harvest sync (one-way mirror during migration).
+- Other providers on request.
 
 ## Related
 
 - [Customers](customers.md)
 - [Projects](projects.md)
 - [Time tracking](time-tracking.md)
+- [Categories](categories.md)

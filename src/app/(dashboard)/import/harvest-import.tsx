@@ -10,11 +10,14 @@ import {
   Users,
   FolderKanban,
   Clock,
+  AlertTriangle,
+  UserCog,
 } from "lucide-react";
 import { AlertBanner, Spinner } from "@theshyre/ui";
 import {
   inputClass,
   labelClass,
+  selectClass,
   buttonPrimaryClass,
   buttonSecondaryClass,
 } from "@/lib/form-styles";
@@ -22,15 +25,37 @@ import type { TeamListItem } from "@/lib/team-context";
 
 type Step = "credentials" | "preview" | "importing" | "done";
 
+type UserMapChoice = string | "importer" | "skip";
+
+interface HarvestUserSummary {
+  id: number;
+  name: string;
+  email: string | null;
+  entryCount: number;
+}
+
+interface ShyreMemberSummary {
+  user_id: string;
+  email: string | null;
+  display_name: string | null;
+}
+
 interface PreviewData {
+  companyName: string;
+  timeZone: string;
   customers: number;
   projects: number;
   timeEntries: number;
+  categoryCount: number;
   customerNames: string[];
   projectNames: string[];
+  harvestUsers: HarvestUserSummary[];
+  shyreMembers: ShyreMemberSummary[];
+  defaultMapping: Record<string, UserMapChoice>;
 }
 
 interface ImportResult {
+  importRunId: string;
   imported: {
     customers: number;
     projects: number;
@@ -38,7 +63,9 @@ interface ImportResult {
   };
   skipped: {
     timeEntries: number;
+    reasons: Record<string, number>;
   };
+  errors: string[];
 }
 
 export function HarvestImport({
@@ -50,10 +77,12 @@ export function HarvestImport({
   const [token, setToken] = useState("");
   const [accountId, setAccountId] = useState("");
   const [teamId, setTeamId] = useState(teams[0]?.id ?? "");
-  const [companyName, setCompanyName] = useState("");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [preview, setPreview] = useState<PreviewData | null>(null);
+  const [userMapping, setUserMapping] = useState<Record<number, UserMapChoice>>(
+    {},
+  );
   const [result, setResult] = useState<ImportResult | null>(null);
 
   async function handleValidate(): Promise<void> {
@@ -61,7 +90,7 @@ export function HarvestImport({
     setError(null);
 
     try {
-      const res = await fetch("/api/import/harvest", {
+      const validateRes = await fetch("/api/import/harvest", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
@@ -71,17 +100,14 @@ export function HarvestImport({
           action: "validate",
         }),
       });
-      const data = await res.json();
+      const validateData = await validateRes.json();
 
-      if (!data.valid) {
-        setError(data.error ?? "Invalid credentials");
+      if (!validateData.valid) {
+        setError(validateData.error ?? "Invalid credentials");
         setLoading(false);
         return;
       }
 
-      setCompanyName(data.companyName ?? "");
-
-      // Immediately fetch preview
       const previewRes = await fetch("/api/import/harvest", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -92,15 +118,23 @@ export function HarvestImport({
           action: "preview",
         }),
       });
-      const previewData = await previewRes.json();
+      const previewData = (await previewRes.json()) as
+        | PreviewData
+        | { error: string };
 
-      if (previewData.error) {
+      if ("error" in previewData) {
         setError(previewData.error);
         setLoading(false);
         return;
       }
 
       setPreview(previewData);
+      // Seed local mapping state from the server's default proposal.
+      const initial: Record<number, UserMapChoice> = {};
+      for (const [k, v] of Object.entries(previewData.defaultMapping)) {
+        initial[Number(k)] = v;
+      }
+      setUserMapping(initial);
       setStep("preview");
     } catch (err) {
       setError(err instanceof Error ? err.message : "Connection failed");
@@ -110,10 +144,14 @@ export function HarvestImport({
   }
 
   async function handleImport(): Promise<void> {
+    if (!preview) return;
     setStep("importing");
     setError(null);
 
     try {
+      const payload: Record<string, UserMapChoice> = {};
+      for (const [k, v] of Object.entries(userMapping)) payload[String(k)] = v;
+
       const res = await fetch("/api/import/harvest", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -122,11 +160,13 @@ export function HarvestImport({
           accountId,
           organizationId: teamId,
           action: "import",
+          timeZone: preview.timeZone,
+          userMapping: payload,
         }),
       });
-      const data = await res.json();
+      const data = (await res.json()) as ImportResult | { error: string };
 
-      if (data.error) {
+      if ("error" in data) {
         setError(data.error);
         setStep("preview");
         return;
@@ -142,7 +182,6 @@ export function HarvestImport({
 
   return (
     <div className="mt-6">
-      {/* Harvest card */}
       <div className="rounded-lg border border-edge bg-surface-raised p-6">
         <div className="flex items-center gap-3 mb-4">
           <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-warning-soft">
@@ -151,12 +190,11 @@ export function HarvestImport({
           <div>
             <h2 className="font-semibold text-content">Harvest</h2>
             <p className="text-xs text-content-muted">
-              Import customers, projects, and time entries from Harvest
+              Import customers, projects, tasks, and time entries from Harvest
             </p>
           </div>
         </div>
 
-        {/* Step indicators */}
         <div className="flex items-center gap-2 mb-6 text-xs text-content-muted">
           <StepIndicator
             label="Connect"
@@ -165,7 +203,7 @@ export function HarvestImport({
           />
           <ArrowRight size={12} />
           <StepIndicator
-            label="Preview"
+            label="Review & map"
             active={step === "preview"}
             done={step === "importing" || step === "done"}
           />
@@ -178,150 +216,38 @@ export function HarvestImport({
         </div>
 
         {error && (
-          <AlertBanner tone="error" className="mb-4">{error}</AlertBanner>
+          <AlertBanner tone="error" className="mb-4">
+            {error}
+          </AlertBanner>
         )}
 
-        {/* Step 1: Credentials */}
         {step === "credentials" && (
-          <div className="space-y-4">
-            <p className="text-sm text-content-secondary">
-              Create a Personal Access Token at{" "}
-              <a
-                href="https://id.getharvest.com/developers"
-                target="_blank"
-                rel="noopener noreferrer"
-                className="text-accent hover:underline"
-              >
-                id.getharvest.com/developers
-              </a>
-              . You&apos;ll need the token and your Account ID.
-            </p>
-
-            <div className="space-y-3">
-              <div>
-                <label className={labelClass}>Personal Access Token *</label>
-                <input
-                  type="password"
-                  value={token}
-                  onChange={(e) => setToken(e.target.value)}
-                  placeholder="Your Harvest API token"
-                  className={inputClass}
-                />
-              </div>
-              <div>
-                <label className={labelClass}>Account ID *</label>
-                <input
-                  type="text"
-                  value={accountId}
-                  onChange={(e) => setAccountId(e.target.value)}
-                  placeholder="Your Harvest Account ID (numeric)"
-                  className={inputClass}
-                />
-              </div>
-              <div>
-                <label className={labelClass}>Import into Team</label>
-                {teams.length === 1 ? (
-                  <>
-                    <input
-                      type="text"
-                      value={teams[0]?.name ?? ""}
-                      disabled
-                      className={inputClass}
-                    />
-                    <input
-                      type="hidden"
-                      value={teams[0]?.id ?? ""}
-                      onChange={(e) => setTeamId(e.target.value)}
-                    />
-                  </>
-                ) : (
-                  <select
-                    value={teamId}
-                    onChange={(e) => setTeamId(e.target.value)}
-                    className={inputClass}
-                  >
-                    {teams.map((org) => (
-                      <option key={org.id} value={org.id}>
-                        {org.name}
-                      </option>
-                    ))}
-                  </select>
-                )}
-              </div>
-            </div>
-
-            <button
-              onClick={handleValidate}
-              disabled={loading || !token || !accountId}
-              className={buttonPrimaryClass}
-            >
-              {loading ? (
-                <Spinner />
-              ) : (
-                <Eye size={16} />
-              )}
-              {loading ? "Connecting..." : "Connect & Preview"}
-            </button>
-          </div>
+          <CredentialsStep
+            token={token}
+            setToken={setToken}
+            accountId={accountId}
+            setAccountId={setAccountId}
+            teamId={teamId}
+            setTeamId={setTeamId}
+            teams={teams}
+            loading={loading}
+            onSubmit={handleValidate}
+          />
         )}
 
-        {/* Step 2: Preview */}
         {step === "preview" && preview && (
-          <div className="space-y-4">
-            {companyName && (
-              <p className="text-sm text-content-secondary">
-                Connected to <strong className="text-content">{companyName}</strong>
-              </p>
-            )}
-
-            <div className="grid gap-3 sm:grid-cols-3">
-              <PreviewCard
-                icon={Users}
-                label="Clients"
-                count={preview.customers}
-                names={preview.customerNames}
-              />
-              <PreviewCard
-                icon={FolderKanban}
-                label="Projects"
-                count={preview.projects}
-                names={preview.projectNames}
-              />
-              <PreviewCard
-                icon={Clock}
-                label="Time Entries"
-                count={preview.timeEntries}
-                names={[]}
-              />
-            </div>
-
-            <p className="text-xs text-content-muted">
-              Existing records with matching names will be skipped (no duplicates).
-              Only active customers and projects will be imported.
-            </p>
-
-            <div className="flex gap-2">
-              <button
-                onClick={handleImport}
-                className={buttonPrimaryClass}
-              >
-                <Upload size={16} />
-                Import {preview.customers + preview.projects + preview.timeEntries} records
-              </button>
-              <button
-                onClick={() => {
-                  setStep("credentials");
-                  setPreview(null);
-                }}
-                className={buttonSecondaryClass}
-              >
-                Back
-              </button>
-            </div>
-          </div>
+          <PreviewStep
+            preview={preview}
+            userMapping={userMapping}
+            setUserMapping={setUserMapping}
+            onImport={handleImport}
+            onBack={() => {
+              setStep("credentials");
+              setPreview(null);
+            }}
+          />
         )}
 
-        {/* Step 3: Importing */}
         {step === "importing" && (
           <div className="flex flex-col items-center py-8 gap-3">
             <Spinner size="h-8 w-8" />
@@ -329,52 +255,370 @@ export function HarvestImport({
               Importing data from Harvest...
             </p>
             <p className="text-xs text-content-muted">
-              This may take a minute for large accounts.
+              This may take a minute for large accounts. Shyre retries
+              automatically when Harvest rate-limits us.
             </p>
           </div>
         )}
 
-        {/* Step 4: Done */}
-        {step === "done" && result && (
-          <div className="space-y-4">
-            <div className="flex items-center gap-2 text-success">
-              <CheckCircle size={20} />
-              <span className="font-semibold">Import Complete</span>
-            </div>
-
-            <div className="grid gap-3 sm:grid-cols-3">
-              <ResultCard
-                icon={Users}
-                label="Clients"
-                count={result.imported.customers}
-              />
-              <ResultCard
-                icon={FolderKanban}
-                label="Projects"
-                count={result.imported.projects}
-              />
-              <ResultCard
-                icon={Clock}
-                label="Time Entries"
-                count={result.imported.timeEntries}
-              />
-            </div>
-
-            {result.skipped.timeEntries > 0 && (
-              <p className="text-xs text-content-muted">
-                {result.skipped.timeEntries} time entries skipped (no matching project found).
-              </p>
-            )}
-
-            <Link href="/customers" className={buttonPrimaryClass}>
-              View Imported Data
-            </Link>
-          </div>
-        )}
+        {step === "done" && result && <DoneStep result={result} />}
       </div>
     </div>
   );
 }
+
+// ────────────────────────────────────────────────────────────────
+// Steps
+// ────────────────────────────────────────────────────────────────
+
+function CredentialsStep({
+  token,
+  setToken,
+  accountId,
+  setAccountId,
+  teamId,
+  setTeamId,
+  teams,
+  loading,
+  onSubmit,
+}: {
+  token: string;
+  setToken: (v: string) => void;
+  accountId: string;
+  setAccountId: (v: string) => void;
+  teamId: string;
+  setTeamId: (v: string) => void;
+  teams: TeamListItem[];
+  loading: boolean;
+  onSubmit: () => void;
+}): React.JSX.Element {
+  return (
+    <div className="space-y-4">
+      <p className="text-sm text-content-secondary">
+        Create a Personal Access Token at{" "}
+        <a
+          href="https://id.getharvest.com/developers"
+          target="_blank"
+          rel="noopener noreferrer"
+          className="text-accent hover:underline"
+        >
+          id.getharvest.com/developers
+        </a>
+        . You&apos;ll need the token and your Account ID.
+      </p>
+
+      <div className="space-y-3">
+        <div>
+          <label className={labelClass}>Personal Access Token *</label>
+          <input
+            type="password"
+            value={token}
+            onChange={(e) => setToken(e.target.value)}
+            placeholder="Your Harvest API token"
+            className={inputClass}
+          />
+        </div>
+        <div>
+          <label className={labelClass}>Account ID *</label>
+          <input
+            type="text"
+            value={accountId}
+            onChange={(e) => setAccountId(e.target.value)}
+            placeholder="Your Harvest Account ID (numeric)"
+            className={inputClass}
+          />
+        </div>
+        <div>
+          <label className={labelClass}>Import into Team</label>
+          {teams.length === 1 ? (
+            <input
+              type="text"
+              value={teams[0]?.name ?? ""}
+              disabled
+              className={inputClass}
+            />
+          ) : (
+            <select
+              value={teamId}
+              onChange={(e) => setTeamId(e.target.value)}
+              className={selectClass}
+            >
+              {teams.map((t) => (
+                <option key={t.id} value={t.id}>
+                  {t.name}
+                </option>
+              ))}
+            </select>
+          )}
+        </div>
+      </div>
+
+      <button
+        onClick={onSubmit}
+        disabled={loading || !token || !accountId}
+        className={buttonPrimaryClass}
+      >
+        {loading ? <Spinner /> : <Eye size={16} />}
+        {loading ? "Connecting..." : "Connect & preview"}
+      </button>
+    </div>
+  );
+}
+
+function PreviewStep({
+  preview,
+  userMapping,
+  setUserMapping,
+  onImport,
+  onBack,
+}: {
+  preview: PreviewData;
+  userMapping: Record<number, UserMapChoice>;
+  setUserMapping: (
+    fn: (prev: Record<number, UserMapChoice>) => Record<number, UserMapChoice>,
+  ) => void;
+  onImport: () => void;
+  onBack: () => void;
+}): React.JSX.Element {
+  const totalRows =
+    preview.customers + preview.projects + preview.timeEntries;
+
+  return (
+    <div className="space-y-5">
+      {preview.companyName && (
+        <p className="text-sm text-content-secondary">
+          Connected to{" "}
+          <strong className="text-content">{preview.companyName}</strong>
+          {" · "}
+          <span className="text-content-muted font-mono text-xs">
+            {preview.timeZone}
+          </span>
+        </p>
+      )}
+
+      <div className="grid gap-3 sm:grid-cols-4">
+        <PreviewCard
+          icon={Users}
+          label="Customers"
+          count={preview.customers}
+          names={preview.customerNames}
+        />
+        <PreviewCard
+          icon={FolderKanban}
+          label="Projects"
+          count={preview.projects}
+          names={preview.projectNames}
+        />
+        <PreviewCard
+          icon={Clock}
+          label="Time entries"
+          count={preview.timeEntries}
+          names={[]}
+        />
+        <PreviewCard
+          icon={UserCog}
+          label="Categories (tasks)"
+          count={preview.categoryCount}
+          names={[]}
+        />
+      </div>
+
+      {preview.harvestUsers.length > 0 && (
+        <UserMappingTable
+          harvestUsers={preview.harvestUsers}
+          shyreMembers={preview.shyreMembers}
+          mapping={userMapping}
+          setMapping={setUserMapping}
+        />
+      )}
+
+      <div className="rounded-md border border-edge-muted bg-surface p-3 text-caption text-content-muted space-y-1">
+        <p>
+          <strong className="text-content-secondary">
+            Idempotent re-runs.
+          </strong>{" "}
+          Already-imported rows are dedup&apos;d by their Harvest id — running
+          the importer twice won&apos;t double your data.
+        </p>
+        <p>
+          <strong className="text-content-secondary">Time zone.</strong> Times
+          are parsed in the Harvest account&apos;s zone (
+          <span className="font-mono">{preview.timeZone}</span>) and stored as
+          UTC. DST is handled correctly.
+        </p>
+        <p>
+          <strong className="text-content-secondary">
+            Archived projects.
+          </strong>{" "}
+          Inactive projects in Harvest come in as <em>archived</em> so their
+          historical entries still have somewhere to attach.
+        </p>
+      </div>
+
+      <div className="flex gap-2">
+        <button onClick={onImport} className={buttonPrimaryClass}>
+          <Upload size={16} />
+          Import {totalRows} records
+        </button>
+        <button onClick={onBack} className={buttonSecondaryClass}>
+          Back
+        </button>
+      </div>
+    </div>
+  );
+}
+
+function UserMappingTable({
+  harvestUsers,
+  shyreMembers,
+  mapping,
+  setMapping,
+}: {
+  harvestUsers: HarvestUserSummary[];
+  shyreMembers: ShyreMemberSummary[];
+  mapping: Record<number, UserMapChoice>;
+  setMapping: (
+    fn: (prev: Record<number, UserMapChoice>) => Record<number, UserMapChoice>,
+  ) => void;
+}): React.JSX.Element {
+  return (
+    <div className="rounded-lg border border-edge bg-surface p-4 space-y-3">
+      <div>
+        <h3 className="text-body font-semibold text-content flex items-center gap-1.5">
+          <UserCog size={14} />
+          Map Harvest users to Shyre
+        </h3>
+        <p className="mt-1 text-caption text-content-muted">
+          Each Harvest user who logged time becomes the author of their entries
+          in Shyre. Pick a Shyre user for each, or fall back to <em>me</em> to
+          attribute them to you. Choose <em>Skip</em> to drop a user&apos;s
+          entries entirely.
+        </p>
+      </div>
+
+      <ul className="divide-y divide-edge-muted border-t border-edge-muted">
+        {harvestUsers.map((hu) => (
+          <li
+            key={hu.id}
+            className="py-2 flex items-center gap-3 flex-wrap"
+          >
+            <div className="flex-1 min-w-[180px]">
+              <div className="text-body text-content font-medium">
+                {hu.name}
+              </div>
+              <div className="text-caption text-content-muted">
+                {hu.email ?? "—"}
+                {" · "}
+                <span className="font-mono">{hu.entryCount}</span> entr
+                {hu.entryCount === 1 ? "y" : "ies"}
+              </div>
+            </div>
+
+            <select
+              value={String(mapping[hu.id] ?? "importer")}
+              onChange={(e) =>
+                setMapping((prev) => ({
+                  ...prev,
+                  [hu.id]: e.target.value as UserMapChoice,
+                }))
+              }
+              className={selectClass}
+              style={{ maxWidth: 260 }}
+            >
+              <option value="importer">Me (attribute to caller)</option>
+              <option value="skip">Skip (drop entries)</option>
+              <optgroup label="Shyre team members">
+                {shyreMembers.map((m) => (
+                  <option key={m.user_id} value={m.user_id}>
+                    {m.display_name ?? m.email ?? m.user_id.slice(0, 8)}
+                  </option>
+                ))}
+              </optgroup>
+            </select>
+          </li>
+        ))}
+      </ul>
+    </div>
+  );
+}
+
+function DoneStep({
+  result,
+}: {
+  result: ImportResult;
+}): React.JSX.Element {
+  const skipReasons = Object.entries(result.skipped.reasons ?? {});
+
+  return (
+    <div className="space-y-4">
+      <div className="flex items-center gap-2 text-success">
+        <CheckCircle size={20} />
+        <span className="font-semibold">Import complete</span>
+      </div>
+
+      <div className="grid gap-3 sm:grid-cols-3">
+        <ResultCard
+          icon={Users}
+          label="Customers"
+          count={result.imported.customers}
+        />
+        <ResultCard
+          icon={FolderKanban}
+          label="Projects"
+          count={result.imported.projects}
+        />
+        <ResultCard
+          icon={Clock}
+          label="Time entries"
+          count={result.imported.timeEntries}
+        />
+      </div>
+
+      <div className="text-caption text-content-muted">
+        Run id: <span className="font-mono">{result.importRunId}</span>
+      </div>
+
+      {skipReasons.length > 0 && (
+        <div className="rounded-md border border-edge-muted bg-surface p-3">
+          <div className="text-label font-semibold uppercase text-content-muted mb-2">
+            Skipped ({result.skipped.timeEntries})
+          </div>
+          <ul className="text-caption text-content-secondary space-y-0.5">
+            {skipReasons.map(([reason, count]) => (
+              <li key={reason}>
+                <span className="font-mono">{count}</span> · {reason}
+              </li>
+            ))}
+          </ul>
+        </div>
+      )}
+
+      {result.errors.length > 0 && (
+        <div className="rounded-md border border-error/30 bg-error-soft/50 p-3">
+          <div className="text-label font-semibold uppercase text-error mb-2 flex items-center gap-1.5">
+            <AlertTriangle size={12} />
+            Errors ({result.errors.length})
+          </div>
+          <ul className="text-caption text-content-secondary space-y-0.5 max-h-48 overflow-auto">
+            {result.errors.map((msg, idx) => (
+              <li key={idx} className="break-words">
+                {msg}
+              </li>
+            ))}
+          </ul>
+        </div>
+      )}
+
+      <Link href="/customers" className={buttonPrimaryClass}>
+        View imported data
+      </Link>
+    </div>
+  );
+}
+
+// ────────────────────────────────────────────────────────────────
+// Small display helpers
+// ────────────────────────────────────────────────────────────────
 
 function StepIndicator({
   label,
