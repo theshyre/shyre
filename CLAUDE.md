@@ -209,6 +209,7 @@ Shyre consumes UI, theme, and design-token primitives from `@theshyre/ui`, `@the
 - Shyre's `@theshyre/*` caret ranges in `package.json` must be ≥ the latest version published to GitHub Packages at all times.
 - When `theshyre-core` publishes a new version, the follow-up in Shyre (and Liv) is same-day: bump the caret, `npm install`, run `typecheck` + `lint` + `test` + `next build`, commit. Don't carry drift into the next feature commit.
 - Compiler + `@types/node` majors stay in lockstep with `theshyre-core` and Liv. A TS major upgrade is not a Shyre-local change — plan it across all three repos.
+- **Automated drift check.** A SessionStart hook (`.claude/settings.json` → `scripts/check-theshyre-versions.sh`) compares the three caret ranges to the registry on every Claude Code session and prints a warning if anything is behind. Silent when current. Requires `NODE_AUTH_TOKEN` in your shell env; if unset, the hook skips silently rather than nagging.
 
 ### When something belongs in @theshyre/*
 
@@ -256,45 +257,13 @@ If the concept itself moves — e.g. an address-input pattern Liv wants too — 
 
 ## Migrations & deploy ordering — MANDATORY
 
-> **Background:** Vercel auto-deploys app code on every push to `main`. The `.github/workflows/db-migrate.yml` workflow applies SQL migrations to prod on the same push. These two jobs run **in parallel** — there is no sequencing. A change that couples app code to a schema change can briefly see one without the other.
+Vercel (app code) and `.github/workflows/db-migrate.yml` (SQL migrations) run in **parallel** on every push to `main` — there is no sequencing. Full playbook in **`docs/reference/migrations.md`**. Read it before writing a migration. Critical rules:
 
-### Additive migrations — safe
-
-`ADD COLUMN`, `CREATE TABLE`, `CREATE INDEX`, `CREATE POLICY`, adding a nullable FK, adding a new enum value: safe to ship in a single PR with the code that uses them. If the migration lands first, the column is unused (fine). If the code lands first, queries against the new column fail gracefully (Supabase returns `{ data: null, error: ... }`, server code falls back to `[]`) and recover the moment the migration finishes seconds later. Use `IF NOT EXISTS` / `IF NOT EXISTS` everywhere so retries are idempotent.
-
-### Destructive migrations — two-PR dance
-
-`DROP COLUMN`, `DROP TABLE`, `ALTER COLUMN ... NOT NULL` without default, renaming, narrowing a type: ship in two PRs, never one.
-
-1. **PR 1 — stop reading/writing the thing.** Code change only. Remove every reference to the old column. Merge. Wait for Vercel to deploy.
-2. **PR 2 — drop the thing.** Migration only. Merge.
-
-Skipping the dance means the old code is still live in Vercel the moment the migration runs, and whatever was talking to that column starts failing (or worse, silently losing data).
-
-### Renames
-
-Renames are destructive twice over — the old name goes away and the new name appears. Use a three-step expand-contract: add the new column, backfill + dual-write, flip reads, then drop the old column. This is how `rename_organizations_to_teams` was done; copy that pattern.
-
-### Allow-lists and DB check constraints must match
-
-Any app-level `ALLOWED_*` set that backs a DB column with a `CHECK (col IN (...))` constraint must match the constraint exactly. Adding a value to the set without widening the DB constraint → runtime 23514 errors on writes (how the "warm" theme incident hit prod). Removing from the set without tightening → dead data in the DB.
-
-**Workflow for changes:**
-1. Keep the allow-list in a plain module next to `actions.ts` (e.g. `allow-lists.ts`) so tests and server actions can both import it without a `"use server"` boundary.
-2. Write a migration that `DROP CONSTRAINT IF EXISTS … ; ADD CONSTRAINT … CHECK (col IS NULL OR col IN (...))` in the same PR.
-3. `src/__tests__/db-parity.test.ts` walks every migration and compares each known column's effective CHECK set against the app allow-list. Red = drift.
-
-Adding a new allow-list pair: export it from the relevant `allow-lists.ts`, wire it into the `PAIRS` array in `db-parity.test.ts`, and ship the migration.
-
-### Timestamps must be monotonic
-
-Migration filenames sort lexically. A migration with a timestamp earlier than any already-applied migration on prod cannot be applied without `--include-all`, which pollutes history. Before creating a migration, check the most recent file under `supabase/migrations/` and use a strictly-later timestamp. If you have to rename after the fact to restore order, do it before the CI action tries to apply.
-
-### Secrets & ops
-
-- Prod migrations need `SUPABASE_DB_URL` repo secret (session-pooler URI, port 5432). Without it, `db-migrate.yml` fails loudly — treat that as a fire, not a warning.
-- Local `npm run db:push` and the GH Action are interchangeable; the migration table dedupes. If you apply locally because CI is slow, the action will no-op on the next push.
-- Never disable the `db-verify.yml` PR check to get a merge through. If it's red, the migration is broken — fix it, don't route around it.
+- **Additive migrations** (`ADD COLUMN`, `CREATE TABLE/INDEX/POLICY`, nullable FK, new enum value): safe to ship code + migration in one PR. Use `IF NOT EXISTS` for idempotency.
+- **Destructive migrations** (`DROP COLUMN/TABLE`, `ALTER ... NOT NULL` without default, narrowing a type): **two PRs, never one.** PR 1 removes all code references + wait for Vercel deploy; PR 2 is the migration alone. Renames use expand-contract (add → backfill + dual-write → flip reads → drop); see `rename_organizations_to_teams`.
+- **Timestamps must be monotonic** — check the latest file under `supabase/migrations/` before picking one so `supabase db push` doesn't need `--include-all`.
+- **Allow-lists ↔ CHECK constraints must match.** `ALLOWED_*` sets live in `allow-lists.ts` next to their action file; `src/__tests__/db-parity.test.ts` walks every migration and compares. Adding a value requires widening the constraint in the same PR, and the pair must be wired into `PAIRS` in the parity test.
+- `SUPABASE_DB_URL` repo secret is required for prod migrations — a missing secret is a fire, not a warning. Never disable `db-verify.yml` to force a merge.
 
 ## Testing — MANDATORY
 
@@ -468,78 +437,19 @@ Don't:
 
 ## Documentation — MANDATORY
 
-> **This is not optional.** Every piece of work must be documented before it is considered complete. "Shipped but undocumented" is not shipped.
+**"Shipped but undocumented" is not shipped.** Full layout + guide format in **`docs/reference/documentation.md`**. Critical rules:
 
-### Layout
-
-Documentation lives in `docs/` and is served in-app at `/docs`:
-
-```
-docs/
-├── README.md                # index
-├── guides/                  # user-facing how-tos, by audience
-│   ├── getting-started.md
-│   ├── features/            # Cross-role feature docs (apply to every user)
-│   ├── agency/              # Role-specific: Agency Owner
-│   ├── bookkeeper/          # Role-specific: Bookkeeper
-│   └── admin/               # Role-specific: System Admin
-├── reference/               # technical
-│   ├── architecture.md
-│   ├── database-schema.md
-│   └── modules.md
-├── security/                # audit log
-└── personas/                # AI review personas
-```
-
-Guides have two layers:
-- **`guides/features/`** — one doc per feature, written for the default Shyre user (most often a solo consultant). Apply to everyone; role-specific behavior is called out inline and linked to the relevant role guide.
-- **`guides/{agency,bookkeeper,admin}/`** — role-specific docs that only matter if you have that role. Don't duplicate feature content here; link to it from `features/` instead.
-
-The `/docs` landing is **role-aware**: it auto-shows the most relevant links based on the logged-in user's role mix (system-admin status + role across their orgs). Audience browse cards exist as a secondary section, not the hero.
-
-### When you build, modify, or add anything
-
-The relevant user-facing guide gets created or updated **in the same commit**.
-
-| Change | Must update |
-|---|---|
-| New user-facing feature | Doc in `docs/guides/features/`. Add a role-specific doc in `agency/` / `bookkeeper/` / `admin/` only if there's something genuinely role-specific to say beyond what the feature doc covers. |
-| UI / flow change | Existing guide entry for that feature |
-| Schema / migration | `docs/reference/database-schema.md` |
-| New module / shell concept | `docs/reference/modules.md` |
-| New env var | `.env.example` AND `docs/guides/admin/env-configuration.md` |
-| Security change | `docs/security/SECURITY_AUDIT_LOG.md` (append-only) |
-| Deferred / unshipped feature | Note in the relevant guide + in `docs/personas/README.md` Deferred section |
-
-### What "documented" means
-
-- A user of the relevant audience can follow the guide without asking anyone questions.
-- A developer who wasn't in the conversation can understand what was built and why.
-- Keyboard shortcuts listed on every page that has them; shown in the UI with a `<kbd>` badge.
-- Limits and known work are called out in a "What isn't built yet" section when relevant — better to document absence than let users hunt for it.
-
-### Guide format
-
-Each audience-specific guide follows the same structure:
-
-1. **Title** (H1 — feature name)
-2. **Where it lives** — sidebar path + URL
-3. **How to do X** — numbered steps for the primary flows
-4. **Constraints / permissions** — who can do what
-5. **Keyboard shortcuts** (if any)
-6. **Related** — links to sibling guides
-
-Keep each guide ≤ ~200 lines. If a feature grows beyond one guide, split by sub-feature.
-
-### Rendering
-
-`/docs` uses `react-markdown` + `remark-gfm`. GFM tables, task lists, strikethrough, and fenced code blocks all work. Relative `[text](./foo.md)` links are rewritten to `/docs/...` routes.
-
-### Do not
-
-- **Don't duplicate content across guides.** If solo and agency both need to know how customers work, write it once (solo), and link from agency.
-- **Don't leave stale guides.** If a feature is removed, its guide is removed (or moved to a "Deprecated" section with the removal date).
-- **Don't skip guides because the feature is "simple".** The guide is how someone NEW to Shyre learns it exists.
+- Docs live in `docs/` and are served in-app at `/docs` via `react-markdown` + `remark-gfm`.
+- `docs/guides/features/` = cross-role feature docs; `docs/guides/{agency,bookkeeper,admin}/` = role-specific additions only (never duplicate feature content there, link to it). `docs/reference/` for technical, `docs/security/` for audit log, `docs/personas/` for AI personas.
+- The `/docs` landing is role-aware: surfaces relevant links based on logged-in user's role mix.
+- Every user-facing feature gets a guide in `docs/guides/features/` in the **same commit** as the feature. Required updates per change:
+  - Schema / migration → `docs/reference/database-schema.md`
+  - New module / shell concept → `docs/reference/modules.md`
+  - New env var → `.env.example` AND `docs/guides/admin/env-configuration.md`
+  - Security change → `docs/security/SECURITY_AUDIT_LOG.md` (append-only)
+  - Deferred / unshipped → relevant guide + `docs/personas/README.md`
+- Guide format: title → where it lives → how-to steps → constraints/permissions → keyboard shortcuts → related links. ≤ ~200 lines; split if it grows.
+- Don't duplicate across guides (write once, link). Don't leave stale guides when features are removed. Don't skip the guide because the feature is "simple".
 
 ## Proactive development — MANDATORY
 
@@ -550,52 +460,14 @@ Keep each guide ≤ ~200 lines. If a feature grows beyond one guide, split by su
 
 ## Personas — MANDATORY
 
-> Personas are stakeholder / craft / guardian lenses used by AI agents to review Shyre from perspectives other than the implementer's.
+Personas are stakeholder / craft / guardian lenses used by AI agents to review Shyre from perspectives other than the implementer's. Source of truth: `docs/personas/*.md` (8 personas: `solo-consultant`, `agency-owner`, `bookkeeper`, `ux-designer`, `accessibility-auditor`, `qa-tester`, `security-reviewer`, `platform-architect`). Full policy + auto-engagement mapping in **`docs/personas/README.md`**.
 
-### Source of truth
-
-- `docs/personas/*.md` holds the canonical persona definitions. There are 8 today: `solo-consultant`, `agency-owner`, `bookkeeper`, `ux-designer`, `accessibility-auditor`, `qa-tester`, `security-reviewer`, `platform-architect`. See `docs/personas/README.md` for the index.
-- Tool wrappers at `.claude/agents/<name>.md` and `.cursor/rules/persona-<name>.mdc` must reference the source, not duplicate it.
-
-### Auto-engagement policy
-
-Apply the relevant persona review alongside regular work whenever these file patterns are touched. Auto-engagement is proactive — the agent initiates the review without being asked.
-
-| Persona | Auto-engages on |
-|---|---|
-| QA Tester | Any `src/**/*.ts(x)` or `supabase/migrations/**/*.sql` change |
-| Security Reviewer | `supabase/migrations/**`, `src/lib/supabase/**`, `src/lib/safe-action.ts`, `src/lib/system-admin.ts`, `src/lib/team-context.ts`, any `**/actions.ts`, `src/app/auth/**` |
-| UX Designer | `src/app/**/*.tsx`, `src/components/**/*.tsx` |
-| Accessibility Auditor | Same as UX Designer (separate pass, different lens) |
-| Platform Architect | `src/lib/modules/**`, `supabase/migrations/**`, new top-level `src/app/(dashboard)/*/page.tsx` |
-
-**Stakeholder voices** (Solo Consultant, Agency Owner, Bookkeeper) are **not** auto-engaged. Invoke them manually at feature-complete checkpoints — running them on every small change turns them into noise.
-
-### Persona sync — CRITICAL
-
-Every persona has **three** files that must stay byte-compatible in scope and instruction:
-
-1. `docs/personas/<name>.md` (source)
-2. `.claude/agents/<name>.md` (Claude Code wrapper)
-3. `.cursor/rules/persona-<name>.mdc` (Cursor rule wrapper)
-
-> **Editing any one requires editing the other two.** When adding a new persona, add all three files in the same commit. When renaming, rename everywhere. When retiring, delete everywhere.
-
-This rule is stricter than the general CLAUDE.md ↔ .cursorrules parity — for personas, a third directory (`docs/personas/`) is the source of truth, and the wrappers must never drift from it.
-
-### Writing and maintaining personas
-
-- **Personas review; they do not implement.** Each file ends with a concrete checklist of what to flag, not prose.
-- **Personas are lenses, not gatekeepers.** Conflicting reviews are expected — the human decides.
-- **Each persona file stays ≤ ~100 lines.** If it grows, split the role.
-- **Prune stale concerns.** When a persona's check becomes a lint rule, a test, or a general CLAUDE.md rule, delete that bullet.
-- **Update personas when prod surprises slip past them.** The persona is living doc — the checklist should reflect real near-misses.
-- **Document deferred personas.** Don't add speculative personas; track "add when X" in `docs/personas/README.md`.
-
-### Using personas in prompts
-
-- Claude Code: `@<persona-name>` invokes the subagent (e.g., `@security-reviewer audit the new migration`).
-- Cursor: enable the persona rule from the rule picker or reference by name in-prompt.
+- **Tool wrappers** at `.claude/agents/<name>.md` and `.cursor/rules/persona-<name>.mdc` must reference the source, not duplicate it.
+- **Persona sync — CRITICAL.** Every persona has three files — `docs/personas/<name>.md` (source), `.claude/agents/<name>.md`, `.cursor/rules/persona-<name>.mdc`. **Editing any one requires editing the other two in the same commit.** Add / rename / retire everywhere together. This is stricter than the general CLAUDE.md ↔ .cursorrules parity — for personas, `docs/personas/` is the source and wrappers must never drift.
+- **Auto-engagement**: craft reviewers and system guardians (QA Tester, Security Reviewer, UX Designer, Accessibility Auditor, Platform Architect) auto-fire on relevant file patterns — see `docs/personas/README.md` for the current mapping. Stakeholder voices (Solo Consultant, Agency Owner, Bookkeeper) are **manual-invoke only** — running them on every change turns them into noise.
+- **Personas review, they don't implement.** Each file ends with a concrete checklist, ≤100 lines. Personas are lenses, not gatekeepers — conflicting reviews are expected; the human decides.
+- **Prune stale concerns.** When a persona's check becomes a lint rule, a test, or a general CLAUDE.md rule, delete that bullet. Update personas when prod surprises slip past them.
+- **Using in prompts**: Claude Code `@<persona-name>` invokes the subagent; Cursor enables the rule from the rule picker.
 
 ## Code generation rules (Claude Code + Cursor)
 

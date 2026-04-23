@@ -44,10 +44,13 @@ yarn-error.log*
 # typescript
 *.tsbuildinfo
 next-env.d.ts
-# Claude Code local state — plans and settings are per-developer.
-# Agents are checked in because they're project-shared persona wrappers.
+# Claude Code local state — plans and per-developer local settings stay out.
+# Agents + project-wide settings are checked in so every collaborator gets the
+# same hooks / personas. settings.local.json is intentionally still gitignored;
+# it's where a developer puts personal overrides.
 .claude/*
 !.claude/agents/
+!.claude/settings.json
 
 # supabase — local CLI state (contains pooler URL with credentials)
 supabase/.temp/
