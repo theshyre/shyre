@@ -132,13 +132,33 @@ async function harvestFetch<T>(
   throw new Error(`Harvest API error ${lastStatus}: ${lastBody}`);
 }
 
+/**
+ * Build the initial paginated-list URL with per_page + any caller-
+ * supplied filters merged into one query string. Exported for a
+ * regression test: a previous version manually concatenated
+ * `?per_page=100` on top of a path that already carried `?from=...`,
+ * producing URLs with two `?` characters that Harvest parsed as a
+ * malformed `from` field.
+ */
+export function buildInitialPageUrl(
+  path: string,
+  extraParams: Record<string, string> = {},
+): string {
+  const searchParams = new URLSearchParams({
+    per_page: "100",
+    ...extraParams,
+  });
+  return `${path}?${searchParams.toString()}`;
+}
+
 async function fetchAllPages<T>(
   path: string,
   dataKey: string,
   opts: HarvestRequestOptions,
+  extraParams: Record<string, string> = {},
 ): Promise<T[]> {
   const all: T[] = [];
-  let url: string | null = `${path}?per_page=100`;
+  let url: string | null = buildInitialPageUrl(path, extraParams);
 
   while (url) {
     const data = await harvestFetch<Record<string, unknown>>(url, opts);
@@ -147,7 +167,8 @@ async function fetchAllPages<T>(
 
     const links = data.links as { next: string | null } | undefined;
     if (links?.next) {
-      // next URL is absolute — extract path
+      // next URL is absolute — extract pathname+search (already carries
+      // per_page + any filters we sent).
       const nextUrl = new URL(links.next);
       url = nextUrl.pathname + nextUrl.search;
     } else {
@@ -174,14 +195,20 @@ export async function fetchHarvestTimeEntries(
   opts: HarvestRequestOptions,
   params?: { from?: string; to?: string },
 ): Promise<HarvestTimeEntry[]> {
-  let path = "/time_entries";
-  const searchParams = new URLSearchParams();
-  if (params?.from) searchParams.set("from", params.from);
-  if (params?.to) searchParams.set("to", params.to);
-  const qs = searchParams.toString();
-  if (qs) path += `?${qs}`;
-
-  return fetchAllPages<HarvestTimeEntry>(path, "time_entries", opts);
+  // Pass filters through to fetchAllPages so they merge into a single
+  // query string with per_page. Building `/time_entries?from=...` and
+  // letting fetchAllPages append `?per_page=100` produced a URL with
+  // two `?`s that Harvest parsed as a malformed `from` value — see
+  // comment in fetchAllPages.
+  const extraParams: Record<string, string> = {};
+  if (params?.from) extraParams.from = params.from;
+  if (params?.to) extraParams.to = params.to;
+  return fetchAllPages<HarvestTimeEntry>(
+    "/time_entries",
+    "time_entries",
+    opts,
+    extraParams,
+  );
 }
 
 export async function fetchHarvestUsers(
