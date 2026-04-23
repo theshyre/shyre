@@ -2,6 +2,7 @@ import { describe, it, expect } from "vitest";
 import {
   zonedWallClockToUtc,
   normalizeTimeOfDay,
+  normalizeDateRange,
   resolveTimeEntryUtcBounds,
   collectUniqueHarvestUsers,
   proposeDefaultUserMapping,
@@ -76,6 +77,52 @@ describe("zonedWallClockToUtc", () => {
 // ────────────────────────────────────────────────────────────────
 // normalizeTimeOfDay
 // ────────────────────────────────────────────────────────────────
+
+describe("normalizeDateRange", () => {
+  it("returns undefined when both are blank / null", () => {
+    expect(normalizeDateRange(null, null)).toBeUndefined();
+    expect(normalizeDateRange(undefined, undefined)).toBeUndefined();
+    expect(normalizeDateRange("", "")).toBeUndefined();
+    expect(normalizeDateRange("  ", "  ")).toBeUndefined();
+  });
+  it("returns only the set side", () => {
+    expect(normalizeDateRange("2024-01-01", null)).toEqual({
+      from: "2024-01-01",
+    });
+    expect(normalizeDateRange(null, "2024-12-31")).toEqual({
+      to: "2024-12-31",
+    });
+  });
+  it("returns both when both set", () => {
+    expect(normalizeDateRange("2024-01-01", "2024-12-31")).toEqual({
+      from: "2024-01-01",
+      to: "2024-12-31",
+    });
+  });
+  it("trims whitespace", () => {
+    expect(normalizeDateRange("  2024-01-01  ", null)).toEqual({
+      from: "2024-01-01",
+    });
+  });
+  it("throws on malformed dates", () => {
+    expect(() => normalizeDateRange("2024/01/01", null)).toThrow(
+      /YYYY-MM-DD/,
+    );
+    expect(() => normalizeDateRange("jan 1", null)).toThrow(/YYYY-MM-DD/);
+    expect(() => normalizeDateRange("2024-1-1", null)).toThrow(/YYYY-MM-DD/);
+  });
+  it("throws when from is after to", () => {
+    expect(() =>
+      normalizeDateRange("2024-12-31", "2024-01-01"),
+    ).toThrow(/inverted/);
+  });
+  it("allows from == to (single day)", () => {
+    expect(normalizeDateRange("2024-06-15", "2024-06-15")).toEqual({
+      from: "2024-06-15",
+      to: "2024-06-15",
+    });
+  });
+});
 
 describe("normalizeTimeOfDay", () => {
   it("passes through valid 24h", () => {

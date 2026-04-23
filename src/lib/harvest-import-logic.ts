@@ -21,6 +21,53 @@ import type {
 } from "./harvest";
 
 // ────────────────────────────────────────────────────────────────
+// Date range normalization
+// ────────────────────────────────────────────────────────────────
+
+/**
+ * Validate and normalize a date-range filter for the Harvest time-
+ * entries query. Harvest accepts `from` / `to` in YYYY-MM-DD and is
+ * inclusive on both ends.
+ *
+ * Empty / whitespace values coerce to undefined. Non-YYYY-MM-DD
+ * strings throw so we fail loudly rather than silently pulling the
+ * full account (which is what the API does with an invalid filter).
+ *
+ * Returns undefined when neither bound is set — callers then skip
+ * the params object entirely and Harvest returns all-time.
+ */
+export function normalizeDateRange(
+  from: string | null | undefined,
+  to: string | null | undefined,
+): { from?: string; to?: string } | undefined {
+  const normalize = (v: string | null | undefined): string | undefined => {
+    if (v == null) return undefined;
+    const s = v.trim();
+    if (s === "") return undefined;
+    if (!/^\d{4}-\d{2}-\d{2}$/.test(s)) {
+      throw new Error(`Date must be YYYY-MM-DD, got: ${v}`);
+    }
+    return s;
+  };
+
+  const fromN = normalize(from);
+  const toN = normalize(to);
+
+  if (!fromN && !toN) return undefined;
+
+  if (fromN && toN && fromN > toN) {
+    throw new Error(
+      `Date range is inverted: from ${fromN} is after to ${toN}`,
+    );
+  }
+
+  return {
+    ...(fromN ? { from: fromN } : {}),
+    ...(toN ? { to: toN } : {}),
+  };
+}
+
+// ────────────────────────────────────────────────────────────────
 // Time-zone resolution
 // ────────────────────────────────────────────────────────────────
 

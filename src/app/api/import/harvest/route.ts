@@ -13,12 +13,23 @@ import {
   buildTimeEntryRow,
   collectUniqueHarvestUsers,
   collectUniqueTaskNames,
+  normalizeDateRange,
   proposeDefaultUserMapping,
   HARVEST_CATEGORY_SET_NAME,
   type ImportContext,
   type UserMapChoice,
 } from "@/lib/harvest-import-logic";
 import { NextResponse } from "next/server";
+
+// Vercel default is 10s (hobby) / 60s (pro). A real-world Harvest
+// account with a few thousand time entries routinely exceeds that —
+// the API paginates 100 at a time and 429-throttles aggressively,
+// so fetch alone can run 30-60s before any writes happen. Bumping
+// to 5 minutes covers essentially every small-to-mid consulting
+// practice. For accounts larger than that, the date-range filter
+// (from / to in the UI) is the escape hatch — import a year at a
+// time and each run fits comfortably under 5 min.
+export const maxDuration = 300;
 
 type SBClient = Awaited<ReturnType<typeof createClient>>;
 
@@ -34,6 +45,12 @@ interface ImportRequestBody {
   userMapping?: Record<string, UserMapChoice>;
   /** Only used on action=import. From the preview response. */
   timeZone?: string;
+  /** Optional date range filter on time entries. Harvest accepts
+   * from/to in YYYY-MM-DD. When set, only entries with `spent_date`
+   * in the range are fetched — reduces import time on large accounts
+   * and lets the user import one quarter / year at a time. */
+  from?: string;
+  to?: string;
 }
 
 export async function POST(request: Request): Promise<NextResponse> {
@@ -84,12 +101,13 @@ export async function POST(request: Request): Promise<NextResponse> {
 
   if (action === "preview") {
     try {
+      const dateRange = normalizeDateRange(body.from, body.to);
       const [company, customers, projects, timeEntries, harvestUsers] =
         await Promise.all([
           validateHarvestCredentials(opts),
           fetchHarvestClients(opts),
           fetchHarvestProjects(opts),
-          fetchHarvestTimeEntries(opts),
+          fetchHarvestTimeEntries(opts, dateRange),
           fetchHarvestUsers(opts),
         ]);
 
@@ -176,11 +194,12 @@ export async function POST(request: Request): Promise<NextResponse> {
     }
 
     try {
+      const dateRange = normalizeDateRange(body.from, body.to);
       const [harvestClients, harvestProjects, harvestTimeEntries] =
         await Promise.all([
           fetchHarvestClients(opts),
           fetchHarvestProjects(opts),
-          fetchHarvestTimeEntries(opts),
+          fetchHarvestTimeEntries(opts, dateRange),
         ]);
 
       const errors: string[] = [];
@@ -188,37 +207,53 @@ export async function POST(request: Request): Promise<NextResponse> {
       const projectMap = new Map<number, string>();
       const projectRateById = new Map<number, number | null>();
 
+      // Pre-fetch existing Harvest imports for this team in two bulk
+      // queries (one per table). Previous version did one SELECT per
+      // Harvest row for the source-id dedupe plus another for the
+      // name-fallback dedupe — 2N roundtrips on a cold import, the
+      // single biggest contributor to import latency for accounts
+      // with more than a handful of customers or projects.
+      const existingCustomersBySourceId = new Map<string, string>();
+      const existingCustomersByName = new Map<string, string>();
+      {
+        const { data: rows } = await supabase
+          .from("customers")
+          .select("id, name, import_source_id")
+          .eq("team_id", organizationId)
+          .eq("imported_from", "harvest");
+        for (const row of rows ?? []) {
+          const src = row.import_source_id as string | null;
+          if (src) existingCustomersBySourceId.set(src, row.id as string);
+        }
+
+        // Separate query for pre-audit-trail rows (no source_id) that
+        // should be matched by exact name. Scoped to imported_from
+        // IS NULL so we never false-positive against a user's real
+        // customer list.
+        const { data: byNameRows } = await supabase
+          .from("customers")
+          .select("id, name")
+          .eq("team_id", organizationId)
+          .is("import_source_id", null);
+        for (const row of byNameRows ?? []) {
+          existingCustomersByName.set(row.name as string, row.id as string);
+        }
+      }
+
       // Customers ----------------------------------------------------
       let customersImported = 0;
       for (const hc of harvestClients) {
         if (!hc.is_active) continue;
 
-        // Dedupe by import_source_id — survives name renames in Harvest.
-        const { data: existing } = await supabase
-          .from("customers")
-          .select("id")
-          .eq("team_id", organizationId)
-          .eq("imported_from", "harvest")
-          .eq("import_source_id", String(hc.id))
-          .limit(1);
-
-        if (existing && existing.length > 0) {
-          customerMap.set(hc.id, existing[0]!.id);
+        const bySource = existingCustomersBySourceId.get(String(hc.id));
+        if (bySource) {
+          customerMap.set(hc.id, bySource);
           continue;
         }
 
-        // Secondary dedupe by exact name — catches pre-audit-trail
-        // imports that landed before source_id was populated.
-        const { data: byName } = await supabase
-          .from("customers")
-          .select("id")
-          .eq("team_id", organizationId)
-          .eq("name", hc.name)
-          .is("import_source_id", null)
-          .limit(1);
-
-        if (byName && byName.length > 0) {
-          customerMap.set(hc.id, byName[0]!.id);
+        const byName = existingCustomersByName.get(hc.name);
+        if (byName) {
+          customerMap.set(hc.id, byName);
           continue;
         }
 
@@ -240,33 +275,42 @@ export async function POST(request: Request): Promise<NextResponse> {
       }
 
       // Projects -----------------------------------------------------
+      const existingProjectsBySourceId = new Map<string, string>();
+      const existingProjectsByName = new Map<string, string>();
+      {
+        const { data: rows } = await supabase
+          .from("projects")
+          .select("id, name, import_source_id")
+          .eq("team_id", organizationId)
+          .eq("imported_from", "harvest");
+        for (const row of rows ?? []) {
+          const src = row.import_source_id as string | null;
+          if (src) existingProjectsBySourceId.set(src, row.id as string);
+        }
+
+        const { data: byNameRows } = await supabase
+          .from("projects")
+          .select("id, name")
+          .eq("team_id", organizationId)
+          .is("import_source_id", null);
+        for (const row of byNameRows ?? []) {
+          existingProjectsByName.set(row.name as string, row.id as string);
+        }
+      }
+
       let projectsImported = 0;
       for (const hp of harvestProjects) {
         projectRateById.set(hp.id, hp.hourly_rate);
 
-        const { data: existing } = await supabase
-          .from("projects")
-          .select("id")
-          .eq("team_id", organizationId)
-          .eq("imported_from", "harvest")
-          .eq("import_source_id", String(hp.id))
-          .limit(1);
-
-        if (existing && existing.length > 0) {
-          projectMap.set(hp.id, existing[0]!.id);
+        const bySource = existingProjectsBySourceId.get(String(hp.id));
+        if (bySource) {
+          projectMap.set(hp.id, bySource);
           continue;
         }
 
-        const { data: byName } = await supabase
-          .from("projects")
-          .select("id")
-          .eq("team_id", organizationId)
-          .eq("name", hp.name)
-          .is("import_source_id", null)
-          .limit(1);
-
-        if (byName && byName.length > 0) {
-          projectMap.set(hp.id, byName[0]!.id);
+        const byName = existingProjectsByName.get(hp.name);
+        if (byName) {
+          projectMap.set(hp.id, byName);
           continue;
         }
 

@@ -77,6 +77,8 @@ export function HarvestImport({
   const [token, setToken] = useState("");
   const [accountId, setAccountId] = useState("");
   const [teamId, setTeamId] = useState(teams[0]?.id ?? "");
+  const [fromDate, setFromDate] = useState("");
+  const [toDate, setToDate] = useState("");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [preview, setPreview] = useState<PreviewData | null>(null);
@@ -116,6 +118,8 @@ export function HarvestImport({
           accountId,
           organizationId: teamId,
           action: "preview",
+          from: fromDate || undefined,
+          to: toDate || undefined,
         }),
       });
       const previewData = (await previewRes.json()) as
@@ -162,6 +166,8 @@ export function HarvestImport({
           action: "import",
           timeZone: preview.timeZone,
           userMapping: payload,
+          from: fromDate || undefined,
+          to: toDate || undefined,
         }),
       });
       const data = (await res.json()) as ImportResult | { error: string };
@@ -229,6 +235,10 @@ export function HarvestImport({
             setAccountId={setAccountId}
             teamId={teamId}
             setTeamId={setTeamId}
+            fromDate={fromDate}
+            setFromDate={setFromDate}
+            toDate={toDate}
+            setToDate={setToDate}
             teams={teams}
             loading={loading}
             onSubmit={handleValidate}
@@ -278,6 +288,10 @@ function CredentialsStep({
   setAccountId,
   teamId,
   setTeamId,
+  fromDate,
+  setFromDate,
+  toDate,
+  setToDate,
   teams,
   loading,
   onSubmit,
@@ -288,6 +302,10 @@ function CredentialsStep({
   setAccountId: (v: string) => void;
   teamId: string;
   setTeamId: (v: string) => void;
+  fromDate: string;
+  setFromDate: (v: string) => void;
+  toDate: string;
+  setToDate: (v: string) => void;
   teams: TeamListItem[];
   loading: boolean;
   onSubmit: () => void;
@@ -350,6 +368,38 @@ function CredentialsStep({
               ))}
             </select>
           )}
+        </div>
+
+        <div className="rounded-md border border-edge-muted bg-surface p-3">
+          <div className="text-label font-semibold uppercase text-content-muted mb-2">
+            Date range (optional)
+          </div>
+          <p className="text-caption text-content-muted mb-3">
+            Limits which time entries get imported. Leave blank to import
+            all time. Use a range (e.g. a single year) if your Harvest
+            account has thousands of entries — keeps each import well
+            under the 5-minute request limit and easier to roll back.
+          </p>
+          <div className="grid gap-3 sm:grid-cols-2">
+            <div>
+              <label className={labelClass}>From</label>
+              <input
+                type="date"
+                value={fromDate}
+                onChange={(e) => setFromDate(e.target.value)}
+                className={inputClass}
+              />
+            </div>
+            <div>
+              <label className={labelClass}>To</label>
+              <input
+                type="date"
+                value={toDate}
+                onChange={(e) => setToDate(e.target.value)}
+                className={inputClass}
+              />
+            </div>
+          </div>
         </div>
       </div>
 

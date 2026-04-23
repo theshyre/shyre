@@ -56,6 +56,17 @@ This is intentional — deleting the underlying data would leave stranded invoic
 
 Harvest rate-limits the public API at ~100 requests per 15 seconds. Shyre retries on `429` with exponential backoff (1s, 2s, 4s) and respects the `Retry-After` header when Harvest sends one. Large imports may take several minutes; the importer keeps chugging without user intervention.
 
+## Timeouts and large accounts
+
+Each import request is capped at 5 minutes (`maxDuration = 300` on `/api/import/harvest`). For most consulting practices that's plenty — a year of entries for a small team lands well inside the budget.
+
+If your Harvest account has *thousands* of entries across many years, use the **From / To date range** on the credentials form to import one span at a time (e.g. 2024 in one run, 2025 in another). Re-running with a different date range is safe: the importer dedupes by Harvest entry id, so overlapping ranges don't create duplicates.
+
+Two additional optimizations happen automatically:
+
+- **Dedupe lookups are batched.** Instead of one `SELECT` per Harvest customer / project, Shyre pulls all existing imports for the team in two queries and matches in memory. This cuts ~50 customers × ~100ms round-trips down to a single query.
+- **Time entries insert in batches of 100** with idempotent behavior on the partial unique index (`team_id, imported_from, import_source_id`).
+
 ## What isn't imported
 
 - **Invoices** — ongoing billing should be done in Shyre, not imported mid-flight.
