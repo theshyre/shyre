@@ -31,3 +31,4 @@ When reviewing a change, flag:
 - [ ] **If a security bug was introduced or fixed, is `docs/security/SECURITY_AUDIT_LOG.md` updated** with a new `SAL-*` entry?
 - [ ] **New ENV var documented in `.env.example`?**
 - [ ] **Any logging that might capture secrets?** Redact in `logger.ts` and similar.
+- [ ] **Error path calls `logError()`?** Every caught error / non-2xx response in an API route (`src/app/api/**/route.ts`) and every `errors.push(...)` per-row collector must log to `error_logs`, otherwise admins can't triage from `/admin/errors`. Server actions wrapped in `runSafeAction` get this automatically — API routes and background loops do not.

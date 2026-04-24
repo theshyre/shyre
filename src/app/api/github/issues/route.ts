@@ -1,5 +1,6 @@
 import { createClient } from "@/lib/supabase/server";
 import { fetchIssues } from "@/lib/github";
+import { logError } from "@/lib/logger";
 import { NextResponse } from "next/server";
 
 export async function GET(request: Request): Promise<NextResponse> {
@@ -42,6 +43,11 @@ export async function GET(request: Request): Promise<NextResponse> {
   });
 
   if (error) {
+    logError(error instanceof Error ? error : new Error(error.message), {
+      userId: user.id,
+      url: "/api/github/issues",
+      action: "fetchGithubIssues",
+    });
     return NextResponse.json(
       { error: error.message },
       { status: error.status || 500 }

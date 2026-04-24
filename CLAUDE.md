@@ -285,6 +285,16 @@ Vercel (app code) and `.github/workflows/db-migrate.yml` (SQL migrations) run in
 - **CORS / auth defaults must be restrictive** — fail closed, never fail open
 - **GitHub tokens** (stored in `user_settings.github_token`) must be treated as secrets — never log, never return in list queries, only return to the owning user in the settings page
 
+### Error logging — MANDATORY
+
+**Every caught error that returns a non-2xx response or falls into a user-visible error path must call `logError()` before returning.** The `error_logs` table (viewed at `/admin/errors`) is the only place an admin can triage issues after the fact — silent `console.error` or a banner the user dismissed leaves support blind.
+
+- **Server actions** wrapped in `runSafeAction` get this automatically — the wrapper logs on throw.
+- **API routes** (`src/app/api/**/route.ts`) do NOT go through `runSafeAction`. Every `catch` block, every `if (error) return NextResponse.json(...)` path, every per-row collector (`errors.push(...)`) must call `logError(err, { userId, teamId, url, action })` alongside.
+- **Background / fire-and-forget** work (webhooks, import loops, scheduled jobs) — same rule. If it can fail and you caught it, log it.
+- **What NOT to log**: expected business-logic outcomes that aren't errors — "user chose skip on this row," "no matching project to attach the entry to." Those belong in `skipReasons` or equivalent response fields, not `error_logs`.
+- `logError` is fire-and-forget and never throws — safe to call from any code path, no performance cost on the happy path.
+
 ### Security audit trail
 
 When a security issue is discovered:

@@ -1,5 +1,6 @@
 import { createClient } from "@/lib/supabase/server";
 import { validateTeamAccess } from "@/lib/team-context";
+import { logError } from "@/lib/logger";
 import {
   validateHarvestCredentials,
   fetchHarvestClients,
@@ -41,8 +42,18 @@ type SBClient = Awaited<ReturnType<typeof createClient>>;
  * raw response body — we surface both so the UI's InlineErrorCard
  * can render the short message and stash the raw body behind a
  * "Copy details" toggle. Everything else becomes an unknown error.
+ *
+ * Also logs to error_logs via `logError` so admins see the failure
+ * in /admin/errors — returning JSON with an error field isn't
+ * sufficient on its own (the user's banner is the only other
+ * surface and they often dismiss it).
  */
-function errorResponse(err: unknown): NextResponse {
+function errorResponse(
+  err: unknown,
+  context: { userId?: string; teamId?: string; action?: string },
+): NextResponse {
+  logError(err, { ...context, url: "/api/import/harvest" });
+
   if (err instanceof HarvestApiError) {
     return NextResponse.json(
       {
@@ -181,7 +192,11 @@ export async function POST(request: Request): Promise<NextResponse> {
         defaultMapping,
       });
     } catch (err) {
-      return errorResponse(err);
+      return errorResponse(err, {
+        userId: user.id,
+        teamId: organizationId,
+        action: "harvestImportPreview",
+      });
     }
   }
 
@@ -215,6 +230,12 @@ export async function POST(request: Request): Promise<NextResponse> {
         status: "running",
       });
     if (runInsertError) {
+      logError(runInsertError, {
+        userId: user.id,
+        teamId: organizationId,
+        url: "/api/import/harvest",
+        action: "harvestImportRunInsert",
+      });
       return NextResponse.json(
         { error: `Could not record import run: ${runInsertError.message}` },
         { status: 500 },
@@ -234,6 +255,20 @@ export async function POST(request: Request): Promise<NextResponse> {
       const customerMap = new Map<number, string>(); // Harvest id → Shyre id
       const projectMap = new Map<number, string>();
       const projectRateById = new Map<number, number | null>();
+
+      // Helper: record a per-row failure both in the response (so the
+      // UI's "Errors" list shows it) AND in error_logs (so /admin/errors
+      // shows it). Two surfaces, one source — logError is fire-and-
+      // forget so this never slows the import.
+      const recordError = (message: string, detail: unknown): void => {
+        errors.push(message);
+        logError(detail instanceof Error ? detail : new Error(message), {
+          userId: user.id,
+          teamId: organizationId,
+          url: "/api/import/harvest",
+          action: "harvestImportRowError",
+        });
+      };
 
       // Pre-fetch existing Harvest imports for this team in two bulk
       // queries (one per table). Previous version did one SELECT per
@@ -293,7 +328,7 @@ export async function POST(request: Request): Promise<NextResponse> {
           .single();
 
         if (error) {
-          errors.push(`Customer "${hc.name}": ${error.message}`);
+          recordError(`Customer "${hc.name}": ${error.message}`, error);
           continue;
         }
         if (inserted) {
@@ -397,7 +432,7 @@ export async function POST(request: Request): Promise<NextResponse> {
           .single();
 
         if (error) {
-          errors.push(`Project "${hp.name}": ${error.message}`);
+          recordError(`Project "${hp.name}": ${error.message}`, error);
           continue;
         }
         if (inserted) {
@@ -416,8 +451,9 @@ export async function POST(request: Request): Promise<NextResponse> {
           .in("id", projectsToBackfillSet)
           .is("category_set_id", null);
         if (backfillError) {
-          errors.push(
+          recordError(
             `Backfilling category_set_id on dedup'd projects: ${backfillError.message}`,
+            backfillError,
           );
         }
       }
@@ -475,7 +511,7 @@ export async function POST(request: Request): Promise<NextResponse> {
               (skipReasons.get("already imported") ?? 0) + batch.length,
             );
           } else {
-            errors.push(`Time entries batch: ${error.message}`);
+            recordError(`Time entries batch: ${error.message}`, error);
           }
           continue;
         }
@@ -536,7 +572,11 @@ export async function POST(request: Request): Promise<NextResponse> {
         })
         .eq("id", ctx.importRunId);
 
-      return errorResponse(err);
+      return errorResponse(err, {
+        userId: user.id,
+        teamId: organizationId,
+        action: "harvestImport",
+      });
     }
   }
 
