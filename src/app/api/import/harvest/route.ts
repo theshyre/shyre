@@ -11,6 +11,7 @@ import {
 import {
   buildCustomerRow,
   buildProjectRow,
+  buildReconciliation,
   buildTimeEntryRow,
   collectUniqueHarvestUsers,
   collectUniqueTaskNames,
@@ -431,6 +432,17 @@ export async function POST(request: Request): Promise<NextResponse> {
         timeEntriesImported += batch.length;
       }
 
+      // Reconciliation — re-query the landed Shyre rows by the Harvest
+      // ids we fetched, so the response can show "Harvest said X hours,
+      // Shyre has X hours" side by side. Chunked IN() queries to stay
+      // under Postgres's parameter limit on very large imports.
+      const reconciliation = await computeReconciliation(
+        supabase,
+        organizationId,
+        harvestTimeEntries,
+        Object.fromEntries(skipReasons),
+      );
+
       const summary = {
         imported: {
           customers: customersImported,
@@ -442,6 +454,7 @@ export async function POST(request: Request): Promise<NextResponse> {
           reasons: Object.fromEntries(skipReasons),
         },
         errors,
+        reconciliation,
       };
 
       await supabase
@@ -484,6 +497,55 @@ export async function POST(request: Request): Promise<NextResponse> {
 // Helpers — non-pure bits that wrap Supabase calls and belong here
 // rather than in lib/harvest-import-logic.ts.
 // ────────────────────────────────────────────────────────────────
+
+/**
+ * Query Shyre for the time_entries whose import_source_id matches
+ * the Harvest entries we just fetched, then hand off to the pure
+ * buildReconciliation to produce the side-by-side report.
+ *
+ * Chunked .in() queries — Postgres's query-string limit is generous
+ * but a 10k-entry import would still build a ~100KB URL. 500 per
+ * chunk keeps each request tidy.
+ */
+async function computeReconciliation(
+  supabase: SBClient,
+  teamId: string,
+  harvestEntries: ReadonlyArray<{
+    id: number;
+    hours: number;
+    client: { id: number; name: string };
+  }>,
+  skipReasons: Record<string, number>,
+): Promise<ReturnType<typeof buildReconciliation>> {
+  const harvestIds = harvestEntries.map((e) => String(e.id));
+  const shyreRows: Array<{
+    import_source_id: string;
+    duration_min: number | null;
+  }> = [];
+
+  const CHUNK = 500;
+  for (let i = 0; i < harvestIds.length; i += CHUNK) {
+    const chunk = harvestIds.slice(i, i + CHUNK);
+    const { data } = await supabase
+      .from("time_entries")
+      .select("import_source_id, duration_min")
+      .eq("team_id", teamId)
+      .eq("imported_from", "harvest")
+      .in("import_source_id", chunk);
+    for (const row of data ?? []) {
+      shyreRows.push({
+        import_source_id: row.import_source_id as string,
+        duration_min: (row.duration_min as number | null) ?? null,
+      });
+    }
+  }
+
+  return buildReconciliation({
+    harvestEntries,
+    shyreRows,
+    skipReasons,
+  });
+}
 
 async function fetchTeamMembersForMapping(
   supabase: SBClient,

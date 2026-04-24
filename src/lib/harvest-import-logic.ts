@@ -497,6 +497,178 @@ export function buildTimeEntryRow(args: {
   };
 }
 
+// ────────────────────────────────────────────────────────────────
+// Reconciliation — did the import actually land what Harvest said
+// was there?
+// ────────────────────────────────────────────────────────────────
+
+export interface ReconciliationPerCustomer {
+  name: string;
+  harvestHours: number;
+  shyreHours: number;
+  harvestEntries: number;
+  shyreEntries: number;
+  match: boolean;
+}
+
+export interface ReconciliationReport {
+  /** Totals across all fetched Harvest entries in the import window. */
+  harvest: { entries: number; hours: number };
+  /** Totals across Shyre time_entries whose import_source_id matches
+   * one of the Harvest entries in the window — either inserted this
+   * run, or already-existing from a prior run with the same source id. */
+  shyre: { entries: number; hours: number };
+  /** Entries Harvest fetched that we cannot find in Shyre. Populated
+   * only when match === false; each row includes the reason if the
+   * import had one (skipped for no project, etc.). */
+  missing: {
+    count: number;
+    hours: number;
+    reasonsByCount: Record<string, number>;
+  };
+  /** True iff harvest.entries === shyre.entries AND hours are within
+   * a small epsilon (see HOURS_EPSILON). */
+  match: boolean;
+  /** Grouped by Harvest client name — useful for spot-checking which
+   * customer is under-counted when the top-line numbers disagree. */
+  perCustomer: ReconciliationPerCustomer[];
+}
+
+/** Harvest reports hours to 2 decimal places; summing 1000 entries
+ * can accumulate 1e-10 float error. Anything below this threshold is
+ * treated as equal. */
+const HOURS_EPSILON = 0.01;
+
+/**
+ * Build a side-by-side reconciliation report comparing what Harvest
+ * returned for a given fetch window with what Shyre has after the
+ * import. The Shyre side is passed in (fetched by the caller from
+ * the DB) rather than computed here because this module stays pure —
+ * no database access.
+ *
+ * Shape of the inputs:
+ *   harvestEntries — the exact array returned by fetchHarvestTimeEntries
+ *                    for the import window.
+ *   shyreRows      — time_entries rows in the target team where
+ *                    import_source_id ∈ the set of Harvest entry IDs.
+ *                    Fields needed: import_source_id, duration_min.
+ *   skipReasons    — map of {reason → count} from the import pass
+ *                    (the importer already tracks this).
+ */
+export function buildReconciliation(args: {
+  harvestEntries: ReadonlyArray<{
+    id: number;
+    hours: number;
+    client: { id: number; name: string };
+  }>;
+  shyreRows: ReadonlyArray<{
+    import_source_id: string;
+    duration_min: number | null;
+  }>;
+  skipReasons: Record<string, number>;
+}): ReconciliationReport {
+  const shyreBySourceId = new Map<string, number>(); // source_id → duration_min
+  for (const row of args.shyreRows) {
+    shyreBySourceId.set(
+      row.import_source_id,
+      row.duration_min ?? 0,
+    );
+  }
+
+  // Top-line totals.
+  const harvestEntries = args.harvestEntries.length;
+  const harvestHours = args.harvestEntries.reduce((a, e) => a + e.hours, 0);
+  const shyreEntries = shyreBySourceId.size;
+  const shyreHours = [...shyreBySourceId.values()].reduce(
+    (a, min) => a + min / 60,
+    0,
+  );
+
+  // Per-customer breakdown. Group by Harvest client name on both
+  // sides so the user sees one row per customer that ever appeared
+  // in the fetch — a zero on the Shyre side is the tell-tale
+  // "this customer's entries didn't land."
+  interface Bucket {
+    harvestHours: number;
+    harvestEntries: number;
+    shyreHours: number;
+    shyreEntries: number;
+  }
+  const byCustomer = new Map<string, Bucket>();
+  const ensure = (name: string): Bucket => {
+    let b = byCustomer.get(name);
+    if (!b) {
+      b = { harvestHours: 0, harvestEntries: 0, shyreHours: 0, shyreEntries: 0 };
+      byCustomer.set(name, b);
+    }
+    return b;
+  };
+
+  // Missing entries: Harvest fetched → not in Shyre. We also build a
+  // reason breakdown as we go when the importer reported one.
+  let missingCount = 0;
+  let missingHours = 0;
+
+  for (const e of args.harvestEntries) {
+    const bucket = ensure(e.client.name);
+    bucket.harvestHours += e.hours;
+    bucket.harvestEntries += 1;
+
+    const shyreMin = shyreBySourceId.get(String(e.id));
+    if (shyreMin !== undefined) {
+      bucket.shyreHours += shyreMin / 60;
+      bucket.shyreEntries += 1;
+    } else {
+      missingCount += 1;
+      missingHours += e.hours;
+    }
+  }
+
+  const perCustomer: ReconciliationPerCustomer[] = [...byCustomer.entries()]
+    .map(([name, b]) => ({
+      name,
+      harvestHours: roundHours(b.harvestHours),
+      shyreHours: roundHours(b.shyreHours),
+      harvestEntries: b.harvestEntries,
+      shyreEntries: b.shyreEntries,
+      match:
+        b.harvestEntries === b.shyreEntries &&
+        Math.abs(b.harvestHours - b.shyreHours) < HOURS_EPSILON,
+    }))
+    .sort(
+      (a, b) =>
+        b.harvestHours - a.harvestHours || a.name.localeCompare(b.name),
+    );
+
+  const match =
+    harvestEntries === shyreEntries &&
+    Math.abs(harvestHours - shyreHours) < HOURS_EPSILON;
+
+  return {
+    harvest: {
+      entries: harvestEntries,
+      hours: roundHours(harvestHours),
+    },
+    shyre: {
+      entries: shyreEntries,
+      hours: roundHours(shyreHours),
+    },
+    missing: {
+      count: missingCount,
+      hours: roundHours(missingHours),
+      reasonsByCount: args.skipReasons,
+    },
+    match,
+    perCustomer,
+  };
+}
+
+function roundHours(h: number): number {
+  // Match Harvest's 2-decimal precision so tiny float residue doesn't
+  // show up as "120.00000003h".
+  return Math.round(h * 100) / 100;
+}
+
 /**
  * Compose the entry description from notes + a rate-snapshot prefix
  * when Harvest's `billable_rate` differs from the project rate.

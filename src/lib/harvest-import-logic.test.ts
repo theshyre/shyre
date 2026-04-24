@@ -12,6 +12,7 @@ import {
   buildProjectRow,
   buildTimeEntryRow,
   buildEntryDescription,
+  buildReconciliation,
   type ImportContext,
   type UserMapChoice,
 } from "./harvest-import-logic";
@@ -607,5 +608,130 @@ describe("buildTimeEntryRow", () => {
     expect("skipped" in out).toBe(false);
     if ("skipped" in out) throw new Error("unreachable");
     expect(out.description).toBe("[$200/hr] Engineering: Some notes");
+  });
+});
+
+// ────────────────────────────────────────────────────────────────
+// buildReconciliation
+// ────────────────────────────────────────────────────────────────
+
+describe("buildReconciliation", () => {
+  // Two customers, three entries. Hours expressed as Harvest returns
+  // them (decimal hours, not minutes).
+  const harvestEntries = [
+    { id: 1, hours: 2.5, client: { id: 42, name: "Acme" } },
+    { id: 2, hours: 1.0, client: { id: 42, name: "Acme" } },
+    { id: 3, hours: 0.5, client: { id: 99, name: "Globex" } },
+  ];
+
+  // Shyre rows keyed by source id; duration_min is how time_entries
+  // actually stores it.
+  const fullMatch = [
+    { import_source_id: "1", duration_min: 150 },
+    { import_source_id: "2", duration_min: 60 },
+    { import_source_id: "3", duration_min: 30 },
+  ];
+
+  it("full match: all entries landed, hours match, per-customer ✓", () => {
+    const r = buildReconciliation({
+      harvestEntries,
+      shyreRows: fullMatch,
+      skipReasons: {},
+    });
+
+    expect(r.match).toBe(true);
+    expect(r.harvest).toEqual({ entries: 3, hours: 4 });
+    expect(r.shyre).toEqual({ entries: 3, hours: 4 });
+    expect(r.missing.count).toBe(0);
+    expect(r.missing.hours).toBe(0);
+
+    const acme = r.perCustomer.find((c) => c.name === "Acme");
+    const globex = r.perCustomer.find((c) => c.name === "Globex");
+    expect(acme?.match).toBe(true);
+    expect(acme?.harvestHours).toBe(3.5);
+    expect(acme?.shyreHours).toBe(3.5);
+    expect(globex?.match).toBe(true);
+  });
+
+  it("missing entries flip match=false and populate missing.count/hours", () => {
+    // Drop the 1-hour Acme entry.
+    const partial = [
+      { import_source_id: "1", duration_min: 150 },
+      { import_source_id: "3", duration_min: 30 },
+    ];
+    const r = buildReconciliation({
+      harvestEntries,
+      shyreRows: partial,
+      skipReasons: { "no matching project": 1 },
+    });
+
+    expect(r.match).toBe(false);
+    expect(r.harvest).toEqual({ entries: 3, hours: 4 });
+    expect(r.shyre).toEqual({ entries: 2, hours: 3 });
+    expect(r.missing.count).toBe(1);
+    expect(r.missing.hours).toBe(1);
+    expect(r.missing.reasonsByCount).toEqual({ "no matching project": 1 });
+
+    const acme = r.perCustomer.find((c) => c.name === "Acme");
+    expect(acme?.match).toBe(false);
+    expect(acme?.harvestHours).toBe(3.5);
+    expect(acme?.shyreHours).toBe(2.5);
+  });
+
+  it("per-customer sorts by harvest hours desc then name", () => {
+    const r = buildReconciliation({
+      harvestEntries,
+      shyreRows: fullMatch,
+      skipReasons: {},
+    });
+    // Acme (3.5h) before Globex (0.5h)
+    expect(r.perCustomer.map((c) => c.name)).toEqual(["Acme", "Globex"]);
+  });
+
+  it("treats sub-epsilon float residue as a match", () => {
+    // A Harvest entry reported as 0.1h and a Shyre row stored as 6min.
+    // Summing enough of these can produce 120.00000003 on one side and
+    // 120.0 on the other. The epsilon threshold is 0.01h.
+    const many = Array.from({ length: 100 }, (_, i) => ({
+      id: i,
+      hours: 0.1,
+      client: { id: 1, name: "C" },
+    }));
+    const shyre = Array.from({ length: 100 }, (_, i) => ({
+      import_source_id: String(i),
+      duration_min: 6,
+    }));
+    const r = buildReconciliation({
+      harvestEntries: many,
+      shyreRows: shyre,
+      skipReasons: {},
+    });
+    expect(r.match).toBe(true);
+  });
+
+  it("handles null duration_min as zero hours on the Shyre side", () => {
+    const r = buildReconciliation({
+      harvestEntries: [
+        { id: 1, hours: 1.0, client: { id: 1, name: "C" } },
+      ],
+      shyreRows: [{ import_source_id: "1", duration_min: null }],
+      skipReasons: {},
+    });
+    // Entry exists (count=1) but hours is 0 — flag as mismatch.
+    expect(r.shyre.entries).toBe(1);
+    expect(r.shyre.hours).toBe(0);
+    expect(r.match).toBe(false);
+  });
+
+  it("empty inputs produce an empty-but-match report", () => {
+    const r = buildReconciliation({
+      harvestEntries: [],
+      shyreRows: [],
+      skipReasons: {},
+    });
+    expect(r.match).toBe(true);
+    expect(r.harvest).toEqual({ entries: 0, hours: 0 });
+    expect(r.shyre).toEqual({ entries: 0, hours: 0 });
+    expect(r.perCustomer).toEqual([]);
   });
 });

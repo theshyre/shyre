@@ -55,6 +55,27 @@ interface PreviewData {
   defaultMapping: Record<string, UserMapChoice>;
 }
 
+interface ReconciliationPerCustomer {
+  name: string;
+  harvestHours: number;
+  shyreHours: number;
+  harvestEntries: number;
+  shyreEntries: number;
+  match: boolean;
+}
+
+interface Reconciliation {
+  harvest: { entries: number; hours: number };
+  shyre: { entries: number; hours: number };
+  missing: {
+    count: number;
+    hours: number;
+    reasonsByCount: Record<string, number>;
+  };
+  match: boolean;
+  perCustomer: ReconciliationPerCustomer[];
+}
+
 interface ImportResult {
   importRunId: string;
   imported: {
@@ -67,6 +88,7 @@ interface ImportResult {
     reasons: Record<string, number>;
   };
   errors: string[];
+  reconciliation?: Reconciliation;
 }
 
 /**
@@ -641,13 +663,34 @@ function DoneStep({
   result: ImportResult;
 }): React.JSX.Element {
   const skipReasons = Object.entries(result.skipped.reasons ?? {});
+  const recon = result.reconciliation;
 
   return (
     <div className="space-y-4">
-      <div className="flex items-center gap-2 text-success">
-        <CheckCircle size={20} />
-        <span className="font-semibold">Import complete</span>
+      <div className="flex items-center gap-2">
+        {recon?.match ? (
+          <>
+            <CheckCircle size={20} className="text-success" />
+            <span className="font-semibold text-success">
+              Import complete — numbers match Harvest
+            </span>
+          </>
+        ) : recon && !recon.match ? (
+          <>
+            <AlertTriangle size={20} className="text-warning" />
+            <span className="font-semibold text-warning">
+              Import complete — but numbers don&apos;t match Harvest
+            </span>
+          </>
+        ) : (
+          <>
+            <CheckCircle size={20} className="text-success" />
+            <span className="font-semibold text-success">Import complete</span>
+          </>
+        )}
       </div>
+
+      {recon && <ReconciliationSection recon={recon} />}
 
       <div className="grid gap-3 sm:grid-cols-3">
         <ResultCard
@@ -706,6 +749,184 @@ function DoneStep({
         View imported data
       </Link>
     </div>
+  );
+}
+
+function ReconciliationSection({
+  recon,
+}: {
+  recon: Reconciliation;
+}): React.JSX.Element {
+  const [expanded, setExpanded] = useState(false);
+  const mismatches = recon.perCustomer.filter((c) => !c.match);
+  const mismatchCount = mismatches.length;
+
+  const cardClass = recon.match
+    ? "border-success/40 bg-success-soft/40"
+    : "border-warning/50 bg-warning-soft/50";
+
+  return (
+    <div className={`rounded-lg border p-4 space-y-3 ${cardClass}`}>
+      <div>
+        <div className="text-label font-semibold uppercase text-content-muted mb-2">
+          Reconciliation (Harvest vs Shyre)
+        </div>
+        <div className="overflow-x-auto">
+          <table className="w-full text-body">
+            <thead>
+              <tr className="text-left text-caption uppercase text-content-muted">
+                <th className="py-1 pr-4 font-semibold">Metric</th>
+                <th className="py-1 px-4 font-semibold font-mono">Harvest</th>
+                <th className="py-1 px-4 font-semibold font-mono">Shyre</th>
+                <th className="py-1 pl-4 font-semibold">Match</th>
+              </tr>
+            </thead>
+            <tbody className="border-t border-edge-muted">
+              <ReconRow
+                label="Time entries"
+                harvest={recon.harvest.entries}
+                shyre={recon.shyre.entries}
+                match={recon.harvest.entries === recon.shyre.entries}
+              />
+              <ReconRow
+                label="Total hours"
+                harvest={`${recon.harvest.hours}h`}
+                shyre={`${recon.shyre.hours}h`}
+                match={
+                  Math.abs(recon.harvest.hours - recon.shyre.hours) < 0.01
+                }
+              />
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      {recon.missing.count > 0 && (
+        <div className="text-caption text-content-secondary">
+          <span className="font-medium text-warning">
+            {recon.missing.count} {recon.missing.count === 1 ? "entry" : "entries"}{" "}
+            ({recon.missing.hours}h)
+          </span>{" "}
+          from Harvest aren&apos;t in Shyre.
+          {Object.entries(recon.missing.reasonsByCount).length > 0 && (
+            <>
+              {" "}
+              Reasons:{" "}
+              {Object.entries(recon.missing.reasonsByCount)
+                .map(([r, c]) => `${c} ${r}`)
+                .join(", ")}
+              .
+            </>
+          )}
+        </div>
+      )}
+
+      {recon.perCustomer.length > 0 && (
+        <div>
+          <button
+            type="button"
+            onClick={() => setExpanded((v) => !v)}
+            className="text-caption text-accent hover:underline"
+          >
+            {expanded ? "Hide" : "Show"} per-customer breakdown (
+            {recon.perCustomer.length}{" "}
+            {recon.perCustomer.length === 1 ? "customer" : "customers"}
+            {mismatchCount > 0
+              ? `, ${mismatchCount} mismatch${mismatchCount === 1 ? "" : "es"}`
+              : ""}
+            )
+          </button>
+          {expanded && (
+            <div className="mt-2 overflow-x-auto">
+              <table className="w-full text-caption">
+                <thead>
+                  <tr className="text-left text-label uppercase text-content-muted">
+                    <th className="py-1 pr-4 font-semibold">Customer</th>
+                    <th className="py-1 px-4 font-semibold font-mono text-right">
+                      Harvest
+                    </th>
+                    <th className="py-1 px-4 font-semibold font-mono text-right">
+                      Shyre
+                    </th>
+                    <th className="py-1 pl-4 font-semibold">Match</th>
+                  </tr>
+                </thead>
+                <tbody className="border-t border-edge-muted">
+                  {recon.perCustomer.map((c) => (
+                    <tr
+                      key={c.name}
+                      className="border-b border-edge-muted last:border-b-0"
+                    >
+                      <td className="py-1 pr-4 text-content">{c.name}</td>
+                      <td className="py-1 px-4 font-mono text-right text-content-secondary">
+                        {c.harvestEntries}·{c.harvestHours}h
+                      </td>
+                      <td className="py-1 px-4 font-mono text-right text-content-secondary">
+                        {c.shyreEntries}·{c.shyreHours}h
+                      </td>
+                      <td className="py-1 pl-4">
+                        {c.match ? (
+                          <CheckCircle
+                            size={12}
+                            className="text-success inline"
+                            aria-label="Match"
+                          />
+                        ) : (
+                          <AlertTriangle
+                            size={12}
+                            className="text-warning inline"
+                            aria-label="Mismatch"
+                          />
+                        )}
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )}
+        </div>
+      )}
+    </div>
+  );
+}
+
+function ReconRow({
+  label,
+  harvest,
+  shyre,
+  match,
+}: {
+  label: string;
+  harvest: string | number;
+  shyre: string | number;
+  match: boolean;
+}): React.JSX.Element {
+  return (
+    <tr className="border-b border-edge-muted last:border-b-0">
+      <td className="py-1.5 pr-4 text-content">{label}</td>
+      <td className="py-1.5 px-4 font-mono text-content-secondary">
+        {harvest}
+      </td>
+      <td className="py-1.5 px-4 font-mono text-content-secondary">
+        {shyre}
+      </td>
+      <td className="py-1.5 pl-4">
+        {match ? (
+          <CheckCircle
+            size={14}
+            className="text-success inline"
+            aria-label="Match"
+          />
+        ) : (
+          <AlertTriangle
+            size={14}
+            className="text-warning inline"
+            aria-label="Mismatch"
+          />
+        )}
+      </td>
+    </tr>
   );
 }
 
