@@ -47,10 +47,20 @@ Persona rules live in `.cursor/rules/persona-*.mdc`. They are **manual rules** (
 
 ## Auto-engagement policy
 
-Certain personas auto-fire on relevant file patterns. See `CLAUDE.md` for the current mapping. The rule of thumb:
+Apply the relevant persona review alongside regular work whenever these file patterns are touched. Auto-engagement is proactive — the agent initiates the review without being asked.
 
-- **Craft reviewers and guardians** auto-fire, because they catch bugs where they happen.
-- **Stakeholder voices** are invoked manually at feature-complete checkpoints, because running them on every small change turns them into noise.
+| Persona | Auto-engages on |
+|---|---|
+| QA Tester | Any `src/**/*.ts(x)` or `supabase/migrations/**/*.sql` change |
+| Security Reviewer | `supabase/migrations/**`, `src/lib/supabase/**`, `src/lib/safe-action.ts`, `src/lib/system-admin.ts`, `src/lib/team-context.ts`, any `**/actions.ts`, `src/app/auth/**` |
+| UX Designer | `src/app/**/*.tsx`, `src/components/**/*.tsx` |
+| Accessibility Auditor | Same as UX Designer (separate pass, different lens) |
+| Platform Architect | `src/lib/modules/**`, `supabase/migrations/**`, new top-level `src/app/(dashboard)/*/page.tsx` |
+
+Rule of thumb:
+
+- **Craft reviewers and system guardians** auto-fire, because they catch bugs where they happen.
+- **Stakeholder voices** (Solo Consultant, Agency Owner, Bookkeeper) are invoked manually at feature-complete checkpoints, because running them on every small change turns them into noise.
 
 ## Working with personas
 
