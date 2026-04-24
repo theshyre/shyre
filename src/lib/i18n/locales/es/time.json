@@ -66,6 +66,7 @@
     "thisWeek": "Esta semana:",
     "weekOf": "Semana de",
     "jumpToThisWeek": "Esta semana",
+    "loading": "Cargando…",
     "totals": "{total} · {billable} facturable · {nonBillable} no facturable",
     "dayTotal": "{duration}",
     "emptyDay": "Sin registros"

@@ -7,6 +7,7 @@ import {
   useRef,
   useState,
   useSyncExternalStore,
+  useTransition,
 } from "react";
 import Link from "next/link";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
@@ -21,7 +22,7 @@ import {
   Plus,
   Square,
 } from "lucide-react";
-import { Avatar, resolveAvatarUrl } from "@theshyre/ui";
+import { Avatar, Spinner, resolveAvatarUrl } from "@theshyre/ui";
 import { formatDurationHMZero } from "@/lib/time/week";
 import { notifyTimerChanged } from "@/lib/timer-events";
 import { localDayBoundsIso } from "@/lib/local-day-bounds";
@@ -167,11 +168,19 @@ export function WeekTimesheet({
 
   // Week nav — shift the `anchor` URL param by ±7 days. The server
   // recomputes the visible week from whatever date `anchor` lands on.
+  // Week navigation uses router.push under a React transition so
+  // `isNavigating` flips true for the duration of the next server
+  // render. Without the transition, clicking prev/next just sat there
+  // with no feedback — the TopProgressBar global bar fires on Link
+  // clicks, not on programmatic router.push.
+  const [isNavigating, startNavTransition] = useTransition();
   const navigateToWeek = useCallback(
     (anchorDateStr: string) => {
       const params = new URLSearchParams(searchParamsStr);
       params.set("anchor", anchorDateStr);
-      router.push(`${pathname ?? "/time-entries"}?${params.toString()}`);
+      startNavTransition(() => {
+        router.push(`${pathname ?? "/time-entries"}?${params.toString()}`);
+      });
     },
     [router, pathname, searchParamsStr],
   );
@@ -652,29 +661,40 @@ export function WeekTimesheet({
         <button
           type="button"
           onClick={prevWeek}
+          disabled={isNavigating}
           className={buttonSecondaryClass}
           aria-label={tWeek("prev")}
+          aria-busy={isNavigating || undefined}
         >
-          <ChevronLeft size={16} />
+          {isNavigating ? <Spinner size="h-4 w-4" /> : <ChevronLeft size={16} />}
           <kbd className={kbdClass}>←</kbd>
         </button>
         <h2 className="text-lg font-semibold text-content inline-flex items-center gap-2">
           {viewingThisWeek ? tWeek("thisWeek") : tWeek("weekOf")}
           <span className="font-mono tabular-nums">{weekRangeLabel}</span>
+          {isNavigating ? (
+            <span className="text-caption text-content-muted font-normal inline-flex items-center gap-1">
+              <Spinner size="h-3 w-3" />
+              {tWeek("loading")}
+            </span>
+          ) : null}
         </h2>
         <button
           type="button"
           onClick={nextWeek}
+          disabled={isNavigating}
           className={buttonSecondaryClass}
           aria-label={tWeek("next")}
+          aria-busy={isNavigating || undefined}
         >
           <kbd className={kbdClass}>→</kbd>
-          <ChevronRight size={16} />
+          {isNavigating ? <Spinner size="h-4 w-4" /> : <ChevronRight size={16} />}
         </button>
         {!viewingThisWeek && (
           <button
             type="button"
             onClick={thisWeek}
+            disabled={isNavigating}
             className={buttonSecondaryClass}
           >
             {tWeek("jumpToThisWeek")}
@@ -881,7 +901,7 @@ export function WeekTimesheet({
             {dailyTotals.map((min, i) => (
               <td
                 key={i}
-                className="px-2 py-2 text-center font-mono text-body-lg font-semibold tabular-nums text-content-secondary"
+                className="px-2 py-2 text-right font-mono text-body-lg font-semibold tabular-nums text-content-secondary"
               >
                 {min > 0 ? formatDurationHMZero(min) : <span className="text-content-muted/50">·</span>}
               </td>
@@ -1072,7 +1092,7 @@ function TimesheetRow({
               // dot + ticking number is already two-channel state; a
               // tooltip on a non-interactive cell would clutter.
               <div
-                className="flex items-center justify-center gap-1.5 w-full px-1.5 py-1 font-mono text-body font-semibold text-success tabular-nums"
+                className="flex items-center justify-end gap-1.5 w-full px-1.5 py-1 font-mono text-body font-semibold text-success tabular-nums"
               >
                 <span className="h-1.5 w-1.5 rounded-full bg-success animate-pulse" />
                 {formatDurationHMZero(min + liveElapsedMin)}
@@ -1091,7 +1111,7 @@ function TimesheetRow({
                 className="w-full rounded-md border border-transparent bg-transparent px-1.5 py-1 text-body outline-none transition-colors hover:border-edge-muted focus:border-focus-ring focus:bg-surface-raised focus:ring-2 focus:ring-focus-ring/30"
               />
             ) : (
-              <div className="w-full px-1.5 py-1 text-center font-mono text-body tabular-nums text-content-muted">
+              <div className="w-full px-1.5 py-1 text-right font-mono text-body tabular-nums text-content-muted">
                 {min > 0 ? formatDurationHMZero(min) : <span className="opacity-50">·</span>}
               </div>
             )}
@@ -1258,7 +1278,7 @@ function GroupBlock({
           return (
             <td
               key={dayStr ?? i}
-              className={`px-2 py-1.5 text-center font-mono text-caption font-semibold tabular-nums ${
+              className={`px-2 py-1.5 text-right font-mono text-caption font-semibold tabular-nums ${
                 isWeekend ? "bg-surface-inset/80" : ""
               } ${isToday ? "text-accent" : "text-content-secondary"}`}
             >

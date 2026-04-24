@@ -133,7 +133,17 @@ export function EntryTable({
 
   return (
     <div className="relative rounded-lg border border-edge bg-surface-raised overflow-hidden">
-      <table className="w-full text-body">
+      {/* table-fixed forces the browser to use the column widths declared
+          on the <th>s — without it, table-auto layout respects the min-
+          content width of the longest description cell, which pushes
+          Member / Time / Duration / Billable clear off the visible area
+          on any row with a verbose description (classic Harvest import
+          pattern: "[$135/hr] Programming: Audit History CSV diff
+          missing section-level N/A toggle and retains stale values
+          after N/A is checked"). With table-fixed + truncate on the
+          description cell, the text ellipsizes cleanly and every
+          downstream column stays visible. */}
+      <table className="w-full table-fixed text-body">
         {/* Column headers stay mounted at all times. When a selection is
             active the bulk strip overlays this row visually, but the
             <th> cells remain the authoritative source of column widths
@@ -159,25 +169,27 @@ export function EntryTable({
                 className="h-4 w-4 rounded border-edge text-accent focus:ring-focus-ring"
               />
             </th>
-            <th className="py-2 pr-3 text-left text-label font-semibold uppercase tracking-wider text-content-muted">
+            <th className="w-48 py-2 pr-3 text-left text-label font-semibold uppercase tracking-wider text-content-muted">
               {t("tableHeaders.category")}
             </th>
             <th className="px-3 py-2 text-left text-label font-semibold uppercase tracking-wider text-content-muted">
+              {/* No width — this column absorbs remaining space and
+                  its cell content is truncated, not wrapped. */}
               {t("tableHeaders.projectDescription")}
             </th>
-            <th className="px-3 py-2 text-left text-label font-semibold uppercase tracking-wider text-content-muted">
+            <th className="w-40 px-3 py-2 text-left text-label font-semibold uppercase tracking-wider text-content-muted">
               {t("tableHeaders.member")}
             </th>
-            <th className="px-3 py-2 text-right text-label font-semibold uppercase tracking-wider text-content-muted">
+            <th className="w-24 px-3 py-2 text-right text-label font-semibold uppercase tracking-wider text-content-muted">
               {t("tableHeaders.time")}
             </th>
-            <th className="px-3 py-2 text-right text-label font-semibold uppercase tracking-wider text-content-muted">
+            <th className="w-24 px-3 py-2 text-right text-label font-semibold uppercase tracking-wider text-content-muted">
               {t("tableHeaders.duration")}
             </th>
-            <th className="px-2 py-2 text-center text-label font-semibold uppercase tracking-wider text-content-muted">
+            <th className="w-20 px-2 py-2 text-center text-label font-semibold uppercase tracking-wider text-content-muted">
               {t("tableHeaders.billable")}
             </th>
-            <th className="px-2 py-2" aria-label="actions" />
+            <th className="w-16 px-2 py-2" aria-label="actions" />
           </tr>
         </thead>
         <tbody>

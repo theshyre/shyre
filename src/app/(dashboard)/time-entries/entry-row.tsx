@@ -5,6 +5,7 @@ import { useTranslations } from "next-intl";
 import { DollarSign, Minus } from "lucide-react";
 import { formatDurationHM } from "@/lib/time/week";
 import { EntryAuthor } from "@/components/EntryAuthor";
+import { Tooltip } from "@/components/Tooltip";
 import { EntryKebabMenu } from "./entry-kebab-menu";
 import { InlineEditForm } from "./inline-edit-form";
 import type { CategoryOption, ProjectOption, TimeEntry } from "./types";
@@ -116,18 +117,30 @@ export function EntryRow({
           )}
         </td>
 
-        {/* Project · Client + Description */}
-        <td className="px-3 py-2.5 align-middle min-w-0">
-          <div className="text-caption text-content-secondary truncate">
-            <span className="text-content">{projectName}</span>
-            {customerName && (
-              <span className="text-content-muted"> · {customerName}</span>
-            )}
-          </div>
-          {entry.description ? (
-            <div className="text-body text-content truncate mt-0.5">
-              {entry.description}
+        {/* Project · Client + Description — truncated with Tooltips on
+            hover so the full value is reachable per the MANDATORY
+            tooltip rule for truncated content that conveys identity. */}
+        <td className="px-3 py-2.5 align-middle min-w-0 max-w-0">
+          <Tooltip
+            label={
+              customerName
+                ? `${projectName} · ${customerName}`
+                : projectName
+            }
+          >
+            <div className="text-caption text-content-secondary truncate">
+              <span className="text-content">{projectName}</span>
+              {customerName && (
+                <span className="text-content-muted"> · {customerName}</span>
+              )}
             </div>
+          </Tooltip>
+          {entry.description ? (
+            <Tooltip label={entry.description}>
+              <div className="text-body text-content truncate mt-0.5">
+                {entry.description}
+              </div>
+            </Tooltip>
           ) : (
             <div className="text-body text-content-muted italic truncate mt-0.5">
               {t("entry.untitled")}
