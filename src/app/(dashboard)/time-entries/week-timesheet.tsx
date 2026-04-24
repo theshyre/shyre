@@ -16,13 +16,14 @@ import {
   ChevronDown,
   ChevronLeft,
   ChevronRight,
+  Loader2,
   ChevronsDown,
   ChevronsUp,
   Play,
   Plus,
   Square,
 } from "lucide-react";
-import { Avatar, Spinner, resolveAvatarUrl } from "@theshyre/ui";
+import { Avatar, resolveAvatarUrl } from "@theshyre/ui";
 import { formatDurationHMZero } from "@/lib/time/week";
 import { notifyTimerChanged } from "@/lib/timer-events";
 import { localDayBoundsIso } from "@/lib/local-day-bounds";
@@ -666,7 +667,11 @@ export function WeekTimesheet({
           aria-label={tWeek("prev")}
           aria-busy={isNavigating || undefined}
         >
-          {isNavigating ? <Spinner size="h-4 w-4" /> : <ChevronLeft size={16} />}
+          {isNavigating ? (
+            <Loader2 size={16} className="animate-spin text-content-muted" />
+          ) : (
+            <ChevronLeft size={16} />
+          )}
           <kbd className={kbdClass}>←</kbd>
         </button>
         <h2 className="text-lg font-semibold text-content inline-flex items-center gap-2">
@@ -674,7 +679,7 @@ export function WeekTimesheet({
           <span className="font-mono tabular-nums">{weekRangeLabel}</span>
           {isNavigating ? (
             <span className="text-caption text-content-muted font-normal inline-flex items-center gap-1">
-              <Spinner size="h-3 w-3" />
+              <Loader2 size={12} className="animate-spin" />
               {tWeek("loading")}
             </span>
           ) : null}
@@ -688,7 +693,11 @@ export function WeekTimesheet({
           aria-busy={isNavigating || undefined}
         >
           <kbd className={kbdClass}>→</kbd>
-          {isNavigating ? <Spinner size="h-4 w-4" /> : <ChevronRight size={16} />}
+          {isNavigating ? (
+            <Loader2 size={16} className="animate-spin text-content-muted" />
+          ) : (
+            <ChevronRight size={16} />
+          )}
         </button>
         {!viewingThisWeek && (
           <button
@@ -1078,10 +1087,15 @@ function TimesheetRow({
         return (
           <td
             key={dayStr ?? i}
-            className={`px-1 py-1 align-middle ${
+            className={`px-2 py-1 align-middle ${
               isWeekend ? "bg-surface-inset/40" : ""
             } ${isToday ? "border-l-2 border-accent/40" : ""}`}
           >
+            {/* Every variant below shares px-0 (the td's px-2 is the
+                entire horizontal padding) so the right edge of each
+                number lines up with the group-header per-day total,
+                the daily-totals footer, and the other rows in the
+                same column — all anchored at `right-edge − 8px`. */}
             {i === runningDayIndex && runningStartIso ? (
               // Live running cell — overrides the editable input for
               // the day the running entry started on. Displays the
@@ -1092,7 +1106,7 @@ function TimesheetRow({
               // dot + ticking number is already two-channel state; a
               // tooltip on a non-interactive cell would clutter.
               <div
-                className="flex items-center justify-end gap-1.5 w-full px-1.5 py-1 font-mono text-body font-semibold text-success tabular-nums"
+                className="flex items-center justify-end gap-1.5 w-full py-1 font-mono text-body font-semibold text-success tabular-nums"
               >
                 <span className="h-1.5 w-1.5 rounded-full bg-success animate-pulse" />
                 {formatDurationHMZero(min + liveElapsedMin)}
@@ -1108,10 +1122,10 @@ function TimesheetRow({
                   }
                 }}
                 onArrowNav={(dir) => onArrowNav(dir, i)}
-                className="w-full rounded-md border border-transparent bg-transparent px-1.5 py-1 text-body outline-none transition-colors hover:border-edge-muted focus:border-focus-ring focus:bg-surface-raised focus:ring-2 focus:ring-focus-ring/30"
+                className="w-full rounded-md border border-transparent bg-transparent px-0 py-1 text-body outline-none transition-colors hover:border-edge-muted focus:border-focus-ring focus:bg-surface-raised focus:ring-2 focus:ring-focus-ring/30"
               />
             ) : (
-              <div className="w-full px-1.5 py-1 text-right font-mono text-body tabular-nums text-content-muted">
+              <div className="w-full py-1 text-right font-mono text-body tabular-nums text-content-muted">
                 {min > 0 ? formatDurationHMZero(min) : <span className="opacity-50">·</span>}
               </div>
             )}
