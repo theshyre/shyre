@@ -827,14 +827,18 @@ export function WeekTimesheet({
                   // Today gets a continuous bg-accent-soft band running
                   // header → group header → detail → footer, instead of
                   // the previous patchwork of top/left borders that
-                  // didn't connect into a single column. Today wins
-                  // over the weekend tint when both apply.
-                  className={`p-0 text-center text-label font-semibold uppercase ${
+                  // didn't connect into a single column. The band IS
+                  // the today signal — accent-tinting the text on top
+                  // of an accent-tinted background reads as a hyperlink
+                  // ("interactive accent"), so today's weekday + date
+                  // stay in the same neutral tone as siblings; bold
+                  // weight on the date is the second channel.
+                  className={`p-0 text-center text-label font-semibold uppercase text-content-muted ${
                     isToday
-                      ? "bg-accent-soft/40 text-accent"
+                      ? "bg-accent-soft/40"
                       : isWeekend
-                        ? "bg-surface-inset/60 text-content-muted"
-                        : "text-content-muted"
+                        ? "bg-surface-inset/60"
+                        : ""
                   }`}
                 >
                   <Link
@@ -845,7 +849,7 @@ export function WeekTimesheet({
                     <div>{weekday}</div>
                     <div
                       className={`text-label mt-0.5 ${
-                        isToday ? "font-bold text-accent" : "font-normal"
+                        isToday ? "font-bold text-content" : "font-normal"
                       }`}
                     >
                       {d}
@@ -1055,8 +1059,8 @@ function TimesheetRow({
   return (
     <tr
       className={`bg-surface hover:bg-hover border-b border-edge-muted last:border-b-0 transition-colors ${
-        !editable ? "opacity-90" : ""
-      } ${isRunningRow ? "ring-2 ring-inset ring-success/40" : ""}`}
+        isRunningRow ? "ring-2 ring-inset ring-success/40" : ""
+      }`}
     >
       <td className="py-2 align-middle">
         {/* Colored rail repeats the category color from the row's own
@@ -1321,8 +1325,10 @@ function GroupBlock({
             <GroupLabel group={group} groupBy={groupBy} />
             {/* Row count only — the duration sat next to the
                 already-displayed week-total cell on the same row,
-                visually duplicating the canonical answer. */}
-            <span className="text-caption text-content-muted font-mono tabular-nums ml-auto pr-2">
+                visually duplicating the canonical answer. Plain
+                text (not mono): mono is reserved for column-aligned
+                durations / money, this is metadata. */}
+            <span className="text-caption text-content-muted ml-auto pr-2">
               {tHeader("rowCount", { count: group.rows.length })}
             </span>
           </button>
@@ -1334,15 +1340,15 @@ function GroupBlock({
           return (
             <td
               key={dayStr ?? i}
-              // Today background matches the unified accent column
-              // running header → footer; without the right text color
-              // it'd disappear into the band.
-              className={`px-2 py-1.5 text-right font-mono text-body font-semibold tabular-nums ${
+              // Today gets the unified accent band; digit color stays
+              // text-content-secondary so the value doesn't read as an
+              // accent link sitting on top of an accent surface.
+              className={`px-2 py-1.5 text-right font-mono text-body font-semibold tabular-nums text-content-secondary ${
                 isToday
-                  ? "bg-accent-soft/40 text-accent"
+                  ? "bg-accent-soft/40"
                   : isWeekend
-                    ? "bg-surface-inset/80 text-content-secondary"
-                    : "text-content-secondary"
+                    ? "bg-surface-inset/80"
+                    : ""
               }`}
             >
               {min > 0 ? (
@@ -1527,6 +1533,11 @@ function AddRowControl({
   }
 
   if (!open) {
+    // Empty-state nudge: when this is the user's first row of the week,
+    // a more inviting label makes the path forward obvious. Once the
+    // sheet has any content, the terse "Add row" wins because the
+    // button is no longer the hero CTA.
+    const label = existingRows.length === 0 ? t("addFirstRow") : t("addRow");
     return (
       <button
         type="button"
@@ -1534,7 +1545,7 @@ function AddRowControl({
         className={buttonSecondaryClass}
       >
         <Plus size={16} />
-        {t("addRow")}
+        {label}
         <kbd className={kbdClass}>N</kbd>
       </button>
     );

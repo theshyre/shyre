@@ -216,7 +216,9 @@ describe("WeekTimesheet", () => {
     );
     // Before clicking: just the group-by selector is in the DOM.
     const before = screen.getAllByRole("combobox").length;
-    fireEvent.click(screen.getByRole("button", { name: /add row/i }));
+    // Empty-state surfaces "Add your first row"; populated weeks show
+    // "Add row". Match either by anchoring on "Add" + "row".
+    fireEvent.click(screen.getByRole("button", { name: /add (your first )?row/i }));
     // After clicking: project picker (and category picker when applicable)
     // get added on top of the group-by selector.
     expect(screen.getAllByRole("combobox").length).toBeGreaterThan(before);
