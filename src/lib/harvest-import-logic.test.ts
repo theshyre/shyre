@@ -483,6 +483,16 @@ describe("buildProjectRow", () => {
     expect(row.status).toBe("archived");
     expect(row.customer_id).toBeNull();
   });
+
+  it("defaults category_set_id to null when not provided", () => {
+    const row = buildProjectRow(hp, "cust-1", ctx);
+    expect(row.category_set_id).toBeNull();
+  });
+
+  it("carries category_set_id when provided (needed for the validate_time_entry_category trigger)", () => {
+    const row = buildProjectRow(hp, "cust-1", ctx, "set-xyz");
+    expect(row.category_set_id).toBe("set-xyz");
+  });
 });
 
 // ────────────────────────────────────────────────────────────────

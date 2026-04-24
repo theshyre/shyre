@@ -373,6 +373,15 @@ export function buildProjectRow(
   hp: HarvestProject,
   customerId: string | null,
   ctx: ImportContext,
+  /**
+   * Optional. When set, the project is created with this as its base
+   * category set — required so the validate_time_entry_category
+   * trigger accepts time entries tagged with categories from the
+   * "Harvest Tasks" set. Null or omitted → project has no base set,
+   * which is fine for projects where time entries won't carry a
+   * category_id.
+   */
+  categorySetId: string | null = null,
 ): {
   team_id: string;
   user_id: string;
@@ -382,6 +391,7 @@ export function buildProjectRow(
   hourly_rate: number | null;
   budget_hours: number | null;
   status: "active" | "paused" | "archived";
+  category_set_id: string | null;
   imported_from: string;
   imported_at: string;
   import_run_id: string;
@@ -399,6 +409,7 @@ export function buildProjectRow(
     // skipped) so historical time entries still have a project to point
     // at. Active stays active; anything else is archived.
     status: hp.is_active ? "active" : "archived",
+    category_set_id: categorySetId,
     imported_from: "harvest",
     imported_at: ctx.importedAt,
     import_run_id: ctx.importRunId,

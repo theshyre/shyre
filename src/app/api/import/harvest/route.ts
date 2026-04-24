@@ -302,29 +302,63 @@ export async function POST(request: Request): Promise<NextResponse> {
         }
       }
 
+      // Category set + per-task categories ---------------------------
+      // Must happen BEFORE projects are inserted so newly-created
+      // projects can adopt this set as their base, satisfying the
+      // validate_time_entry_category trigger when time entries later
+      // reference categories from this set. One team-level "Harvest
+      // Tasks" set; one category per unique task name the import
+      // touches.
+      const { setId: harvestSetId, idByTaskName: categoryIdByTaskName } =
+        await upsertHarvestCategorySet(
+          supabase,
+          organizationId,
+          user.id,
+          harvestTimeEntries,
+          ctx,
+        );
+
       // Projects -----------------------------------------------------
       const existingProjectsBySourceId = new Map<string, string>();
       const existingProjectsByName = new Map<string, string>();
+      // Track dedup'd projects that need a backfilled category_set_id.
+      // Any existing project with category_set_id IS NULL gets filled
+      // in so re-imports work after a prior run landed projects before
+      // the Harvest Tasks set existed.
+      const existingProjectSetIdById = new Map<string, string | null>();
       {
         const { data: rows } = await supabase
           .from("projects")
-          .select("id, name, import_source_id")
+          .select("id, name, import_source_id, category_set_id")
           .eq("team_id", organizationId)
           .eq("imported_from", "harvest");
         for (const row of rows ?? []) {
           const src = row.import_source_id as string | null;
           if (src) existingProjectsBySourceId.set(src, row.id as string);
+          existingProjectSetIdById.set(
+            row.id as string,
+            (row.category_set_id as string | null) ?? null,
+          );
         }
 
         const { data: byNameRows } = await supabase
           .from("projects")
-          .select("id, name")
+          .select("id, name, category_set_id")
           .eq("team_id", organizationId)
           .is("import_source_id", null);
         for (const row of byNameRows ?? []) {
           existingProjectsByName.set(row.name as string, row.id as string);
+          existingProjectSetIdById.set(
+            row.id as string,
+            (row.category_set_id as string | null) ?? null,
+          );
         }
       }
+
+      /** Collect dedup'd project ids that need a category_set_id
+       * backfill. We do one UPDATE ... IN (...) after the loop so
+       * this stays O(1) roundtrips regardless of project count. */
+      const projectsToBackfillSet: string[] = [];
 
       let projectsImported = 0;
       for (const hp of harvestProjects) {
@@ -333,17 +367,29 @@ export async function POST(request: Request): Promise<NextResponse> {
         const bySource = existingProjectsBySourceId.get(String(hp.id));
         if (bySource) {
           projectMap.set(hp.id, bySource);
+          if (
+            harvestSetId &&
+            existingProjectSetIdById.get(bySource) === null
+          ) {
+            projectsToBackfillSet.push(bySource);
+          }
           continue;
         }
 
         const byName = existingProjectsByName.get(hp.name);
         if (byName) {
           projectMap.set(hp.id, byName);
+          if (
+            harvestSetId &&
+            existingProjectSetIdById.get(byName) === null
+          ) {
+            projectsToBackfillSet.push(byName);
+          }
           continue;
         }
 
         const customerId = customerMap.get(hp.client.id) ?? null;
-        const row = buildProjectRow(hp, customerId, ctx);
+        const row = buildProjectRow(hp, customerId, ctx, harvestSetId);
         const { data: inserted, error } = await supabase
           .from("projects")
           .insert(row)
@@ -360,17 +406,21 @@ export async function POST(request: Request): Promise<NextResponse> {
         }
       }
 
-      // Category set + per-task categories ---------------------------
-      // One team-level "Harvest Tasks" set; one category per unique task
-      // name the import touches. Entries get category_id set when the
-      // task matches a category in the set.
-      const categoryIdByTaskName = await upsertHarvestCategorySet(
-        supabase,
-        organizationId,
-        user.id,
-        harvestTimeEntries,
-        ctx,
-      );
+      // Backfill category_set_id on dedup'd projects that had none.
+      // Safe: we only touch rows that were NULL, so a user's manual
+      // category-set assignment on an imported project is preserved.
+      if (projectsToBackfillSet.length > 0 && harvestSetId) {
+        const { error: backfillError } = await supabase
+          .from("projects")
+          .update({ category_set_id: harvestSetId })
+          .in("id", projectsToBackfillSet)
+          .is("category_set_id", null);
+        if (backfillError) {
+          errors.push(
+            `Backfilling category_set_id on dedup'd projects: ${backfillError.message}`,
+          );
+        }
+      }
 
       // Time entries -------------------------------------------------
       let timeEntriesImported = 0;
@@ -586,7 +636,14 @@ async function fetchTeamMembersForMapping(
 /**
  * Upsert the "Harvest Tasks" team-scoped category_set and one category
  * per unique Harvest task name referenced by the imported entries.
- * Returns a map from task-name → Shyre category id.
+ *
+ * Returns `{ setId, idByTaskName }`:
+ *   setId        — the category_set.id, needed when inserting / back-
+ *                  filling projects so validate_time_entry_category
+ *                  accepts time entries tagged with these categories.
+ *                  May be null when there were no tasks to categorize.
+ *   idByTaskName — task name → category id lookup for tagging time
+ *                  entries.
  */
 async function upsertHarvestCategorySet(
   supabase: SBClient,
@@ -594,10 +651,10 @@ async function upsertHarvestCategorySet(
   userId: string,
   entries: Array<{ task: { id: number; name: string } }>,
   ctx: ImportContext,
-): Promise<Map<string, string>> {
+): Promise<{ setId: string | null; idByTaskName: Map<string, string> }> {
   const taskNames = collectUniqueTaskNames(entries);
-  const result = new Map<string, string>();
-  if (taskNames.length === 0) return result;
+  const idByTaskName = new Map<string, string>();
+  if (taskNames.length === 0) return { setId: null, idByTaskName };
 
   // Find existing set by name; otherwise create.
   const { data: existingSet } = await supabase
@@ -626,7 +683,7 @@ async function upsertHarvestCategorySet(
       })
       .select("id")
       .single();
-    if (error || !created) return result;
+    if (error || !created) return { setId: null, idByTaskName };
     setId = created.id as string;
   }
 
@@ -661,8 +718,8 @@ async function upsertHarvestCategorySet(
 
   for (const name of taskNames) {
     const id = existingByName.get(name);
-    if (id) result.set(name, id);
+    if (id) idByTaskName.set(name, id);
   }
-  return result;
+  return { setId, idByTaskName };
 }
 
