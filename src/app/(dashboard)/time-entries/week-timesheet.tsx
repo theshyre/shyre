@@ -657,24 +657,29 @@ export function WeekTimesheet({
   return (
     <div className="space-y-4">
       {/* Prev / title / next — styled to match DayView's day navigator so
-          the two views feel like siblings, not separate widgets. */}
+          the two views feel like siblings, not separate widgets. The
+          shortcut hint moves into the Tooltip's <kbd> badge per the
+          MANDATORY tooltip rule for icon-only controls; an inline
+          <kbd> next to the chevron made the control read like two
+          separate things instead of one button. */}
       <div className="flex items-center gap-3">
-        <button
-          type="button"
-          onClick={prevWeek}
-          disabled={isNavigating}
-          className={buttonSecondaryClass}
-          aria-label={tWeek("prev")}
-          aria-busy={isNavigating || undefined}
-        >
-          {isNavigating ? (
-            <Loader2 size={16} className="animate-spin text-content-muted" />
-          ) : (
-            <ChevronLeft size={16} />
-          )}
-          <kbd className={kbdClass}>←</kbd>
-        </button>
-        <h2 className="text-lg font-semibold text-content inline-flex items-center gap-2">
+        <Tooltip label={tWeek("prev")} shortcut="←">
+          <button
+            type="button"
+            onClick={prevWeek}
+            disabled={isNavigating}
+            className={buttonSecondaryClass}
+            aria-label={tWeek("prev")}
+            aria-busy={isNavigating || undefined}
+          >
+            {isNavigating ? (
+              <Loader2 size={16} className="animate-spin text-content-muted" />
+            ) : (
+              <ChevronLeft size={16} />
+            )}
+          </button>
+        </Tooltip>
+        <h2 className="text-title font-bold text-content inline-flex items-center gap-2">
           {viewingThisWeek ? tWeek("thisWeek") : tWeek("weekOf")}
           <span className="font-mono tabular-nums">{weekRangeLabel}</span>
           {isNavigating ? (
@@ -684,21 +689,22 @@ export function WeekTimesheet({
             </span>
           ) : null}
         </h2>
-        <button
-          type="button"
-          onClick={nextWeek}
-          disabled={isNavigating}
-          className={buttonSecondaryClass}
-          aria-label={tWeek("next")}
-          aria-busy={isNavigating || undefined}
-        >
-          <kbd className={kbdClass}>→</kbd>
-          {isNavigating ? (
-            <Loader2 size={16} className="animate-spin text-content-muted" />
-          ) : (
-            <ChevronRight size={16} />
-          )}
-        </button>
+        <Tooltip label={tWeek("next")} shortcut="→">
+          <button
+            type="button"
+            onClick={nextWeek}
+            disabled={isNavigating}
+            className={buttonSecondaryClass}
+            aria-label={tWeek("next")}
+            aria-busy={isNavigating || undefined}
+          >
+            {isNavigating ? (
+              <Loader2 size={16} className="animate-spin text-content-muted" />
+            ) : (
+              <ChevronRight size={16} />
+            )}
+          </button>
+        </Tooltip>
         {!viewingThisWeek && (
           <button
             type="button"
@@ -735,18 +741,18 @@ export function WeekTimesheet({
             <button
               type="button"
               onClick={expandAll}
-              className="inline-flex items-center gap-1.5 rounded-md border border-edge bg-surface px-2 py-1 text-caption text-content-secondary hover:bg-hover transition-colors whitespace-nowrap"
+              className={buttonSecondaryClass}
             >
-              <ChevronsDown size={14} />
+              <ChevronsDown size={16} />
               {t("expandAll")}
               <kbd className={kbdClass}>⇧E</kbd>
             </button>
             <button
               type="button"
               onClick={collapseAll}
-              className="inline-flex items-center gap-1.5 rounded-md border border-edge bg-surface px-2 py-1 text-caption text-content-secondary hover:bg-hover transition-colors whitespace-nowrap"
+              className={buttonSecondaryClass}
             >
-              <ChevronsUp size={14} />
+              <ChevronsUp size={16} />
               {t("collapseAll")}
               <kbd className={kbdClass}>⇧C</kbd>
             </button>
@@ -776,10 +782,14 @@ export function WeekTimesheet({
           <col className="w-[32px]" />
         </colgroup>
         <thead>
+          {/* No border-b on thead cells — the group header below
+              already carries `border-y border-edge`, and with
+              border-separate the two stack into a doubled 2px line.
+              Pick one boundary; the group header's wins. */}
           <tr className="bg-surface-inset">
             <th
               scope="col"
-              className="py-2 pl-4 text-left text-label font-semibold uppercase text-content-muted border-b border-edge"
+              className="py-2 pl-4 text-left text-label font-semibold uppercase text-content-muted"
             >
               {/* First-column label mirrors the dimensions actually shown
                   in the row. The grouped dimension moves into the group
@@ -814,12 +824,17 @@ export function WeekTimesheet({
                 <th
                   key={dStr}
                   scope="col"
-                  className={`p-0 text-center text-label font-semibold uppercase border-b border-edge ${
-                    isWeekend ? "bg-surface-inset/60" : ""
-                  } ${
+                  // Today gets a continuous bg-accent-soft band running
+                  // header → group header → detail → footer, instead of
+                  // the previous patchwork of top/left borders that
+                  // didn't connect into a single column. Today wins
+                  // over the weekend tint when both apply.
+                  className={`p-0 text-center text-label font-semibold uppercase ${
                     isToday
-                      ? "text-accent border-t-2 border-accent"
-                      : "text-content-muted"
+                      ? "bg-accent-soft/40 text-accent"
+                      : isWeekend
+                        ? "bg-surface-inset/60 text-content-muted"
+                        : "text-content-muted"
                   }`}
                 >
                   <Link
@@ -841,13 +856,13 @@ export function WeekTimesheet({
             })}
             <th
               scope="col"
-              className="px-2 py-2 text-right text-label font-semibold uppercase text-content-muted border-b border-edge"
+              className="px-2 py-2 text-right text-label font-semibold uppercase text-content-muted"
             >
               {t("total")}
             </th>
             <th
               scope="col"
-              className="px-2 py-2 border-b border-edge"
+              className="px-2 py-2"
               aria-label={t("columnActions")}
             />
           </tr>
@@ -915,14 +930,25 @@ export function WeekTimesheet({
             >
               {t("dailyTotals")}
             </th>
-            {dailyTotals.map((min, i) => (
-              <td
-                key={i}
-                className="px-2 py-2 text-right font-mono text-body-lg font-semibold tabular-nums text-content-secondary"
-              >
-                {min > 0 ? formatDurationHMZero(min) : <span className="text-content-muted/50">·</span>}
-              </td>
-            ))}
+            {dailyTotals.map((min, i) => {
+              const dayStr = weekDays[i];
+              const isToday = dayStr === todayStr;
+              return (
+                <td
+                  key={i}
+                  // Day cells in the totals row use text-content
+                  // (same as the week-total cell) — totals row is
+                  // the answer; all numbers in it deserve equal
+                  // weight. Today cell gets the unified accent band
+                  // continuing through the footer.
+                  className={`px-2 py-2 text-right font-mono text-body-lg font-semibold tabular-nums text-content ${
+                    isToday ? "bg-accent-soft/40" : ""
+                  }`}
+                >
+                  {min > 0 ? formatDurationHMZero(min) : <span className="text-content-muted/50">·</span>}
+                </td>
+              );
+            })}
             <td className="px-2 py-2 text-right font-mono text-title font-semibold tabular-nums text-content">
               {formatDurationHMZero(weekTotal)}
             </td>
@@ -1033,9 +1059,13 @@ function TimesheetRow({
       } ${isRunningRow ? "ring-2 ring-inset ring-success/40" : ""}`}
     >
       <td className="py-2 align-middle">
+        {/* Colored rail repeats the category color from the row's own
+            category cell. When grouping by category the group header
+            already carries that swatch + label, so the row drops the
+            rail to avoid a triple-encoded category color. */}
         <div
-          className="border-l-4 pl-3"
-          style={{ borderColor: category?.color ?? "var(--edge)" }}
+          className={hideCategory ? "pl-3" : "border-l-4 pl-3"}
+          style={hideCategory ? undefined : { borderColor: category?.color ?? "var(--edge)" }}
         >
           {!hideCategory && (
             <div className="flex items-center gap-1.5">
@@ -1095,9 +1125,15 @@ function TimesheetRow({
         return (
           <td
             key={dayStr ?? i}
+            // Today background continues from the header; weekend
+            // tint only applies if today doesn't.
             className={`px-2 py-1 align-middle ${
-              isWeekend ? "bg-surface-inset/40" : ""
-            } ${isToday ? "border-l-2 border-accent/40" : ""}`}
+              isToday
+                ? "bg-accent-soft/40"
+                : isWeekend
+                  ? "bg-surface-inset/40"
+                  : ""
+            }`}
           >
             {/* Every variant below shares px-0 (the td's px-2 is the
                 entire horizontal padding) so the right edge of each
@@ -1105,16 +1141,15 @@ function TimesheetRow({
                 the daily-totals footer, and the other rows in the
                 same column — all anchored at `right-edge − 8px`. */}
             {i === runningDayIndex && runningStartIso ? (
-              // Live running cell — overrides the editable input for
-              // the day the running entry started on. Displays the
-              // sum of any already-saved entries on this cell PLUS
-              // the elapsed minutes of the running timer, so clicking
-              // Play on a row that already had a 4:00 entry doesn't
-              // visually "blank" that 4:00 down to 0:00. The pulsing
-              // dot + ticking number is already two-channel state; a
-              // tooltip on a non-interactive cell would clutter.
+              // Live running cell. The row already carries a
+              // ring-success/40 inset, and the pulsing success dot
+              // here is a second visual channel — the number itself
+              // doesn't need to be green too. Tinting the digits the
+              // same color as the dot collapses the two-channel
+              // signal back into one and visually competes with the
+              // editable cell's neutral typography.
               <div
-                className="flex items-center justify-end gap-1.5 w-full py-1 font-mono text-body font-semibold text-success tabular-nums"
+                className="flex items-center justify-end gap-1.5 w-full py-1 font-mono text-body tabular-nums text-content"
               >
                 <span className="h-1.5 w-1.5 rounded-full bg-success animate-pulse" />
                 {formatDurationHMZero(min + liveElapsedMin)}
@@ -1134,7 +1169,7 @@ function TimesheetRow({
               />
             ) : (
               <div className="w-full py-1 text-right font-mono text-body tabular-nums text-content-muted">
-                {min > 0 ? formatDurationHMZero(min) : <span className="opacity-50">·</span>}
+                {min > 0 ? formatDurationHMZero(min) : <span className="text-content-muted/50">·</span>}
               </div>
             )}
           </td>
@@ -1144,7 +1179,7 @@ function TimesheetRow({
         {rowTotalActual > 0 ? (
           formatDurationHMZero(rowTotalActual)
         ) : (
-          <span className="text-content-muted/60">—</span>
+          <span className="text-content-muted/50">—</span>
         )}
       </td>
       <td className="px-2 py-2 text-right">
@@ -1162,7 +1197,7 @@ function TimesheetRow({
                   aria-label={tEntry("stopTimerFromRow")}
                   className="rounded p-1 text-error hover:bg-error-soft transition-colors"
                 >
-                  <Square size={14} className="fill-current" />
+                  <Square size={16} className="fill-current" />
                 </button>
               </Tooltip>
             ) : (
@@ -1178,7 +1213,7 @@ function TimesheetRow({
                   aria-label={tEntry("startTimerFromRow")}
                   className="rounded p-1 text-content-muted hover:bg-hover hover:text-accent transition-colors"
                 >
-                  <Play size={14} />
+                  <Play size={16} />
                 </button>
               </Tooltip>
             ))}
@@ -1279,16 +1314,15 @@ function GroupBlock({
             className="flex items-center gap-2 w-full text-left hover:text-accent transition-colors"
           >
             {collapsed ? (
-              <ChevronRight size={14} className="shrink-0 text-content-muted" />
+              <ChevronRight size={16} className="shrink-0 text-content-muted" />
             ) : (
-              <ChevronDown size={14} className="shrink-0 text-content-muted" />
+              <ChevronDown size={16} className="shrink-0 text-content-muted" />
             )}
             <GroupLabel group={group} groupBy={groupBy} />
-            {/* Weight + count, in that order — collapsed groups should
-                surface their load first (weight), not just row count. */}
+            {/* Row count only — the duration sat next to the
+                already-displayed week-total cell on the same row,
+                visually duplicating the canonical answer. */}
             <span className="text-caption text-content-muted font-mono tabular-nums ml-auto pr-2">
-              {formatDurationHMZero(group.totalMin)}
-              <span className="font-sans"> · </span>
               {tHeader("rowCount", { count: group.rows.length })}
             </span>
           </button>
@@ -1300,9 +1334,16 @@ function GroupBlock({
           return (
             <td
               key={dayStr ?? i}
+              // Today background matches the unified accent column
+              // running header → footer; without the right text color
+              // it'd disappear into the band.
               className={`px-2 py-1.5 text-right font-mono text-body font-semibold tabular-nums ${
-                isWeekend ? "bg-surface-inset/80" : ""
-              } ${isToday ? "text-accent" : "text-content-secondary"}`}
+                isToday
+                  ? "bg-accent-soft/40 text-accent"
+                  : isWeekend
+                    ? "bg-surface-inset/80 text-content-secondary"
+                    : "text-content-secondary"
+              }`}
             >
               {min > 0 ? (
                 formatDurationHMZero(min)
@@ -1490,9 +1531,9 @@ function AddRowControl({
       <button
         type="button"
         onClick={() => setOpen(true)}
-        className="inline-flex items-center gap-2 text-body-lg text-content-muted hover:text-content transition-colors"
+        className={buttonSecondaryClass}
       >
-        <Plus size={14} />
+        <Plus size={16} />
         {t("addRow")}
         <kbd className={kbdClass}>N</kbd>
       </button>
@@ -1535,7 +1576,7 @@ function AddRowControl({
           disabled={!projectId}
           className={buttonSecondaryClass}
         >
-          <Plus size={14} />
+          <Plus size={16} />
           {t("addRowConfirm")}
         </button>
         <button
