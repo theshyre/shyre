@@ -6,10 +6,15 @@
     "description": "Cada importación crea un registro que puedes deshacer desde aquí. Las importaciones cuya data ya esté vinculada a otro trabajo (entradas facturadas, facturas sobre clientes importados) se niegan a deshacerse hasta que limpies esas filas primero.",
     "empty": "Aún no hay importaciones. Tu próxima importación de Harvest aparecerá aquí con un botón Deshacer.",
     "undoButton": "Deshacer",
-    "undoing": "Deshaciendo — puede tardar un momento.",
+    "undoing": "Deshaciendo…",
     "undoneAt": "Deshecho el {date}",
     "undoneBy": "por {name}",
-    "confirmSummary": "importación desde {source} del {date}",
+    "confirm": {
+      "prompt": "Escribe \"deshacer\" para confirmar",
+      "inputAriaLabel": "Confirmar deshacer",
+      "cancel": "Cancelar",
+      "word": "deshacer"
+    },
     "counts": {
       "customers": "{count, plural, =1 {cliente} other {clientes}}",
       "projects": "{count, plural, =1 {proyecto} other {proyectos}}",

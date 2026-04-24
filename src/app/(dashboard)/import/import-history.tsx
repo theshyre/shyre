@@ -7,10 +7,14 @@ import {
   CheckCircle,
   XCircle,
   Undo2,
+  X,
 } from "lucide-react";
 import { InlineErrorCard } from "@/components/InlineErrorCard";
-import { InlineDeleteRowConfirm } from "@/components/InlineDeleteRowConfirm";
-import { buttonGhostClass } from "@/lib/form-styles";
+import {
+  buttonDangerClass,
+  buttonGhostClass,
+  inputClass,
+} from "@/lib/form-styles";
 import { undoImportRunAction } from "./actions";
 import {
   buildCountsList,
@@ -183,20 +187,14 @@ function RunRow({
             {t("undoButton")}
           </button>
         ) : null}
-      </div>
 
-      {error ? (
-        <InlineErrorCard title={error} />
-      ) : null}
-
-      {confirming ? (
-        <div className="pt-1">
-          <InlineDeleteRowConfirm
-            summary={t("confirmSummary", {
-              source,
-              date: formatDateTime(run.started_at),
-            })}
-            ariaLabel={t("undoButton")}
+        {confirming ? (
+          <UndoConfirmInline
+            pending={pending}
+            onCancel={() => {
+              setConfirming(false);
+              setError(null);
+            }}
             onConfirm={async () => {
               setPending(true);
               setError(null);
@@ -219,13 +217,87 @@ function RunRow({
               }
             }}
           />
-          {pending ? (
-            <p className="mt-1 text-caption text-content-muted">
-              {t("undoing")}
-            </p>
-          ) : null}
-        </div>
-      ) : null}
+        ) : null}
+      </div>
+
+      {error ? <InlineErrorCard title={error} /> : null}
+    </div>
+  );
+}
+
+/**
+ * Inline undo-confirm that replaces the Undo button in place on the
+ * same row. Single visual unit: prompt → input → armed Undo button
+ → Cancel (x), keeping the click target exactly where the user first
+ * clicked.
+ *
+ * Armed only when the typed value matches the translated confirm
+ * word case-insensitively. Enter submits when armed, Escape cancels
+ * at any time.
+ *
+ * This is purpose-built for undo rather than reusing the delete-
+ * semantic InlineDeleteRowConfirm — that primitive hard-wires the
+ * word "delete" and button label "Delete" via its locale bundle,
+ * which was wrong for an undo action.
+ */
+function UndoConfirmInline({
+  pending,
+  onConfirm,
+  onCancel,
+}: {
+  pending: boolean;
+  onConfirm: () => void;
+  onCancel: () => void;
+}): React.JSX.Element {
+  const t = useTranslations("import.history");
+  const [value, setValue] = useState("");
+  const confirmWord = t("confirm.word");
+  const armed =
+    value.trim().toLowerCase() === confirmWord.trim().toLowerCase();
+
+  return (
+    <div className="inline-flex items-center gap-2 flex-wrap">
+      <span className="text-caption text-content-secondary">
+        {t("confirm.prompt")}
+      </span>
+      <input
+        autoFocus
+        type="text"
+        value={value}
+        onChange={(e) => setValue(e.target.value)}
+        onKeyDown={(e) => {
+          if (e.key === "Escape") {
+            e.preventDefault();
+            onCancel();
+          } else if (e.key === "Enter" && armed && !pending) {
+            e.preventDefault();
+            onConfirm();
+          }
+        }}
+        disabled={pending}
+        aria-label={t("confirm.inputAriaLabel")}
+        className={`${inputClass} text-caption font-mono`}
+        style={{ width: 100, padding: "2px 8px", height: 28 }}
+      />
+      <button
+        type="button"
+        onClick={onConfirm}
+        disabled={!armed || pending}
+        className={`${buttonDangerClass} inline-flex items-center gap-1 text-caption`}
+        style={{ padding: "2px 10px", height: 28 }}
+      >
+        <Undo2 size={12} />
+        {pending ? t("undoing") : t("undoButton")}
+      </button>
+      <button
+        type="button"
+        onClick={onCancel}
+        disabled={pending}
+        className={buttonGhostClass}
+        aria-label={t("confirm.cancel")}
+      >
+        <X size={14} />
+      </button>
     </div>
   );
 }
