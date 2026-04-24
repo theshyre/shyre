@@ -758,7 +758,15 @@ export function WeekTimesheet({
           />
         </div>
       </div>
-      <table className="w-full text-body border-separate border-spacing-0">
+      {/* table-fixed so the <colgroup> widths are the authoritative
+          source of column sizing. Without it, the browser's auto
+          layout re-distributes width between columns depending on
+          the content of currently-visible rows — collapsing a group
+          removed the wide detail-row content and the day columns
+          widened to compensate, visibly "shifting" the whole table.
+          Fixed layout keeps MON through SUN anchored at 72px each
+          regardless of expand/collapse state. */}
+      <table className="w-full table-fixed text-body border-separate border-spacing-0">
         <colgroup>
           <col className="w-[220px]" />
           {weekDays.map((d) => (
@@ -1292,7 +1300,7 @@ function GroupBlock({
           return (
             <td
               key={dayStr ?? i}
-              className={`px-2 py-1.5 text-right font-mono text-caption font-semibold tabular-nums ${
+              className={`px-2 py-1.5 text-right font-mono text-body font-semibold tabular-nums ${
                 isWeekend ? "bg-surface-inset/80" : ""
               } ${isToday ? "text-accent" : "text-content-secondary"}`}
             >
