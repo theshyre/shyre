@@ -656,72 +656,66 @@ export function WeekTimesheet({
 
   return (
     <div className="space-y-4">
-      {/* Prev / title / next — styled to match DayView's day navigator so
-          the two views feel like siblings, not separate widgets. The
-          shortcut hint moves into the Tooltip's <kbd> badge per the
-          MANDATORY tooltip rule for icon-only controls; an inline
-          <kbd> next to the chevron made the control read like two
-          separate things instead of one button. */}
-      <div className="flex items-center gap-3">
-        <Tooltip label={tWeek("prev")} shortcut="←">
-          <button
-            type="button"
-            onClick={prevWeek}
-            disabled={isNavigating}
-            className={buttonSecondaryClass}
-            aria-label={tWeek("prev")}
-            aria-busy={isNavigating || undefined}
-          >
-            {isNavigating ? (
-              <Loader2 size={16} className="animate-spin text-content-muted" />
-            ) : (
-              <ChevronLeft size={16} />
-            )}
-          </button>
-        </Tooltip>
-        <h2 className="text-title font-bold text-content inline-flex items-center gap-2">
-          {viewingThisWeek ? tWeek("thisWeek") : tWeek("weekOf")}
-          <span className="font-mono tabular-nums">{weekRangeLabel}</span>
-          {isNavigating ? (
-            <span className="text-caption text-content-muted font-normal inline-flex items-center gap-1">
-              <Loader2 size={12} className="animate-spin" />
-              {tWeek("loading")}
-            </span>
-          ) : null}
-        </h2>
-        <Tooltip label={tWeek("next")} shortcut="→">
-          <button
-            type="button"
-            onClick={nextWeek}
-            disabled={isNavigating}
-            className={buttonSecondaryClass}
-            aria-label={tWeek("next")}
-            aria-busy={isNavigating || undefined}
-          >
-            {isNavigating ? (
-              <Loader2 size={16} className="animate-spin text-content-muted" />
-            ) : (
-              <ChevronRight size={16} />
-            )}
-          </button>
-        </Tooltip>
-        {!viewingThisWeek && (
-          <button
-            type="button"
-            onClick={thisWeek}
-            disabled={isNavigating}
-            className={buttonSecondaryClass}
-          >
-            {tWeek("jumpToThisWeek")}
-          </button>
-        )}
-      </div>
-
       <div className="rounded-lg border border-edge bg-surface-raised overflow-x-auto">
+      {/* Frame top bar — week nav lives here instead of a separate row
+          above the frame, and the redundant "WEEKLY TIMESHEET" label
+          is gone. The weekday columns + the Day/Week toggle on the
+          page header already make the surface self-evident. */}
       <div className="flex items-center justify-between gap-2 px-3 py-2 border-b border-edge bg-surface-inset">
-        <span className="text-body font-semibold uppercase text-content-muted">
-          {t("frameTitle")}
-        </span>
+        <div className="flex items-center gap-2">
+          <Tooltip label={tWeek("prev")} shortcut="←">
+            <button
+              type="button"
+              onClick={prevWeek}
+              disabled={isNavigating}
+              className={buttonSecondaryClass}
+              aria-label={tWeek("prev")}
+              aria-busy={isNavigating || undefined}
+            >
+              {isNavigating ? (
+                <Loader2 size={16} className="animate-spin text-content-muted" />
+              ) : (
+                <ChevronLeft size={16} />
+              )}
+            </button>
+          </Tooltip>
+          <span className="text-body font-semibold text-content inline-flex items-center gap-2 whitespace-nowrap">
+            {viewingThisWeek ? tWeek("thisWeek") : tWeek("weekOf")}
+            <span className="font-mono tabular-nums">{weekRangeLabel}</span>
+            {isNavigating ? (
+              <span className="text-caption text-content-muted font-normal inline-flex items-center gap-1">
+                <Loader2 size={12} className="animate-spin" />
+                {tWeek("loading")}
+              </span>
+            ) : null}
+          </span>
+          <Tooltip label={tWeek("next")} shortcut="→">
+            <button
+              type="button"
+              onClick={nextWeek}
+              disabled={isNavigating}
+              className={buttonSecondaryClass}
+              aria-label={tWeek("next")}
+              aria-busy={isNavigating || undefined}
+            >
+              {isNavigating ? (
+                <Loader2 size={16} className="animate-spin text-content-muted" />
+              ) : (
+                <ChevronRight size={16} />
+              )}
+            </button>
+          </Tooltip>
+          {!viewingThisWeek && (
+            <button
+              type="button"
+              onClick={thisWeek}
+              disabled={isNavigating}
+              className={buttonSecondaryClass}
+            >
+              {tWeek("jumpToThisWeek")}
+            </button>
+          )}
+        </div>
         <div className="flex items-center gap-3">
           <label className="flex items-center gap-2 text-caption text-content-muted whitespace-nowrap">
             <span>{t("groupBy.label")}</span>
