@@ -824,16 +824,12 @@ export function WeekTimesheet({
                 <th
                   key={dStr}
                   scope="col"
-                  // Today gets a continuous bg-accent-soft band running
-                  // header → group header → detail → footer, instead of
-                  // the previous patchwork of top/left borders that
-                  // didn't connect into a single column. The band IS
-                  // the today signal — accent-tinting the text on top
-                  // of an accent-tinted background reads as a hyperlink
-                  // ("interactive accent"), so today's weekday + date
-                  // stay in the same neutral tone as siblings; bold
-                  // weight on the date is the second channel.
-                  className={`p-0 text-center text-label font-semibold uppercase text-content-muted ${
+                  // text-right so the weekday + date sit on the same
+                  // visual rail as the numeric cells in the column
+                  // below — centered headers over right-aligned cells
+                  // read as two different columns stacked together,
+                  // even though they're the same.
+                  className={`p-0 text-right text-label font-semibold uppercase text-content-muted ${
                     isToday
                       ? "bg-accent-soft/40"
                       : isWeekend
