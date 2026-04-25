@@ -719,7 +719,7 @@ export function WeekTimesheet({
 
       <div className="rounded-lg border border-edge bg-surface-raised overflow-x-auto">
       <div className="flex items-center justify-between gap-2 px-3 py-2 border-b border-edge bg-surface-inset">
-        <span className="text-caption font-semibold uppercase text-content-muted">
+        <span className="text-body font-semibold uppercase text-content-muted">
           {t("frameTitle")}
         </span>
         <div className="flex items-center gap-3">
@@ -797,7 +797,7 @@ export function WeekTimesheet({
           <tr className="bg-surface-inset">
             <th
               scope="col"
-              className="py-2 pl-4 text-left text-caption font-semibold uppercase text-content-muted"
+              className="py-2 pl-4 text-left text-body font-semibold uppercase text-content-muted"
             >
               {/* First-column label mirrors the dimensions actually shown
                   in the row. The grouped dimension moves into the group
@@ -837,7 +837,7 @@ export function WeekTimesheet({
                   // below — centered headers over right-aligned cells
                   // read as two different columns stacked together,
                   // even though they're the same.
-                  className={`p-0 text-right text-caption font-semibold uppercase text-content-muted ${
+                  className={`p-0 text-right text-body font-semibold uppercase text-content-muted ${
                     isToday
                       ? "bg-accent-soft/40"
                       : isWeekend
@@ -852,7 +852,7 @@ export function WeekTimesheet({
                   >
                     <div>{weekday}</div>
                     <div
-                      className={`text-caption mt-0.5 ${
+                      className={`text-body mt-0.5 ${
                         isToday ? "font-bold text-content" : "font-normal"
                       }`}
                     >
@@ -864,7 +864,7 @@ export function WeekTimesheet({
             })}
             <th
               scope="col"
-              className="px-2 py-2 text-right text-caption font-semibold uppercase text-content-muted"
+              className="px-2 py-2 text-right text-body font-semibold uppercase text-content-muted"
             >
               {t("total")}
             </th>
@@ -934,7 +934,7 @@ export function WeekTimesheet({
           <tr className="border-t-2 border-edge bg-surface-inset">
             <th
               scope="row"
-              className="px-3 py-2 text-right text-caption font-semibold uppercase text-content-muted"
+              className="px-3 py-2 text-right text-body font-semibold uppercase text-content-muted"
             >
               {t("dailyTotals")}
             </th>
@@ -949,7 +949,7 @@ export function WeekTimesheet({
                   // the answer; all numbers in it deserve equal
                   // weight. Today cell gets the unified accent band
                   // continuing through the footer.
-                  className={`px-2 py-2 text-right font-mono text-body-lg font-semibold tabular-nums text-content ${
+                  className={`px-2 py-2 text-right font-mono text-title font-semibold tabular-nums text-content ${
                     isToday ? "bg-accent-soft/40" : ""
                   }`}
                 >
@@ -957,7 +957,7 @@ export function WeekTimesheet({
                 </td>
               );
             })}
-            <td className="px-2 py-2 text-right font-mono text-title font-semibold tabular-nums text-content">
+            <td className="px-2 py-2 text-right font-mono text-title font-bold tabular-nums text-content">
               {formatDurationHMZero(weekTotal)}
             </td>
             <td className="px-2 py-2" />
@@ -1157,7 +1157,7 @@ function TimesheetRow({
               // signal back into one and visually competes with the
               // editable cell's neutral typography.
               <div
-                className="flex items-center justify-end gap-1.5 w-full py-1 font-mono text-body-lg tabular-nums text-content"
+                className="flex items-center justify-end gap-1.5 w-full py-1 font-mono text-title tabular-nums text-content"
               >
                 <span className="h-1.5 w-1.5 rounded-full bg-success animate-pulse" />
                 {formatDurationHMZero(min + liveElapsedMin)}
@@ -1171,6 +1171,13 @@ function TimesheetRow({
               // which made every focused cell visually larger than
               // the data it contained.
               <label className="flex justify-end cursor-text">
+                {/* `-mr-1.5` shifts the input right by exactly its
+                    own internal pr-1.5, so the digits land on the
+                    same `td_right - 8px` rail as group-header and
+                    footer cells (which use text-right + td px-2,
+                    no internal input). Without this, the input's
+                    visual padding offsets its digits 6px left of
+                    every other row's digits in the same column. */}
                 <DurationInput
                   ref={(el) => setCellRef(rowIndex, i, el)}
                   name={`cell-${row.projectId}-${row.categoryId ?? ""}-${i}`}
@@ -1181,18 +1188,18 @@ function TimesheetRow({
                     }
                   }}
                   onArrowNav={(dir) => onArrowNav(dir, i)}
-                  className="w-16 rounded-md border border-transparent bg-transparent px-1.5 py-1 text-body-lg outline-none transition-colors hover:border-edge-muted focus:border-focus-ring focus:bg-surface-raised focus:ring-2 focus:ring-focus-ring/30"
+                  className="w-20 -mr-1.5 rounded-md border border-transparent bg-transparent px-1.5 py-1 text-title outline-none transition-colors hover:border-edge-muted focus:border-focus-ring focus:bg-surface-raised focus:ring-2 focus:ring-focus-ring/30"
                 />
               </label>
             ) : (
-              <div className="w-full py-1 text-right font-mono text-body-lg tabular-nums text-content-muted">
+              <div className="w-full py-1 text-right font-mono text-title tabular-nums text-content-muted">
                 {min > 0 ? formatDurationHMZero(min) : <span className="text-content-muted/50">·</span>}
               </div>
             )}
           </td>
         );
       })}
-      <td className="px-2 py-2 text-right font-mono text-body-lg font-semibold tabular-nums text-content">
+      <td className="px-2 py-2 text-right font-mono text-title font-semibold tabular-nums text-content">
         {rowTotalActual > 0 ? (
           formatDurationHMZero(rowTotalActual)
         ) : (
@@ -1356,7 +1363,7 @@ function GroupBlock({
               // Today gets the unified accent band; digit color stays
               // text-content-secondary so the value doesn't read as an
               // accent link sitting on top of an accent surface.
-              className={`px-2 py-1.5 text-right font-mono text-body-lg font-semibold tabular-nums text-content-secondary ${
+              className={`px-2 py-1.5 text-right font-mono text-title font-semibold tabular-nums text-content-secondary ${
                 isToday
                   ? "bg-accent-soft/40"
                   : isWeekend
@@ -1372,7 +1379,7 @@ function GroupBlock({
             </td>
           );
         })}
-        <td className="px-2 py-1.5 text-right font-mono text-body-lg font-semibold tabular-nums text-content">
+        <td className="px-2 py-1.5 text-right font-mono text-title font-semibold tabular-nums text-content">
           {formatDurationHMZero(group.totalMin)}
         </td>
         <td className="px-2 py-1.5" />
