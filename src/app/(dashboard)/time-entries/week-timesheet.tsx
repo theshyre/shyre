@@ -779,7 +779,15 @@ export function WeekTimesheet({
             <col key={d} className="w-[72px]" />
           ))}
           <col className="w-[80px]" />
-          <col className="w-[32px]" />
+          {/* Actions col fits Play + InlineDelete side-by-side. The
+              previous 32px was narrower than a single button — both
+              icons rendered with `justify-end`, but the cell was so
+              narrow that their bounding box overflowed leftward into
+              the TOTAL column, crowding the totals digits. 72px
+              accommodates two 24px buttons + an inter-button gap +
+              the cell's px-2 horizontal padding with breathing
+              room. */}
+          <col className="w-[72px]" />
         </colgroup>
         <thead>
           {/* No border-b on thead cells — the group header below
@@ -1155,18 +1163,27 @@ function TimesheetRow({
                 {formatDurationHMZero(min + liveElapsedMin)}
               </div>
             ) : editable ? (
-              <DurationInput
-                ref={(el) => setCellRef(rowIndex, i, el)}
-                name={`cell-${row.projectId}-${row.categoryId ?? ""}-${i}`}
-                defaultMinutes={min}
-                onCommit={(committed) => {
-                  if (committed !== null && committed !== min) {
-                    void onCellCommit(i, committed);
-                  }
-                }}
-                onArrowNav={(dir) => onArrowNav(dir, i)}
-                className="w-full rounded-md border border-transparent bg-transparent px-0 py-1 text-body outline-none transition-colors hover:border-edge-muted focus:border-focus-ring focus:bg-surface-raised focus:ring-2 focus:ring-focus-ring/30"
-              />
+              // Input is sized to its content (5-char "12:30" max),
+              // not the cell. Wrapping <label> keeps the entire cell
+              // clickable — clicking the empty space left of the
+              // input still focuses the input — without the bordered
+              // focus ring sprawling across the full 72px column,
+              // which made every focused cell visually larger than
+              // the data it contained.
+              <label className="flex justify-end cursor-text">
+                <DurationInput
+                  ref={(el) => setCellRef(rowIndex, i, el)}
+                  name={`cell-${row.projectId}-${row.categoryId ?? ""}-${i}`}
+                  defaultMinutes={min}
+                  onCommit={(committed) => {
+                    if (committed !== null && committed !== min) {
+                      void onCellCommit(i, committed);
+                    }
+                  }}
+                  onArrowNav={(dir) => onArrowNav(dir, i)}
+                  className="w-14 rounded-md border border-transparent bg-transparent px-1.5 py-1 text-body outline-none transition-colors hover:border-edge-muted focus:border-focus-ring focus:bg-surface-raised focus:ring-2 focus:ring-focus-ring/30"
+                />
+              </label>
             ) : (
               <div className="w-full py-1 text-right font-mono text-body tabular-nums text-content-muted">
                 {min > 0 ? formatDurationHMZero(min) : <span className="text-content-muted/50">·</span>}
