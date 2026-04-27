@@ -60,16 +60,16 @@ describe("MemberFilter", () => {
     mockSearchParams = new URLSearchParams();
   });
 
-  it("renders null when there's one or fewer members (solo scenario)", () => {
-    const { container: a } = render(
+  it("renders null only when the member list is literally empty", () => {
+    const { container } = render(
       <MemberFilter members={[]} selection="me" />,
     );
-    expect(a).toBeEmptyDOMElement();
+    expect(container).toBeEmptyDOMElement();
+  });
 
-    const { container: b } = render(
-      <MemberFilter members={[MEMBERS[0]!]} selection="me" />,
-    );
-    expect(b).toBeEmptyDOMElement();
+  it("still renders on a solo team (one member) so the toolbar control doesn't appear out of nowhere when a teammate joins", () => {
+    render(<MemberFilter members={[MEMBERS[0]!]} selection="me" />);
+    expect(screen.getByRole("button", { name: /You/ })).toBeInTheDocument();
   });
 
   it("default (selection='me') label is 'You'", () => {
