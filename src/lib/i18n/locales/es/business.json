@@ -141,7 +141,8 @@
       "businessEmpty": "Aún no se han registrado cambios.",
       "entryCount": "{count, plural, one {# entrada} other {# entradas}}",
       "backToPeople": "Volver a personas",
-      "loadMore": "Cargar más"
+      "loadMore": "Cargar más",
+      "exportCsv": "Exportar CSV"
     },
     "sections": {
       "employees": "Empleados",

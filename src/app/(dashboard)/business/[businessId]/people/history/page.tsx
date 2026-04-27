@@ -1,7 +1,8 @@
 import { getTranslations } from "next-intl/server";
 import Link from "next/link";
-import { ArrowLeft, History as HistoryIcon } from "lucide-react";
+import { ArrowLeft, Download, History as HistoryIcon } from "lucide-react";
 import { LinkPendingSpinner } from "@/components/LinkPendingSpinner";
+import { buttonSecondaryClass } from "@/lib/form-styles";
 import { validateBusinessAccess } from "@/lib/team-context";
 import {
   getBusinessPeopleHistoryAction,
@@ -48,6 +49,16 @@ export default async function BusinessPeopleHistoryPage({
           <span className="inline-flex items-center rounded-full bg-surface-inset px-2 py-0.5 text-caption font-medium text-content-muted">
             {t("entryCount", { count: history.length })}
           </span>
+          {history.length > 0 && (
+            <a
+              href={`/api/business/${businessId}/people-history/csv`}
+              download
+              className={`${buttonSecondaryClass} inline-flex items-center gap-1.5 ml-auto`}
+            >
+              <Download size={14} />
+              {t("exportCsv")}
+            </a>
+          )}
         </div>
         <p className="mt-2 text-body text-content-secondary max-w-3xl">
           {t("businessPageDescription")}
