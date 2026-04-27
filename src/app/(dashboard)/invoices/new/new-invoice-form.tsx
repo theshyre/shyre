@@ -46,15 +46,20 @@ export function NewInvoiceForm({
       )}
       <TeamSelector teams={teams} />
       <div className="rounded-lg border border-edge bg-surface-raised p-4 space-y-4">
-        <p className="text-sm text-content-secondary">
+        <p className="text-body text-content-secondary">
           {t("selectClientDescription")}
         </p>
 
         <div className="grid gap-4 sm:grid-cols-2">
           <div>
             <label className={labelClass}>{t("selectClient")}</label>
-            <select name="customer_id" className={selectClass}>
-              <option value="">All (org-wide)</option>
+            <select
+              autoFocus
+              name="customer_id"
+              defaultValue=""
+              className={selectClass}
+            >
+              <option value="">{t("allClients")}</option>
               {customers.map((c) => (
                 <option key={c.id} value={c.id}>
                   {c.name}

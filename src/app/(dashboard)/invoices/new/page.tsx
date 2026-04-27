@@ -25,7 +25,7 @@ export default async function NewInvoicePage(): Promise<React.JSX.Element> {
     <div>
       <div className="flex items-center gap-3">
         <FileText size={24} className="text-accent" />
-        <h1 className="text-2xl font-bold text-content">{t("createInvoice")}</h1>
+        <h1 className="text-page-title font-bold text-content">{t("createInvoice")}</h1>
       </div>
 
       <NewInvoiceForm
