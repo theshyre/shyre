@@ -6,10 +6,7 @@ import { useTranslations } from "next-intl";
 import { createClient } from "@/lib/supabase/client";
 import {
   LayoutDashboard,
-  FolderKanban,
-  BarChart3,
   LogOut,
-  Settings,
   BookOpen,
 } from "lucide-react";
 import type { ComponentType } from "react";
@@ -29,6 +26,46 @@ interface NavItem {
   badge?: number;
 }
 
+type Translator = ReturnType<typeof useTranslations>;
+
+/** Shared link renderer for both Work and Setup sections. Pulled out
+ *  of the component body so a section-aware nav can map over its
+ *  items without duplicating the active-state + badge + spinner
+ *  scaffolding. */
+function renderNavLink(
+  item: NavItem,
+  t: Translator,
+  isItemActive: (href: string) => boolean,
+): React.JSX.Element {
+  const Icon = item.icon;
+  const isActive = isItemActive(item.href);
+  const showBadge = (item.badge ?? 0) > 0;
+  return (
+    <Link
+      key={item.href}
+      href={item.href}
+      className={`flex items-center gap-3 rounded-lg px-3 py-2 text-body-lg font-medium transition-colors ${
+        isActive
+          ? "bg-accent-soft text-accent-text"
+          : "text-content-secondary hover:bg-hover hover:text-content"
+      }`}
+    >
+      <Icon size={18} className="shrink-0" />
+      <span className="flex-1">{t(`nav.${item.labelKey}`)}</span>
+      {showBadge ? (
+        <span
+          aria-label={t("nav.unresolvedBadge", { count: item.badge! })}
+          className="inline-flex h-5 min-w-5 items-center justify-center rounded-full bg-error px-1 text-caption font-bold text-content-inverse"
+        >
+          {item.badge}
+        </span>
+      ) : (
+        <LinkPendingSpinner />
+      )}
+    </Link>
+  );
+}
+
 interface SidebarProps {
   displayName: string;
   email: string;
@@ -38,17 +75,24 @@ interface SidebarProps {
   userId: string;
   isSystemAdmin?: boolean;
   unresolvedErrorCount?: number;
+  /** True when the viewer is owner|admin of at least one business
+   *  they can access. Drives whether the Business sidebar entry
+   *  renders. Members and contributors don't see it — the surface
+   *  exposes compensation, addresses, and other HR data they can
+   *  no longer SELECT under the tightened bp_select policy anyway. */
+  canManageBusiness?: boolean;
 }
 
 /**
- * Main sidebar. Flat 7-item nav + anchored bottom block — matches Liv's
- * structure so the two apps share a consistent shape. Section dividers
- * were dropped because with 7 items the order alone communicates hierarchy.
+ * Main sidebar — two visible groups (Work + Setup) on top of the
+ * three-tier registry (`track` / `manage` / `admin`). Anchored bottom
+ * block carries identity, controls, docs, sign-out.
  *
- * Sub-surfaces previously listed directly in the sidebar (Business, Teams,
- * Security Groups, Categories, Templates, Import) now live under the
- * /admin hub page. System-admin-only tooling is a second section on the
- * same hub page, gated by requireSystemAdmin in each sub-route.
+ * Setup-tier entries (Business, Admin) are role-gated:
+ *   - Business shows only when the viewer can manage at least one
+ *     business (canManageBusiness prop).
+ *   - Admin shows for everyone (the hub itself is unprivileged; its
+ *     system-admin sub-routes each call requireSystemAdmin()).
  */
 export default function Sidebar({
   displayName,
@@ -57,33 +101,34 @@ export default function Sidebar({
   avatarUrl,
   isSystemAdmin: isAdmin,
   unresolvedErrorCount,
+  canManageBusiness,
 }: SidebarProps): React.JSX.Element {
   const pathname = usePathname();
   const router = useRouter();
   const t = useTranslations("common");
   const supabase = createClient();
 
-  // Main nav: registry-contributed items from track + manage, then shell
-  // cross-cutting entries, then Admin as the final hub entry.
-  const trackItems = navItemsForSection("track");
-  const manageItems = navItemsForSection("manage");
-
-  const mainItems: NavItem[] = [
+  // "Work" section: shell-level Dashboard + every registered module
+  // in the track + manage sections. Reports + Projects now flow
+  // through the registry instead of being hardcoded here.
+  const workItems: NavItem[] = [
     { labelKey: "dashboard", href: "/", icon: LayoutDashboard },
-    ...trackItems,
-    ...manageItems,
-    { labelKey: "projects", href: "/projects", icon: FolderKanban },
-    { labelKey: "reports", href: "/reports", icon: BarChart3 },
-    {
-      labelKey: "admin",
-      href: "/admin",
-      icon: Settings,
-      // Badge is safe to render for non-admins too (will be 0 / hidden),
-      // but we only pass a non-zero value from the dashboard layout when
-      // the user is a system admin.
-      badge: isAdmin ? (unresolvedErrorCount ?? 0) : 0,
-    },
+    ...navItemsForSection("track"),
+    ...navItemsForSection("manage"),
   ];
+
+  // "Setup" section: registered admin-tier modules, role-gated.
+  // The Business item is filtered out when the viewer can't manage
+  // any business — RLS would block them from seeing the people /
+  // identity / registrations data the surface displays anyway.
+  // Admin's badge is the unresolved-error count for system admins.
+  const setupItems: NavItem[] = navItemsForSection("admin")
+    .filter((item) => item.href !== "/business" || canManageBusiness)
+    .map((item) =>
+      item.href === "/admin"
+        ? { ...item, badge: isAdmin ? (unresolvedErrorCount ?? 0) : 0 }
+        : item,
+    );
 
   async function handleSignOut(): Promise<void> {
     await supabase.auth.signOut();
@@ -113,40 +158,31 @@ export default function Sidebar({
         </div>
       </div>
 
-      {/* Main nav — flat, no section dividers */}
+      {/* Main nav — two visible groups (Work + Setup). Group headings
+          use text-label so they read as section markers, not nav
+          targets, and don't fight the body-lg item labels for weight.
+          Empty sections (e.g. Setup when both Business and Admin are
+          hidden) skip their heading too. */}
       <nav
         aria-label={t("nav.primary")}
-        className="flex-1 overflow-y-auto px-3 py-3 space-y-0.5"
+        className="flex-1 overflow-y-auto px-3 py-3 space-y-3"
       >
-        {mainItems.map((item) => {
-          const Icon = item.icon;
-          const isActive = isItemActive(item.href);
-          const showBadge = (item.badge ?? 0) > 0;
-          return (
-            <Link
-              key={item.href}
-              href={item.href}
-              className={`flex items-center gap-3 rounded-lg px-3 py-2 text-body-lg font-medium transition-colors ${
-                isActive
-                  ? "bg-accent-soft text-accent-text"
-                  : "text-content-secondary hover:bg-hover hover:text-content"
-              }`}
-            >
-              <Icon size={18} className="shrink-0" />
-              <span className="flex-1">{t(`nav.${item.labelKey}`)}</span>
-              {showBadge ? (
-                <span
-                  aria-label={t("nav.unresolvedBadge", { count: item.badge! })}
-                  className="inline-flex h-5 min-w-5 items-center justify-center rounded-full bg-error px-1 text-caption font-bold text-content-inverse"
-                >
-                  {item.badge}
-                </span>
-              ) : (
-                <LinkPendingSpinner />
-              )}
-            </Link>
-          );
-        })}
+        {workItems.length > 0 && (
+          <div className="space-y-0.5">
+            <p className="px-3 pb-1 text-label font-semibold uppercase text-content-muted">
+              {t("navSections.work")}
+            </p>
+            {workItems.map((item) => renderNavLink(item, t, isItemActive))}
+          </div>
+        )}
+        {setupItems.length > 0 && (
+          <div className="space-y-0.5">
+            <p className="px-3 pb-1 text-label font-semibold uppercase text-content-muted">
+              {t("navSections.setup")}
+            </p>
+            {setupItems.map((item) => renderNavLink(item, t, isItemActive))}
+          </div>
+        )}
       </nav>
 
       {/* Bottom block — ambient context + identity + controls */}

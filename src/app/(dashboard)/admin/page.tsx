@@ -2,7 +2,6 @@ import Link from "next/link";
 import { getTranslations } from "next-intl/server";
 import {
   Settings,
-  Briefcase,
   Building2,
   Shield,
   Tags,
@@ -31,12 +30,10 @@ export default async function AdminHubPage(): Promise<React.JSX.Element> {
   const admin = await isSystemAdmin();
 
   const primary: Card[] = [
-    {
-      title: t("cards.business.title"),
-      description: t("cards.business.description"),
-      href: "/business",
-      icon: Briefcase,
-    },
+    // Business is reachable from the sidebar (Setup section, role-gated
+    // to owner|admin of any business). Skipping the card here avoids
+    // two paths to the same place; the sidebar entry is always visible
+    // to viewers who can act on it.
     {
       title: t("cards.teams.title"),
       description: t("cards.teams.description"),

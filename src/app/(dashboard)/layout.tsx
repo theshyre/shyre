@@ -56,6 +56,18 @@ export default async function DashboardLayout({
     unresolvedErrorCount = count ?? 0;
   }
 
+  // Whether to render the Business sidebar item. Owner|admin role on
+  // a team in any business → can manage that business. Members and
+  // contributors don't see the entry, matching the tightened
+  // bp_select RLS policy on business_people (HR data).
+  const { data: ownerAdminTeams } = await supabase
+    .from("team_members")
+    .select("role")
+    .eq("user_id", user.userId)
+    .in("role", ["owner", "admin"])
+    .limit(1);
+  const canManageBusiness = (ownerAdminTeams ?? []).length > 0;
+
   return (
     <ToastProvider>
       <div className="flex h-full">
@@ -69,6 +81,7 @@ export default async function DashboardLayout({
           userId={user.userId}
           isSystemAdmin={admin}
           unresolvedErrorCount={unresolvedErrorCount}
+          canManageBusiness={canManageBusiness}
         />
         <main className="flex-1 overflow-y-auto">
           <RunningTimerHeaderPill />

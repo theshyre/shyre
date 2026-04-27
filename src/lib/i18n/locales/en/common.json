@@ -61,13 +61,18 @@
     "track": "Track",
     "manage": "Manage",
     "admin": "Admin",
-    "systemAdmin": "System Admin"
+    "systemAdmin": "System Admin",
+    "work": "Work",
+    "setup": "Setup"
   },
   "modules": {
     "stint": "Stint (Time Tracking)",
     "customers": "Customers",
+    "projects": "Projects",
     "invoicing": "Invoicing",
-    "business": "Business"
+    "reports": "Reports",
+    "business": "Business",
+    "admin": "Admin"
   },
   "actions": {
     "save": "Save",

@@ -61,13 +61,18 @@
     "track": "Registrar",
     "manage": "Gestionar",
     "admin": "Administración",
-    "systemAdmin": "Administración del Sistema"
+    "systemAdmin": "Administración del Sistema",
+    "work": "Trabajo",
+    "setup": "Configuración"
   },
   "modules": {
     "stint": "Stint (Tiempo)",
     "customers": "Clientes",
+    "projects": "Proyectos",
     "invoicing": "Facturación",
-    "business": "Negocio"
+    "reports": "Informes",
+    "business": "Negocio",
+    "admin": "Administración"
   },
   "actions": {
     "save": "Guardar",

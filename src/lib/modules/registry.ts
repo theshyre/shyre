@@ -24,6 +24,9 @@ import {
   FileText,
   Users,
   Briefcase,
+  FolderKanban,
+  BarChart3,
+  Settings,
   type LucideIcon,
 } from "lucide-react";
 
@@ -78,6 +81,15 @@ export const MODULES: ModuleManifest[] = [
     ],
   },
   {
+    id: "projects",
+    labelKey: "modules.projects",
+    icon: FolderKanban,
+    section: "manage",
+    navItems: [
+      { labelKey: "projects", href: "/projects", icon: FolderKanban },
+    ],
+  },
+  {
     id: "invoicing",
     labelKey: "modules.invoicing",
     icon: FileText,
@@ -87,12 +99,30 @@ export const MODULES: ModuleManifest[] = [
     ],
   },
   {
+    id: "reports",
+    labelKey: "modules.reports",
+    icon: BarChart3,
+    section: "manage",
+    navItems: [
+      { labelKey: "reports", href: "/reports", icon: BarChart3 },
+    ],
+  },
+  {
     id: "business",
     labelKey: "modules.business",
     icon: Briefcase,
     section: "admin",
     navItems: [
       { labelKey: "business", href: "/business", icon: Briefcase },
+    ],
+  },
+  {
+    id: "admin",
+    labelKey: "modules.admin",
+    icon: Settings,
+    section: "admin",
+    navItems: [
+      { labelKey: "admin", href: "/admin", icon: Settings },
     ],
   },
 ];
