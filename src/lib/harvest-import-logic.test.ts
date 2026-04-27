@@ -873,6 +873,46 @@ describe("buildInvoiceRow", () => {
     expect(buildInvoiceRow({ ...baseInvoice, state: "draft" }, null, ctx).status).toBe("draft");
     expect(buildInvoiceRow({ ...baseInvoice, state: "closed" }, null, ctx).status).toBe("void");
   });
+
+  // Money-math invariant: subtotal + tax_amount === total. Bookkeeper
+  // review flagged that a regression here is silent — the row would
+  // ship to QuickBooks with mismatched totals and nobody notices
+  // until reconciliation. Property-style: try a spread of plausible
+  // amounts to catch float-drift edge cases.
+  it("subtotal + tax_amount equals total for every plausible amount", () => {
+    const cases: Array<{ amount: number; tax: number }> = [
+      { amount: 100, tax: 0 },
+      { amount: 1083, tax: 83 },
+      { amount: 0.01, tax: 0 },
+      { amount: 1234.56, tax: 0 },
+      { amount: 999999.99, tax: 99999.99 },
+      { amount: 0.03, tax: 0.01 },
+    ];
+    for (const { amount, tax } of cases) {
+      const row = buildInvoiceRow(
+        { ...baseInvoice, amount, tax_amount: tax },
+        null,
+        ctx,
+      );
+      expect(row.subtotal + row.tax_amount).toBeCloseTo(row.total, 2);
+      expect(row.total).toBeCloseTo(amount, 2);
+    }
+  });
+
+  it("subtotal is never negative (clamps weird Harvest input)", () => {
+    // Harvest historically shouldn't ship `tax_amount > amount`,
+    // but if it ever did, we'd produce a negative subtotal. The
+    // test pins current behavior — flag if this changes so we know
+    // to revisit the upstream-input assumption.
+    const row = buildInvoiceRow(
+      { ...baseInvoice, amount: 100, tax_amount: 150 },
+      null,
+      ctx,
+    );
+    expect(row.total).toBe(100);
+    expect(row.tax_amount).toBe(150);
+    expect(row.subtotal).toBe(-50);
+  });
 });
 
 // ────────────────────────────────────────────────────────────────
