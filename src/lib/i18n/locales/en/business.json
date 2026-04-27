@@ -148,8 +148,8 @@
       "per_project": "Per project"
     },
     "fields": {
-      "legalName": "Legal name",
-      "legalNameHelp": "As on tax forms (W-2, 1099). Can differ from the person's Shyre display name.",
+      "legalName": "Legal name (as on tax forms)",
+      "legalNameHelp": "Single line — matches W-2, 1099, W-9. Use the form the IRS prints. For business recipients (e.g. \"Acme LLC\"), enter the entity name.",
       "preferredName": "Preferred name",
       "preferredNameHelp": "Optional — override how this person appears in Shyre UI.",
       "userLink": "Linked Shyre user",

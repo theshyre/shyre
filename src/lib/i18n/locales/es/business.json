@@ -148,8 +148,8 @@
       "per_project": "Por proyecto"
     },
     "fields": {
-      "legalName": "Nombre legal",
-      "legalNameHelp": "Como aparece en formularios fiscales (W-2, 1099). Puede diferir del nombre de Shyre.",
+      "legalName": "Nombre legal (como aparece en formularios fiscales)",
+      "legalNameHelp": "Línea única — debe coincidir con W-2, 1099, W-9. Usa la forma que imprime el IRS. Para destinatarios que son empresas (p. ej. \"Acme LLC\"), ingresa el nombre de la entidad.",
       "preferredName": "Nombre preferido",
       "preferredNameHelp": "Opcional — cómo aparece esta persona en la interfaz de Shyre.",
       "userLink": "Usuario de Shyre vinculado",
