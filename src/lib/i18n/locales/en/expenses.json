@@ -18,6 +18,7 @@
     "vendor": "Vendor",
     "description": "Description",
     "project": "Project",
+    "team": "Team",
     "billable": "Billable back to a customer"
   },
   "categories": {

@@ -46,9 +46,15 @@ function formatCurrency(amount: number, currency: string): string {
 export function ExpenseRow({
   expense,
   projects,
+  teamName,
 }: {
   expense: ExpenseRecord;
   projects: ProjectOption[];
+  /** Set when the parent table is showing a team column (multi-team
+   *  business). Null when there's only one team in scope and the
+   *  column is hidden — the row drops the cell entirely so column
+   *  count matches the header. */
+  teamName: string | null;
 }): React.JSX.Element {
   const t = useTranslations("expenses");
   const tc = useTranslations("common");
@@ -67,7 +73,7 @@ export function ExpenseRow({
   if (mode === "edit") {
     return (
       <tr className="border-b border-edge last:border-0 bg-surface-inset">
-        <td colSpan={6} className="p-4">
+        <td colSpan={teamName !== null ? 7 : 6} className="p-4">
           <form action={update.handleSubmit} className="space-y-3">
             <input type="hidden" name="id" value={expense.id} />
             {update.serverError && (
@@ -202,6 +208,9 @@ export function ExpenseRow({
           </p>
         )}
       </td>
+      {teamName !== null && (
+        <td className="px-4 py-3 text-content-secondary">{teamName}</td>
+      )}
       <td className="px-4 py-3 text-content-secondary">
         {expense.vendor || "—"}
       </td>

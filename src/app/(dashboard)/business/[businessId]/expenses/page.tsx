@@ -49,13 +49,11 @@ export default async function ExpensesPage({
   const tc = await getTranslations("common");
   const { businessId } = await params;
 
-  // Expenses are still team_id-scoped at the row level. List view sums
-  // across every team in the business that the viewer can access; the
-  // new-expense form posts against a single representative team
-  // (alphabetically first user-team in the business) so creating an
-  // expense always has a concrete team_id even on multi-team agencies.
-  // A team selector for new-expense + a team column on the list are
-  // a follow-up.
+  // Expenses are still team_id-scoped at the row level. The page
+  // sums across every team in the business that the viewer can
+  // access. Single-team businesses see no team UI; multi-team
+  // agencies get a team picker on new-expense and a team column on
+  // the list so they can target and trace expenses.
   const userTeams = await getUserTeams();
   const userTeamIds = userTeams.map((tm) => tm.id);
   const { data: businessTeams } =
@@ -70,9 +68,13 @@ export default async function ExpensesPage({
   if (teamIds.length === 0) {
     notFound();
   }
-  const representativeTeamId = userTeams
+  const teamOptions = userTeams
     .filter((tm) => teamIds.includes(tm.id))
-    .sort((a, b) => a.name.localeCompare(b.name))[0]!.id;
+    .sort((a, b) => a.name.localeCompare(b.name))
+    .map((tm) => ({ id: tm.id, name: tm.name }));
+  const representativeTeamId = teamOptions[0]!.id;
+  const showTeamColumn = teamOptions.length > 1;
+  const teamNameById = new Map(teamOptions.map((tm) => [tm.id, tm.name]));
 
   const { data: expRows } = await supabase
     .from("expenses")
@@ -113,7 +115,11 @@ export default async function ExpensesPage({
         </span>
       </div>
 
-      <NewExpenseForm teamId={representativeTeamId} projects={projects} />
+      <NewExpenseForm
+        defaultTeamId={representativeTeamId}
+        teamOptions={teamOptions}
+        projects={projects}
+      />
 
       {expenses.length === 0 ? (
         <div className="rounded-lg border border-edge bg-surface-raised p-6 text-body text-content-muted">
@@ -130,6 +136,11 @@ export default async function ExpensesPage({
                 <th className="px-4 py-3 text-left text-label font-semibold uppercase tracking-wider text-content-muted">
                   {t("fields.category")}
                 </th>
+                {showTeamColumn && (
+                  <th className="px-4 py-3 text-left text-label font-semibold uppercase tracking-wider text-content-muted">
+                    {t("fields.team")}
+                  </th>
+                )}
                 <th className="px-4 py-3 text-left text-label font-semibold uppercase tracking-wider text-content-muted">
                   {t("fields.vendor")}
                 </th>
@@ -146,7 +157,16 @@ export default async function ExpensesPage({
             </thead>
             <tbody>
               {expenses.map((e) => (
-                <ExpenseRow key={e.id} expense={e} projects={projects} />
+                <ExpenseRow
+                  key={e.id}
+                  expense={e}
+                  projects={projects}
+                  teamName={
+                    showTeamColumn
+                      ? (teamNameById.get(e.team_id) ?? null)
+                      : null
+                  }
+                />
               ))}
             </tbody>
           </table>

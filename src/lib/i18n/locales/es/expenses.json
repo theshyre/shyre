@@ -18,6 +18,7 @@
     "vendor": "Proveedor",
     "description": "Descripción",
     "project": "Proyecto",
+    "team": "Equipo",
     "billable": "Facturable al cliente"
   },
   "categories": {

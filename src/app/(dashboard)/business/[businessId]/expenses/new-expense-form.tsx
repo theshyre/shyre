@@ -19,7 +19,14 @@ import { EXPENSE_CATEGORIES } from "./categories";
 import type { ProjectOption } from "./page";
 
 interface Props {
-  teamId: string;
+  /** Default team to charge a new expense to. Used as the hidden
+   *  team_id when there's only one team option, or the initial
+   *  selection of the team picker when there are multiple. */
+  defaultTeamId: string;
+  /** Every team in this business that the viewer can write to.
+   *  Length 1 → no picker rendered. Length >1 → team selector
+   *  shows so multi-team agencies can target the right team. */
+  teamOptions: { id: string; name: string }[];
   projects: ProjectOption[];
 }
 
@@ -28,10 +35,22 @@ function todayStr(): string {
   return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
 }
 
-export function NewExpenseForm({ teamId, projects }: Props): React.JSX.Element {
+export function NewExpenseForm({
+  defaultTeamId,
+  teamOptions,
+  projects,
+}: Props): React.JSX.Element {
   const [open, setOpen] = useState(false);
+  const [selectedTeamId, setSelectedTeamId] = useState(defaultTeamId);
   const t = useTranslations("expenses");
   const tc = useTranslations("common");
+  const showTeamPicker = teamOptions.length > 1;
+  // When a team is selected, scope the project dropdown to projects
+  // owned by that team — a project from Team A can't accept an
+  // expense charged to Team B (FK on projects.team_id wouldn't match).
+  const projectsForTeam = projects.filter(
+    (p) => p.team_id === selectedTeamId,
+  );
 
   const { pending, success, serverError, handleSubmit } = useFormAction({
     action: createExpenseAction,
@@ -63,7 +82,11 @@ export function NewExpenseForm({ teamId, projects }: Props): React.JSX.Element {
       action={handleSubmit}
       className="space-y-3 rounded-lg border border-edge bg-surface-raised p-4"
     >
-      <input type="hidden" name="team_id" value={teamId} />
+      <input
+        type="hidden"
+        name="team_id"
+        value={showTeamPicker ? selectedTeamId : defaultTeamId}
+      />
 
       {serverError && (
         <AlertBanner tone="error">{serverError}</AlertBanner>
@@ -105,7 +128,24 @@ export function NewExpenseForm({ teamId, projects }: Props): React.JSX.Element {
             ))}
           </select>
         </div>
-        <div className="sm:col-span-2">
+        {showTeamPicker && (
+          <div>
+            <label className={labelClass}>{t("fields.team")} *</label>
+            <select
+              value={selectedTeamId}
+              onChange={(e) => setSelectedTeamId(e.target.value)}
+              required
+              className={inputClass}
+            >
+              {teamOptions.map((tm) => (
+                <option key={tm.id} value={tm.id}>
+                  {tm.name}
+                </option>
+              ))}
+            </select>
+          </div>
+        )}
+        <div className={showTeamPicker ? "sm:col-span-2" : "sm:col-span-2"}>
           <label className={labelClass}>{t("fields.vendor")}</label>
           <input name="vendor" type="text" className={inputClass} />
         </div>
@@ -113,7 +153,7 @@ export function NewExpenseForm({ teamId, projects }: Props): React.JSX.Element {
           <label className={labelClass}>{t("fields.project")}</label>
           <select name="project_id" defaultValue="none" className={inputClass}>
             <option value="none">{t("noProject")}</option>
-            {projects.map((p) => (
+            {projectsForTeam.map((p) => (
               <option key={p.id} value={p.id}>
                 {p.name}
               </option>
