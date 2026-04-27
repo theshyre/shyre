@@ -2,64 +2,65 @@
 
 import { useState } from "react";
 import { useTranslations } from "next-intl";
-import { Clock, Trash2, ChevronDown } from "lucide-react";
+import {
+  Briefcase,
+  ChevronDown,
+  Clock,
+  FileBadge,
+  Trash2,
+} from "lucide-react";
 import { Spinner } from "@theshyre/ui";
 import { buttonSecondaryClass } from "@/lib/form-styles";
+import { getBusinessIdentityHistoryAction } from "../../../actions";
 import {
-  getBusinessPeopleHistoryAction,
-  type BusinessPersonHistoryEntry,
-} from "../../../people-actions";
+  BUSINESS_FIELD_LABELS,
+  REGISTRATION_FIELD_LABELS,
+  IDENTITY_HISTORY_HIDDEN_KEYS,
+  identityGroupKey,
+  type IdentityHistoryEntry,
+} from "../../../identity-history-types";
 import {
   expandWithFieldDiffs,
-  formatValue,
   formatTimestamp,
-  FIELD_LABELS,
-  HIDDEN_KEYS,
+  formatValue,
   type FieldChange,
-} from "./history-format";
+} from "../../people/history/history-format";
 
 const PAGE_SIZE = 200;
 
 interface Props {
   businessId: string;
-  entries: BusinessPersonHistoryEntry[];
+  entries: IdentityHistoryEntry[];
   hasMore: boolean;
-  /** Active filters from the URL — threaded through "Load more"
-   *  fetches so pagination respects the current view. Optional so
-   *  callers without filters (e.g. tests) don't need to pass them. */
-  filters?: {
-    from: string | null;
-    to: string | null;
-    personId: string | null;
-    actorUserId: string | null;
-  };
 }
 
-/** Reverse-chronological list of every history entry across the
- *  business's people. The server fetches the first page; this
- *  component owns the "Load more" pager so a long-running shop with
- *  thousands of edits doesn't blow up the initial render. */
-export function HistoryTimeline({
+/** Reverse-chronological merged timeline of `businesses_history` and
+ *  `business_state_registrations_history` for one business. Each
+ *  entry uses its kind's label map so the field names render
+ *  correctly for whichever table the row came from. */
+export function IdentityHistoryTimeline({
   businessId,
   entries: initialEntries,
   hasMore: initialHasMore,
-  filters,
 }: Props): React.JSX.Element {
-  const t = useTranslations("business.people.history");
+  const t = useTranslations("business.info.history");
   const [entries, setEntries] = useState(initialEntries);
   const [hasMore, setHasMore] = useState(initialHasMore);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  // Diffs are computed against each entry's next-newer neighbor in
-  // the same person — entries arrive interleaved across people, so
-  // grouping is required.
+  // Group by `kind:registrationId` so a business entry doesn't
+  // accidentally diff against a registration entry, and
+  // registrations for different states diff independently.
   const expanded = expandWithFieldDiffs({
     entries,
-    groupKey: (e) => e.personId,
+    groupKey: identityGroupKey,
     previousState: (e) => e.previousState,
-    labels: () => FIELD_LABELS,
-    hiddenKeys: HIDDEN_KEYS,
+    labels: (e) =>
+      e.kind === "business"
+        ? BUSINESS_FIELD_LABELS
+        : REGISTRATION_FIELD_LABELS,
+    hiddenKeys: IDENTITY_HISTORY_HIDDEN_KEYS,
   });
   const diffs = new Map<string, FieldChange[]>(
     expanded.map((x) => [x.entry.id, x.fields]),
@@ -69,13 +70,9 @@ export function HistoryTimeline({
     setLoading(true);
     setError(null);
     try {
-      const res = await getBusinessPeopleHistoryAction(businessId, {
+      const res = await getBusinessIdentityHistoryAction(businessId, {
         limit: PAGE_SIZE,
         offset: entries.length,
-        from: filters?.from ?? null,
-        to: filters?.to ?? null,
-        personId: filters?.personId ?? null,
-        actorUserId: filters?.actorUserId ?? null,
       });
       setEntries((prev) => [...prev, ...res.history]);
       setHasMore(res.hasMore);
@@ -90,7 +87,7 @@ export function HistoryTimeline({
     <div className="space-y-3">
       <ol className="space-y-3">
         {entries.map((entry) => (
-          <HistoryRow
+          <IdentityHistoryRow
             key={entry.id}
             entry={entry}
             changedFields={diffs.get(entry.id) ?? []}
@@ -121,44 +118,52 @@ export function HistoryTimeline({
   );
 }
 
-function HistoryRow({
+function IdentityHistoryRow({
   entry,
   changedFields,
 }: {
-  entry: BusinessPersonHistoryEntry;
+  entry: IdentityHistoryEntry;
   changedFields: FieldChange[];
 }): React.JSX.Element {
-  const t = useTranslations("business.people.history");
+  const t = useTranslations("business.info.history");
+  const tPeople = useTranslations("business.people.history");
   const actor =
-    entry.changedBy.displayName ?? entry.changedBy.email ?? t("unknownActor");
+    entry.changedBy.displayName ??
+    entry.changedBy.email ??
+    tPeople("unknownActor");
   const when = formatTimestamp(entry.changedAt);
   const isDelete = entry.operation === "DELETE";
+  const KindIcon = entry.kind === "business" ? Briefcase : FileBadge;
 
   return (
     <li className="rounded-md border border-edge bg-surface-raised p-3 space-y-2">
       <div className="flex items-baseline gap-2 flex-wrap">
+        <KindIcon size={14} className="text-accent shrink-0 self-center" />
+        <span className="text-body-lg font-semibold text-content">
+          {entry.rowLabel}
+        </span>
+        <span className="text-caption text-content-muted">
+          {t(`kind.${entry.kind}`)}
+        </span>
         {isDelete ? (
           <Trash2 size={14} className="text-error shrink-0 self-center" />
         ) : (
-          <Clock size={14} className="text-accent shrink-0 self-center" />
+          <Clock size={14} className="text-content-muted shrink-0 self-center" />
         )}
-        <span className="text-body-lg font-semibold text-content">
-          {entry.personDisplayName}
-        </span>
         <span
           className={`text-label font-semibold uppercase tracking-wider ${
             isDelete ? "text-error" : "text-content-secondary"
           }`}
         >
-          {t(`operation.${entry.operation}`)}
+          {tPeople(`operation.${entry.operation}`)}
         </span>
         <span className="text-caption text-content-muted">
-          {t("byOn", { actor, when })}
+          {tPeople("byOn", { actor, when })}
         </span>
       </div>
       {changedFields.length === 0 ? (
         <p className="text-caption text-content-muted italic">
-          {t("noFieldChanges")}
+          {tPeople("noFieldChanges")}
         </p>
       ) : (
         <dl className="space-y-1 text-caption">
@@ -187,4 +192,3 @@ function HistoryRow({
     </li>
   );
 }
-

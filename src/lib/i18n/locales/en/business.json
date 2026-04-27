@@ -49,6 +49,7 @@
     "description": "Legal name, tax IDs, entity form, and fiscal year — the formal details of the business behind this team.",
     "back": "Back to Business",
     "save": "Save business identity",
+    "viewHistory": "View change history",
     "fields": {
       "legalName": "Legal name",
       "legalNamePlaceholder": "As registered with the state",
@@ -60,6 +61,21 @@
       "dateIncorporated": "Date of incorporation",
       "fiscalYearStart": "Fiscal year start (MM-DD)",
       "fiscalYearStartHelp": "Use 01-01 for calendar-year businesses, 07-01 for July-June fiscal year, etc."
+    },
+    "history": {
+      "title": "Identity change history",
+      "description": "Every recorded change to the business's legal identity and to its state registrations, newest first. Owner / admin only.",
+      "empty": "No identity changes recorded yet.",
+      "notAdmin": "Only owners and admins of this business can view the change history.",
+      "entryCount": "{count, plural, one {# entry} other {# entries}}",
+      "backToIdentity": "Back to identity",
+      "loadMore": "Load more",
+      "exportCsv": "Export CSV",
+      "error": "Couldn't load history: {message}",
+      "kind": {
+        "business": "business",
+        "registration": "registration"
+      }
     }
   },
   "stateRegistrations": {
@@ -142,7 +158,18 @@
       "entryCount": "{count, plural, one {# entry} other {# entries}}",
       "backToPeople": "Back to people",
       "loadMore": "Load more",
-      "exportCsv": "Export CSV"
+      "exportCsv": "Export CSV",
+      "filters": {
+        "heading": "Filters",
+        "from": "From",
+        "to": "To",
+        "person": "Person",
+        "actor": "Changed by",
+        "anyPerson": "Anyone",
+        "anyActor": "Any user",
+        "apply": "Apply filters",
+        "clear": "Clear filters"
+      }
     },
     "sections": {
       "employees": "Employees",

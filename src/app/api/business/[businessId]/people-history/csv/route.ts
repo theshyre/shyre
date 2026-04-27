@@ -1,9 +1,11 @@
 import { createClient } from "@/lib/supabase/server";
 import { escapeCsvField } from "@/lib/time/csv";
 import {
-  computeFieldDiff,
-  formatValue,
+  expandWithFieldDiffs,
+  FIELD_LABELS,
+  HIDDEN_KEYS,
 } from "@/app/(dashboard)/business/[businessId]/people/history/history-format";
+import { expandToCsvRows } from "@/app/(dashboard)/business/history-csv";
 
 /**
  * GET /api/business/[businessId]/people-history/csv
@@ -18,10 +20,15 @@ import {
  * file, not a page of it.
  */
 export async function GET(
-  _request: Request,
+  request: Request,
   context: { params: Promise<{ businessId: string }> },
 ): Promise<Response> {
   const { businessId } = await context.params;
+  const url = new URL(request.url);
+  const fromParam = url.searchParams.get("from");
+  const toParam = url.searchParams.get("to");
+  const personId = url.searchParams.get("personId");
+  const actorUserId = url.searchParams.get("actorUserId");
   const supabase = await createClient();
 
   const {
@@ -31,13 +38,25 @@ export async function GET(
     return new Response("Unauthorized", { status: 401 });
   }
 
-  const { data: rows, error } = await supabase
+  let query = supabase
     .from("business_people_history")
     .select(
       "id, business_person_id, operation, changed_at, changed_by_user_id, previous_state",
     )
-    .eq("business_id", businessId)
-    .order("changed_at", { ascending: false });
+    .eq("business_id", businessId);
+  if (fromParam) query = query.gte("changed_at", fromParam);
+  if (toParam) {
+    const isBareDate = /^\d{4}-\d{2}-\d{2}$/.test(toParam);
+    query = query.lte(
+      "changed_at",
+      isBareDate ? `${toParam}T23:59:59.999Z` : toParam,
+    );
+  }
+  if (personId) query = query.eq("business_person_id", personId);
+  if (actorUserId) query = query.eq("changed_by_user_id", actorUserId);
+  const { data: rows, error } = await query.order("changed_at", {
+    ascending: false,
+  });
   if (error) {
     return new Response(`Export failed: ${error.message}`, { status: 500 });
   }
@@ -85,77 +104,32 @@ export async function GET(
     personNameById.set(p.id, p.preferred_name ?? p.legal_name ?? "");
   }
 
-  // Diff each entry against the next-newer entry for the same person
-  // (entries arrive interleaved; group by person to find each
-  // entry's neighbor in time).
-  const newerByPerson = new Map<string, Row>();
-  type CsvRow = {
-    changed_at: string;
-    person_name: string;
-    person_id: string;
-    operation: string;
-    actor_name: string;
-    actor_user_id: string;
-    field: string;
-    previous_value: string;
-    new_value: string;
-  };
-  const out: CsvRow[] = [];
+  const expanded = expandWithFieldDiffs({
+    entries: allRows,
+    groupKey: (r) => r.business_person_id as string,
+    previousState: (r) =>
+      (r.previous_state as Record<string, unknown> | null) ?? {},
+    labels: () => FIELD_LABELS,
+    hiddenKeys: HIDDEN_KEYS,
+  });
 
-  // Walk oldest → newest so the "newer" neighbor is known when we
-  // reach each row. Append in oldest-first order, then reverse at
-  // the end so the CSV reads newest-first to match the page.
-  const oldestFirst = [...allRows].reverse();
-  for (const row of oldestFirst) {
+  const out = expandToCsvRows(expanded, (row) => {
     const personId = row.business_person_id as string;
-    const newer = newerByPerson.get(personId);
     const prev = (row.previous_state as Record<string, unknown> | null) ?? {};
-    const diff = computeFieldDiff(
-      prev,
-      newer ? ((newer.previous_state as Record<string, unknown> | null) ?? null) : null,
-    );
-
     const personName =
       personNameById.get(personId) ||
       (typeof prev.legal_name === "string" ? (prev.legal_name as string) : "Unknown");
     const actorId = (row.changed_by_user_id as string | null) ?? "";
     const actorName = actorId ? (actorNameById.get(actorId) ?? "") : "";
-
-    if (diff.length === 0) {
-      // Edit recorded but no labeled fields changed — keep a
-      // placeholder row so the export reflects every audit entry.
-      out.push({
-        changed_at: row.changed_at as string,
-        person_name: personName,
-        person_id: personId,
-        operation: row.operation as string,
-        actor_name: actorName ?? "",
-        actor_user_id: actorId,
-        field: "",
-        previous_value: "",
-        new_value: "",
-      });
-    } else {
-      for (const field of diff) {
-        out.push({
-          changed_at: row.changed_at as string,
-          person_name: personName,
-          person_id: personId,
-          operation: row.operation as string,
-          actor_name: actorName ?? "",
-          actor_user_id: actorId,
-          field: field.label,
-          previous_value: formatValue(field.from),
-          new_value:
-            field.to === undefined ? "" : formatValue(field.to),
-        });
-      }
-    }
-
-    newerByPerson.set(personId, row);
-  }
-
-  out.reverse();
+    return {
+      changed_at: row.changed_at as string,
+      person_name: personName,
+      person_id: personId,
+      operation: row.operation as string,
+      actor_name: actorName ?? "",
+      actor_user_id: actorId,
+    };
+  });
 
   const headers = [
     "changed_at",

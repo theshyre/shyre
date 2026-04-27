@@ -1,6 +1,10 @@
+import Link from "next/link";
+import { History as HistoryIcon } from "lucide-react";
 import { getTranslations } from "next-intl/server";
 import { createClient } from "@/lib/supabase/server";
 import { validateBusinessAccess } from "@/lib/team-context";
+import { LinkPendingSpinner } from "@/components/LinkPendingSpinner";
+import { buttonGhostClass } from "@/lib/form-styles";
 import { IdentityForm } from "./identity-form";
 import {
   StateRegistrationsSection,
@@ -43,7 +47,21 @@ export default async function BusinessIdentityPage({
 
   return (
     <div className="space-y-4">
-      <p className="text-body text-content-secondary max-w-3xl">{t("description")}</p>
+      <div className="flex items-start gap-3 flex-wrap">
+        <p className="flex-1 min-w-[200px] text-body text-content-secondary max-w-3xl">
+          {t("description")}
+        </p>
+        {canEdit && (
+          <Link
+            href={`/business/${businessId}/identity/history`}
+            className={`${buttonGhostClass} inline-flex items-center gap-1.5 self-start`}
+          >
+            <HistoryIcon size={14} />
+            {t("viewHistory")}
+            <LinkPendingSpinner size={10} className="" />
+          </Link>
+        )}
+      </div>
       <IdentityForm
         businessId={businessId}
         legalName={(business?.legal_name as string | null) ?? ""}

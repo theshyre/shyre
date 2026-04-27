@@ -49,6 +49,7 @@
     "description": "Razón social, IDs fiscales, forma legal y año fiscal — los datos formales del negocio detrás de este equipo.",
     "back": "Volver a Negocio",
     "save": "Guardar identidad",
+    "viewHistory": "Ver historial de cambios",
     "fields": {
       "legalName": "Razón social",
       "legalNamePlaceholder": "Como aparece en el registro",
@@ -60,6 +61,21 @@
       "dateIncorporated": "Fecha de constitución",
       "fiscalYearStart": "Inicio del año fiscal (MM-DD)",
       "fiscalYearStartHelp": "Usa 01-01 para año calendario, 07-01 para año fiscal julio-junio, etc."
+    },
+    "history": {
+      "title": "Historial de cambios de identidad",
+      "description": "Cada cambio registrado en la identidad legal del negocio y en sus registros estatales, los más recientes primero. Solo propietarios / administradores.",
+      "empty": "Aún no hay cambios de identidad registrados.",
+      "notAdmin": "Solo los propietarios y administradores de este negocio pueden ver el historial.",
+      "entryCount": "{count, plural, one {# entrada} other {# entradas}}",
+      "backToIdentity": "Volver a identidad",
+      "loadMore": "Cargar más",
+      "exportCsv": "Exportar CSV",
+      "error": "No se pudo cargar el historial: {message}",
+      "kind": {
+        "business": "negocio",
+        "registration": "registro"
+      }
     }
   },
   "stateRegistrations": {
@@ -142,7 +158,18 @@
       "entryCount": "{count, plural, one {# entrada} other {# entradas}}",
       "backToPeople": "Volver a personas",
       "loadMore": "Cargar más",
-      "exportCsv": "Exportar CSV"
+      "exportCsv": "Exportar CSV",
+      "filters": {
+        "heading": "Filtros",
+        "from": "Desde",
+        "to": "Hasta",
+        "person": "Persona",
+        "actor": "Cambiado por",
+        "anyPerson": "Cualquiera",
+        "anyActor": "Cualquier usuario",
+        "apply": "Aplicar filtros",
+        "clear": "Limpiar filtros"
+      }
     },
     "sections": {
       "employees": "Empleados",

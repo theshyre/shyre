@@ -8,6 +8,20 @@ import {
   readPersonFields,
   requiredString,
 } from "./people-form-parse";
+import {
+  resolveBusinessPeopleHistoryEntries,
+  type BusinessPersonHistoryEntry,
+  type PersonHistoryEntry,
+  type RawBusinessPeopleHistoryRow,
+} from "./business-people-history-types";
+
+// "use server" files only export async functions; re-export the
+// pure types via `export type` so existing call-sites that imported
+// them from this module keep working.
+export type {
+  BusinessPersonHistoryEntry,
+  PersonHistoryEntry,
+} from "./business-people-history-types";
 
 type SBClient = import("@supabase/supabase-js").SupabaseClient;
 
@@ -87,18 +101,6 @@ export async function deletePersonAction(formData: FormData): Promise<void> {
   }, "deletePersonAction") as unknown as void;
 }
 
-export interface PersonHistoryEntry {
-  id: string;
-  operation: "UPDATE" | "DELETE";
-  changedAt: string;
-  changedBy: {
-    userId: string | null;
-    displayName: string | null;
-    email: string | null;
-  };
-  previousState: Record<string, unknown>;
-}
-
 /** Read the change history for a person. RLS gates this — owner/admin
  *  of the business sees everything, the linked user sees only their
  *  own history. Read-only, so no runSafeAction wrapping (that's for
@@ -161,13 +163,16 @@ export async function getPersonHistoryAction(
   return { history };
 }
 
-export interface BusinessPersonHistoryEntry extends PersonHistoryEntry {
-  /** Person this entry is about. We resolve the live row to a current
-   *  display name where possible; if the person has been hard-deleted
-   *  (rare today; soft delete is the path) we fall back to the
-   *  legal_name captured in `previousState`. */
-  personId: string;
-  personDisplayName: string;
+
+export interface BusinessPeopleHistoryFilters {
+  /** Inclusive lower bound on `changed_at` (ISO date `YYYY-MM-DD` or
+   *  full timestamp). */
+  from?: string | null;
+  /** Inclusive upper bound on `changed_at`. The action interprets a
+   *  bare date as "the entire day" (end-of-day exclusive). */
+  to?: string | null;
+  personId?: string | null;
+  actorUserId?: string | null;
 }
 
 /** Read every change entry across every person in a business, in
@@ -177,7 +182,7 @@ export interface BusinessPersonHistoryEntry extends PersonHistoryEntry {
  *  whole business; other users see only their own entries. */
 export async function getBusinessPeopleHistoryAction(
   businessId: string,
-  options?: { limit?: number; offset?: number },
+  options?: { limit?: number; offset?: number } & BusinessPeopleHistoryFilters,
 ): Promise<{ history: BusinessPersonHistoryEntry[]; hasMore: boolean }> {
   const supabase = await createClient();
   const {
@@ -190,14 +195,33 @@ export async function getBusinessPeopleHistoryAction(
   const limit = options?.limit ?? 100;
   const offset = options?.offset ?? 0;
 
-  // Pull one extra row to know whether there's more — cheaper than a
-  // separate count() and good enough for "Load more" pagination.
-  const { data: rows, error } = await supabase
+  let query = supabase
     .from("business_people_history")
     .select(
       "id, business_person_id, operation, changed_at, changed_by_user_id, previous_state",
     )
-    .eq("business_id", businessId)
+    .eq("business_id", businessId);
+
+  if (options?.from) {
+    query = query.gte("changed_at", options.from);
+  }
+  if (options?.to) {
+    // Treat a bare YYYY-MM-DD as "through end of day". A full ISO
+    // timestamp is used as-is.
+    const isBareDate = /^\d{4}-\d{2}-\d{2}$/.test(options.to);
+    const upper = isBareDate ? `${options.to}T23:59:59.999Z` : options.to;
+    query = query.lte("changed_at", upper);
+  }
+  if (options?.personId) {
+    query = query.eq("business_person_id", options.personId);
+  }
+  if (options?.actorUserId) {
+    query = query.eq("changed_by_user_id", options.actorUserId);
+  }
+
+  // Pull one extra row to know whether there's more — cheaper than a
+  // separate count() and good enough for "Load more" pagination.
+  const { data: rows, error } = await query
     .order("changed_at", { ascending: false })
     .range(offset, offset + limit);
   if (error) throw error;
@@ -246,32 +270,10 @@ export async function getBusinessPeopleHistoryAction(
     personNameById.set(p.id as string, preferred ?? legal);
   }
 
-  const history: BusinessPersonHistoryEntry[] = trimmed.map((r) => {
-    const actorId = (r.changed_by_user_id as string | null) ?? null;
-    const personId = r.business_person_id as string;
-    const previousState =
-      (r.previous_state as Record<string, unknown> | null) ?? {};
-    // Live name first; fall back to the legal_name in the snapshot
-    // (the row was hard-deleted so the live join is empty).
-    const personDisplayName =
-      personNameById.get(personId) ??
-      (typeof previousState.legal_name === "string"
-        ? (previousState.legal_name as string)
-        : "Unknown person");
-
-    return {
-      id: r.id as string,
-      personId,
-      personDisplayName,
-      operation: r.operation as "UPDATE" | "DELETE",
-      changedAt: r.changed_at as string,
-      changedBy: {
-        userId: actorId,
-        displayName: actorId ? (actorNameById.get(actorId) ?? null) : null,
-        email: null,
-      },
-      previousState,
-    };
+  const history = resolveBusinessPeopleHistoryEntries({
+    rows: trimmed as RawBusinessPeopleHistoryRow[],
+    actorNameById,
+    personNameById,
   });
 
   return { history, hasMore };

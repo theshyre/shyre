@@ -1,6 +1,7 @@
 import { describe, it, expect } from "vitest";
 import {
   computeFieldDiff,
+  expandWithFieldDiffs,
   formatValue,
   formatTimestamp,
   isEqual,
@@ -170,5 +171,154 @@ describe("computeFieldDiff", () => {
       expect(diff.map((d) => d.key)).not.toContain(key);
     }
     expect(diff.map((d) => d.key)).toContain("legal_name");
+  });
+
+  it("respects a custom labels map (most-recent entry path)", () => {
+    const customLabels = { foo: "Foo Field", bar: "Bar Field" };
+    const diff = computeFieldDiff(
+      { foo: "alpha", bar: "beta", legal_name: "ignored" },
+      null,
+      { labels: customLabels, hiddenKeys: new Set() },
+    );
+    const keys = diff.map((d) => d.key);
+    // legal_name is not in customLabels — should not appear.
+    expect(keys).not.toContain("legal_name");
+    expect(keys).toContain("foo");
+    expect(keys).toContain("bar");
+  });
+
+  it("respects a custom labels map when diffing against a newer snapshot", () => {
+    const customLabels = { foo: "Foo Field" };
+    const diff = computeFieldDiff(
+      { foo: "old", bar: "old" },
+      { foo: "new", bar: "new" },
+      { labels: customLabels, hiddenKeys: new Set() },
+    );
+    // bar isn't in customLabels — only foo surfaces.
+    expect(diff.map((d) => d.key)).toEqual(["foo"]);
+    expect(diff[0]?.from).toBe("old");
+    expect(diff[0]?.to).toBe("new");
+  });
+
+  it("respects a custom hiddenKeys set", () => {
+    const diff = computeFieldDiff(
+      { legal_name: "Robert", title: "CEO" },
+      null,
+      {
+        labels: { legal_name: "Legal name", title: "Title" },
+        hiddenKeys: new Set(["title"]),
+      },
+    );
+    expect(diff.map((d) => d.key)).toEqual(["legal_name"]);
+  });
+});
+
+// ────────────────────────────────────────────────────────────────
+// expandWithFieldDiffs
+// ────────────────────────────────────────────────────────────────
+
+describe("expandWithFieldDiffs", () => {
+  type Entry = {
+    id: string;
+    group: string;
+    when: string;
+    state: Record<string, unknown>;
+  };
+
+  const labels = { legal_name: "Legal name", title: "Title" };
+  const hiddenKeys = new Set<string>();
+
+  it("computes per-entry diffs against the next-newer entry in the same group", () => {
+    // newest first
+    const entries: Entry[] = [
+      { id: "e3", group: "g1", when: "2026-04-15", state: { legal_name: "Robert", title: "Director" } },
+      { id: "e2", group: "g1", when: "2026-04-10", state: { legal_name: "Robert", title: "Senior" } },
+      { id: "e1", group: "g1", when: "2026-04-01", state: { legal_name: "Bob", title: "Junior" } },
+    ];
+    const out = expandWithFieldDiffs({
+      entries,
+      groupKey: (e) => e.group,
+      previousState: (e) => e.state,
+      labels: () => labels,
+      hiddenKeys,
+    });
+    // Newest entry — no newer neighbor, enumerates the snapshot.
+    expect(out[0]?.entry.id).toBe("e3");
+    expect(out[0]?.fields.map((f) => f.key).sort()).toEqual(["legal_name", "title"]);
+    expect(out[0]?.fields[0]?.to).toBeUndefined();
+    // Middle entry — diffs against e3.
+    expect(out[1]?.entry.id).toBe("e2");
+    expect(out[1]?.fields.map((f) => f.key)).toEqual(["title"]);
+    expect(out[1]?.fields[0]?.from).toBe("Senior");
+    expect(out[1]?.fields[0]?.to).toBe("Director");
+    // Oldest — diffs against e2.
+    expect(out[2]?.entry.id).toBe("e1");
+    expect(out[2]?.fields.map((f) => f.key).sort()).toEqual(["legal_name", "title"]);
+  });
+
+  it("partitions diffs by groupKey", () => {
+    const entries: Entry[] = [
+      { id: "e2", group: "person-1", when: "2026-04-10", state: { legal_name: "Bob" } },
+      // person-2's only entry — should get most-recent enumeration
+      { id: "e1", group: "person-2", when: "2026-04-05", state: { legal_name: "Sue" } },
+    ];
+    const out = expandWithFieldDiffs({
+      entries,
+      groupKey: (e) => e.group,
+      previousState: (e) => e.state,
+      labels: () => labels,
+      hiddenKeys,
+    });
+    // Both are most-recent for their respective groups — both get
+    // enumerated, neither gets a "to" side.
+    expect(out[0]?.fields[0]?.to).toBeUndefined();
+    expect(out[1]?.fields[0]?.to).toBeUndefined();
+  });
+
+  it("preserves the input order on output (newest-first stays newest-first)", () => {
+    const entries: Entry[] = [
+      { id: "newest", group: "g", when: "2026-04-15", state: { legal_name: "C" } },
+      { id: "middle", group: "g", when: "2026-04-10", state: { legal_name: "B" } },
+      { id: "oldest", group: "g", when: "2026-04-01", state: { legal_name: "A" } },
+    ];
+    const out = expandWithFieldDiffs({
+      entries,
+      groupKey: (e) => e.group,
+      previousState: (e) => e.state,
+      labels: () => labels,
+      hiddenKeys,
+    });
+    expect(out.map((o) => o.entry.id)).toEqual(["newest", "middle", "oldest"]);
+  });
+
+  it("returns an empty array for empty input", () => {
+    const out = expandWithFieldDiffs({
+      entries: [] as Entry[],
+      groupKey: (e) => e.group,
+      previousState: (e) => e.state,
+      labels: () => labels,
+      hiddenKeys,
+    });
+    expect(out).toEqual([]);
+  });
+
+  it("supports per-entry labels (different tables in one timeline)", () => {
+    const entries: Entry[] = [
+      { id: "biz", group: "business:", when: "2026-04-15", state: { legal_name: "Acme LLC" } },
+      { id: "reg", group: "registration:1", when: "2026-04-10", state: { state: "DE" } },
+    ];
+    const labelsByKind: Record<string, Record<string, string>> = {
+      biz: { legal_name: "Legal name" },
+      reg: { state: "State" },
+    };
+    const out = expandWithFieldDiffs({
+      entries,
+      groupKey: (e) => e.group,
+      previousState: (e) => e.state,
+      labels: (e) => labelsByKind[e.id] ?? {},
+      hiddenKeys,
+    });
+    expect(out[0]?.fields.map((f) => f.label)).toEqual(["Legal name"]);
+    expect(out[1]?.fields.map((f) => f.label)).toEqual(["State"]);
   });
 });
