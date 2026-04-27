@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { useState } from "react";
 import { useTranslations } from "next-intl";
 import { UserCog, Plus, Pencil, X, Link2, Link2Off, History } from "lucide-react";
@@ -7,6 +8,7 @@ import { AlertBanner } from "@theshyre/ui";
 import { useFormAction } from "@/hooks/use-form-action";
 import { SubmitButton } from "@/components/SubmitButton";
 import { InlineDeleteRowConfirm } from "@/components/InlineDeleteRowConfirm";
+import { LinkPendingSpinner } from "@/components/LinkPendingSpinner";
 import { Tooltip } from "@/components/Tooltip";
 import {
   inputClass,
@@ -148,16 +150,28 @@ export function PeopleSection({
             {t("description")}
           </p>
         </div>
-        {canEdit && !adding && editingId === null ? (
-          <button
-            type="button"
-            onClick={() => setAdding(true)}
-            className={`${buttonSecondaryClass} inline-flex items-center gap-1.5 self-start`}
-          >
-            <Plus size={14} />
-            {t("addButton")}
-          </button>
-        ) : null}
+        <div className="flex items-center gap-2 self-start flex-wrap">
+          {canEdit ? (
+            <Link
+              href={`/business/${businessId}/people/history`}
+              className={`${buttonGhostClass} inline-flex items-center gap-1.5`}
+            >
+              <History size={14} />
+              {t("viewBusinessHistory")}
+              <LinkPendingSpinner size={10} className="" />
+            </Link>
+          ) : null}
+          {canEdit && !adding && editingId === null ? (
+            <button
+              type="button"
+              onClick={() => setAdding(true)}
+              className={`${buttonSecondaryClass} inline-flex items-center gap-1.5`}
+            >
+              <Plus size={14} />
+              {t("addButton")}
+            </button>
+          ) : null}
+        </div>
       </div>
 
       {people.length === 0 && !adding ? (

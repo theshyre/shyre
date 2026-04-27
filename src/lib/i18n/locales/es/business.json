@@ -119,6 +119,7 @@
     "empty": "Aún no hay personas. Agrégate primero si eres el dueño.",
     "addButton": "Agregar persona",
     "viewHistory": "Ver historial de cambios",
+    "viewBusinessHistory": "Todos los cambios",
     "save": "Guardar persona",
     "cancel": "Cancelar",
     "history": {
@@ -134,7 +135,13 @@
       "operation": {
         "UPDATE": "Actualizado",
         "DELETE": "Eliminado"
-      }
+      },
+      "businessPageTitle": "Todos los cambios de personas",
+      "businessPageDescription": "Cada cambio registrado en una persona del negocio, en todos sus integrantes. Las entradas más recientes aparecen primero. Solo los propietarios y administradores ven el historial completo; los demás usuarios solo ven los suyos.",
+      "businessEmpty": "Aún no se han registrado cambios.",
+      "entryCount": "{count, plural, one {# entrada} other {# entradas}}",
+      "backToPeople": "Volver a personas",
+      "loadMore": "Cargar más"
     },
     "sections": {
       "employees": "Empleados",

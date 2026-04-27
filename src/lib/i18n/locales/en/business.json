@@ -119,6 +119,7 @@
     "empty": "No people yet. Add yourself first if you're the owner.",
     "addButton": "Add person",
     "viewHistory": "View change history",
+    "viewBusinessHistory": "All changes",
     "save": "Save person",
     "cancel": "Cancel",
     "history": {
@@ -134,7 +135,13 @@
       "operation": {
         "UPDATE": "Updated",
         "DELETE": "Deleted"
-      }
+      },
+      "businessPageTitle": "All people changes",
+      "businessPageDescription": "Every recorded change to a business person, across everyone in this business. The newest entries are first. Only owners and admins of the business see the full timeline; other users see only their own.",
+      "businessEmpty": "No changes recorded yet.",
+      "entryCount": "{count, plural, one {# entry} other {# entries}}",
+      "backToPeople": "Back to people",
+      "loadMore": "Load more"
     },
     "sections": {
       "employees": "Employees",
