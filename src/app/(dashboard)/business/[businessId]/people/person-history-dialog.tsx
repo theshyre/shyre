@@ -9,6 +9,12 @@ import {
   getPersonHistoryAction,
   type PersonHistoryEntry,
 } from "../../people-actions";
+import {
+  computeFieldDiff,
+  formatValue,
+  formatTimestamp,
+  type FieldChange,
+} from "./history/history-format";
 
 interface Props {
   open: boolean;
@@ -16,46 +22,6 @@ interface Props {
   personId: string;
   personDisplayName: string;
 }
-
-/** Human-readable labels for the fields we surface in the diff. The
- *  history JSONB carries every column on the row, but timestamps,
- *  internal ids, and the audit columns themselves don't help a
- *  reader understand what changed — those are filtered out below. */
-const FIELD_LABELS: Record<string, string> = {
-  legal_name: "Legal name",
-  preferred_name: "Preferred name",
-  work_email: "Work email",
-  work_phone: "Work phone",
-  employment_type: "Employment type",
-  title: "Title",
-  department: "Department",
-  employee_number: "Employee number",
-  started_on: "Started",
-  ended_on: "Ended",
-  compensation_type: "Compensation type",
-  compensation_amount_cents: "Compensation amount (cents)",
-  compensation_currency: "Compensation currency",
-  compensation_schedule: "Compensation schedule",
-  address_line1: "Address line 1",
-  address_line2: "Address line 2",
-  city: "City",
-  state: "State",
-  postal_code: "Postal code",
-  country: "Country",
-  reports_to_person_id: "Reports to",
-  notes: "Notes",
-  user_id: "Linked Shyre user",
-  deleted_at: "Deleted at",
-};
-
-const HIDDEN_KEYS = new Set([
-  "id",
-  "business_id",
-  "created_at",
-  "updated_at",
-  "created_by_user_id",
-  "updated_by_user_id",
-]);
 
 export function PersonHistoryDialog({
   open,
@@ -141,15 +107,6 @@ export function PersonHistoryDialog({
   );
 }
 
-/** Render one history row. We diff `previous_state` against the
- *  *next-newer* entry's `previous_state` (or against the live row,
- *  represented by the most recent entry's snapshot taken from caller
- *  context — but we don't have that here, so the most recent entry
- *  shows its previous values without a comparison "to" side).
- *
- *  This is a deliberately simple diff — it lists every field whose
- *  value differs between this entry and the next newer one. Better
- *  than nothing, far less work than a real diff component. */
 function HistoryEntryItem({
   entry,
   next,
@@ -163,40 +120,10 @@ function HistoryEntryItem({
   const when = formatTimestamp(entry.changedAt);
   const isDelete = entry.operation === "DELETE";
 
-  // Compare this entry's previous_state to the *next newer* entry's
-  // previous_state — the values diverged exactly during this change.
-  // Without a "newer" reference (this is the most recent entry), we
-  // just enumerate all the fields in the snapshot.
-  const changedFields: Array<{
-    key: string;
-    label: string;
-    from: unknown;
-    to: unknown;
-  }> = [];
-
-  if (next === null) {
-    // Most recent entry — we don't have a "to" side without the live
-    // row. Show the previous values for editable fields only.
-    for (const [key, value] of Object.entries(entry.previousState)) {
-      if (HIDDEN_KEYS.has(key)) continue;
-      const label = FIELD_LABELS[key];
-      if (!label) continue;
-      changedFields.push({ key, label, from: value, to: undefined });
-    }
-  } else {
-    for (const key of Object.keys(FIELD_LABELS)) {
-      const before = entry.previousState[key];
-      const after = next.previousState[key];
-      if (!isEqual(before, after)) {
-        changedFields.push({
-          key,
-          label: FIELD_LABELS[key]!,
-          from: before,
-          to: after,
-        });
-      }
-    }
-  }
+  const changedFields: FieldChange[] = computeFieldDiff(
+    entry.previousState,
+    next?.previousState ?? null,
+  );
 
   return (
     <li className="rounded-md border border-edge bg-surface p-3 space-y-2">
@@ -247,33 +174,4 @@ function HistoryEntryItem({
       )}
     </li>
   );
-}
-
-function formatTimestamp(iso: string): string {
-  try {
-    return new Intl.DateTimeFormat(undefined, {
-      year: "numeric",
-      month: "short",
-      day: "numeric",
-      hour: "numeric",
-      minute: "2-digit",
-    }).format(new Date(iso));
-  } catch {
-    return iso;
-  }
-}
-
-function formatValue(value: unknown): string {
-  if (value === null || value === undefined || value === "") return "—";
-  if (typeof value === "boolean") return value ? "yes" : "no";
-  if (typeof value === "number") return String(value);
-  if (typeof value === "string") return value;
-  return JSON.stringify(value);
-}
-
-function isEqual(a: unknown, b: unknown): boolean {
-  if (a === b) return true;
-  if (a === null || b === null) return a === b;
-  if (typeof a !== typeof b) return false;
-  return JSON.stringify(a) === JSON.stringify(b);
 }

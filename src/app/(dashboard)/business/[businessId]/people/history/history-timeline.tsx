@@ -9,42 +9,12 @@ import {
   getBusinessPeopleHistoryAction,
   type BusinessPersonHistoryEntry,
 } from "../../../people-actions";
-
-const FIELD_LABELS: Record<string, string> = {
-  legal_name: "Legal name",
-  preferred_name: "Preferred name",
-  work_email: "Work email",
-  work_phone: "Work phone",
-  employment_type: "Employment type",
-  title: "Title",
-  department: "Department",
-  employee_number: "Employee number",
-  started_on: "Started",
-  ended_on: "Ended",
-  compensation_type: "Compensation type",
-  compensation_amount_cents: "Compensation amount (cents)",
-  compensation_currency: "Compensation currency",
-  compensation_schedule: "Compensation schedule",
-  address_line1: "Address line 1",
-  address_line2: "Address line 2",
-  city: "City",
-  state: "State",
-  postal_code: "Postal code",
-  country: "Country",
-  reports_to_person_id: "Reports to",
-  notes: "Notes",
-  user_id: "Linked Shyre user",
-  deleted_at: "Deleted at",
-};
-
-const HIDDEN_KEYS = new Set([
-  "id",
-  "business_id",
-  "created_at",
-  "updated_at",
-  "created_by_user_id",
-  "updated_by_user_id",
-]);
+import {
+  computeFieldDiff,
+  formatValue,
+  formatTimestamp,
+  type FieldChange,
+} from "./history-format";
 
 const PAGE_SIZE = 200;
 
@@ -70,49 +40,17 @@ export function HistoryTimeline({
   const [error, setError] = useState<string | null>(null);
 
   // Diff each entry against the *next-newer* entry for the same
-  // person (since changes can arrive out of order across people).
-  // Group history by personId so we can find each entry's
-  // chronological neighbor.
+  // person (changes can arrive interleaved across people). Walking
+  // in reverse order (oldest → newest) lets us track each person's
+  // most-recent-seen-so-far and feed that as the "to" snapshot.
   const newerByPerson = new Map<string, BusinessPersonHistoryEntry>();
-  const diffs = new Map<
-    string,
-    Array<{ key: string; label: string; from: unknown; to: unknown | undefined }>
-  >();
-  // Walk in reverse order (oldest → newest) so for each entry we
-  // know what came *before* it, and use that to compute "to" =
-  // newer entry's previous_state.
-  const orderedOldFirst = [...entries].reverse();
-  for (const entry of orderedOldFirst) {
-    const newer = newerByPerson.get(entry.personId);
-    const fields: Array<{
-      key: string;
-      label: string;
-      from: unknown;
-      to: unknown | undefined;
-    }> = [];
-    if (newer === undefined) {
-      // Most-recent for this person — show the previous values.
-      for (const [key, value] of Object.entries(entry.previousState)) {
-        if (HIDDEN_KEYS.has(key)) continue;
-        const label = FIELD_LABELS[key];
-        if (!label) continue;
-        fields.push({ key, label, from: value, to: undefined });
-      }
-    } else {
-      for (const key of Object.keys(FIELD_LABELS)) {
-        const before = entry.previousState[key];
-        const after = newer.previousState[key];
-        if (!isEqual(before, after)) {
-          fields.push({
-            key,
-            label: FIELD_LABELS[key]!,
-            from: before,
-            to: after,
-          });
-        }
-      }
-    }
-    diffs.set(entry.id, fields);
+  const diffs = new Map<string, FieldChange[]>();
+  for (const entry of [...entries].reverse()) {
+    const newer = newerByPerson.get(entry.personId) ?? null;
+    diffs.set(
+      entry.id,
+      computeFieldDiff(entry.previousState, newer?.previousState ?? null),
+    );
     newerByPerson.set(entry.personId, entry);
   }
 
@@ -173,12 +111,7 @@ function HistoryRow({
   changedFields,
 }: {
   entry: BusinessPersonHistoryEntry;
-  changedFields: Array<{
-    key: string;
-    label: string;
-    from: unknown;
-    to: unknown | undefined;
-  }>;
+  changedFields: FieldChange[];
 }): React.JSX.Element {
   const t = useTranslations("business.people.history");
   const actor =
@@ -240,31 +173,3 @@ function HistoryRow({
   );
 }
 
-function formatTimestamp(iso: string): string {
-  try {
-    return new Intl.DateTimeFormat(undefined, {
-      year: "numeric",
-      month: "short",
-      day: "numeric",
-      hour: "numeric",
-      minute: "2-digit",
-    }).format(new Date(iso));
-  } catch {
-    return iso;
-  }
-}
-
-function formatValue(value: unknown): string {
-  if (value === null || value === undefined || value === "") return "—";
-  if (typeof value === "boolean") return value ? "yes" : "no";
-  if (typeof value === "number") return String(value);
-  if (typeof value === "string") return value;
-  return JSON.stringify(value);
-}
-
-function isEqual(a: unknown, b: unknown): boolean {
-  if (a === b) return true;
-  if (a === null || b === null) return a === b;
-  if (typeof a !== typeof b) return false;
-  return JSON.stringify(a) === JSON.stringify(b);
-}
