@@ -144,9 +144,45 @@ All colors use semantic CSS custom properties defined in `globals.css` with 3 th
 
 ### User-facing text size preference
 
-- Three levels: Compact (14px root) / Regular (16px, default) / Large (18px). Applied via `data-text-size` on `<html>` + a root `font-size`. Every rem in the app scales uniformly.
+- Three levels: Compact (14px root) / Regular (16px, default) / Large (18px). Applied via `data-text-size` on `<html>` + a root `font-size`. Every rem scales with the root.
 - Persisted in `user_settings.text_size` and mirrored to localStorage (`stint-text-size`) for anti-flash.
 - `useTextSize()` from `@/components/text-size-provider` is the client API. `<TextSizeSync />` syncs DB → provider on login. Pattern mirrors theme handling.
+
+### Layout dimensions in px, type in rem — MANDATORY
+
+The `<html>` font-size override above means every `rem`-based dimension scales with the user's text-size preference. That's exactly what we want for **type** — and exactly what we don't want for **layout**. Without this rule, sidebars widen, gutters shift, and the whole composition slides horizontally when a viewer toggles to Large. Liv hit the same leak; the rule lives in `theshyre-core/CLAUDE.md` as the source of truth and is enforced per-app here.
+
+**The split:**
+
+- **Layout dimensions → `px`.** Sidebar widths, top-bar heights, page max-widths, structural gutters between independent regions (sidebar↔main, card grids, totals columns), popover/dropdown widths, scroll-container `max-h-*`, fixed table column widths. Use Tailwind arbitrary values: `w-[256px]`, `max-w-[1280px]`, `px-[32px]`, `gap-[24px]`, `max-h-[240px]`.
+- **Type and text-adjacent padding → `rem`.** Every `text-*` from the typography scale, line-heights, button internal padding, table cell padding, nav row internal padding, paragraph reading-measure (`max-w-3xl` on a `<p>`), truncation widths on text (`truncate max-w-xs`). Touch targets growing with type is an a11y win — keep it.
+
+**Examples specific to Shyre:**
+
+- Time-entry rows: cell padding (`px-3 py-2`) stays rem so the click target grows with type. The grid's `<colgroup>` widths (`w-[72px]` per day column) are px so the day grid doesn't drift.
+- Invoice line items: the value↔unit gap inside a totals column stays rem; the gap *between* the totals column and the line-items column is structural → `gap-[32px]`.
+- Customer / project list cards: card outer width / max-width is px; padding inside the card is rem.
+- Popovers (TeamFilter, MemberFilter, ThemePickerPopover, EntryKebabMenu): `w-[*px]` on the panel; internal row `px-3 py-2` stays rem.
+
+**Common conversions** (Tailwind defaults at 16px root — straight px equivalents):
+
+| rem class | px equivalent |
+|---|---|
+| `w-48` | `w-[192px]` |
+| `w-64` | `w-[256px]` |
+| `w-80` | `w-[320px]` |
+| `max-w-sm` | `max-w-[384px]` |
+| `max-w-md` | `max-w-[448px]` |
+| `max-w-lg` | `max-w-[512px]` |
+| `max-w-2xl` | `max-w-[672px]` |
+| `max-w-7xl` | `max-w-[1280px]` |
+| `max-h-48` / `max-h-60` | `max-h-[192px]` / `max-h-[240px]` |
+| `gap-4` / `px-4` (only when structural) | `gap-[16px]` / `px-[16px]` |
+| `gap-8` / `px-8` | `gap-[32px]` / `px-[32px]` |
+
+**Don't** change `@theshyre/design-tokens` to remove the `<html>` override — that's how type still scales, and modal/tooltip/dropdown content rendered via portals depends on it. The fix is per-app: pin structural dimensions to px and let type-adjacent padding ride the rem scale.
+
+**Form-field grids** (`grid-cols-2 gap-4` between First/Last name in a fixed-width form column) are a judgment call. Liv left those as rem — the swing is ~4px and the grid sits inside an already-fixed parent — and Shyre follows that line. Don't churn on these.
 
 ## Form & button rules — MANDATORY
 

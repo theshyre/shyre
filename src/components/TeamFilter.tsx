@@ -83,7 +83,7 @@ export function TeamFilter({
       </button>
 
       {open && (
-        <div className="absolute left-0 top-full z-30 mt-1 w-48 rounded-lg border border-edge bg-surface-raised shadow-lg overflow-hidden">
+        <div className="absolute left-0 top-full z-30 mt-1 w-[192px] rounded-lg border border-edge bg-surface-raised shadow-lg overflow-hidden">
           <button
             onClick={() => selectTeam(null)}
             className={`flex items-center gap-2 w-full px-3 py-2 text-sm text-left transition-colors ${

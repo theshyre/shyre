@@ -138,7 +138,7 @@ export function RunningTimerCard({
   return (
     <form
       action={startForm.handleSubmit}
-      className="space-y-4 rounded-lg border border-accent bg-surface-raised p-4 max-w-2xl"
+      className="space-y-4 rounded-lg border border-accent bg-surface-raised p-4 max-w-[672px]"
     >
       <div className="flex items-center justify-between">
         <span className="text-label font-semibold uppercase tracking-wider text-content-muted">

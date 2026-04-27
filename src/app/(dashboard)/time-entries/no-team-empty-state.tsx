@@ -18,7 +18,7 @@ export async function NoTeamEmptyState(): Promise<React.JSX.Element> {
         <h1 className="text-page-title font-bold text-content">{t("title")}</h1>
       </div>
 
-      <div className="rounded-lg border border-edge bg-surface-raised p-8 text-center max-w-xl mx-auto">
+      <div className="rounded-lg border border-edge bg-surface-raised p-8 text-center max-w-[576px] mx-auto">
         <div className="inline-flex h-12 w-12 items-center justify-center rounded-full bg-accent-soft text-accent-text mb-4">
           <Users size={24} />
         </div>

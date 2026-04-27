@@ -72,7 +72,7 @@ export default async function DashboardLayout({
         />
         <main className="flex-1 overflow-y-auto">
           <RunningTimerHeaderPill />
-          <div className="mx-auto max-w-7xl px-8 py-8">{children}</div>
+          <div className="mx-auto max-w-[1280px] px-[32px] py-8">{children}</div>
         </main>
         <GlobalKeyboardHelp />
         <GlobalCommandPalette isSystemAdmin={admin} />

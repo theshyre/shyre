@@ -735,7 +735,7 @@ function DoneStep({
             <AlertTriangle size={12} />
             Errors ({result.errors.length})
           </div>
-          <ul className="text-caption text-content-secondary space-y-0.5 max-h-48 overflow-auto">
+          <ul className="text-caption text-content-secondary space-y-0.5 max-h-[192px] overflow-auto">
             {result.errors.map((msg, idx) => (
               <li key={idx} className="break-words">
                 {msg}

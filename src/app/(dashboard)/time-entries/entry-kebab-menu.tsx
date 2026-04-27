@@ -139,7 +139,7 @@ export function EntryKebabMenu({ entry, onEdit }: Props): React.JSX.Element {
   const panel = open && panelPos && (
     <div
       ref={panelRef}
-      className="fixed z-50 w-40 rounded-lg border border-edge bg-surface-raised shadow-lg overflow-hidden"
+      className="fixed z-50 w-[160px] rounded-lg border border-edge bg-surface-raised shadow-lg overflow-hidden"
       style={
         panelPos.kind === "below"
           ? { top: panelPos.top, right: panelPos.right }

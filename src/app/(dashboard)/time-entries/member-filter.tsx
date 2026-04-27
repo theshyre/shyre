@@ -157,7 +157,7 @@ export function MemberFilter({
       </button>
 
       {open && (
-        <div className="absolute left-0 top-full z-30 mt-1 w-64 rounded-lg border border-edge bg-surface-raised shadow-lg overflow-hidden">
+        <div className="absolute left-0 top-full z-30 mt-1 w-[256px] rounded-lg border border-edge bg-surface-raised shadow-lg overflow-hidden">
           <button
             type="button"
             onClick={() => {
@@ -194,7 +194,7 @@ export function MemberFilter({
             {hasAll && <Check size={14} />}
           </button>
 
-          <div className="max-h-60 overflow-y-auto">
+          <div className="max-h-[240px] overflow-y-auto">
             {members.map((m) => {
               const checked = isChecked(m.user_id);
               return (

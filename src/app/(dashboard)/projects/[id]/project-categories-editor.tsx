@@ -380,7 +380,7 @@ function ColorSwatchPicker({
         style={{ backgroundColor: value }}
       />
       {open && (
-        <div className="absolute z-10 mt-1 flex flex-wrap gap-1 rounded-md border border-edge bg-surface-raised p-2 w-48 shadow-lg">
+        <div className="absolute z-10 mt-1 flex flex-wrap gap-1 rounded-md border border-edge bg-surface-raised p-2 w-[192px] shadow-lg">
           {PALETTE.map((c) => (
             <button
               key={c}

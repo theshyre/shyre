@@ -98,7 +98,7 @@ export default function Sidebar({
   const version = process.env.NEXT_PUBLIC_APP_VERSION;
 
   return (
-    <aside className="flex h-full w-64 flex-col border-r border-edge bg-surface-raised">
+    <aside className="flex h-full w-[256px] flex-col border-r border-edge bg-surface-raised">
       {/* Platform brand */}
       <div className="px-4 py-3 border-b border-edge">
         <p className="text-body-lg font-bold text-content tracking-wide">

@@ -144,6 +144,16 @@ Tables with row selection + bulk actions follow one pattern:
 - Compact / Regular / Large applied via `data-text-size` on `<html>` + root font-size. Persisted in `user_settings.text_size`, mirrored to localStorage for anti-flash. Source of truth in `@/components/text-size-provider`.
 - Themes: `system`, `light`, `dark`, `high-contrast`, `warm`. Warm palette matches Liv.
 
+## Layout dimensions in px, type in rem (MANDATORY)
+
+The `<html>` font-size override above scales every `rem` with the text-size preference. Good for type, bad for layout — without this rule sidebars widen and gutters shift when a viewer toggles to Large. Source of truth: `theshyre-core/CLAUDE.md`; enforced per-app.
+
+- **Layout → px (Tailwind arbitrary values).** Sidebar widths, page max-widths, structural gutters between independent regions, popover/dropdown widths, scroll-container `max-h-*`, fixed table column widths. Use `w-[256px]`, `max-w-[1280px]`, `px-[32px]`, `gap-[24px]`, `max-h-[240px]`.
+- **Type and text-adjacent padding → rem.** All `text-*` scale, line-heights, button/cell/nav row internal padding, paragraph reading-measure (`max-w-3xl` on a `<p>`), truncation widths on text. Touch targets growing with type is an a11y win.
+- **Don't** modify `@theshyre/design-tokens` to remove the `<html>` override — type and portal content (tooltips/modals/dropdowns) depend on it.
+- Form-field grids (`grid-cols-2 gap-4` for First/Last in a fixed-width column) stay rem — swing is ~4px and the grid lives inside an already-fixed parent.
+- Common conversions (16px root): `w-48 → w-[192px]`, `w-64 → w-[256px]`, `max-w-sm → max-w-[384px]`, `max-w-md → max-w-[448px]`, `max-w-2xl → max-w-[672px]`, `max-w-7xl → max-w-[1280px]`, `max-h-48 → max-h-[192px]`, `max-h-60 → max-h-[240px]`, `gap-8/px-8 → gap-[32px]/px-[32px]`.
+
 ## Redundant visual encoding (MANDATORY)
 
 Every meaningful UI element uses 2+ of: icon, text, color.

@@ -138,7 +138,7 @@ export function InlineErrorCard({
           ) : null}
 
           {hasDetail && expanded ? (
-            <pre className="text-caption text-content-secondary font-mono bg-surface-inset rounded-md p-2 max-h-60 overflow-auto whitespace-pre-wrap break-all">
+            <pre className="text-caption text-content-secondary font-mono bg-surface-inset rounded-md p-2 max-h-[240px] overflow-auto whitespace-pre-wrap break-all">
               {detail}
             </pre>
           ) : null}

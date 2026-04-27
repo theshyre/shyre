@@ -89,7 +89,7 @@ export function ThemePickerPopover(): React.JSX.Element {
         <div
           role="menu"
           aria-label={t("title")}
-          className="absolute bottom-full left-0 z-40 mb-1 w-44 rounded-lg border border-edge bg-surface-raised shadow-lg overflow-hidden"
+          className="absolute bottom-full left-0 z-40 mb-1 w-[176px] rounded-lg border border-edge bg-surface-raised shadow-lg overflow-hidden"
         >
           {OPTIONS.map((opt) => {
             const Icon = opt.icon;

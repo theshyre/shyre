@@ -169,7 +169,7 @@ export default async function InvoiceDetailPage({
 
         {/* Totals */}
         <div className="border-t border-edge bg-surface-inset px-4 py-3">
-          <div className="flex justify-end gap-8">
+          <div className="flex justify-end gap-[32px]">
             <div className="text-right space-y-1">
               <p className="text-sm text-content-muted">
                 {t("fields.subtotal")}

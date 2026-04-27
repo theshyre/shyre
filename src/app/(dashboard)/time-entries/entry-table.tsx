@@ -169,7 +169,7 @@ export function EntryTable({
                 className="h-4 w-4 rounded border-edge text-accent focus:ring-focus-ring"
               />
             </th>
-            <th className="w-48 py-2 pr-3 text-left text-label font-semibold uppercase tracking-wider text-content-muted">
+            <th className="w-[192px] py-2 pr-3 text-left text-label font-semibold uppercase tracking-wider text-content-muted">
               {t("tableHeaders.category")}
             </th>
             <th className="px-3 py-2 text-left text-label font-semibold uppercase tracking-wider text-content-muted">
@@ -177,13 +177,13 @@ export function EntryTable({
                   its cell content is truncated, not wrapped. */}
               {t("tableHeaders.projectDescription")}
             </th>
-            <th className="w-40 px-3 py-2 text-left text-label font-semibold uppercase tracking-wider text-content-muted">
+            <th className="w-[160px] px-3 py-2 text-left text-label font-semibold uppercase tracking-wider text-content-muted">
               {t("tableHeaders.member")}
             </th>
-            <th className="w-24 px-3 py-2 text-right text-label font-semibold uppercase tracking-wider text-content-muted">
+            <th className="w-[96px] px-3 py-2 text-right text-label font-semibold uppercase tracking-wider text-content-muted">
               {t("tableHeaders.time")}
             </th>
-            <th className="w-24 px-3 py-2 text-right text-label font-semibold uppercase tracking-wider text-content-muted">
+            <th className="w-[96px] px-3 py-2 text-right text-label font-semibold uppercase tracking-wider text-content-muted">
               {t("tableHeaders.duration")}
             </th>
             <th className="w-20 px-2 py-2 text-center text-label font-semibold uppercase tracking-wider text-content-muted">

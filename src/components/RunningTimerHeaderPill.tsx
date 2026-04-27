@@ -56,7 +56,7 @@ export function RunningTimerHeaderPill(): React.JSX.Element | null {
 
   return (
     <div className="sticky top-0 z-20 border-b border-success/30 bg-success-soft">
-      <div className="mx-auto max-w-7xl flex items-center gap-3 px-8 py-2">
+      <div className="mx-auto max-w-[1280px] flex items-center gap-3 px-[32px] py-2">
         <span className="h-2 w-2 rounded-full bg-success animate-pulse shrink-0" />
         <span className="text-label font-semibold uppercase tracking-wider text-success shrink-0">
           {t("running")}

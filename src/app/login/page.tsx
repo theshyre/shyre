@@ -45,7 +45,7 @@ export default function LoginPage(): React.JSX.Element {
 
   return (
     <div className="flex min-h-full items-center justify-center px-4">
-      <div className="w-full max-w-sm space-y-8">
+      <div className="w-full max-w-[384px] space-y-8">
         <div className="text-center">
           <h1 className="text-3xl font-bold tracking-tight text-content">
             {tc("appName")}

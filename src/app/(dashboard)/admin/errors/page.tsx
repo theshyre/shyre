@@ -192,7 +192,7 @@ export default async function ErrorDashboardPage({
                   {err.stack_trace && (
                     <div>
                       <p className="text-xs text-content-muted mb-1">Stack Trace:</p>
-                      <pre className="text-xs text-content-muted font-mono bg-surface rounded-lg p-2 overflow-x-auto max-h-48">
+                      <pre className="text-xs text-content-muted font-mono bg-surface rounded-lg p-2 overflow-x-auto max-h-[192px]">
                         {err.stack_trace}
                       </pre>
                     </div>

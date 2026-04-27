@@ -160,7 +160,7 @@ export function GitHubIssuePicker({
           </div>
 
           {/* Results */}
-          <div className="max-h-60 overflow-y-auto">
+          <div className="max-h-[240px] overflow-y-auto">
             {loading && (
               <div className="flex items-center gap-2 px-3 py-4 text-sm text-content-muted">
                 <Spinner size="h-3.5 w-3.5" />
