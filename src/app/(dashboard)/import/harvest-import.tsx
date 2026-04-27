@@ -12,6 +12,7 @@ import {
   Clock,
   AlertTriangle,
   UserCog,
+  FileText,
 } from "lucide-react";
 import { Spinner } from "@theshyre/ui";
 import {
@@ -47,6 +48,8 @@ interface PreviewData {
   customers: number;
   projects: number;
   timeEntries: number;
+  invoices: number;
+  invoiceLineItems: number;
   categoryCount: number;
   customerNames: string[];
   projectNames: string[];
@@ -81,6 +84,8 @@ interface ImportResult {
   imported: {
     customers: number;
     projects: number;
+    invoices: number;
+    invoiceLineItems: number;
     timeEntries: number;
   };
   skipped: {
@@ -496,7 +501,11 @@ function PreviewStep({
   onBack: () => void;
 }): React.JSX.Element {
   const totalRows =
-    preview.customers + preview.projects + preview.timeEntries;
+    preview.customers +
+    preview.projects +
+    preview.timeEntries +
+    preview.invoices +
+    preview.invoiceLineItems;
 
   return (
     <div className="space-y-5">
@@ -511,7 +520,7 @@ function PreviewStep({
         </p>
       )}
 
-      <div className="grid gap-3 sm:grid-cols-4">
+      <div className="grid gap-3 sm:grid-cols-3 lg:grid-cols-5">
         <PreviewCard
           icon={Users}
           label="Customers"
@@ -528,6 +537,12 @@ function PreviewStep({
           icon={Clock}
           label="Time entries"
           count={preview.timeEntries}
+          names={[]}
+        />
+        <PreviewCard
+          icon={FileText}
+          label="Invoices"
+          count={preview.invoices}
           names={[]}
         />
         <PreviewCard
@@ -692,7 +707,7 @@ function DoneStep({
 
       {recon && <ReconciliationSection recon={recon} />}
 
-      <div className="grid gap-3 sm:grid-cols-3">
+      <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
         <ResultCard
           icon={Users}
           label="Customers"
@@ -707,6 +722,11 @@ function DoneStep({
           icon={Clock}
           label="Time entries"
           count={result.imported.timeEntries}
+        />
+        <ResultCard
+          icon={FileText}
+          label={`Invoices (${result.imported.invoiceLineItems} line items)`}
+          count={result.imported.invoices}
         />
       </div>
 

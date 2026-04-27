@@ -57,6 +57,10 @@ export interface HarvestTimeEntry {
   client: { id: number; name: string };
   task: { id: number; name: string };
   user: { id: number; name: string };
+  /** Set when this entry has been invoiced in Harvest. The importer
+   *  uses this to backfill time_entries.invoice_id + invoiced=true so
+   *  Shyre's "billable but not yet invoiced" filter stays accurate. */
+  invoice: { id: number; number: string } | null;
   created_at: string;
   updated_at: string;
 }
@@ -76,6 +80,53 @@ export interface HarvestCompany {
    * `ended_time` on time entries should be interpreted. */
   time_zone: string;
   week_start_day: string;
+}
+
+/** A line on a Harvest invoice. Harvest's API returns these inline on
+ *  the invoice payload (no separate /v2/invoice_line_items endpoint). */
+export interface HarvestInvoiceLineItem {
+  id: number;
+  /** Free-text "kind" label set in Harvest (e.g. "Service", "Product").
+   *  Stored as part of the description if non-default. */
+  kind: string | null;
+  description: string | null;
+  quantity: number;
+  unit_price: number;
+  amount: number;
+  taxed: boolean;
+  taxed2: boolean;
+  /** Harvest sets this when the line was generated from time entries
+   *  on a particular project. We don't currently store the link
+   *  explicitly — time entries link back via their own `invoice` field. */
+  project: { id: number; name: string } | null;
+}
+
+/** A Harvest invoice. State values seen in the wild: 'draft', 'open',
+ *  'paid', 'closed'. Harvest also has 'written-off' but it's rare. */
+export interface HarvestInvoice {
+  id: number;
+  /** Harvest's invoice number (string, may include letters/dashes). */
+  number: string;
+  client: { id: number; name: string };
+  amount: number;
+  due_amount: number;
+  currency: string;
+  state: string;
+  issue_date: string | null;
+  due_date: string | null;
+  sent_at: string | null;
+  paid_at: string | null;
+  paid_date: string | null;
+  notes: string | null;
+  subject: string | null;
+  /** Tax percentage on the invoice (e.g. 8.25 for 8.25%). */
+  tax: number | null;
+  tax_amount: number;
+  tax2: number | null;
+  tax2_amount: number;
+  line_items: HarvestInvoiceLineItem[];
+  created_at: string;
+  updated_at: string;
 }
 
 /** How long to sleep on a 429 before retrying, in ms. Exponential
@@ -303,6 +354,25 @@ export async function fetchHarvestUsers(
   opts: HarvestRequestOptions,
 ): Promise<HarvestUser[]> {
   return fetchAllPages<HarvestUser>("/users", "users", opts);
+}
+
+export async function fetchHarvestInvoices(
+  opts: HarvestRequestOptions,
+  params?: { from?: string; to?: string },
+): Promise<HarvestInvoice[]> {
+  // /v2/invoices supports `from` and `to` against issue_date. We pass
+  // them through the same way time-entry filtering does so a single
+  // query string gets built (avoiding the double-`?` bug fixed in
+  // fetchAllPages for time entries).
+  const extraParams: Record<string, string> = {};
+  if (params?.from) extraParams.from = params.from;
+  if (params?.to) extraParams.to = params.to;
+  return fetchAllPages<HarvestInvoice>(
+    "/invoices",
+    "invoices",
+    opts,
+    extraParams,
+  );
 }
 
 /**

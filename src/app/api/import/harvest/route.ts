@@ -7,6 +7,7 @@ import {
   fetchHarvestProjects,
   fetchHarvestTimeEntries,
   fetchHarvestUsers,
+  fetchHarvestInvoices,
   HarvestApiError,
 } from "@/lib/harvest";
 import {
@@ -14,6 +15,8 @@ import {
   buildProjectRow,
   buildReconciliation,
   buildTimeEntryRow,
+  buildInvoiceRow,
+  buildInvoiceLineItemRow,
   collectUniqueHarvestUsers,
   collectUniqueTaskNames,
   normalizeDateRange,
@@ -144,13 +147,14 @@ export async function POST(request: Request): Promise<NextResponse> {
   if (action === "preview") {
     try {
       const dateRange = normalizeDateRange(body.from, body.to);
-      const [company, customers, projects, timeEntries, harvestUsers] =
+      const [company, customers, projects, timeEntries, harvestUsers, invoices] =
         await Promise.all([
           validateHarvestCredentials(opts),
           fetchHarvestClients(opts),
           fetchHarvestProjects(opts),
           fetchHarvestTimeEntries(opts, dateRange),
           fetchHarvestUsers(opts),
+          fetchHarvestInvoices(opts, dateRange),
         ]);
 
       if (!company.valid) {
@@ -172,12 +176,19 @@ export async function POST(request: Request): Promise<NextResponse> {
       );
       const uniqueUsers = collectUniqueHarvestUsers(timeEntries);
 
+      const invoiceLineItemCount = invoices.reduce(
+        (sum, inv) => sum + (inv.line_items?.length ?? 0),
+        0,
+      );
+
       return NextResponse.json({
         companyName: company.companyName ?? "",
         timeZone: company.timeZone ?? "UTC",
         customers: customers.length,
         projects: projects.length,
         timeEntries: timeEntries.length,
+        invoices: invoices.length,
+        invoiceLineItems: invoiceLineItemCount,
         categoryCount: collectUniqueTaskNames(timeEntries).length,
         customerNames: customers.slice(0, 10).map((c) => c.name),
         projectNames: projects.slice(0, 10).map((p) => p.name),
@@ -244,17 +255,23 @@ export async function POST(request: Request): Promise<NextResponse> {
 
     try {
       const dateRange = normalizeDateRange(body.from, body.to);
-      const [harvestClients, harvestProjects, harvestTimeEntries] =
-        await Promise.all([
-          fetchHarvestClients(opts),
-          fetchHarvestProjects(opts),
-          fetchHarvestTimeEntries(opts, dateRange),
-        ]);
+      const [
+        harvestClients,
+        harvestProjects,
+        harvestTimeEntries,
+        harvestInvoices,
+      ] = await Promise.all([
+        fetchHarvestClients(opts),
+        fetchHarvestProjects(opts),
+        fetchHarvestTimeEntries(opts, dateRange),
+        fetchHarvestInvoices(opts, dateRange),
+      ]);
 
       const errors: string[] = [];
       const customerMap = new Map<number, string>(); // Harvest id → Shyre id
       const projectMap = new Map<number, string>();
       const projectRateById = new Map<number, number | null>();
+      const invoiceMap = new Map<number, string>(); // Harvest invoice id → Shyre invoice id
 
       // Helper: record a per-row failure both in the response (so the
       // UI's "Errors" list shows it) AND in error_logs (so /admin/errors
@@ -458,6 +475,73 @@ export async function POST(request: Request): Promise<NextResponse> {
         }
       }
 
+      // Invoices -----------------------------------------------------
+      // Run before time entries so the invoiceMap is populated and
+      // each entry's `invoice` field can be backfilled on insert
+      // (sets time_entries.invoice_id + invoiced=true). Invoices
+      // dedupe by (team_id, imported_from='harvest', import_source_id)
+      // via the partial unique index from the migration.
+      const existingInvoicesBySourceId = new Map<string, string>();
+      {
+        const { data: rows } = await supabase
+          .from("invoices")
+          .select("id, import_source_id")
+          .eq("team_id", organizationId)
+          .eq("imported_from", "harvest");
+        for (const row of rows ?? []) {
+          const src = row.import_source_id as string | null;
+          if (src) existingInvoicesBySourceId.set(src, row.id as string);
+        }
+      }
+
+      let invoicesImported = 0;
+      let invoiceLineItemsImported = 0;
+      for (const hi of harvestInvoices) {
+        const bySource = existingInvoicesBySourceId.get(String(hi.id));
+        if (bySource) {
+          invoiceMap.set(hi.id, bySource);
+          continue;
+        }
+
+        const customerId = customerMap.get(hi.client.id) ?? null;
+        const row = buildInvoiceRow(hi, customerId, ctx);
+        const { data: inserted, error } = await supabase
+          .from("invoices")
+          .insert(row)
+          .select("id")
+          .single();
+
+        if (error) {
+          recordError(`Invoice "${hi.number}": ${error.message}`, error);
+          continue;
+        }
+        if (!inserted) continue;
+
+        const shyreInvoiceId = inserted.id as string;
+        invoiceMap.set(hi.id, shyreInvoiceId);
+        invoicesImported++;
+
+        // Line items piggyback on the parent insert. We stamp them all
+        // in one batch per invoice — typical invoice has < 20 lines,
+        // so chunking would be over-engineering.
+        const lineItemRows = (hi.line_items ?? []).map((li) =>
+          buildInvoiceLineItemRow(li, shyreInvoiceId),
+        );
+        if (lineItemRows.length > 0) {
+          const { error: liError } = await supabase
+            .from("invoice_line_items")
+            .insert(lineItemRows);
+          if (liError) {
+            recordError(
+              `Invoice "${hi.number}" line items: ${liError.message}`,
+              liError,
+            );
+            continue;
+          }
+          invoiceLineItemsImported += lineItemRows.length;
+        }
+      }
+
       // Time entries -------------------------------------------------
       let timeEntriesImported = 0;
       let timeEntriesSkipped = 0;
@@ -480,6 +564,7 @@ export async function POST(request: Request): Promise<NextResponse> {
           categoryIdByTaskName,
           ctx,
           timeZone,
+          invoiceMap,
         });
 
         if ("skipped" in built) {
@@ -533,6 +618,8 @@ export async function POST(request: Request): Promise<NextResponse> {
         imported: {
           customers: customersImported,
           projects: projectsImported,
+          invoices: invoicesImported,
+          invoiceLineItems: invoiceLineItemsImported,
           timeEntries: timeEntriesImported,
         },
         skipped: {

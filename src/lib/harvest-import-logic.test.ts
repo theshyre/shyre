@@ -13,6 +13,9 @@ import {
   buildTimeEntryRow,
   buildEntryDescription,
   buildReconciliation,
+  buildInvoiceRow,
+  buildInvoiceLineItemRow,
+  mapHarvestInvoiceState,
   type ImportContext,
   type UserMapChoice,
 } from "./harvest-import-logic";
@@ -21,6 +24,8 @@ import type {
   HarvestProject,
   HarvestTimeEntry,
   HarvestUser,
+  HarvestInvoice,
+  HarvestInvoiceLineItem,
 } from "./harvest";
 
 // ────────────────────────────────────────────────────────────────
@@ -514,6 +519,7 @@ const baseEntry: HarvestTimeEntry = {
   client: { id: 42, name: "Acme" },
   task: { id: 1, name: "Engineering" },
   user: { id: 1, name: "Alice" },
+  invoice: null,
   created_at: "2024-07-15",
   updated_at: "2024-07-15",
 };
@@ -743,5 +749,263 @@ describe("buildReconciliation", () => {
     expect(r.harvest).toEqual({ entries: 0, hours: 0 });
     expect(r.shyre).toEqual({ entries: 0, hours: 0 });
     expect(r.perCustomer).toEqual([]);
+  });
+});
+
+// ────────────────────────────────────────────────────────────────
+// mapHarvestInvoiceState
+// ────────────────────────────────────────────────────────────────
+
+describe("mapHarvestInvoiceState", () => {
+  it("maps paid → paid", () => {
+    expect(mapHarvestInvoiceState("paid")).toBe("paid");
+  });
+
+  it("maps draft → draft", () => {
+    expect(mapHarvestInvoiceState("draft")).toBe("draft");
+  });
+
+  it("maps closed and written-off → void (no money expected)", () => {
+    expect(mapHarvestInvoiceState("closed")).toBe("void");
+    expect(mapHarvestInvoiceState("written-off")).toBe("void");
+  });
+
+  it("maps open → sent (issued, awaiting payment)", () => {
+    expect(mapHarvestInvoiceState("open")).toBe("sent");
+  });
+
+  it("maps unknown / empty / missing states → sent (safe default)", () => {
+    expect(mapHarvestInvoiceState("partial")).toBe("sent");
+    expect(mapHarvestInvoiceState("")).toBe("sent");
+  });
+
+  it("is case-insensitive and trims whitespace", () => {
+    expect(mapHarvestInvoiceState("PAID")).toBe("paid");
+    expect(mapHarvestInvoiceState("  Closed  ")).toBe("void");
+  });
+});
+
+// ────────────────────────────────────────────────────────────────
+// buildInvoiceRow
+// ────────────────────────────────────────────────────────────────
+
+const baseInvoice: HarvestInvoice = {
+  id: 9001,
+  number: "INV-0042",
+  client: { id: 42, name: "Acme" },
+  amount: 1083, // 1000 subtotal + 83 tax
+  due_amount: 0,
+  currency: "USD",
+  state: "paid",
+  issue_date: "2024-07-01",
+  due_date: "2024-07-15",
+  sent_at: "2024-07-01T10:00:00Z",
+  paid_at: "2024-07-10T10:00:00Z",
+  paid_date: "2024-07-10",
+  notes: "Thanks for the work",
+  subject: "July retainer",
+  tax: 8.3,
+  tax_amount: 83,
+  tax2: null,
+  tax2_amount: 0,
+  line_items: [],
+  created_at: "2024-07-01",
+  updated_at: "2024-07-10",
+};
+
+describe("buildInvoiceRow", () => {
+  it("builds a complete row, computing subtotal as amount minus tax_amount", () => {
+    const row = buildInvoiceRow(baseInvoice, "cust-1", ctx);
+    expect(row.team_id).toBe("team-1");
+    expect(row.customer_id).toBe("cust-1");
+    expect(row.invoice_number).toBe("INV-0042");
+    expect(row.status).toBe("paid");
+    expect(row.issued_date).toBe("2024-07-01");
+    expect(row.due_date).toBe("2024-07-15");
+    expect(row.subtotal).toBe(1000);
+    expect(row.tax_amount).toBe(83);
+    expect(row.tax_rate).toBe(8.3);
+    expect(row.total).toBe(1083);
+    expect(row.import_source_id).toBe("9001");
+  });
+
+  it("collapses subject + notes into Shyre's single notes column", () => {
+    const row = buildInvoiceRow(baseInvoice, "cust-1", ctx);
+    expect(row.notes).toBe("July retainer\n\nThanks for the work");
+  });
+
+  it("uses subject alone when notes is missing", () => {
+    const row = buildInvoiceRow(
+      { ...baseInvoice, notes: null },
+      "cust-1",
+      ctx,
+    );
+    expect(row.notes).toBe("July retainer");
+  });
+
+  it("uses notes alone when subject is missing", () => {
+    const row = buildInvoiceRow(
+      { ...baseInvoice, subject: null },
+      "cust-1",
+      ctx,
+    );
+    expect(row.notes).toBe("Thanks for the work");
+  });
+
+  it("preserves null customer_id when no Shyre customer matched", () => {
+    const row = buildInvoiceRow(baseInvoice, null, ctx);
+    expect(row.customer_id).toBeNull();
+  });
+
+  it("treats missing tax fields as zero (subtotal == total)", () => {
+    const row = buildInvoiceRow(
+      { ...baseInvoice, tax: null, tax_amount: 0 },
+      "cust-1",
+      ctx,
+    );
+    expect(row.subtotal).toBe(1083);
+    expect(row.tax_amount).toBe(0);
+    expect(row.tax_rate).toBe(0);
+  });
+
+  it("maps non-paid states through the state mapper", () => {
+    expect(buildInvoiceRow({ ...baseInvoice, state: "open" }, null, ctx).status).toBe("sent");
+    expect(buildInvoiceRow({ ...baseInvoice, state: "draft" }, null, ctx).status).toBe("draft");
+    expect(buildInvoiceRow({ ...baseInvoice, state: "closed" }, null, ctx).status).toBe("void");
+  });
+});
+
+// ────────────────────────────────────────────────────────────────
+// buildInvoiceLineItemRow
+// ────────────────────────────────────────────────────────────────
+
+const baseLineItem: HarvestInvoiceLineItem = {
+  id: 5001,
+  kind: "Service",
+  description: "Engineering work",
+  quantity: 10,
+  unit_price: 150,
+  amount: 1500,
+  taxed: false,
+  taxed2: false,
+  project: { id: 7, name: "Platform" },
+};
+
+describe("buildInvoiceLineItemRow", () => {
+  it("builds a complete line item row", () => {
+    const row = buildInvoiceLineItemRow(baseLineItem, "inv-1");
+    expect(row.invoice_id).toBe("inv-1");
+    expect(row.description).toBe("Engineering work");
+    expect(row.quantity).toBe(10);
+    expect(row.unit_price).toBe(150);
+    expect(row.amount).toBe(1500);
+  });
+
+  it("falls back to kind when description is missing", () => {
+    const row = buildInvoiceLineItemRow(
+      { ...baseLineItem, description: null },
+      "inv-1",
+    );
+    expect(row.description).toBe("Service");
+  });
+
+  it("falls back to a generic label when both description and kind are missing", () => {
+    const row = buildInvoiceLineItemRow(
+      { ...baseLineItem, description: null, kind: null },
+      "inv-1",
+    );
+    expect(row.description).toBe("Line item");
+  });
+
+  it("treats whitespace-only description as missing", () => {
+    const row = buildInvoiceLineItemRow(
+      { ...baseLineItem, description: "   " },
+      "inv-1",
+    );
+    expect(row.description).toBe("Service");
+  });
+});
+
+// ────────────────────────────────────────────────────────────────
+// buildTimeEntryRow — invoice backfill
+// ────────────────────────────────────────────────────────────────
+
+describe("buildTimeEntryRow invoice backfill", () => {
+  const categoryIdByTaskName = new Map([["Engineering", "cat-1"]]);
+  const userMapping: Record<number, UserMapChoice> = { 1: "u-alice" };
+
+  it("leaves invoiced=false / invoice_id=null when entry is uninvoiced in Harvest", () => {
+    const out = buildTimeEntryRow({
+      entry: { ...baseEntry, invoice: null },
+      projectId: "proj-1",
+      projectHourlyRate: 150,
+      userMapping,
+      categoryIdByTaskName,
+      ctx,
+      timeZone: "America/New_York",
+      invoiceMap: new Map([[9001, "shyre-inv-1"]]),
+    });
+    if ("skipped" in out) throw new Error("unreachable");
+    expect(out.invoiced).toBe(false);
+    expect(out.invoice_id).toBeNull();
+  });
+
+  it("links entry to Shyre invoice when Harvest invoice landed in the same run", () => {
+    const out = buildTimeEntryRow({
+      entry: {
+        ...baseEntry,
+        invoice: { id: 9001, number: "INV-0042" },
+      },
+      projectId: "proj-1",
+      projectHourlyRate: 150,
+      userMapping,
+      categoryIdByTaskName,
+      ctx,
+      timeZone: "America/New_York",
+      invoiceMap: new Map([[9001, "shyre-inv-1"]]),
+    });
+    if ("skipped" in out) throw new Error("unreachable");
+    expect(out.invoiced).toBe(true);
+    expect(out.invoice_id).toBe("shyre-inv-1");
+  });
+
+  it("leaves entry uninvoiced when Harvest invoice didn't make it into Shyre", () => {
+    // E.g. the invoice fell outside the date window or insert failed —
+    // safer to mark the entry as billable-not-yet-invoiced than to
+    // drop the link silently.
+    const out = buildTimeEntryRow({
+      entry: {
+        ...baseEntry,
+        invoice: { id: 9999, number: "INV-9999" },
+      },
+      projectId: "proj-1",
+      projectHourlyRate: 150,
+      userMapping,
+      categoryIdByTaskName,
+      ctx,
+      timeZone: "America/New_York",
+      invoiceMap: new Map([[9001, "shyre-inv-1"]]),
+    });
+    if ("skipped" in out) throw new Error("unreachable");
+    expect(out.invoiced).toBe(false);
+    expect(out.invoice_id).toBeNull();
+  });
+
+  it("works without an invoiceMap (existing callers compat)", () => {
+    const out = buildTimeEntryRow({
+      entry: {
+        ...baseEntry,
+        invoice: { id: 9001, number: "INV-0042" },
+      },
+      projectId: "proj-1",
+      projectHourlyRate: 150,
+      userMapping,
+      categoryIdByTaskName,
+      ctx,
+      timeZone: "America/New_York",
+    });
+    if ("skipped" in out) throw new Error("unreachable");
+    expect(out.invoiced).toBe(false);
+    expect(out.invoice_id).toBeNull();
   });
 });

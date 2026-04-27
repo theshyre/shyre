@@ -17,6 +17,8 @@ import type {
   HarvestClient,
   HarvestProject,
   HarvestTimeEntry,
+  HarvestInvoice,
+  HarvestInvoiceLineItem,
   HarvestUser,
 } from "./harvest";
 
@@ -417,6 +419,117 @@ export function buildProjectRow(
   };
 }
 
+/** Map a Harvest invoice state to a Shyre invoice status. The user's
+ *  Harvest accounts are 99% paid / not-paid in practice, but we still
+ *  pick reasonable values for the rare draft / closed / written-off
+ *  cases so the import doesn't drop them or land them in a misleading
+ *  bucket.
+ *
+ *    paid                   → paid    (settled)
+ *    draft                  → draft   (in-progress, not sent)
+ *    closed | written-off   → void    (no money expected)
+ *    open | anything else   → sent    (issued, awaiting payment)
+ */
+export function mapHarvestInvoiceState(
+  state: string,
+): "draft" | "sent" | "paid" | "void" {
+  const normalized = state?.toLowerCase().trim();
+  if (normalized === "paid") return "paid";
+  if (normalized === "draft") return "draft";
+  if (normalized === "closed" || normalized === "written-off") return "void";
+  return "sent";
+}
+
+export function buildInvoiceRow(
+  hi: HarvestInvoice,
+  customerId: string | null,
+  ctx: ImportContext,
+): {
+  team_id: string;
+  user_id: string;
+  customer_id: string | null;
+  invoice_number: string;
+  status: "draft" | "sent" | "paid" | "void";
+  issued_date: string | null;
+  due_date: string | null;
+  subtotal: number;
+  tax_rate: number;
+  tax_amount: number;
+  total: number;
+  notes: string | null;
+  imported_from: string;
+  imported_at: string;
+  import_run_id: string;
+  import_source_id: string;
+} {
+  // Harvest reports `amount` as the invoice total (incl. tax) and
+  // `tax_amount` as the tax portion — subtotal is the difference. If
+  // tax_amount is zero / missing, subtotal == total. tax_rate is stored
+  // as a percentage (e.g. 8.25 for 8.25%); Harvest's `tax` field is
+  // already in that shape, so we pass it through unchanged.
+  const total = hi.amount ?? 0;
+  const taxAmount = hi.tax_amount ?? 0;
+  const subtotal = total - taxAmount;
+  const taxRate = hi.tax ?? 0;
+
+  // Harvest splits subject and notes; collapse them into Shyre's
+  // single notes column. Subject first (it's the headline), then a
+  // blank line, then the body if any.
+  const notes =
+    hi.subject && hi.notes
+      ? `${hi.subject}\n\n${hi.notes}`
+      : (hi.subject ?? hi.notes);
+
+  return {
+    team_id: ctx.teamId,
+    user_id: ctx.importerUserId,
+    customer_id: customerId,
+    invoice_number: hi.number,
+    status: mapHarvestInvoiceState(hi.state),
+    issued_date: hi.issue_date,
+    due_date: hi.due_date,
+    subtotal,
+    tax_rate: taxRate,
+    tax_amount: taxAmount,
+    total,
+    notes,
+    imported_from: "harvest",
+    imported_at: ctx.importedAt,
+    import_run_id: ctx.importRunId,
+    import_source_id: String(hi.id),
+  };
+}
+
+/** Build an invoice_line_items row from a Harvest line item. Caller
+ *  supplies the parent Shyre invoice id; we don't currently link
+ *  individual line items back to time_entries (Harvest's payload
+ *  doesn't expose that mapping inline) — time entries get marked as
+ *  invoiced via their own `invoice` field on the time-entry pass. */
+export function buildInvoiceLineItemRow(
+  li: HarvestInvoiceLineItem,
+  invoiceId: string,
+): {
+  invoice_id: string;
+  description: string;
+  quantity: number;
+  unit_price: number;
+  amount: number;
+} {
+  // Description is required NOT NULL in Shyre. Harvest sometimes ships
+  // a null description on auto-generated lines (relies on `kind` to
+  // describe the item) — fall back to kind, then to a generic label.
+  const description =
+    li.description?.trim() ||
+    (li.kind ? li.kind : "Line item");
+  return {
+    invoice_id: invoiceId,
+    description,
+    quantity: li.quantity ?? 0,
+    unit_price: li.unit_price ?? 0,
+    amount: li.amount ?? 0,
+  };
+}
+
 /**
  * Build a time_entries row from a Harvest entry. Returns `null` when
  * the entry should be skipped:
@@ -436,6 +549,12 @@ export function buildTimeEntryRow(args: {
   categoryIdByTaskName: Map<string, string>;
   ctx: ImportContext;
   timeZone: string;
+  /** Harvest invoice.id → Shyre invoice id, populated by the invoice
+   *  pass on the route. Optional so existing callers / tests don't
+   *  need to know about invoices. When the entry's `invoice` field
+   *  resolves through this map, the row is stamped invoiced=true with
+   *  the matching invoice_id. */
+  invoiceMap?: Map<number, string>;
 }):
   | {
       team_id: string;
@@ -446,6 +565,8 @@ export function buildTimeEntryRow(args: {
       start_time: string;
       end_time: string | null;
       billable: boolean;
+      invoiced: boolean;
+      invoice_id: string | null;
       imported_from: string;
       imported_at: string;
       import_run_id: string;
@@ -492,6 +613,16 @@ export function buildTimeEntryRow(args: {
   const categoryId =
     args.categoryIdByTaskName.get(args.entry.task.name.trim()) ?? null;
 
+  // If Harvest marked this entry as invoiced AND the invoice landed in
+  // Shyre on the same run, link them. Skipped invoices (e.g. a draft
+  // that fell outside the date window) leave the entry "billable but
+  // not yet invoiced" — the safer default.
+  const harvestInvoiceId = args.entry.invoice?.id;
+  const linkedInvoiceId =
+    harvestInvoiceId !== undefined
+      ? (args.invoiceMap?.get(harvestInvoiceId) ?? null)
+      : null;
+
   return {
     team_id: args.ctx.teamId,
     user_id: targetUserId,
@@ -501,6 +632,8 @@ export function buildTimeEntryRow(args: {
     start_time: bounds.startUtcIso,
     end_time: bounds.endUtcIso,
     billable: args.entry.billable,
+    invoiced: linkedInvoiceId !== null,
+    invoice_id: linkedInvoiceId,
     imported_from: "harvest",
     imported_at: args.ctx.importedAt,
     import_run_id: args.ctx.importRunId,
