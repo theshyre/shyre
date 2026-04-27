@@ -1,5 +1,5 @@
 import { createClient } from "@/lib/supabase/server";
-import { validateTeamAccess } from "@/lib/team-context";
+import { validateBusinessAccess } from "@/lib/team-context";
 import {
   PeopleSection,
   type PersonRow,
@@ -7,32 +7,16 @@ import {
 } from "./people-section";
 
 interface PageProps {
-  params: Promise<{ id: string }>;
+  params: Promise<{ businessId: string }>;
 }
 
 export default async function BusinessPeoplePage({
   params,
 }: PageProps): Promise<React.JSX.Element> {
-  const { id: teamId } = await params;
+  const { businessId } = await params;
   const supabase = await createClient();
-  const { role } = await validateTeamAccess(teamId);
+  const { role } = await validateBusinessAccess(businessId);
   const canEdit = role === "owner" || role === "admin";
-
-  // Resolve team → business.
-  const { data: teamRow } = await supabase
-    .from("teams")
-    .select("business_id")
-    .eq("id", teamId)
-    .maybeSingle();
-  const businessId = (teamRow?.business_id as string | null) ?? null;
-
-  if (!businessId) {
-    return (
-      <p className="text-body text-content-muted italic p-4">
-        This team is not linked to a business.
-      </p>
-    );
-  }
 
   // All teams owned by this business; team_members of any of those teams
   // are eligible candidates for linking a person record to a Shyre user.

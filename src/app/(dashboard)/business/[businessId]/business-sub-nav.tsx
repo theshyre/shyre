@@ -8,7 +8,7 @@ import { LinkPendingSpinner } from "@/components/LinkPendingSpinner";
 import { Tooltip } from "@/components/Tooltip";
 
 interface Props {
-  teamId: string;
+  businessId: string;
 }
 
 /**
@@ -18,12 +18,12 @@ interface Props {
  * they clicked while the next route loads.
  *
  * Routes:
- *   /business/[id]            — Overview
- *   /business/[id]/identity   — Editable identity form
- *   /business/[id]/expenses   — Expenses CRUD
- *   /business/[id]/people     — People (placeholder)
+ *   /business/[businessId]            — Overview
+ *   /business/[businessId]/identity   — Editable identity form
+ *   /business/[businessId]/expenses   — Expenses CRUD
+ *   /business/[businessId]/people     — People management
  */
-export function BusinessSubNav({ teamId }: Props): React.JSX.Element {
+export function BusinessSubNav({ businessId }: Props): React.JSX.Element {
   const pathname = usePathname();
   const t = useTranslations("business.subNav");
 
@@ -33,10 +33,10 @@ export function BusinessSubNav({ teamId }: Props): React.JSX.Element {
     icon: typeof LayoutDashboard;
     disabled?: boolean;
   }> = [
-    { href: `/business/${teamId}`, labelKey: "overview", icon: LayoutDashboard },
-    { href: `/business/${teamId}/identity`, labelKey: "identity", icon: FileBadge },
-    { href: `/business/${teamId}/expenses`, labelKey: "expenses", icon: Receipt },
-    { href: `/business/${teamId}/people`, labelKey: "people", icon: Users },
+    { href: `/business/${businessId}`, labelKey: "overview", icon: LayoutDashboard },
+    { href: `/business/${businessId}/identity`, labelKey: "identity", icon: FileBadge },
+    { href: `/business/${businessId}/expenses`, labelKey: "expenses", icon: Receipt },
+    { href: `/business/${businessId}/people`, labelKey: "people", icon: Users },
   ];
 
   return (
@@ -46,7 +46,7 @@ export function BusinessSubNav({ teamId }: Props): React.JSX.Element {
     >
       {tabs.map((tab) => {
         const isActive =
-          tab.href === `/business/${teamId}`
+          tab.href === `/business/${businessId}`
             ? pathname === tab.href
             : pathname.startsWith(tab.href);
         const Icon = tab.icon;

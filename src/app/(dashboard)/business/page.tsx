@@ -17,18 +17,15 @@ const ENTITY_LABEL: Record<string, string> = {
 };
 
 interface BusinessSummary {
-  /** Representative team id used as the anchor for /business/[id].
-   *  The list dedupes by business_id so a multi-team business shows
-   *  one card; clicking lands on the user's first team for that
-   *  business. The full route rename to /business/[business_id] is
-   *  deferred — see migration plan in docs. */
+  /** business_id — anchor for /business/[businessId]. */
   id: string;
+  /** Fallback display name (the first team's name) when the
+   *  business has no legal_name set yet. */
   name: string;
   legalName: string | null;
   entityType: string | null;
-  /** Number of teams under the same business_id. >1 surfaces a
-   *  "+N teams" hint on the card so a multi-entity owner can see
-   *  the rollup at a glance. */
+  /** Number of teams under this business that the viewer can
+   *  access. >1 surfaces a "+N teams" hint on the card. */
   teamCount: number;
   customerCount: number;
   billableHoursThisMonth: number;
@@ -62,18 +59,20 @@ export default async function BusinessListPage(): Promise<React.JSX.Element> {
 
   // Group teams by business_id. Teams without a business_id (legacy
   // rows; should not exist post-migration but defense in depth) get
-  // their own pseudo-bucket keyed by team id, so they still render.
+  // skipped — without a business_id they can't anchor a card link
+  // that the new /business/[businessId] route can resolve.
   const teamsByBusiness = new Map<string, typeof teams>();
   for (const team of teams) {
-    const bid = businessIdByTeamId.get(team.id) ?? `team:${team.id}`;
+    const bid = businessIdByTeamId.get(team.id);
+    if (!bid) continue;
     const list = teamsByBusiness.get(bid) ?? [];
     list.push(team);
     teamsByBusiness.set(bid, list);
   }
 
   const summaries: BusinessSummary[] = await Promise.all(
-    Array.from(teamsByBusiness.values()).map((teamGroup) =>
-      fetchSummary(supabase, teamGroup),
+    Array.from(teamsByBusiness.entries()).map(([businessId, teamGroup]) =>
+      fetchSummary(supabase, businessId, teamGroup),
     ),
   );
 
@@ -180,40 +179,26 @@ export default async function BusinessListPage(): Promise<React.JSX.Element> {
 
 async function fetchSummary(
   supabase: Awaited<ReturnType<typeof createClient>>,
-  teams: { id: string; name: string; business_id?: string | null }[],
+  businessId: string,
+  teams: { id: string; name: string }[],
 ): Promise<BusinessSummary> {
   const monthStart = new Date();
   monthStart.setDate(1);
   monthStart.setHours(0, 0, 0, 0);
   const monthStartStr = `${monthStart.getFullYear()}-${String(monthStart.getMonth() + 1).padStart(2, "0")}-01`;
 
-  // Pick a representative team for the card link. The full route
-  // rename to /business/[business_id] is deferred; in the meantime
-  // the URL is still keyed by team_id, so we land on the first team
-  // alphabetically — stable across renders.
   const sortedTeams = [...teams].sort((a, b) =>
     a.name.localeCompare(b.name),
   );
   const representative = sortedTeams[0]!;
   const teamIds = sortedTeams.map((t) => t.id);
 
-  // Resolve team → business once so identity lookups don't fan out
-  // across the team group.
-  const { data: teamRow } = await supabase
-    .from("teams")
-    .select("business_id")
-    .eq("id", representative.id)
-    .maybeSingle();
-  const businessId = (teamRow?.business_id as string | null) ?? null;
-
   const [business, customerCount, entries, expenseRows] = await Promise.all([
-    businessId
-      ? supabase
-          .from("businesses")
-          .select("legal_name, entity_type")
-          .eq("id", businessId)
-          .maybeSingle()
-      : Promise.resolve({ data: null }),
+    supabase
+      .from("businesses")
+      .select("legal_name, entity_type")
+      .eq("id", businessId)
+      .maybeSingle(),
     // Stats are summed across all teams in the business — a card
     // reflects the business, not one team.
     supabase
@@ -246,7 +231,7 @@ async function fetchSummary(
   );
 
   return {
-    id: representative.id,
+    id: businessId,
     name: representative.name,
     legalName: (business.data?.legal_name as string | null) ?? null,
     entityType: (business.data?.entity_type as string | null) ?? null,

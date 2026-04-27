@@ -28,7 +28,7 @@ import {
   ALLOWED_ENTITY_TYPES,
   ALLOWED_AFFILIATION_ROLES,
 } from "@/app/(dashboard)/business/allow-lists";
-import { ALLOWED_EXPENSE_CATEGORIES } from "@/app/(dashboard)/business/[id]/expenses/allow-lists";
+import { ALLOWED_EXPENSE_CATEGORIES } from "@/app/(dashboard)/business/[businessId]/expenses/allow-lists";
 import {
   ALLOWED_REGISTRATION_TYPES,
   ALLOWED_REGISTRATION_STATUSES,

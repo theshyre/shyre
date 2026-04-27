@@ -13,7 +13,6 @@ import {
 import { updateBusinessIdentityAction } from "../../actions";
 
 interface Props {
-  teamId: string;
   businessId: string;
   legalName: string;
   entityType: string;
@@ -43,7 +42,6 @@ const ENTITY_LABEL: Record<string, string> = {
 };
 
 export function IdentityForm({
-  teamId,
   businessId,
   legalName,
   entityType,
@@ -62,7 +60,6 @@ export function IdentityForm({
       action={handleSubmit}
       className="space-y-4 rounded-lg border border-edge bg-surface-raised p-5"
     >
-      <input type="hidden" name="team_id" value={teamId} />
       <input type="hidden" name="business_id" value={businessId} />
 
       {serverError && (

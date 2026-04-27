@@ -1,15 +1,14 @@
-import { notFound, redirect } from "next/navigation";
+import { notFound } from "next/navigation";
 import Link from "next/link";
 import { getTranslations } from "next-intl/server";
 import { Briefcase, ArrowLeft } from "lucide-react";
 import { createClient } from "@/lib/supabase/server";
-import { getUserTeams } from "@/lib/team-context";
 import { LinkPendingSpinner } from "@/components/LinkPendingSpinner";
 import { BusinessSubNav } from "./business-sub-nav";
 
 interface LayoutProps {
   children: React.ReactNode;
-  params: Promise<{ id: string }>;
+  params: Promise<{ businessId: string }>;
 }
 
 const ENTITY_LABEL: Record<string, string> = {
@@ -26,39 +25,25 @@ export default async function BusinessDetailLayout({
   children,
   params,
 }: LayoutProps): Promise<React.JSX.Element> {
-  const { id } = await params;
+  const { businessId } = await params;
   const t = await getTranslations("business");
   const supabase = await createClient();
-  const teams = await getUserTeams();
 
-  // Must be a member of this org. Otherwise show 404 (not 403; we don't
-  // want to confirm the org's existence to outsiders).
-  const membership = teams.find((o) => o.id === id);
-  if (!membership) {
-    // If they passed an invalid id, send them back to the list.
-    if (teams.length === 0) redirect("/business");
+  // Identity lives on the businesses table directly. RLS scopes the
+  // SELECT — if the viewer doesn't have a team in this business, the
+  // query returns null and we show 404 (not 403; we don't confirm
+  // the business's existence to outsiders).
+  const { data: business } = await supabase
+    .from("businesses")
+    .select("id, legal_name, entity_type")
+    .eq("id", businessId)
+    .maybeSingle();
+  if (!business) {
     notFound();
   }
 
-  // Identity lives on businesses, accessed via teams.business_id.
-  const { data: teamRow } = await supabase
-    .from("teams")
-    .select("business_id")
-    .eq("id", id)
-    .maybeSingle();
-  const businessId = (teamRow?.business_id as string | null) ?? null;
-
-  const { data: business } = businessId
-    ? await supabase
-        .from("businesses")
-        .select("legal_name, entity_type")
-        .eq("id", businessId)
-        .maybeSingle()
-    : { data: null };
-
-  const displayName =
-    (business?.legal_name as string | null) ?? membership.name;
-  const entityKey = business?.entity_type
+  const displayName = (business.legal_name as string | null) ?? "Business";
+  const entityKey = business.entity_type
     ? String(business.entity_type)
     : null;
   const entityLabel = entityKey
@@ -89,7 +74,7 @@ export default async function BusinessDetailLayout({
         </div>
       </div>
 
-      <BusinessSubNav teamId={id} />
+      <BusinessSubNav businessId={businessId} />
 
       {children}
     </div>

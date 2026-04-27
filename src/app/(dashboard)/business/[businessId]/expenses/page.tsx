@@ -1,5 +1,7 @@
+import { notFound } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import { getTranslations } from "next-intl/server";
+import { getUserTeams } from "@/lib/team-context";
 import { NewExpenseForm } from "./new-expense-form";
 import { ExpenseRow } from "./expense-row";
 
@@ -36,7 +38,7 @@ function formatCurrency(amount: number, currency: string): string {
 }
 
 interface PageProps {
-  params: Promise<{ id: string }>;
+  params: Promise<{ businessId: string }>;
 }
 
 export default async function ExpensesPage({
@@ -45,14 +47,39 @@ export default async function ExpensesPage({
   const supabase = await createClient();
   const t = await getTranslations("expenses");
   const tc = await getTranslations("common");
-  const { id: teamId } = await params;
+  const { businessId } = await params;
+
+  // Expenses are still team_id-scoped at the row level. List view sums
+  // across every team in the business that the viewer can access; the
+  // new-expense form posts against a single representative team
+  // (alphabetically first user-team in the business) so creating an
+  // expense always has a concrete team_id even on multi-team agencies.
+  // A team selector for new-expense + a team column on the list are
+  // a follow-up.
+  const userTeams = await getUserTeams();
+  const userTeamIds = userTeams.map((tm) => tm.id);
+  const { data: businessTeams } =
+    userTeamIds.length > 0
+      ? await supabase
+          .from("teams")
+          .select("id")
+          .eq("business_id", businessId)
+          .in("id", userTeamIds)
+      : { data: [] };
+  const teamIds = (businessTeams ?? []).map((row) => row.id as string);
+  if (teamIds.length === 0) {
+    notFound();
+  }
+  const representativeTeamId = userTeams
+    .filter((tm) => teamIds.includes(tm.id))
+    .sort((a, b) => a.name.localeCompare(b.name))[0]!.id;
 
   const { data: expRows } = await supabase
     .from("expenses")
     .select(
       "id, team_id, incurred_on, amount, currency, vendor, category, description, project_id, billable, is_sample, projects(id, name)",
     )
-    .eq("team_id", teamId)
+    .in("team_id", teamIds)
     .order("incurred_on", { ascending: false })
     .order("created_at", { ascending: false });
 
@@ -65,7 +92,7 @@ export default async function ExpensesPage({
   const { data: projRows } = await supabase
     .from("projects")
     .select("id, name, team_id")
-    .eq("team_id", teamId)
+    .in("team_id", teamIds)
     .eq("status", "active")
     .order("name");
   const projects: ProjectOption[] = (projRows ?? []) as ProjectOption[];
@@ -86,7 +113,7 @@ export default async function ExpensesPage({
         </span>
       </div>
 
-      <NewExpenseForm teamId={teamId} projects={projects} />
+      <NewExpenseForm teamId={representativeTeamId} projects={projects} />
 
       {expenses.length === 0 ? (
         <div className="rounded-lg border border-edge bg-surface-raised p-6 text-body text-content-muted">

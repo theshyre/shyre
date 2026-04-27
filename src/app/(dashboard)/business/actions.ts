@@ -2,7 +2,7 @@
 
 import { runSafeAction } from "@/lib/safe-action";
 import { assertSupabaseOk } from "@/lib/errors";
-import { validateTeamAccess } from "@/lib/team-context";
+import { validateBusinessAccess } from "@/lib/team-context";
 import { revalidatePath } from "next/cache";
 import { ALLOWED_ENTITY_TYPES } from "./allow-lists";
 
@@ -13,31 +13,25 @@ function blankToNull(v: FormDataEntryValue | null): string | null {
 }
 
 /**
- * Update business identity on the businesses table.
- * Owner/admin of any team owned by the business — authorization is
- * derived through team_members; the businesses_update RLS policy
- * enforces it at the DB layer, the early role check here gives a
- * friendlier error message.
- *
- * The form posts both team_id (the URL anchor) and business_id (the
- * row being written). We trust the team_id for authorization and use
- * the business_id as the UPDATE target — the RLS policy re-checks
- * that the business_id's teams include one the user is owner/admin of.
+ * Update business identity on the businesses table. Authorization
+ * runs through `validateBusinessAccess` which checks the highest
+ * role the caller holds across all teams in the business — the
+ * businesses_update RLS policy enforces the same at the DB layer,
+ * this gives a friendlier error message.
  */
 export async function updateBusinessIdentityAction(
   formData: FormData,
 ): Promise<void> {
   return runSafeAction(formData, async (formData, { supabase }) => {
-    const teamId = formData.get("team_id") as string;
     const businessId = formData.get("business_id") as string;
-    const { role } = await validateTeamAccess(teamId);
-
-    if (role !== "owner" && role !== "admin") {
-      throw new Error("Only owners and admins can update business identity.");
-    }
 
     if (!businessId) {
       throw new Error("business_id is required.");
+    }
+
+    const { role } = await validateBusinessAccess(businessId);
+    if (role !== "owner" && role !== "admin") {
+      throw new Error("Only owners and admins can update business identity.");
     }
 
     const legal_name = blankToNull(formData.get("legal_name"));
@@ -70,6 +64,6 @@ export async function updateBusinessIdentityAction(
     );
 
     revalidatePath("/business");
-    revalidatePath(`/business/${teamId}`);
+    revalidatePath(`/business/${businessId}`);
   }, "updateBusinessIdentityAction") as unknown as void;
 }

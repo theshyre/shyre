@@ -109,3 +109,32 @@ export async function validateTeamAccess(
     role: membership.role as "owner" | "admin" | "member",
   };
 }
+
+/**
+ * Validate the current user has access to a business via membership in
+ * any of its teams. Returns the highest role they hold across those
+ * teams (`owner` > `admin` > `member`). Throws if no access — the
+ * caller decides whether to show notFound or surface the error.
+ */
+export async function validateBusinessAccess(
+  businessId: string,
+): Promise<{ userId: string; role: "owner" | "admin" | "member" }> {
+  const supabase = await createClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+
+  if (!user) redirect("/login");
+
+  const { data, error } = await supabase.rpc("user_business_role", {
+    business_id: businessId,
+  });
+  if (error) throw error;
+
+  const role = data as "owner" | "admin" | "member" | null;
+  if (!role) {
+    throw new Error("You do not have access to this business.");
+  }
+
+  return { userId: user.id, role };
+}
