@@ -1,108 +1,222 @@
 "use client";
 
+import { useState, type KeyboardEvent } from "react";
 import { useTranslations } from "next-intl";
-import { Send, CheckCircle, XCircle } from "lucide-react";
-import { Spinner } from "@theshyre/ui";
+import { Send, CheckCircle, XCircle, AlertTriangle, X } from "lucide-react";
 import { useFormAction } from "@/hooks/use-form-action";
-import { buttonSecondaryClass } from "@/lib/form-styles";
+import { SubmitButton } from "@/components/SubmitButton";
+import {
+  buttonSecondaryClass,
+  inputClass,
+} from "@/lib/form-styles";
+import { allowedNextStatuses, type InvoiceStatus } from "@/lib/invoice-status";
 import { updateInvoiceStatusAction } from "../actions";
 
 interface InvoiceActionsProps {
   invoiceId: string;
   currentStatus: string;
+  /** Visible label for the invoice (its number) — used as the
+   *  typed-confirm word when voiding so the user has to recognize
+   *  *which* invoice they're killing. */
+  invoiceNumber: string;
 }
 
+const ACTION_META: Record<
+  InvoiceStatus,
+  { labelKey: string; icon: typeof Send; tone: "primary" | "danger" } | null
+> = {
+  draft: null,
+  sent: { labelKey: "markSent", icon: Send, tone: "primary" },
+  paid: { labelKey: "markPaid", icon: CheckCircle, tone: "primary" },
+  void: { labelKey: "markVoid", icon: XCircle, tone: "danger" },
+  overdue: { labelKey: "markOverdue", icon: AlertTriangle, tone: "primary" },
+};
+
+/** Status-mutation buttons. Drives off the transition graph in
+ *  `@/lib/invoice-status` so the buttons can never offer a transition
+ *  the server would reject. Voiding uses an inline typed-confirm
+ *  (type the invoice number to arm) per CLAUDE.md "Destructive
+ *  confirmation flows". */
 export function InvoiceActions({
   invoiceId,
   currentStatus,
+  invoiceNumber,
 }: InvoiceActionsProps): React.JSX.Element {
   const t = useTranslations("invoices.actions");
-
-  const actions = getAvailableActions(currentStatus);
+  const next = allowedNextStatuses(currentStatus);
 
   return (
-    <div className="flex gap-2">
-      {actions.map((action) => (
-        <InvoiceActionButton
-          key={action.status}
-          invoiceId={invoiceId}
-          action={action}
-          label={t(action.labelKey)}
-        />
-      ))}
+    <div className="flex gap-2 flex-wrap">
+      {next.map((status) => {
+        const meta = ACTION_META[status];
+        if (!meta) return null;
+        return meta.tone === "danger" ? (
+          <VoidButton
+            key={status}
+            invoiceId={invoiceId}
+            invoiceNumber={invoiceNumber}
+            label={t(meta.labelKey)}
+          />
+        ) : (
+          <StatusButton
+            key={status}
+            invoiceId={invoiceId}
+            status={status}
+            label={t(meta.labelKey)}
+            Icon={meta.icon}
+          />
+        );
+      })}
     </div>
   );
 }
 
-function InvoiceActionButton({
+function StatusButton({
   invoiceId,
-  action,
+  status,
   label,
+  Icon,
 }: {
   invoiceId: string;
-  action: ActionConfig;
+  status: InvoiceStatus;
   label: string;
+  Icon: typeof Send;
 }): React.JSX.Element {
-  const { pending, serverError, handleSubmit } = useFormAction({
+  const tc = useTranslations("common");
+  const { pending, success, serverError, handleSubmit } = useFormAction({
     action: updateInvoiceStatusAction,
   });
 
-  const Icon = action.icon;
-
   return (
-    <form action={handleSubmit}>
+    <form action={handleSubmit} className="flex flex-col gap-1">
       <input type="hidden" name="id" value={invoiceId} />
-      <input type="hidden" name="status" value={action.status} />
-      {serverError && (
-        <p className="mb-1 text-xs text-error">{serverError}</p>
-      )}
-      <button
-        type="submit"
-        disabled={pending}
+      <input type="hidden" name="status" value={status} />
+      <SubmitButton
+        label={label}
+        pending={pending}
+        success={success}
+        successMessage={tc("actions.saved")}
+        icon={Icon}
         className={buttonSecondaryClass}
-        onClick={(e) => {
-          if (action.status === "void") {
-            if (!confirm("Void this invoice? This cannot be undone.")) {
-              e.preventDefault();
-            }
-          }
-        }}
-      >
-        {pending ? (
-          <Spinner />
-        ) : (
-          <Icon size={16} />
-        )}
-        {label}
-      </button>
+      />
+      {serverError && (
+        <p className="text-caption text-error">{serverError}</p>
+      )}
     </form>
   );
 }
 
-interface ActionConfig {
-  status: string;
-  labelKey: string;
-  icon: typeof Send;
-}
+function VoidButton({
+  invoiceId,
+  invoiceNumber,
+  label,
+}: {
+  invoiceId: string;
+  invoiceNumber: string;
+  label: string;
+}): React.JSX.Element {
+  const t = useTranslations("invoices.actions");
+  const tc = useTranslations("common");
+  const [open, setOpen] = useState(false);
+  const [typed, setTyped] = useState("");
+  const [pending, setPending] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
-function getAvailableActions(currentStatus: string): ActionConfig[] {
-  switch (currentStatus) {
-    case "draft":
-      return [
-        { status: "sent", labelKey: "markSent", icon: Send },
-        { status: "void", labelKey: "markVoid", icon: XCircle },
-      ];
-    case "sent":
-      return [
-        { status: "paid", labelKey: "markPaid", icon: CheckCircle },
-        { status: "void", labelKey: "markVoid", icon: XCircle },
-      ];
-    case "overdue":
-      return [
-        { status: "paid", labelKey: "markPaid", icon: CheckCircle },
-        { status: "void", labelKey: "markVoid", icon: XCircle },
-      ];
-    default:
-      return [];
+  const armed = typed.trim().toLowerCase() === invoiceNumber.toLowerCase();
+
+  async function fire(): Promise<void> {
+    if (!armed || pending) return;
+    setPending(true);
+    setError(null);
+    try {
+      const fd = new FormData();
+      fd.set("id", invoiceId);
+      fd.set("status", "void");
+      await updateInvoiceStatusAction(fd);
+      setOpen(false);
+      setTyped("");
+    } catch (err: unknown) {
+      setError(err instanceof Error ? err.message : String(err));
+    } finally {
+      setPending(false);
+    }
   }
+
+  function onKey(e: KeyboardEvent<HTMLInputElement>): void {
+    if (e.key === "Enter" && armed && !pending) {
+      e.preventDefault();
+      void fire();
+    } else if (e.key === "Escape") {
+      e.preventDefault();
+      setOpen(false);
+      setTyped("");
+      setError(null);
+    }
+  }
+
+  if (!open) {
+    return (
+      <button
+        type="button"
+        onClick={() => {
+          setError(null);
+          setOpen(true);
+        }}
+        className={`${buttonSecondaryClass} text-error border-error/40 hover:bg-error-soft`}
+      >
+        <XCircle size={16} />
+        {label}
+      </button>
+    );
+  }
+
+  return (
+    <div className="flex flex-col gap-1">
+      <div
+        role="group"
+        aria-label={label}
+        className="inline-flex items-center gap-2 rounded-md border border-error/40 bg-error-soft px-2 py-1.5"
+      >
+        <span className="text-caption text-content whitespace-nowrap">
+          {t("voidPrompt", { number: invoiceNumber })}
+        </span>
+        <input
+          autoFocus
+          type="text"
+          value={typed}
+          onChange={(e) => setTyped(e.target.value)}
+          onKeyDown={onKey}
+          aria-label={t("voidConfirmInputLabel", { number: invoiceNumber })}
+          autoCapitalize="none"
+          autoCorrect="off"
+          spellCheck={false}
+          className={`${inputClass} w-32 font-mono`}
+        />
+        <button
+          type="button"
+          onClick={() => void fire()}
+          disabled={!armed || pending}
+          aria-label={t("voidConfirm")}
+          className="inline-flex items-center gap-1 rounded bg-error px-2 py-1 text-caption font-semibold text-content-inverse hover:opacity-90 disabled:opacity-40 disabled:cursor-not-allowed transition-opacity"
+        >
+          <XCircle size={12} />
+          {t("voidConfirm")}
+        </button>
+        <button
+          type="button"
+          onClick={() => {
+            setOpen(false);
+            setTyped("");
+            setError(null);
+          }}
+          disabled={pending}
+          aria-label={tc("actions.cancel")}
+          className="rounded p-1 text-content-muted hover:bg-hover transition-colors"
+        >
+          <X size={12} />
+        </button>
+      </div>
+      {error && <p className="text-caption text-error">{error}</p>}
+    </div>
+  );
 }

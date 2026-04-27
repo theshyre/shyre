@@ -64,6 +64,11 @@ interface TeamMemberRate {
   default_rate: number | null;
 }
 
+interface FetchedInvoice {
+  team_id: string;
+  status: string;
+}
+
 const state: {
   timeEntries: TimeEntry[];
   settings: Settings | null;
@@ -72,6 +77,10 @@ const state: {
   inserts: { table: string; rows: unknown }[];
   updates: { table: string; patch: unknown; where: Record<string, string | string[]> }[];
   insertShouldError: boolean;
+  /** What `.from("invoices").select("team_id, status").eq("id", _).maybeSingle()`
+   *  resolves to. The tightened `updateInvoiceStatusAction` reads this
+   *  before the role check + transition guard. */
+  fetchedInvoice: FetchedInvoice | null;
 } = {
   timeEntries: [],
   settings: null,
@@ -80,6 +89,7 @@ const state: {
   inserts: [],
   updates: [],
   insertShouldError: false,
+  fetchedInvoice: null,
 };
 
 function mockSupabase() {
@@ -180,6 +190,16 @@ function mockSupabase() {
           }),
         };
       },
+      // Read path: select("team_id, status").eq("id", id).maybeSingle()
+      // The tightened updateInvoiceStatusAction uses this to look up
+      // the row's team and current status before role + transition
+      // checks.
+      select: (_cols: string) => ({
+        eq: (_col: string, _val: string) => ({
+          maybeSingle: () =>
+            Promise.resolve({ data: state.fetchedInvoice, error: null }),
+        }),
+      }),
       update: (patch: unknown) => ({
         eq: (col: string, val: string) => {
           state.updates.push({
@@ -222,6 +242,7 @@ function resetState() {
   state.inserts = [];
   state.updates = [];
   state.insertShouldError = false;
+  state.fetchedInvoice = null;
   mockValidateTeamAccess.mockReset();
   mockRevalidatePath.mockReset();
   mockRedirect.mockClear();
@@ -236,10 +257,13 @@ function fd(entries: Record<string, string>) {
 describe("updateInvoiceStatusAction", () => {
   beforeEach(resetState);
 
-  it("updates the invoice's status and revalidates list + detail paths", async () => {
-    await updateInvoiceStatusAction(
-      fd({ id: "inv-7", status: "sent" }),
-    );
+  it("transitions draft → sent (legal); revalidates list + detail", async () => {
+    state.fetchedInvoice = { team_id: "team-1", status: "draft" };
+    mockValidateTeamAccess.mockResolvedValue({ userId: fakeUserId, role: "owner" });
+
+    await updateInvoiceStatusAction(fd({ id: "inv-7", status: "sent" }));
+
+    expect(mockValidateTeamAccess).toHaveBeenCalledWith("team-1");
     expect(state.updates).toContainEqual({
       table: "invoices",
       patch: { status: "sent" },
@@ -249,9 +273,37 @@ describe("updateInvoiceStatusAction", () => {
     expect(mockRevalidatePath).toHaveBeenCalledWith("/invoices/inv-7");
   });
 
-  it("accepts arbitrary status strings as passed — the DB CHECK constraint enforces validity", async () => {
-    await updateInvoiceStatusAction(fd({ id: "x", status: "paid" }));
-    expect(state.updates[0]?.patch).toEqual({ status: "paid" });
+  it("rejects paid → draft (illegal transition; DB CHECK doesn't catch this)", async () => {
+    state.fetchedInvoice = { team_id: "team-1", status: "paid" };
+    mockValidateTeamAccess.mockResolvedValue({ userId: fakeUserId, role: "owner" });
+
+    await expect(
+      updateInvoiceStatusAction(fd({ id: "inv-7", status: "draft" })),
+    ).rejects.toThrow(/not allowed/);
+    expect(state.updates).toEqual([]);
+  });
+
+  it("rejects sent → paid for a plain member (only owner|admin)", async () => {
+    state.fetchedInvoice = { team_id: "team-1", status: "sent" };
+    mockValidateTeamAccess.mockResolvedValue({ userId: fakeUserId, role: "member" });
+
+    await expect(
+      updateInvoiceStatusAction(fd({ id: "inv-7", status: "paid" })),
+    ).rejects.toThrow(/owner.*admin/i);
+    expect(state.updates).toEqual([]);
+  });
+
+  it("returns 'not found' when the invoice id is bad — before any role check", async () => {
+    state.fetchedInvoice = null;
+
+    await expect(
+      updateInvoiceStatusAction(fd({ id: "missing", status: "sent" })),
+    ).rejects.toThrow(/not found/i);
+    expect(mockValidateTeamAccess).not.toHaveBeenCalled();
+  });
+
+  it("requires id and status; surfaces a clear error when missing", async () => {
+    await expect(updateInvoiceStatusAction(fd({}))).rejects.toThrow(/required/i);
   });
 });
 

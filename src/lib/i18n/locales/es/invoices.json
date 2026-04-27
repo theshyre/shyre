@@ -4,7 +4,20 @@
   "createInvoice": "Crear Factura",
   "noInvoices": "Aún no hay facturas. Crea una a partir de registros de tiempo no facturados.",
   "selectClient": "Selecciona un cliente",
+  "allClients": "Todos los clientes (todo el equipo)",
   "selectClientDescription": "Elige un cliente para ver sus registros de tiempo no facturados.",
+  "exportCsv": "Exportar CSV",
+  "filters": {
+    "heading": "Filtros",
+    "status": "Estado",
+    "customer": "Cliente",
+    "from": "Emitida desde",
+    "to": "Emitida hasta",
+    "anyStatus": "Cualquier estado",
+    "anyCustomer": "Cualquier cliente",
+    "apply": "Aplicar filtros",
+    "clear": "Limpiar filtros"
+  },
   "unbilledTime": "Registros de Tiempo No Facturados",
   "noUnbilledTime": "No hay registros de tiempo no facturados para este cliente.",
   "lineItems": "Elementos de Línea",
@@ -22,6 +35,7 @@
   },
   "lineItem": {
     "description": "Descripción",
+    "author": "Registrado por",
     "hours": "Horas",
     "rate": "Tarifa",
     "amount": "Monto"
@@ -30,7 +44,11 @@
     "downloadPdf": "Descargar PDF",
     "markSent": "Marcar como Enviada",
     "markPaid": "Marcar como Pagada",
-    "markVoid": "Anular Factura"
+    "markVoid": "Anular Factura",
+    "markOverdue": "Marcar Vencida",
+    "voidPrompt": "Escribe {number} para anular",
+    "voidConfirm": "Anular",
+    "voidConfirmInputLabel": "Escribe el número de factura ({number}) para confirmar"
   },
   "status": {
     "draft": "Borrador",
@@ -41,11 +59,13 @@
   },
   "table": {
     "invoiceNumber": "Factura #",
+    "team": "Equipo",
     "customer": "Cliente",
     "issuedDate": "Emitida",
     "dueDate": "Vencimiento",
     "total": "Total",
-    "status": "Estado"
+    "status": "Estado",
+    "importedFromHarvest": "Importada desde Harvest"
   },
   "pdf": {
     "invoice": "FACTURA",

@@ -12,6 +12,10 @@ import {
   minutesToHours,
 } from "@/lib/invoice-utils";
 import type { LineItemResult } from "@/lib/invoice-utils";
+import {
+  isValidInvoiceStatusTransition,
+  type InvoiceStatus,
+} from "@/lib/invoice-status";
 
 export async function createInvoiceAction(formData: FormData): Promise<void> {
   return runSafeAction(formData, async (formData, { supabase }) => {
@@ -187,16 +191,54 @@ export async function createInvoiceAction(formData: FormData): Promise<void> {
   }, "createInvoiceAction") as unknown as void;
 }
 
-export async function updateInvoiceStatusAction(formData: FormData): Promise<void> {
+/**
+ * Update an invoice's status. Owner/admin only — and only along the
+ * allowed transition graph. The DB CHECK constraint validates the
+ * *value* (`draft|sent|paid|void|overdue`); this action validates
+ * the *transition* (e.g. paid → draft is rejected — that would be
+ * a silent unwind of a billed invoice). RLS on invoices_update
+ * also enforces owner/admin at the row level.
+ */
+export async function updateInvoiceStatusAction(
+  formData: FormData,
+): Promise<void> {
   return runSafeAction(formData, async (formData, { supabase }) => {
     const id = formData.get("id") as string;
-    const status = formData.get("status") as string;
+    const nextStatus = formData.get("status") as string;
+
+    if (!id) throw new Error("Invoice id is required.");
+    if (!nextStatus) throw new Error("Status is required.");
+
+    // Resolve the team + current status before any role check so
+    // the error message is friendlier ("not found" beats a generic
+    // role error when the user passed a bad id).
+    const { data: row, error: fetchError } = await supabase
+      .from("invoices")
+      .select("team_id, status")
+      .eq("id", id)
+      .maybeSingle();
+    if (fetchError) throw fetchError;
+    if (!row) throw new Error("Invoice not found.");
+
+    const teamId = row.team_id as string;
+    const currentStatus = row.status as InvoiceStatus;
+
+    const { role } = await validateTeamAccess(teamId);
+    if (role !== "owner" && role !== "admin") {
+      throw new Error("Only owners and admins can change invoice status.");
+    }
+
+    if (!isValidInvoiceStatusTransition(currentStatus, nextStatus)) {
+      throw new Error(
+        `Status change from "${currentStatus}" to "${nextStatus}" is not allowed.`,
+      );
+    }
 
     assertSupabaseOk(
       await supabase
         .from("invoices")
-        .update({ status })
-        .eq("id", id)
+        .update({ status: nextStatus })
+        .eq("id", id),
     );
 
     revalidatePath("/invoices");

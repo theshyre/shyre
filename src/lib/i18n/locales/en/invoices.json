@@ -4,7 +4,20 @@
   "createInvoice": "Create Invoice",
   "noInvoices": "No invoices yet. Create one from unbilled time entries.",
   "selectClient": "Select a client",
+  "allClients": "All clients (team-wide)",
   "selectClientDescription": "Choose a client to see their unbilled time entries.",
+  "exportCsv": "Export CSV",
+  "filters": {
+    "heading": "Filters",
+    "status": "Status",
+    "customer": "Client",
+    "from": "Issued from",
+    "to": "Issued to",
+    "anyStatus": "Any status",
+    "anyCustomer": "Any client",
+    "apply": "Apply filters",
+    "clear": "Clear filters"
+  },
   "unbilledTime": "Unbilled Time Entries",
   "noUnbilledTime": "No unbilled time entries for this client.",
   "lineItems": "Line Items",
@@ -22,6 +35,7 @@
   },
   "lineItem": {
     "description": "Description",
+    "author": "Logged by",
     "hours": "Hours",
     "rate": "Rate",
     "amount": "Amount"
@@ -30,7 +44,11 @@
     "downloadPdf": "Download PDF",
     "markSent": "Mark as Sent",
     "markPaid": "Mark as Paid",
-    "markVoid": "Void Invoice"
+    "markVoid": "Void Invoice",
+    "markOverdue": "Mark Overdue",
+    "voidPrompt": "Type {number} to void",
+    "voidConfirm": "Void",
+    "voidConfirmInputLabel": "Type the invoice number ({number}) to confirm"
   },
   "status": {
     "draft": "Draft",
@@ -41,11 +59,13 @@
   },
   "table": {
     "invoiceNumber": "Invoice #",
+    "team": "Team",
     "customer": "Client",
     "issuedDate": "Issued",
     "dueDate": "Due",
     "total": "Total",
-    "status": "Status"
+    "status": "Status",
+    "importedFromHarvest": "Imported from Harvest"
   },
   "pdf": {
     "invoice": "INVOICE",

@@ -2,10 +2,11 @@ import { createClient } from "@/lib/supabase/server";
 import { getTranslations } from "next-intl/server";
 import { notFound } from "next/navigation";
 import { FileText } from "lucide-react";
-import { formatDate } from "@theshyre/ui";
+import { formatDate, Avatar, resolveAvatarUrl } from "@theshyre/ui";
 import { formatCurrency } from "@/lib/invoice-utils";
 import { InvoiceActions } from "./invoice-actions";
 import { InvoicePdfButton } from "./invoice-pdf-button";
+import { InvoiceStatusBadge } from "../invoice-status-badge";
 
 export default async function InvoiceDetailPage({
   params,
@@ -26,7 +27,7 @@ export default async function InvoiceDetailPage({
 
   const { data: lineItems } = await supabase
     .from("invoice_line_items")
-    .select("*")
+    .select("*, time_entries(user_id)")
     .eq("invoice_id", id)
     .order("id");
 
@@ -36,73 +37,99 @@ export default async function InvoiceDetailPage({
     .eq("team_id", invoice.team_id)
     .single();
 
+  // Resolve display names + avatars for the time-entry authors that
+  // these line items trace back to. Per CLAUDE.md "Time-entry
+  // authorship — MANDATORY", every surface that displays content
+  // tied to a time entry must show who logged it. Bulk-resolve in
+  // one query to keep the page fast on long invoices.
+  const userIds = Array.from(
+    new Set(
+      (lineItems ?? [])
+        .map((li) => {
+          const te = li.time_entries;
+          if (!te || typeof te !== "object" || !("user_id" in te)) return null;
+          return (te as { user_id: string | null }).user_id;
+        })
+        .filter((id): id is string => id !== null && id !== undefined),
+    ),
+  );
+  const { data: profiles } =
+    userIds.length > 0
+      ? await supabase
+          .from("user_profiles")
+          .select("user_id, display_name, avatar_url")
+          .in("user_id", userIds)
+      : { data: [] };
+  const profileById = new Map<
+    string,
+    { displayName: string; avatarUrl: string | null }
+  >();
+  for (const p of profiles ?? []) {
+    profileById.set(p.user_id as string, {
+      displayName: (p.display_name as string | null) ?? "Unknown",
+      avatarUrl: (p.avatar_url as string | null) ?? null,
+    });
+  }
+  const tAuthor = await getTranslations("common.authorship");
+
   const client =
     invoice.customers && typeof invoice.customers === "object"
       ? (invoice.customers as { name: string; email: string | null; address: string | null })
       : null;
 
-  const statusColorMap: Record<string, string> = {
-    draft: "bg-surface-inset text-content-muted",
-    sent: "bg-info-soft text-info",
-    paid: "bg-success-soft text-success",
-    overdue: "bg-error-soft text-error",
-    void: "bg-surface-inset text-content-muted",
-  };
-
   return (
     <div>
-      <div className="flex items-center justify-between">
-        <div className="flex items-center gap-3">
+      <div className="flex items-center justify-between flex-wrap gap-3">
+        <div className="flex items-center gap-3 flex-wrap">
           <FileText size={24} className="text-accent" />
-          <h1 className="text-2xl font-bold text-content font-mono">
+          <h1 className="text-page-title font-bold text-content font-mono">
             {invoice.invoice_number}
           </h1>
-          <span
-            className={`inline-flex items-center gap-1.5 rounded-full px-2.5 py-0.5 text-xs font-medium ${statusColorMap[invoice.status ?? "draft"] ?? ""}`}
-          >
-            <span className="h-1.5 w-1.5 rounded-full bg-current" />
-            {t(`status.${invoice.status ?? "draft"}`)}
-          </span>
+          <InvoiceStatusBadge status={invoice.status ?? "draft"} />
         </div>
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-2 flex-wrap">
           <InvoicePdfButton
             invoice={invoice}
             lineItems={lineItems ?? []}
             client={client}
             business={settings}
           />
-          <InvoiceActions invoiceId={invoice.id} currentStatus={invoice.status ?? "draft"} />
+          <InvoiceActions
+            invoiceId={invoice.id}
+            currentStatus={invoice.status ?? "draft"}
+            invoiceNumber={invoice.invoice_number}
+          />
         </div>
       </div>
 
       {/* Invoice details */}
       <div className="mt-6 grid gap-6 sm:grid-cols-2">
         <div className="rounded-lg border border-edge bg-surface-raised p-4">
-          <h3 className="text-xs font-semibold uppercase tracking-wider text-content-muted mb-2">
+          <h3 className="text-label font-semibold uppercase tracking-wider text-content-muted mb-2">
             {t("pdf.billTo")}
           </h3>
           <p className="font-medium text-content">{client?.name ?? "—"}</p>
           {client?.email && (
-            <p className="text-sm text-content-secondary">{client.email}</p>
+            <p className="text-body text-content-secondary">{client.email}</p>
           )}
           {client?.address && (
-            <p className="text-sm text-content-secondary">{client.address}</p>
+            <p className="text-body text-content-secondary">{client.address}</p>
           )}
         </div>
         <div className="rounded-lg border border-edge bg-surface-raised p-4">
-          <h3 className="text-xs font-semibold uppercase tracking-wider text-content-muted mb-2">
+          <h3 className="text-label font-semibold uppercase tracking-wider text-content-muted mb-2">
             {t("pdf.from")}
           </h3>
           <p className="font-medium text-content">
             {settings?.business_name ?? "—"}
           </p>
           {settings?.business_email && (
-            <p className="text-sm text-content-secondary">
+            <p className="text-body text-content-secondary">
               {settings.business_email}
             </p>
           )}
           {settings?.business_address && (
-            <p className="text-sm text-content-secondary">
+            <p className="text-body text-content-secondary">
               {settings.business_address}
             </p>
           )}
@@ -110,60 +137,84 @@ export default async function InvoiceDetailPage({
       </div>
 
       {/* Dates */}
-      <div className="mt-4 flex gap-6 text-sm text-content-secondary">
+      <div className="mt-4 flex gap-6 text-body text-content-secondary">
         <div>
           <span className="text-content-muted">{t("pdf.date")}:</span>{" "}
-          {invoice.issued_date
-            ? formatDate(invoice.issued_date)
-            : "—"}
+          {invoice.issued_date ? formatDate(invoice.issued_date) : "—"}
         </div>
         <div>
           <span className="text-content-muted">{t("pdf.dueDate")}:</span>{" "}
-          {invoice.due_date
-            ? formatDate(invoice.due_date)
-            : "—"}
+          {invoice.due_date ? formatDate(invoice.due_date) : "—"}
         </div>
       </div>
 
       {/* Line items table */}
       <div className="mt-6 overflow-hidden rounded-lg border border-edge bg-surface-raised">
-        <table className="w-full text-sm">
+        <table className="w-full text-body">
           <thead>
             <tr className="border-b border-edge bg-surface-inset">
-              <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider text-content-muted">
+              <th className="px-4 py-3 text-left text-label font-semibold uppercase tracking-wider text-content-muted">
                 {t("lineItem.description")}
               </th>
-              <th className="px-4 py-3 text-right text-xs font-semibold uppercase tracking-wider text-content-muted">
+              <th className="px-4 py-3 text-left text-label font-semibold uppercase tracking-wider text-content-muted">
+                {t("lineItem.author")}
+              </th>
+              <th className="px-4 py-3 text-right text-label font-semibold uppercase tracking-wider text-content-muted">
                 {t("lineItem.hours")}
               </th>
-              <th className="px-4 py-3 text-right text-xs font-semibold uppercase tracking-wider text-content-muted">
+              <th className="px-4 py-3 text-right text-label font-semibold uppercase tracking-wider text-content-muted">
                 {t("lineItem.rate")}
               </th>
-              <th className="px-4 py-3 text-right text-xs font-semibold uppercase tracking-wider text-content-muted">
+              <th className="px-4 py-3 text-right text-label font-semibold uppercase tracking-wider text-content-muted">
                 {t("lineItem.amount")}
               </th>
             </tr>
           </thead>
           <tbody>
-            {(lineItems ?? []).map((item) => (
-              <tr
-                key={item.id}
-                className="border-b border-edge last:border-0"
-              >
-                <td className="px-4 py-3 text-content">
-                  {item.description}
-                </td>
-                <td className="px-4 py-3 text-right font-mono text-content-secondary">
-                  {Number(item.quantity).toFixed(2)}
-                </td>
-                <td className="px-4 py-3 text-right font-mono text-content-secondary">
-                  {formatCurrency(Number(item.unit_price))}
-                </td>
-                <td className="px-4 py-3 text-right font-mono text-content">
-                  {formatCurrency(Number(item.amount))}
-                </td>
-              </tr>
-            ))}
+            {(lineItems ?? []).map((item) => {
+              const te = item.time_entries;
+              const userId =
+                te && typeof te === "object" && "user_id" in te
+                  ? ((te as { user_id: string | null }).user_id ?? null)
+                  : null;
+              const profile = userId ? profileById.get(userId) : null;
+              return (
+                <tr
+                  key={item.id}
+                  className="border-b border-edge last:border-0"
+                >
+                  <td className="px-4 py-3 text-content">{item.description}</td>
+                  <td className="px-4 py-3">
+                    {profile ? (
+                      <span className="inline-flex items-center gap-2 text-body text-content-secondary">
+                        <Avatar
+                          avatarUrl={resolveAvatarUrl(
+                            profile.avatarUrl,
+                            userId ?? "",
+                          )}
+                          displayName={profile.displayName}
+                          size={20}
+                        />
+                        <span className="truncate">{profile.displayName}</span>
+                      </span>
+                    ) : (
+                      <span className="text-caption text-content-muted italic">
+                        {tAuthor("unknownUser")}
+                      </span>
+                    )}
+                  </td>
+                  <td className="px-4 py-3 text-right font-mono tabular-nums text-content-secondary">
+                    {Number(item.quantity).toFixed(2)}
+                  </td>
+                  <td className="px-4 py-3 text-right font-mono tabular-nums text-content-secondary">
+                    {formatCurrency(Number(item.unit_price))}
+                  </td>
+                  <td className="px-4 py-3 text-right font-mono tabular-nums text-content">
+                    {formatCurrency(Number(item.amount))}
+                  </td>
+                </tr>
+              );
+            })}
           </tbody>
         </table>
 
@@ -171,24 +222,24 @@ export default async function InvoiceDetailPage({
         <div className="border-t border-edge bg-surface-inset px-4 py-3">
           <div className="flex justify-end gap-[32px]">
             <div className="text-right space-y-1">
-              <p className="text-sm text-content-muted">
+              <p className="text-body text-content-muted">
                 {t("fields.subtotal")}
               </p>
-              <p className="text-sm text-content-muted">
+              <p className="text-body text-content-muted">
                 {t("fields.taxAmount")} ({Number(invoice.tax_rate)}%)
               </p>
-              <p className="text-sm font-semibold text-content">
+              <p className="text-body font-semibold text-content">
                 {t("fields.total")}
               </p>
             </div>
             <div className="text-right space-y-1">
-              <p className="text-sm font-mono text-content-secondary">
+              <p className="text-body font-mono tabular-nums text-content-secondary">
                 {formatCurrency(Number(invoice.subtotal))}
               </p>
-              <p className="text-sm font-mono text-content-secondary">
+              <p className="text-body font-mono tabular-nums text-content-secondary">
                 {formatCurrency(Number(invoice.tax_amount))}
               </p>
-              <p className="text-sm font-mono font-semibold text-content">
+              <p className="text-body font-mono tabular-nums font-semibold text-content">
                 {formatCurrency(Number(invoice.total))}
               </p>
             </div>
@@ -199,10 +250,10 @@ export default async function InvoiceDetailPage({
       {/* Notes */}
       {invoice.notes && (
         <div className="mt-4 rounded-lg border border-edge bg-surface-raised p-4">
-          <h3 className="text-xs font-semibold uppercase tracking-wider text-content-muted mb-2">
+          <h3 className="text-label font-semibold uppercase tracking-wider text-content-muted mb-2">
             {t("pdf.notes")}
           </h3>
-          <p className="text-sm text-content-secondary whitespace-pre-wrap">
+          <p className="text-body text-content-secondary whitespace-pre-wrap">
             {invoice.notes}
           </p>
         </div>
