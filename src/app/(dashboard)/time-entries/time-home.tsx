@@ -89,12 +89,19 @@ export function TimeHome({
           than a separate hero block — same weight, same baseline, so
           the eye treats them as one masthead. */}
       <div className="flex items-baseline gap-4 flex-wrap">
-        <div className="flex items-center gap-3 self-center">
-          <Clock size={24} className="text-accent" />
+        <div className="flex items-baseline gap-3">
+          <Clock size={24} className="text-accent self-center" />
           <h1 className="text-page-title font-bold text-content">{t("title")}</h1>
         </div>
-        <div className="flex items-baseline gap-3 min-w-0">
-          <span className="font-mono text-page-title font-bold text-content tabular-nums leading-none">
+        {/* Total + billable breakdown sit as a stacked masthead block:
+            the canonical hours number shares the H1 baseline, and the
+            billable/non-billable caption hangs underneath it as a
+            secondary line. Putting the caption on the same baseline
+            as the hero number reads as misaligned (caption type sitting
+            on a page-title baseline always feels off), so it's stacked
+            instead. */}
+        <div className="flex flex-col min-w-0">
+          <span className="font-mono text-page-title font-bold text-content tabular-nums">
             {formatDurationHMZero(totalMin)}
           </span>
           <span className="text-caption text-content-muted font-mono tabular-nums truncate">

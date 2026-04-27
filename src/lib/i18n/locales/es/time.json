@@ -172,6 +172,12 @@
       "collapse": "Contraer grupo",
       "expand": "Expandir grupo",
       "rowCount": "{count, plural, one {# fila} other {# filas}}"
+    },
+    "row": {
+      "customerLabel": "Cliente",
+      "projectLabel": "Proyecto",
+      "noCustomer": "Sin cliente",
+      "noProject": "Sin proyecto"
     }
   },
   "rowDelete": {

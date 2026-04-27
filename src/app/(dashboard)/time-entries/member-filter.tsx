@@ -33,7 +33,11 @@ interface Props {
  * Serializes to `?members=me` (default, may also be omitted) | `?members=all`
  * | `?members=u1,u2,u3`. Server parses in /time-entries/page.tsx.
  *
- * Hidden when the team has ≤1 viewable member — filter would be pointless.
+ * Always rendered, even on a solo team — the control is part of the page's
+ * permanent toolbar so it doesn't suddenly appear when a second member joins.
+ * Authorship (the avatar in row groupings) is a separate signal from filter
+ * state, so a solo viewer still benefits from seeing the "You" pill as
+ * confirmation of what they're scoped to.
  */
 export function MemberFilter({
   members,
@@ -57,7 +61,7 @@ export function MemberFilter({
     return () => document.removeEventListener("mousedown", handleClick);
   }, [open]);
 
-  if (members.length <= 1) return null;
+  if (members.length === 0) return null;
 
   function pushSelection(next: "me" | "all" | string[]): void {
     const params = new URLSearchParams(searchParams.toString());

@@ -1077,9 +1077,11 @@ function TimesheetRow({
                     className="h-2 w-2 rounded-full shrink-0"
                     style={{ backgroundColor: category.color }}
                   />
-                  <span className="text-body-lg font-semibold text-content truncate">
-                    {category.name}
-                  </span>
+                  <Tooltip label={category.name}>
+                    <span className="text-body-lg font-semibold text-content truncate">
+                      {category.name}
+                    </span>
+                  </Tooltip>
                 </>
               ) : (
                 <span className="text-body-lg text-content-muted italic truncate">
@@ -1088,30 +1090,59 @@ function TimesheetRow({
               )}
             </div>
           )}
-          {!hideProject && (
-            <div
-              className={
-                hideCategory
-                  ? "text-body-lg font-semibold text-content truncate"
-                  : "text-caption text-content-muted truncate mt-0.5"
-              }
-            >
-              <span
-                className={
-                  hideCategory ? "text-content" : "text-content-secondary"
-                }
-              >
+          {/* When grouped by category the row's headline becomes the
+              project name (the category lives in the group header).
+              Promoted to the same loud weight as a category headline
+              so visual hierarchy stays consistent. */}
+          {hideCategory && !hideProject && (
+            <Tooltip label={project?.name ?? "—"}>
+              <div className="text-body-lg font-semibold text-content truncate">
                 {project?.name ?? "—"}
-              </span>
-              {project?.customers?.name && (
-                <span
-                  className={hideCategory ? "text-content-muted" : undefined}
-                >
-                  {" · "}
+              </div>
+            </Tooltip>
+          )}
+          {/* Customer line — surfaced on every row that carries
+              project context. Customer first because bookkeepers /
+              agency owners scan client before project. Each line
+              truncates independently (one shared truncation budget
+              for "project · customer" on a 220px column was the
+              source of "Pierce …" cut-offs); a Tooltip restores the
+              full name on hover per the MANDATORY truncation-tooltip
+              rule. */}
+          {!hideProject &&
+            (project?.customers?.name ? (
+              <Tooltip label={project.customers.name}>
+                <div className="text-caption text-content-secondary truncate mt-0.5">
+                  <span className="text-label uppercase text-content-muted mr-1.5">
+                    {t("row.customerLabel")}
+                  </span>
                   {project.customers.name}
+                </div>
+              </Tooltip>
+            ) : (
+              <div className="text-caption text-content-muted truncate mt-0.5">
+                <span className="text-label uppercase mr-1.5">
+                  {t("row.customerLabel")}
                 </span>
-              )}
-            </div>
+                <span className="italic">{t("row.noCustomer")}</span>
+              </div>
+            ))}
+          {/* Project line — only when the row's headline is Category
+              and Project isn't already promoted (hideCategory) or
+              hidden into the group header (hideProject). */}
+          {!hideCategory && !hideProject && (
+            <Tooltip label={project?.name ?? t("row.noProject")}>
+              <div className="text-caption text-content-secondary truncate mt-0.5">
+                <span className="text-label uppercase text-content-muted mr-1.5">
+                  {t("row.projectLabel")}
+                </span>
+                {project?.name ?? (
+                  <span className="italic text-content-muted">
+                    {t("row.noProject")}
+                  </span>
+                )}
+              </div>
+            </Tooltip>
           )}
           {showAuthorChip && (
             <div className="mt-1">
