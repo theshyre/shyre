@@ -30,7 +30,8 @@
     "customers": "Clientes",
     "billableHours": "Hrs facturables · este mes",
     "billableHoursShort": "Horas",
-    "expensesShort": "Gastos"
+    "expensesShort": "Gastos",
+    "teamCount": "{count, plural, one {# equipo} other {# equipos}}"
   },
   "tiles": {
     "expenses": {

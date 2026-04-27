@@ -17,13 +17,19 @@ const ENTITY_LABEL: Record<string, string> = {
 };
 
 interface BusinessSummary {
-  /** Team id — still the anchor for /business/[id] until the route
-   * rename flips it to business_id. Identity is now fetched via the
-   * team's business_id. */
+  /** Representative team id used as the anchor for /business/[id].
+   *  The list dedupes by business_id so a multi-team business shows
+   *  one card; clicking lands on the user's first team for that
+   *  business. The full route rename to /business/[business_id] is
+   *  deferred — see migration plan in docs. */
   id: string;
   name: string;
   legalName: string | null;
   entityType: string | null;
+  /** Number of teams under the same business_id. >1 surfaces a
+   *  "+N teams" hint on the card so a multi-entity owner can see
+   *  the rollup at a glance. */
+  teamCount: number;
   customerCount: number;
   billableHoursThisMonth: number;
   expensesThisMonth: number;
@@ -35,8 +41,40 @@ export default async function BusinessListPage(): Promise<React.JSX.Element> {
   const supabase = await createClient();
   const teams = await getUserTeams();
 
+  // Resolve every team's business_id in one query (lets us dedupe
+  // before fetching per-team stats — no point hitting customers /
+  // time_entries / expenses twice for two teams in one business).
+  const teamIds = teams.map((t) => t.id);
+  const { data: teamRows } =
+    teamIds.length > 0
+      ? await supabase
+          .from("teams")
+          .select("id, business_id")
+          .in("id", teamIds)
+      : { data: [] };
+  const businessIdByTeamId = new Map<string, string | null>();
+  for (const row of teamRows ?? []) {
+    businessIdByTeamId.set(
+      row.id as string,
+      (row.business_id as string | null) ?? null,
+    );
+  }
+
+  // Group teams by business_id. Teams without a business_id (legacy
+  // rows; should not exist post-migration but defense in depth) get
+  // their own pseudo-bucket keyed by team id, so they still render.
+  const teamsByBusiness = new Map<string, typeof teams>();
+  for (const team of teams) {
+    const bid = businessIdByTeamId.get(team.id) ?? `team:${team.id}`;
+    const list = teamsByBusiness.get(bid) ?? [];
+    list.push(team);
+    teamsByBusiness.set(bid, list);
+  }
+
   const summaries: BusinessSummary[] = await Promise.all(
-    teams.map((org) => fetchSummary(supabase, org.id, org.name)),
+    Array.from(teamsByBusiness.values()).map((teamGroup) =>
+      fetchSummary(supabase, teamGroup),
+    ),
   );
 
   const fmt = new Intl.NumberFormat("en-US", {
@@ -49,12 +87,14 @@ export default async function BusinessListPage(): Promise<React.JSX.Element> {
       <div>
         <div className="flex items-center gap-3 flex-wrap">
           <Briefcase size={24} className="text-accent" />
-          <h1 className="text-2xl font-bold text-content">{t("listTitle")}</h1>
-          <span className="inline-flex items-center gap-1.5 rounded-full bg-surface-inset px-2.5 py-0.5 text-xs font-medium text-content-muted">
-            {teams.length}
+          <h1 className="text-page-title font-bold text-content">
+            {t("listTitle")}
+          </h1>
+          <span className="inline-flex items-center gap-1.5 rounded-full bg-surface-inset px-2.5 py-0.5 text-caption font-medium text-content-muted">
+            {summaries.length}
           </span>
         </div>
-        <p className="mt-2 text-sm text-content-secondary max-w-3xl">
+        <p className="mt-2 text-body text-content-secondary max-w-3xl">
           {t("listSubtitle")}
         </p>
       </div>
@@ -62,7 +102,7 @@ export default async function BusinessListPage(): Promise<React.JSX.Element> {
       {summaries.length === 0 ? (
         <div className="rounded-lg border border-edge bg-surface-raised p-8 text-center space-y-3">
           <Briefcase size={28} className="text-content-muted mx-auto" />
-          <p className="text-sm text-content-secondary">{t("listEmpty")}</p>
+          <p className="text-body text-content-secondary">{t("listEmpty")}</p>
           <Link
             href="/teams"
             className={`${buttonSecondaryClass} inline-flex`}
@@ -85,24 +125,31 @@ export default async function BusinessListPage(): Promise<React.JSX.Element> {
                   <Briefcase size={22} className="text-accent" />
                 </div>
                 <div className="min-w-0 flex-1">
-                  <h2 className="text-base font-semibold text-content break-words">
+                  <h2 className="text-body-lg font-semibold text-content break-words">
                     {biz.legalName ?? biz.name}
                   </h2>
                   {biz.legalName && biz.legalName !== biz.name && (
-                    <p className="text-xs text-content-muted truncate">
+                    <p className="text-caption text-content-muted truncate">
                       {biz.name}
                     </p>
                   )}
-                  {biz.entityType && (
-                    <span className="mt-1 inline-flex items-center rounded-full bg-surface-inset px-2 py-0.5 text-[11px] font-medium text-content-secondary">
-                      {ENTITY_LABEL[biz.entityType] ?? biz.entityType}
-                    </span>
-                  )}
+                  <div className="mt-1 flex items-center gap-1.5 flex-wrap">
+                    {biz.entityType && (
+                      <span className="inline-flex items-center rounded-full bg-surface-inset px-2 py-0.5 text-label font-medium text-content-secondary">
+                        {ENTITY_LABEL[biz.entityType] ?? biz.entityType}
+                      </span>
+                    )}
+                    {biz.teamCount > 1 && (
+                      <span className="inline-flex items-center rounded-full bg-accent-soft px-2 py-0.5 text-label font-medium text-accent-text">
+                        {t("stats.teamCount", { count: biz.teamCount })}
+                      </span>
+                    )}
+                  </div>
                 </div>
                 <LinkPendingSpinner size={14} className="" />
               </div>
 
-              <div className="grid grid-cols-3 gap-2 text-xs">
+              <div className="grid grid-cols-3 gap-2">
                 <Stat
                   icon={Users}
                   label={t("stats.customers")}
@@ -133,20 +180,29 @@ export default async function BusinessListPage(): Promise<React.JSX.Element> {
 
 async function fetchSummary(
   supabase: Awaited<ReturnType<typeof createClient>>,
-  teamId: string,
-  fallbackName: string,
+  teams: { id: string; name: string; business_id?: string | null }[],
 ): Promise<BusinessSummary> {
   const monthStart = new Date();
   monthStart.setDate(1);
   monthStart.setHours(0, 0, 0, 0);
   const monthStartStr = `${monthStart.getFullYear()}-${String(monthStart.getMonth() + 1).padStart(2, "0")}-01`;
 
-  // Resolve team → business to fetch legal identity. Identity no
-  // longer lives on team_settings — PR-2 of the business/team split.
+  // Pick a representative team for the card link. The full route
+  // rename to /business/[business_id] is deferred; in the meantime
+  // the URL is still keyed by team_id, so we land on the first team
+  // alphabetically — stable across renders.
+  const sortedTeams = [...teams].sort((a, b) =>
+    a.name.localeCompare(b.name),
+  );
+  const representative = sortedTeams[0]!;
+  const teamIds = sortedTeams.map((t) => t.id);
+
+  // Resolve team → business once so identity lookups don't fan out
+  // across the team group.
   const { data: teamRow } = await supabase
     .from("teams")
     .select("business_id")
-    .eq("id", teamId)
+    .eq("id", representative.id)
     .maybeSingle();
   const businessId = (teamRow?.business_id as string | null) ?? null;
 
@@ -158,15 +214,17 @@ async function fetchSummary(
           .eq("id", businessId)
           .maybeSingle()
       : Promise.resolve({ data: null }),
+    // Stats are summed across all teams in the business — a card
+    // reflects the business, not one team.
     supabase
       .from("customers")
       .select("id", { count: "exact", head: true })
-      .eq("team_id", teamId)
+      .in("team_id", teamIds)
       .eq("archived", false),
     supabase
       .from("time_entries")
       .select("duration_min")
-      .eq("team_id", teamId)
+      .in("team_id", teamIds)
       .eq("billable", true)
       .not("end_time", "is", null)
       .is("deleted_at", null)
@@ -174,7 +232,7 @@ async function fetchSummary(
     supabase
       .from("expenses")
       .select("amount")
-      .eq("team_id", teamId)
+      .in("team_id", teamIds)
       .gte("incurred_on", monthStartStr),
   ]);
 
@@ -188,10 +246,11 @@ async function fetchSummary(
   );
 
   return {
-    id: teamId,
-    name: fallbackName,
+    id: representative.id,
+    name: representative.name,
     legalName: (business.data?.legal_name as string | null) ?? null,
     entityType: (business.data?.entity_type as string | null) ?? null,
+    teamCount: sortedTeams.length,
     customerCount: customerCount.count ?? 0,
     billableHoursThisMonth: Math.round((totalMin / 60) * 10) / 10,
     expensesThisMonth: expensesTotal,
@@ -212,9 +271,9 @@ function Stat({
     <div className="rounded-md border border-edge bg-surface p-2">
       <div className="flex items-center gap-1 text-content-muted mb-0.5">
         <Icon size={10} />
-        <span className="text-[9px] uppercase tracking-wider">{label}</span>
+        <span className="text-label uppercase tracking-wider">{label}</span>
       </div>
-      <p className="text-sm font-semibold font-mono tabular-nums text-content">
+      <p className="text-body font-semibold font-mono tabular-nums text-content">
         {value}
       </p>
     </div>

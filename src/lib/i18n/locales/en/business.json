@@ -30,7 +30,8 @@
     "customers": "Customers",
     "billableHours": "Billable hrs · this month",
     "billableHoursShort": "Hours",
-    "expensesShort": "Expenses"
+    "expensesShort": "Expenses",
+    "teamCount": "{count, plural, one {# team} other {# teams}}"
   },
   "tiles": {
     "expenses": {
