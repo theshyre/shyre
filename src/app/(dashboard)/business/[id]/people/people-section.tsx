@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { useTranslations } from "next-intl";
-import { UserCog, Plus, Pencil, X, Link2, Link2Off } from "lucide-react";
+import { UserCog, Plus, Pencil, X, Link2, Link2Off, History } from "lucide-react";
 import { AlertBanner } from "@theshyre/ui";
 import { useFormAction } from "@/hooks/use-form-action";
 import { SubmitButton } from "@/components/SubmitButton";
@@ -21,6 +21,7 @@ import {
   updatePersonAction,
   deletePersonAction,
 } from "../../people-actions";
+import { PersonHistoryDialog } from "./person-history-dialog";
 
 export interface PersonRow {
   id: string;
@@ -234,6 +235,7 @@ function PersonRowView({
 }): React.JSX.Element {
   const t = useTranslations("business.people");
   const [deleting, setDeleting] = useState(false);
+  const [showHistory, setShowHistory] = useState(false);
 
   const linkedUser = row.user_id
     ? linkableUsers.find((u) => u.user_id === row.user_id)
@@ -284,6 +286,16 @@ function PersonRowView({
 
       {canEdit && !deleting ? (
         <div className="flex items-center gap-1 shrink-0">
+          <Tooltip label={t("viewHistory")}>
+            <button
+              type="button"
+              onClick={() => setShowHistory(true)}
+              className={`${buttonGhostClass} inline-flex items-center gap-1`}
+              aria-label={t("viewHistory")}
+            >
+              <History size={14} />
+            </button>
+          </Tooltip>
           <button
             type="button"
             onClick={onEdit}
@@ -318,6 +330,13 @@ function PersonRowView({
           />
         </div>
       ) : null}
+
+      <PersonHistoryDialog
+        open={showHistory}
+        onClose={() => setShowHistory(false)}
+        personId={row.id}
+        personDisplayName={displayName}
+      />
     </div>
   );
 }

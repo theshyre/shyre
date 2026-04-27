@@ -118,8 +118,24 @@
     "description": "Todas las personas que el negocio emplea, contrata o registra en nómina. Una persona puede estar vinculada a una cuenta de Shyre o existir por sí misma — un contratista 1099 al que pagas no necesita acceso a Shyre.",
     "empty": "Aún no hay personas. Agrégate primero si eres el dueño.",
     "addButton": "Agregar persona",
+    "viewHistory": "Ver historial de cambios",
     "save": "Guardar persona",
     "cancel": "Cancelar",
+    "history": {
+      "title": "Historial de cambios — {name}",
+      "close": "Cerrar historial",
+      "loading": "Cargando historial…",
+      "error": "No se pudo cargar el historial: {message}",
+      "empty": "Sin cambios — esta persona no se ha editado desde que se agregó.",
+      "noFieldChanges": "Edición registrada; sin cambios en campos rastreados.",
+      "byOn": "por {actor} · {when}",
+      "unknownActor": "usuario desconocido",
+      "createdNote": "La fila más antigua arriba es el cambio más antiguo registrado. Los valores actuales en la tarjeta son el estado vigente.",
+      "operation": {
+        "UPDATE": "Actualizado",
+        "DELETE": "Eliminado"
+      }
+    },
     "sections": {
       "employees": "Empleados",
       "contractors": "Contratistas",

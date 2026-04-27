@@ -118,8 +118,24 @@
     "description": "Everyone the business employs, contracts, or otherwise tracks on payroll. A person may be linked to a Shyre user account or stand on their own — a 1099 contractor you pay doesn't need a Shyre login.",
     "empty": "No people yet. Add yourself first if you're the owner.",
     "addButton": "Add person",
+    "viewHistory": "View change history",
     "save": "Save person",
     "cancel": "Cancel",
+    "history": {
+      "title": "Change history — {name}",
+      "close": "Close history",
+      "loading": "Loading change history…",
+      "error": "Couldn't load history: {message}",
+      "empty": "No changes yet — this person hasn't been edited since they were added.",
+      "noFieldChanges": "Edit recorded; no tracked fields changed.",
+      "byOn": "by {actor} · {when}",
+      "unknownActor": "unknown user",
+      "createdNote": "The first row above is the oldest recorded change. The current values on the person card are the live state.",
+      "operation": {
+        "UPDATE": "Updated",
+        "DELETE": "Deleted"
+      }
+    },
     "sections": {
       "employees": "Employees",
       "contractors": "Contractors",
