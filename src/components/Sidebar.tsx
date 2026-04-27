@@ -18,6 +18,7 @@ import { Avatar } from "./Avatar";
 import { LinkPendingSpinner } from "./LinkPendingSpinner";
 import { TextSizeSwitcher } from "./TextSizeSwitcher";
 import { ThemePickerPopover } from "./ThemePickerPopover";
+import { Logo } from "./Logo";
 import { navItemsForSection } from "@/lib/modules/registry";
 
 interface NavItem {
@@ -100,11 +101,16 @@ export default function Sidebar({
   return (
     <aside className="flex h-full w-[256px] flex-col border-r border-edge bg-surface-raised">
       {/* Platform brand */}
-      <div className="px-4 py-3 border-b border-edge">
-        <p className="text-body-lg font-bold text-content tracking-wide">
-          {t("appName")}
-        </p>
-        <p className="text-caption text-content-muted">{t("appTagline")}</p>
+      <div className="flex items-center gap-3 px-4 py-3 border-b border-edge">
+        <Logo size={32} className="text-accent shrink-0" />
+        <div className="min-w-0">
+          <p className="text-body-lg font-bold text-content tracking-wide leading-tight">
+            {t("appName")}
+          </p>
+          <p className="text-caption text-content-muted leading-tight">
+            {t("appTagline")}
+          </p>
+        </div>
       </div>
 
       {/* Main nav — flat, no section dividers */}

@@ -6,6 +6,7 @@ import { useState } from "react";
 import { useTranslations } from "next-intl";
 import { inputClass, labelClass, buttonPrimaryClass } from "@/lib/form-styles";
 import { LogIn, UserPlus } from "lucide-react";
+import { Logo } from "@/components/Logo";
 
 export default function LoginPage(): React.JSX.Element {
   const [email, setEmail] = useState("");
@@ -46,13 +47,12 @@ export default function LoginPage(): React.JSX.Element {
   return (
     <div className="flex min-h-full items-center justify-center px-4">
       <div className="w-full max-w-[384px] space-y-8">
-        <div className="text-center">
+        <div className="flex flex-col items-center gap-3 text-center">
+          <Logo size={64} className="text-accent" />
           <h1 className="text-3xl font-bold tracking-tight text-content">
             {tc("appName")}
           </h1>
-          <p className="mt-2 text-content-secondary">
-            {tc("appTagline")}
-          </p>
+          <p className="text-content-secondary">{tc("appTagline")}</p>
         </div>
 
         <form onSubmit={handleSubmit} className="space-y-4">
