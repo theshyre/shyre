@@ -55,7 +55,7 @@ export default async function BusinessIdentityPage({
 
   return (
     <div className="space-y-4">
-      <p className="text-sm text-content-secondary max-w-3xl">{t("description")}</p>
+      <p className="text-body text-content-secondary max-w-3xl">{t("description")}</p>
       <IdentityForm
         teamId={teamId}
         businessId={(business?.id as string | null) ?? businessId ?? ""}

@@ -80,8 +80,10 @@ export default async function BusinessOverviewPage({
         >
           <Receipt size={20} className="text-accent shrink-0 mt-1" />
           <div className="min-w-0">
-            <p className="text-sm font-medium text-content">{t("tiles.expenses.title")}</p>
-            <p className="mt-0.5 text-xs text-content-muted">
+            <p className="text-body-lg font-medium text-content">
+              {t("tiles.expenses.title")}
+            </p>
+            <p className="mt-0.5 text-caption text-content-muted">
               {t("tiles.expenses.summary", {
                 count: expensesCount,
                 amount: fmt.format(expensesTotal),
@@ -93,10 +95,10 @@ export default async function BusinessOverviewPage({
         <div className="flex items-start gap-4 rounded-lg border border-dashed border-edge bg-surface-raised/40 p-4">
           <UserCog size={20} className="text-content-muted shrink-0 mt-1" />
           <div className="min-w-0">
-            <p className="text-sm font-medium text-content-secondary">
+            <p className="text-body-lg font-medium text-content-secondary">
               {t("tiles.people.title")}
             </p>
-            <p className="mt-1 text-xs text-content-muted">
+            <p className="mt-1 text-caption text-content-muted">
               {t("tiles.people.hint")}
             </p>
           </div>
@@ -124,10 +126,10 @@ function StatCard({
     >
       <Icon size={20} className="text-accent shrink-0" />
       <div>
-        <p className="text-[10px] font-semibold uppercase tracking-wider text-content-muted">
+        <p className="text-label font-semibold uppercase tracking-wider text-content-muted">
           {label}
         </p>
-        <p className="text-2xl font-semibold text-content font-mono tabular-nums">
+        <p className="text-page-title font-semibold text-content font-mono tabular-nums">
           {value}
         </p>
       </div>

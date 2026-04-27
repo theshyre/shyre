@@ -131,7 +131,7 @@ export function NewExpenseForm({ teamId, projects }: Props): React.JSX.Element {
             name="billable"
             className="h-4 w-4"
           />
-          <label htmlFor="billable" className="text-sm text-content-secondary">
+          <label htmlFor="billable" className="text-body text-content-secondary">
             {t("fields.billable")}
           </label>
         </div>

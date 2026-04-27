@@ -80,8 +80,8 @@ export default async function ExpensesPage({
   return (
     <div className="space-y-4">
       <div className="flex items-center gap-3 flex-wrap">
-        <span className="text-sm font-semibold text-content">{t("title")}</span>
-        <span className="inline-flex items-center gap-1.5 rounded-full bg-surface-inset px-3 py-1 text-xs font-medium text-content-secondary">
+        <span className="text-body-lg font-semibold text-content">{t("title")}</span>
+        <span className="inline-flex items-center gap-1.5 rounded-full bg-surface-inset px-3 py-1 text-caption font-medium text-content-secondary">
           {t("monthTotal", { amount: formatCurrency(monthTotal, "USD") })}
         </span>
       </div>
@@ -89,30 +89,30 @@ export default async function ExpensesPage({
       <NewExpenseForm teamId={teamId} projects={projects} />
 
       {expenses.length === 0 ? (
-        <div className="rounded-lg border border-edge bg-surface-raised p-6 text-sm text-content-muted">
+        <div className="rounded-lg border border-edge bg-surface-raised p-6 text-body text-content-muted">
           {t("empty")}
         </div>
       ) : (
         <div className="overflow-hidden rounded-lg border border-edge bg-surface-raised">
-          <table className="w-full text-sm">
+          <table className="w-full text-body">
             <thead>
               <tr className="border-b border-edge bg-surface-inset">
-                <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider text-content-muted">
+                <th className="px-4 py-3 text-left text-label font-semibold uppercase tracking-wider text-content-muted">
                   {t("fields.incurredOn")}
                 </th>
-                <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider text-content-muted">
+                <th className="px-4 py-3 text-left text-label font-semibold uppercase tracking-wider text-content-muted">
                   {t("fields.category")}
                 </th>
-                <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider text-content-muted">
+                <th className="px-4 py-3 text-left text-label font-semibold uppercase tracking-wider text-content-muted">
                   {t("fields.vendor")}
                 </th>
-                <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider text-content-muted">
+                <th className="px-4 py-3 text-left text-label font-semibold uppercase tracking-wider text-content-muted">
                   {t("fields.project")}
                 </th>
-                <th className="px-4 py-3 text-right text-xs font-semibold uppercase tracking-wider text-content-muted">
+                <th className="px-4 py-3 text-right text-label font-semibold uppercase tracking-wider text-content-muted">
                   {t("fields.amount")}
                 </th>
-                <th className="px-4 py-3 text-right text-xs font-semibold uppercase tracking-wider text-content-muted">
+                <th className="px-4 py-3 text-right text-label font-semibold uppercase tracking-wider text-content-muted">
                   {tc("table.actions")}
                 </th>
               </tr>

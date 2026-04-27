@@ -70,7 +70,7 @@ export default async function BusinessDetailLayout({
       <div>
         <Link
           href="/business"
-          className="inline-flex items-center gap-1 text-xs text-content-muted hover:text-content"
+          className="inline-flex items-center gap-1 text-caption text-content-muted hover:text-content"
         >
           <ArrowLeft size={12} />
           {t("backToList")}
@@ -78,11 +78,11 @@ export default async function BusinessDetailLayout({
         </Link>
         <div className="mt-1 flex items-center gap-3 flex-wrap">
           <Briefcase size={24} className="text-accent" />
-          <h1 className="text-2xl font-bold text-content break-words">
+          <h1 className="text-page-title font-bold text-content break-words">
             {displayName}
           </h1>
           {entityLabel && (
-            <span className="inline-flex items-center rounded-full bg-surface-inset px-2 py-0.5 text-xs font-medium text-content-secondary">
+            <span className="inline-flex items-center rounded-full bg-surface-inset px-2 py-0.5 text-caption font-medium text-content-secondary">
               {entityLabel}
             </span>
           )}

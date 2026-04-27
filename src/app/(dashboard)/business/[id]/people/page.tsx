@@ -28,7 +28,7 @@ export default async function BusinessPeoplePage({
 
   if (!businessId) {
     return (
-      <p className="text-sm text-content-muted italic p-4">
+      <p className="text-body text-content-muted italic p-4">
         This team is not linked to a business.
       </p>
     );

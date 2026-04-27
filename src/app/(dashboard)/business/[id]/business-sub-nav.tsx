@@ -55,11 +55,11 @@ export function BusinessSubNav({ teamId }: Props): React.JSX.Element {
           return (
             <Tooltip key={tab.href} label={t("comingSoon")}>
               <span
-                className="inline-flex items-center gap-2 px-3 py-2 text-sm font-medium text-content-muted opacity-50 cursor-not-allowed"
+                className="inline-flex items-center gap-2 px-3 py-2 text-body-lg font-medium text-content-muted opacity-50 cursor-not-allowed"
               >
                 <Icon size={14} />
                 {t(tab.labelKey)}
-                <span className="text-[10px] uppercase tracking-wider">
+                <span className="text-label uppercase tracking-wider">
                   {t("soon")}
                 </span>
               </span>
@@ -71,7 +71,7 @@ export function BusinessSubNav({ teamId }: Props): React.JSX.Element {
           <Link
             key={tab.href}
             href={tab.href}
-            className={`inline-flex items-center gap-2 px-3 py-2 text-sm font-medium border-b-2 -mb-px transition-colors ${
+            className={`inline-flex items-center gap-2 px-3 py-2 text-body-lg font-medium border-b-2 -mb-px transition-colors ${
               isActive
                 ? "border-accent text-accent"
                 : "border-transparent text-content-secondary hover:text-content hover:border-edge"

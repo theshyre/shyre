@@ -154,7 +154,7 @@ export function ExpenseRow({
                 />
                 <label
                   htmlFor={`billable-${expense.id}`}
-                  className="text-sm text-content-secondary"
+                  className="text-body text-content-secondary"
                 >
                   {t("fields.billable")}
                 </label>
@@ -184,20 +184,20 @@ export function ExpenseRow({
 
   return (
     <tr className="border-b border-edge last:border-0 hover:bg-hover transition-colors">
-      <td className="px-4 py-3 font-mono text-xs text-content-secondary">
+      <td className="px-4 py-3 font-mono text-caption text-content-secondary">
         {expense.incurred_on}
       </td>
       <td className="px-4 py-3">
-        <span className="inline-flex items-center gap-1 rounded-full bg-surface-inset px-2 py-0.5 text-[11px] font-medium text-content-secondary">
+        <span className="inline-flex items-center gap-1 rounded-full bg-surface-inset px-2 py-0.5 text-caption font-medium text-content-secondary">
           {t(`categories.${expense.category}`)}
         </span>
         {expense.is_sample && (
-          <span className="ml-2 inline-flex items-center rounded-full bg-accent-soft px-2 py-0.5 text-[10px] font-medium text-accent">
+          <span className="ml-2 inline-flex items-center rounded-full bg-accent-soft px-2 py-0.5 text-label font-medium text-accent">
             {t("sampleTag")}
           </span>
         )}
         {expense.description && (
-          <p className="mt-1 text-xs text-content-muted line-clamp-1">
+          <p className="mt-1 text-caption text-content-muted line-clamp-1">
             {expense.description}
           </p>
         )}
@@ -208,7 +208,7 @@ export function ExpenseRow({
       <td className="px-4 py-3 text-content-secondary">
         {expense.projects?.name ?? "—"}
         {expense.billable && (
-          <span className="ml-2 text-[10px] font-semibold uppercase tracking-wider text-success">
+          <span className="ml-2 text-label font-semibold uppercase tracking-wider text-success">
             {t("billableTag")}
           </span>
         )}
@@ -223,7 +223,7 @@ export function ExpenseRow({
             <button
               type="submit"
               disabled={del.pending}
-              className={`${buttonDangerClass} !px-2 !py-1 text-xs`}
+              className={`${buttonDangerClass} !px-2 !py-1 text-caption`}
               aria-label={t("confirmDelete")}
             >
               {del.pending ? (

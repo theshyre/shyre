@@ -78,7 +78,7 @@ export function IdentityForm({
             placeholder={t("fields.legalNamePlaceholder")}
             className={inputClass}
           />
-          <p className="mt-1 text-xs text-content-muted">
+          <p className="mt-1 text-caption text-content-muted">
             {t("fields.legalNameHelp")}
           </p>
         </div>
@@ -107,7 +107,7 @@ export function IdentityForm({
             placeholder="XX-XXXXXXX"
             className={`${inputClass} font-mono`}
           />
-          <p className="mt-1 text-xs text-content-muted">
+          <p className="mt-1 text-caption text-content-muted">
             {t("fields.taxIdHelp")}
           </p>
         </div>
@@ -131,7 +131,7 @@ export function IdentityForm({
             pattern="^(0[1-9]|1[0-2])-(0[1-9]|[12]\d|3[01])$"
             className={`${inputClass} font-mono`}
           />
-          <p className="mt-1 text-xs text-content-muted">
+          <p className="mt-1 text-caption text-content-muted">
             {t("fields.fiscalYearStartHelp")}
           </p>
         </div>
