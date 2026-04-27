@@ -14,7 +14,7 @@ import {
   Sun,
   Moon,
   Contrast,
-  Flame,
+  BookOpen,
   Check,
 } from "lucide-react";
 import { useTheme } from "./theme-provider";
@@ -33,7 +33,9 @@ const OPTIONS: Option[] = [
   { key: "light", icon: Sun, i18nKey: "light" },
   { key: "dark", icon: Moon, i18nKey: "dark" },
   { key: "high-contrast", icon: Contrast, i18nKey: "highContrast" },
-  { key: "warm", icon: Flame, i18nKey: "warm" },
+  // Selector key stays "warm" so stored prefs survive — only the user-
+  // facing label and icon change. Cream paper palette, low glare.
+  { key: "warm", icon: BookOpen, i18nKey: "reading" },
 ];
 
 /**

@@ -77,7 +77,7 @@
     "light": "Claro",
     "dark": "Oscuro",
     "highContrast": "Alto Contraste",
-    "warm": "Cálido"
+    "reading": "Lectura"
   },
   "textSize": {
     "title": "Tamaño de Texto",

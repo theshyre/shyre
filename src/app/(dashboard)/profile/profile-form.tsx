@@ -15,7 +15,7 @@ import {
   Moon,
   Monitor,
   Eye,
-  Flame,
+  BookOpen,
   Globe,
   Clock,
   Languages,
@@ -57,8 +57,19 @@ const THEME_OPTIONS: ReadonlyArray<{
   { key: "light", icon: Sun },
   { key: "dark", icon: Moon },
   { key: "high-contrast", icon: Eye },
-  { key: "warm", icon: Flame },
+  // Selector key stays "warm" so stored prefs survive — only the user-
+  // facing label and icon change. Cream paper palette, low glare.
+  { key: "warm", icon: BookOpen },
 ];
+
+// Selector keys → i18n keys. The DB / data-theme selector is the source
+// of truth; the i18n key tracks the user-facing label, which can drift
+// (warm → reading) without breaking stored prefs.
+function themeI18nKey(key: Theme): string {
+  if (key === "high-contrast") return "highContrast";
+  if (key === "warm") return "reading";
+  return key;
+}
 
 interface Props {
   userId: string;
@@ -211,9 +222,7 @@ export function ProfileForm({
                     }`}
                   >
                     <Icon size={16} />
-                    {t(
-                      `theme.${opt.key === "high-contrast" ? "highContrast" : opt.key}`,
-                    )}
+                    {t(`theme.${themeI18nKey(opt.key)}`)}
                   </button>
                 );
               })}

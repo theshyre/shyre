@@ -77,7 +77,7 @@
     "light": "Light",
     "dark": "Dark",
     "highContrast": "High Contrast",
-    "warm": "Warm"
+    "reading": "Reading"
   },
   "textSize": {
     "title": "Text Size",

@@ -43,7 +43,8 @@ describe("ThemePickerPopover", () => {
     const user = userEvent.setup();
     renderWithIntl(<ThemePickerPopover />);
     await user.click(screen.getByRole("button", { name: /theme.*dark/i }));
-    await user.click(screen.getByRole("menuitemradio", { name: /warm/i }));
+    // Visible label is "Reading" — selector key stays "warm".
+    await user.click(screen.getByRole("menuitemradio", { name: /reading/i }));
     expect(setThemeSpy).toHaveBeenCalledWith("warm");
     await waitFor(() => {
       expect(screen.queryByRole("menuitemradio")).not.toBeInTheDocument();

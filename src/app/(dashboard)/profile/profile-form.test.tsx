@@ -79,7 +79,8 @@ describe("ProfileForm", () => {
     expect(
       screen.getByRole("button", { name: /high contrast/i }),
     ).toBeInTheDocument();
-    expect(screen.getByRole("button", { name: /warm/i })).toBeInTheDocument();
+    // Visible label is "Reading" — selector key stays "warm".
+    expect(screen.getByRole("button", { name: /reading/i })).toBeInTheDocument();
   });
 
   it("renders three text-size buttons", () => {

@@ -150,7 +150,9 @@ All colors use semantic CSS custom properties defined in `globals.css` with 3 th
 
 ### Layout dimensions in px, type in rem — MANDATORY
 
-The `<html>` font-size override above means every `rem`-based dimension scales with the user's text-size preference. That's exactly what we want for **type** — and exactly what we don't want for **layout**. Without this rule, sidebars widen, gutters shift, and the whole composition slides horizontally when a viewer toggles to Large. Liv hit the same leak; the rule lives in `theshyre-core/CLAUDE.md` as the source of truth and is enforced per-app here.
+> **Source of truth: `theshyre-core/CLAUDE.md`** ("Layout dimensions in px, type and text-adjacent padding in rem"). Liv enforces the same rule per-app. The UX-designer persona checklist (`docs/personas/ux-designer.md`) auto-fires on UI changes and flags drift. Don't fork the rule — if Shyre needs an exception, raise it upstream so both apps stay aligned.
+
+The `<html>` font-size override above means every `rem`-based dimension scales with the user's text-size preference. That's exactly what we want for **type** — and exactly what we don't want for **layout**. Without this rule, sidebars widen, gutters shift, and the whole composition slides horizontally when a viewer toggles to Large. Liv hit the same leak first; we landed Shyre's per-app sweep alongside it.
 
 **The split:**
 
