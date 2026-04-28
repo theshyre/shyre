@@ -77,6 +77,9 @@ interface Props {
   displayName: string;
   avatarUrl: string;
   githubToken: string | null;
+  jiraBaseUrl: string | null;
+  jiraEmail: string | null;
+  jiraApiToken: string | null;
   preferredTheme: Theme | null;
   timezone: string | null;
   locale: string | null;
@@ -90,6 +93,9 @@ export function ProfileForm({
   displayName,
   avatarUrl,
   githubToken,
+  jiraBaseUrl,
+  jiraEmail,
+  jiraApiToken,
   timezone,
   locale,
   weekStart,
@@ -379,9 +385,11 @@ export function ProfileForm({
 
       {/* ───── Integrations ───── */}
       <form action={tokenForm.handleSubmit}>
-        <section className="rounded-lg border border-edge bg-surface-raised p-4 space-y-3">
+        <section className="rounded-lg border border-edge bg-surface-raised p-4 space-y-4">
           <SectionHeader icon={Link2} label={t("sections.integrations")} />
           {tokenForm.serverError && <ErrorBanner text={tokenForm.serverError} />}
+
+          {/* GitHub */}
           <div>
             <label className={labelClass}>{t("fields.githubToken")}</label>
             <input
@@ -391,10 +399,58 @@ export function ProfileForm({
               defaultValue={githubToken ?? ""}
               className={inputClass}
             />
-            <p className="mt-1 text-xs text-content-muted">
+            <p className="mt-1 text-caption text-content-muted">
               {t("fields.githubTokenHelp")}
             </p>
           </div>
+
+          {/* Jira */}
+          <div className="border-t border-edge pt-4 space-y-3">
+            <div>
+              <h3 className="text-body-lg font-semibold text-content">
+                {t("fields.jiraSection")}
+              </h3>
+              <p className="mt-1 text-caption text-content-muted max-w-3xl">
+                {t("fields.jiraSectionHelp")}
+              </p>
+            </div>
+
+            <div>
+              <label className={labelClass}>{t("fields.jiraBaseUrl")}</label>
+              <input
+                name="jira_base_url"
+                type="url"
+                placeholder={t("fields.jiraBaseUrlPlaceholder")}
+                defaultValue={jiraBaseUrl ?? ""}
+                className={inputClass}
+              />
+            </div>
+
+            <div>
+              <label className={labelClass}>{t("fields.jiraEmail")}</label>
+              <input
+                name="jira_email"
+                type="email"
+                defaultValue={jiraEmail ?? ""}
+                className={inputClass}
+              />
+            </div>
+
+            <div>
+              <label className={labelClass}>{t("fields.jiraApiToken")}</label>
+              <input
+                name="jira_api_token"
+                type="password"
+                placeholder={t("fields.jiraApiTokenPlaceholder")}
+                defaultValue={jiraApiToken ?? ""}
+                className={inputClass}
+              />
+              <p className="mt-1 text-caption text-content-muted">
+                {t("fields.jiraApiTokenHelp")}
+              </p>
+            </div>
+          </div>
+
           <SubmitButton
             label={t("saveSettings")}
             pending={tokenForm.pending}

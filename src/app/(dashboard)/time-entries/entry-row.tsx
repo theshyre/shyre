@@ -6,6 +6,7 @@ import { DollarSign, Minus } from "lucide-react";
 import { formatDurationHM } from "@/lib/time/week";
 import { EntryAuthor } from "@/components/EntryAuthor";
 import { Tooltip } from "@/components/Tooltip";
+import { TicketChip } from "@/components/TicketChip";
 import { EntryKebabMenu } from "./entry-kebab-menu";
 import { InlineEditForm } from "./inline-edit-form";
 import type { CategoryOption, ProjectOption, TimeEntry } from "./types";
@@ -22,6 +23,9 @@ interface Props {
   /** True when this entry is in the multi-row selection set. */
   selected: boolean;
   onToggleSelect: (id: string) => void;
+  /** True when the viewer authored this entry — gates the chip's
+   *  refresh button. The action checks the same on the server. */
+  canRefresh?: boolean;
 }
 
 /**
@@ -41,6 +45,7 @@ export function EntryRow({
   tzOffsetMin,
   selected,
   onToggleSelect,
+  canRefresh = false,
 }: Props): React.JSX.Element {
   const t = useTranslations("time");
   const isRunning = !entry.end_time;
@@ -144,6 +149,19 @@ export function EntryRow({
           ) : (
             <div className="text-body text-content-muted italic truncate mt-0.5">
               {t("entry.untitled")}
+            </div>
+          )}
+          {entry.linked_ticket_provider && entry.linked_ticket_key && (
+            <div className="mt-1 min-w-0">
+              <TicketChip
+                entryId={entry.id}
+                provider={entry.linked_ticket_provider}
+                ticketKey={entry.linked_ticket_key}
+                url={entry.linked_ticket_url}
+                title={entry.linked_ticket_title}
+                canRefresh={canRefresh}
+                size="sm"
+              />
             </div>
           )}
         </td>

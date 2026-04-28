@@ -37,6 +37,11 @@ function makeEntry(id: string, start: Date, durationMin = 60): TimeEntry {
     duration_min: durationMin,
     billable: true,
     github_issue: null,
+  linked_ticket_provider: null,
+  linked_ticket_key: null,
+  linked_ticket_url: null,
+  linked_ticket_title: null,
+  linked_ticket_refreshed_at: null,
     category_id: null,
     projects: { id: "p1", name: "Alpha", github_repo: null },
     author: null,
@@ -56,6 +61,7 @@ describe("DayView", () => {
     ];
     renderDay(
       <DayView
+        viewerUserId={null}
         dayStr="2026-04-14"
         weekStartStr={weekStartStr}
         tzOffsetMin={tzOffsetMin}
@@ -73,6 +79,7 @@ describe("DayView", () => {
   it("prev navigates to the prior day", () => {
     renderDay(
       <DayView
+        viewerUserId={null}
         dayStr="2026-04-14"
         weekStartStr={weekStartStr}
         tzOffsetMin={tzOffsetMin}
@@ -91,6 +98,7 @@ describe("DayView", () => {
   it("next navigates to the following day", () => {
     renderDay(
       <DayView
+        viewerUserId={null}
         dayStr="2026-04-14"
         weekStartStr={weekStartStr}
         tzOffsetMin={tzOffsetMin}
@@ -109,6 +117,7 @@ describe("DayView", () => {
   it("clicking a day in the strip navigates to that day", () => {
     renderDay(
       <DayView
+        viewerUserId={null}
         dayStr="2026-04-14"
         weekStartStr={weekStartStr}
         tzOffsetMin={tzOffsetMin}
@@ -128,6 +137,7 @@ describe("DayView", () => {
   it("renders the day's entries", () => {
     renderDay(
       <DayView
+        viewerUserId={null}
         dayStr="2026-04-14"
         weekStartStr={weekStartStr}
         tzOffsetMin={tzOffsetMin}

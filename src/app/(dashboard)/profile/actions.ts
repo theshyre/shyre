@@ -14,6 +14,13 @@ import {
 export async function updateUserSettingsAction(formData: FormData): Promise<void> {
   return runSafeAction(formData, async (formData, { supabase, userId }) => {
     const github_token = (formData.get("github_token") as string) || null;
+    const jira_base_url = normalizeStr(formData.get("jira_base_url"));
+    const jira_email = normalizeStr(formData.get("jira_email"));
+    const jira_api_token = (formData.get("jira_api_token") as string) || null;
+
+    if (jira_base_url && !/^https?:\/\//i.test(jira_base_url)) {
+      throw new Error("Jira base URL must start with http(s)://");
+    }
 
     assertSupabaseOk(
       await supabase
@@ -21,6 +28,9 @@ export async function updateUserSettingsAction(formData: FormData): Promise<void
         .upsert({
           user_id: userId,
           github_token,
+          jira_base_url,
+          jira_email,
+          jira_api_token,
         })
     );
 

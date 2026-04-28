@@ -4,6 +4,7 @@ import { runSafeAction } from "@/lib/safe-action";
 import { assertSupabaseOk } from "@/lib/errors";
 import { validateTeamAccess } from "@/lib/team-context";
 import { localDateMidnightUtc } from "@/lib/time/tz";
+import { buildTicketAttachment } from "@/lib/tickets/attach";
 import { revalidatePath } from "next/cache";
 
 /**
@@ -73,6 +74,13 @@ export async function createTimeEntryAction(formData: FormData): Promise<void> {
       end_time = (formData.get("end_time") as string) || null;
     }
 
+    const ticket = await buildTicketAttachment(
+      supabase,
+      userId,
+      description,
+      project_id,
+    );
+
     assertSupabaseOk(
       await supabase.from("time_entries").insert({
         team_id: teamId,
@@ -84,6 +92,7 @@ export async function createTimeEntryAction(formData: FormData): Promise<void> {
         billable,
         github_issue,
         category_id,
+        ...ticket,
       })
     );
 
@@ -117,6 +126,22 @@ export async function updateTimeEntryAction(formData: FormData): Promise<void> {
       end_time = (formData.get("end_time") as string) || null;
     }
 
+    // Re-resolve the ticket attachment from the (possibly edited)
+    // description. Need the entry's project_id to drive short-ref
+    // resolution; fetch it in the same round trip we'd already
+    // make.
+    const { data: existing } = await supabase
+      .from("time_entries")
+      .select("project_id")
+      .eq("id", id)
+      .maybeSingle();
+    const ticket = await buildTicketAttachment(
+      supabase,
+      userId,
+      description,
+      (existing?.project_id as string | null) ?? null,
+    );
+
     assertSupabaseOk(
       await supabase
         .from("time_entries")
@@ -127,6 +152,7 @@ export async function updateTimeEntryAction(formData: FormData): Promise<void> {
           billable,
           github_issue,
           category_id,
+          ...ticket,
         })
         .eq("id", id)
         .eq("user_id", userId)
@@ -350,6 +376,21 @@ export async function startTimerAction(formData: FormData): Promise<void> {
     const { data: existingRows } = await existingQuery;
     const existing = existingRows?.[0];
 
+    // When the caller supplied a description, run ticket detection
+    // + lookup so the running timer's chip shows up immediately.
+    // For the resume-existing-entry path we only re-run detection
+    // when the description was overwritten — otherwise the
+    // existing attachment stays.
+    const ticket =
+      description !== null
+        ? await buildTicketAttachment(
+            supabase,
+            userId,
+            description,
+            project_id,
+          )
+        : null;
+
     if (existing) {
       const accumulatedMin = (existing.duration_min as number | null) ?? 0;
       const backdatedStart = new Date(
@@ -362,7 +403,10 @@ export async function startTimerAction(formData: FormData): Promise<void> {
         start_time: backdatedStart,
         end_time: null,
       };
-      if (description !== null) updatePayload.description = description;
+      if (description !== null) {
+        updatePayload.description = description;
+        if (ticket) Object.assign(updatePayload, ticket);
+      }
       assertSupabaseOk(
         await supabase
           .from("time_entries")
@@ -381,6 +425,7 @@ export async function startTimerAction(formData: FormData): Promise<void> {
           end_time: null,
           billable: true,
           category_id,
+          ...(ticket ?? {}),
         }),
       );
     }
@@ -413,11 +458,14 @@ export async function duplicateTimeEntryAction(formData: FormData): Promise<void
   return runSafeAction(formData, async (formData, { supabase, userId }) => {
     const sourceId = formData.get("id") as string;
 
-    // Fetch source entry
+    // Fetch source entry — include ticket-link fields so the
+    // duplicate carries the same chip without a re-lookup round
+    // trip. The source's data is already authoritative for "what
+    // ticket is this work about."
     const { data: source, error: fetchErr } = await supabase
       .from("time_entries")
       .select(
-        "team_id, project_id, description, billable, github_issue, category_id",
+        "team_id, project_id, description, billable, github_issue, category_id, linked_ticket_provider, linked_ticket_key, linked_ticket_url, linked_ticket_title, linked_ticket_refreshed_at",
       )
       .eq("id", sourceId)
       .eq("user_id", userId)
@@ -450,11 +498,79 @@ export async function duplicateTimeEntryAction(formData: FormData): Promise<void
         billable: source.billable,
         github_issue: source.github_issue,
         category_id: source.category_id,
+        linked_ticket_provider: source.linked_ticket_provider,
+        linked_ticket_key: source.linked_ticket_key,
+        linked_ticket_url: source.linked_ticket_url,
+        linked_ticket_title: source.linked_ticket_title,
+        linked_ticket_refreshed_at: source.linked_ticket_refreshed_at,
       })
     );
 
     revalidatePath("/time-entries");
   }, "duplicateTimeEntryAction") as unknown as void;
+}
+
+/**
+ * Re-fetch the linked ticket's title from its source system and
+ * update the entry. Owner of the entry only — invoked from the
+ * chip's refresh button when the user notices the Jira/GitHub
+ * title has drifted.
+ */
+export async function refreshTicketTitleAction(
+  formData: FormData,
+): Promise<void> {
+  return runSafeAction(
+    formData,
+    async (fd, { supabase, userId }) => {
+      const id = String(fd.get("id") ?? "");
+      if (!id) throw new Error("Entry id required");
+
+      const { data: row } = await supabase
+        .from("time_entries")
+        .select(
+          "user_id, project_id, linked_ticket_provider, linked_ticket_key",
+        )
+        .eq("id", id)
+        .maybeSingle();
+      if (!row) throw new Error("Entry not found");
+      if (row.user_id !== userId) {
+        throw new Error("Only the entry's author can refresh its ticket.");
+      }
+      const provider = row.linked_ticket_provider as
+        | "jira"
+        | "github"
+        | null;
+      const key = row.linked_ticket_key as string | null;
+      if (!provider || !key) {
+        throw new Error("Entry has no linked ticket to refresh.");
+      }
+
+      // Reuse buildTicketAttachment by passing the existing key as
+      // the description — it'll detect, look up, and return the
+      // refreshed columns. Fall back to noop when lookup fails.
+      const attachment = await buildTicketAttachment(
+        supabase,
+        userId,
+        key,
+        (row.project_id as string | null) ?? null,
+      );
+
+      // If detection didn't find anything (shouldn't happen — the
+      // key itself satisfies the regex), bail.
+      if (!attachment.linked_ticket_provider) return;
+
+      assertSupabaseOk(
+        await supabase
+          .from("time_entries")
+          .update(attachment)
+          .eq("id", id)
+          .eq("user_id", userId),
+      );
+
+      revalidatePath("/time-entries");
+    },
+    "refreshTicketTitleAction",
+  ) as unknown as void;
 }
 
 /**

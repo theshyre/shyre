@@ -26,6 +26,10 @@ interface Props {
   dayEntries: TimeEntry[];
   projects: ProjectOption[];
   categories: CategoryOption[];
+  /** auth.uid() of the viewer — threaded through to the entry rows
+   *  so the ticket-link chip's refresh button is gated to the
+   *  entry's author. */
+  viewerUserId: string | null;
 }
 
 /**
@@ -53,6 +57,7 @@ export function DayView({
   dayEntries,
   projects,
   categories,
+  viewerUserId,
 }: Props): React.JSX.Element {
   const t = useTranslations("time.dayView");
   const router = useRouter();
@@ -250,6 +255,7 @@ export function DayView({
           onToggleExpand={toggleExpanded}
           hideGroupHeaders
           tzOffsetMin={tzOffsetMin}
+          viewerUserId={viewerUserId}
         />
       </div>
     </div>

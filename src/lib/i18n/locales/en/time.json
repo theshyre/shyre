@@ -1,6 +1,12 @@
 {
   "title": "Time",
   "addEntry": "Add past entry",
+  "ticket": {
+    "open": "Open ticket",
+    "refresh": "Refresh title",
+    "refreshFailed": "Couldn't refresh — check your token in Settings.",
+    "noCreds": "No {provider} token configured — saved without title."
+  },
   "saveEntry": "Save Entry",
   "saveChanges": "Save Changes",
   "editTitle": "Edit entry",

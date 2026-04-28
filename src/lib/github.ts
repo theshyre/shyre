@@ -89,6 +89,27 @@ export async function fetchIssues(
   return result;
 }
 
+export interface GitHubIssueDetail {
+  number: number;
+  title: string;
+  state: string;
+  html_url: string;
+}
+
+/** Fetch a single issue (or PR — same endpoint) by repo + number.
+ *  Used by the ticket-link lookup so we never download the entire
+ *  issue list when all we want is one title. */
+export async function fetchSingleIssue(
+  repo: string,
+  number: number,
+  token: string,
+): Promise<{ data: GitHubIssueDetail | null; error: GitHubApiError | null }> {
+  return githubFetch<GitHubIssueDetail>(
+    `/repos/${repo}/issues/${number}`,
+    token,
+  );
+}
+
 export async function fetchRepo(
   repo: string,
   token: string

@@ -180,6 +180,7 @@ export function TimeHome({
           dayEntries={dayEntries}
           projects={projects}
           categories={categories}
+          viewerUserId={currentUserId}
         />
       ) : (
         <WeekTimesheet

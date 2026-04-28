@@ -1,6 +1,12 @@
 {
   "title": "Tiempo",
   "addEntry": "Agregar registro pasado",
+  "ticket": {
+    "open": "Abrir ticket",
+    "refresh": "Actualizar título",
+    "refreshFailed": "No se pudo actualizar — verifica tu token en Configuración.",
+    "noCreds": "Sin token de {provider} configurado — guardado sin título."
+  },
   "saveEntry": "Guardar Registro",
   "saveChanges": "Guardar Cambios",
   "editTitle": "Editar registro",

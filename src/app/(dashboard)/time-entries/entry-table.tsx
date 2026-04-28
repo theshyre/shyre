@@ -23,6 +23,10 @@ interface Props {
   /** Hide the group headers when there's only one implicit group (e.g. today panel) */
   hideGroupHeaders?: boolean;
   tzOffsetMin?: number;
+  /** auth.uid() of the viewer — passed in from the server page so
+   *  EntryRow can show the chip's refresh button only on the
+   *  viewer's own entries (the action enforces this server-side). */
+  viewerUserId?: string | null;
 }
 
 // Leading select column + 6 content columns + kebab column.
@@ -36,6 +40,7 @@ export function EntryTable({
   onToggleExpand,
   hideGroupHeaders,
   tzOffsetMin,
+  viewerUserId = null,
 }: Props): React.JSX.Element {
   const t = useTranslations("time");
   const tc = useTranslations("common.actions");
@@ -205,6 +210,7 @@ export function EntryTable({
               tzOffsetMin={tzOffsetMin}
               selectedIds={selectedIds}
               onToggleSelect={toggleOne}
+              viewerUserId={viewerUserId}
             />
           ))}
         </tbody>
@@ -269,6 +275,7 @@ function GroupBlock({
   tzOffsetMin,
   selectedIds,
   onToggleSelect,
+  viewerUserId,
 }: {
   group: EntryGroup<TimeEntry>;
   projects: ProjectOption[];
@@ -279,6 +286,7 @@ function GroupBlock({
   tzOffsetMin?: number;
   selectedIds: Set<string>;
   onToggleSelect: (id: string) => void;
+  viewerUserId: string | null;
 }): React.JSX.Element {
   return (
     <>
@@ -326,6 +334,7 @@ function GroupBlock({
           tzOffsetMin={tzOffsetMin}
           selected={selectedIds.has(entry.id)}
           onToggleSelect={onToggleSelect}
+          canRefresh={!!viewerUserId && viewerUserId === entry.user_id}
         />
       ))}
     </>

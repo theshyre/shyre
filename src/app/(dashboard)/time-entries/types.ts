@@ -34,6 +34,14 @@ export interface TimeEntry {
   billable: boolean;
   github_issue: number | null;
   category_id: string | null;
+  /** Linked-ticket metadata. Populated server-side on save when a
+   *  Jira/GitHub reference is detected in the description. NULL
+   *  when nothing matched or lookup couldn't run. */
+  linked_ticket_provider: "jira" | "github" | null;
+  linked_ticket_key: string | null;
+  linked_ticket_url: string | null;
+  linked_ticket_title: string | null;
+  linked_ticket_refreshed_at: string | null;
   projects: ProjectInfo | null;
   /** Per the mandatory authorship rule — present on every display-bound entry. */
   author: AuthorInfo | null;
