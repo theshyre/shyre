@@ -1,9 +1,15 @@
+import type { Metadata } from "next";
 import Link from "next/link";
 import { getTranslations } from "next-intl/server";
 import { Trash2, ArrowLeft } from "lucide-react";
 import { createClient } from "@/lib/supabase/server";
 import { formatDurationHMZero } from "@/lib/time/week";
 import { TrashList } from "./trash-list";
+
+export async function generateMetadata(): Promise<Metadata> {
+  const t = await getTranslations("time.trash");
+  return { title: t("title") };
+}
 
 export default async function TimeEntriesTrashPage(): Promise<React.JSX.Element> {
   const t = await getTranslations("time.trash");

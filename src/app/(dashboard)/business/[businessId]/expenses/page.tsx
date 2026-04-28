@@ -1,7 +1,13 @@
+import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import { getTranslations } from "next-intl/server";
 import { getUserTeams } from "@/lib/team-context";
+
+export async function generateMetadata(): Promise<Metadata> {
+  const t = await getTranslations("expenses");
+  return { title: t("title") };
+}
 import { NewExpenseForm } from "./new-expense-form";
 import { ExpenseRow } from "./expense-row";
 

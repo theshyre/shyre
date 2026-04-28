@@ -1,8 +1,14 @@
+import type { Metadata } from "next";
 import { getUserTeams } from "@/lib/team-context";
 import { getTranslations } from "next-intl/server";
 import Link from "next/link";
 import { Building2, Crown, ShieldCheck, User } from "lucide-react";
 import { NewTeamForm } from "./new-team-form";
+
+export async function generateMetadata(): Promise<Metadata> {
+  const tc = await getTranslations("common.nav");
+  return { title: tc("teams") };
+}
 
 export default async function OrganizationsPage(): Promise<React.JSX.Element> {
   const teams = await getUserTeams();

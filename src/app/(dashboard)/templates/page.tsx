@@ -1,3 +1,4 @@
+import type { Metadata } from "next";
 import { createClient } from "@/lib/supabase/server";
 import { getUserTeams } from "@/lib/team-context";
 import { getMyTemplates } from "@/lib/templates/queries";
@@ -5,6 +6,11 @@ import { getVisibleCategorySets } from "@/lib/categories/queries";
 import { getTranslations } from "next-intl/server";
 import { Bookmark } from "lucide-react";
 import { TemplatesSection } from "./templates-section";
+
+export async function generateMetadata(): Promise<Metadata> {
+  const t = await getTranslations("templates");
+  return { title: t("title") };
+}
 
 export default async function TemplatesPage(): Promise<React.JSX.Element> {
   const supabase = await createClient();

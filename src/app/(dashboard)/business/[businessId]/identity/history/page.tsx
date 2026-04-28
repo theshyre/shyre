@@ -1,9 +1,15 @@
+import type { Metadata } from "next";
 import { getTranslations } from "next-intl/server";
 import Link from "next/link";
 import { ArrowLeft, Download, History as HistoryIcon } from "lucide-react";
 import { LinkPendingSpinner } from "@/components/LinkPendingSpinner";
 import { buttonSecondaryClass } from "@/lib/form-styles";
 import { validateBusinessAccess } from "@/lib/team-context";
+
+export async function generateMetadata(): Promise<Metadata> {
+  const t = await getTranslations("business.info.history");
+  return { title: t("title") };
+}
 import { getBusinessIdentityHistoryAction } from "../../../actions";
 import { IdentityHistoryTimeline } from "./identity-history-timeline";
 

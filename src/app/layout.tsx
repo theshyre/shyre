@@ -19,8 +19,18 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "Shyre",
-  description: "Shyre — platform for running a consulting business. Time tracking, customers, invoicing.",
+  // Per-route metadata exports return a bare page label (e.g. "Invoices",
+  // "INV-2026-001"); Next composes that into "<page> · Shyre" via the
+  // template. Routes that omit metadata fall back to `default`.
+  // Sensitive surfaces (Identity, Period locks, People, /admin/*) set
+  // their own generic label to avoid leaking customer / business
+  // names into browser history + OS window switchers.
+  title: {
+    default: "Shyre",
+    template: "%s · Shyre",
+  },
+  description:
+    "Shyre — platform for running a consulting business. Time tracking, customers, invoicing.",
 };
 
 export default async function RootLayout({

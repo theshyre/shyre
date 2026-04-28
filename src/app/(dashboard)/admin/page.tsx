@@ -1,3 +1,4 @@
+import type { Metadata } from "next";
 import Link from "next/link";
 import { getTranslations } from "next-intl/server";
 import {
@@ -23,6 +24,11 @@ interface Card {
   href: string;
   icon: ComponentType<{ size?: number; className?: string }>;
   badge?: number;
+}
+
+export async function generateMetadata(): Promise<Metadata> {
+  const t = await getTranslations("admin.hub");
+  return { title: t("title") };
 }
 
 export default async function AdminHubPage(): Promise<React.JSX.Element> {

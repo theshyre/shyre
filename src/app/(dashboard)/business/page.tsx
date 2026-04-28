@@ -1,6 +1,12 @@
+import type { Metadata } from "next";
 import Link from "next/link";
 import { getTranslations } from "next-intl/server";
 import { Briefcase, Plus, Users, DollarSign, Receipt } from "lucide-react";
+
+export async function generateMetadata(): Promise<Metadata> {
+  const t = await getTranslations("business");
+  return { title: t("listTitle") };
+}
 import { createClient } from "@/lib/supabase/server";
 import { getUserTeams } from "@/lib/team-context";
 import { LinkPendingSpinner } from "@/components/LinkPendingSpinner";

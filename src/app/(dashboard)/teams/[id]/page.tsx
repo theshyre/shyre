@@ -1,8 +1,24 @@
+import type { Metadata } from "next";
 import { createClient } from "@/lib/supabase/server";
 import { validateTeamAccess, getUserTeams } from "@/lib/team-context";
 import { getTranslations } from "next-intl/server";
 import { notFound } from "next/navigation";
 import Link from "next/link";
+
+export async function generateMetadata({
+  params,
+}: {
+  params: Promise<{ id: string }>;
+}): Promise<Metadata> {
+  const { id } = await params;
+  const supabase = await createClient();
+  const { data: team } = await supabase
+    .from("teams")
+    .select("name")
+    .eq("id", id)
+    .maybeSingle();
+  return { title: (team?.name as string | undefined) ?? "Team" };
+}
 import {
   Building2,
   Users,

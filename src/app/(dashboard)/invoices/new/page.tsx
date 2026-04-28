@@ -1,8 +1,14 @@
+import type { Metadata } from "next";
 import { createClient } from "@/lib/supabase/server";
 import { getUserTeams } from "@/lib/team-context";
 import { getTranslations } from "next-intl/server";
 import { FileText } from "lucide-react";
 import { NewInvoiceForm } from "./new-invoice-form";
+
+export async function generateMetadata(): Promise<Metadata> {
+  const t = await getTranslations("invoices");
+  return { title: t("newInvoice") };
+}
 
 export default async function NewInvoicePage(): Promise<React.JSX.Element> {
   const supabase = await createClient();

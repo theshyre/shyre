@@ -1,6 +1,9 @@
+import type { Metadata } from "next";
 import Link from "next/link";
 import { requireSystemAdmin } from "@/lib/system-admin";
 import { createAdminClient } from "@/lib/supabase/admin";
+
+export const metadata: Metadata = { title: "Admin · Teams" };
 import {
   Building2,
   Users,

@@ -1,7 +1,27 @@
+import type { Metadata } from "next";
 import { createClient } from "@/lib/supabase/server";
 import { getTranslations } from "next-intl/server";
 import { notFound } from "next/navigation";
 import { Clock, Hash, ExternalLink } from "lucide-react";
+
+export async function generateMetadata({
+  params,
+}: {
+  params: Promise<{ id: string }>;
+}): Promise<Metadata> {
+  const { id } = await params;
+  const supabase = await createClient();
+  const { data: project } = await supabase
+    .from("projects")
+    .select("name")
+    .eq("id", id)
+    .maybeSingle();
+  if (!project) {
+    const t = await getTranslations("projects");
+    return { title: t("title") };
+  }
+  return { title: project.name as string };
+}
 import { formatDate } from "@theshyre/ui";
 import { getVisibleCategorySets } from "@/lib/categories/queries";
 import { ProjectEditForm } from "./project-edit-form";

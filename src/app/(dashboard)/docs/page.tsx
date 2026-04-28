@@ -1,3 +1,4 @@
+import type { Metadata } from "next";
 import {
   BookOpen,
   Clock,
@@ -168,6 +169,8 @@ const ROLE_BROWSE = [
     blurb: "Tools behind the System Admin sidebar section.",
   },
 ];
+
+export const metadata: Metadata = { title: "Docs" };
 
 export default async function DocsIndexPage(): Promise<React.JSX.Element> {
   const [teams, sysadmin] = await Promise.all([getUserTeams(), isSystemAdmin()]);

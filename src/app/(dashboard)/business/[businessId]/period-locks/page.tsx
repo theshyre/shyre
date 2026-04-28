@@ -1,6 +1,12 @@
+import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 import { getTranslations } from "next-intl/server";
 import { Lock } from "lucide-react";
+
+export async function generateMetadata(): Promise<Metadata> {
+  const t = await getTranslations("business.periodLocks");
+  return { title: t("title") };
+}
 import { createClient } from "@/lib/supabase/server";
 import { validateBusinessAccess, getUserTeams } from "@/lib/team-context";
 import { LockPeriodForm } from "./lock-period-form";

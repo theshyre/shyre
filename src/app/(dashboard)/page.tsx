@@ -1,7 +1,13 @@
+import type { Metadata } from "next";
 import { createClient } from "@/lib/supabase/server";
 import { getUserContext } from "@/lib/team-context";
 import { getTranslations } from "next-intl/server";
 import Link from "next/link";
+
+export async function generateMetadata(): Promise<Metadata> {
+  const t = await getTranslations("dashboard");
+  return { title: t("title") };
+}
 import {
   LayoutDashboard,
   Clock,

@@ -1,3 +1,4 @@
+import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 import Link from "next/link";
 import { BookOpen, ArrowLeft } from "lucide-react";
@@ -5,6 +6,21 @@ import fs from "fs/promises";
 import path from "path";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
+
+export async function generateMetadata({
+  params,
+}: {
+  params: Promise<{ slug: string[] }>;
+}): Promise<Metadata> {
+  const { slug } = await params;
+  // Last segment, prettified — "time-tracking" → "Time tracking".
+  const last = slug[slug.length - 1] ?? "";
+  if (!last) return { title: "Docs" };
+  const pretty = last
+    .replace(/[-_]+/g, " ")
+    .replace(/^\w/, (c) => c.toUpperCase());
+  return { title: `${pretty} · Docs` };
+}
 
 /**
  * Resolve a URL slug to a file under docs/. Supports:

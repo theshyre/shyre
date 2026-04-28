@@ -1,7 +1,13 @@
+import type { Metadata } from "next";
 import { createClient } from "@/lib/supabase/server";
 import { getUserTeams } from "@/lib/team-context";
 import { getTranslations } from "next-intl/server";
 import { BarChart3 } from "lucide-react";
+
+export async function generateMetadata(): Promise<Metadata> {
+  const t = await getTranslations("reports");
+  return { title: t("title") };
+}
 import { Avatar, resolveAvatarUrl } from "@theshyre/ui";
 import { formatCurrency } from "@/lib/invoice-utils";
 import { TeamFilter } from "@/components/TeamFilter";

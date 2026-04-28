@@ -1,5 +1,8 @@
+import type { Metadata } from "next";
 import { createClient } from "@/lib/supabase/server";
 import { requireSystemAdmin } from "@/lib/system-admin";
+
+export const metadata: Metadata = { title: "Error log" };
 import {
   Shield,
   AlertTriangle,

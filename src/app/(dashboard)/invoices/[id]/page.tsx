@@ -1,7 +1,27 @@
+import type { Metadata } from "next";
 import { createClient } from "@/lib/supabase/server";
 import { getTranslations } from "next-intl/server";
 import { notFound } from "next/navigation";
 import { FileText } from "lucide-react";
+
+export async function generateMetadata({
+  params,
+}: {
+  params: Promise<{ id: string }>;
+}): Promise<Metadata> {
+  const { id } = await params;
+  const supabase = await createClient();
+  const { data: invoice } = await supabase
+    .from("invoices")
+    .select("invoice_number")
+    .eq("id", id)
+    .maybeSingle();
+  if (!invoice) {
+    const t = await getTranslations("invoices");
+    return { title: t("title") };
+  }
+  return { title: invoice.invoice_number as string };
+}
 import { formatDate, Avatar, resolveAvatarUrl } from "@theshyre/ui";
 import { formatCurrency } from "@/lib/invoice-utils";
 import { InvoiceActions } from "./invoice-actions";

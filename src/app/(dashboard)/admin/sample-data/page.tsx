@@ -1,8 +1,14 @@
+import type { Metadata } from "next";
 import { requireSystemAdmin } from "@/lib/system-admin";
 import { createClient } from "@/lib/supabase/server";
 import { getUserTeams } from "@/lib/team-context";
 import { getTranslations } from "next-intl/server";
 import { Database, Building2 } from "lucide-react";
+
+export async function generateMetadata(): Promise<Metadata> {
+  const t = await getTranslations("sampleData");
+  return { title: t("title") };
+}
 import { TeamFilter } from "@/components/TeamFilter";
 import { SampleDataControls } from "./controls";
 

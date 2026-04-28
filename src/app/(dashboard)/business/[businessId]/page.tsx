@@ -1,3 +1,4 @@
+import type { Metadata } from "next";
 import Link from "next/link";
 import { getTranslations } from "next-intl/server";
 import {
@@ -10,6 +11,29 @@ import {
 } from "lucide-react";
 import { createClient } from "@/lib/supabase/server";
 import { getUserTeams, validateBusinessAccess } from "@/lib/team-context";
+
+export async function generateMetadata({
+  params,
+}: {
+  params: Promise<{ businessId: string }>;
+}): Promise<Metadata> {
+  const { businessId } = await params;
+  const supabase = await createClient();
+  const { data: business } = await supabase
+    .from("businesses")
+    .select("name, legal_name")
+    .eq("id", businessId)
+    .maybeSingle();
+  if (!business) {
+    const t = await getTranslations("business");
+    return { title: t("title") };
+  }
+  return {
+    title: ((business.legal_name as string | null) ??
+      (business.name as string | null) ??
+      "Business") as string,
+  };
+}
 
 interface PageProps {
   params: Promise<{ businessId: string }>;

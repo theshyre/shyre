@@ -1,8 +1,14 @@
+import type { Metadata } from "next";
 import { createClient } from "@/lib/supabase/server";
 import { getUserTeams } from "@/lib/team-context";
 import { getTranslations } from "next-intl/server";
 import { ShieldCheck } from "lucide-react";
 import { SecurityGroupsSection } from "./security-groups-section";
+
+export async function generateMetadata(): Promise<Metadata> {
+  const t = await getTranslations("sharing.securityGroups");
+  return { title: t("title") };
+}
 
 export default async function SecurityGroupsPage(): Promise<React.JSX.Element> {
   const supabase = await createClient();

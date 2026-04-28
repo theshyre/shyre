@@ -1,9 +1,15 @@
+import type { Metadata } from "next";
 import { getTranslations } from "next-intl/server";
 import { Upload } from "lucide-react";
 import { createClient } from "@/lib/supabase/server";
 import { getUserTeams } from "@/lib/team-context";
 import { HarvestImport } from "./harvest-import";
 import { ImportHistory, type ImportRunRow } from "./import-history";
+
+export async function generateMetadata(): Promise<Metadata> {
+  const t = await getTranslations("import");
+  return { title: t("title") };
+}
 
 export default async function ImportPage(): Promise<React.JSX.Element> {
   const t = await getTranslations("import");

@@ -1,8 +1,14 @@
+import type { Metadata } from "next";
 import { createClient } from "@/lib/supabase/server";
 import { getUserTeams } from "@/lib/team-context";
 import { getTranslations } from "next-intl/server";
 import Link from "next/link";
 import { FileText, Download } from "lucide-react";
+
+export async function generateMetadata(): Promise<Metadata> {
+  const t = await getTranslations("invoices");
+  return { title: t("title") };
+}
 import { formatDate } from "@theshyre/ui";
 import { buttonSecondaryClass } from "@/lib/form-styles";
 import { formatCurrency } from "@/lib/invoice-utils";

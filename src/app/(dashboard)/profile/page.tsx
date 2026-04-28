@@ -1,8 +1,14 @@
+import type { Metadata } from "next";
 import { createClient } from "@/lib/supabase/server";
 import { getUserContext } from "@/lib/team-context";
 import { getTranslations } from "next-intl/server";
 import { User as UserIcon } from "lucide-react";
 import { ProfileForm } from "./profile-form";
+
+export async function generateMetadata(): Promise<Metadata> {
+  const t = await getTranslations("profile");
+  return { title: t("title") };
+}
 
 export default async function ProfilePage(): Promise<React.JSX.Element> {
   const supabase = await createClient();

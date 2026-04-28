@@ -1,7 +1,10 @@
+import type { Metadata } from "next";
 import { requireSystemAdmin } from "@/lib/system-admin";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { Users, Crown } from "lucide-react";
 import { formatDate } from "@theshyre/ui";
+
+export const metadata: Metadata = { title: "Admin · Users" };
 
 export default async function AdminUsersPage(): Promise<React.JSX.Element> {
   await requireSystemAdmin();

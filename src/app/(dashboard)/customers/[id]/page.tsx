@@ -1,8 +1,28 @@
+import type { Metadata } from "next";
 import { createClient } from "@/lib/supabase/server";
 import { getUserTeams } from "@/lib/team-context";
 import { getTranslations } from "next-intl/server";
 import { notFound } from "next/navigation";
 import { FolderKanban } from "lucide-react";
+
+export async function generateMetadata({
+  params,
+}: {
+  params: Promise<{ id: string }>;
+}): Promise<Metadata> {
+  const { id } = await params;
+  const supabase = await createClient();
+  const { data: customer } = await supabase
+    .from("customers")
+    .select("name")
+    .eq("id", id)
+    .maybeSingle();
+  if (!customer) {
+    const t = await getTranslations("customers");
+    return { title: t("title") };
+  }
+  return { title: customer.name as string };
+}
 import { CustomerEditForm } from "./customer-edit-form";
 import { SharingSection } from "./sharing-section";
 import { PermissionsSection } from "./permissions-section";

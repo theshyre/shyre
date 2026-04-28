@@ -1,3 +1,5 @@
+import type { Metadata } from "next";
+import { getTranslations } from "next-intl/server";
 import { createClient } from "@/lib/supabase/server";
 import { validateBusinessAccess } from "@/lib/team-context";
 import {
@@ -5,6 +7,11 @@ import {
   type PersonRow,
   type LinkableUser,
 } from "./people-section";
+
+export async function generateMetadata(): Promise<Metadata> {
+  const t = await getTranslations("business.people");
+  return { title: t("title") };
+}
 
 interface PageProps {
   params: Promise<{ businessId: string }>;

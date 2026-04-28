@@ -1,8 +1,16 @@
+import type { Metadata } from "next";
 import Link from "next/link";
 import { History as HistoryIcon } from "lucide-react";
 import { getTranslations } from "next-intl/server";
 import { createClient } from "@/lib/supabase/server";
 import { validateBusinessAccess } from "@/lib/team-context";
+
+export async function generateMetadata(): Promise<Metadata> {
+  // Sensitive surface — generic title so business legal name doesn't
+  // land in browser history / OS window switcher.
+  const t = await getTranslations("business.info");
+  return { title: t("title") };
+}
 import { LinkPendingSpinner } from "@/components/LinkPendingSpinner";
 import { buttonGhostClass } from "@/lib/form-styles";
 import { IdentityForm } from "./identity-form";

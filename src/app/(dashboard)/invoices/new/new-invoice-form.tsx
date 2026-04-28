@@ -1,9 +1,11 @@
 "use client";
 
+import { useState } from "react";
 import { useTranslations } from "next-intl";
 import { FileText } from "lucide-react";
 import { AlertBanner } from "@theshyre/ui";
 import { useFormAction } from "@/hooks/use-form-action";
+import { useDirtyTitle } from "@/hooks/use-dirty-title";
 import { SubmitButton } from "@/components/SubmitButton";
 import {
   inputClass,
@@ -32,13 +34,28 @@ export function NewInvoiceForm({
 }): React.JSX.Element {
   const t = useTranslations("invoices");
 
+  // Track whether the user has touched any field. The dirty bullet
+  // (• Page · Shyre) appears in the browser tab so a user with
+  // many tabs can spot the in-flight invoice draft. Cleared on a
+  // successful submit. Defensive — fires on any change/input event
+  // so checkboxes, selects, textareas all flip it.
+  const [dirty, setDirty] = useState(false);
+  useDirtyTitle(dirty);
+
   const { pending, success, serverError, handleSubmit } = useFormAction({
     action: createInvoiceAction,
+    onSuccess: () => setDirty(false),
   });
 
   return (
     <form
       action={handleSubmit}
+      onChange={() => {
+        if (!dirty) setDirty(true);
+      }}
+      onInput={() => {
+        if (!dirty) setDirty(true);
+      }}
       className="mt-6 space-y-4"
     >
       {serverError && (

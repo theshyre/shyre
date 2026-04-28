@@ -1,8 +1,14 @@
+import type { Metadata } from "next";
 import { createClient } from "@/lib/supabase/server";
 import { getUserTeams } from "@/lib/team-context";
 import { getTranslations } from "next-intl/server";
 import Link from "next/link";
 import { FolderKanban } from "lucide-react";
+
+export async function generateMetadata(): Promise<Metadata> {
+  const t = await getTranslations("projects");
+  return { title: t("title") };
+}
 import { TeamFilter } from "@/components/TeamFilter";
 import { getVisibleCategorySets } from "@/lib/categories/queries";
 import { NewProjectForm } from "./new-project-form";

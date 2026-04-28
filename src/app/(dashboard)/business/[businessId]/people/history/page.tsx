@@ -1,3 +1,4 @@
+import type { Metadata } from "next";
 import { getTranslations } from "next-intl/server";
 import Link from "next/link";
 import { ArrowLeft, Download, History as HistoryIcon } from "lucide-react";
@@ -5,6 +6,11 @@ import { LinkPendingSpinner } from "@/components/LinkPendingSpinner";
 import { buttonSecondaryClass } from "@/lib/form-styles";
 import { validateBusinessAccess } from "@/lib/team-context";
 import { createClient } from "@/lib/supabase/server";
+
+export async function generateMetadata(): Promise<Metadata> {
+  const t = await getTranslations("business.people.history");
+  return { title: t("businessPageTitle") };
+}
 import {
   getBusinessPeopleHistoryAction,
   type BusinessPersonHistoryEntry,
