@@ -12,6 +12,7 @@ export async function createTestTeam(
   prefix: string,
   ownerId: string,
   label = "team",
+  options?: { businessId?: string },
 ): Promise<TestTeam> {
   assertTestPrefix(prefix, "prefix");
   const name = `${prefix}${label}`;
@@ -19,9 +20,25 @@ export async function createTestTeam(
 
   const admin = adminClient();
 
+  // teams.business_id is NOT NULL since SAL-007. Either reuse a
+  // caller-supplied business (for multi-team-one-business scenarios)
+  // or seed a fresh shell business.
+  let businessId = options?.businessId ?? null;
+  if (!businessId) {
+    const { data: biz, error: bizErr } = await admin
+      .from("businesses")
+      .insert({ name })
+      .select("id")
+      .single();
+    if (bizErr || !biz) {
+      throw new Error(`Failed to create test business: ${bizErr?.message}`);
+    }
+    businessId = biz.id as string;
+  }
+
   const { data: team, error: teamErr } = await admin
     .from("teams")
-    .insert({ name, slug, is_personal: false })
+    .insert({ name, slug, is_personal: false, business_id: businessId })
     .select("id")
     .single();
 
