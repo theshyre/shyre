@@ -53,8 +53,10 @@ The unlock event is recorded in `team_period_locks_history` (append-only). Both 
 | Delete a time entry whose start_time is inside the lock | ✓ |
 | Insert / update / delete an expense in the lock | ✓ |
 | Issue a new invoice with `issued_date` in the lock | ✓ |
-| Edit an invoice's totals when `issued_date` is in the lock | ✓ |
+| Edit an invoice's money fields, currency, dates, or customer when `issued_date` is in the lock | ✓ |
+| Insert / update / delete a line item on an invoice issued in the lock | ✓ |
 | Update only an invoice's status (sent → paid → void) | not blocked |
+| Update an invoice's notes / payment metadata | not blocked |
 | Edit time entries / expenses dated AFTER the lock | not blocked |
 
 ## Keyboard shortcuts
