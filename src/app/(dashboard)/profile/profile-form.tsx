@@ -2,6 +2,9 @@
 
 import {
   useCallback,
+  useRef,
+  useState,
+  useTransition,
   useSyncExternalStore,
   type ComponentType,
 } from "react";
@@ -21,6 +24,10 @@ import {
   Languages,
   Calendar,
   ALargeSmall,
+  CheckCircle2,
+  AlertTriangle,
+  Loader2,
+  PlugZap,
 } from "lucide-react";
 import { AlertBanner } from "@theshyre/ui";
 import { MfaSetup } from "@/components/MfaSetup";
@@ -43,6 +50,8 @@ import {
   updateUserSettingsAction,
   updateProfileAction,
   updatePreferencesAction,
+  testGithubTokenAction,
+  testJiraCredsAction,
 } from "./actions";
 import { AvatarPicker } from "./avatar-picker";
 // Note: exported as `ProfileForm` — aligned with the /profile route.
@@ -384,82 +393,13 @@ export function ProfileForm({
       </section>
 
       {/* ───── Integrations ───── */}
-      <form action={tokenForm.handleSubmit}>
-        <section className="rounded-lg border border-edge bg-surface-raised p-4 space-y-4">
-          <SectionHeader icon={Link2} label={t("sections.integrations")} />
-          {tokenForm.serverError && <ErrorBanner text={tokenForm.serverError} />}
-
-          {/* GitHub */}
-          <div>
-            <label className={labelClass}>{t("fields.githubToken")}</label>
-            <input
-              name="github_token"
-              type="password"
-              placeholder={t("fields.githubTokenPlaceholder")}
-              defaultValue={githubToken ?? ""}
-              className={inputClass}
-            />
-            <p className="mt-1 text-caption text-content-muted">
-              {t("fields.githubTokenHelp")}
-            </p>
-          </div>
-
-          {/* Jira */}
-          <div className="border-t border-edge pt-4 space-y-3">
-            <div>
-              <h3 className="text-body-lg font-semibold text-content">
-                {t("fields.jiraSection")}
-              </h3>
-              <p className="mt-1 text-caption text-content-muted max-w-3xl">
-                {t("fields.jiraSectionHelp")}
-              </p>
-            </div>
-
-            <div>
-              <label className={labelClass}>{t("fields.jiraBaseUrl")}</label>
-              <input
-                name="jira_base_url"
-                type="url"
-                placeholder={t("fields.jiraBaseUrlPlaceholder")}
-                defaultValue={jiraBaseUrl ?? ""}
-                className={inputClass}
-              />
-            </div>
-
-            <div>
-              <label className={labelClass}>{t("fields.jiraEmail")}</label>
-              <input
-                name="jira_email"
-                type="email"
-                defaultValue={jiraEmail ?? ""}
-                className={inputClass}
-              />
-            </div>
-
-            <div>
-              <label className={labelClass}>{t("fields.jiraApiToken")}</label>
-              <input
-                name="jira_api_token"
-                type="password"
-                placeholder={t("fields.jiraApiTokenPlaceholder")}
-                defaultValue={jiraApiToken ?? ""}
-                className={inputClass}
-              />
-              <p className="mt-1 text-caption text-content-muted">
-                {t("fields.jiraApiTokenHelp")}
-              </p>
-            </div>
-          </div>
-
-          <SubmitButton
-            label={t("saveSettings")}
-            pending={tokenForm.pending}
-            success={tokenForm.success}
-            successMessage={tc("actions.saved")}
-            className={buttonSecondaryClass}
-          />
-        </section>
-      </form>
+      <IntegrationsSection
+        tokenForm={tokenForm}
+        githubToken={githubToken}
+        jiraBaseUrl={jiraBaseUrl}
+        jiraEmail={jiraEmail}
+        jiraApiToken={jiraApiToken}
+      />
 
     </div>
   );
@@ -484,6 +424,228 @@ function SectionHeader({
 
 function ErrorBanner({ text }: { text: string }): React.JSX.Element {
   return <AlertBanner tone="error">{text}</AlertBanner>;
+}
+
+type ConnState =
+  | { status: "idle" }
+  | { status: "testing" }
+  | { status: "ok" }
+  | { status: "error"; message: string };
+
+/** Inline status indicator next to a Test-connection button.
+ *  Three-channel encoding: icon, color, and text. */
+function ConnStatus({
+  state,
+  okLabel,
+  failLabel,
+}: {
+  state: ConnState;
+  okLabel: string;
+  failLabel: string;
+}): React.JSX.Element | null {
+  if (state.status === "idle") return null;
+  if (state.status === "testing") {
+    return (
+      <span className="inline-flex items-center gap-1 text-caption text-content-muted">
+        <Loader2 size={12} className="animate-spin" />
+      </span>
+    );
+  }
+  if (state.status === "ok") {
+    return (
+      <span className="inline-flex items-center gap-1 text-caption text-success">
+        <CheckCircle2 size={12} />
+        {okLabel}
+      </span>
+    );
+  }
+  return (
+    <Tooltip label={state.message}>
+      <span className="inline-flex items-center gap-1 text-caption text-error">
+        <AlertTriangle size={12} />
+        {failLabel}
+      </span>
+    </Tooltip>
+  );
+}
+
+interface IntegrationsSectionProps {
+  tokenForm: ReturnType<typeof useFormAction>;
+  githubToken: string | null;
+  jiraBaseUrl: string | null;
+  jiraEmail: string | null;
+  jiraApiToken: string | null;
+}
+
+/** Integrations section, broken out so the Test-connection logic
+ *  (which needs a form-ref + transitions) doesn't live inside the
+ *  much larger ProfileForm. The outer <form> handles save; the
+ *  test buttons read the live input values via the formRef. */
+function IntegrationsSection({
+  tokenForm,
+  githubToken,
+  jiraBaseUrl,
+  jiraEmail,
+  jiraApiToken,
+}: IntegrationsSectionProps): React.JSX.Element {
+  const t = useTranslations("settings");
+  const tc = useTranslations("common");
+  const formRef = useRef<HTMLFormElement>(null);
+  const [ghState, setGhState] = useState<ConnState>({ status: "idle" });
+  const [jiraState, setJiraState] = useState<ConnState>({ status: "idle" });
+  const [, startTransition] = useTransition();
+
+  function readField(name: string): string {
+    const el = formRef.current?.elements.namedItem(name);
+    if (el && "value" in el && typeof (el as { value: unknown }).value === "string") {
+      return (el as { value: string }).value;
+    }
+    return "";
+  }
+
+  function handleTestGithub(): void {
+    const token = readField("github_token");
+    setGhState({ status: "testing" });
+    startTransition(async () => {
+      const res = await testGithubTokenAction(token);
+      setGhState(
+        res.ok
+          ? { status: "ok" }
+          : { status: "error", message: res.error },
+      );
+    });
+  }
+
+  function handleTestJira(): void {
+    const baseUrl = readField("jira_base_url");
+    const email = readField("jira_email");
+    const apiToken = readField("jira_api_token");
+    setJiraState({ status: "testing" });
+    startTransition(async () => {
+      const res = await testJiraCredsAction(baseUrl, email, apiToken);
+      setJiraState(
+        res.ok
+          ? { status: "ok" }
+          : { status: "error", message: res.error },
+      );
+    });
+  }
+
+  return (
+    <form ref={formRef} action={tokenForm.handleSubmit}>
+      <section className="rounded-lg border border-edge bg-surface-raised p-4 space-y-4">
+        <SectionHeader icon={Link2} label={t("sections.integrations")} />
+        {tokenForm.serverError && <ErrorBanner text={tokenForm.serverError} />}
+
+        {/* GitHub */}
+        <div>
+          <label className={labelClass}>{t("fields.githubToken")}</label>
+          <input
+            name="github_token"
+            type="password"
+            placeholder={t("fields.githubTokenPlaceholder")}
+            defaultValue={githubToken ?? ""}
+            className={inputClass}
+            onChange={() => setGhState({ status: "idle" })}
+          />
+          <p className="mt-1 text-caption text-content-muted">
+            {t("fields.githubTokenHelp")}
+          </p>
+          <div className="mt-2 flex items-center gap-3">
+            <button
+              type="button"
+              onClick={handleTestGithub}
+              disabled={ghState.status === "testing"}
+              className={`${buttonSecondaryClass} disabled:opacity-50`}
+            >
+              <PlugZap size={14} />
+              {t("fields.testConnection")}
+            </button>
+            <ConnStatus
+              state={ghState}
+              okLabel={t("fields.testConnectionOk")}
+              failLabel={t("fields.testConnectionFailed")}
+            />
+          </div>
+        </div>
+
+        {/* Jira */}
+        <div className="border-t border-edge pt-4 space-y-3">
+          <div>
+            <h3 className="text-body-lg font-semibold text-content">
+              {t("fields.jiraSection")}
+            </h3>
+            <p className="mt-1 text-caption text-content-muted max-w-3xl">
+              {t("fields.jiraSectionHelp")}
+            </p>
+          </div>
+
+          <div>
+            <label className={labelClass}>{t("fields.jiraBaseUrl")}</label>
+            <input
+              name="jira_base_url"
+              type="url"
+              placeholder={t("fields.jiraBaseUrlPlaceholder")}
+              defaultValue={jiraBaseUrl ?? ""}
+              className={inputClass}
+              onChange={() => setJiraState({ status: "idle" })}
+            />
+          </div>
+
+          <div>
+            <label className={labelClass}>{t("fields.jiraEmail")}</label>
+            <input
+              name="jira_email"
+              type="email"
+              defaultValue={jiraEmail ?? ""}
+              className={inputClass}
+              onChange={() => setJiraState({ status: "idle" })}
+            />
+          </div>
+
+          <div>
+            <label className={labelClass}>{t("fields.jiraApiToken")}</label>
+            <input
+              name="jira_api_token"
+              type="password"
+              placeholder={t("fields.jiraApiTokenPlaceholder")}
+              defaultValue={jiraApiToken ?? ""}
+              className={inputClass}
+              onChange={() => setJiraState({ status: "idle" })}
+            />
+            <p className="mt-1 text-caption text-content-muted">
+              {t("fields.jiraApiTokenHelp")}
+            </p>
+          </div>
+
+          <div className="flex items-center gap-3">
+            <button
+              type="button"
+              onClick={handleTestJira}
+              disabled={jiraState.status === "testing"}
+              className={`${buttonSecondaryClass} disabled:opacity-50`}
+            >
+              <PlugZap size={14} />
+              {t("fields.testConnection")}
+            </button>
+            <ConnStatus
+              state={jiraState}
+              okLabel={t("fields.testConnectionOk")}
+              failLabel={t("fields.testConnectionFailed")}
+            />
+          </div>
+        </div>
+
+        <SubmitButton
+          label={t("saveSettings")}
+          pending={tokenForm.pending}
+          success={tokenForm.success}
+          successMessage={tc("actions.saved")}
+          className={buttonSecondaryClass}
+        />
+      </section>
+    </form>
+  );
 }
 
 // Browser-only helpers for useSyncExternalStore — the "store" here is the

@@ -2,6 +2,8 @@
 
 import { runSafeAction } from "@/lib/safe-action";
 import { assertSupabaseOk } from "@/lib/errors";
+import { fetchRepo } from "@/lib/github";
+import { validateJiraCreds } from "@/lib/jira";
 import { revalidatePath } from "next/cache";
 import {
   ALLOWED_THEMES,
@@ -83,6 +85,60 @@ export async function setAvatarAction(formData: FormData): Promise<void> {
     revalidatePath("/profile");
     revalidatePath("/");
   }, "setAvatarAction") as unknown as void;
+}
+
+/**
+ * Test a GitHub PAT by fetching `/user`-equivalent metadata via a
+ * known-cheap endpoint. We hit `octocat/Hello-World` (GitHub's
+ * public test repo) — the `repos/...` route returns 200 with any
+ * valid token regardless of token scope, and 401 on a bad token.
+ *
+ * Returns null on success, an error string on failure. The caller
+ * is responsible for surfacing the result inline next to the form.
+ *
+ * Note: NOT wrapped in runSafeAction because we don't need its
+ * FormData parsing or revalidatePath — this is a pure RPC.
+ */
+export async function testGithubTokenAction(
+  token: string,
+): Promise<{ ok: true } | { ok: false; error: string }> {
+  if (!token || !token.trim()) {
+    return { ok: false, error: "Token is empty." };
+  }
+  const { error } = await fetchRepo("octocat/Hello-World", token.trim());
+  if (error) {
+    return { ok: false, error: `${error.status}: ${error.message}` };
+  }
+  return { ok: true };
+}
+
+/**
+ * Test Jira creds by hitting `/rest/api/3/myself`. Same shape as
+ * testGithubTokenAction.
+ */
+export async function testJiraCredsAction(
+  baseUrl: string,
+  email: string,
+  apiToken: string,
+): Promise<{ ok: true } | { ok: false; error: string }> {
+  if (!baseUrl?.trim() || !email?.trim() || !apiToken?.trim()) {
+    return { ok: false, error: "Fill in all three Jira fields." };
+  }
+  if (!/^https?:\/\//i.test(baseUrl)) {
+    return { ok: false, error: "Base URL must start with http(s)://" };
+  }
+  const { ok, error } = await validateJiraCreds({
+    baseUrl: baseUrl.trim(),
+    email: email.trim(),
+    apiToken: apiToken.trim(),
+  });
+  if (!ok) {
+    return {
+      ok: false,
+      error: error ? `${error.status}: ${error.message}` : "Unknown error",
+    };
+  }
+  return { ok: true };
 }
 
 function normalizeStr(value: FormDataEntryValue | null): string | null {
