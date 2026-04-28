@@ -47,6 +47,10 @@ interface TimeHomeProps {
   trashCount: number;
   memberOptions: MemberOption[];
   memberSelection: MemberSelection;
+  /** Pre-formatted "Locked through" string (per-team when multi-
+   *  team, single date otherwise). Null when no locks exist for
+   *  the visible teams. */
+  lockSummary: string | null;
 }
 
 export function TimeHome({
@@ -68,6 +72,7 @@ export function TimeHome({
   trashCount,
   memberOptions,
   memberSelection,
+  lockSummary,
 }: TimeHomeProps): React.JSX.Element {
   const t = useTranslations("time");
 
@@ -170,6 +175,18 @@ export function TimeHome({
           <ExportButton />
         </div>
       </div>
+
+      {lockSummary && (
+        <div
+          className="rounded-md border border-edge bg-surface-inset px-3 py-2 text-caption text-content-secondary"
+          role="status"
+        >
+          <span className="font-semibold text-content">
+            {t("lockedThrough")}
+          </span>{" "}
+          {lockSummary}
+        </div>
+      )}
 
       {view === "day" ? (
         <DayView

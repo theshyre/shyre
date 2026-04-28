@@ -40,6 +40,10 @@ Per-state lookup table (DE annual franchise tax due 6/1, $300; CA $800 minimum; 
 **Source:** solo-consultant #5.
 For solos with one shell business the listing screen is one card and "Back to all businesses" is misleading. Either redirect when summaries.length === 1 or rename the breadcrumb to "Business overview." Estimate: 30 min, but design call needed.
 
+### Fiscal-year-aware "this month" / Q1 boundaries
+**Source:** bookkeeper #6.
+Every "this month" tile across `/business`, `/business/[id]`, and `/business/[id]/expenses` uses calendar month boundaries and ignores `businesses.fiscal_year_start`. A business with `fiscal_year_start = "07-01"` looking at "Q1" wants Jul–Sep; today they get Jan–Mar. Compounding: `time_entries.start_time` (timestamptz) and `expenses.incurred_on` (date) use different month-boundary semantics on the same card. Build `getCurrentFiscalPeriod(businessId)` and route every stat through it; pick one boundary type (UTC midnight at user's TZ vs naive date) and apply to both columns. Estimate: 1 day. Skipped because it changes 4 separate tile renders and needs a UX decision on whether to show "Aug 2026 (FY26 Q2)" or just "Aug 2026."
+
 ## Architectural follow-ups
 
 ### `*_history` audit pattern divergence

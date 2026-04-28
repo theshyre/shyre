@@ -402,6 +402,38 @@ export default async function TimeEntriesPage({
   if (selectedTeamId) trashQuery = trashQuery.eq("team_id", selectedTeamId);
   const { count: trashCount } = await trashQuery;
 
+  // Latest period lock per team in scope — drives the "Locked
+  // through" banner so users editing a March entry on April 5 see
+  // the lock state inline instead of getting an opaque DB error
+  // from the trigger. Mirrors the expenses page's banner.
+  const lockTeamIds = selectedTeamId ? [selectedTeamId] : userTeamIds;
+  const { data: lockRows } =
+    lockTeamIds.length > 0
+      ? await supabase
+          .from("team_period_locks")
+          .select("team_id, period_end")
+          .in("team_id", lockTeamIds)
+      : { data: [] };
+  const latestLockByTeam = new Map<string, string>();
+  for (const r of lockRows ?? []) {
+    const tid = r.team_id as string;
+    const cur = latestLockByTeam.get(tid);
+    const next = r.period_end as string;
+    if (!cur || cur < next) latestLockByTeam.set(tid, next);
+  }
+  const teamNameById = new Map(teams.map((tm) => [tm.id, tm.name]));
+  const showTeamLabels = !selectedTeamId && latestLockByTeam.size > 1;
+  const lockSummary =
+    latestLockByTeam.size === 0
+      ? null
+      : Array.from(latestLockByTeam.entries())
+          .map(([tid, end]) =>
+            showTeamLabels
+              ? `${teamNameById.get(tid) ?? ""}: ${end}`
+              : end,
+          )
+          .join(" · ");
+
   return (
     <TimeHome
       teams={teams}
@@ -422,6 +454,7 @@ export default async function TimeEntriesPage({
       trashCount={trashCount ?? 0}
       memberOptions={memberOptions}
       memberSelection={memberSelection}
+      lockSummary={lockSummary}
     />
   );
 }

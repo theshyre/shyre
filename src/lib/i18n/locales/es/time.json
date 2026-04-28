@@ -1,5 +1,6 @@
 {
   "title": "Tiempo",
+  "lockedThrough": "Bloqueado hasta:",
   "addEntry": "Agregar registro pasado",
   "ticket": {
     "open": "Abrir ticket",

@@ -1,5 +1,6 @@
 {
   "title": "Time",
+  "lockedThrough": "Locked through:",
   "addEntry": "Add past entry",
   "ticket": {
     "open": "Open ticket",
