@@ -21,6 +21,7 @@ interface Project {
   hourly_rate: number | null;
   budget_hours: number | null;
   github_repo: string | null;
+  jira_project_key: string | null;
   status: string | null;
   category_set_id: string | null;
   require_timestamps: boolean;
@@ -108,7 +109,7 @@ export function ProjectEditForm({
               className={inputClass}
             />
           </div>
-          <div className="sm:col-span-2">
+          <div>
             <label className={labelClass}>{t("fields.githubRepo")}</label>
             <input
               name="github_repo"
@@ -116,6 +117,21 @@ export function ProjectEditForm({
               defaultValue={project.github_repo ?? ""}
               className={inputClass}
             />
+            <p className="mt-1 text-caption text-content-muted">
+              {t("fields.githubRepoHint")}
+            </p>
+          </div>
+          <div>
+            <label className={labelClass}>{t("fields.jiraProjectKey")}</label>
+            <input
+              name="jira_project_key"
+              placeholder={t("fields.jiraProjectKeyPlaceholder")}
+              defaultValue={project.jira_project_key ?? ""}
+              className={`${inputClass} font-mono`}
+            />
+            <p className="mt-1 text-caption text-content-muted">
+              {t("fields.jiraProjectKeyHint")}
+            </p>
           </div>
           <div className="sm:col-span-2">
             <label className="flex items-start gap-2 text-sm font-medium text-content cursor-pointer">

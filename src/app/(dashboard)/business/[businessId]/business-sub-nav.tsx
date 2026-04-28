@@ -84,6 +84,7 @@ export function BusinessSubNav({
           <Link
             key={tab.href}
             href={tab.href}
+            aria-current={isActive ? "page" : undefined}
             className={`inline-flex items-center gap-2 px-3 py-2 text-body-lg font-medium border-b-2 -mb-px transition-colors ${
               isActive
                 ? "border-accent text-accent"

@@ -5,6 +5,22 @@ import { assertSupabaseOk } from "@/lib/errors";
 import { validateTeamAccess } from "@/lib/team-context";
 import { revalidatePath } from "next/cache";
 
+/** Atlassian project keys are uppercase 2+ chars, letters/digits.
+ *  Normalize for symmetry with the detection regex in
+ *  src/lib/tickets/detect.ts so a user typing "proj" still resolves
+ *  short refs against "PROJ-123" later. Empty / whitespace → null. */
+function normalizeJiraKey(value: FormDataEntryValue | null): string | null {
+  if (value == null) return null;
+  const s = String(value).trim().toUpperCase();
+  if (!s) return null;
+  if (!/^[A-Z][A-Z0-9_]+$/.test(s)) {
+    throw new Error(
+      "Jira project key must be uppercase letters / digits, 2+ chars (e.g. PROJ).",
+    );
+  }
+  return s;
+}
+
 export async function createProjectAction(formData: FormData): Promise<void> {
   return runSafeAction(formData, async (formData, { supabase }) => {
     const teamId = formData.get("team_id") as string;
@@ -18,6 +34,7 @@ export async function createProjectAction(formData: FormData): Promise<void> {
     const budgetStr = formData.get("budget_hours") as string;
     const budget_hours = budgetStr ? parseFloat(budgetStr) : null;
     const github_repo = (formData.get("github_repo") as string) || null;
+    const jira_project_key = normalizeJiraKey(formData.get("jira_project_key"));
     const category_set_id = (formData.get("category_set_id") as string) || null;
     const require_timestamps = formData.get("require_timestamps") === "on";
 
@@ -31,6 +48,7 @@ export async function createProjectAction(formData: FormData): Promise<void> {
         hourly_rate,
         budget_hours,
         github_repo,
+        jira_project_key,
         category_set_id,
         require_timestamps,
       })
@@ -49,6 +67,7 @@ export async function updateProjectAction(formData: FormData): Promise<void> {
     const budgetStr = formData.get("budget_hours") as string;
     const budget_hours = budgetStr ? parseFloat(budgetStr) : null;
     const github_repo = (formData.get("github_repo") as string) || null;
+    const jira_project_key = normalizeJiraKey(formData.get("jira_project_key"));
     const status = formData.get("status") as string;
     const category_set_id = (formData.get("category_set_id") as string) || null;
     const require_timestamps = formData.get("require_timestamps") === "on";
@@ -58,6 +77,7 @@ export async function updateProjectAction(formData: FormData): Promise<void> {
       description,
       budget_hours,
       github_repo,
+      jira_project_key,
       status,
       category_set_id,
       require_timestamps,

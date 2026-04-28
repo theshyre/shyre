@@ -37,7 +37,8 @@
     "actions": {
       "unlock": "Desbloquear",
       "unlockConfirm": "Escribe 'unlock' para confirmar",
-      "unlockCta": "Desbloquear período"
+      "unlockCta": "Desbloquear período",
+      "cancelUnlock": "Cancelar desbloqueo"
     }
   },
   "fields": {
@@ -168,6 +169,9 @@
     "viewBusinessHistory": "Todos los cambios",
     "save": "Guardar persona",
     "cancel": "Cancelar",
+    "linkedUserFallback": "Usuario Shyre",
+    "notLinkedLabel": "Sin vincular",
+    "mailingAddress": "Dirección postal",
     "history": {
       "title": "Historial de cambios — {name}",
       "close": "Cerrar historial",

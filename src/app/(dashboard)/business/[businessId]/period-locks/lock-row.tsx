@@ -125,8 +125,9 @@ export function LockRow({
                 setConfirmValue("");
               }}
               className={buttonGhostClass}
+              aria-label={t("actions.cancelUnlock")}
             >
-              <X size={14} />
+              <X size={14} aria-hidden="true" />
             </button>
           </div>
         </form>

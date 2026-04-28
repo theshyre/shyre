@@ -37,7 +37,8 @@
     "actions": {
       "unlock": "Unlock",
       "unlockConfirm": "Type 'unlock' to confirm",
-      "unlockCta": "Unlock period"
+      "unlockCta": "Unlock period",
+      "cancelUnlock": "Cancel unlock"
     }
   },
   "fields": {
@@ -168,6 +169,9 @@
     "viewBusinessHistory": "All changes",
     "save": "Save person",
     "cancel": "Cancel",
+    "linkedUserFallback": "Shyre user",
+    "notLinkedLabel": "Not linked",
+    "mailingAddress": "Mailing address",
     "history": {
       "title": "Change history — {name}",
       "close": "Close history",

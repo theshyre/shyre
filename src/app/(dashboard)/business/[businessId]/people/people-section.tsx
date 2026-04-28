@@ -278,14 +278,13 @@ function PersonRowView({
           {linkedUser ? (
             <span className="inline-flex items-center gap-1 rounded-full bg-surface-inset px-2 py-0.5 text-caption text-content-secondary">
               <Link2 size={10} />
-              {linkedUser.display_name ?? linkedUser.email ?? "Shyre user"}
+              {linkedUser.display_name ?? linkedUser.email ?? t("linkedUserFallback")}
             </span>
           ) : (
-            <Tooltip label="Not linked to a Shyre account">
-              <span className="inline-flex items-center gap-1 text-caption text-content-muted">
-                <Link2Off size={10} />
-              </span>
-            </Tooltip>
+            <span className="inline-flex items-center gap-1 rounded-full border border-edge px-2 py-0.5 text-caption text-content-muted">
+              <Link2Off size={10} aria-hidden="true" />
+              {t("notLinkedLabel")}
+            </span>
           )}
         </div>
 
@@ -300,14 +299,13 @@ function PersonRowView({
 
       {canEdit && !deleting ? (
         <div className="flex items-center gap-1 shrink-0">
-          <Tooltip label={t("viewHistory")}>
+          <Tooltip label={t("viewHistory")} labelMode="label">
             <button
               type="button"
               onClick={() => setShowHistory(true)}
               className={`${buttonGhostClass} inline-flex items-center gap-1`}
-              aria-label={t("viewHistory")}
             >
-              <History size={14} />
+              <History size={14} aria-hidden="true" />
             </button>
           </Tooltip>
           <button
@@ -676,7 +674,7 @@ function PersonForm({
 
         <div className="sm:col-span-2 pt-2">
           <div className="text-label font-semibold uppercase text-content-muted mb-2">
-            Mailing address
+            {t("mailingAddress")}
           </div>
           <div className="grid gap-3 sm:grid-cols-2">
             <div className="sm:col-span-2">

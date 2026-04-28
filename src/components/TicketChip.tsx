@@ -33,7 +33,9 @@ function providerVisual(provider: "jira" | "github"): {
   label: string;
 } {
   if (provider === "jira") {
-    // Atlassian-blue accent, uppercase JIRA wordmark via icon glyph.
+    // Use the accent-soft / accent token pair so the Jira variant
+    // adapts cleanly across light / dark / high-contrast (raw
+    // Tailwind blue would fail AA in HC mode).
     return {
       icon: (
         <span
@@ -43,15 +45,13 @@ function providerVisual(provider: "jira" | "github"): {
           J
         </span>
       ),
-      ringClass:
-        "border-blue-300 bg-blue-50 text-blue-900 dark:border-blue-700 dark:bg-blue-950 dark:text-blue-200",
+      ringClass: "border-accent bg-accent-soft text-accent-text",
       label: "Jira",
     };
   }
   return {
     icon: <GitBranch size={12} aria-hidden="true" />,
-    ringClass:
-      "border-edge bg-surface-inset text-content dark:bg-surface-inset",
+    ringClass: "border-edge bg-surface-inset text-content",
     label: "GitHub",
   };
 }
