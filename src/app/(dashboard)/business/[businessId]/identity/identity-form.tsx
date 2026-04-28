@@ -60,8 +60,26 @@ export function IdentityForm({
     action: updateBusinessIdentityAction,
   });
 
+  // React 19 auto-resets uncontrolled fields after a successful
+  // <form action> submission. `defaultValue` only takes effect on
+  // mount, so when the page revalidates and passes new props
+  // (e.g. entity_type went from "llc" to "s_corp"), the still-
+  // mounted form snaps back to the OLD defaultValue. Keying the
+  // form on a hash of the props forces a remount whenever the
+  // server state changes, picking up fresh defaultValues. The
+  // user's in-flight edits are already in the submitted FormData
+  // by the time the reset would fire, so nothing's lost.
+  const formKey = [
+    legalName,
+    entityType,
+    taxId,
+    dateIncorporated,
+    fiscalYearStart,
+  ].join("|");
+
   return (
     <form
+      key={formKey}
       action={handleSubmit}
       className="space-y-4 rounded-lg border border-edge bg-surface-raised p-5"
     >

@@ -81,10 +81,14 @@ function isPrivateIpv6(addr: string): { blocked: boolean; reason?: string } {
   if (lower.startsWith("fc") || lower.startsWith("fd")) {
     return { blocked: true, reason: "IPv6 unique-local fc00::/7" };
   }
-  // IPv4-mapped IPv6 (::ffff:a.b.c.d)
-  const v4Mapped = lower.match(/^::ffff:(\d+\.\d+\.\d+\.\d+)$/);
-  if (v4Mapped) {
-    return isPrivateIpv4(v4Mapped[1]!);
+  // IPv4-mapped IPv6 — dotted-decimal form (::ffff:a.b.c.d) and
+  // hex-pair form (::ffff:7f00:1, which is what URL normalizes
+  // ::ffff:127.0.0.1 to). Block the entire ::ffff: prefix; this
+  // form is almost never legitimate for outbound integrations and
+  // the dotted-decimal variant has been used as a private-IP-
+  // bypass technique.
+  if (lower.startsWith("::ffff:")) {
+    return { blocked: true, reason: "IPv4-mapped IPv6 ::ffff:" };
   }
   return { blocked: false };
 }
@@ -133,8 +137,11 @@ export async function assertSafeOutboundUrl(
   }
 
   // Block obvious literal-IP probes before DNS even runs.
-  if (/^\d+\.\d+\.\d+\.\d+$/.test(host)) {
-    const v4 = isPrivateIpv4(host);
+  // Some Node versions return IPv6 hosts with the surrounding
+  // brackets, others without — strip defensively.
+  const bareHost = host.replace(/^\[/, "").replace(/\]$/, "");
+  if (/^\d+\.\d+\.\d+\.\d+$/.test(bareHost)) {
+    const v4 = isPrivateIpv4(bareHost);
     if (v4.blocked) {
       throw new UnsafeOutboundUrlError(
         `Literal IPv4 in private range: ${v4.reason}`,
@@ -142,9 +149,8 @@ export async function assertSafeOutboundUrl(
       );
     }
   }
-  // IPv6 literals come wrapped in [..]; URL strips the brackets.
-  if (host.includes(":")) {
-    const v6 = isPrivateIpv6(host);
+  if (bareHost.includes(":")) {
+    const v6 = isPrivateIpv6(bareHost);
     if (v6.blocked) {
       throw new UnsafeOutboundUrlError(
         `Literal IPv6 in private range: ${v6.reason}`,
