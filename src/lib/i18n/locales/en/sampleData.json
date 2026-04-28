@@ -27,6 +27,12 @@
     "pending": "Removing…",
     "nothing": "No sample data in this org."
   },
+  "orphans": {
+    "title": "Clean up orphan teams",
+    "description": "Older runs of \"Remove sample data\" deleted the sample auth users but left their auto-created personal teams behind, with zero members. This finds those orphan teams (is_personal, no members, no customers / projects / entries / invoices / expenses) and deletes them along with any business that's left without a team. Safe to run any time — won't touch a team that has any activity.",
+    "button": "Clean up orphan teams",
+    "pending": "Cleaning…"
+  },
   "clear": {
     "title": "Clear ALL data in this team",
     "description": "Destructive. Deletes every customer, project, and time entry in this org — sample and real alike. Invoices and team settings are left alone.",

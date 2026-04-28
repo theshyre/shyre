@@ -17,6 +17,7 @@ import {
   loadSampleDataAction,
   removeSampleDataAction,
   clearAllTeamDataAction,
+  cleanupOrphanTeamsAction,
 } from "./actions";
 
 interface Props {
@@ -44,6 +45,10 @@ export function SampleDataControls({ teamId, teamName, hasSample }: Props): Reac
       setConfirmName("");
       router.refresh();
     },
+  });
+  const cleanup = useFormAction({
+    action: cleanupOrphanTeamsAction,
+    onSuccess: () => router.refresh(),
   });
 
   const [confirmOpen, setConfirmOpen] = useState(false);
@@ -110,6 +115,30 @@ export function SampleDataControls({ teamId, teamName, hasSample }: Props): Reac
           )}
           {remove.serverError && (
             <p className="mt-2 text-sm text-error">{remove.serverError}</p>
+          )}
+        </form>
+      </section>
+
+      {/* Cleanup orphan personal teams */}
+      <section className="md:col-span-2 rounded-lg border border-edge bg-surface-raised p-5 space-y-3">
+        <h2 className="text-sm font-semibold text-content flex items-center gap-2">
+          <Trash2 size={16} className="text-content-muted" />
+          {t("orphans.title")}
+        </h2>
+        <p className="text-sm text-content-secondary max-w-3xl">
+          {t("orphans.description")}
+        </p>
+        <form action={cleanup.handleSubmit}>
+          <button
+            type="submit"
+            disabled={cleanup.pending}
+            className={buttonSecondaryClass}
+          >
+            {cleanup.pending ? <Spinner /> : <Trash2 size={16} />}
+            {cleanup.pending ? t("orphans.pending") : t("orphans.button")}
+          </button>
+          {cleanup.serverError && (
+            <p className="mt-2 text-sm text-error">{cleanup.serverError}</p>
           )}
         </form>
       </section>

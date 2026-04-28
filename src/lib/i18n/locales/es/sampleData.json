@@ -27,6 +27,12 @@
     "pending": "Eliminando…",
     "nothing": "No hay datos de ejemplo en esta equipo."
   },
+  "orphans": {
+    "title": "Limpiar equipos huérfanos",
+    "description": "Ejecuciones anteriores de \"Eliminar datos de ejemplo\" eliminaron los usuarios de ejemplo pero dejaron sus equipos personales auto-creados con cero miembros. Esto encuentra esos equipos huérfanos (is_personal, sin miembros, sin clientes / proyectos / entradas / facturas / gastos) y los elimina junto con el negocio asociado si quedó sin equipo. Seguro ejecutar — no toca equipos con actividad.",
+    "button": "Limpiar equipos huérfanos",
+    "pending": "Limpiando…"
+  },
   "clear": {
     "title": "Eliminar TODOS los datos de esta equipo",
     "description": "Destructivo. Elimina todos los clientes, proyectos y entradas de tiempo en esta equipo — tanto de ejemplo como reales. Las facturas y los ajustes de equipo no se tocan.",

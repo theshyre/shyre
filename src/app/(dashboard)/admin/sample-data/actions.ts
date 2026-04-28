@@ -175,10 +175,64 @@ async function deleteSampleUsersForTeam(teamId: string): Promise<void> {
     if (data.users.length < perPage) break;
     page += 1;
   }
+
+  // Capture each sample user's auto-created personal team (and its
+  // shell business) BEFORE deleting them — once the auth user is
+  // gone, ON DELETE CASCADE removes their team_members rows but
+  // leaves the team itself behind as an ownerless orphan, cluttering
+  // /admin/teams. We collect, delete the user (cascade), then drop
+  // the now-empty team and its now-empty business.
+  const orphanTeamIds = new Set<string>();
+  for (const userId of toDelete) {
+    const { data: memberships } = await admin
+      .from("team_members")
+      .select("team_id, role, teams(id, is_personal)")
+      .eq("user_id", userId);
+    for (const m of memberships ?? []) {
+      // Supabase types the joined relation as an array; unwrap.
+      const raw = m.teams as
+        | { id: string; is_personal: boolean }
+        | { id: string; is_personal: boolean }[]
+        | null;
+      const t = Array.isArray(raw) ? (raw[0] ?? null) : raw;
+      // Only collect personal teams the sample user owns. Real teams
+      // the sample user might've been added to by accident stay
+      // intact; the cleanup-orphan-teams action below handles those.
+      if (m.role === "owner" && t?.is_personal && t.id !== teamId) {
+        orphanTeamIds.add(t.id);
+      }
+    }
+  }
+
   for (const id of toDelete) {
     const { error } = await admin.auth.admin.deleteUser(id);
     if (error && !/not.*found/i.test(error.message)) {
       throw new Error(`deleteUser(${id}) failed: ${error.message}`);
+    }
+  }
+
+  // Drop the orphan personal teams and any businesses left without
+  // a team. teams.business_id has ON DELETE RESTRICT, so we delete
+  // the team first, then conditionally delete its business if no
+  // other team references it.
+  for (const orphanId of orphanTeamIds) {
+    const { data: team } = await admin
+      .from("teams")
+      .select("business_id")
+      .eq("id", orphanId)
+      .maybeSingle();
+    const businessId = (team?.business_id as string | null) ?? null;
+
+    await admin.from("teams").delete().eq("id", orphanId);
+
+    if (businessId) {
+      const { count } = await admin
+        .from("teams")
+        .select("id", { count: "exact", head: true })
+        .eq("business_id", businessId);
+      if ((count ?? 0) === 0) {
+        await admin.from("businesses").delete().eq("id", businessId);
+      }
     }
   }
 }
@@ -850,5 +904,108 @@ export async function clearAllTeamDataAction(formData: FormData): Promise<
       revalidatePath("/invoices");
     },
     "clearAllTeamDataAction",
+  );
+}
+
+/**
+ * One-shot cleanup for orphan personal teams + their businesses
+ * left behind by earlier runs of removeSampleDataAction.
+ *
+ * Pre-fix, removeSampleDataAction deleted the sample auth users
+ * (cascading their team_members rows) but left their auto-created
+ * personal teams sitting in the table with zero members. Those
+ * are what the user sees on /admin/teams as "sample+...'s Team".
+ *
+ * Criteria for deletion (intentionally conservative — we never
+ * touch a team that might have had real activity):
+ *   - is_personal = true
+ *   - zero remaining team_members
+ *   - zero customers / projects / time_entries / invoices /
+ *     expenses (anything that suggests a human used this team)
+ *
+ * After deleting the team, we drop its business too if no other
+ * team references it.
+ *
+ * sysadmin-only.
+ */
+export async function cleanupOrphanTeamsAction(
+  formData: FormData,
+): Promise<
+  | { success: true }
+  | { success: false; error: import("@/lib/errors").SerializedAppError }
+> {
+  return runSafeAction(
+    formData,
+    async () => {
+      if (!(await isSystemAdmin())) {
+        throw new Error("System admin access required.");
+      }
+      const admin = createAdminClient();
+
+      // Find personal teams with zero members.
+      const { data: personalTeams } = await admin
+        .from("teams")
+        .select("id, business_id, name")
+        .eq("is_personal", true);
+
+      for (const team of personalTeams ?? []) {
+        const teamId = team.id as string;
+        const businessId = (team.business_id as string | null) ?? null;
+
+        // Hard floor: any sign of human activity → skip.
+        const [members, customers, projects, entries, invoices, expenses] =
+          await Promise.all([
+            admin
+              .from("team_members")
+              .select("user_id", { count: "exact", head: true })
+              .eq("team_id", teamId),
+            admin
+              .from("customers")
+              .select("id", { count: "exact", head: true })
+              .eq("team_id", teamId),
+            admin
+              .from("projects")
+              .select("id", { count: "exact", head: true })
+              .eq("team_id", teamId),
+            admin
+              .from("time_entries")
+              .select("id", { count: "exact", head: true })
+              .eq("team_id", teamId),
+            admin
+              .from("invoices")
+              .select("id", { count: "exact", head: true })
+              .eq("team_id", teamId),
+            admin
+              .from("expenses")
+              .select("id", { count: "exact", head: true })
+              .eq("team_id", teamId),
+          ]);
+        const totalActivity =
+          (members.count ?? 0) +
+          (customers.count ?? 0) +
+          (projects.count ?? 0) +
+          (entries.count ?? 0) +
+          (invoices.count ?? 0) +
+          (expenses.count ?? 0);
+        if (totalActivity > 0) continue;
+
+        await admin.from("team_settings").delete().eq("team_id", teamId);
+        await admin.from("teams").delete().eq("id", teamId);
+
+        if (businessId) {
+          const { count } = await admin
+            .from("teams")
+            .select("id", { count: "exact", head: true })
+            .eq("business_id", businessId);
+          if ((count ?? 0) === 0) {
+            await admin.from("businesses").delete().eq("id", businessId);
+          }
+        }
+      }
+
+      revalidatePath("/admin/teams");
+      revalidatePath("/admin/sample-data");
+    },
+    "cleanupOrphanTeamsAction",
   );
 }
