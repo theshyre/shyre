@@ -46,6 +46,7 @@ import {
   type TextSize,
 } from "@/components/text-size-provider";
 import { COMMON_TIMEZONES } from "@/lib/time/tz";
+import { daysUntilExpiry, expiryStatus } from "@/lib/credential-expiry";
 import {
   updateUserSettingsAction,
   updateProfileAction,
@@ -86,9 +87,11 @@ interface Props {
   displayName: string;
   avatarUrl: string;
   githubToken: string | null;
+  githubTokenExpiresAt: string | null;
   jiraBaseUrl: string | null;
   jiraEmail: string | null;
   jiraApiToken: string | null;
+  jiraApiTokenExpiresAt: string | null;
   preferredTheme: Theme | null;
   timezone: string | null;
   locale: string | null;
@@ -102,9 +105,11 @@ export function ProfileForm({
   displayName,
   avatarUrl,
   githubToken,
+  githubTokenExpiresAt,
   jiraBaseUrl,
   jiraEmail,
   jiraApiToken,
+  jiraApiTokenExpiresAt,
   timezone,
   locale,
   weekStart,
@@ -396,9 +401,11 @@ export function ProfileForm({
       <IntegrationsSection
         tokenForm={tokenForm}
         githubToken={githubToken}
+        githubTokenExpiresAt={githubTokenExpiresAt}
         jiraBaseUrl={jiraBaseUrl}
         jiraEmail={jiraEmail}
         jiraApiToken={jiraApiToken}
+        jiraApiTokenExpiresAt={jiraApiTokenExpiresAt}
       />
 
     </div>
@@ -424,6 +431,52 @@ function SectionHeader({
 
 function ErrorBanner({ text }: { text: string }): React.JSX.Element {
   return <AlertBanner tone="error">{text}</AlertBanner>;
+}
+
+/** Status pill for an integration token's expiration. Three-channel
+ *  encoding (icon + color + text). Renders nothing when no date is
+ *  supplied — the user opted out of tracking. */
+function ExpiryPill({
+  expiresAt,
+}: {
+  expiresAt: string | null;
+}): React.JSX.Element | null {
+  const t = useTranslations("settings.fields");
+  const days = daysUntilExpiry(expiresAt);
+  const status = expiryStatus(expiresAt);
+  if (status === null || days === null) return null;
+
+  if (status === "expired") {
+    return (
+      <span className="inline-flex items-center gap-1.5 rounded-md border border-error bg-error-soft px-2 py-1 text-caption text-error">
+        <AlertTriangle size={12} aria-hidden="true" />
+        {t("expiryExpired", { days: Math.abs(days) })}
+      </span>
+    );
+  }
+  if (status === "critical") {
+    return (
+      <span className="inline-flex items-center gap-1.5 rounded-md border border-error bg-error-soft px-2 py-1 text-caption text-error">
+        <AlertTriangle size={12} aria-hidden="true" />
+        {t("expiryCritical", { days })}
+      </span>
+    );
+  }
+  if (status === "warning") {
+    return (
+      <span className="inline-flex items-center gap-1.5 rounded-md border border-warning bg-warning-soft px-2 py-1 text-caption text-warning">
+        <AlertTriangle size={12} aria-hidden="true" />
+        {t("expiryWarning", { days })}
+      </span>
+    );
+  }
+  // ok
+  return (
+    <span className="inline-flex items-center gap-1.5 rounded-md border border-edge bg-surface-inset px-2 py-1 text-caption text-content-secondary">
+      <CheckCircle2 size={12} aria-hidden="true" />
+      {t("expiryOk", { days })}
+    </span>
+  );
 }
 
 type ConnState =
@@ -472,9 +525,11 @@ function ConnStatus({
 interface IntegrationsSectionProps {
   tokenForm: ReturnType<typeof useFormAction>;
   githubToken: string | null;
+  githubTokenExpiresAt: string | null;
   jiraBaseUrl: string | null;
   jiraEmail: string | null;
   jiraApiToken: string | null;
+  jiraApiTokenExpiresAt: string | null;
 }
 
 /** Integrations section, broken out so the Test-connection logic
@@ -484,9 +539,11 @@ interface IntegrationsSectionProps {
 function IntegrationsSection({
   tokenForm,
   githubToken,
+  githubTokenExpiresAt,
   jiraBaseUrl,
   jiraEmail,
   jiraApiToken,
+  jiraApiTokenExpiresAt,
 }: IntegrationsSectionProps): React.JSX.Element {
   const t = useTranslations("settings");
   const tc = useTranslations("common");
@@ -539,7 +596,17 @@ function IntegrationsSection({
 
         {/* GitHub */}
         <div>
-          <label className={labelClass}>{t("fields.githubToken")}</label>
+          <div className="flex items-center justify-between gap-3 flex-wrap">
+            <label className={labelClass}>{t("fields.githubToken")}</label>
+            <a
+              href={t("fields.githubTokenLinkHref")}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="text-caption text-accent hover:underline"
+            >
+              {t("fields.githubTokenLink")}
+            </a>
+          </div>
           <input
             name="github_token"
             type="password"
@@ -551,7 +618,28 @@ function IntegrationsSection({
           <p className="mt-1 text-caption text-content-muted">
             {t("fields.githubTokenHelp")}
           </p>
-          <div className="mt-2 flex items-center gap-3">
+
+          <div className="mt-3 grid gap-3 sm:grid-cols-2">
+            <div>
+              <label className={labelClass}>
+                {t("fields.tokenExpiresOn")}
+              </label>
+              <input
+                name="github_token_expires_at"
+                type="date"
+                defaultValue={githubTokenExpiresAt ?? ""}
+                className={inputClass}
+              />
+              <p className="mt-1 text-caption text-content-muted">
+                {t("fields.tokenExpiresOnHelp")}
+              </p>
+            </div>
+            <div className="flex items-end">
+              <ExpiryPill expiresAt={githubTokenExpiresAt} />
+            </div>
+          </div>
+
+          <div className="mt-3 flex items-center gap-3">
             <button
               type="button"
               onClick={handleTestGithub}
@@ -604,7 +692,19 @@ function IntegrationsSection({
           </div>
 
           <div>
-            <label className={labelClass}>{t("fields.jiraApiToken")}</label>
+            <div className="flex items-center justify-between gap-3 flex-wrap">
+              <label className={labelClass}>
+                {t("fields.jiraApiToken")}
+              </label>
+              <a
+                href={t("fields.jiraApiTokenLinkHref")}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="text-caption text-accent hover:underline"
+              >
+                {t("fields.jiraApiTokenLink")}
+              </a>
+            </div>
             <input
               name="jira_api_token"
               type="password"
@@ -616,6 +716,26 @@ function IntegrationsSection({
             <p className="mt-1 text-caption text-content-muted">
               {t("fields.jiraApiTokenHelp")}
             </p>
+          </div>
+
+          <div className="grid gap-3 sm:grid-cols-2">
+            <div>
+              <label className={labelClass}>
+                {t("fields.tokenExpiresOn")}
+              </label>
+              <input
+                name="jira_api_token_expires_at"
+                type="date"
+                defaultValue={jiraApiTokenExpiresAt ?? ""}
+                className={inputClass}
+              />
+              <p className="mt-1 text-caption text-content-muted">
+                {t("fields.tokenExpiresOnHelp")}
+              </p>
+            </div>
+            <div className="flex items-end">
+              <ExpiryPill expiresAt={jiraApiTokenExpiresAt} />
+            </div>
           </div>
 
           <div className="flex items-center gap-3">

@@ -18,7 +18,7 @@ export default async function ProfilePage(): Promise<React.JSX.Element> {
   const { data: userSettings } = await supabase
     .from("user_settings")
     .select(
-      "github_token, jira_base_url, jira_email, jira_api_token, preferred_theme, timezone, locale, week_start, time_format",
+      "github_token, github_token_expires_at, jira_base_url, jira_email, jira_api_token, jira_api_token_expires_at, preferred_theme, timezone, locale, week_start, time_format",
     )
     .eq("user_id", user.userId)
     .maybeSingle();
@@ -43,9 +43,15 @@ export default async function ProfilePage(): Promise<React.JSX.Element> {
         displayName={profile?.display_name ?? ""}
         avatarUrl={profile?.avatar_url ?? ""}
         githubToken={userSettings?.github_token ?? null}
+        githubTokenExpiresAt={
+          userSettings?.github_token_expires_at ?? null
+        }
         jiraBaseUrl={userSettings?.jira_base_url ?? null}
         jiraEmail={userSettings?.jira_email ?? null}
         jiraApiToken={userSettings?.jira_api_token ?? null}
+        jiraApiTokenExpiresAt={
+          userSettings?.jira_api_token_expires_at ?? null
+        }
         preferredTheme={userSettings?.preferred_theme ?? null}
         timezone={userSettings?.timezone ?? null}
         locale={userSettings?.locale ?? null}

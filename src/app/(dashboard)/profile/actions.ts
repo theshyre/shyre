@@ -18,9 +18,15 @@ import {
 export async function updateUserSettingsAction(formData: FormData): Promise<void> {
   return runSafeAction(formData, async (formData, { supabase, userId }) => {
     const github_token = (formData.get("github_token") as string) || null;
+    const github_token_expires_at = normalizeDateOrNull(
+      formData.get("github_token_expires_at"),
+    );
     const jira_base_url = normalizeStr(formData.get("jira_base_url"));
     const jira_email = normalizeStr(formData.get("jira_email"));
     const jira_api_token = (formData.get("jira_api_token") as string) || null;
+    const jira_api_token_expires_at = normalizeDateOrNull(
+      formData.get("jira_api_token_expires_at"),
+    );
 
     if (jira_base_url && !/^https:\/\//i.test(jira_base_url)) {
       // Tightened to https only per SAL-014 — plain http would let
@@ -34,14 +40,28 @@ export async function updateUserSettingsAction(formData: FormData): Promise<void
         .upsert({
           user_id: userId,
           github_token,
+          github_token_expires_at,
           jira_base_url,
           jira_email,
           jira_api_token,
+          jira_api_token_expires_at,
         })
     );
 
     revalidatePath("/profile");
   }, "updateUserSettingsAction") as unknown as void;
+}
+
+/** Validate a YYYY-MM-DD date input. Empty / null → null;
+ *  malformed → throw so the user gets a friendly error. */
+function normalizeDateOrNull(v: FormDataEntryValue | null): string | null {
+  if (v == null) return null;
+  const s = String(v).trim();
+  if (!s) return null;
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(s)) {
+    throw new Error("Token expiry must be a YYYY-MM-DD date.");
+  }
+  return s;
 }
 
 export async function updateProfileAction(formData: FormData): Promise<void> {

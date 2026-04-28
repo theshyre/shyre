@@ -21,13 +21,27 @@ Most consulting work is anchored to a ticket somewhere. Re-typing the ticket tit
 
 ### Jira
 
-1. Visit https://id.atlassian.com/manage-profile/security/api-tokens.
-2. Click **Create API token**, copy the value.
-3. In Profile → Integrations → Jira:
+1. Visit **https://id.atlassian.com/manage-profile/security/api-tokens** (linked from the Settings page as "Get a Jira token ↗").
+2. Click **Create token with scopes**, name it `Shyre`, and pick the smallest scope that works: `read:jira-work`. Shyre only reads issue summaries — narrower scope = less blast radius if the token leaks. Atlassian caps token lifetime at 1 year.
+3. Copy the value (you can't see it again later).
+4. In Profile → Integrations → Jira:
    - **Base URL**: `https://yourcompany.atlassian.net`
    - **Email**: your Atlassian account email
-   - **API token**: paste from step 2
-4. Save.
+   - **API token**: paste from step 3
+   - **Expires on**: paste the date Atlassian showed when you created the token. Optional — but if you fill it in, Shyre warns you in the dashboard at 14 days out and again at 3 days, so saves don't silently start failing.
+5. Save.
+
+Atlassian's official docs: https://support.atlassian.com/atlassian-account/docs/manage-api-tokens-for-your-atlassian-account/
+
+### A note on token expiration
+
+Both GitHub fine-grained PATs and Jira API tokens have hard expiration dates. The expiry pill on the Settings page tracks it for you:
+
+- **green** — more than 14 days out
+- **yellow** — within 14 days, renew soon
+- **red** — within 3 days or already expired, renew now
+
+If you skip the expires-on field, Shyre can't warn you; you'll find out when a save 401s. The "Test connection" button on the same page is the manual escape hatch when you suspect a token has gone stale.
 
 Both tokens are personal — they inherit your permissions. They're stored encrypted, scoped to your user, and never visible to teammates.
 
