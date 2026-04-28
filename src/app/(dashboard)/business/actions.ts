@@ -66,12 +66,31 @@ export async function updateBusinessIdentityAction(
         .eq("id", businessId),
     );
 
-    assertSupabaseOk(
-      await supabase
-        .from("business_identity_private")
-        .update({ tax_id, date_incorporated, fiscal_year_start })
-        .eq("business_id", businessId),
-    );
+    // Only touch the private table when at least one of its fields
+    // was actually edited. Bookkeeper finding #5: the
+    // unconditional UPDATE generated a no-op
+    // business_identity_private_history row on every save of
+    // legal_name / entity_type, polluting the timeline with
+    // phantom changes that diff to nothing.
+    const { data: existingPrivate } = await supabase
+      .from("business_identity_private")
+      .select("tax_id, date_incorporated, fiscal_year_start")
+      .eq("business_id", businessId)
+      .maybeSingle();
+    const privateChanged =
+      !existingPrivate ||
+      (existingPrivate.tax_id ?? null) !== tax_id ||
+      (existingPrivate.date_incorporated ?? null) !== date_incorporated ||
+      (existingPrivate.fiscal_year_start ?? null) !== fiscal_year_start;
+
+    if (privateChanged) {
+      assertSupabaseOk(
+        await supabase
+          .from("business_identity_private")
+          .update({ tax_id, date_incorporated, fiscal_year_start })
+          .eq("business_id", businessId),
+      );
+    }
 
     revalidatePath("/business");
     revalidatePath(`/business/${businessId}`);

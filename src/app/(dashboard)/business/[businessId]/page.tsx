@@ -1,8 +1,15 @@
 import Link from "next/link";
 import { getTranslations } from "next-intl/server";
-import { Users, DollarSign, Receipt, UserCog } from "lucide-react";
+import {
+  Users,
+  DollarSign,
+  Receipt,
+  UserCog,
+  FileBadge,
+  Lock,
+} from "lucide-react";
 import { createClient } from "@/lib/supabase/server";
-import { getUserTeams } from "@/lib/team-context";
+import { getUserTeams, validateBusinessAccess } from "@/lib/team-context";
 
 interface PageProps {
   params: Promise<{ businessId: string }>;
@@ -90,6 +97,32 @@ export default async function BusinessOverviewPage({
     .eq("business_id", businessId)
     .is("deleted_at", null);
 
+  // Identity row → drives the Identity tile. Just legal_name +
+  // entity_type — no sensitive fields. Falls through to NULLs
+  // when the user hasn't filled identity yet.
+  const { data: identity } = await supabase
+    .from("businesses")
+    .select("legal_name, entity_type")
+    .eq("id", businessId)
+    .maybeSingle();
+
+  // Period locks (admin only) — surface the latest lock on the
+  // overview so the bookkeeper / owner can see at a glance "is
+  // March closed yet?" without navigating to the period-locks tab.
+  const { role: businessRole } = await validateBusinessAccess(businessId);
+  const canManagePeriodLocks =
+    businessRole === "owner" || businessRole === "admin";
+  let latestLockEnd: string | null = null;
+  if (canManagePeriodLocks && teamIds.length > 0) {
+    const { data: locks } = await supabase
+      .from("team_period_locks")
+      .select("period_end")
+      .in("team_id", teamIds)
+      .order("period_end", { ascending: false })
+      .limit(1);
+    latestLockEnd = (locks?.[0]?.period_end as string | undefined) ?? null;
+  }
+
   function fmtMoney(amount: number, currency: string): string {
     try {
       return new Intl.NumberFormat("en-US", {
@@ -108,6 +141,16 @@ export default async function BusinessOverviewPage({
           .map(([code, amt]) => fmtMoney(amt, code))
           .join(" · ");
 
+  // The Customers stat used to link to /customers (global) which
+  // listed customers from EVERY team the user belonged to, not
+  // just teams in this business — so the count on the card and
+  // the page contents disagreed. Drop the link until /customers
+  // accepts a business filter; render as a stat card. (Persona
+  // finding: agency-owner #1.)
+  const entityLabel = identity?.entity_type
+    ? String(identity.entity_type).replace(/_/g, " ")
+    : null;
+
   return (
     <div className="space-y-6">
       {/* Quick stats */}
@@ -116,7 +159,7 @@ export default async function BusinessOverviewPage({
           icon={Users}
           label={t("stats.customers")}
           value={String(customerCount ?? 0)}
-          href="/customers"
+          href={null}
         />
         <StatCard
           icon={DollarSign}
@@ -126,42 +169,75 @@ export default async function BusinessOverviewPage({
         />
       </section>
 
-      {/* Module tiles */}
+      {/* Module tiles — every shipped sub-tab gets a tile so the
+          overview is a real summary, not a v0 placeholder grid. */}
       <section className="grid gap-4 sm:grid-cols-2">
-        <Link
+        <TileLink
+          href={`/business/${businessId}/identity`}
+          icon={FileBadge}
+          title={t("tiles.identity.title")}
+          summary={
+            identity?.legal_name
+              ? entityLabel
+                ? `${identity.legal_name} · ${entityLabel}`
+                : (identity.legal_name as string)
+              : t("tiles.identity.empty")
+          }
+        />
+        <TileLink
           href={`/business/${businessId}/expenses`}
-          className="flex items-start gap-4 rounded-lg border border-edge bg-surface-raised p-4 hover:bg-hover transition-colors"
-        >
-          <Receipt size={20} className="text-accent shrink-0 mt-1" />
-          <div className="min-w-0">
-            <p className="text-body-lg font-medium text-content">
-              {t("tiles.expenses.title")}
-            </p>
-            <p className="mt-0.5 text-caption text-content-muted">
-              {t("tiles.expenses.summary", {
-                count: expensesCount,
-                amount: expensesTotalLabel,
-              })}
-            </p>
-          </div>
-        </Link>
-
-        <Link
+          icon={Receipt}
+          title={t("tiles.expenses.title")}
+          summary={t("tiles.expenses.summary", {
+            count: expensesCount,
+            amount: expensesTotalLabel,
+          })}
+        />
+        <TileLink
           href={`/business/${businessId}/people`}
-          className="flex items-start gap-4 rounded-lg border border-edge bg-surface-raised p-4 hover:bg-hover transition-colors"
-        >
-          <UserCog size={20} className="text-accent shrink-0 mt-1" />
-          <div className="min-w-0">
-            <p className="text-body-lg font-medium text-content">
-              {t("tiles.people.title")}
-            </p>
-            <p className="mt-0.5 text-caption text-content-muted">
-              {t("tiles.people.summary", { count: peopleCount ?? 0 })}
-            </p>
-          </div>
-        </Link>
+          icon={UserCog}
+          title={t("tiles.people.title")}
+          summary={t("tiles.people.summary", { count: peopleCount ?? 0 })}
+        />
+        {canManagePeriodLocks && (
+          <TileLink
+            href={`/business/${businessId}/period-locks`}
+            icon={Lock}
+            title={t("tiles.periodLocks.title")}
+            summary={
+              latestLockEnd
+                ? t("tiles.periodLocks.lockedThrough", { date: latestLockEnd })
+                : t("tiles.periodLocks.empty")
+            }
+          />
+        )}
       </section>
     </div>
+  );
+}
+
+function TileLink({
+  href,
+  icon: Icon,
+  title,
+  summary,
+}: {
+  href: string;
+  icon: typeof Users;
+  title: string;
+  summary: string;
+}): React.JSX.Element {
+  return (
+    <Link
+      href={href}
+      className="flex items-start gap-4 rounded-lg border border-edge bg-surface-raised p-4 hover:bg-hover transition-colors"
+    >
+      <Icon size={20} className="text-accent shrink-0 mt-1" />
+      <div className="min-w-0">
+        <p className="text-body-lg font-medium text-content">{title}</p>
+        <p className="mt-0.5 text-caption text-content-muted">{summary}</p>
+      </div>
+    </Link>
   );
 }
 
@@ -174,13 +250,12 @@ function StatCard({
   icon: typeof Users;
   label: string;
   value: string;
-  href: string;
+  /** When null, renders a non-interactive card. Used for stats whose
+   *  natural drill-down doesn't yet support a business filter. */
+  href: string | null;
 }): React.JSX.Element {
-  return (
-    <Link
-      href={href}
-      className="flex items-center gap-4 rounded-lg border border-edge bg-surface-raised p-4 hover:bg-hover transition-colors"
-    >
+  const inner = (
+    <>
       <Icon size={20} className="text-accent shrink-0" />
       <div>
         <p className="text-label font-semibold uppercase tracking-wider text-content-muted">
@@ -190,6 +265,16 @@ function StatCard({
           {value}
         </p>
       </div>
+    </>
+  );
+  const cls =
+    "flex items-center gap-4 rounded-lg border border-edge bg-surface-raised p-4";
+  if (href === null) {
+    return <div className={cls}>{inner}</div>;
+  }
+  return (
+    <Link href={href} className={`${cls} hover:bg-hover transition-colors`}>
+      {inner}
     </Link>
   );
 }

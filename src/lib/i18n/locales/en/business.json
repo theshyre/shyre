@@ -63,6 +63,15 @@
     "people": {
       "title": "Employees & contractors",
       "summary": "{count, plural, =0 {No people yet — add owners, employees, or contractors} =1 {1 person on the books} other {# people on the books}}"
+    },
+    "identity": {
+      "title": "Business identity",
+      "empty": "Add legal name, EIN, fiscal year"
+    },
+    "periodLocks": {
+      "title": "Period locks",
+      "lockedThrough": "Locked through {date}",
+      "empty": "No periods locked yet"
     }
   },
   "info": {

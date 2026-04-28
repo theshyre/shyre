@@ -4,6 +4,7 @@ import { runSafeAction } from "@/lib/safe-action";
 import { assertSupabaseOk } from "@/lib/errors";
 import { revalidatePath } from "next/cache";
 import { createClient } from "@/lib/supabase/server";
+import { validateBusinessAccess } from "@/lib/team-context";
 import {
   readPersonFields,
   requiredString,
@@ -23,17 +24,13 @@ export type {
   PersonHistoryEntry,
 } from "./business-people-history-types";
 
-type SBClient = import("@supabase/supabase-js").SupabaseClient;
-
-async function assertBusinessAdmin(
-  supabase: SBClient,
-  businessId: string,
-): Promise<void> {
-  const { data, error } = await supabase.rpc("user_business_role", {
-    business_id: businessId,
-  });
-  if (error) throw error;
-  if (data !== "owner" && data !== "admin") {
+/** Owner|admin gate for people-mutating actions. Uses the canonical
+ *  `validateBusinessAccess` helper instead of poking the RPC directly
+ *  so the friendly-error message matches every other Business action.
+ *  Per platform-architect finding #5. */
+async function assertBusinessAdmin(businessId: string): Promise<void> {
+  const { role } = await validateBusinessAccess(businessId);
+  if (role !== "owner" && role !== "admin") {
     throw new Error(
       "Only owners and admins of a team in this business can manage people.",
     );
@@ -48,7 +45,7 @@ function revalidateBusiness(businessId: string): void {
 export async function createPersonAction(formData: FormData): Promise<void> {
   return runSafeAction(formData, async (formData, { supabase }) => {
     const businessId = requiredString(formData, "business_id");
-    await assertBusinessAdmin(supabase, businessId);
+    await assertBusinessAdmin(businessId);
 
     const fields = readPersonFields(formData);
 
@@ -67,7 +64,7 @@ export async function updatePersonAction(formData: FormData): Promise<void> {
   return runSafeAction(formData, async (formData, { supabase }) => {
     const businessId = requiredString(formData, "business_id");
     const personId = requiredString(formData, "person_id");
-    await assertBusinessAdmin(supabase, businessId);
+    await assertBusinessAdmin(businessId);
 
     const fields = readPersonFields(formData);
 
@@ -87,7 +84,7 @@ export async function deletePersonAction(formData: FormData): Promise<void> {
   return runSafeAction(formData, async (formData, { supabase }) => {
     const businessId = requiredString(formData, "business_id");
     const personId = requiredString(formData, "person_id");
-    await assertBusinessAdmin(supabase, businessId);
+    await assertBusinessAdmin(businessId);
 
     assertSupabaseOk(
       await supabase

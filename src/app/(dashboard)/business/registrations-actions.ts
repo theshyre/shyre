@@ -2,6 +2,7 @@
 
 import { runSafeAction } from "@/lib/safe-action";
 import { assertSupabaseOk } from "@/lib/errors";
+import { validateBusinessAccess } from "@/lib/team-context";
 import { revalidatePath } from "next/cache";
 import {
   blankToNull,
@@ -11,22 +12,14 @@ import {
   readTaxRegistrationFields,
 } from "./registrations-form-parse";
 
-type SBClient = import("@supabase/supabase-js").SupabaseClient;
-
 /**
- * Assert the current user is an owner/admin of the given business —
- * derived via user_business_role(). We re-check on the app side for
- * a friendly error; RLS enforces the same on the DB side.
+ * Owner|admin gate for registrations-mutating actions. Uses the
+ * canonical `validateBusinessAccess` helper instead of the raw RPC
+ * — friendly error matches every other Business action.
  */
-async function assertBusinessAdmin(
-  supabase: SBClient,
-  businessId: string,
-): Promise<void> {
-  const { data, error } = await supabase.rpc("user_business_role", {
-    business_id: businessId,
-  });
-  if (error) throw error;
-  if (data !== "owner" && data !== "admin") {
+async function assertBusinessAdmin(businessId: string): Promise<void> {
+  const { role } = await validateBusinessAccess(businessId);
+  if (role !== "owner" && role !== "admin") {
     throw new Error(
       "Only owners and admins of a team in this business can edit registrations.",
     );
@@ -47,7 +40,7 @@ export async function createRegisteredAgentAction(
 ): Promise<void> {
   return runSafeAction(formData, async (formData, { supabase }) => {
     const businessId = requiredString(formData, "business_id");
-    await assertBusinessAdmin(supabase, businessId);
+    await assertBusinessAdmin(businessId);
 
     const state = requiredString(formData, "state").toUpperCase();
     validateStateCode(state);
@@ -78,7 +71,7 @@ export async function updateRegisteredAgentAction(
   return runSafeAction(formData, async (formData, { supabase }) => {
     const businessId = requiredString(formData, "business_id");
     const agentId = requiredString(formData, "agent_id");
-    await assertBusinessAdmin(supabase, businessId);
+    await assertBusinessAdmin(businessId);
 
     const state = requiredString(formData, "state").toUpperCase();
     validateStateCode(state);
@@ -112,7 +105,7 @@ export async function deleteRegisteredAgentAction(
   return runSafeAction(formData, async (formData, { supabase }) => {
     const businessId = requiredString(formData, "business_id");
     const agentId = requiredString(formData, "agent_id");
-    await assertBusinessAdmin(supabase, businessId);
+    await assertBusinessAdmin(businessId);
 
     assertSupabaseOk(
       await supabase
@@ -135,7 +128,7 @@ export async function createStateRegistrationAction(
 ): Promise<void> {
   return runSafeAction(formData, async (formData, { supabase }) => {
     const businessId = requiredString(formData, "business_id");
-    await assertBusinessAdmin(supabase, businessId);
+    await assertBusinessAdmin(businessId);
 
     const fields = readStateRegistrationFields(formData);
 
@@ -156,7 +149,7 @@ export async function updateStateRegistrationAction(
   return runSafeAction(formData, async (formData, { supabase }) => {
     const businessId = requiredString(formData, "business_id");
     const registrationId = requiredString(formData, "registration_id");
-    await assertBusinessAdmin(supabase, businessId);
+    await assertBusinessAdmin(businessId);
 
     const fields = readStateRegistrationFields(formData);
 
@@ -178,7 +171,7 @@ export async function deleteStateRegistrationAction(
   return runSafeAction(formData, async (formData, { supabase }) => {
     const businessId = requiredString(formData, "business_id");
     const registrationId = requiredString(formData, "registration_id");
-    await assertBusinessAdmin(supabase, businessId);
+    await assertBusinessAdmin(businessId);
 
     assertSupabaseOk(
       await supabase
@@ -201,7 +194,7 @@ export async function createTaxRegistrationAction(
 ): Promise<void> {
   return runSafeAction(formData, async (formData, { supabase }) => {
     const businessId = requiredString(formData, "business_id");
-    await assertBusinessAdmin(supabase, businessId);
+    await assertBusinessAdmin(businessId);
 
     const fields = readTaxRegistrationFields(formData);
 
@@ -222,7 +215,7 @@ export async function updateTaxRegistrationAction(
   return runSafeAction(formData, async (formData, { supabase }) => {
     const businessId = requiredString(formData, "business_id");
     const registrationId = requiredString(formData, "registration_id");
-    await assertBusinessAdmin(supabase, businessId);
+    await assertBusinessAdmin(businessId);
 
     const fields = readTaxRegistrationFields(formData);
 
@@ -244,7 +237,7 @@ export async function deleteTaxRegistrationAction(
   return runSafeAction(formData, async (formData, { supabase }) => {
     const businessId = requiredString(formData, "business_id");
     const registrationId = requiredString(formData, "registration_id");
-    await assertBusinessAdmin(supabase, businessId);
+    await assertBusinessAdmin(businessId);
 
     assertSupabaseOk(
       await supabase

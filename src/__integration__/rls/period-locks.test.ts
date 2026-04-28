@@ -139,7 +139,7 @@ describe("period locks", () => {
         incurred_on: INSIDE,
         amount: 50,
         currency: "USD",
-        category: "office_supplies",
+        category: "office",
         billable: false,
       });
       expect(error?.message ?? "").toMatch(/Period closed/i);
@@ -153,7 +153,7 @@ describe("period locks", () => {
         incurred_on: OUTSIDE,
         amount: 50,
         currency: "USD",
-        category: "office_supplies",
+        category: "office",
         billable: false,
       });
       expect(error).toBeNull();

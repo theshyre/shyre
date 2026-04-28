@@ -63,6 +63,15 @@
     "people": {
       "title": "Empleados y contratistas",
       "summary": "{count, plural, =0 {Sin personas aún — agrega dueños, empleados o contratistas} =1 {1 persona en los libros} other {# personas en los libros}}"
+    },
+    "identity": {
+      "title": "Identidad del negocio",
+      "empty": "Agrega razón social, RFC/EIN, año fiscal"
+    },
+    "periodLocks": {
+      "title": "Bloqueos de período",
+      "lockedThrough": "Bloqueado hasta {date}",
+      "empty": "Sin períodos bloqueados aún"
     }
   },
   "info": {
