@@ -149,6 +149,26 @@ describe("mergeIdentityHistoryRows", () => {
     });
     expect(out.map((e) => e.id)).toEqual(["b-new", "r-mid", "b-old"]);
   });
+
+  it("merges privateRows under kind=business and sorts with the rest", () => {
+    const priv: RawBusinessHistoryRow = {
+      id: "p-1",
+      operation: "UPDATE",
+      changed_at: "2026-04-17T12:00:00Z",
+      changed_by_user_id: "u-actor",
+      previous_state: { tax_id: "85-1234567" },
+    };
+    const out = mergeIdentityHistoryRows({
+      businessRows: [businessRow],
+      privateRows: [priv],
+      registrationRows: [regRow],
+      liveBusinessName: liveName,
+    });
+    // Private rows render as kind=business under the same group key
+    // so the timeline can diff EIN changes alongside legal_name etc.
+    expect(out.find((e) => e.id === "p-1")?.kind).toBe("business");
+    expect(out.map((e) => e.id)).toEqual(["p-1", "r-1", "b-1"]);
+  });
 });
 
 describe("identityGroupKey", () => {

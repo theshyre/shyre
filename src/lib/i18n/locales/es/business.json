@@ -16,8 +16,29 @@
     "identity": "Identidad",
     "expenses": "Gastos",
     "people": "Personas",
+    "periodLocks": "Bloqueos de período",
     "soon": "Pronto",
     "comingSoon": "Próximamente"
+  },
+  "periodLocks": {
+    "title": "Bloqueos de período",
+    "description": "Bloquea un período cerrado para impedir ediciones retroactivas en registros de tiempo, gastos o facturas. Solo dueños y administradores pueden bloquear o desbloquear.",
+    "newLock": "Bloquear período",
+    "newLockHint": "Se bloquearán todas las escrituras en o antes de esta fecha en los libros de este equipo.",
+    "lockedThrough": "Bloqueado hasta {date}",
+    "noLocks": "Sin bloqueos de período. Agrega uno al cerrar un mes o trimestre.",
+    "fields": {
+      "team": "Equipo",
+      "periodEnd": "Fin del período",
+      "notes": "Notas",
+      "lockedBy": "Bloqueado por",
+      "lockedAt": "Bloqueado el"
+    },
+    "actions": {
+      "unlock": "Desbloquear",
+      "unlockConfirm": "Escribe 'unlock' para confirmar",
+      "unlockCta": "Desbloquear período"
+    }
   },
   "fields": {
     "legalName": "Razón social",

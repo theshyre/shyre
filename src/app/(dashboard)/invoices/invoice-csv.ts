@@ -15,6 +15,7 @@ export interface InvoiceCsvRowInput {
   tax_rate: number | string | null;
   tax_amount: number | string | null;
   total: number | string | null;
+  currency: string | null;
   notes: string | null;
   imported_from: string | null;
   team_id: string;
@@ -28,6 +29,7 @@ export interface InvoiceCsvRow {
   status: string;
   issued_date: string;
   due_date: string;
+  currency: string;
   subtotal: string;
   tax_rate: string;
   tax_amount: string;
@@ -43,6 +45,7 @@ export const INVOICE_CSV_HEADERS: ReadonlyArray<keyof InvoiceCsvRow> = [
   "status",
   "issued_date",
   "due_date",
+  "currency",
   "subtotal",
   "tax_rate",
   "tax_amount",
@@ -75,6 +78,7 @@ export function buildInvoiceCsvRow(
     status: displayStatus,
     issued_date: input.issued_date ?? "",
     due_date: input.due_date ?? "",
+    currency: (input.currency ?? "USD").toUpperCase(),
     subtotal: input.subtotal !== null && input.subtotal !== undefined
       ? String(input.subtotal)
       : "",

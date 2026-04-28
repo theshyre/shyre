@@ -36,7 +36,7 @@ export async function GET(request: Request): Promise<Response> {
   let query = supabase
     .from("invoices")
     .select(
-      "invoice_number, status, issued_date, due_date, subtotal, tax_rate, tax_amount, total, notes, imported_from, customers(name), team_id",
+      "invoice_number, status, issued_date, due_date, subtotal, tax_rate, tax_amount, total, currency, notes, imported_from, customers(name), team_id",
     )
     .order("issued_date", { ascending: false, nullsFirst: false })
     .order("created_at", { ascending: false });
@@ -89,6 +89,7 @@ export async function GET(request: Request): Promise<Response> {
         tax_rate: row.tax_rate as number | string | null,
         tax_amount: row.tax_amount as number | string | null,
         total: row.total as number | string | null,
+        currency: (row.currency as string | null) ?? null,
         notes: (row.notes as string | null) ?? null,
         imported_from: (row.imported_from as string | null) ?? null,
         team_id: row.team_id as string,

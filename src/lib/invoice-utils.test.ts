@@ -99,8 +99,8 @@ describe("invoice-utils", () => {
   });
 
   describe("formatCurrency", () => {
-    it("formats with dollar sign and 2 decimals", () => {
-      expect(formatCurrency(1500)).toBe("$1500.00");
+    it("defaults to USD with thousands grouping and 2 decimals", () => {
+      expect(formatCurrency(1500)).toBe("$1,500.00");
     });
 
     it("formats fractional amounts", () => {
@@ -109,6 +109,24 @@ describe("invoice-utils", () => {
 
     it("formats zero", () => {
       expect(formatCurrency(0)).toBe("$0.00");
+    });
+
+    it("uses the explicit currency code", () => {
+      // Intl uses NBSP between code/symbol and amount in en-US for
+      // some currencies — assert on the meaningful tokens not the
+      // exact whitespace.
+      expect(formatCurrency(50, "EUR")).toMatch(/€/);
+      expect(formatCurrency(50, "GBP")).toMatch(/£/);
+    });
+
+    it("normalizes lowercase currency codes", () => {
+      expect(formatCurrency(10, "usd")).toBe("$10.00");
+    });
+
+    it("falls back to a code-prefixed string for invalid codes", () => {
+      // Intl rejects codes that aren't 3 ASCII letters with RangeError;
+      // the helper should swallow that and produce a useful string.
+      expect(formatCurrency(10, "BAD!")).toBe("BAD! 10.00");
     });
   });
 

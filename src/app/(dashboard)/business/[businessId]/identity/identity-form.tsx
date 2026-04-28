@@ -19,6 +19,10 @@ interface Props {
   taxId: string;
   dateIncorporated: string;
   fiscalYearStart: string;
+  /** Whether the viewer is owner|admin and may see/edit the
+   *  sensitive identity fields (tax_id / incorporation date / fiscal
+   *  year start). Defaults to false so a forgotten prop fails closed. */
+  canEditPrivate?: boolean;
 }
 
 const ENTITY_TYPES = [
@@ -48,6 +52,7 @@ export function IdentityForm({
   taxId,
   dateIncorporated,
   fiscalYearStart,
+  canEditPrivate = false,
 }: Props): React.JSX.Element {
   const t = useTranslations("business.info");
   const tc = useTranslations("common");
@@ -96,42 +101,50 @@ export function IdentityForm({
           </select>
         </div>
 
-        <div>
-          <label className={labelClass}>{t("fields.taxId")}</label>
-          <input
-            name="tax_id"
-            defaultValue={taxId}
-            placeholder="XX-XXXXXXX"
-            className={`${inputClass} font-mono`}
-          />
-          <p className="mt-1 text-caption text-content-muted">
-            {t("fields.taxIdHelp")}
-          </p>
-        </div>
+        {canEditPrivate && (
+          <>
+            <div>
+              <label className={labelClass}>{t("fields.taxId")}</label>
+              <input
+                name="tax_id"
+                defaultValue={taxId}
+                placeholder="XX-XXXXXXX"
+                className={`${inputClass} font-mono`}
+              />
+              <p className="mt-1 text-caption text-content-muted">
+                {t("fields.taxIdHelp")}
+              </p>
+            </div>
 
-        <div>
-          <label className={labelClass}>{t("fields.dateIncorporated")}</label>
-          <input
-            name="date_incorporated"
-            type="date"
-            defaultValue={dateIncorporated}
-            className={inputClass}
-          />
-        </div>
+            <div>
+              <label className={labelClass}>
+                {t("fields.dateIncorporated")}
+              </label>
+              <input
+                name="date_incorporated"
+                type="date"
+                defaultValue={dateIncorporated}
+                className={inputClass}
+              />
+            </div>
 
-        <div>
-          <label className={labelClass}>{t("fields.fiscalYearStart")}</label>
-          <input
-            name="fiscal_year_start"
-            defaultValue={fiscalYearStart}
-            placeholder="01-01"
-            pattern="^(0[1-9]|1[0-2])-(0[1-9]|[12]\d|3[01])$"
-            className={`${inputClass} font-mono`}
-          />
-          <p className="mt-1 text-caption text-content-muted">
-            {t("fields.fiscalYearStartHelp")}
-          </p>
-        </div>
+            <div>
+              <label className={labelClass}>
+                {t("fields.fiscalYearStart")}
+              </label>
+              <input
+                name="fiscal_year_start"
+                defaultValue={fiscalYearStart}
+                placeholder="01-01"
+                pattern="^(0[1-9]|1[0-2])-(0[1-9]|[12]\d|3[01])$"
+                className={`${inputClass} font-mono`}
+              />
+              <p className="mt-1 text-caption text-content-muted">
+                {t("fields.fiscalYearStartHelp")}
+              </p>
+            </div>
+          </>
+        )}
       </div>
 
       <SubmitButton

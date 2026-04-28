@@ -290,11 +290,22 @@ async function loadSample(
           name: data.businessIdentity.display_name,
           legal_name: data.businessIdentity.legal_name,
           entity_type: data.businessIdentity.entity_type,
+        })
+        .eq("id", businessId),
+    );
+
+    // Sensitive identity lives on the role-gated child table since
+    // SAL-012. Auto-populated empty by trigger on business insert,
+    // so this is always an UPDATE.
+    assertSupabaseOk(
+      await supabase
+        .from("business_identity_private")
+        .update({
           tax_id: data.businessIdentity.tax_id,
           date_incorporated: data.businessIdentity.date_incorporated,
           fiscal_year_start: data.businessIdentity.fiscal_year_start,
         })
-        .eq("id", businessId),
+        .eq("business_id", businessId),
     );
 
     const agentInserts = data.registeredAgents.map((a) => ({

@@ -13,10 +13,15 @@
   },
   "table": {
     "name": "Name",
+    "client": "Client",
+    "member": "Member",
     "hours": "Hours",
     "billableHours": "Billable Hours",
     "revenue": "Revenue",
     "entries": "Entries"
+  },
+  "sectionsExtra": {
+    "byMember": "Hours by Member"
   },
   "totals": {
     "total": "Total",

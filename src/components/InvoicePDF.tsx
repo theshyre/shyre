@@ -184,6 +184,9 @@ export interface InvoicePDFProps {
   taxRate: number;
   taxAmount: number;
   total: number;
+  /** ISO 4217 currency code. Defaults to USD when omitted so legacy
+   *  rows without a currency value still render. */
+  currency?: string;
   business: {
     name: string | null;
     email: string | null;
@@ -203,8 +206,21 @@ export interface InvoicePDFProps {
   }>;
 }
 
-function fmt(amount: number): string {
-  return `$${amount.toFixed(2)}`;
+function makeFmt(currency: string): (amount: number) => string {
+  const code = (currency || "USD").toUpperCase();
+  let formatter: Intl.NumberFormat | null;
+  try {
+    formatter = new Intl.NumberFormat("en-US", {
+      style: "currency",
+      currency: code,
+      minimumFractionDigits: 2,
+      maximumFractionDigits: 2,
+    });
+  } catch {
+    formatter = null;
+  }
+  return (amount: number): string =>
+    formatter ? formatter.format(amount) : `${code} ${amount.toFixed(2)}`;
 }
 
 export function InvoicePDF(props: InvoicePDFProps): React.JSX.Element {
@@ -217,10 +233,12 @@ export function InvoicePDF(props: InvoicePDFProps): React.JSX.Element {
     taxRate,
     taxAmount,
     total,
+    currency,
     business,
     client,
     lineItems,
   } = props;
+  const fmt = makeFmt(currency ?? "USD");
 
   return (
     <Document>

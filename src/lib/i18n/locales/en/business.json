@@ -16,8 +16,29 @@
     "identity": "Identity",
     "expenses": "Expenses",
     "people": "People",
+    "periodLocks": "Period locks",
     "soon": "Soon",
     "comingSoon": "Coming soon"
+  },
+  "periodLocks": {
+    "title": "Period locks",
+    "description": "Lock a closed period so retroactive edits to time entries, expenses, or invoices are blocked. Only owners and admins can lock or unlock.",
+    "newLock": "Lock period",
+    "newLockHint": "All writes on or before this date will be blocked across this team's books.",
+    "lockedThrough": "Locked through {date}",
+    "noLocks": "No period locks. Add one when you close a month or quarter.",
+    "fields": {
+      "team": "Team",
+      "periodEnd": "Period end",
+      "notes": "Notes",
+      "lockedBy": "Locked by",
+      "lockedAt": "Locked at"
+    },
+    "actions": {
+      "unlock": "Unlock",
+      "unlockConfirm": "Type 'unlock' to confirm",
+      "unlockCta": "Unlock period"
+    }
   },
   "fields": {
     "legalName": "Legal name",

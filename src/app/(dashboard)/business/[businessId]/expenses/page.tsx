@@ -99,19 +99,32 @@ export default async function ExpensesPage({
     .order("name");
   const projects: ProjectOption[] = (projRows ?? []) as ProjectOption[];
 
-  // Monthly total (current calendar month)
+  // Monthly total (current calendar month). Expenses can be logged
+  // in different currencies, so sum per-currency and render each
+  // group on its own — naively summing across currencies would
+  // silently produce a wrong number.
   const now = new Date();
   const monthStart = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}-01`;
-  const monthTotal = expenses
-    .filter((e) => e.incurred_on >= monthStart)
-    .reduce((s, e) => s + e.amount, 0);
+  const monthByCurrency = new Map<string, number>();
+  for (const e of expenses) {
+    if (e.incurred_on < monthStart) continue;
+    const code = (e.currency ?? "USD").toUpperCase();
+    monthByCurrency.set(code, (monthByCurrency.get(code) ?? 0) + e.amount);
+  }
+  const monthTotalLabel =
+    monthByCurrency.size === 0
+      ? formatCurrency(0, "USD")
+      : Array.from(monthByCurrency.entries())
+          .sort((a, b) => a[0].localeCompare(b[0]))
+          .map(([code, amt]) => formatCurrency(amt, code))
+          .join(" · ");
 
   return (
     <div className="space-y-4">
       <div className="flex items-center gap-3 flex-wrap">
         <span className="text-body-lg font-semibold text-content">{t("title")}</span>
         <span className="inline-flex items-center gap-1.5 rounded-full bg-surface-inset px-3 py-1 text-caption font-medium text-content-secondary">
-          {t("monthTotal", { amount: formatCurrency(monthTotal, "USD") })}
+          {t("monthTotal", { amount: monthTotalLabel })}
         </span>
       </div>
 

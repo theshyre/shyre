@@ -2,6 +2,7 @@ import { createClient } from "@/lib/supabase/server";
 import { getUserTeams } from "@/lib/team-context";
 import { getTranslations } from "next-intl/server";
 import { BarChart3 } from "lucide-react";
+import { Avatar, resolveAvatarUrl } from "@theshyre/ui";
 import { formatCurrency } from "@/lib/invoice-utils";
 import { TeamFilter } from "@/components/TeamFilter";
 
@@ -23,6 +24,16 @@ interface ProjectSummary {
   revenue: number;
 }
 
+interface MemberSummary {
+  userId: string;
+  displayName: string;
+  avatarUrl: string | null;
+  totalMinutes: number;
+  billableMinutes: number;
+  entryCount: number;
+  revenue: number;
+}
+
 export default async function ReportsPage({
   searchParams,
 }: {
@@ -33,10 +44,14 @@ export default async function ReportsPage({
   const { org: selectedTeamId } = await searchParams;
   const t = await getTranslations("reports");
 
-  // Fetch all time entries with project and client info
+  // Fetch all time entries with project, client, and author info.
+  // user_id powers the per-member breakdown (agency-owner persona
+  // need: see who's billable and who isn't).
   let entriesQuery = supabase
     .from("time_entries")
-    .select("duration_min, billable, projects(name, hourly_rate, customers(name, default_rate))")
+    .select(
+      "user_id, duration_min, billable, projects(name, hourly_rate, customers(name, default_rate))",
+    )
     .not("end_time", "is", null)
     .not("duration_min", "is", null)
     .is("deleted_at", null);
@@ -54,9 +69,10 @@ export default async function ReportsPage({
     defaultRate = settings?.default_rate ? Number(settings.default_rate) : 0;
   }
 
-  // Aggregate by client
+  // Aggregate by client / project / member
   const clientMap = new Map<string, ClientSummary>();
   const projectMap = new Map<string, ProjectSummary>();
+  const memberMap = new Map<string, MemberSummary>();
 
   for (const entry of entries ?? []) {
     const proj = entry.projects as unknown as {
@@ -67,6 +83,7 @@ export default async function ReportsPage({
 
     const customerName = proj?.customers?.name ?? "Internal";
     const projectName = proj?.name ?? "Unknown";
+    const userId = (entry.user_id as string | null) ?? null;
     const mins = entry.duration_min ?? 0;
     const isBillable = entry.billable ?? false;
     const rate =
@@ -112,7 +129,48 @@ export default async function ReportsPage({
         revenue: entryRevenue,
       });
     }
+
+    // Member aggregation
+    if (userId) {
+      const existingMember = memberMap.get(userId);
+      if (existingMember) {
+        existingMember.totalMinutes += mins;
+        if (isBillable) existingMember.billableMinutes += mins;
+        existingMember.entryCount += 1;
+        existingMember.revenue += entryRevenue;
+      } else {
+        memberMap.set(userId, {
+          userId,
+          displayName: "",
+          avatarUrl: null,
+          totalMinutes: mins,
+          billableMinutes: isBillable ? mins : 0,
+          entryCount: 1,
+          revenue: entryRevenue,
+        });
+      }
+    }
   }
+
+  // Resolve member display names + avatars in a single round-trip,
+  // shaped to match the EntryAuthor pattern used elsewhere.
+  if (memberMap.size > 0) {
+    const userIds = Array.from(memberMap.keys());
+    const { data: profiles } = await supabase
+      .from("user_profiles")
+      .select("user_id, display_name, avatar_url")
+      .in("user_id", userIds);
+    for (const p of profiles ?? []) {
+      const m = memberMap.get(p.user_id as string);
+      if (m) {
+        m.displayName = (p.display_name as string | null) ?? "";
+        m.avatarUrl = (p.avatar_url as string | null) ?? null;
+      }
+    }
+  }
+  const memberSummaries = Array.from(memberMap.values()).sort(
+    (a, b) => b.totalMinutes - a.totalMinutes,
+  );
 
   const clientSummaries = Array.from(clientMap.values()).sort(
     (a, b) => b.totalMinutes - a.totalMinutes
@@ -132,7 +190,7 @@ export default async function ReportsPage({
     <div>
       <div className="flex items-center gap-3">
         <BarChart3 size={24} className="text-accent" />
-        <h1 className="text-2xl font-bold text-content">{t("title")}</h1>
+        <h1 className="text-page-title font-bold text-content">{t("title")}</h1>
         <TeamFilter teams={teams} selectedTeamId={selectedTeamId ?? null} />
       </div>
 
@@ -145,31 +203,31 @@ export default async function ReportsPage({
       </div>
 
       {clientSummaries.length === 0 ? (
-        <p className="mt-8 text-sm text-content-muted">{t("noData")}</p>
+        <p className="mt-8 text-body text-content-muted">{t("noData")}</p>
       ) : (
         <>
           {/* Hours by Client */}
           <div className="mt-8">
-            <h2 className="text-lg font-semibold text-content">
+            <h2 className="text-title font-semibold text-content">
               {t("sections.byClient")}
             </h2>
             <div className="mt-3 overflow-hidden rounded-lg border border-edge bg-surface-raised">
-              <table className="w-full text-sm">
+              <table className="w-full text-body">
                 <thead>
                   <tr className="border-b border-edge bg-surface-inset">
-                    <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider text-content-muted">
+                    <th className="px-4 py-3 text-left text-label font-semibold uppercase tracking-wider text-content-muted">
                       {t("table.name")}
                     </th>
-                    <th className="px-4 py-3 text-right text-xs font-semibold uppercase tracking-wider text-content-muted">
+                    <th className="px-4 py-3 text-right text-label font-semibold uppercase tracking-wider text-content-muted">
                       {t("table.hours")}
                     </th>
-                    <th className="px-4 py-3 text-right text-xs font-semibold uppercase tracking-wider text-content-muted">
+                    <th className="px-4 py-3 text-right text-label font-semibold uppercase tracking-wider text-content-muted">
                       {t("table.billableHours")}
                     </th>
-                    <th className="px-4 py-3 text-right text-xs font-semibold uppercase tracking-wider text-content-muted">
+                    <th className="px-4 py-3 text-right text-label font-semibold uppercase tracking-wider text-content-muted">
                       {t("table.revenue")}
                     </th>
-                    <th className="px-4 py-3 text-right text-xs font-semibold uppercase tracking-wider text-content-muted">
+                    <th className="px-4 py-3 text-right text-label font-semibold uppercase tracking-wider text-content-muted">
                       {t("table.entries")}
                     </th>
                   </tr>
@@ -223,23 +281,23 @@ export default async function ReportsPage({
 
           {/* Hours by Project */}
           <div className="mt-8">
-            <h2 className="text-lg font-semibold text-content">
+            <h2 className="text-title font-semibold text-content">
               {t("sections.byProject")}
             </h2>
             <div className="mt-3 overflow-hidden rounded-lg border border-edge bg-surface-raised">
-              <table className="w-full text-sm">
+              <table className="w-full text-body">
                 <thead>
                   <tr className="border-b border-edge bg-surface-inset">
-                    <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider text-content-muted">
+                    <th className="px-4 py-3 text-left text-label font-semibold uppercase tracking-wider text-content-muted">
                       {t("table.name")}
                     </th>
-                    <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider text-content-muted">
-                      Client
+                    <th className="px-4 py-3 text-left text-label font-semibold uppercase tracking-wider text-content-muted">
+                      {t("table.client")}
                     </th>
-                    <th className="px-4 py-3 text-right text-xs font-semibold uppercase tracking-wider text-content-muted">
+                    <th className="px-4 py-3 text-right text-label font-semibold uppercase tracking-wider text-content-muted">
                       {t("table.hours")}
                     </th>
-                    <th className="px-4 py-3 text-right text-xs font-semibold uppercase tracking-wider text-content-muted">
+                    <th className="px-4 py-3 text-right text-label font-semibold uppercase tracking-wider text-content-muted">
                       {t("table.revenue")}
                     </th>
                   </tr>
@@ -268,6 +326,78 @@ export default async function ReportsPage({
               </table>
             </div>
           </div>
+
+          {/* Hours by Member — surfaces author-level breakdown for
+              agency owners. Hidden for solo teams (single member,
+              no signal). */}
+          {memberSummaries.length > 1 && (
+            <div className="mt-8">
+              <h2 className="text-title font-semibold text-content">
+                {t("sectionsExtra.byMember")}
+              </h2>
+              <div className="mt-3 overflow-hidden rounded-lg border border-edge bg-surface-raised">
+                <table className="w-full text-body">
+                  <thead>
+                    <tr className="border-b border-edge bg-surface-inset">
+                      <th className="px-4 py-3 text-left text-label font-semibold uppercase tracking-wider text-content-muted">
+                        {t("table.member")}
+                      </th>
+                      <th className="px-4 py-3 text-right text-label font-semibold uppercase tracking-wider text-content-muted">
+                        {t("table.hours")}
+                      </th>
+                      <th className="px-4 py-3 text-right text-label font-semibold uppercase tracking-wider text-content-muted">
+                        {t("table.billableHours")}
+                      </th>
+                      <th className="px-4 py-3 text-right text-label font-semibold uppercase tracking-wider text-content-muted">
+                        {t("table.revenue")}
+                      </th>
+                      <th className="px-4 py-3 text-right text-label font-semibold uppercase tracking-wider text-content-muted">
+                        {t("table.entries")}
+                      </th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {memberSummaries.map((m) => (
+                      <tr
+                        key={m.userId}
+                        className="border-b border-edge last:border-0 hover:bg-hover transition-colors"
+                      >
+                        <td className="px-4 py-3">
+                          <span className="inline-flex items-center gap-2 text-content">
+                            <Avatar
+                              avatarUrl={resolveAvatarUrl(
+                                m.avatarUrl,
+                                m.userId,
+                              )}
+                              displayName={m.displayName}
+                              size={20}
+                            />
+                            <span className="font-medium">
+                              {m.displayName}
+                            </span>
+                          </span>
+                        </td>
+                        <td className="px-4 py-3 text-right font-mono tabular-nums text-content-secondary">
+                          {fmtHours(m.totalMinutes)}
+                        </td>
+                        <td className="px-4 py-3 text-right font-mono tabular-nums text-content-secondary">
+                          {fmtHours(m.billableMinutes)}
+                        </td>
+                        <td className="px-4 py-3 text-right font-mono tabular-nums text-content">
+                          {formatCurrency(
+                            Math.round(m.revenue * 100) / 100,
+                          )}
+                        </td>
+                        <td className="px-4 py-3 text-right text-content-secondary">
+                          {m.entryCount}
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          )}
         </>
       )}
     </div>
@@ -283,10 +413,10 @@ function SummaryCard({
 }): React.JSX.Element {
   return (
     <div className="rounded-lg border border-edge bg-surface-raised p-4">
-      <p className="text-xs font-semibold uppercase tracking-wider text-content-muted">
+      <p className="text-label font-semibold uppercase tracking-wider text-content-muted">
         {label}
       </p>
-      <p className="mt-1 text-xl font-bold font-mono text-content">{value}</p>
+      <p className="mt-1 text-title font-bold font-mono text-content">{value}</p>
     </div>
   );
 }

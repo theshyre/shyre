@@ -89,9 +89,26 @@ export async function updateExpenseAction(formData: FormData): Promise<
 > {
   return runSafeAction(
     formData,
-    async (fd, { supabase }) => {
+    async (fd, { supabase, userId }) => {
       const id = String(fd.get("id") ?? "");
       if (!id) throw new Error("Expense id required.");
+
+      // Defense-in-depth: fetch the row to confirm team + authorship
+      // before relying on RLS. Same pattern used by SAL-011 invoice
+      // status updates — verify role at the action layer so the user
+      // gets a friendly error instead of an opaque RLS denial.
+      const { data: row } = await supabase
+        .from("expenses")
+        .select("team_id, user_id")
+        .eq("id", id)
+        .maybeSingle();
+      if (!row) throw new Error("Expense not found.");
+      const { role } = await validateTeamAccess(row.team_id as string);
+      const isAuthor = (row.user_id as string) === userId;
+      if (!isAuthor && role !== "owner" && role !== "admin") {
+        throw new Error("Only the author or an owner/admin can edit.");
+      }
+
       const expense = readExpense(fd);
 
       assertSupabaseOk(
@@ -111,9 +128,21 @@ export async function deleteExpenseAction(formData: FormData): Promise<
 > {
   return runSafeAction(
     formData,
-    async (fd, { supabase }) => {
+    async (fd, { supabase, userId }) => {
       const id = String(fd.get("id") ?? "");
       if (!id) throw new Error("Expense id required.");
+
+      const { data: row } = await supabase
+        .from("expenses")
+        .select("team_id, user_id")
+        .eq("id", id)
+        .maybeSingle();
+      if (!row) throw new Error("Expense not found.");
+      const { role } = await validateTeamAccess(row.team_id as string);
+      const isAuthor = (row.user_id as string) === userId;
+      if (!isAuthor && role !== "owner" && role !== "admin") {
+        throw new Error("Only the author or an owner/admin can delete.");
+      }
 
       assertSupabaseOk(await supabase.from("expenses").delete().eq("id", id));
 

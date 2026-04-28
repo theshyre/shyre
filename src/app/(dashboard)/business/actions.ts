@@ -57,17 +57,20 @@ export async function updateBusinessIdentityAction(
       throw new Error("fiscal_year_start must be MM-DD");
     }
 
+    // Display fields stay on businesses; sensitive identity goes to
+    // the role-gated child table per SAL-012.
     assertSupabaseOk(
       await supabase
         .from("businesses")
-        .update({
-          legal_name,
-          entity_type,
-          tax_id,
-          date_incorporated,
-          fiscal_year_start,
-        })
+        .update({ legal_name, entity_type })
         .eq("id", businessId),
+    );
+
+    assertSupabaseOk(
+      await supabase
+        .from("business_identity_private")
+        .update({ tax_id, date_incorporated, fiscal_year_start })
+        .eq("business_id", businessId),
     );
 
     revalidatePath("/business");
@@ -101,9 +104,17 @@ export async function getBusinessIdentityHistoryAction(
   // this business. Pull `limit + 1` from each so the merged result
   // can decide whether to surface "load more" without a count query.
   const fetchSize = limit + 1;
-  const [businessRes, regsRes] = await Promise.all([
+  const [businessRes, privateRes, regsRes] = await Promise.all([
     supabase
       .from("businesses_history")
+      .select(
+        "id, operation, changed_at, changed_by_user_id, previous_state",
+      )
+      .eq("business_id", businessId)
+      .order("changed_at", { ascending: false })
+      .range(0, fetchSize - 1),
+    supabase
+      .from("business_identity_private_history")
       .select(
         "id, operation, changed_at, changed_by_user_id, previous_state",
       )
@@ -120,6 +131,7 @@ export async function getBusinessIdentityHistoryAction(
       .range(0, fetchSize - 1),
   ]);
   if (businessRes.error) throw businessRes.error;
+  if (privateRes.error) throw privateRes.error;
   if (regsRes.error) throw regsRes.error;
 
   // Resolve a label for the live business row (legal_name) so
@@ -134,6 +146,7 @@ export async function getBusinessIdentityHistoryAction(
 
   const merged = mergeIdentityHistoryRows({
     businessRows: (businessRes.data ?? []) as RawBusinessHistoryRow[],
+    privateRows: (privateRes.data ?? []) as RawBusinessHistoryRow[],
     registrationRows: (regsRes.data ?? []) as RawRegistrationHistoryRow[],
     liveBusinessName,
   });

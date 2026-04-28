@@ -53,8 +53,25 @@ export function generateInvoiceNumber(
   return `${prefix}-${y}-${padded}`;
 }
 
-export function formatCurrency(amount: number): string {
-  return `$${amount.toFixed(2)}`;
+/**
+ * Format a money amount with the appropriate currency symbol/code.
+ * Uses Intl.NumberFormat under the hood — accepts any ISO 4217 code
+ * the runtime knows; unknown codes fall back to a `<code> N.NN`
+ * shape so we never throw on bad data. Defaults to USD for legacy
+ * call sites that haven't been threaded with a currency yet.
+ */
+export function formatCurrency(amount: number, currency: string = "USD"): string {
+  const code = (currency || "USD").toUpperCase();
+  try {
+    return new Intl.NumberFormat("en-US", {
+      style: "currency",
+      currency: code,
+      minimumFractionDigits: 2,
+      maximumFractionDigits: 2,
+    }).format(amount);
+  } catch {
+    return `${code} ${amount.toFixed(2)}`;
+  }
 }
 
 export function minutesToHours(minutes: number): number {

@@ -207,10 +207,16 @@ export default async function InvoiceDetailPage({
                     {Number(item.quantity).toFixed(2)}
                   </td>
                   <td className="px-4 py-3 text-right font-mono tabular-nums text-content-secondary">
-                    {formatCurrency(Number(item.unit_price))}
+                    {formatCurrency(
+                      Number(item.unit_price),
+                      (invoice.currency as string | null) ?? undefined,
+                    )}
                   </td>
                   <td className="px-4 py-3 text-right font-mono tabular-nums text-content">
-                    {formatCurrency(Number(item.amount))}
+                    {formatCurrency(
+                      Number(item.amount),
+                      (invoice.currency as string | null) ?? undefined,
+                    )}
                   </td>
                 </tr>
               );
@@ -234,13 +240,22 @@ export default async function InvoiceDetailPage({
             </div>
             <div className="text-right space-y-1">
               <p className="text-body font-mono tabular-nums text-content-secondary">
-                {formatCurrency(Number(invoice.subtotal))}
+                {formatCurrency(
+                  Number(invoice.subtotal),
+                  (invoice.currency as string | null) ?? undefined,
+                )}
               </p>
               <p className="text-body font-mono tabular-nums text-content-secondary">
-                {formatCurrency(Number(invoice.tax_amount))}
+                {formatCurrency(
+                  Number(invoice.tax_amount),
+                  (invoice.currency as string | null) ?? undefined,
+                )}
               </p>
               <p className="text-body font-mono tabular-nums font-semibold text-content">
-                {formatCurrency(Number(invoice.total))}
+                {formatCurrency(
+                  Number(invoice.total),
+                  (invoice.currency as string | null) ?? undefined,
+                )}
               </p>
             </div>
           </div>

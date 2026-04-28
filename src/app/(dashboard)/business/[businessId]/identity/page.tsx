@@ -24,14 +24,27 @@ export default async function BusinessIdentityPage({
   const { role } = await validateBusinessAccess(businessId);
   const canEdit = role === "owner" || role === "admin";
 
-  const [{ data: business }, { data: rawRegistrations }] = await Promise.all([
+  // Sensitive identity (tax_id, date_incorporated, fiscal_year_start)
+  // lives on business_identity_private — RLS gates SELECT to
+  // owner|admin per SAL-012, so non-admins get null and the form
+  // hides those fields below.
+  const [
+    { data: business },
+    { data: privateIdentity },
+    { data: rawRegistrations },
+  ] = await Promise.all([
     supabase
       .from("businesses")
-      .select(
-        "id, legal_name, entity_type, tax_id, date_incorporated, fiscal_year_start",
-      )
+      .select("id, legal_name, entity_type")
       .eq("id", businessId)
       .maybeSingle(),
+    canEdit
+      ? supabase
+          .from("business_identity_private")
+          .select("tax_id, date_incorporated, fiscal_year_start")
+          .eq("business_id", businessId)
+          .maybeSingle()
+      : Promise.resolve({ data: null }),
     supabase
       .from("business_state_registrations")
       .select(
@@ -66,9 +79,14 @@ export default async function BusinessIdentityPage({
         businessId={businessId}
         legalName={(business?.legal_name as string | null) ?? ""}
         entityType={(business?.entity_type as string | null) ?? ""}
-        taxId={(business?.tax_id as string | null) ?? ""}
-        dateIncorporated={(business?.date_incorporated as string | null) ?? ""}
-        fiscalYearStart={(business?.fiscal_year_start as string | null) ?? ""}
+        taxId={(privateIdentity?.tax_id as string | null) ?? ""}
+        dateIncorporated={
+          (privateIdentity?.date_incorporated as string | null) ?? ""
+        }
+        fiscalYearStart={
+          (privateIdentity?.fiscal_year_start as string | null) ?? ""
+        }
+        canEditPrivate={canEdit}
       />
       <StateRegistrationsSection
         businessId={businessId}

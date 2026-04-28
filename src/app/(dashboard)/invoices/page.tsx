@@ -202,7 +202,12 @@ export default async function InvoicesPage({
                       {inv.issued_date ? formatDate(inv.issued_date) : "—"}
                     </td>
                     <td className="px-4 py-3 text-right font-mono tabular-nums text-content">
-                      {inv.total ? formatCurrency(Number(inv.total)) : "—"}
+                      {inv.total
+                        ? formatCurrency(
+                            Number(inv.total),
+                            (inv.currency as string | null) ?? undefined,
+                          )
+                        : "—"}
                     </td>
                     <td className="px-4 py-3">
                       <InvoiceStatusBadge status={displayStatus} />

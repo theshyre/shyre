@@ -132,22 +132,31 @@ export function buildRegistrationHistoryEntry(
   };
 }
 
-/** Merge raw rows from both tables into a single newest-first list.
+/** Merge raw rows from all identity tables into a single newest-first
+ *  list. `privateRows` are rows from `business_identity_private_history`
+ *  — same shape as `RawBusinessHistoryRow` but capturing changes to
+ *  the role-gated identity child table (tax_id, date_incorporated,
+ *  fiscal_year_start). They render as `kind: 'business'` so the
+ *  timeline groups them with businesses_history under one label.
  *  Sort is stable on equal `changed_at`. Pure function — used both
  *  by the page action and by the CSV route, and by its own tests. */
 export function mergeIdentityHistoryRows(args: {
   businessRows: RawBusinessHistoryRow[];
+  privateRows?: RawBusinessHistoryRow[];
   registrationRows: RawRegistrationHistoryRow[];
   liveBusinessName: string;
 }): IdentityHistoryEntry[] {
   const businessEntries = args.businessRows.map((r) =>
     buildBusinessHistoryEntry(r, args.liveBusinessName),
   );
+  const privateEntries = (args.privateRows ?? []).map((r) =>
+    buildBusinessHistoryEntry(r, args.liveBusinessName),
+  );
   const registrationEntries = args.registrationRows.map((r) =>
     buildRegistrationHistoryEntry(r),
   );
-  return [...businessEntries, ...registrationEntries].sort((a, b) =>
-    b.changedAt.localeCompare(a.changedAt),
+  return [...businessEntries, ...privateEntries, ...registrationEntries].sort(
+    (a, b) => b.changedAt.localeCompare(a.changedAt),
   );
 }
 

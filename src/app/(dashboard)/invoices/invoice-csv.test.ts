@@ -14,6 +14,7 @@ const baseInput: InvoiceCsvRowInput = {
   tax_rate: 8.25,
   tax_amount: 82.5,
   total: 1082.5,
+  currency: "USD",
   notes: "Net 15",
   imported_from: null,
   team_id: "team-a",
@@ -37,6 +38,24 @@ describe("buildInvoiceCsvRow", () => {
     expect(row.total).toBe("1082.5");
     expect(row.imported_from).toBe("");
     expect(row.notes).toBe("Net 15");
+    expect(row.currency).toBe("USD");
+  });
+
+  it("uppercases the currency and falls back to USD when null", () => {
+    expect(
+      buildInvoiceCsvRow(
+        { ...baseInput, currency: "eur" },
+        teamNames,
+        "2026-04-10",
+      ).currency,
+    ).toBe("EUR");
+    expect(
+      buildInvoiceCsvRow(
+        { ...baseInput, currency: null },
+        teamNames,
+        "2026-04-10",
+      ).currency,
+    ).toBe("USD");
   });
 
   it("projects sent → overdue when due_date < today", () => {

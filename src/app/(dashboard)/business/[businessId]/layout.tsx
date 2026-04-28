@@ -3,6 +3,7 @@ import Link from "next/link";
 import { getTranslations } from "next-intl/server";
 import { Briefcase, ArrowLeft } from "lucide-react";
 import { createClient } from "@/lib/supabase/server";
+import { validateBusinessAccess } from "@/lib/team-context";
 import { LinkPendingSpinner } from "@/components/LinkPendingSpinner";
 import { BusinessSubNav } from "./business-sub-nav";
 
@@ -42,6 +43,12 @@ export default async function BusinessDetailLayout({
     notFound();
   }
 
+  // Surface admin-tier tabs only when the caller actually has the
+  // role; period-locks 404s for non-admins on the page side, but
+  // hiding the tab keeps the UI honest.
+  const { role } = await validateBusinessAccess(businessId);
+  const canManagePeriodLocks = role === "owner" || role === "admin";
+
   const displayName = (business.legal_name as string | null) ?? "Business";
   const entityKey = business.entity_type
     ? String(business.entity_type)
@@ -74,7 +81,10 @@ export default async function BusinessDetailLayout({
         </div>
       </div>
 
-      <BusinessSubNav businessId={businessId} />
+      <BusinessSubNav
+        businessId={businessId}
+        canManagePeriodLocks={canManagePeriodLocks}
+      />
 
       {children}
     </div>
