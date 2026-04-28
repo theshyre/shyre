@@ -9,6 +9,10 @@
         "title": "Negocio",
         "description": "Identidad legal, año fiscal, tarifas por defecto, marca."
       },
+      "members": {
+        "title": "Miembros e invitaciones",
+        "description": "Invita compañeros, cambia roles, revoca acceso. La tarea de dueño más frecuente — surge primero."
+      },
       "teams": {
         "title": "Equipos",
         "description": "Crea, cambia y gestiona los equipos a los que pertenecen tus datos."

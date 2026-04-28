@@ -9,6 +9,10 @@
         "title": "Business",
         "description": "Legal identity, fiscal year, default rates, brand."
       },
+      "members": {
+        "title": "Members & invites",
+        "description": "Invite teammates, change roles, revoke access. The most-frequent owner task — surfaced first."
+      },
       "teams": {
         "title": "Teams",
         "description": "Create, switch, and manage the teams your data belongs to."

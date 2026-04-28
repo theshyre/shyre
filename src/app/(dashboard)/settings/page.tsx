@@ -8,7 +8,9 @@ import {
   Tags,
   Bookmark,
   Upload,
+  UserPlus,
 } from "lucide-react";
+import { getUserTeams } from "@/lib/team-context";
 import { isSystemAdmin } from "@/lib/system-admin";
 import { LinkPendingSpinner } from "@/components/LinkPendingSpinner";
 import type { ComponentType } from "react";
@@ -39,7 +41,26 @@ export default async function SettingsHubPage(): Promise<React.JSX.Element> {
   const t = await getTranslations("admin.hub");
   const admin = await isSystemAdmin();
 
+  // Members card: smart-link based on team count. The agency-owner
+  // persona flagged that "invite a teammate" is the most-frequent
+  // owner task and was buried 3 clicks deep behind the Teams card.
+  // Single-team users (the common case) land directly on
+  // /teams/[onlyId] which has the Members + Invites section.
+  // Multi-team owners land on the chooser; they pick the team they
+  // want to invite to.
+  const teams = await getUserTeams();
+  const membersHref =
+    teams.length === 1 ? `/teams/${teams[0]!.id}` : "/teams";
+
   const cards: Card[] = [
+    // Members card sits first — agency-owner finding: most-frequent
+    // owner task should be most-prominent.
+    {
+      title: t("cards.members.title"),
+      description: t("cards.members.description"),
+      href: membersHref,
+      icon: UserPlus,
+    },
     // Business is reachable from the sidebar (Setup section, role-gated
     // to owner|admin of any business). Skipping the card here avoids
     // two paths to the same place; the sidebar entry is always visible

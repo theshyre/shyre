@@ -170,11 +170,15 @@ export default function Sidebar({
         </div>
       </div>
 
-      {/* Main nav — two visible groups (Work + Setup). Group headings
-          use text-label so they read as section markers, not nav
-          targets, and don't fight the body-lg item labels for weight.
-          Empty sections (e.g. Setup when both Business and Admin are
-          hidden) skip their heading too. */}
+      {/* Main nav. The "Work" group keeps its heading because it
+          carries 6+ items and benefits from a label. Setup (Business
+          + Settings) used to have its own heading; per the IA review
+          a 2-item group doesn't earn a heading — render as a
+          divider-separated continuation of the work block instead.
+          The System group keeps its heading because it's role-gated
+          and the heading + warning-tinted icon together signal
+          "elevated privilege" without users having to read the
+          item label. */}
       <nav
         aria-label={t("nav.primary")}
         className="flex-1 overflow-y-auto px-3 py-3 space-y-3"
@@ -188,15 +192,12 @@ export default function Sidebar({
           </div>
         )}
         {setupItems.length > 0 && (
-          <div className="space-y-0.5">
-            <p className="px-3 pb-1 text-label font-semibold uppercase text-content-muted">
-              {t("navSections.setup")}
-            </p>
+          <div className="space-y-0.5 border-t border-edge pt-3">
             {setupItems.map((item) => renderNavLink(item, t, isItemActive))}
           </div>
         )}
         {systemItems.length > 0 && (
-          <div className="space-y-0.5">
+          <div className="space-y-0.5 border-t border-edge pt-3">
             <p className="px-3 pb-1 text-label font-semibold uppercase text-content-muted">
               {t("navSections.systemAdmin")}
             </p>
