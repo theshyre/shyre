@@ -4,6 +4,8 @@ import { runSafeAction } from "@/lib/safe-action";
 import { assertSupabaseOk } from "@/lib/errors";
 import { fetchRepo } from "@/lib/github";
 import { validateJiraCreds } from "@/lib/jira";
+import { logError } from "@/lib/logger";
+import { createClient } from "@/lib/supabase/server";
 import { revalidatePath } from "next/cache";
 import {
   ALLOWED_THEMES,
@@ -20,8 +22,10 @@ export async function updateUserSettingsAction(formData: FormData): Promise<void
     const jira_email = normalizeStr(formData.get("jira_email"));
     const jira_api_token = (formData.get("jira_api_token") as string) || null;
 
-    if (jira_base_url && !/^https?:\/\//i.test(jira_base_url)) {
-      throw new Error("Jira base URL must start with http(s)://");
+    if (jira_base_url && !/^https:\/\//i.test(jira_base_url)) {
+      // Tightened to https only per SAL-014 — plain http would let
+      // a saved base URL silently downgrade an SSRF probe.
+      throw new Error("Jira base URL must start with https://");
     }
 
     assertSupabaseOk(
@@ -88,25 +92,50 @@ export async function setAvatarAction(formData: FormData): Promise<void> {
 }
 
 /**
+ * Authenticated wrapper for the Test-connection actions. Both calls
+ * out to third-party APIs server-side using user-supplied credentials,
+ * which means an unauthenticated session calling the action endpoint
+ * would let an attacker probe GitHub / Jira from our IP. Per
+ * SAL-014, every test path requires `auth.getUser()` first.
+ */
+async function requireUserId(): Promise<string> {
+  const supabase = await createClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+  if (!user) throw new Error("Unauthorized");
+  return user.id;
+}
+
+/**
  * Test a GitHub PAT by fetching `/user`-equivalent metadata via a
  * known-cheap endpoint. We hit `octocat/Hello-World` (GitHub's
  * public test repo) — the `repos/...` route returns 200 with any
  * valid token regardless of token scope, and 401 on a bad token.
  *
- * Returns null on success, an error string on failure. The caller
- * is responsible for surfacing the result inline next to the form.
- *
- * Note: NOT wrapped in runSafeAction because we don't need its
- * FormData parsing or revalidatePath — this is a pure RPC.
+ * Auth-gated, log-on-error. Returns null on success, an error
+ * string on failure.
  */
 export async function testGithubTokenAction(
   token: string,
 ): Promise<{ ok: true } | { ok: false; error: string }> {
+  let userId: string;
+  try {
+    userId = await requireUserId();
+  } catch {
+    return { ok: false, error: "Unauthorized" };
+  }
   if (!token || !token.trim()) {
     return { ok: false, error: "Token is empty." };
   }
   const { error } = await fetchRepo("octocat/Hello-World", token.trim());
   if (error) {
+    if (error.status !== 401 && error.status !== 0) {
+      logError(new Error(`testGithubTokenAction: ${error.message}`), {
+        userId,
+        action: "testGithubTokenAction",
+      });
+    }
     return { ok: false, error: `${error.status}: ${error.message}` };
   }
   return { ok: true };
@@ -114,18 +143,25 @@ export async function testGithubTokenAction(
 
 /**
  * Test Jira creds by hitting `/rest/api/3/myself`. Same shape as
- * testGithubTokenAction.
+ * testGithubTokenAction. SSRF-protected via the underlying
+ * `validateJiraCreds` → `assertSafeOutboundUrl` chain.
  */
 export async function testJiraCredsAction(
   baseUrl: string,
   email: string,
   apiToken: string,
 ): Promise<{ ok: true } | { ok: false; error: string }> {
+  let userId: string;
+  try {
+    userId = await requireUserId();
+  } catch {
+    return { ok: false, error: "Unauthorized" };
+  }
   if (!baseUrl?.trim() || !email?.trim() || !apiToken?.trim()) {
     return { ok: false, error: "Fill in all three Jira fields." };
   }
-  if (!/^https?:\/\//i.test(baseUrl)) {
-    return { ok: false, error: "Base URL must start with http(s)://" };
+  if (!/^https:\/\//i.test(baseUrl)) {
+    return { ok: false, error: "Base URL must start with https://" };
   }
   const { ok, error } = await validateJiraCreds({
     baseUrl: baseUrl.trim(),
@@ -133,6 +169,12 @@ export async function testJiraCredsAction(
     apiToken: apiToken.trim(),
   });
   if (!ok) {
+    if (error && error.status !== 401 && error.status !== 0) {
+      logError(new Error(`testJiraCredsAction: ${error.message}`), {
+        userId,
+        action: "testJiraCredsAction",
+      });
+    }
     return {
       ok: false,
       error: error ? `${error.status}: ${error.message}` : "Unknown error",

@@ -115,6 +115,16 @@ export async function validateTeamAccess(
  * any of its teams. Returns the highest role they hold across those
  * teams (`owner` > `admin` > `member`). Throws if no access — the
  * caller decides whether to show notFound or surface the error.
+ *
+ * IMPORTANT: the returned `role` is the *aggregate* maximum across
+ * every team in the business, NOT the role on any specific team.
+ * Don't use it as a gate for a per-team write — a user who is
+ * owner of team A and member of team B will return `owner` here
+ * even though they can only write team-A scoped rows. For per-team
+ * writes use `validateTeamAccess(teamId)` instead, and to surface
+ * a list of teams the caller can manage filter `getUserTeams()` by
+ * `role IN ('owner','admin')` (see period-locks page for the
+ * canonical example after SAL-014).
  */
 export async function validateBusinessAccess(
   businessId: string,

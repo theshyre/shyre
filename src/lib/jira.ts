@@ -8,7 +8,16 @@
  * Tokens are personal — they inherit the user's permissions.
  * Storing them per-user (user_settings.jira_api_token) matches
  * that model.
+ *
+ * SSRF protection: every outbound URL passes through
+ * `assertSafeOutboundUrl` (SAL-014). The user-supplied base URL
+ * is validated for private-IP / loopback / link-local before any
+ * fetch fires, and `redirect: "manual"` blocks redirect-based
+ * bypasses. Self-hosted Jira (non-atlassian.net) is supported but
+ * still subject to the IP-range guard.
  */
+
+import { assertSafeOutboundUrl, UnsafeOutboundUrlError } from "./url-safety";
 
 interface JiraApiError {
   message: string;
@@ -53,11 +62,13 @@ export async function fetchJiraIssue(
   const url = `${base}/rest/api/3/issue/${encodeURIComponent(key)}?fields=summary`;
 
   try {
+    await assertSafeOutboundUrl(url);
     const res = await fetch(url, {
       headers: {
         Authorization: authHeader(creds),
         Accept: "application/json",
       },
+      redirect: "manual",
       next: { revalidate: 60 },
     });
 
@@ -84,6 +95,12 @@ export async function fetchJiraIssue(
       error: null,
     };
   } catch (err) {
+    if (err instanceof UnsafeOutboundUrlError) {
+      return {
+        data: null,
+        error: { message: `Blocked: ${err.message}`, status: 0 },
+      };
+    }
     return {
       data: null,
       error: {
@@ -100,12 +117,15 @@ export async function validateJiraCreds(
   creds: JiraCreds,
 ): Promise<{ ok: boolean; error: JiraApiError | null }> {
   const base = trimBase(creds.baseUrl);
+  const url = `${base}/rest/api/3/myself`;
   try {
-    const res = await fetch(`${base}/rest/api/3/myself`, {
+    await assertSafeOutboundUrl(url);
+    const res = await fetch(url, {
       headers: {
         Authorization: authHeader(creds),
         Accept: "application/json",
       },
+      redirect: "manual",
     });
     if (!res.ok) {
       return {
@@ -115,6 +135,12 @@ export async function validateJiraCreds(
     }
     return { ok: true, error: null };
   } catch (err) {
+    if (err instanceof UnsafeOutboundUrlError) {
+      return {
+        ok: false,
+        error: { message: `Blocked: ${err.message}`, status: 0 },
+      };
+    }
     return {
       ok: false,
       error: {

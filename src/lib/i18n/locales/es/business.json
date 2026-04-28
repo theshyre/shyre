@@ -62,7 +62,7 @@
     },
     "people": {
       "title": "Empleados y contratistas",
-      "hint": "Registra personas que trabajan para el negocio. Próximamente."
+      "summary": "{count, plural, =0 {Sin personas aún — agrega dueños, empleados o contratistas} =1 {1 persona en los libros} other {# personas en los libros}}"
     }
   },
   "info": {

@@ -64,20 +64,48 @@ export default async function BusinessOverviewPage({
     teamIds.length > 0
       ? await supabase
           .from("expenses")
-          .select("amount")
+          .select("amount, currency")
           .in("team_id", teamIds)
           .gte("incurred_on", monthStartStr)
       : { data: [] };
   const expensesCount = expenseRows?.length ?? 0;
-  const expensesTotal = (expenseRows ?? []).reduce(
-    (s, e) => s + Number(e.amount ?? 0),
-    0,
-  );
+  // Expenses can be in different currencies; group by code so we
+  // never silently sum across them.
+  const expensesByCurrency = new Map<string, number>();
+  for (const row of expenseRows ?? []) {
+    const code = ((row.currency as string | null) ?? "USD").toUpperCase();
+    expensesByCurrency.set(
+      code,
+      (expensesByCurrency.get(code) ?? 0) + Number(row.amount ?? 0),
+    );
+  }
 
-  const fmt = new Intl.NumberFormat("en-US", {
-    style: "currency",
-    currency: "USD",
-  });
+  // People living on this business — owners/employees/contractors
+  // collectively. Live count powers the People tile (replacing the
+  // old "Coming soon" placeholder now that /people is shipped).
+  const { count: peopleCount } = await supabase
+    .from("business_people")
+    .select("id", { count: "exact", head: true })
+    .eq("business_id", businessId)
+    .is("deleted_at", null);
+
+  function fmtMoney(amount: number, currency: string): string {
+    try {
+      return new Intl.NumberFormat("en-US", {
+        style: "currency",
+        currency,
+      }).format(amount);
+    } catch {
+      return `${currency} ${amount.toFixed(2)}`;
+    }
+  }
+  const expensesTotalLabel =
+    expensesByCurrency.size === 0
+      ? fmtMoney(0, "USD")
+      : Array.from(expensesByCurrency.entries())
+          .sort((a, b) => a[0].localeCompare(b[0]))
+          .map(([code, amt]) => fmtMoney(amt, code))
+          .join(" · ");
 
   return (
     <div className="space-y-6">
@@ -111,23 +139,26 @@ export default async function BusinessOverviewPage({
             <p className="mt-0.5 text-caption text-content-muted">
               {t("tiles.expenses.summary", {
                 count: expensesCount,
-                amount: fmt.format(expensesTotal),
+                amount: expensesTotalLabel,
               })}
             </p>
           </div>
         </Link>
 
-        <div className="flex items-start gap-4 rounded-lg border border-dashed border-edge bg-surface-raised/40 p-4">
-          <UserCog size={20} className="text-content-muted shrink-0 mt-1" />
+        <Link
+          href={`/business/${businessId}/people`}
+          className="flex items-start gap-4 rounded-lg border border-edge bg-surface-raised p-4 hover:bg-hover transition-colors"
+        >
+          <UserCog size={20} className="text-accent shrink-0 mt-1" />
           <div className="min-w-0">
-            <p className="text-body-lg font-medium text-content-secondary">
+            <p className="text-body-lg font-medium text-content">
               {t("tiles.people.title")}
             </p>
-            <p className="mt-1 text-caption text-content-muted">
-              {t("tiles.people.hint")}
+            <p className="mt-0.5 text-caption text-content-muted">
+              {t("tiles.people.summary", { count: peopleCount ?? 0 })}
             </p>
           </div>
-        </div>
+        </Link>
       </section>
     </div>
   );

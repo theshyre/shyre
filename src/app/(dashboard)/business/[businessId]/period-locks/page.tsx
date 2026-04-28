@@ -35,15 +35,24 @@ export default async function PeriodLocksPage({
   }
 
   // Resolve which teams in this business the caller can manage.
+  // Critical: filter by role here, not just membership.
+  // `validateBusinessAccess` returns the AGGREGATE role across the
+  // business — a user who is owner of team A and member of team B
+  // in the same business passes that gate, but only team A should
+  // appear in the lock dropdown. The action layer rejects the
+  // wrong-team write, but surfacing it in the UI is a defense-
+  // in-depth gap.
   const userTeams = await getUserTeams();
-  const userTeamIds = userTeams.map((tm) => tm.id);
+  const adminTeamIds = userTeams
+    .filter((tm) => tm.role === "owner" || tm.role === "admin")
+    .map((tm) => tm.id);
   const { data: businessTeams } =
-    userTeamIds.length > 0
+    adminTeamIds.length > 0
       ? await supabase
           .from("teams")
           .select("id, name")
           .eq("business_id", businessId)
-          .in("id", userTeamIds)
+          .in("id", adminTeamIds)
       : { data: [] };
   const teamOptions = (businessTeams ?? [])
     .map((row) => ({

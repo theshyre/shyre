@@ -62,7 +62,7 @@
     },
     "people": {
       "title": "Employees & contractors",
-      "hint": "Track people who work for the business. Coming soon."
+      "summary": "{count, plural, =0 {No people yet — add owners, employees, or contractors} =1 {1 person on the books} other {# people on the books}}"
     }
   },
   "info": {
