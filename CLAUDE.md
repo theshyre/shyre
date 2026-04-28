@@ -313,6 +313,16 @@ Vercel (app code) and `.github/workflows/db-migrate.yml` (SQL migrations) run in
 - **Tests must be meaningful** — test behavior, not implementation. Test error paths, edge cases, and boundary conditions, not just happy paths
 - **No untested code gets committed** — run tests before declaring work complete
 
+### Pre-commit gate — run `npm run ci:local`
+
+The CI workflow runs lint, typecheck, unit tests, AND coverage threshold check. **The coverage threshold has tripped twice in a row** when production code shipped without matching tests — the gate at `vitest.config.ts` is set just below the current measured number specifically to fail in this case. CI failure on coverage is a self-inflicted wound; reproduce locally before pushing.
+
+`npm run ci:local` runs the full sequence: `lint && typecheck && test:coverage`. Run it before every commit that adds production code. If coverage fails:
+- Add tests for the new code in the SAME commit. Do not lower the floor.
+- If the new code can't reasonably be unit-tested (e.g. Server Components calling Supabase), add tests for any pure helpers extracted from it, or for adjacent modules that have 0% coverage.
+
+The MEMORY note (memory/project_testing_gap.md) tracks current coverage and the catch-up plan.
+
 ## Security — MANDATORY
 
 - **MFA support from day one** — Supabase Auth MFA (TOTP) must be configurable in user settings

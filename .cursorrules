@@ -88,6 +88,7 @@ Run all three locally before declaring work complete. "Run lint later" is not a 
 - Vitest for unit + integration, Playwright for E2E
 - Every new file needs a test file — no exceptions
 - Test behavior, not implementation. Cover error paths and edge cases.
+- **Pre-commit**: run `npm run ci:local` (lint + typecheck + test:coverage) before every commit that adds production code. The CI coverage gate is set just below the current measured number; shipping new code without tests trips it. Reproducing locally is faster than a 3-minute CI round-trip.
 
 ## Security
 
