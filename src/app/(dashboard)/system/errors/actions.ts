@@ -19,5 +19,5 @@ export async function resolveErrorAction(formData: FormData): Promise<void> {
     .eq("id", errorId);
 
   if (error) throw new Error(error.message);
-  revalidatePath("/admin/errors");
+  revalidatePath("/system/errors");
 }

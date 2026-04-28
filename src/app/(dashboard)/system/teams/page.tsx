@@ -213,7 +213,7 @@ function PageLink({
   }
   return (
     <Link
-      href={`/admin/teams?page=${page}`}
+      href={`/system/teams?page=${page}`}
       aria-label={label}
       className="inline-flex items-center gap-1 rounded-md border border-edge bg-surface-raised px-3 py-1.5 text-content-secondary hover:bg-hover hover:text-content transition-colors"
     >

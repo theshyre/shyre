@@ -16,7 +16,7 @@ export default async function TestErrorPage({
     logError(
       new AppError({
         code: "UNKNOWN",
-        message: "Test error from /admin/test-error",
+        message: "Test error from /system/test-error",
         userMessageKey: "errors.unknown",
         details: { test: true, timestamp: new Date().toISOString() },
       }),
@@ -38,15 +38,15 @@ export default async function TestErrorPage({
         Click the button to log a test error. If the logger is working correctly
         (including SUPABASE_SERVICE_ROLE_KEY being set on the server), you should
         see the error appear in{" "}
-        <a href="/admin/errors" className="text-accent hover:underline">
-          /admin/errors
+        <a href="/system/errors" className="text-accent hover:underline">
+          /system/errors
         </a>
         .
       </p>
 
       <div className="mt-6">
         <a
-          href="/admin/test-error?log=1"
+          href="/system/test-error?log=1"
           className="inline-flex items-center gap-2 rounded-lg bg-warning px-4 py-2 text-sm font-medium text-content-inverse hover:opacity-90 transition-colors"
         >
           <AlertTriangle size={16} />
@@ -57,8 +57,8 @@ export default async function TestErrorPage({
       {logged && (
         <div className="mt-4 rounded-lg border border-success/30 bg-success-soft p-3 text-sm text-success">
           ✓ Test error sent to logger. Check{" "}
-          <a href="/admin/errors" className="underline">
-            /admin/errors
+          <a href="/system/errors" className="underline">
+            /system/errors
           </a>{" "}
           to see if it was recorded.
         </div>

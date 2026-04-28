@@ -22,6 +22,7 @@
     "adminUsers": "All accounts",
     "adminTeams": "Instance teams",
     "adminSampleData": "Sample data",
+    "systemHub": "System",
     "docs": "Documentation",
     "unresolvedBadge": "{count, plural, one {# unresolved item} other {# unresolved items}}"
   },

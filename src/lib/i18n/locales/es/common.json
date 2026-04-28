@@ -22,6 +22,7 @@
     "adminUsers": "Todas las cuentas",
     "adminTeams": "Equipos de la instancia",
     "adminSampleData": "Datos de ejemplo",
+    "systemHub": "Sistema",
     "docs": "Documentación",
     "unresolvedBadge": "{count, plural, one {# ítem pendiente} other {# ítems pendientes}}"
   },

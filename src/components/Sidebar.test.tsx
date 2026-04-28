@@ -77,15 +77,15 @@ describe("Sidebar", () => {
     ).not.toBeInTheDocument();
   });
 
-  it("shows unresolved-count badge on the Settings link for system admins", () => {
+  it("shows unresolved-count badge on the System link for system admins", () => {
     renderWithIntl(
       <Sidebar {...defaults} isSystemAdmin unresolvedErrorCount={3} />,
     );
-    const settings = screen.getByRole("link", { name: /settings/i });
-    expect(settings).toHaveTextContent("3");
+    const system = screen.getByRole("link", { name: /^system/i });
+    expect(system).toHaveTextContent("3");
   });
 
-  it("does NOT show the badge for non-admins even if a count leaked through", () => {
+  it("does NOT render the System link for non-admins", () => {
     renderWithIntl(
       <Sidebar
         {...defaults}
@@ -93,8 +93,9 @@ describe("Sidebar", () => {
         unresolvedErrorCount={3}
       />,
     );
-    const settings = screen.getByRole("link", { name: /settings/i });
-    expect(settings).not.toHaveTextContent("3");
+    expect(
+      screen.queryByRole("link", { name: /^system/i }),
+    ).not.toBeInTheDocument();
   });
 
   it("renders profile identity that links to /profile", () => {

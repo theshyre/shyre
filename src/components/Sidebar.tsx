@@ -8,6 +8,7 @@ import {
   LayoutDashboard,
   LogOut,
   BookOpen,
+  ShieldAlert,
 } from "lucide-react";
 import type { ComponentType } from "react";
 import Timer from "./Timer";
@@ -121,14 +122,25 @@ export default function Sidebar({
   // The Business item is filtered out when the viewer can't manage
   // any business — RLS would block them from seeing the people /
   // identity / registrations data the surface displays anyway.
-  // Admin's badge is the unresolved-error count for system admins.
-  const setupItems: NavItem[] = navItemsForSection("admin")
-    .filter((item) => item.href !== "/business" || canManageBusiness)
-    .map((item) =>
-      item.href === "/admin"
-        ? { ...item, badge: isAdmin ? (unresolvedErrorCount ?? 0) : 0 }
-        : item,
-    );
+  const setupItems: NavItem[] = navItemsForSection("admin").filter(
+    (item) => item.href !== "/business" || canManageBusiness,
+  );
+
+  // "System" section: sysadmin-only. Single entry to /system which
+  // is the sysadmin hub; sub-routes (errors, users, instance teams,
+  // sample data) are reached from there. The unresolved-errors
+  // badge lives on this entry — used to live on the old "Admin"
+  // entry, which never made sense for non-admins anyway.
+  const systemItems: NavItem[] = isAdmin
+    ? [
+        {
+          labelKey: "systemHub",
+          href: "/system",
+          icon: ShieldAlert,
+          badge: unresolvedErrorCount ?? 0,
+        },
+      ]
+    : [];
 
   async function handleSignOut(): Promise<void> {
     await supabase.auth.signOut();
@@ -181,6 +193,14 @@ export default function Sidebar({
               {t("navSections.setup")}
             </p>
             {setupItems.map((item) => renderNavLink(item, t, isItemActive))}
+          </div>
+        )}
+        {systemItems.length > 0 && (
+          <div className="space-y-0.5">
+            <p className="px-3 pb-1 text-label font-semibold uppercase text-content-muted">
+              {t("navSections.systemAdmin")}
+            </p>
+            {systemItems.map((item) => renderNavLink(item, t, isItemActive))}
           </div>
         )}
       </nav>

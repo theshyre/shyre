@@ -24,6 +24,14 @@ const nextConfig: NextConfig = {
       { source: "/settings/templates", destination: "/templates", permanent: true },
       { source: "/settings/security-groups", destination: "/security-groups", permanent: true },
       { source: "/timer", destination: "/time-entries", permanent: true },
+      // Sysadmin pages moved /admin/* → /system/* (Tier 2 of the
+      // admin-IA cleanup). Permanent so any external bookmark or
+      // tooling reference rewrites cleanly.
+      { source: "/admin/errors", destination: "/system/errors", permanent: true },
+      { source: "/admin/users", destination: "/system/users", permanent: true },
+      { source: "/admin/teams", destination: "/system/teams", permanent: true },
+      { source: "/admin/sample-data", destination: "/system/sample-data", permanent: true },
+      { source: "/admin/test-error", destination: "/system/test-error", permanent: true },
     ];
   },
 };

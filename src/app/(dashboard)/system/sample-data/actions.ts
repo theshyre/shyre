@@ -180,7 +180,7 @@ async function deleteSampleUsersForTeam(teamId: string): Promise<void> {
   // shell business) BEFORE deleting them — once the auth user is
   // gone, ON DELETE CASCADE removes their team_members rows but
   // leaves the team itself behind as an ownerless orphan, cluttering
-  // /admin/teams. We collect, delete the user (cascade), then drop
+  // /system/teams. We collect, delete the user (cascade), then drop
   // the now-empty team and its now-empty business.
   const orphanTeamIds = new Set<string>();
   for (const userId of toDelete) {
@@ -824,7 +824,7 @@ export async function loadSampleDataAction(formData: FormData): Promise<
       await requireAdminOfTeam(supabase, teamId);
       const admin = createAdminClient();
       await loadSample(supabase, admin, userId, teamId);
-      revalidatePath("/admin/sample-data");
+      revalidatePath("/system/sample-data");
       revalidatePath("/time-entries");
       revalidatePath("/customers");
       revalidatePath("/projects");
@@ -846,7 +846,7 @@ export async function removeSampleDataAction(formData: FormData): Promise<
       const teamId = asTeamId(fd);
       await requireAdminOfTeam(supabase, teamId);
       await deleteSampleRowsInOrg(supabase, teamId);
-      revalidatePath("/admin/sample-data");
+      revalidatePath("/system/sample-data");
       revalidatePath("/time-entries");
       revalidatePath("/customers");
       revalidatePath("/projects");
@@ -895,7 +895,7 @@ export async function clearAllTeamDataAction(formData: FormData): Promise<
 
       await deleteSampleUsersForTeam(teamId);
 
-      revalidatePath("/admin/sample-data");
+      revalidatePath("/system/sample-data");
       revalidatePath("/time-entries");
       revalidatePath("/customers");
       revalidatePath("/projects");
@@ -914,7 +914,7 @@ export async function clearAllTeamDataAction(formData: FormData): Promise<
  * Pre-fix, removeSampleDataAction deleted the sample auth users
  * (cascading their team_members rows) but left their auto-created
  * personal teams sitting in the table with zero members. Those
- * are what the user sees on /admin/teams as "sample+...'s Team".
+ * are what the user sees on /system/teams as "sample+...'s Team".
  *
  * Criteria for deletion (intentionally conservative — we never
  * touch a team that might have had real activity):
@@ -1003,8 +1003,8 @@ export async function cleanupOrphanTeamsAction(
         }
       }
 
-      revalidatePath("/admin/teams");
-      revalidatePath("/admin/sample-data");
+      revalidatePath("/system/teams");
+      revalidatePath("/system/sample-data");
     },
     "cleanupOrphanTeamsAction",
   );

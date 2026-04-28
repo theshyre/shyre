@@ -80,27 +80,27 @@ export default async function ErrorDashboardPage({
       {/* Filters */}
       <div className="mt-4 flex gap-2 flex-wrap">
         <FilterLink
-          href="/admin/errors"
+          href="/system/errors"
           label="Unresolved"
           active={!params.severity && params.resolved !== "all" && params.resolved !== "true"}
         />
         <FilterLink
-          href="/admin/errors?resolved=all"
+          href="/system/errors?resolved=all"
           label="All"
           active={params.resolved === "all"}
         />
         <FilterLink
-          href="/admin/errors?severity=error"
+          href="/system/errors?severity=error"
           label="Errors"
           active={params.severity === "error"}
         />
         <FilterLink
-          href="/admin/errors?severity=warning"
+          href="/system/errors?severity=warning"
           label="Warnings"
           active={params.severity === "warning"}
         />
         <FilterLink
-          href="/admin/errors?resolved=true"
+          href="/system/errors?resolved=true"
           label="Resolved"
           active={params.resolved === "true"}
         />
@@ -219,7 +219,7 @@ export default async function ErrorDashboardPage({
           {Array.from({ length: totalPages }, (_, i) => (
             <a
               key={i}
-              href={`/admin/errors?page=${i + 1}${params.severity ? `&severity=${params.severity}` : ""}${params.resolved ? `&resolved=${params.resolved}` : ""}`}
+              href={`/system/errors?page=${i + 1}${params.severity ? `&severity=${params.severity}` : ""}${params.resolved ? `&resolved=${params.resolved}` : ""}`}
               className={`px-3 py-1 rounded text-sm ${
                 page === i + 1
                   ? "bg-accent text-content-inverse"
