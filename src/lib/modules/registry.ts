@@ -117,12 +117,12 @@ export const MODULES: ModuleManifest[] = [
     ],
   },
   {
-    id: "admin",
+    id: "settings",
     labelKey: "modules.admin",
     icon: Settings,
     section: "admin",
     navItems: [
-      { labelKey: "admin", href: "/admin", icon: Settings },
+      { labelKey: "admin", href: "/settings", icon: Settings },
     ],
   },
 ];

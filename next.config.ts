@@ -18,20 +18,19 @@ const nextConfig: NextConfig = {
     return [
       { source: "/clients", destination: "/customers", permanent: true },
       { source: "/clients/:id", destination: "/customers/:id", permanent: true },
-      { source: "/settings", destination: "/profile", permanent: true },
-      { source: "/settings/categories", destination: "/categories", permanent: true },
-      { source: "/settings/import", destination: "/import", permanent: true },
-      { source: "/settings/templates", destination: "/templates", permanent: true },
-      { source: "/settings/security-groups", destination: "/security-groups", permanent: true },
       { source: "/timer", destination: "/time-entries", permanent: true },
       // Sysadmin pages moved /admin/* → /system/* (Tier 2 of the
-      // admin-IA cleanup). Permanent so any external bookmark or
-      // tooling reference rewrites cleanly.
+      // admin-IA cleanup).
       { source: "/admin/errors", destination: "/system/errors", permanent: true },
       { source: "/admin/users", destination: "/system/users", permanent: true },
       { source: "/admin/teams", destination: "/system/teams", permanent: true },
       { source: "/admin/sample-data", destination: "/system/sample-data", permanent: true },
       { source: "/admin/test-error", destination: "/system/test-error", permanent: true },
+      // /admin (the Settings hub) was renamed to /settings (Tier 3).
+      // The previous `/settings → /profile` redirect was retired —
+      // /settings is now the user-level config hub. Anyone landing
+      // at /admin gets the new hub via this redirect.
+      { source: "/admin", destination: "/settings", permanent: true },
     ];
   },
 };
