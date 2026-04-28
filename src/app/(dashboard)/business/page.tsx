@@ -218,6 +218,7 @@ async function fetchSummary(
       .from("expenses")
       .select("amount")
       .in("team_id", teamIds)
+      .is("deleted_at", null)
       .gte("incurred_on", monthStartStr),
   ]);
 

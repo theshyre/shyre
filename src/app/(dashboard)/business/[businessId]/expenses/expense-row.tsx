@@ -3,7 +3,7 @@
 import { useState } from "react";
 import { useTranslations } from "next-intl";
 import { Pencil, Trash2, Check, X } from "lucide-react";
-import { AlertBanner, Spinner } from "@theshyre/ui";
+import { AlertBanner, Spinner, Avatar, resolveAvatarUrl } from "@theshyre/ui";
 import {
   inputClass,
   textareaClass,
@@ -12,14 +12,20 @@ import {
   buttonDangerClass,
 } from "@/lib/form-styles";
 import { useFormAction } from "@/hooks/use-form-action";
+import { useToast } from "@/components/Toast";
 import { SubmitButton } from "@/components/SubmitButton";
-import { updateExpenseAction, deleteExpenseAction } from "./actions";
+import {
+  updateExpenseAction,
+  deleteExpenseAction,
+  restoreExpenseAction,
+} from "./actions";
 import { EXPENSE_CATEGORIES } from "./categories";
 import type { ProjectOption } from "./page";
 
 interface ExpenseRecord {
   id: string;
   team_id: string;
+  user_id: string;
   incurred_on: string;
   amount: number;
   currency: string;
@@ -30,6 +36,12 @@ interface ExpenseRecord {
   billable: boolean;
   is_sample: boolean;
   projects: { id: string; name: string } | null;
+}
+
+export interface ExpenseAuthor {
+  userId: string;
+  displayName: string | null;
+  avatarUrl: string | null;
 }
 
 function formatCurrency(amount: number, currency: string): string {
@@ -45,19 +57,31 @@ function formatCurrency(amount: number, currency: string): string {
 
 export function ExpenseRow({
   expense,
+  author,
   projects,
   teamName,
+  canEdit,
 }: {
   expense: ExpenseRecord;
+  /** The submitter (avatar + name). Per CLAUDE.md "time-entry
+   *  authorship" rule — extends to any user-authored entity. */
+  author: ExpenseAuthor | null;
   projects: ProjectOption[];
   /** Set when the parent table is showing a team column (multi-team
    *  business). Null when there's only one team in scope and the
    *  column is hidden — the row drops the cell entirely so column
    *  count matches the header. */
   teamName: string | null;
+  /** True when the viewer authored this expense OR is owner|admin
+   *  on its team. Hides Edit/Trash icons for non-authors so the
+   *  UI matches the action-layer role gate (server still enforces
+   *  the same — defense in depth). */
+  canEdit: boolean;
 }): React.JSX.Element {
   const t = useTranslations("expenses");
   const tc = useTranslations("common");
+  const tToast = useTranslations("expenses.toast");
+  const toast = useToast();
   const [mode, setMode] = useState<"view" | "edit" | "confirmDelete">("view");
 
   const update = useFormAction({
@@ -67,7 +91,21 @@ export function ExpenseRow({
 
   const del = useFormAction({
     action: deleteExpenseAction,
-    onSuccess: () => setMode("view"),
+    onSuccess: () => {
+      setMode("view");
+      // Soft-delete: show Undo toast with restore action.
+      toast.push({
+        kind: "info",
+        message: tToast("deleted"),
+        actionLabel: tToast("undo"),
+        durationMs: 10_000,
+        onAction: async () => {
+          const fd = new FormData();
+          fd.set("id", expense.id);
+          await restoreExpenseAction(fd);
+        },
+      });
+    },
   });
 
   if (mode === "edit") {
@@ -212,7 +250,21 @@ export function ExpenseRow({
         <td className="px-4 py-3 text-content-secondary">{teamName}</td>
       )}
       <td className="px-4 py-3 text-content-secondary">
-        {expense.vendor || "—"}
+        <div className="min-w-0">
+          {expense.vendor || "—"}
+          {author && (
+            <div className="mt-0.5 inline-flex items-center gap-1.5 text-caption text-content-muted">
+              <Avatar
+                avatarUrl={resolveAvatarUrl(author.avatarUrl, author.userId)}
+                displayName={author.displayName ?? ""}
+                size={16}
+              />
+              <span className="truncate">
+                {author.displayName ?? "—"}
+              </span>
+            </div>
+          )}
+        </div>
       </td>
       <td className="px-4 py-3 text-content-secondary">
         {expense.projects?.name ?? "—"}
@@ -226,7 +278,9 @@ export function ExpenseRow({
         {formatCurrency(expense.amount, expense.currency)}
       </td>
       <td className="px-4 py-3 text-right">
-        {mode === "confirmDelete" ? (
+        {!canEdit ? (
+          <span aria-hidden="true" />
+        ) : mode === "confirmDelete" ? (
           <form action={del.handleSubmit} className="inline-flex items-center gap-1">
             <input type="hidden" name="id" value={expense.id} />
             <button
@@ -258,7 +312,9 @@ export function ExpenseRow({
               type="button"
               onClick={() => setMode("edit")}
               className="inline-flex items-center gap-1 rounded-md p-1.5 text-content-secondary hover:bg-hover hover:text-content"
-              aria-label={tc("actions.edit")}
+              aria-label={t("ariaActions.edit", {
+                vendor: expense.vendor || t(`categories.${expense.category}`),
+              })}
             >
               <Pencil size={14} />
             </button>
@@ -266,7 +322,9 @@ export function ExpenseRow({
               type="button"
               onClick={() => setMode("confirmDelete")}
               className="inline-flex items-center gap-1 rounded-md p-1.5 text-content-secondary hover:bg-hover hover:text-error"
-              aria-label={tc("actions.delete")}
+              aria-label={t("ariaActions.delete", {
+                vendor: expense.vendor || t(`categories.${expense.category}`),
+              })}
             >
               <Trash2 size={14} />
             </button>

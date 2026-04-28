@@ -11,6 +11,15 @@
   "confirmDelete": "Delete",
   "sampleTag": "sample",
   "billableTag": "billable",
+  "lockedThrough": "Locked through:",
+  "toast": {
+    "deleted": "Expense deleted",
+    "undo": "Undo"
+  },
+  "ariaActions": {
+    "edit": "Edit {vendor} expense",
+    "delete": "Delete {vendor} expense"
+  },
   "fields": {
     "incurredOn": "Date",
     "amount": "Amount",

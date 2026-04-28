@@ -11,6 +11,15 @@
   "confirmDelete": "Eliminar",
   "sampleTag": "ejemplo",
   "billableTag": "facturable",
+  "lockedThrough": "Bloqueado hasta:",
+  "toast": {
+    "deleted": "Gasto eliminado",
+    "undo": "Deshacer"
+  },
+  "ariaActions": {
+    "edit": "Editar gasto de {vendor}",
+    "delete": "Eliminar gasto de {vendor}"
+  },
   "fields": {
     "incurredOn": "Fecha",
     "amount": "Importe",

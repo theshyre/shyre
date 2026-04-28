@@ -8,6 +8,7 @@ import { ExpenseRow } from "./expense-row";
 interface ExpenseRecord {
   id: string;
   team_id: string;
+  user_id: string;
   incurred_on: string;
   amount: number;
   currency: string;
@@ -71,17 +72,28 @@ export default async function ExpensesPage({
   const teamOptions = userTeams
     .filter((tm) => teamIds.includes(tm.id))
     .sort((a, b) => a.name.localeCompare(b.name))
-    .map((tm) => ({ id: tm.id, name: tm.name }));
+    .map((tm) => ({ id: tm.id, name: tm.name, role: tm.role }));
   const representativeTeamId = teamOptions[0]!.id;
   const showTeamColumn = teamOptions.length > 1;
   const teamNameById = new Map(teamOptions.map((tm) => [tm.id, tm.name]));
+  // Per-team role lookup for canEdit gating: author OR owner|admin.
+  // Role check matches the action-layer guard so the UI doesn't
+  // promise something the server denies.
+  const teamRoleById = new Map(teamOptions.map((tm) => [tm.id, tm.role]));
+
+  // Viewer's user_id powers the author check on each row.
+  const {
+    data: { user: viewer },
+  } = await supabase.auth.getUser();
+  const viewerUserId = viewer?.id ?? null;
 
   const { data: expRows } = await supabase
     .from("expenses")
     .select(
-      "id, team_id, incurred_on, amount, currency, vendor, category, description, project_id, billable, is_sample, projects(id, name)",
+      "id, team_id, user_id, incurred_on, amount, currency, vendor, category, description, project_id, billable, is_sample, projects(id, name)",
     )
     .in("team_id", teamIds)
+    .is("deleted_at", null)
     .order("incurred_on", { ascending: false })
     .order("created_at", { ascending: false });
 
@@ -98,6 +110,52 @@ export default async function ExpensesPage({
     .eq("status", "active")
     .order("name");
   const projects: ProjectOption[] = (projRows ?? []) as ProjectOption[];
+
+  // Bulk-fetch authors (avatar + display_name) for the visible
+  // expenses. Per the time-entry-authorship rule, every row must
+  // attribute its submitter.
+  const userIds = Array.from(new Set(expenses.map((e) => e.user_id)));
+  const authorById = new Map<
+    string,
+    { userId: string; displayName: string | null; avatarUrl: string | null }
+  >();
+  if (userIds.length > 0) {
+    const { data: profiles } = await supabase
+      .from("user_profiles")
+      .select("user_id, display_name, avatar_url")
+      .in("user_id", userIds);
+    for (const p of profiles ?? []) {
+      authorById.set(p.user_id as string, {
+        userId: p.user_id as string,
+        displayName: (p.display_name as string | null) ?? null,
+        avatarUrl: (p.avatar_url as string | null) ?? null,
+      });
+    }
+  }
+
+  // Latest period lock per team in scope — drives the "Locked
+  // through" banner on the page header.
+  const { data: lockRows } = await supabase
+    .from("team_period_locks")
+    .select("team_id, period_end")
+    .in("team_id", teamIds);
+  const latestLockByTeam = new Map<string, string>();
+  for (const r of lockRows ?? []) {
+    const tid = r.team_id as string;
+    const cur = latestLockByTeam.get(tid);
+    const next = r.period_end as string;
+    if (!cur || cur < next) latestLockByTeam.set(tid, next);
+  }
+  const lockSummary =
+    latestLockByTeam.size === 0
+      ? null
+      : Array.from(latestLockByTeam.entries())
+          .map(([tid, end]) =>
+            showTeamColumn
+              ? `${teamNameById.get(tid) ?? ""}: ${end}`
+              : end,
+          )
+          .join(" · ");
 
   // Monthly total (current calendar month). Expenses can be logged
   // in different currencies, so sum per-currency and render each
@@ -127,6 +185,18 @@ export default async function ExpensesPage({
           {t("monthTotal", { amount: monthTotalLabel })}
         </span>
       </div>
+
+      {lockSummary && (
+        <div
+          className="rounded-md border border-edge bg-surface-inset px-3 py-2 text-caption text-content-secondary"
+          role="status"
+        >
+          <span className="font-semibold text-content">
+            {t("lockedThrough")}
+          </span>{" "}
+          {lockSummary}
+        </div>
+      )}
 
       <NewExpenseForm
         defaultTeamId={representativeTeamId}
@@ -169,18 +239,27 @@ export default async function ExpensesPage({
               </tr>
             </thead>
             <tbody>
-              {expenses.map((e) => (
-                <ExpenseRow
-                  key={e.id}
-                  expense={e}
-                  projects={projects}
-                  teamName={
-                    showTeamColumn
-                      ? (teamNameById.get(e.team_id) ?? null)
-                      : null
-                  }
-                />
-              ))}
+              {expenses.map((e) => {
+                const role = teamRoleById.get(e.team_id) ?? "member";
+                const canEdit =
+                  e.user_id === viewerUserId ||
+                  role === "owner" ||
+                  role === "admin";
+                return (
+                  <ExpenseRow
+                    key={e.id}
+                    expense={e}
+                    author={authorById.get(e.user_id) ?? null}
+                    projects={projects}
+                    teamName={
+                      showTeamColumn
+                        ? (teamNameById.get(e.team_id) ?? null)
+                        : null
+                    }
+                    canEdit={canEdit}
+                  />
+                );
+              })}
             </tbody>
           </table>
         </div>

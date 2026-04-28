@@ -144,11 +144,64 @@ export async function deleteExpenseAction(formData: FormData): Promise<
         throw new Error("Only the author or an owner/admin can delete.");
       }
 
-      assertSupabaseOk(await supabase.from("expenses").delete().eq("id", id));
+      // Soft-delete: time_entries pattern. Period-lock trigger
+      // still fires on UPDATE that touches incurred_on, so a
+      // locked-period row can't be soft-deleted-and-moved either.
+      assertSupabaseOk(
+        await supabase
+          .from("expenses")
+          .update({ deleted_at: new Date().toISOString() })
+          .eq("id", id),
+      );
 
       revalidatePath("/business");
       revalidatePath("/business/expenses");
     },
     "deleteExpenseAction",
+  );
+}
+
+/**
+ * Restore a soft-deleted expense by setting `deleted_at = NULL`.
+ * Used by the Undo toast and the /trash surface. Same role gate
+ * as delete: author OR owner/admin.
+ */
+export async function restoreExpenseAction(formData: FormData): Promise<
+  | { success: true }
+  | { success: false; error: import("@/lib/errors").SerializedAppError }
+> {
+  return runSafeAction(
+    formData,
+    async (fd, { supabase, userId }) => {
+      const id = String(fd.get("id") ?? "");
+      if (!id) throw new Error("Expense id required.");
+
+      const { data: row } = await supabase
+        .from("expenses")
+        .select("team_id, user_id, deleted_at")
+        .eq("id", id)
+        .maybeSingle();
+      if (!row) throw new Error("Expense not found.");
+      if (!row.deleted_at) {
+        // Idempotent — already restored.
+        return;
+      }
+      const { role } = await validateTeamAccess(row.team_id as string);
+      const isAuthor = (row.user_id as string) === userId;
+      if (!isAuthor && role !== "owner" && role !== "admin") {
+        throw new Error("Only the author or an owner/admin can restore.");
+      }
+
+      assertSupabaseOk(
+        await supabase
+          .from("expenses")
+          .update({ deleted_at: null })
+          .eq("id", id),
+      );
+
+      revalidatePath("/business");
+      revalidatePath("/business/expenses");
+    },
+    "restoreExpenseAction",
   );
 }

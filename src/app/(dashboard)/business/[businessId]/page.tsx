@@ -66,6 +66,7 @@ export default async function BusinessOverviewPage({
           .from("expenses")
           .select("amount, currency")
           .in("team_id", teamIds)
+          .is("deleted_at", null)
           .gte("incurred_on", monthStartStr)
       : { data: [] };
   const expensesCount = expenseRows?.length ?? 0;
