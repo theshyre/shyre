@@ -11,7 +11,8 @@ import {
   AlertTriangle,
   Users,
   Database,
-  Wrench,
+  ShieldAlert,
+  ListTree,
 } from "lucide-react";
 import { createClient } from "@/lib/supabase/server";
 import { isSystemAdmin } from "@/lib/system-admin";
@@ -99,7 +100,11 @@ export default async function AdminHubPage(): Promise<React.JSX.Element> {
         title: t("cards.allTeams.title"),
         description: t("cards.allTeams.description"),
         href: "/admin/teams",
-        icon: Building2,
+        // Different icon from the user-facing Teams card (Building2)
+        // — the sysadmin variant is a read-only roster, not a team
+        // manager. ListTree reads as "tree of all teams in the
+        // instance" and breaks the visual collision.
+        icon: ListTree,
       },
       {
         title: t("cards.sampleData.title"),
@@ -124,15 +129,18 @@ export default async function AdminHubPage(): Promise<React.JSX.Element> {
       <CardGrid cards={primary} />
 
       {admin && systemCards.length > 0 && (
-        <>
-          <div className="flex items-center gap-2 pt-4 border-t border-edge">
-            <Wrench size={18} className="text-warning" />
-            <h2 className="text-title font-semibold text-warning uppercase tracking-wide">
+        <section className="rounded-lg border border-warning/40 bg-warning-soft/20 p-5 space-y-4 mt-2">
+          <div className="flex items-center gap-2">
+            <ShieldAlert size={18} className="text-warning" />
+            <h2 className="text-title font-semibold text-warning">
               {t("systemSection")}
             </h2>
           </div>
+          <p className="text-caption text-content-muted max-w-3xl -mt-2">
+            {t("systemSectionHint")}
+          </p>
           <CardGrid cards={systemCards} />
-        </>
+        </section>
       )}
     </div>
   );

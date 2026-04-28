@@ -60,7 +60,7 @@ describe("Sidebar", () => {
       /projects/i,
       /invoices/i,
       /reports/i,
-      /^admin$/i,
+      /^settings$/i,
     ]) {
       expect(screen.getByRole("link", { name })).toBeInTheDocument();
     }
@@ -77,12 +77,12 @@ describe("Sidebar", () => {
     ).not.toBeInTheDocument();
   });
 
-  it("shows unresolved-count badge on the Admin link for system admins", () => {
+  it("shows unresolved-count badge on the Settings link for system admins", () => {
     renderWithIntl(
       <Sidebar {...defaults} isSystemAdmin unresolvedErrorCount={3} />,
     );
-    const admin = screen.getByRole("link", { name: /admin/i });
-    expect(admin).toHaveTextContent("3");
+    const settings = screen.getByRole("link", { name: /settings/i });
+    expect(settings).toHaveTextContent("3");
   });
 
   it("does NOT show the badge for non-admins even if a count leaked through", () => {
@@ -93,8 +93,8 @@ describe("Sidebar", () => {
         unresolvedErrorCount={3}
       />,
     );
-    const admin = screen.getByRole("link", { name: /admin/i });
-    expect(admin).not.toHaveTextContent("3");
+    const settings = screen.getByRole("link", { name: /settings/i });
+    expect(settings).not.toHaveTextContent("3");
   });
 
   it("renders profile identity that links to /profile", () => {

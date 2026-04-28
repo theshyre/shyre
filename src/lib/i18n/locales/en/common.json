@@ -10,7 +10,7 @@
     "projects": "Projects",
     "invoices": "Invoices",
     "reports": "Reports",
-    "admin": "Admin",
+    "admin": "Settings",
     "teams": "Teams",
     "securityGroups": "Security Groups",
     "categories": "Categories",
@@ -18,10 +18,10 @@
     "import": "Import",
     "profile": "Your profile",
     "business": "Business",
-    "adminErrors": "Error Log",
-    "adminUsers": "Users",
-    "adminTeams": "All Teams",
-    "adminSampleData": "Sample Data",
+    "adminErrors": "Error log",
+    "adminUsers": "All accounts",
+    "adminTeams": "Instance teams",
+    "adminSampleData": "Sample data",
     "docs": "Documentation",
     "unresolvedBadge": "{count, plural, one {# unresolved item} other {# unresolved items}}"
   },
@@ -60,8 +60,8 @@
   "navSections": {
     "track": "Track",
     "manage": "Manage",
-    "admin": "Admin",
-    "systemAdmin": "System Admin",
+    "admin": "Settings",
+    "systemAdmin": "System",
     "work": "Work",
     "setup": "Setup"
   },
@@ -72,7 +72,7 @@
     "invoicing": "Invoicing",
     "reports": "Reports",
     "business": "Business",
-    "admin": "Admin"
+    "admin": "Settings"
   },
   "actions": {
     "save": "Save",

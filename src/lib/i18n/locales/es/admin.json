@@ -1,8 +1,9 @@
 {
   "hub": {
-    "title": "Administración",
-    "description": "Ajustes, equipos y configuración de tu negocio. Elige una tarjeta para continuar.",
-    "systemSection": "Administración del sistema",
+    "title": "Configuración",
+    "description": "Configuración para tu negocio y las superficies que usas día a día. Elige una tarjeta para continuar.",
+    "systemSection": "Administración de la instancia",
+    "systemSectionHint": "Superficies de solo lectura / depuración para quien opere esta instancia de Shyre. La mayoría de usuarios nunca las necesitan.",
     "cards": {
       "business": {
         "title": "Negocio",
@@ -29,20 +30,20 @@
         "description": "Trae datos desde Harvest o CSV."
       },
       "errorLog": {
-        "title": "Registro de Errores",
-        "description": "Errores en tiempo de ejecución capturados en la aplicación."
+        "title": "Registro de errores",
+        "description": "Errores en tiempo de ejecución capturados en la instancia."
       },
       "users": {
-        "title": "Usuarios",
-        "description": "Cada cuenta registrada y su estado de administrador del sistema."
+        "title": "Todas las cuentas",
+        "description": "Cada cuenta registrada en esta instancia y su estado de administrador del sistema."
       },
       "allTeams": {
-        "title": "Todos los Equipos",
-        "description": "Cada equipo en la instancia, con conteo de miembros."
+        "title": "Equipos de la instancia",
+        "description": "Vista de solo lectura de todos los equipos en la instancia, incluso los que no son tuyos."
       },
       "sampleData": {
-        "title": "Datos de Ejemplo",
-        "description": "Carga o borra clientes, proyectos y entradas de demostración."
+        "title": "Datos de ejemplo (dev)",
+        "description": "Solo dev: carga o borra clientes, proyectos y entradas de demostración."
       }
     }
   }

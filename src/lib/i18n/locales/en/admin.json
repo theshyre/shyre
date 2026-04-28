@@ -1,8 +1,9 @@
 {
   "hub": {
-    "title": "Admin",
-    "description": "Settings, teams, and configuration for your business. Pick a card to dive in.",
-    "systemSection": "System administration",
+    "title": "Settings",
+    "description": "Configuration for your business and the surfaces you use day to day. Pick a card to dive in.",
+    "systemSection": "Instance administration",
+    "systemSectionHint": "Read-only / debug surfaces for whoever runs this Shyre instance. Most users will never need these.",
     "cards": {
       "business": {
         "title": "Business",
@@ -29,20 +30,20 @@
         "description": "Pull data in from Harvest or CSV."
       },
       "errorLog": {
-        "title": "Error Log",
-        "description": "Unresolved runtime errors captured from the app."
+        "title": "Error log",
+        "description": "Unresolved runtime errors captured across the instance."
       },
       "users": {
-        "title": "Users",
-        "description": "Every signed-up account and its system-admin status."
+        "title": "All accounts",
+        "description": "Every signed-up account on this instance and its system-admin status."
       },
       "allTeams": {
-        "title": "All Teams",
-        "description": "Every team across the instance, with membership counts."
+        "title": "Instance teams roster",
+        "description": "Read-only audit view of every team on this instance, including teams you're not a member of."
       },
       "sampleData": {
-        "title": "Sample Data",
-        "description": "Seed or wipe demo customers, projects, and entries."
+        "title": "Sample data tool",
+        "description": "Dev-only: seed or wipe demo customers, projects, and entries."
       }
     }
   }

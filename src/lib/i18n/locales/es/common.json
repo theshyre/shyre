@@ -10,7 +10,7 @@
     "projects": "Proyectos",
     "invoices": "Facturas",
     "reports": "Informes",
-    "admin": "Administración",
+    "admin": "Configuración",
     "teams": "Equipos",
     "securityGroups": "Grupos de Seguridad",
     "categories": "Categorías",
@@ -18,10 +18,10 @@
     "import": "Importar",
     "profile": "Tu perfil",
     "business": "Negocio",
-    "adminErrors": "Registro de Errores",
-    "adminUsers": "Usuarios",
-    "adminTeams": "Todos los Equipos",
-    "adminSampleData": "Datos de Ejemplo",
+    "adminErrors": "Registro de errores",
+    "adminUsers": "Todas las cuentas",
+    "adminTeams": "Equipos de la instancia",
+    "adminSampleData": "Datos de ejemplo",
     "docs": "Documentación",
     "unresolvedBadge": "{count, plural, one {# ítem pendiente} other {# ítems pendientes}}"
   },
@@ -60,8 +60,8 @@
   "navSections": {
     "track": "Registrar",
     "manage": "Gestionar",
-    "admin": "Administración",
-    "systemAdmin": "Administración del Sistema",
+    "admin": "Configuración",
+    "systemAdmin": "Sistema",
     "work": "Trabajo",
     "setup": "Configuración"
   },
@@ -72,7 +72,7 @@
     "invoicing": "Facturación",
     "reports": "Informes",
     "business": "Negocio",
-    "admin": "Administración"
+    "admin": "Configuración"
   },
   "actions": {
     "save": "Guardar",
