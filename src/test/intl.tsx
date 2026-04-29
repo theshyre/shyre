@@ -11,6 +11,7 @@ import business from "@/lib/i18n/locales/en/business.json";
 import errors from "@/lib/i18n/locales/en/errors.json";
 import admin from "@/lib/i18n/locales/en/admin.json";
 import invoices from "@/lib/i18n/locales/en/invoices.json";
+import expenses from "@/lib/i18n/locales/en/expenses.json";
 
 export const testMessages = {
   common: en,
@@ -23,6 +24,7 @@ export const testMessages = {
   errors,
   admin,
   invoices,
+  expenses,
 } as const;
 
 /**

@@ -17,6 +17,10 @@ import {
   restoreExpenseAction,
 } from "./actions";
 import { EXPENSE_CATEGORIES } from "./categories";
+import {
+  formatExpenseAmount,
+  formatExpenseDateDisplay,
+} from "./format-helpers";
 import type { ProjectOption } from "./page";
 
 interface ExpenseRecord {
@@ -42,35 +46,8 @@ export interface ExpenseAuthor {
   avatarUrl: string | null;
 }
 
-function formatCurrency(amount: number, currency: string): string {
-  try {
-    return new Intl.NumberFormat("en-US", {
-      style: "currency",
-      currency,
-    }).format(amount);
-  } catch {
-    return `${currency} ${amount.toFixed(2)}`;
-  }
-}
-
-/** Render a YYYY-MM-DD date as "Dec 16, 2019" — short enough to fit
- *  a narrow column without wrapping, more readable than the raw ISO. */
-function formatDateDisplay(iso: string): string {
-  const m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(iso);
-  if (!m) return iso;
-  const [, y, mo, d] = m;
-  if (!y || !mo || !d) return iso;
-  const date = new Date(Date.UTC(Number(y), Number(mo) - 1, Number(d)));
-  // Locale-aware short format. Asking for "en-US" so "Dec 16, 2019"
-  // is consistent across browsers; future i18n can swap to runtime
-  // locale once that infrastructure exists.
-  return date.toLocaleDateString("en-US", {
-    month: "short",
-    day: "numeric",
-    year: "numeric",
-    timeZone: "UTC",
-  });
-}
+// formatDateDisplay + formatCurrency live in ./format-helpers as
+// pure functions so they can be unit-tested without rendering React.
 
 export function ExpenseRow({
   expense,
@@ -78,6 +55,8 @@ export function ExpenseRow({
   projects,
   teamName,
   canEdit,
+  selected,
+  onToggleSelect,
 }: {
   expense: ExpenseRecord;
   /** The submitter (avatar + name). Per CLAUDE.md "time-entry
@@ -96,6 +75,10 @@ export function ExpenseRow({
    *  every editable cell so the UI matches the action-layer role
    *  gate (server still enforces the same — defense in depth). */
   canEdit: boolean;
+  /** Whether this row is in the current bulk-select set. */
+  selected: boolean;
+  /** Toggle this row's id in/out of the bulk-select set. */
+  onToggleSelect: (id: string) => void;
 }): React.JSX.Element {
   const t = useTranslations("expenses");
   const tc = useTranslations("common");
@@ -154,13 +137,28 @@ export function ExpenseRow({
   const ariaIdent = vendorLabel || t(`categories.${expense.category}`);
 
   return (
-    <tr className="border-b border-edge last:border-0 hover:bg-hover transition-colors">
+    <tr
+      className={`border-b border-edge last:border-0 hover:bg-hover transition-colors ${
+        selected ? "bg-accent-soft/30" : ""
+      }`}
+    >
+      {/* Selection checkbox */}
+      <td className="w-10">
+        <input
+          type="checkbox"
+          checked={selected}
+          onChange={() => onToggleSelect(expense.id)}
+          aria-label={t("bulk.selectRow", { vendor: ariaIdent })}
+          className="h-4 w-4 rounded border-edge text-accent focus:ring-focus-ring"
+        />
+      </td>
+
       {/* Date */}
       <td className="text-content-secondary font-mono tabular-nums">
         <EditableCell
           variant="date"
           value={expense.incurred_on}
-          displayNode={formatDateDisplay(expense.incurred_on)}
+          displayNode={formatExpenseDateDisplay(expense.incurred_on)}
           ariaLabel={t("ariaActions.editField", {
             vendor: ariaIdent,
             field: t("fields.incurredOn"),
@@ -318,7 +316,7 @@ export function ExpenseRow({
         <EditableCell
           variant="number"
           value={expense.amount.toFixed(2)}
-          displayNode={formatCurrency(expense.amount, expense.currency)}
+          displayNode={formatExpenseAmount(expense.amount, expense.currency)}
           ariaLabel={t("ariaActions.editField", {
             vendor: ariaIdent,
             field: t("fields.amount"),

@@ -24,7 +24,10 @@
   },
   "toast": {
     "deleted": "Expense deleted",
-    "undo": "Undo"
+    "undo": "Undo",
+    "bulkDeleted": "{count, plural, =1 {1 expense deleted} other {# expenses deleted}}",
+    "bulkCategorized": "Category set on {count, plural, =1 {1 expense} other {# expenses}}",
+    "bulkProjectAssigned": "Project assigned to {count, plural, =1 {1 expense} other {# expenses}}"
   },
   "ariaActions": {
     "edit": "Edit {vendor} expense",
@@ -46,6 +49,16 @@
     "author": "By"
   },
   "billableShort": "Bill",
+  "bulk": {
+    "label": "Bulk actions",
+    "selectAll": "Select all",
+    "selectRow": "Select {vendor}",
+    "selectedCount": "{count, plural, =1 {1 selected} other {# selected}}",
+    "clear": "Clear selection",
+    "delete": "Delete selected",
+    "setCategory": "Set category",
+    "setProject": "Set project"
+  },
   "categories": {
     "software": "Software",
     "hardware": "Hardware",

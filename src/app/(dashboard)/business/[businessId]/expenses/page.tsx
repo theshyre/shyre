@@ -8,13 +8,14 @@ import { getUserTeams } from "@/lib/team-context";
 import { LinkPendingSpinner } from "@/components/LinkPendingSpinner";
 import { buttonSecondaryClass } from "@/lib/form-styles";
 import { TableDensityToggle } from "@/components/TableDensityToggle";
+import { TableDensityDefault } from "@/components/TableDensityDefault";
+import { ExpensesTable } from "./expenses-table";
 
 export async function generateMetadata(): Promise<Metadata> {
   const t = await getTranslations("expenses");
   return { title: t("title") };
 }
 import { NewExpenseForm } from "./new-expense-form";
-import { ExpenseRow } from "./expense-row";
 
 interface ExpenseRecord {
   id: string;
@@ -59,7 +60,6 @@ export default async function ExpensesPage({
 }: PageProps): Promise<React.JSX.Element> {
   const supabase = await createClient();
   const t = await getTranslations("expenses");
-  const tc = await getTranslations("common");
   const { businessId } = await params;
 
   // Expenses are still team_id-scoped at the row level. The page
@@ -255,75 +255,20 @@ export default async function ExpensesPage({
         }
       />
 
-      {expenses.length === 0 ? (
-        <div className="rounded-lg border border-edge bg-surface-raised p-6 text-body text-content-muted">
-          {t("empty")}
-        </div>
-      ) : (
-        <div className="density-table overflow-x-auto rounded-lg border border-edge bg-surface-raised">
-          <table className="w-full">
-            <thead>
-              <tr className="border-b border-edge bg-surface-inset">
-                <th className="text-left text-label font-semibold uppercase tracking-wider text-content-muted">
-                  {t("fields.incurredOn")}
-                </th>
-                <th className="text-left text-label font-semibold uppercase tracking-wider text-content-muted">
-                  {t("fields.category")}
-                </th>
-                {showTeamColumn && (
-                  <th className="text-left text-label font-semibold uppercase tracking-wider text-content-muted">
-                    {t("fields.team")}
-                  </th>
-                )}
-                <th className="text-left text-label font-semibold uppercase tracking-wider text-content-muted">
-                  {t("fields.vendor")}
-                </th>
-                <th className="text-left text-label font-semibold uppercase tracking-wider text-content-muted">
-                  {t("fields.description")}
-                </th>
-                <th className="text-left text-label font-semibold uppercase tracking-wider text-content-muted">
-                  {t("fields.notes")}
-                </th>
-                <th className="text-left text-label font-semibold uppercase tracking-wider text-content-muted">
-                  {t("fields.project")}
-                </th>
-                <th className="text-right text-label font-semibold uppercase tracking-wider text-content-muted">
-                  {t("fields.amount")}
-                </th>
-                <th className="text-left text-label font-semibold uppercase tracking-wider text-content-muted">
-                  {t("fields.author")}
-                </th>
-                <th className="text-right text-label font-semibold uppercase tracking-wider text-content-muted">
-                  {tc("table.actions")}
-                </th>
-              </tr>
-            </thead>
-            <tbody>
-              {expenses.map((e) => {
-                const role = teamRoleById.get(e.team_id) ?? "member";
-                const canEdit =
-                  e.user_id === viewerUserId ||
-                  role === "owner" ||
-                  role === "admin";
-                return (
-                  <ExpenseRow
-                    key={e.id}
-                    expense={e}
-                    author={authorById.get(e.user_id) ?? null}
-                    projects={projects}
-                    teamName={
-                      showTeamColumn
-                        ? (teamNameById.get(e.team_id) ?? null)
-                        : null
-                    }
-                    canEdit={canEdit}
-                  />
-                );
-              })}
-            </tbody>
-          </table>
-        </div>
-      )}
+      <ExpensesTable
+        expenses={expenses}
+        projects={projects}
+        authorById={authorById}
+        teamRoleById={teamRoleById}
+        teamNameById={teamNameById}
+        showTeamColumn={showTeamColumn}
+        viewerUserId={viewerUserId}
+      />
+
+      {/* New users land on this page in compact density — post-CSV-import
+          recategorize work is dense scanning. Once they touch the toggle,
+          their choice persists and this nudge becomes a no-op. */}
+      <TableDensityDefault preferred="compact" />
     </div>
   );
 }

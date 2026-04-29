@@ -24,7 +24,10 @@
   },
   "toast": {
     "deleted": "Gasto eliminado",
-    "undo": "Deshacer"
+    "undo": "Deshacer",
+    "bulkDeleted": "{count, plural, =1 {1 gasto eliminado} other {# gastos eliminados}}",
+    "bulkCategorized": "Categoría aplicada a {count, plural, =1 {1 gasto} other {# gastos}}",
+    "bulkProjectAssigned": "Proyecto asignado a {count, plural, =1 {1 gasto} other {# gastos}}"
   },
   "ariaActions": {
     "edit": "Editar gasto de {vendor}",
@@ -46,6 +49,16 @@
     "author": "Por"
   },
   "billableShort": "Fact",
+  "bulk": {
+    "label": "Acciones en lote",
+    "selectAll": "Seleccionar todo",
+    "selectRow": "Seleccionar {vendor}",
+    "selectedCount": "{count, plural, =1 {1 seleccionado} other {# seleccionados}}",
+    "clear": "Limpiar selección",
+    "delete": "Eliminar seleccionados",
+    "setCategory": "Asignar categoría",
+    "setProject": "Asignar proyecto"
+  },
   "categories": {
     "software": "Software",
     "hardware": "Hardware",

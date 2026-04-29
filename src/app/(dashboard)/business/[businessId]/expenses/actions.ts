@@ -5,6 +5,7 @@ import { assertSupabaseOk } from "@/lib/errors";
 import { validateTeamAccess } from "@/lib/team-context";
 import { revalidatePath } from "next/cache";
 import { ALLOWED_EXPENSE_CATEGORIES } from "./allow-lists";
+import { filterAuthorizedExpenseIds } from "./bulk-auth";
 
 function blankToNull(v: FormDataEntryValue | null): string | null {
   if (v == null) return null;
@@ -321,5 +322,190 @@ export async function restoreExpenseAction(formData: FormData): Promise<
       revalidatePath("/business/expenses");
     },
     "restoreExpenseAction",
+  );
+}
+
+// ────────────────────────────────────────────────────────────────
+// Bulk actions — multi-row operations from the table's selection
+// toolbar. All scoped per-row by id; the action layer fetches each
+// row to verify (team_id, user_id) and enforces the same auth gate
+// as the per-row variants. RLS does the same at the DB layer; the
+// app-layer pre-check is for friendly "you can't edit row X"
+// messages instead of opaque permission errors mid-batch.
+// ────────────────────────────────────────────────────────────────
+
+/** Read every expense's (team_id, user_id) in one bulk query and
+ *  filter to ids the caller is authorized to mutate. Returns the
+ *  authorized id list — anything filtered out fails silently as
+ *  the per-row RLS would have blocked the write anyway, and we
+ *  don't want to leak existence of rows in other teams via an
+ *  error message. */
+async function authorizeExpenseBulk(
+  supabase: import("@supabase/supabase-js").SupabaseClient,
+  ids: readonly string[],
+  callerUserId: string,
+): Promise<string[]> {
+  if (ids.length === 0) return [];
+  const { data: rows } = await supabase
+    .from("expenses")
+    .select("id, team_id, user_id")
+    .in("id", ids);
+  if (!rows || rows.length === 0) return [];
+
+  const teamIds = Array.from(
+    new Set(rows.map((r) => r.team_id as string)),
+  );
+  // Role per team — owner/admin can mutate any row in their team;
+  // members can only mutate rows they authored. Cache via map so
+  // multi-row in the same team only validates once.
+  const roleByTeam = new Map<string, string>();
+  for (const teamId of teamIds) {
+    const { role } = await validateTeamAccess(teamId);
+    roleByTeam.set(teamId, role);
+  }
+
+  return filterAuthorizedExpenseIds(
+    rows.map((r) => ({
+      id: r.id as string,
+      team_id: r.team_id as string,
+      user_id: r.user_id as string,
+    })),
+    callerUserId,
+    roleByTeam,
+  );
+}
+
+/** Bulk-update category on N expenses. */
+export async function bulkUpdateExpenseCategoryAction(
+  formData: FormData,
+): Promise<
+  | { success: true }
+  | { success: false; error: import("@/lib/errors").SerializedAppError }
+> {
+  return runSafeAction(
+    formData,
+    async (fd, { supabase, userId }) => {
+      const ids = fd.getAll("id").map(String).filter(Boolean);
+      const category = String(fd.get("category") ?? "").trim();
+      if (ids.length === 0) throw new Error("No rows selected.");
+      if (!ALLOWED_EXPENSE_CATEGORIES.has(category)) {
+        throw new Error("Invalid category.");
+      }
+
+      const authorized = await authorizeExpenseBulk(supabase, ids, userId);
+      if (authorized.length === 0) {
+        throw new Error("None of the selected rows are editable.");
+      }
+
+      assertSupabaseOk(
+        await supabase
+          .from("expenses")
+          .update({ category })
+          .in("id", authorized),
+      );
+
+      revalidatePath("/business");
+      revalidatePath("/business/expenses");
+    },
+    "bulkUpdateExpenseCategoryAction",
+  );
+}
+
+/** Bulk-update project_id on N expenses. Empty string / "none"
+ *  clears the link. */
+export async function bulkUpdateExpenseProjectAction(
+  formData: FormData,
+): Promise<
+  | { success: true }
+  | { success: false; error: import("@/lib/errors").SerializedAppError }
+> {
+  return runSafeAction(
+    formData,
+    async (fd, { supabase, userId }) => {
+      const ids = fd.getAll("id").map(String).filter(Boolean);
+      const rawProject = String(fd.get("project_id") ?? "").trim();
+      if (ids.length === 0) throw new Error("No rows selected.");
+      const projectId =
+        rawProject === "" || rawProject === "none" ? null : rawProject;
+
+      const authorized = await authorizeExpenseBulk(supabase, ids, userId);
+      if (authorized.length === 0) {
+        throw new Error("None of the selected rows are editable.");
+      }
+
+      assertSupabaseOk(
+        await supabase
+          .from("expenses")
+          .update({ project_id: projectId })
+          .in("id", authorized),
+      );
+
+      revalidatePath("/business");
+      revalidatePath("/business/expenses");
+    },
+    "bulkUpdateExpenseProjectAction",
+  );
+}
+
+/** Bulk soft-delete N expenses. Mirror of single-row delete: sets
+ *  deleted_at = now() so the Undo toast can restore them. */
+export async function bulkDeleteExpensesAction(
+  formData: FormData,
+): Promise<
+  | { success: true }
+  | { success: false; error: import("@/lib/errors").SerializedAppError }
+> {
+  return runSafeAction(
+    formData,
+    async (fd, { supabase, userId }) => {
+      const ids = fd.getAll("id").map(String).filter(Boolean);
+      if (ids.length === 0) throw new Error("No rows selected.");
+
+      const authorized = await authorizeExpenseBulk(supabase, ids, userId);
+      if (authorized.length === 0) {
+        throw new Error("None of the selected rows are deletable.");
+      }
+
+      assertSupabaseOk(
+        await supabase
+          .from("expenses")
+          .update({ deleted_at: new Date().toISOString() })
+          .in("id", authorized),
+      );
+
+      revalidatePath("/business");
+      revalidatePath("/business/expenses");
+    },
+    "bulkDeleteExpensesAction",
+  );
+}
+
+/** Bulk restore N expenses (Undo from the bulk-delete toast). */
+export async function bulkRestoreExpensesAction(
+  formData: FormData,
+): Promise<
+  | { success: true }
+  | { success: false; error: import("@/lib/errors").SerializedAppError }
+> {
+  return runSafeAction(
+    formData,
+    async (fd, { supabase, userId }) => {
+      const ids = fd.getAll("id").map(String).filter(Boolean);
+      if (ids.length === 0) throw new Error("No rows specified.");
+
+      const authorized = await authorizeExpenseBulk(supabase, ids, userId);
+      if (authorized.length === 0) return;
+
+      assertSupabaseOk(
+        await supabase
+          .from("expenses")
+          .update({ deleted_at: null })
+          .in("id", authorized),
+      );
+
+      revalidatePath("/business");
+      revalidatePath("/business/expenses");
+    },
+    "bulkRestoreExpensesAction",
   );
 }
