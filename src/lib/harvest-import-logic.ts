@@ -231,8 +231,15 @@ export function normalizeTimeOfDay(v: string | null): string | null {
  *                   the target team).
  *   "importer"    → fall back to the importing user.
  *   "skip"        → drop these entries.
+ *   "shell"       → create a non-loggable auth user to anchor these
+ *                   entries (preserves authorship for ex-collaborators
+ *                   who won't sign in). The route materializes the
+ *                   shell account up front and rewrites the mapping
+ *                   entry to the new user_id BEFORE resolveEntryUserId
+ *                   runs — so this branch is a request, not a runtime
+ *                   value the resolver ever sees.
  */
-export type UserMapChoice = string | "importer" | "skip";
+export type UserMapChoice = string | "importer" | "skip" | "shell";
 
 export interface UniqueHarvestUser {
   id: number;
@@ -298,7 +305,13 @@ export function proposeDefaultUserMapping(
   return out;
 }
 
-/** Resolve a Harvest user ID to the target Shyre user id (or skip). */
+/** Resolve a Harvest user ID to the target Shyre user id (or skip).
+ *
+ *  By the time this runs, the route layer must have already
+ *  materialized any "shell" requests into real auth user ids and
+ *  rewritten the mapping in place — encountering "shell" here is a
+ *  programmer error, not a user-facing failure mode, so we throw
+ *  rather than silently skipping. */
 export function resolveEntryUserId(
   harvestUserId: number,
   mapping: Record<number, UserMapChoice>,
@@ -307,6 +320,12 @@ export function resolveEntryUserId(
   const choice = mapping[harvestUserId] ?? "importer";
   if (choice === "skip") return null;
   if (choice === "importer") return importerUserId;
+  if (choice === "shell") {
+    throw new Error(
+      `Unmaterialized "shell" mapping for Harvest user ${harvestUserId}. ` +
+        "The import route must create shell accounts before time-entry mapping.",
+    );
+  }
   return choice;
 }
 

@@ -334,6 +334,12 @@ describe("resolveEntryUserId", () => {
   it("defaults unknown users to importer", () => {
     expect(resolveEntryUserId(999, mapping, "u-me")).toBe("u-me");
   });
+  it("throws on unmaterialized 'shell' — route is required to rewrite first", () => {
+    const shellMapping: Record<number, UserMapChoice> = { 5: "shell" };
+    expect(() => resolveEntryUserId(5, shellMapping, "u-me")).toThrow(
+      /Unmaterialized "shell" mapping/,
+    );
+  });
 });
 
 // ────────────────────────────────────────────────────────────────

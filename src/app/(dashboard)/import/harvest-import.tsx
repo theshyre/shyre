@@ -27,7 +27,7 @@ import type { TeamListItem } from "@/lib/team-context";
 
 type Step = "credentials" | "preview" | "importing" | "done";
 
-type UserMapChoice = string | "importer" | "skip";
+type UserMapChoice = string | "importer" | "skip" | "shell";
 
 interface HarvestUserSummary {
   id: number;
@@ -620,9 +620,11 @@ function UserMappingTable({
         </h3>
         <p className="mt-1 text-caption text-content-muted">
           Each Harvest user who logged time becomes the author of their entries
-          in Shyre. Pick a Shyre user for each, or fall back to <em>me</em> to
-          attribute them to you. Choose <em>Skip</em> to drop a user&apos;s
-          entries entirely.
+          in Shyre. Pick a Shyre user for each, fall back to <em>me</em> to
+          attribute them to you, or — for ex-collaborators who won&apos;t sign
+          in — <em>Create shell account</em> to anchor their historical entries
+          under their name without granting login. Choose <em>Skip</em> to drop
+          a user&apos;s entries entirely.
         </p>
       </div>
 
@@ -656,6 +658,7 @@ function UserMappingTable({
               style={{ maxWidth: 260 }}
             >
               <option value="importer">Me (attribute to caller)</option>
+              <option value="shell">Create shell account (no login)</option>
               <option value="skip">Skip (drop entries)</option>
               <optgroup label="Shyre team members">
                 {shyreMembers.map((m) => (

@@ -45,8 +45,8 @@ interface TeamMemberRow {
   team_id: string;
   user_id: string;
   user_profiles:
-    | { display_name: string | null }[]
-    | { display_name: string | null }
+    | { display_name: string | null; is_shell: boolean | null }[]
+    | { display_name: string | null; is_shell: boolean | null }
     | null;
 }
 
@@ -144,7 +144,7 @@ export default async function ClientDetailPage({
   const { data: teamMembersData } = allTeamIds.length
     ? await supabase
         .from("team_members")
-        .select("team_id, user_id, user_profiles(display_name)")
+        .select("team_id, user_id, user_profiles(display_name, is_shell)")
         .in("team_id", allTeamIds)
     : { data: [] };
   const teamMembers = (teamMembersData ?? []) as unknown as TeamMemberRow[];
@@ -178,6 +178,16 @@ export default async function ClientDetailPage({
   }> = [];
   for (const m of teamMembers) {
     if (seenUserIds.has(m.user_id)) continue;
+    // Shell accounts can't sign in, so granting them customer
+    // permissions is meaningless clutter. Skip them entirely from
+    // the principal picker. They still appear in the team member
+    // list (with the "Imported · no login" badge) for audit /
+    // authorship visibility.
+    const profileRaw = m.user_profiles;
+    const profile = Array.isArray(profileRaw) ? profileRaw[0] : profileRaw;
+    if (profile && (profile as { is_shell?: boolean | null }).is_shell) {
+      continue;
+    }
     seenUserIds.add(m.user_id);
     availablePrincipals.push({
       type: "user",

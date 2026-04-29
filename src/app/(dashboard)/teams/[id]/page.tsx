@@ -67,7 +67,7 @@ export default async function TeamDetailPage({
   const { data: profileRows } = memberUserIds.length > 0
     ? await supabase
         .from("user_profiles")
-        .select("user_id, display_name")
+        .select("user_id, display_name, is_shell")
         .in("user_id", memberUserIds)
     : { data: [] };
   const displayNameByUserId = new Map<string, string | null>(
@@ -76,15 +76,29 @@ export default async function TeamDetailPage({
       (p.display_name as string | null) ?? null,
     ]),
   );
+  // Shell accounts are imported anchors for historical time entries
+  // — real auth.users rows but flagged so UIs can render them
+  // distinctly (no invite, no rename, no can-log-in implication).
+  // See src/lib/import-shell-author.ts for provenance.
+  const isShellByUserId = new Map<string, boolean>(
+    (profileRows ?? []).map((p) => [
+      p.user_id as string,
+      ((p as { is_shell?: boolean | null }).is_shell ?? false) === true,
+    ]),
+  );
   const ROLE_RANK: Record<string, number> = { owner: 0, admin: 1, member: 2 };
   const members = (rawMembers ?? [])
     .map((m) => ({
       ...m,
+      is_shell: isShellByUserId.get(m.user_id as string) ?? false,
       user_profiles: {
         display_name: displayNameByUserId.get(m.user_id as string) ?? null,
       },
     }))
     .sort((a, b) => {
+      // Shell accounts sort to the bottom — they're anchors, not
+      // active members; the eye should land on real teammates first.
+      if (a.is_shell !== b.is_shell) return a.is_shell ? 1 : -1;
       const rankDiff = (ROLE_RANK[a.role] ?? 99) - (ROLE_RANK[b.role] ?? 99);
       if (rankDiff !== 0) return rankDiff;
       return (a.joined_at ?? "").localeCompare(b.joined_at ?? "");

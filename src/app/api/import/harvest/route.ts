@@ -1,6 +1,8 @@
 import { createClient } from "@/lib/supabase/server";
+import { createAdminClient } from "@/lib/supabase/admin";
 import { validateTeamAccess } from "@/lib/team-context";
 import { logError } from "@/lib/logger";
+import { materializeHarvestShellAccount } from "@/lib/import-shell-author";
 import {
   validateHarvestCredentials,
   fetchHarvestClients,
@@ -539,6 +541,59 @@ export async function POST(request: Request): Promise<NextResponse> {
             continue;
           }
           invoiceLineItemsImported += lineItemRows.length;
+        }
+      }
+
+      // Materialize "shell" mapping choices -------------------------
+      // Any Harvest user the operator chose "Create shell account" for
+      // becomes a non-loggable auth.users row + team_members row right
+      // here, BEFORE buildTimeEntryRow runs — that function calls
+      // resolveEntryUserId which throws on an unmaterialized "shell"
+      // sentinel. We dedupe Harvest users from the entry stream
+      // (each entry carries user.id + user.name) so a single materialize
+      // call covers every entry by that author. Idempotent on re-import:
+      // materializeHarvestShellAccount returns the existing user_id when
+      // a matching shell already exists for this team.
+      const shellHarvestIds = Object.entries(userMapping)
+        .filter(([, choice]) => choice === "shell")
+        .map(([k]) => Number(k));
+      if (shellHarvestIds.length > 0) {
+        const adminClient = createAdminClient();
+        const harvestNameById = new Map<number, string>();
+        for (const e of harvestTimeEntries) {
+          if (!harvestNameById.has(e.user.id)) {
+            harvestNameById.set(e.user.id, e.user.name);
+          }
+        }
+        for (const harvestId of shellHarvestIds) {
+          const displayName = harvestNameById.get(harvestId);
+          if (!displayName) {
+            // Mapping selected "shell" for a user that has no entries
+            // in the import range — nothing to anchor, skip.
+            recordError(
+              `Shell account requested for Harvest user ${harvestId} but no time entries reference them`,
+              new Error("shell-no-entries"),
+            );
+            continue;
+          }
+          try {
+            const userId = await materializeHarvestShellAccount(adminClient, {
+              teamId: organizationId,
+              harvestUserId: harvestId,
+              displayName,
+            });
+            // Rewrite mapping in place — buildTimeEntryRow now sees a
+            // real user_id and the resolver path stays linear.
+            userMapping[harvestId] = userId;
+          } catch (err) {
+            recordError(
+              `Shell account create failed for ${displayName}: ${err instanceof Error ? err.message : String(err)}`,
+              err,
+            );
+            // Fall back to "skip" so the import doesn't half-attribute
+            // their entries to the importer silently.
+            userMapping[harvestId] = "skip";
+          }
         }
       }
 

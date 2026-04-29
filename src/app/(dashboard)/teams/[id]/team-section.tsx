@@ -40,6 +40,11 @@ interface Member {
   user_id: string;
   role: string;
   joined_at: string;
+  /** Shell accounts are imported anchors for historical time entries
+   *  — real auth.users rows that can't sign in. Set true when
+   *  user_profiles.is_shell is true. UIs render them distinctly and
+   *  exclude them from invite suggestions / rename actions. */
+  is_shell?: boolean;
   user_profiles: { display_name: string | null }[] | { display_name: string | null } | null;
 }
 
@@ -228,12 +233,19 @@ export function TeamSection({
                         </span>
                       )}
                     </p>
-                    <span
-                      className={`inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[10px] font-medium ${roleColor}`}
-                    >
-                      <RoleIcon size={10} />
-                      {isOwner ? "Team owner" : member.role}
-                    </span>
+                    <div className="flex items-center gap-1.5 flex-wrap">
+                      <span
+                        className={`inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[10px] font-medium ${roleColor}`}
+                      >
+                        <RoleIcon size={10} />
+                        {isOwner ? "Team owner" : member.role}
+                      </span>
+                      {member.is_shell && (
+                        <span className="inline-flex items-center gap-1 rounded-full bg-surface-inset px-2 py-0.5 text-[10px] font-medium text-content-muted border border-edge-muted">
+                          Imported · no login
+                        </span>
+                      )}
+                    </div>
                   </div>
                 </div>
                 {isAdmin && !isSelf && member.role !== "owner" && (
