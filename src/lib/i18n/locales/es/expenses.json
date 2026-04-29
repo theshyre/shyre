@@ -28,7 +28,8 @@
   },
   "ariaActions": {
     "edit": "Editar gasto de {vendor}",
-    "delete": "Eliminar gasto de {vendor}"
+    "delete": "Eliminar gasto de {vendor}",
+    "editField": "Editar {field} de {vendor}"
   },
   "fields": {
     "incurredOn": "Fecha",
@@ -41,8 +42,10 @@
     "notesHint": "Metadatos de auditoría. Números de recibo o pedido, ID de confirmación, cualquier cosa que quieras encontrar después.",
     "project": "Proyecto",
     "team": "Equipo",
-    "billable": "Facturable al cliente"
+    "billable": "Facturable al cliente",
+    "author": "Por"
   },
+  "billableShort": "Fact",
   "categories": {
     "software": "Software",
     "hardware": "Hardware",

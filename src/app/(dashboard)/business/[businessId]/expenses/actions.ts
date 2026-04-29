@@ -125,6 +125,121 @@ export async function updateExpenseAction(formData: FormData): Promise<
   );
 }
 
+/** Allowed field keys for the per-field update path. Tracked
+ *  here as a Set instead of the type system so we can reject
+ *  unknown keys at runtime — never trust the client. */
+const EDITABLE_EXPENSE_FIELDS = new Set([
+  "incurred_on",
+  "amount",
+  "vendor",
+  "category",
+  "description",
+  "notes",
+  "project_id",
+  "billable",
+]);
+
+/**
+ * Partial single-field update for in-cell editing on the expenses
+ * table. Mirrors the auth + role gate of `updateExpenseAction` but
+ * only writes one column at a time, validating the value
+ * server-side per field.
+ *
+ * Form fields:
+ *   - id     expense row id
+ *   - field  one of EDITABLE_EXPENSE_FIELDS
+ *   - value  the new value, as a string (parsed per field below)
+ */
+export async function updateExpenseFieldAction(formData: FormData): Promise<
+  | { success: true }
+  | { success: false; error: import("@/lib/errors").SerializedAppError }
+> {
+  return runSafeAction(
+    formData,
+    async (fd, { supabase, userId }) => {
+      const id = String(fd.get("id") ?? "");
+      const field = String(fd.get("field") ?? "");
+      const rawValue = fd.get("value");
+      if (!id) throw new Error("Expense id required.");
+      if (!EDITABLE_EXPENSE_FIELDS.has(field)) {
+        throw new Error(`Field "${field}" cannot be edited.`);
+      }
+
+      // Same defense-in-depth as the full update: read the row,
+      // confirm the caller is author or owner|admin on its team
+      // before letting RLS take over.
+      const { data: row } = await supabase
+        .from("expenses")
+        .select("team_id, user_id")
+        .eq("id", id)
+        .maybeSingle();
+      if (!row) throw new Error("Expense not found.");
+      const { role } = await validateTeamAccess(row.team_id as string);
+      const isAuthor = (row.user_id as string) === userId;
+      if (!isAuthor && role !== "owner" && role !== "admin") {
+        throw new Error("Only the author or an owner/admin can edit.");
+      }
+
+      const update: Record<string, unknown> = {};
+      const valueStr = typeof rawValue === "string" ? rawValue.trim() : "";
+
+      switch (field) {
+        case "incurred_on": {
+          if (!valueStr || !/^\d{4}-\d{2}-\d{2}$/.test(valueStr)) {
+            throw new Error("Date must be YYYY-MM-DD.");
+          }
+          update.incurred_on = valueStr;
+          break;
+        }
+        case "amount": {
+          const n = Number(valueStr);
+          if (!Number.isFinite(n) || n < 0) {
+            throw new Error("Amount must be a non-negative number.");
+          }
+          update.amount = Math.round(n * 100) / 100;
+          break;
+        }
+        case "category": {
+          if (!valueStr || !ALLOWED_EXPENSE_CATEGORIES.has(valueStr)) {
+            throw new Error("Invalid category.");
+          }
+          update.category = valueStr;
+          break;
+        }
+        case "vendor":
+        case "description":
+        case "notes": {
+          update[field] = valueStr === "" ? null : valueStr;
+          break;
+        }
+        case "project_id": {
+          // "" or "none" → clear the link.
+          update.project_id =
+            valueStr === "" || valueStr === "none" ? null : valueStr;
+          break;
+        }
+        case "billable": {
+          update.billable = valueStr === "true" || valueStr === "on";
+          break;
+        }
+        default:
+          // Unreachable — guarded by the Set above. Defensive throw
+          // so a future EDITABLE_EXPENSE_FIELDS addition without a
+          // matching switch arm fails loudly in dev.
+          throw new Error(`Unhandled editable field: ${field}`);
+      }
+
+      assertSupabaseOk(
+        await supabase.from("expenses").update(update).eq("id", id),
+      );
+
+      revalidatePath("/business");
+      revalidatePath("/business/expenses");
+    },
+    "updateExpenseFieldAction",
+  );
+}
+
 export async function deleteExpenseAction(formData: FormData): Promise<
   | { success: true }
   | { success: false; error: import("@/lib/errors").SerializedAppError }

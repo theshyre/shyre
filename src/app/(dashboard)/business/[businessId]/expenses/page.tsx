@@ -7,6 +7,7 @@ import { getTranslations } from "next-intl/server";
 import { getUserTeams } from "@/lib/team-context";
 import { LinkPendingSpinner } from "@/components/LinkPendingSpinner";
 import { buttonSecondaryClass } from "@/lib/form-styles";
+import { TableDensityToggle } from "@/components/TableDensityToggle";
 
 export async function generateMetadata(): Promise<Metadata> {
   const t = await getTranslations("expenses");
@@ -209,6 +210,7 @@ export default async function ExpensesPage({
         <span className="inline-flex items-center gap-1.5 rounded-full bg-surface-inset px-3 py-1 text-caption font-medium text-content-secondary">
           {t("monthTotal", { amount: monthTotalLabel })}
         </span>
+        <TableDensityToggle className="ml-auto" />
       </div>
 
       {lockSummary && (
@@ -258,31 +260,40 @@ export default async function ExpensesPage({
           {t("empty")}
         </div>
       ) : (
-        <div className="overflow-hidden rounded-lg border border-edge bg-surface-raised">
-          <table className="w-full text-body">
+        <div className="density-table overflow-x-auto rounded-lg border border-edge bg-surface-raised">
+          <table className="w-full">
             <thead>
               <tr className="border-b border-edge bg-surface-inset">
-                <th className="px-4 py-3 text-left text-label font-semibold uppercase tracking-wider text-content-muted">
+                <th className="text-left text-label font-semibold uppercase tracking-wider text-content-muted">
                   {t("fields.incurredOn")}
                 </th>
-                <th className="px-4 py-3 text-left text-label font-semibold uppercase tracking-wider text-content-muted">
+                <th className="text-left text-label font-semibold uppercase tracking-wider text-content-muted">
                   {t("fields.category")}
                 </th>
                 {showTeamColumn && (
-                  <th className="px-4 py-3 text-left text-label font-semibold uppercase tracking-wider text-content-muted">
+                  <th className="text-left text-label font-semibold uppercase tracking-wider text-content-muted">
                     {t("fields.team")}
                   </th>
                 )}
-                <th className="px-4 py-3 text-left text-label font-semibold uppercase tracking-wider text-content-muted">
+                <th className="text-left text-label font-semibold uppercase tracking-wider text-content-muted">
                   {t("fields.vendor")}
                 </th>
-                <th className="px-4 py-3 text-left text-label font-semibold uppercase tracking-wider text-content-muted">
+                <th className="text-left text-label font-semibold uppercase tracking-wider text-content-muted">
+                  {t("fields.description")}
+                </th>
+                <th className="text-left text-label font-semibold uppercase tracking-wider text-content-muted">
+                  {t("fields.notes")}
+                </th>
+                <th className="text-left text-label font-semibold uppercase tracking-wider text-content-muted">
                   {t("fields.project")}
                 </th>
-                <th className="px-4 py-3 text-right text-label font-semibold uppercase tracking-wider text-content-muted">
+                <th className="text-right text-label font-semibold uppercase tracking-wider text-content-muted">
                   {t("fields.amount")}
                 </th>
-                <th className="px-4 py-3 text-right text-label font-semibold uppercase tracking-wider text-content-muted">
+                <th className="text-left text-label font-semibold uppercase tracking-wider text-content-muted">
+                  {t("fields.author")}
+                </th>
+                <th className="text-right text-label font-semibold uppercase tracking-wider text-content-muted">
                   {tc("table.actions")}
                 </th>
               </tr>

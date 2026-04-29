@@ -28,7 +28,8 @@
   },
   "ariaActions": {
     "edit": "Edit {vendor} expense",
-    "delete": "Delete {vendor} expense"
+    "delete": "Delete {vendor} expense",
+    "editField": "Edit {field} for {vendor}"
   },
   "fields": {
     "incurredOn": "Date",
@@ -41,8 +42,10 @@
     "notesHint": "Audit-trail metadata. Receipt or order numbers, vendor confirmation IDs, anything you'd want to find later.",
     "project": "Project",
     "team": "Team",
-    "billable": "Billable back to a customer"
+    "billable": "Billable back to a customer",
+    "author": "By"
   },
+  "billableShort": "Bill",
   "categories": {
     "software": "Software",
     "hardware": "Hardware",

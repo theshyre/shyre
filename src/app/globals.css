@@ -26,3 +26,71 @@ body {
   body { background: white; color: black; }
   main { padding: 0; margin: 0; max-width: 100%; }
 }
+
+/* ──────────────────────────────────────────────────────────────
+ * Table density — three-tier compactness for data tables.
+ *
+ * Tables opt in by setting `data-density-table` on the wrapping
+ * <div> (or by adding the `density-table` class). Inside, every
+ * <th> + <td> reads --row-py and --cell-px from the chosen scale.
+ *
+ * The active scale lives on <html data-density="compact|regular|
+ * comfortable">. data-density is set via TableDensityProvider on
+ * the client; user_settings.table_density is the cross-device
+ * source of truth and TableDensitySync writes it on dashboard
+ * mount.
+ *
+ * Layout dimensions stay in px per CLAUDE.md (so the choice doesn't
+ * cascade with the user's text-size preference); type-adjacent
+ * font sizes use the rem-based typography scale (so they DO scale
+ * with text-size). The two preferences compose cleanly.
+ * ────────────────────────────────────────────────────────────── */
+
+html {
+  /* Default = "regular". Individual rules below override per density. */
+  --table-row-py: 12px;
+  --table-cell-px: 16px;
+  --table-cell-font: 0.8125rem; /* matches text-body */
+  --table-row-min-h: 40px;
+}
+
+html[data-density="compact"] {
+  --table-row-py: 6px;
+  --table-cell-px: 12px;
+  --table-cell-font: 0.6875rem; /* matches text-caption */
+  --table-row-min-h: 28px;
+}
+
+html[data-density="regular"] {
+  --table-row-py: 12px;
+  --table-cell-px: 16px;
+  --table-cell-font: 0.8125rem;
+  --table-row-min-h: 40px;
+}
+
+html[data-density="comfortable"] {
+  --table-row-py: 16px;
+  --table-cell-px: 20px;
+  --table-cell-font: 0.875rem; /* matches text-body-lg */
+  --table-row-min-h: 56px;
+}
+
+/* Apply to opt-in tables. Two hooks supported: a className
+ * (`.density-table`) and a data attribute (`[data-density-table]`).
+ * Either selects the same rules so callers can pick whichever
+ * reads cleaner at the call site. */
+.density-table th,
+.density-table td,
+[data-density-table] th,
+[data-density-table] td {
+  padding-top: var(--table-row-py);
+  padding-bottom: var(--table-row-py);
+  padding-left: var(--table-cell-px);
+  padding-right: var(--table-cell-px);
+  font-size: var(--table-cell-font);
+}
+
+.density-table tr,
+[data-density-table] tr {
+  min-height: var(--table-row-min-h);
+}
