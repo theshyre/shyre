@@ -302,6 +302,17 @@ describe("parseExpenseCsv — end to end", () => {
     expect(skipped[0]?.reason).toContain("Amount");
   });
 
+  it("gives a path-paste-specific hint when input looks like a dragged-onto-textarea filepath", () => {
+    // What happens when a user drags a CSV onto the textarea and
+    // the browser pastes the file's path instead of its contents.
+    const csv = "/Users/marcus/Downloads/Business Expenses - 2019.csv";
+    const { rows, skipped } = parseExpenseCsv(csv);
+    expect(rows).toHaveLength(0);
+    expect(skipped).toHaveLength(1);
+    expect(skipped[0]?.reason).toMatch(/file path was pasted/i);
+    expect(skipped[0]?.reason).toContain("Choose File");
+  });
+
   it("handles multi-line Comments cells (the McEwen Gisvold pattern)", () => {
     const csv = [
       "Date,Amount,Item,Comments",

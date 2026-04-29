@@ -65,10 +65,32 @@ export function ImportForm({ teams }: Props): React.JSX.Element {
   const [error, setError] = useState<string | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
+  const [dragging, setDragging] = useState(false);
+
   const parsePreview = useMemo(() => {
     if (!csvText.trim()) return null;
     return parseExpenseCsv(csvText);
   }, [csvText]);
+
+  /** Read the first dropped File and load its text into the
+   *  textarea. Without this, dropping a CSV onto the form area
+   *  triggers the browser's default text/uri-list paste, which
+   *  inserts the FILE PATH as the textarea's content — and the
+   *  parser then reports "Date and Amount columns missing" with
+   *  the path string in the error, which is bewildering. */
+  async function handleFileDrop(file: File): Promise<void> {
+    if (
+      !file.name.toLowerCase().endsWith(".csv") &&
+      file.type !== "text/csv" &&
+      file.type !== "" /* macOS Finder sometimes leaves type empty */
+    ) {
+      setError(`"${file.name}" doesn't look like a CSV file.`);
+      return;
+    }
+    const text = await file.text();
+    setCsvText(text);
+    setError(null);
+  }
 
   if (writableTeams.length === 0) {
     return (
@@ -205,7 +227,36 @@ export function ImportForm({ teams }: Props): React.JSX.Element {
           setCommitting(false);
         }
       }}
-      className="rounded-lg border border-edge bg-surface-raised p-4 mt-6 space-y-4"
+      onDragEnter={(e) => {
+        // Only react when the drag actually carries a file —
+        // dragging selected text inside the form (e.g. between two
+        // textareas) shouldn't flash the drop affordance.
+        if (e.dataTransfer.types.includes("Files")) {
+          e.preventDefault();
+          setDragging(true);
+        }
+      }}
+      onDragOver={(e) => {
+        if (e.dataTransfer.types.includes("Files")) {
+          e.preventDefault();
+        }
+      }}
+      onDragLeave={(e) => {
+        // Only clear when leaving the form itself, not just moving
+        // between child elements (which would otherwise flicker).
+        if (e.currentTarget.contains(e.relatedTarget as Node | null)) return;
+        setDragging(false);
+      }}
+      onDrop={async (e) => {
+        if (!e.dataTransfer.files.length) return;
+        e.preventDefault();
+        setDragging(false);
+        const file = e.dataTransfer.files[0];
+        if (file) await handleFileDrop(file);
+      }}
+      className={`rounded-lg border bg-surface-raised p-4 mt-6 space-y-4 transition-colors ${
+        dragging ? "border-accent bg-accent-soft/30" : "border-edge"
+      }`}
     >
       <header className="flex items-center gap-2">
         <Receipt size={16} className="text-accent" />
@@ -255,10 +306,31 @@ export function ImportForm({ teams }: Props): React.JSX.Element {
           value={csvText}
           onChange={(e) => setCsvText(e.target.value)}
           rows={10}
-          placeholder={`Date,Amount,Item,Comments
+          placeholder={`Drop a .csv file anywhere on this form, click "Choose File" below, or paste rows like:
+
+Date,Amount,Item,Comments
 9/28/2018,$60.00,Domain - malcom.io: 1 year renewal,
 1/1/2019,$10.00,Linode - server,Invoice #12045531`}
           className={`${textareaClass} font-mono text-caption`}
+          onDrop={async (e) => {
+            // Default browser behavior on textarea drop is to paste
+            // the file's path as text, which then fails parsing
+            // with a confusing "headers missing" error. Intercept
+            // and read the file contents instead. preventDefault +
+            // stopPropagation because the form's onDrop will also
+            // fire for files dropped on this child.
+            if (!e.dataTransfer.files.length) return;
+            e.preventDefault();
+            e.stopPropagation();
+            setDragging(false);
+            const file = e.dataTransfer.files[0];
+            if (file) await handleFileDrop(file);
+          }}
+          onDragOver={(e) => {
+            if (e.dataTransfer.types.includes("Files")) {
+              e.preventDefault();
+            }
+          }}
         />
         <div className="mt-2 flex items-center gap-2">
           <input
@@ -268,14 +340,13 @@ export function ImportForm({ teams }: Props): React.JSX.Element {
             onChange={async (e) => {
               const file = e.target.files?.[0];
               if (!file) return;
-              const text = await file.text();
-              setCsvText(text);
+              await handleFileDrop(file);
             }}
             className="text-caption text-content-muted"
           />
           <span className="text-caption text-content-muted">
             <Upload size={12} className="inline mr-1 align-text-bottom" />
-            Or drop a .csv file
+            Or drop a .csv file anywhere on this form
           </span>
         </div>
       </div>

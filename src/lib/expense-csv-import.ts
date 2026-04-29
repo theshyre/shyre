@@ -307,15 +307,28 @@ export function parseExpenseCsv(csv: string): ParseResult {
   if (dateIdx === -1 || amountIdx === -1) {
     // Without these the file isn't usable. Surface as a single skip
     // with rowNumber=0 so the route can show a clear error banner.
+    // Tailored hint when the input looks like a single file path —
+    // common when a user drags a CSV onto the textarea and the
+    // browser pastes the path string instead of the file contents.
+    const looksLikePathPaste =
+      records.length === 1 &&
+      header.length === 1 &&
+      typeof header[0] === "string" &&
+      /^\/.*\.csv$/i.test(header[0].trim());
+    const reason = looksLikePathPaste
+      ? `Looks like the file path was pasted instead of the file contents (` +
+        `"${header[0]}"). Use the "Choose File" picker below the textarea, ` +
+        `or drop the .csv file anywhere on the form — dropping into the ` +
+        `textarea on most browsers pastes the path, not the content.`
+      : 'Header row must contain "Date" and "Amount" columns (case-insensitive). Found: ' +
+        header.map((h) => `"${h}"`).join(", ");
     return {
       rows: [],
       skipped: [
         {
           rowNumber: 0,
           rawLine: header.join(","),
-          reason:
-            'Header row must contain "Date" and "Amount" columns (case-insensitive). Found: ' +
-            header.map((h) => `"${h}"`).join(", "),
+          reason,
         },
       ],
     };
