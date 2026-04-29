@@ -49,6 +49,25 @@
     "author": "By"
   },
   "billableShort": "Bill",
+  "filters": {
+    "search": "Search expenses",
+    "searchPlaceholder": "Vendor, description, or notes…",
+    "year": "Year",
+    "allYears": "All years",
+    "allProjects": "All projects",
+    "unassigned": "No project",
+    "anyBillable": "Any billable",
+    "billableOnly": "Billable only",
+    "nonBillableOnly": "Non-billable only",
+    "moreFilters": "More filters",
+    "lessFilters": "Less",
+    "customRange": "Custom range:",
+    "from": "From",
+    "to": "To",
+    "active": "Filters:",
+    "clearAll": "Clear all",
+    "resultCount": "Showing {shown} of {total}"
+  },
   "bulk": {
     "label": "Bulk actions",
     "selectAll": "Select all",

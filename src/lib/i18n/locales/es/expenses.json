@@ -49,6 +49,25 @@
     "author": "Por"
   },
   "billableShort": "Fact",
+  "filters": {
+    "search": "Buscar gastos",
+    "searchPlaceholder": "Proveedor, descripción o notas…",
+    "year": "Año",
+    "allYears": "Todos los años",
+    "allProjects": "Todos los proyectos",
+    "unassigned": "Sin proyecto",
+    "anyBillable": "Cualquier facturación",
+    "billableOnly": "Solo facturables",
+    "nonBillableOnly": "Solo no facturables",
+    "moreFilters": "Más filtros",
+    "lessFilters": "Menos",
+    "customRange": "Rango personalizado:",
+    "from": "Desde",
+    "to": "Hasta",
+    "active": "Filtros:",
+    "clearAll": "Limpiar todo",
+    "resultCount": "Mostrando {shown} de {total}"
+  },
   "bulk": {
     "label": "Acciones en lote",
     "selectAll": "Seleccionar todo",

@@ -10,6 +10,8 @@ import { buttonSecondaryClass } from "@/lib/form-styles";
 import { TableDensityToggle } from "@/components/TableDensityToggle";
 import { TableDensityDefault } from "@/components/TableDensityDefault";
 import { ExpensesTable } from "./expenses-table";
+import { ExpenseFilters } from "./expense-filters";
+import { parseExpenseFilters, hasActiveFilters } from "./filter-params";
 
 export async function generateMetadata(): Promise<Metadata> {
   const t = await getTranslations("expenses");
@@ -53,14 +55,20 @@ function formatCurrency(amount: number, currency: string): string {
 
 interface PageProps {
   params: Promise<{ businessId: string }>;
+  /** URL-driven filter state — see filter-params.ts. Next 16
+   *  hands these as a possibly-async object on App Router. */
+  searchParams: Promise<Record<string, string | string[] | undefined>>;
 }
 
 export default async function ExpensesPage({
   params,
+  searchParams,
 }: PageProps): Promise<React.JSX.Element> {
   const supabase = await createClient();
   const t = await getTranslations("expenses");
   const { businessId } = await params;
+  const rawSearchParams = await searchParams;
+  const filters = parseExpenseFilters(rawSearchParams);
 
   // Expenses are still team_id-scoped at the row level. The page
   // sums across every team in the business that the viewer can
@@ -99,13 +107,68 @@ export default async function ExpensesPage({
   } = await supabase.auth.getUser();
   const viewerUserId = viewer?.id ?? null;
 
-  const { data: expRows } = await supabase
+  // Fetch every expense under the business teams (for the year
+  // dropdown's distinct-years computation), then build a separate
+  // filtered query for the rendered list. Two queries instead of
+  // one because the year dropdown needs the full data set's date
+  // range — filtering it would hide other available years.
+  const { data: allYearsRows } = await supabase
+    .from("expenses")
+    .select("incurred_on")
+    .in("team_id", teamIds)
+    .is("deleted_at", null);
+  const availableYears = Array.from(
+    new Set(
+      (allYearsRows ?? []).flatMap((r) => {
+        const d = (r.incurred_on as string | null) ?? "";
+        const m = /^(\d{4})-/.exec(d);
+        return m && m[1] ? [m[1]] : [];
+      }),
+    ),
+  ).sort((a, b) => b.localeCompare(a)); // newest first
+
+  let expensesQuery = supabase
     .from("expenses")
     .select(
       "id, team_id, user_id, incurred_on, amount, currency, vendor, category, description, notes, project_id, billable, is_sample, projects(id, name)",
     )
     .in("team_id", teamIds)
-    .is("deleted_at", null)
+    .is("deleted_at", null);
+
+  // Text search: match vendor / description / notes via Postgres
+  // ilike. Supabase's `or()` builder takes a comma-separated list
+  // of `column.operator.value` clauses; commas / parens in the
+  // user's input would break the parser, so we strip the most
+  // common offenders. The match itself is fuzzy, not regex —
+  // good-enough for "find Linode" or "find Invoice #12045531".
+  if (filters.q) {
+    const sanitized = filters.q.replace(/[,()]/g, " ").trim();
+    if (sanitized) {
+      const pattern = `%${sanitized}%`;
+      expensesQuery = expensesQuery.or(
+        `vendor.ilike.${pattern},description.ilike.${pattern},notes.ilike.${pattern}`,
+      );
+    }
+  }
+
+  if (filters.from) expensesQuery = expensesQuery.gte("incurred_on", filters.from);
+  if (filters.to) expensesQuery = expensesQuery.lte("incurred_on", filters.to);
+
+  if (filters.categories.length > 0) {
+    expensesQuery = expensesQuery.in("category", filters.categories);
+  }
+
+  if (filters.project === "none") {
+    expensesQuery = expensesQuery.is("project_id", null);
+  } else if (filters.project !== null) {
+    expensesQuery = expensesQuery.eq("project_id", filters.project);
+  }
+
+  if (filters.billable !== null) {
+    expensesQuery = expensesQuery.eq("billable", filters.billable);
+  }
+
+  const { data: expRows } = await expensesQuery
     .order("incurred_on", { ascending: false })
     .order("created_at", { ascending: false });
 
@@ -191,17 +254,32 @@ export default async function ExpensesPage({
 
   // Recategorize callout: every CSV-imported expense lands in
   // category="other" by default. Surface a single soft banner when
-  // the count is non-trivial — quiet enough to ignore on a clean
-  // ledger, prominent enough to notice after an import. Threshold
-  // of 1 keeps the rule simple; users who categorize as they go
-  // will never see it.
-  const otherCount = expenses.filter((e) => e.category === "other").length;
+  // the count is non-trivial AND no filter is active — when filters
+  // are applied the banner becomes confusing ("39 in other" alongside
+  // a filtered count of 5 makes the user wonder which is real). The
+  // count itself comes from a separate full-table query so the
+  // banner's accuracy doesn't depend on whether the user has
+  // category=other filtered in.
+  const filtersActive = hasActiveFilters(filters);
+  let otherCount = 0;
+  if (!filtersActive) {
+    const { count } = await supabase
+      .from("expenses")
+      .select("id", { count: "exact", head: true })
+      .in("team_id", teamIds)
+      .is("deleted_at", null)
+      .eq("category", "other");
+    otherCount = count ?? 0;
+  }
+
   // Import CSV link is owner|admin only — same gate as the
   // /business/[businessId]/expenses/import page itself, but checked
   // here to hide the entry point from members who would 404 on click.
   const canImport = Array.from(teamRoleById.values()).some(
     (r) => r === "owner" || r === "admin",
   );
+
+  const totalCount = (allYearsRows ?? []).length;
 
   return (
     <div className="space-y-4">
@@ -253,6 +331,13 @@ export default async function ExpensesPage({
             </Link>
           ) : null
         }
+      />
+
+      <ExpenseFilters
+        availableYears={availableYears}
+        projects={projects}
+        filteredCount={expenses.length}
+        totalCount={totalCount}
       />
 
       <ExpensesTable
