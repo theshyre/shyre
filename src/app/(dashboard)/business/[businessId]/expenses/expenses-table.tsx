@@ -160,6 +160,19 @@ export function ExpensesTable({
     });
   }, [selectedIds, toast, tToast]);
 
+  // INTENTIONAL: bulkSetCategory and bulkSetProject do NOT clear
+  // the selection on success. Two reasons:
+  //   1. The user often wants to apply BOTH category AND project
+  //      to the same selected rows in sequence — clearing forces
+  //      them to re-select between actions.
+  //   2. Clearing selection mid-action also clears `someSelected`
+  //      → the bulk toolbar unmounts → the picker (which was
+  //      mid-flight, about to render its ✓ Done state) is
+  //      destroyed before the user sees that feedback.
+  // Bulk DELETE still clears (the rows are gone, can't operate on
+  // them again). Users who want to clear the selection manually
+  // can hit Escape or click "Clear selection" in the toolbar.
+
   const bulkSetCategory = useCallback(
     async (category: string): Promise<void> => {
       const ids = Array.from(selectedIds);
@@ -170,10 +183,6 @@ export function ExpensesTable({
       const result = await bulkUpdateExpenseCategoryAction(fd);
       // runSafeAction returns ActionResult — null/undefined for
       // legacy void actions, { success } for the wrapped path.
-      // Only show the success toast when the action actually
-      // succeeded; on failure surface the server's user-safe
-      // message and re-throw so the picker's commit() catches
-      // it and skips the ✓ Done state.
       if (result && "success" in result && !result.success) {
         toast.push({
           kind: "error",
@@ -181,9 +190,8 @@ export function ExpensesTable({
         });
         throw new Error(result.error.userMessageKey);
       }
-      setSelectedIds(new Set());
       toast.push({
-        kind: "info",
+        kind: "success",
         message: tToast("bulkCategorized", { count: ids.length }),
       });
     },
@@ -205,9 +213,8 @@ export function ExpensesTable({
         });
         throw new Error(result.error.userMessageKey);
       }
-      setSelectedIds(new Set());
       toast.push({
-        kind: "info",
+        kind: "success",
         message: tToast("bulkProjectAssigned", { count: ids.length }),
       });
     },
