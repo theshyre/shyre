@@ -146,23 +146,6 @@ export function ExpensesTable({
     return () => document.removeEventListener("keydown", onKey);
   }, [someSelected]);
 
-  // Measure thead height so the bulk-action strip overlays the
-  // header row pixel-perfectly across density / text-size changes.
-  const theadRef = useRef<HTMLTableSectionElement>(null);
-  const [theadHeight, setTheadHeight] = useState<number>(0);
-  useEffect(() => {
-    const el = theadRef.current;
-    if (!el) return;
-    const update = (): void => {
-      setTheadHeight(el.getBoundingClientRect().height);
-    };
-    update();
-    if (typeof ResizeObserver === "undefined") return;
-    const ro = new ResizeObserver(update);
-    ro.observe(el);
-    return () => ro.disconnect();
-  }, []);
-
   // ── Bulk action handlers ────────────────────────────────────
 
   const bulkDelete = useCallback(async () => {
@@ -253,7 +236,73 @@ export function ExpensesTable({
   }
 
   return (
-    <div className="density-table relative overflow-x-auto rounded-lg border border-edge bg-surface-raised">
+    <div className="density-table rounded-lg border border-edge bg-surface-raised overflow-hidden">
+      {/* Bulk-action strip — sibling above the table, NOT an
+          absolute overlay. Per the updated CLAUDE.md
+          "Multi-select tables" rule for wide tables (> 8
+          semantic columns), the strip lives above the thead so
+          column headers stay fully visible during bulk
+          operations. Same surface tokens as the thead so the
+          visual treatment reads as a continuation. */}
+      {someSelected && (
+        <div
+          role="toolbar"
+          aria-label={t("bulk.label")}
+          className="flex items-center gap-3 border-b border-edge bg-surface-inset px-4 py-2"
+        >
+          <input
+            type="checkbox"
+            checked={allSelected}
+            ref={(el) => {
+              if (el) el.indeterminate = !allSelected && someSelected;
+            }}
+            onChange={toggleAll}
+            aria-label={t("bulk.selectAll")}
+            className="h-4 w-4 rounded border-edge text-accent focus:ring-focus-ring"
+          />
+          <span className="text-body font-medium text-content">
+            {t("bulk.selectedCount", { count: selectedIds.size })}
+          </span>
+          <button
+            type="button"
+            onClick={clearSelection}
+            className="text-caption text-content-secondary hover:text-content hover:underline"
+          >
+            {t("bulk.clear")}
+          </button>
+          {bulkAckMessage && (
+            <span
+              className="inline-flex items-center gap-1.5 text-body font-medium text-success"
+              role="status"
+              aria-live="polite"
+            >
+              <Check size={14} className="shrink-0" />
+              {bulkAckMessage}
+            </span>
+          )}
+
+          <div className="ml-auto flex items-center gap-2">
+            <BulkCategoryPicker onSelect={bulkSetCategory} />
+            <BulkProjectPicker
+              projects={projects}
+              onSelect={bulkSetProject}
+            />
+            <Tooltip label={t("bulk.delete")}>
+              <span className="inline-flex">
+                <InlineDeleteRowConfirm
+                  ariaLabel={t("bulk.delete")}
+                  onConfirm={bulkDelete}
+                  summary={tc("actions.deleteCount", {
+                    count: selectedIds.size,
+                  })}
+                />
+              </span>
+            </Tooltip>
+          </div>
+        </div>
+      )}
+
+      <div className="overflow-x-auto">
       <table className="w-full table-fixed">
         {/* Column-width lock. table-fixed + an explicit <colgroup>
             tells the browser to ignore intrinsic content widths
@@ -276,24 +325,20 @@ export function ExpensesTable({
             nothing to redistribute. */}
         <colgroup>
           <col style={{ width: 40 }} /> {/* selection */}
-          <col style={{ width: 100 }} /> {/* date */}
+          <col style={{ width: 116 }} /> {/* date — 116 fits "Apr 11, 2019" w/ density padding */}
           <col style={{ width: 128 }} /> {/* category */}
           {showTeamColumn && <col style={{ width: 140 }} />}
           <col style={{ width: 160 }} /> {/* vendor */}
-          <col style={{ width: 240 }} /> {/* description */}
+          <col style={{ width: 224 }} /> {/* description — most-elastic, absorbs date's +16 */}
           <col style={{ width: 176 }} /> {/* notes */}
           <col style={{ width: 140 }} /> {/* project */}
           <col style={{ width: 112 }} /> {/* amount */}
           <col style={{ width: 40 }} /> {/* author avatar */}
           <col style={{ width: 80 }} /> {/* actions */}
         </colgroup>
-        <thead
-          ref={theadRef}
-          className="bg-surface-inset border-b border-edge"
-          aria-hidden={someSelected || undefined}
-        >
+        <thead className="bg-surface-inset border-b border-edge">
           <tr>
-            <th className="w-10 text-left">
+            <th className="text-left">
               <input
                 type="checkbox"
                 checked={allSelected}
@@ -302,7 +347,6 @@ export function ExpensesTable({
                 }}
                 onChange={toggleAll}
                 aria-label={t("bulk.selectAll")}
-                tabIndex={someSelected ? -1 : 0}
                 className="h-4 w-4 rounded border-edge text-accent focus:ring-focus-ring"
               />
             </th>
@@ -366,68 +410,7 @@ export function ExpensesTable({
           })}
         </tbody>
       </table>
-
-      {someSelected && (
-        <div
-          role="toolbar"
-          aria-label={t("bulk.label")}
-          className="absolute left-0 right-0 top-0 z-10 flex items-center gap-3 bg-surface-inset border-b border-edge px-4"
-          style={theadHeight > 0 ? { height: theadHeight } : undefined}
-        >
-          <input
-            type="checkbox"
-            checked={allSelected}
-            ref={(el) => {
-              if (el) el.indeterminate = !allSelected && someSelected;
-            }}
-            onChange={toggleAll}
-            aria-label={t("bulk.selectAll")}
-            className="h-4 w-4 rounded border-edge text-accent focus:ring-focus-ring"
-          />
-          {bulkAckMessage ? (
-            <span
-              className="inline-flex items-center gap-1.5 text-body font-medium text-success"
-              role="status"
-              aria-live="polite"
-            >
-              <Check size={14} className="shrink-0" />
-              {bulkAckMessage}
-            </span>
-          ) : (
-            <>
-              <span className="text-body font-medium text-content">
-                {t("bulk.selectedCount", { count: selectedIds.size })}
-              </span>
-              <button
-                type="button"
-                onClick={clearSelection}
-                className="text-caption text-content-secondary hover:text-content hover:underline"
-              >
-                {t("bulk.clear")}
-              </button>
-            </>
-          )}
-
-          <div className="ml-auto flex items-center gap-2">
-            <BulkCategoryPicker onSelect={bulkSetCategory} />
-            <BulkProjectPicker
-              projects={projects}
-              onSelect={bulkSetProject}
-            />
-            <Tooltip label={t("bulk.delete")}>
-              <span style={{ display: "inline-flex" }}>
-                <InlineDeleteRowConfirm
-                  ariaLabel={t("bulk.delete")}
-                  onConfirm={bulkDelete}
-                  summary={tc("actions.deleteCount", {
-                    count: selectedIds.size,
-                  })}
-                />
-              </span>
-            </Tooltip>
-          </div>
-        </div>
-      )}
+      </div>
     </div>
   );
 }

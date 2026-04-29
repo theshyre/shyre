@@ -237,9 +237,18 @@ export function EditableCell(props: EditableCellProps): React.JSX.Element {
   // table-fixed column width when the value (or longest <option>
   // label) is wider than the column. Clamp explicitly so the
   // edit input always respects its <td>'s width.
+  //
+  // min-h-[1.75rem] keeps the rendered height parity-locked
+  // between idle (button) and edit (input) states. Without it,
+  // the user-agent line-height on <select>/<input> (~1.2)
+  // differs from the inherited text-body line-height of the
+  // button, so toggling a single cell into edit mode nudges
+  // its row's neighbors. 1.75rem ≈ 28px at default root, scales
+  // with the user's text-size pref like everything else
+  // text-adjacent.
   return (
     <div
-      className={`relative block min-w-0 max-w-full ${props.className ?? ""}`}
+      className={`relative block min-h-[1.75rem] min-w-0 max-w-full ${props.className ?? ""}`}
     >
       {props.variant === "select" ? (
         <select
@@ -392,7 +401,7 @@ function renderDisplay({
         // table). Activation requires Enter/Space (button
         // default) or click.
       }}
-      className={`block w-full min-w-0 max-w-full text-left rounded-sm border border-transparent px-1.5 py-0.5 hover:bg-hover focus:outline-none focus-visible:ring-1 focus-visible:ring-accent ${
+      className={`flex w-full min-h-[1.75rem] min-w-0 max-w-full items-center rounded-sm border border-transparent px-1.5 py-0.5 text-left hover:bg-hover focus:outline-none focus-visible:ring-1 focus-visible:ring-accent ${
         empty ? "text-content-muted" : "text-content"
       } ${className ?? ""}`}
     >
