@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { useTranslations } from "next-intl";
-import { Trash2, Check, X } from "lucide-react";
+import { Trash2, Check, X, Split } from "lucide-react";
 import { Spinner, Avatar, resolveAvatarUrl } from "@theshyre/ui";
 import { Tooltip } from "@/components/Tooltip";
 import { useFormAction } from "@/hooks/use-form-action";
@@ -21,6 +21,7 @@ import {
   formatExpenseAmount,
   formatExpenseDateDisplay,
 } from "./format-helpers";
+import { SplitExpenseModal } from "./split-expense-modal";
 import type { ProjectOption } from "./page";
 
 interface ExpenseRecord {
@@ -85,6 +86,7 @@ export function ExpenseRow({
   const tToast = useTranslations("expenses.toast");
   const toast = useToast();
   const [confirmingDelete, setConfirmingDelete] = useState(false);
+  const [splitOpen, setSplitOpen] = useState(false);
 
   const del = useFormAction({
     action: deleteExpenseAction,
@@ -348,7 +350,7 @@ export function ExpenseRow({
         )}
       </td>
 
-      {/* Actions (delete only — edit is per-cell) */}
+      {/* Actions (split + delete; edit is per-cell) */}
       <td className="text-right">
         {!canEdit ? (
           <span aria-hidden="true" />
@@ -385,21 +387,49 @@ export function ExpenseRow({
             </Tooltip>
           </form>
         ) : (
-          <Tooltip
-            label={t("ariaActions.delete", { vendor: ariaIdent })}
-            labelMode="label"
-          >
-            <button
-              type="button"
-              onClick={() => setConfirmingDelete(true)}
-              className="inline-flex items-center rounded-md p-1 text-content-secondary hover:bg-hover hover:text-error"
-              aria-label={t("ariaActions.delete", { vendor: ariaIdent })}
+          <div className="inline-flex items-center gap-0.5">
+            <Tooltip
+              label={t("ariaActions.split", { vendor: ariaIdent })}
+              labelMode="label"
             >
-              <Trash2 size={14} />
-            </button>
-          </Tooltip>
+              <button
+                type="button"
+                onClick={() => setSplitOpen(true)}
+                className="inline-flex items-center rounded-md p-1 text-content-secondary hover:bg-hover hover:text-content"
+                aria-label={t("ariaActions.split", { vendor: ariaIdent })}
+              >
+                <Split size={14} />
+              </button>
+            </Tooltip>
+            <Tooltip
+              label={t("ariaActions.delete", { vendor: ariaIdent })}
+              labelMode="label"
+            >
+              <button
+                type="button"
+                onClick={() => setConfirmingDelete(true)}
+                className="inline-flex items-center rounded-md p-1 text-content-secondary hover:bg-hover hover:text-error"
+                aria-label={t("ariaActions.delete", { vendor: ariaIdent })}
+              >
+                <Trash2 size={14} />
+              </button>
+            </Tooltip>
+          </div>
         )}
       </td>
+      {/* Modal portals into document.body — see SplitExpenseModal.
+          Mounted as a child of <tr> only so unmount tracks the
+          row; the actual DOM lives at body level. */}
+      {splitOpen && (
+        <SplitExpenseModal
+          expenseId={expense.id}
+          originalAmount={expense.amount}
+          originalCurrency={expense.currency}
+          originalCategory={expense.category}
+          originalNotes={expense.notes}
+          onClose={() => setSplitOpen(false)}
+        />
+      )}
     </tr>
   );
 }

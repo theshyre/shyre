@@ -32,7 +32,18 @@
   "ariaActions": {
     "edit": "Edit {vendor} expense",
     "delete": "Delete {vendor} expense",
-    "editField": "Edit {field} for {vendor}"
+    "editField": "Edit {field} for {vendor}",
+    "split": "Split {vendor} into multiple categories"
+  },
+  "split": {
+    "title": "Split this expense",
+    "subtitle": "Splits sum to the original amount ({amount}). Each row gets its own category.",
+    "addRow": "Add row",
+    "removeRow": "Remove this row",
+    "autoBalance": "Auto-balance",
+    "totalLine": "Total: {total} of {original}",
+    "notesPlaceholder": "Notes for this split (optional)",
+    "confirm": "{count, plural, =1 {Save split} other {Save # splits}}"
   },
   "fields": {
     "incurredOn": "Date",

@@ -6,6 +6,7 @@ import { validateTeamAccess } from "@/lib/team-context";
 import { revalidatePath } from "next/cache";
 import { ALLOWED_EXPENSE_CATEGORIES } from "./allow-lists";
 import { filterAuthorizedExpenseIds } from "./bulk-auth";
+import { validateSplits, type ExpenseSplit } from "./split-helpers";
 
 function blankToNull(v: FormDataEntryValue | null): string | null {
   if (v == null) return null;
@@ -238,6 +239,145 @@ export async function updateExpenseFieldAction(formData: FormData): Promise<
       revalidatePath("/business/expenses");
     },
     "updateExpenseFieldAction",
+  );
+}
+
+/**
+ * Split one expense into N rows, one per category. The original
+ * row stays put — its amount + category + notes get rewritten to
+ * splits[0]; rows for splits[1..N-1] are inserted alongside,
+ * inheriting everything else from the original (date, vendor,
+ * project, billable, currency, team, user_id).
+ *
+ * Auth gate matches updateExpenseAction (author OR owner|admin).
+ *
+ * import_source_id and import_run_id are intentionally NOT
+ * copied to the new rows: the user split this manually after
+ * import, so the new rows aren't part of the import for
+ * dedupe / undo purposes. The original keeps its source_id +
+ * run_id so re-imports still dedupe against the original
+ * receipt.
+ *
+ * Form fields:
+ *   - id           expense to split
+ *   - splits       JSON array of { amount, category, notes? }
+ */
+export async function splitExpenseAction(formData: FormData): Promise<
+  | { success: true }
+  | { success: false; error: import("@/lib/errors").SerializedAppError }
+> {
+  return runSafeAction(
+    formData,
+    async (fd, { supabase, userId }) => {
+      const id = String(fd.get("id") ?? "");
+      const splitsJson = String(fd.get("splits") ?? "");
+      if (!id) throw new Error("Expense id required.");
+      if (!splitsJson) throw new Error("Splits payload required.");
+
+      let splits: ExpenseSplit[];
+      try {
+        const parsed = JSON.parse(splitsJson);
+        if (!Array.isArray(parsed)) {
+          throw new Error("Splits must be an array.");
+        }
+        splits = parsed.map((s, i) => {
+          if (typeof s !== "object" || s === null) {
+            throw new Error(`Split ${i} is not an object.`);
+          }
+          const amt = Number(
+            (s as { amount: unknown }).amount,
+          );
+          const category = String(
+            (s as { category: unknown }).category ?? "",
+          );
+          const rawNotes = (s as { notes: unknown }).notes;
+          const notes =
+            typeof rawNotes === "string" && rawNotes.trim() !== ""
+              ? rawNotes.trim()
+              : null;
+          return { amount: amt, category, notes };
+        });
+      } catch (err) {
+        throw new Error(
+          `Splits payload is invalid: ${err instanceof Error ? err.message : String(err)}`,
+        );
+      }
+
+      // Auth + load original.
+      const { data: original } = await supabase
+        .from("expenses")
+        .select(
+          "id, team_id, user_id, incurred_on, amount, currency, vendor, description, notes, project_id, billable, deleted_at",
+        )
+        .eq("id", id)
+        .maybeSingle();
+      if (!original) throw new Error("Expense not found.");
+      if (original.deleted_at) {
+        throw new Error("Cannot split a deleted expense.");
+      }
+      const teamId = original.team_id as string;
+      const { role } = await validateTeamAccess(teamId);
+      const isAuthor = (original.user_id as string) === userId;
+      if (!isAuthor && role !== "owner" && role !== "admin") {
+        throw new Error("Only the author or an owner/admin can split.");
+      }
+
+      // Validate splits sum + per-row.
+      const originalAmount = Number(original.amount);
+      const validation = validateSplits(originalAmount, splits);
+      if (!validation.ok) {
+        throw new Error(
+          validation.summary ??
+            "Some splits are invalid — please fix and try again.",
+        );
+      }
+
+      // Update the original to splits[0] values. Preserve the
+      // original notes on splits[0] when the user didn't supply
+      // an override, so the split that "is the original" doesn't
+      // silently lose its audit trail.
+      const first = splits[0]!;
+      assertSupabaseOk(
+        await supabase
+          .from("expenses")
+          .update({
+            amount: Math.round(first.amount * 100) / 100,
+            category: first.category,
+            notes:
+              first.notes !== null && first.notes !== undefined
+                ? first.notes
+                : (original.notes as string | null),
+          })
+          .eq("id", id),
+      );
+
+      // Insert the remaining splits as new rows. Inherit the
+      // original's date, vendor, description, project, billable,
+      // currency, team, user — only amount + category + notes
+      // are split-specific.
+      if (splits.length > 1) {
+        const newRows = splits.slice(1).map((s) => ({
+          team_id: teamId,
+          user_id: original.user_id as string,
+          incurred_on: original.incurred_on as string,
+          amount: Math.round(s.amount * 100) / 100,
+          currency: (original.currency as string | null) ?? "USD",
+          vendor: original.vendor as string | null,
+          category: s.category,
+          description: original.description as string | null,
+          notes: s.notes ?? null,
+          project_id: (original.project_id as string | null) ?? null,
+          billable: original.billable as boolean,
+        }));
+        assertSupabaseOk(
+          await supabase.from("expenses").insert(newRows),
+        );
+      }
+
+      revalidatePath("/business");
+      revalidatePath("/business/expenses");
+    },
+    "splitExpenseAction",
   );
 }
 

@@ -32,7 +32,18 @@
   "ariaActions": {
     "edit": "Editar gasto de {vendor}",
     "delete": "Eliminar gasto de {vendor}",
-    "editField": "Editar {field} de {vendor}"
+    "editField": "Editar {field} de {vendor}",
+    "split": "Dividir {vendor} en varias categorías"
+  },
+  "split": {
+    "title": "Dividir este gasto",
+    "subtitle": "Las divisiones deben sumar el importe original ({amount}). Cada fila tiene su propia categoría.",
+    "addRow": "Agregar fila",
+    "removeRow": "Eliminar esta fila",
+    "autoBalance": "Auto-balancear",
+    "totalLine": "Total: {total} de {original}",
+    "notesPlaceholder": "Notas para esta división (opcional)",
+    "confirm": "{count, plural, =1 {Guardar división} other {Guardar # divisiones}}"
   },
   "fields": {
     "incurredOn": "Fecha",
