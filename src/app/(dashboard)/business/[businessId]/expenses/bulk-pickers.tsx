@@ -146,7 +146,15 @@ function DropdownPicker({
   disabledTooltip = null,
 }: DropdownPickerProps): React.JSX.Element {
   const [open, setOpen] = useState(false);
-  const [pending, setPending] = useState(false);
+  // Value of the item currently being committed via onSelect, or
+  // null when no commit is in flight. The clicked item shows
+  // its own inline spinner + "Saving…" label; other items
+  // disable so a second click can't start a parallel action.
+  // Menu stays OPEN during the commit so the user has a clear
+  // visual anchor for "this is what I just clicked, and the
+  // system is working on it"; closes on success.
+  const [committingValue, setCommittingValue] = useState<string | null>(null);
+  const pending = committingValue !== null;
   // Index of the currently focused (keyboard-highlighted) item.
   // -1 when nothing is highlighted yet.
   const [activeIdx, setActiveIdx] = useState<number>(-1);
@@ -245,14 +253,21 @@ function DropdownPicker({
   );
 
   async function commit(value: string): Promise<void> {
-    setOpen(false);
-    setPending(true);
+    if (committingValue !== null) return; // already in flight
+    setCommittingValue(value);
     try {
       await onSelect(value);
-    } finally {
-      setPending(false);
-      // Return focus to the trigger after the action completes.
+      // Success: close the menu + return focus to trigger so the
+      // next bulk action can start with one keystroke.
+      setOpen(false);
       triggerRef.current?.focus();
+    } catch {
+      // Error path: the parent's onSelect is expected to handle
+      // its own toast / error rendering. We just clear the
+      // pending state so the menu becomes usable again instead
+      // of getting stuck with a permanently-disabled item.
+    } finally {
+      setCommittingValue(null);
     }
   }
 
@@ -298,24 +313,51 @@ function DropdownPicker({
           {/* Items list — scrolls if it overflows the max height,
               keeping the help footer below it pinned. */}
           <div role="menu" className="max-h-[280px] overflow-y-auto">
-            {items.map((item, i) => (
-              <button
-                ref={(el) => {
-                  itemRefs.current[i] = el;
-                }}
-                key={item.key}
-                type="button"
-                role="menuitem"
-                tabIndex={activeIdx === i ? 0 : -1}
-                onMouseEnter={() => setActiveIdx(i)}
-                onClick={() => void commit(item.value)}
-                className={`block w-full text-left px-3 py-2 text-body transition-colors ${
-                  activeIdx === i ? "bg-hover" : ""
-                } ${item.muted ? "italic text-content-muted border-b border-edge-muted" : "text-content"}`}
-              >
-                {item.label}
-              </button>
-            ))}
+            {items.map((item, i) => {
+              const isActive = activeIdx === i;
+              const isCommitting = committingValue === item.value;
+              const isOtherCommitting =
+                pending && !isCommitting;
+              return (
+                <button
+                  ref={(el) => {
+                    itemRefs.current[i] = el;
+                  }}
+                  key={item.key}
+                  type="button"
+                  role="menuitem"
+                  tabIndex={isActive ? 0 : -1}
+                  onMouseEnter={() =>
+                    !isOtherCommitting && setActiveIdx(i)
+                  }
+                  onClick={() => !pending && void commit(item.value)}
+                  disabled={isOtherCommitting}
+                  className={`flex w-full items-center justify-between gap-2 px-3 py-2 text-left text-body transition-colors ${
+                    // Strong "this is what you'll commit" state:
+                    // accent-soft background + accent-coloured text
+                    // + 2px left-edge stripe in the accent. Visible
+                    // on every theme; matches the sidebar nav's
+                    // active-item language.
+                    isActive
+                      ? "bg-accent-soft text-accent border-l-2 border-accent pl-[10px]"
+                      : "border-l-2 border-transparent text-content"
+                  } ${
+                    item.muted ? "italic text-content-muted border-b border-edge-muted" : ""
+                  } ${
+                    isOtherCommitting ? "opacity-40 cursor-not-allowed" : "cursor-pointer"
+                  }`}
+                >
+                  <span className="flex-1">
+                    {item.label}
+                  </span>
+                  {isCommitting && (
+                    <span className="inline-flex items-center gap-1 text-caption text-content-muted">
+                      <Spinner size="h-3 w-3" />
+                    </span>
+                  )}
+                </button>
+              );
+            })}
           </div>
           {/* Sticky help footer — shows the active item's
               description + examples. Only rendered when at least
