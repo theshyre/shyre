@@ -33,7 +33,10 @@ The order matters: most of these set baseline state that the import + first invo
 ## 4 · Customers + projects (let the import create them)
 
 - [ ] You don't need to pre-create customers or projects. The Harvest importer creates them on the fly with `imported_from = "harvest"` so it's idempotent (re-runs dedupe via `import_source_id`).
-- [ ] **Default rates** are the one thing worth setting NOW per customer/project, BEFORE importing time entries — otherwise revenue rollups in Reports will read `$0` until you go back and fill them in. After the import, Sidebar → Customers → click each → set the default rate; same for any project that has its own rate.
+- [ ] **Rates after the import — audit, don't pre-create.** Reports read rates *live* at report time (`project.hourly_rate ?? customer.default_rate ?? defaultRate`), not at time-entry creation, so the deadline is "before your next report run," not "before the import." Right after the import:
+  - Projects: Harvest's `hourly_rate` is preserved on the project row, so most projects come in already correct. Open `/projects` and look for any with `—` in the rate column — those are the ones Harvest didn't have a rate on.
+  - Customers: Harvest has no customer-level rate, so every imported customer arrives with `default_rate = null`. If you want a customer-level fallback for projects that don't have their own rate, set it via Sidebar → Customers → click each.
+  - Per-entry rates: when Harvest had a `billable_rate` that differed from the project rate, the importer stamps a note in the entry's description (the `time_entries` table has no rate column). Revenue rollups still use the project/customer/default chain, not the per-entry note — so if you relied on per-entry overrides, plan to either normalize them onto the project rate or accept the rollup uses the canonical rate.
 
 ## 5 · Integrations (optional but cheap)
 
