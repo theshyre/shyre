@@ -94,8 +94,8 @@ not as a generic "delete a year's worth of expenses" tool.
 - Source spreadsheet pattern: Date / Amount / Item / Comments
   per-year-tab — the canonical shape this importer is built for.
 - Future receipt-email ingestion: see
-  [`docs/reference/roadmap.md`](../../reference/roadmap.md). The
-  CSV importer is the historical-data path; receipt ingestion
+  [`docs/reference/expense-receipt-ingestion.md`](../../reference/expense-receipt-ingestion.md).
+  The CSV importer is the historical-data path; receipt ingestion
   will be the day-to-day path.
 - Expenses feature guide: [`expenses.md`](./expenses.md) for
   manual entry, categories, period locks, soft delete, and undo.
