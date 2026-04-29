@@ -68,6 +68,27 @@ export default async function DashboardLayout({
     .limit(1);
   const canManageBusiness = (ownerAdminTeams ?? []).length > 0;
 
+  // Ambient team-context chip in the sidebar bottom block. Shows
+  // the user's single team name when teams.length === 1, the team
+  // count otherwise. Both link to /teams; without a global
+  // active-team concept (every page reads ?org= individually),
+  // this is informational rather than a switcher — the chip
+  // confirms scope; the user toggles via TeamFilter on each list
+  // page when they need to.
+  const { data: teamMemberships } = await supabase
+    .from("team_members")
+    .select("teams(id, name)")
+    .eq("user_id", user.userId);
+  const memberTeams = (teamMemberships ?? [])
+    .map((row) => {
+      const t = row.teams as { id: string; name: string } | { id: string; name: string }[] | null;
+      return Array.isArray(t) ? (t[0] ?? null) : t;
+    })
+    .filter((t): t is { id: string; name: string } => t !== null);
+  const teamCount = memberTeams.length;
+  const primaryTeamName =
+    teamCount === 1 ? (memberTeams[0]?.name ?? null) : null;
+
   return (
     <ToastProvider>
       <div className="flex h-full">
@@ -82,6 +103,8 @@ export default async function DashboardLayout({
           isSystemAdmin={admin}
           unresolvedErrorCount={unresolvedErrorCount}
           canManageBusiness={canManageBusiness}
+          teamCount={teamCount}
+          primaryTeamName={primaryTeamName}
         />
         <main className="flex-1 overflow-y-auto">
           <RunningTimerHeaderPill />

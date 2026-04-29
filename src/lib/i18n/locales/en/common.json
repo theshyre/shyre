@@ -23,6 +23,7 @@
     "adminTeams": "Instance teams",
     "adminSampleData": "Sample data",
     "systemHub": "System",
+    "teamCount": "{count, plural, =1 {1 team} other {# teams}}",
     "docs": "Documentation",
     "unresolvedBadge": "{count, plural, one {# unresolved item} other {# unresolved items}}"
   },

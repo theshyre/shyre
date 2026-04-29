@@ -52,6 +52,17 @@ export default async function SettingsHubPage(): Promise<React.JSX.Element> {
   const membersHref =
     teams.length === 1 ? `/teams/${teams[0]!.id}` : "/teams";
 
+  // Teams card title surfaces the count + active-team name. Per the
+  // agency-owner finding, the count is the discoverability hook —
+  // an owner who doesn't yet have "Teams" as their mental model
+  // recognizes "Teams (3)" as the thing they're configuring. Solo
+  // users see their team name inline so the card reads as a direct
+  // pointer to "your one team."
+  const teamsTitle =
+    teams.length === 1
+      ? `${t("cards.teams.title")} · ${teams[0]!.name}`
+      : `${t("cards.teams.title")} (${teams.length})`;
+
   const cards: Card[] = [
     // Members card sits first — agency-owner finding: most-frequent
     // owner task should be most-prominent.
@@ -66,7 +77,7 @@ export default async function SettingsHubPage(): Promise<React.JSX.Element> {
     // two paths to the same place; the sidebar entry is always visible
     // to viewers who can act on it.
     {
-      title: t("cards.teams.title"),
+      title: teamsTitle,
       description: t("cards.teams.description"),
       href: "/teams",
       icon: Building2,

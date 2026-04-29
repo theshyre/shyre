@@ -53,13 +53,22 @@ export default async function ProjectsPage({
     }),
   );
 
-  const teamName = (teamId: string) => teams.find(o => o.id === teamId)?.name ?? "\u2014";
+  const teamName = (teamId: string) =>
+    teams.find((o) => o.id === teamId)?.name ?? "\u2014";
+
+  // Team-scope column appears only for multi-team viewers. For solos
+  // the team is ambient (one team, never switched), and the column
+  // adds visual noise that distracts from project / customer / rate.
+  // For agencies, the column tells you which scope the project lives
+  // in at a glance \u2014 the symptom of "Teams and Projects feel close"
+  // dissolves into "Team is the chip on every Project."
+  const showTeamColumn = teams.length > 1;
 
   return (
     <div>
       <div className="flex items-center gap-3">
         <FolderKanban size={24} className="text-accent" />
-        <h1 className="text-2xl font-bold text-content">{t("title")}</h1>
+        <h1 className="text-page-title font-bold text-content">{t("title")}</h1>
         <TeamFilter teams={teams} selectedTeamId={selectedTeamId ?? null} />
       </div>
 
@@ -72,22 +81,24 @@ export default async function ProjectsPage({
 
       {projects && projects.length > 0 ? (
         <div className="mt-6 overflow-hidden rounded-lg border border-edge bg-surface-raised">
-          <table className="w-full text-sm">
+          <table className="w-full text-body">
             <thead>
               <tr className="border-b border-edge bg-surface-inset">
-                <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider text-content-muted">
+                <th className="px-4 py-3 text-left text-label font-semibold uppercase tracking-wider text-content-muted">
                   {tc("table.name")}
                 </th>
-                <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider text-content-muted">
-                  Org
-                </th>
-                <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider text-content-muted">
+                {showTeamColumn && (
+                  <th className="px-4 py-3 text-left text-label font-semibold uppercase tracking-wider text-content-muted">
+                    {tc("nav.teams")}
+                  </th>
+                )}
+                <th className="px-4 py-3 text-left text-label font-semibold uppercase tracking-wider text-content-muted">
                   {t("table.customer")}
                 </th>
-                <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider text-content-muted">
+                <th className="px-4 py-3 text-left text-label font-semibold uppercase tracking-wider text-content-muted">
                   {t("table.hourlyRate")}
                 </th>
-                <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider text-content-muted">
+                <th className="px-4 py-3 text-left text-label font-semibold uppercase tracking-wider text-content-muted">
                   {t("table.status")}
                 </th>
               </tr>
@@ -113,9 +124,13 @@ export default async function ProjectsPage({
                         {project.name}
                       </Link>
                     </td>
-                    <td className="px-4 py-3 text-content-secondary text-xs">
-                      {teamName(project.team_id)}
-                    </td>
+                    {showTeamColumn && (
+                      <td className="px-4 py-3">
+                        <span className="inline-flex items-center rounded-full bg-surface-inset px-2 py-0.5 text-caption font-medium text-content-secondary">
+                          {teamName(project.team_id)}
+                        </span>
+                      </td>
+                    )}
                     <td className="px-4 py-3 text-content-secondary">
                       {customerName}
                     </td>
@@ -134,7 +149,7 @@ export default async function ProjectsPage({
           </table>
         </div>
       ) : (
-        <p className="mt-6 text-sm text-content-muted">
+        <p className="mt-6 text-body text-content-muted">
           {t("noProjects")}
         </p>
       )}
