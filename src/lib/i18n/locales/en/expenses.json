@@ -87,7 +87,8 @@
     "clear": "Clear selection",
     "delete": "Delete selected",
     "setCategory": "Set category",
-    "setProject": "Set project"
+    "setProject": "Set project",
+    "noProjectsToAssign": "No active projects in this business — add one before bulk-assigning."
   },
   "categories": {
     "software": "Software",

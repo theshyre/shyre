@@ -26,19 +26,16 @@ describe("BulkCategoryPicker", () => {
 
   it("invokes onSelect with the chosen category and closes", async () => {
     const onSelect = vi.fn(async () => {});
-    const { getByRole, getAllByRole, queryByRole } = renderWithIntl(
+    const { getByRole, queryByRole } = renderWithIntl(
       <BulkCategoryPicker onSelect={onSelect} />,
     );
     fireEvent.click(getByRole("button", { name: /Set category/i }));
-    // Each menuitem now renders label + description + examples;
-    // a regex match on /Software/ would hit both the Software item
-    // (heading) and other items whose description contains the
-    // word. Filter by the heading <span> text instead.
-    const items = getAllByRole("menuitem");
-    const softwareItem = items.find((el) =>
-      el.querySelector("span")?.textContent === "Software",
-    );
-    if (!softwareItem) throw new Error("Software menu item not found");
+    // Items now render single-line; rich help is in the per-item
+    // tooltip. The Tooltip uses labelMode="describe" so the menu
+    // item's accessible name is the visible text (the category
+    // name) — match exactly to avoid false-positives from items
+    // whose tooltip text contains "Software".
+    const softwareItem = getByRole("menuitem", { name: "Software" });
     fireEvent.click(softwareItem);
     await waitFor(() => {
       expect(onSelect).toHaveBeenCalledWith("software");

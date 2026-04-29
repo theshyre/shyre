@@ -87,7 +87,8 @@
     "clear": "Limpiar selección",
     "delete": "Eliminar seleccionados",
     "setCategory": "Asignar categoría",
-    "setProject": "Asignar proyecto"
+    "setProject": "Asignar proyecto",
+    "noProjectsToAssign": "No hay proyectos activos en este negocio — crea uno antes de asignar en lote."
   },
   "categories": {
     "software": "Software",
