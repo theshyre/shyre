@@ -28,6 +28,12 @@ interface Props {
    *  shows so multi-team agencies can target the right team. */
   teamOptions: { id: string; name: string }[];
   projects: ProjectOption[];
+  /** Optional secondary action rendered next to the "Add expense"
+   *  button when the form is collapsed. Hidden when the form
+   *  expands so a tall form panel doesn't end up with a button
+   *  hanging off its top-right corner. Used today for the "Import
+   *  CSV" link on /business/[businessId]/expenses. */
+  secondaryAction?: React.ReactNode;
 }
 
 function todayStr(): string {
@@ -39,6 +45,7 @@ export function NewExpenseForm({
   defaultTeamId,
   teamOptions,
   projects,
+  secondaryAction,
 }: Props): React.JSX.Element {
   const [open, setOpen] = useState(false);
   const [selectedTeamId, setSelectedTeamId] = useState(defaultTeamId);
@@ -65,15 +72,18 @@ export function NewExpenseForm({
 
   if (!open) {
     return (
-      <button
-        type="button"
-        onClick={() => setOpen(true)}
-        className={buttonPrimaryClass}
-      >
-        <Plus size={16} />
-        {t("add")}
-        <kbd className={kbdClass}>N</kbd>
-      </button>
+      <div className="flex items-center gap-2 flex-wrap">
+        <button
+          type="button"
+          onClick={() => setOpen(true)}
+          className={buttonPrimaryClass}
+        >
+          <Plus size={16} />
+          {t("add")}
+          <kbd className={kbdClass}>N</kbd>
+        </button>
+        {secondaryAction}
+      </div>
     );
   }
 

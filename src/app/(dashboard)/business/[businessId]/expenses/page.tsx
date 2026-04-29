@@ -6,6 +6,7 @@ import { createClient } from "@/lib/supabase/server";
 import { getTranslations } from "next-intl/server";
 import { getUserTeams } from "@/lib/team-context";
 import { LinkPendingSpinner } from "@/components/LinkPendingSpinner";
+import { buttonSecondaryClass } from "@/lib/form-styles";
 
 export async function generateMetadata(): Promise<Metadata> {
   const t = await getTranslations("expenses");
@@ -207,16 +208,6 @@ export default async function ExpensesPage({
         <span className="inline-flex items-center gap-1.5 rounded-full bg-surface-inset px-3 py-1 text-caption font-medium text-content-secondary">
           {t("monthTotal", { amount: monthTotalLabel })}
         </span>
-        {canImport && (
-          <Link
-            href={`/business/${businessId}/expenses/import`}
-            className="ml-auto inline-flex items-center gap-1.5 rounded-md border border-edge bg-surface-raised px-3 py-1.5 text-caption font-medium text-content-secondary hover:bg-hover transition-colors"
-          >
-            <Upload size={14} />
-            {t("importCsv")}
-            <LinkPendingSpinner size={10} className="" />
-          </Link>
-        )}
       </div>
 
       {lockSummary && (
@@ -247,6 +238,18 @@ export default async function ExpensesPage({
         defaultTeamId={representativeTeamId}
         teamOptions={teamOptions}
         projects={projects}
+        secondaryAction={
+          canImport ? (
+            <Link
+              href={`/business/${businessId}/expenses/import`}
+              className={buttonSecondaryClass}
+            >
+              <Upload size={16} />
+              {t("importCsv")}
+              <LinkPendingSpinner size={10} className="" />
+            </Link>
+          ) : null
+        }
       />
 
       {expenses.length === 0 ? (
