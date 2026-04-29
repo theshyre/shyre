@@ -4,8 +4,14 @@ import { runSafeAction } from "@/lib/safe-action";
 import { assertSupabaseOk } from "@/lib/errors";
 import { validateBusinessAccess } from "@/lib/team-context";
 import { revalidatePath } from "next/cache";
+import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import { ALLOWED_ENTITY_TYPES } from "./allow-lists";
+import {
+  isOwnerOfEveryTeam,
+  ownsAnotherBusiness,
+  expectedConfirmName,
+} from "./delete-checks";
 import {
   mergeIdentityHistoryRows,
   type IdentityHistoryEntry,
@@ -95,6 +101,141 @@ export async function updateBusinessIdentityAction(
     revalidatePath("/business");
     revalidatePath(`/business/${businessId}`);
   }, "updateBusinessIdentityAction") as unknown as void;
+}
+
+/**
+ * Delete a business. Cascades through the business's children
+ * (state registrations, identity_private, business_people, etc.)
+ * via FK CASCADE, but `teams.business_id` is ON DELETE RESTRICT,
+ * so every team under the business must be deleted first. We do
+ * that here in a single action, after a typed-name confirmation.
+ *
+ * Refusal preconditions, in order:
+ *   1. Caller must be `owner` of every team in the business — an
+ *      admin on one team but member on another can't delete the
+ *      whole business out from under them.
+ *   2. Caller must own at least one OTHER business — refusing to
+ *      orphan the actor mirrors deleteTeamAction's last-team
+ *      check. Without this, deleting your last business strands
+ *      you on /business with no way to create a new one (the
+ *      "create business" flow goes through team creation).
+ *
+ * Confirmation: typed string must match `legal_name` if set,
+ * otherwise the seeded `name`. Both come back from the same
+ * select to avoid a round trip.
+ */
+export async function deleteBusinessAction(formData: FormData): Promise<void> {
+  return runSafeAction(formData, async (formData, { supabase }) => {
+    const businessId = formData.get("business_id") as string;
+    const confirmName = formData.get("confirm_name") as string;
+    if (!businessId) throw new Error("business_id is required.");
+
+    const {
+      data: { user },
+    } = await supabase.auth.getUser();
+    if (!user) throw new Error("Unauthorized");
+
+    // Pull business + every team in it + caller's role on each
+    // team, in two queries. The role check is the strict gate
+    // (owner of EVERY team), the name check is the confirm gate.
+    const { data: business } = await supabase
+      .from("businesses")
+      .select("id, name, legal_name")
+      .eq("id", businessId)
+      .maybeSingle();
+    if (!business) {
+      throw new Error("Business not found or access denied.");
+    }
+
+    const { data: teamsInBiz } = await supabase
+      .from("teams")
+      .select("id")
+      .eq("business_id", businessId);
+    const teamIds = (teamsInBiz ?? []).map((row) => row.id as string);
+    if (teamIds.length === 0) {
+      // No teams = orphan business with no membership granting
+      // visibility. Shouldn't happen in healthy data, but if it
+      // does the caller can't have authorization either, and the
+      // RLS check below will refuse the delete anyway.
+      throw new Error("This business has no teams to delete from.");
+    }
+
+    const { data: callerMemberships } = await supabase
+      .from("team_members")
+      .select("team_id, role")
+      .eq("user_id", user.id)
+      .in("team_id", teamIds);
+    if (
+      !isOwnerOfEveryTeam(
+        teamIds,
+        (callerMemberships ?? []).map((m) => ({
+          team_id: m.team_id as string,
+          role: m.role as string,
+        })),
+      )
+    ) {
+      throw new Error(
+        "You must be the owner of every team in this business to delete it.",
+      );
+    }
+
+    // Refuse to orphan: caller must own at least one team in
+    // ANOTHER business. Counts only teams in DIFFERENT
+    // businesses, so a multi-team owner with all teams in the
+    // current business is still blocked. Personal teams
+    // (`is_personal=true`) have no business_id and are filtered
+    // out by ownsAnotherBusiness.
+    const { data: otherOwnerships } = await supabase
+      .from("team_members")
+      .select("teams!inner(id, business_id)")
+      .eq("user_id", user.id)
+      .eq("role", "owner");
+    const ownerTeams = (otherOwnerships ?? []).flatMap((row) => {
+      const team = row.teams as
+        | { id: string; business_id: string | null }
+        | { id: string; business_id: string | null }[]
+        | null;
+      const t = Array.isArray(team) ? team[0] : team;
+      return t ? [{ id: t.id, business_id: t.business_id }] : [];
+    });
+    if (!ownsAnotherBusiness(ownerTeams, businessId)) {
+      throw new Error(
+        "You can't delete your only business. Create another business first.",
+      );
+    }
+
+    // Typed-name confirmation. legal_name is the user's chosen
+    // string when set; otherwise we fall back to the seeded
+    // `name` column (same chain as the layout header).
+    const expected = expectedConfirmName(
+      (business.legal_name as string | null) ?? null,
+      (business.name as string | null) ?? null,
+    );
+    if (!expected || confirmName.trim() !== expected) {
+      throw new Error(
+        "Business name does not match. Deletion cancelled.",
+      );
+    }
+
+    // Cascade: delete teams first (their children CASCADE via
+    // team_id FKs), then the business (its children CASCADE via
+    // business_id FKs). Sequential, not parallel — the
+    // teams.business_id RESTRICT must clear before the business
+    // delete can run.
+    for (const teamId of teamIds) {
+      assertSupabaseOk(
+        await supabase.from("teams").delete().eq("id", teamId),
+      );
+    }
+    assertSupabaseOk(
+      await supabase.from("businesses").delete().eq("id", businessId),
+    );
+
+    revalidatePath("/business");
+    revalidatePath("/teams");
+    revalidatePath("/");
+    redirect("/business");
+  }, "deleteBusinessAction") as unknown as void;
 }
 
 /** Read the merged identity-change timeline for a business — every

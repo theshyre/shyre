@@ -62,22 +62,43 @@ export async function deleteTeamAction(formData: FormData): Promise<void> {
   return runSafeAction(formData, async (formData, { supabase }) => {
     const teamId = formData.get("team_id") as string;
     const confirmName = formData.get("confirm_name") as string;
-    const { role } = await validateTeamAccess(teamId);
+    const { userId, role } = await validateTeamAccess(teamId);
 
     if (role !== "owner") {
-      throw new Error("Only the owner can delete an team.");
+      throw new Error("Only the owner can delete a team.");
     }
 
-    // Verify org name matches
+    // Refuse to orphan the actor: if this is their only team,
+    // deleting it leaves them with no team_members row at all,
+    // which breaks every page that calls validateTeamAccess. Force
+    // them to create another team first. Personal teams (created
+    // automatically on signup) count toward this check, so the
+    // user always has somewhere to land.
+    const { count: ownedTeamsCount } = await supabase
+      .from("team_members")
+      .select("id", { count: "exact", head: true })
+      .eq("user_id", userId);
+    if ((ownedTeamsCount ?? 0) <= 1) {
+      throw new Error(
+        "You can't delete your last team. Create another team first.",
+      );
+    }
+
+    // Snapshot business_id BEFORE deleting — `teams.business_id` is
+    // ON DELETE RESTRICT going up to businesses, but the team-side
+    // FK is RESTRICT only; reading the column after the team row
+    // is gone returns nothing. We need it to detect "did the
+    // business become orphaned by this delete?" below.
     const { data: org } = await supabase
       .from("teams")
-      .select("name")
+      .select("name, business_id")
       .eq("id", teamId)
       .single();
 
     if (!org || confirmName !== org.name) {
       throw new Error("Team name does not match. Deletion cancelled.");
     }
+    const businessId = (org.business_id as string | null) ?? null;
 
     // Delete and verify it actually happened (RLS may silently return 0 rows)
     const { error: deleteError, count } = await supabase
@@ -92,7 +113,24 @@ export async function deleteTeamAction(formData: FormData): Promise<void> {
       );
     }
 
+    // Orphan-business cleanup: if the team we just deleted was the
+    // last team under its business, the business is unreachable
+    // (only a team-membership grants RLS visibility into a
+    // business). Mirror the cleanup pattern from
+    // cleanupOrphanTeamsAction so the user doesn't end up with a
+    // ghost business in their sidebar.
+    if (businessId) {
+      const { count: remainingTeams } = await supabase
+        .from("teams")
+        .select("id", { count: "exact", head: true })
+        .eq("business_id", businessId);
+      if ((remainingTeams ?? 0) === 0) {
+        await supabase.from("businesses").delete().eq("id", businessId);
+      }
+    }
+
     revalidatePath("/teams");
+    revalidatePath("/business");
     redirect("/teams");
   }, "deleteTeamAction") as unknown as void;
 }

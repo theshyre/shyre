@@ -18,6 +18,7 @@ import {
   StateRegistrationsSection,
   type StateRegistrationRow,
 } from "./state-registrations-section";
+import { DeleteBusinessSection } from "./delete-business-section";
 
 interface PageProps {
   params: Promise<{ businessId: string }>;
@@ -43,7 +44,7 @@ export default async function BusinessIdentityPage({
   ] = await Promise.all([
     supabase
       .from("businesses")
-      .select("id, legal_name, entity_type")
+      .select("id, name, legal_name, entity_type")
       .eq("id", businessId)
       .maybeSingle(),
     canEdit
@@ -101,6 +102,13 @@ export default async function BusinessIdentityPage({
         registrations={registrations}
         canEdit={canEdit}
       />
+      {canEdit && (
+        <DeleteBusinessSection
+          businessId={businessId}
+          legalName={(business?.legal_name as string | null) ?? null}
+          name={(business?.name as string | null) ?? null}
+        />
+      )}
     </div>
   );
 }

@@ -36,7 +36,7 @@ export default async function BusinessDetailLayout({
   // the business's existence to outsiders).
   const { data: business } = await supabase
     .from("businesses")
-    .select("id, legal_name, entity_type")
+    .select("id, name, legal_name, entity_type")
     .eq("id", businessId)
     .maybeSingle();
   if (!business) {
@@ -49,13 +49,25 @@ export default async function BusinessDetailLayout({
   const { role } = await validateBusinessAccess(businessId);
   const canManagePeriodLocks = role === "owner" || role === "admin";
 
-  const displayName = (business.legal_name as string | null) ?? "Business";
+  // Header fallback chain: legal_name → name (seeded display name,
+  // never null in practice — see businesses migration) → i18n
+  // "Untitled business". Two unconfigured shells in the user's
+  // dashboard must read distinctly; `name` is the column carrying
+  // identity until legal_name is filled in.
+  const legalName = (business.legal_name as string | null) ?? null;
+  const seededName = (business.name as string | null) ?? null;
+  const displayName = legalName ?? seededName ?? t("untitled");
   const entityKey = business.entity_type
     ? String(business.entity_type)
     : null;
   const entityLabel = entityKey
     ? (ENTITY_LABEL[entityKey] ?? entityKey)
     : null;
+  // When legal_name is null, the entity-type pill is also empty
+  // (you can't pick an entity type without committing to identity).
+  // Surface a muted "Not yet configured" pill in the same slot so
+  // every business detail header has redundant disambiguation.
+  const showUnconfiguredPill = legalName === null;
 
   return (
     <div className="space-y-6">
@@ -76,6 +88,11 @@ export default async function BusinessDetailLayout({
           {entityLabel && (
             <span className="inline-flex items-center rounded-full bg-surface-inset px-2 py-0.5 text-caption font-medium text-content-secondary">
               {entityLabel}
+            </span>
+          )}
+          {showUnconfiguredPill && (
+            <span className="inline-flex items-center rounded-full border border-warning/40 bg-warning-soft/30 px-2 py-0.5 text-caption font-medium text-warning">
+              {t("notConfigured")}
             </span>
           )}
         </div>

@@ -1,5 +1,7 @@
 {
   "title": "Business",
+  "untitled": "Untitled business",
+  "notConfigured": "Not yet configured",
   "subtitle": "Legal identity, customers, expenses, and people for this team.",
   "edit": "Edit",
   "listTitle": "Businesses",
@@ -74,6 +76,18 @@
       "lockedThrough": "Locked through {date}",
       "empty": "No periods locked yet"
     }
+  },
+  "identityCta": {
+    "title": "Set up your business identity",
+    "summary": "Add legal name, entity type, and fiscal year so invoices and reports can show who issues them.",
+    "action": "Set up identity"
+  },
+  "danger": {
+    "title": "Delete this business",
+    "hint": "Permanently removes the business and every team, customer, project, invoice, expense, and time entry under it. Only the owner of every team can delete.",
+    "button": "Delete business",
+    "confirm": "Type \"{name}\" to confirm permanent deletion.",
+    "permanentDelete": "Permanently delete"
   },
   "info": {
     "title": "Business identity",

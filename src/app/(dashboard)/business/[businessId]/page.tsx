@@ -24,14 +24,15 @@ export async function generateMetadata({
     .select("name, legal_name")
     .eq("id", businessId)
     .maybeSingle();
+  const t = await getTranslations("business");
   if (!business) {
-    const t = await getTranslations("business");
     return { title: t("title") };
   }
   return {
-    title: ((business.legal_name as string | null) ??
-      (business.name as string | null) ??
-      "Business") as string,
+    title:
+      ((business.legal_name as string | null) ??
+        (business.name as string | null) ??
+        t("untitled")) as string,
   };
 }
 
@@ -174,6 +175,16 @@ export default async function BusinessOverviewPage({
   const entityLabel = identity?.entity_type
     ? String(identity.entity_type).replace(/_/g, " ")
     : null;
+  // Empty-state CTA: when legal_name is null the business is a
+  // bare shell. Setting up identity is the next obvious step
+  // (without it invoices can't render the legal entity, fiscal
+  // year is unknown, tax IDs are empty). Promote the Identity
+  // tile to a full-width call-to-action above the grid so it's
+  // the first thing the eye lands on. UX-designer review
+  // tradeoff: Overview's layout shifts shape based on this state,
+  // which is a small consistency cost in exchange for one click
+  // instead of two on the most-common new-shell flow.
+  const identityNeedsSetup = !identity?.legal_name;
 
   return (
     <div className="space-y-6">
@@ -193,21 +204,41 @@ export default async function BusinessOverviewPage({
         />
       </section>
 
+      {identityNeedsSetup && (
+        <Link
+          href={`/business/${businessId}/identity`}
+          className="group flex items-center gap-4 rounded-lg border border-accent/40 bg-accent-soft/40 p-5 hover:bg-accent-soft transition-colors"
+        >
+          <FileBadge size={24} className="text-accent shrink-0" />
+          <div className="min-w-0 flex-1">
+            <p className="text-body-lg font-semibold text-content">
+              {t("identityCta.title")}
+            </p>
+            <p className="mt-0.5 text-caption text-content-secondary">
+              {t("identityCta.summary")}
+            </p>
+          </div>
+          <span className="inline-flex items-center rounded-md bg-accent px-3 py-1.5 text-body font-medium text-accent-text group-hover:opacity-90 transition-opacity">
+            {t("identityCta.action")}
+          </span>
+        </Link>
+      )}
+
       {/* Module tiles — every shipped sub-tab gets a tile so the
           overview is a real summary, not a v0 placeholder grid. */}
       <section className="grid gap-4 sm:grid-cols-2">
-        <TileLink
-          href={`/business/${businessId}/identity`}
-          icon={FileBadge}
-          title={t("tiles.identity.title")}
-          summary={
-            identity?.legal_name
-              ? entityLabel
-                ? `${identity.legal_name} · ${entityLabel}`
-                : (identity.legal_name as string)
-              : t("tiles.identity.empty")
-          }
-        />
+        {!identityNeedsSetup && (
+          <TileLink
+            href={`/business/${businessId}/identity`}
+            icon={FileBadge}
+            title={t("tiles.identity.title")}
+            summary={
+              entityLabel
+                ? `${identity?.legal_name as string} · ${entityLabel}`
+                : (identity?.legal_name as string)
+            }
+          />
+        )}
         <TileLink
           href={`/business/${businessId}/expenses`}
           icon={Receipt}

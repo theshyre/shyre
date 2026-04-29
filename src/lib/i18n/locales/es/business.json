@@ -1,5 +1,7 @@
 {
   "title": "Negocio",
+  "untitled": "Negocio sin nombre",
+  "notConfigured": "Aún sin configurar",
   "subtitle": "Identidad legal, clientes, gastos y personas de este equipo.",
   "edit": "Editar",
   "listTitle": "Negocios",
@@ -74,6 +76,18 @@
       "lockedThrough": "Bloqueado hasta {date}",
       "empty": "Sin períodos bloqueados aún"
     }
+  },
+  "identityCta": {
+    "title": "Configura la identidad de tu negocio",
+    "summary": "Agrega razón social, tipo de entidad y año fiscal para que las facturas e informes muestren quién los emite.",
+    "action": "Configurar identidad"
+  },
+  "danger": {
+    "title": "Eliminar este negocio",
+    "hint": "Elimina permanentemente el negocio y todos los equipos, clientes, proyectos, facturas, gastos y entradas de tiempo asociados. Solo el dueño de todos los equipos puede eliminar.",
+    "button": "Eliminar negocio",
+    "confirm": "Escribe \"{name}\" para confirmar la eliminación permanente.",
+    "permanentDelete": "Eliminar permanentemente"
   },
   "info": {
     "title": "Identidad del negocio",

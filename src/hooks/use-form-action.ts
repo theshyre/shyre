@@ -123,6 +123,16 @@ export function useFormAction<T = unknown>({
             setTimeout(() => setSuccess(false), successTimeout);
           }
         } catch (err) {
+          // Next.js's redirect() / notFound() throw an internal
+          // exception with a digest; React/Next.js handles those at
+          // the framework level. Don't swallow them here — re-throw
+          // so navigation actually happens. Without this, a redirect
+          // from a server action surfaces as a fake "error" whose
+          // message ("NEXT_REDIRECT") gets fed to translateError
+          // and triggers a MISSING_MESSAGE crash.
+          if (isNextInternalError(err)) {
+            throw err;
+          }
           // Legacy throws (for actions not yet wrapped with safeAction).
           // Still run through translateError in case the thrown message
           // happens to be an i18n key.
@@ -148,4 +158,20 @@ export function useFormAction<T = unknown>({
     handleSubmit,
     reset,
   };
+}
+
+/**
+ * Detect Next.js's internal redirect / notFound throws by their
+ * digest. Mirrors the same predicate used in
+ * `src/lib/safe-action.ts` for the server side. Kept inlined here
+ * because that module is "use server" and can't be imported into
+ * a client hook. Exported for testing.
+ */
+export function isNextInternalError(err: unknown): boolean {
+  if (typeof err !== "object" || err === null) return false;
+  const digest = (err as { digest?: string }).digest;
+  if (typeof digest !== "string") return false;
+  return (
+    digest.startsWith("NEXT_REDIRECT") || digest.startsWith("NEXT_NOT_FOUND")
+  );
 }
