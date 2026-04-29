@@ -183,6 +183,14 @@ export default async function ExpensesPage({
           .map(([code, amt]) => formatCurrency(amt, code))
           .join(" · ");
 
+  // Recategorize callout: every CSV-imported expense lands in
+  // category="other" by default. Surface a single soft banner when
+  // the count is non-trivial — quiet enough to ignore on a clean
+  // ledger, prominent enough to notice after an import. Threshold
+  // of 1 keeps the rule simple; users who categorize as they go
+  // will never see it.
+  const otherCount = expenses.filter((e) => e.category === "other").length;
+
   return (
     <div className="space-y-4">
       <div className="flex items-center gap-3 flex-wrap">
@@ -201,6 +209,18 @@ export default async function ExpensesPage({
             {t("lockedThrough")}
           </span>{" "}
           {lockSummary}
+        </div>
+      )}
+
+      {otherCount > 0 && (
+        <div
+          className="rounded-md border border-warning/40 bg-warning-soft/20 px-3 py-2 text-caption text-content-secondary"
+          role="status"
+        >
+          <span className="font-semibold text-warning">
+            {t("recategorizeBanner.title", { count: otherCount })}
+          </span>{" "}
+          {t("recategorizeBanner.body")}
         </div>
       )}
 

@@ -12,6 +12,10 @@
   "sampleTag": "ejemplo",
   "billableTag": "facturable",
   "lockedThrough": "Bloqueado hasta:",
+  "recategorizeBanner": {
+    "title": "{count, plural, =1 {1 gasto en categoría 'Otros'} other {# gastos en categoría 'Otros'}}.",
+    "body": "Reclasifícalos antes de generar informes fiscales — los gastos importados quedan en 'Otros' hasta que los categorices."
+  },
   "toast": {
     "deleted": "Gasto eliminado",
     "undo": "Deshacer"

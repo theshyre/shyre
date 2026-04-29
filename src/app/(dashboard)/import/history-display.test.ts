@@ -10,6 +10,7 @@ const labels = {
   customer: (n: number) => (n === 1 ? "customer" : "customers"),
   project: (n: number) => (n === 1 ? "project" : "projects"),
   timeEntry: (n: number) => (n === 1 ? "time entry" : "time entries"),
+  expense: (n: number) => (n === 1 ? "expense" : "expenses"),
 };
 
 describe("effectiveStatusKind", () => {
@@ -70,6 +71,19 @@ describe("buildCountsList", () => {
       ),
     ).toEqual(["3 projects"]);
   });
+  it("includes expenses count from a CSV-expenses run", () => {
+    expect(
+      buildCountsList(
+        { imported: { expenses: 47 } },
+        labels,
+      ),
+    ).toEqual(["47 expenses"]);
+  });
+  it("pluralizes a single expense", () => {
+    expect(
+      buildCountsList({ imported: { expenses: 1 } }, labels),
+    ).toEqual(["1 expense"]);
+  });
 });
 
 describe("sourceLabel", () => {
@@ -93,6 +107,14 @@ describe("sourceLabel", () => {
         source_account_identifier: null,
       }),
     ).toBe("Toggl");
+  });
+  it("formats csv-expenses cleanly", () => {
+    expect(
+      sourceLabel({
+        imported_from: "csv-expenses",
+        source_account_identifier: null,
+      }),
+    ).toBe("Expenses CSV");
   });
 });
 

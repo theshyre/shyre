@@ -132,8 +132,16 @@ export async function undoImportRunAction(
 
     // Delete in FK order: time_entries → categories → category_sets →
     // projects → invoices (cascades to invoice_line_items) → customers.
-    // Each delete scopes by team_id too, so even a leaked run_id can't
+    // Plus: expenses, which the CSV importer writes to directly. Each
+    // delete scopes by team_id too, so even a leaked run_id can't
     // touch another team.
+    assertSupabaseOk(
+      await supabase
+        .from("expenses")
+        .delete()
+        .eq("team_id", teamId)
+        .eq("import_run_id", runId),
+    );
     assertSupabaseOk(
       await supabase
         .from("time_entries")
@@ -191,5 +199,6 @@ export async function undoImportRunAction(
     revalidatePath("/projects");
     revalidatePath("/time-entries");
     revalidatePath("/invoices");
+    revalidatePath("/business");
   }, "undoImportRunAction") as unknown as void;
 }

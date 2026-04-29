@@ -37,6 +37,7 @@ export interface ImportRunRow {
           customers?: number;
           projects?: number;
           timeEntries?: number;
+          expenses?: number;
         };
         skipped?: {
           timeEntries?: number;
@@ -121,6 +122,7 @@ function RunRow({
     customer: (n) => t("counts.customers", { count: n }),
     project: (n) => t("counts.projects", { count: n }),
     timeEntry: (n) => t("counts.timeEntries", { count: n }),
+    expense: (n) => t("counts.expenses", { count: n }),
   });
 
   const source = sourceLabel(run);

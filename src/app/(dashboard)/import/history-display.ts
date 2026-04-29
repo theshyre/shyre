@@ -33,6 +33,7 @@ export function buildCountsList(
     customer: (n: number) => string;
     project: (n: number) => string;
     timeEntry: (n: number) => string;
+    expense: (n: number) => string;
   },
 ): string[] {
   const out: string[] = [];
@@ -47,6 +48,9 @@ export function buildCountsList(
   }
   if (imp.timeEntries && imp.timeEntries > 0) {
     out.push(`${imp.timeEntries} ${labels.timeEntry(imp.timeEntries)}`);
+  }
+  if (imp.expenses && imp.expenses > 0) {
+    out.push(`${imp.expenses} ${labels.expense(imp.expenses)}`);
   }
 
   return out;
@@ -65,9 +69,11 @@ export function sourceLabel(run: {
   const base =
     run.imported_from === "harvest"
       ? "Harvest"
-      : // Capitalize the first letter as a fallback.
-        run.imported_from.charAt(0).toUpperCase() +
-        run.imported_from.slice(1);
+      : run.imported_from === "csv-expenses"
+        ? "Expenses CSV"
+        : // Capitalize the first letter as a fallback.
+          run.imported_from.charAt(0).toUpperCase() +
+          run.imported_from.slice(1);
   if (run.source_account_identifier) {
     return `${base} · ${run.source_account_identifier}`;
   }

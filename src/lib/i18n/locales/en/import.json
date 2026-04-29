@@ -18,7 +18,8 @@
     "counts": {
       "customers": "{count, plural, =1 {customer} other {customers}}",
       "projects": "{count, plural, =1 {project} other {projects}}",
-      "timeEntries": "{count, plural, =1 {time entry} other {time entries}}"
+      "timeEntries": "{count, plural, =1 {time entry} other {time entries}}",
+      "expenses": "{count, plural, =1 {expense} other {expenses}}"
     },
     "statuses": {
       "running": "Running",

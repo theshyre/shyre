@@ -18,7 +18,8 @@
     "counts": {
       "customers": "{count, plural, =1 {cliente} other {clientes}}",
       "projects": "{count, plural, =1 {proyecto} other {proyectos}}",
-      "timeEntries": "{count, plural, =1 {entrada de tiempo} other {entradas de tiempo}}"
+      "timeEntries": "{count, plural, =1 {entrada de tiempo} other {entradas de tiempo}}",
+      "expenses": "{count, plural, =1 {gasto} other {gastos}}"
     },
     "statuses": {
       "running": "En progreso",
