@@ -8,8 +8,7 @@ import {
   type KeyboardEvent,
 } from "react";
 import { useTranslations } from "next-intl";
-import { Tag, FolderKanban } from "lucide-react";
-import { Spinner } from "@theshyre/ui";
+import { Tag, FolderKanban, Loader2, Check } from "lucide-react";
 import { Tooltip } from "@/components/Tooltip";
 import { useDropdownPlacement } from "@/hooks/use-dropdown-placement";
 import { EXPENSE_CATEGORIES } from "./categories";
@@ -147,14 +146,15 @@ function DropdownPicker({
 }: DropdownPickerProps): React.JSX.Element {
   const [open, setOpen] = useState(false);
   // Value of the item currently being committed via onSelect, or
-  // null when no commit is in flight. The clicked item shows
-  // its own inline spinner + "Saving…" label; other items
-  // disable so a second click can't start a parallel action.
-  // Menu stays OPEN during the commit so the user has a clear
-  // visual anchor for "this is what I just clicked, and the
-  // system is working on it"; closes on success.
+  // null when nothing is in flight. The menu stays OPEN during
+  // the commit + briefly shows a ✓ "done" state on success
+  // before closing — gives the user undeniable in-place feedback
+  // ("yes, I clicked Software and the system applied it") that
+  // a tiny trigger spinner + bottom-of-viewport toast wasn't
+  // delivering.
   const [committingValue, setCommittingValue] = useState<string | null>(null);
-  const pending = committingValue !== null;
+  const [doneValue, setDoneValue] = useState<string | null>(null);
+  const pending = committingValue !== null || doneValue !== null;
   // Index of the currently focused (keyboard-highlighted) item.
   // -1 when nothing is highlighted yet.
   const [activeIdx, setActiveIdx] = useState<number>(-1);
@@ -253,21 +253,28 @@ function DropdownPicker({
   );
 
   async function commit(value: string): Promise<void> {
-    if (committingValue !== null) return; // already in flight
+    if (committingValue !== null || doneValue !== null) return; // already in flight
     setCommittingValue(value);
+    let succeeded = false;
     try {
       await onSelect(value);
-      // Success: close the menu + return focus to trigger so the
-      // next bulk action can start with one keystroke.
-      setOpen(false);
-      triggerRef.current?.focus();
+      succeeded = true;
     } catch {
-      // Error path: the parent's onSelect is expected to handle
-      // its own toast / error rendering. We just clear the
-      // pending state so the menu becomes usable again instead
-      // of getting stuck with a permanently-disabled item.
+      // Parent's onSelect handles its own toast / error rendering.
+      // Just clear the pending state so the menu re-enables.
     } finally {
       setCommittingValue(null);
+    }
+    if (succeeded) {
+      // Brief ✓ state before closing — gives the eye a moment to
+      // register that the action completed in-place before the
+      // menu disappears.
+      setDoneValue(value);
+      window.setTimeout(() => {
+        setDoneValue(null);
+        setOpen(false);
+        triggerRef.current?.focus();
+      }, 600);
     }
   }
 
@@ -281,7 +288,11 @@ function DropdownPicker({
       aria-expanded={open}
       className="inline-flex items-center gap-1.5 rounded-md border border-edge bg-surface-raised px-3 py-1 text-caption font-medium text-content hover:bg-hover transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
     >
-      {pending ? <Spinner size="h-3 w-3" /> : icon}
+      {pending ? (
+        <Loader2 size={14} className="animate-spin" aria-label="Saving" />
+      ) : (
+        icon
+      )}
       {label}
     </button>
   );
@@ -316,8 +327,10 @@ function DropdownPicker({
             {items.map((item, i) => {
               const isActive = activeIdx === i;
               const isCommitting = committingValue === item.value;
-              const isOtherCommitting =
-                pending && !isCommitting;
+              const isDone = doneValue === item.value;
+              const isOtherPending =
+                pending && !isCommitting && !isDone;
+              const showActiveStyle = isActive || isCommitting || isDone;
               return (
                 <button
                   ref={(el) => {
@@ -328,32 +341,45 @@ function DropdownPicker({
                   role="menuitem"
                   tabIndex={isActive ? 0 : -1}
                   onMouseEnter={() =>
-                    !isOtherCommitting && setActiveIdx(i)
+                    !isOtherPending && setActiveIdx(i)
                   }
                   onClick={() => !pending && void commit(item.value)}
-                  disabled={isOtherCommitting}
+                  disabled={isOtherPending || isCommitting || isDone}
                   className={`flex w-full items-center justify-between gap-2 px-3 py-2 text-left text-body transition-colors ${
-                    // Strong "this is what you'll commit" state:
-                    // accent-soft background + accent-coloured text
-                    // + 2px left-edge stripe in the accent. Visible
-                    // on every theme; matches the sidebar nav's
-                    // active-item language.
-                    isActive
+                    // Strong "this is what you'll commit / what
+                    // you just committed" state: accent-soft bg +
+                    // accent-coloured text + 2px left-edge stripe.
+                    // Same look for hover, in-flight, and just-done
+                    // so the user's eye stays anchored to the row
+                    // they clicked through the whole interaction.
+                    showActiveStyle
                       ? "bg-accent-soft text-accent border-l-2 border-accent pl-[10px]"
                       : "border-l-2 border-transparent text-content"
                   } ${
                     item.muted ? "italic text-content-muted border-b border-edge-muted" : ""
                   } ${
-                    isOtherCommitting ? "opacity-40 cursor-not-allowed" : "cursor-pointer"
+                    isOtherPending ? "opacity-40 cursor-not-allowed" : "cursor-pointer"
                   }`}
                 >
-                  <span className="flex-1">
-                    {item.label}
-                  </span>
+                  <span className="flex-1">{item.label}</span>
+                  {/* Lucide Loader2 instead of @theshyre/ui's
+                      Spinner: vector-rotation is unmistakable
+                      and doesn't depend on border-color cascade
+                      (the Spinner's transparent-edge trick can
+                      collide with bg-accent-soft). */}
                   {isCommitting && (
-                    <span className="inline-flex items-center gap-1 text-caption text-content-muted">
-                      <Spinner size="h-3 w-3" />
-                    </span>
+                    <Loader2
+                      size={14}
+                      className="animate-spin text-accent shrink-0"
+                      aria-label="Saving"
+                    />
+                  )}
+                  {isDone && (
+                    <Check
+                      size={14}
+                      className="text-success shrink-0"
+                      aria-label="Saved"
+                    />
                   )}
                 </button>
               );

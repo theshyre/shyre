@@ -167,7 +167,20 @@ export function ExpensesTable({
       const fd = new FormData();
       for (const id of ids) fd.append("id", id);
       fd.set("category", category);
-      await bulkUpdateExpenseCategoryAction(fd);
+      const result = await bulkUpdateExpenseCategoryAction(fd);
+      // runSafeAction returns ActionResult — null/undefined for
+      // legacy void actions, { success } for the wrapped path.
+      // Only show the success toast when the action actually
+      // succeeded; on failure surface the server's user-safe
+      // message and re-throw so the picker's commit() catches
+      // it and skips the ✓ Done state.
+      if (result && "success" in result && !result.success) {
+        toast.push({
+          kind: "error",
+          message: result.error.userMessageKey,
+        });
+        throw new Error(result.error.userMessageKey);
+      }
       setSelectedIds(new Set());
       toast.push({
         kind: "info",
@@ -184,7 +197,14 @@ export function ExpensesTable({
       const fd = new FormData();
       for (const id of ids) fd.append("id", id);
       fd.set("project_id", projectId);
-      await bulkUpdateExpenseProjectAction(fd);
+      const result = await bulkUpdateExpenseProjectAction(fd);
+      if (result && "success" in result && !result.success) {
+        toast.push({
+          kind: "error",
+          message: result.error.userMessageKey,
+        });
+        throw new Error(result.error.userMessageKey);
+      }
       setSelectedIds(new Set());
       toast.push({
         kind: "info",
