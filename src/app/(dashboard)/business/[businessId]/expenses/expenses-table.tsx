@@ -8,6 +8,7 @@ import {
   useState,
 } from "react";
 import { useTranslations } from "next-intl";
+import { Check } from "lucide-react";
 import { useToast } from "@/components/Toast";
 import { Tooltip } from "@/components/Tooltip";
 import { InlineDeleteRowConfirm } from "@/components/InlineDeleteRowConfirm";
@@ -80,6 +81,30 @@ export function ExpensesTable({
   // (cell save → re-fetch → expenses prop changes → component
   // re-renders, selection persists because state is local).
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
+  // Inline ack message rendered in the toolbar (where the
+  // user's eye lives during a bulk action) for ~3s after a
+  // successful bulk update. Toast at viewport bottom is the
+  // persistent record; this is the in-place signal.
+  const [bulkAckMessage, setBulkAckMessage] = useState<string | null>(null);
+  const ackTimerRef = useRef<number | null>(null);
+  const flashAck = useCallback((msg: string): void => {
+    setBulkAckMessage(msg);
+    if (ackTimerRef.current !== null) {
+      window.clearTimeout(ackTimerRef.current);
+    }
+    ackTimerRef.current = window.setTimeout(() => {
+      setBulkAckMessage(null);
+      ackTimerRef.current = null;
+    }, 3_000);
+  }, []);
+  useEffect(
+    () => () => {
+      if (ackTimerRef.current !== null) {
+        window.clearTimeout(ackTimerRef.current);
+      }
+    },
+    [],
+  );
 
   const visibleIds = useMemo(
     () => expenses.map((e) => e.id),
@@ -190,12 +215,11 @@ export function ExpensesTable({
         });
         throw new Error(result.error.userMessageKey);
       }
-      toast.push({
-        kind: "success",
-        message: tToast("bulkCategorized", { count: ids.length }),
-      });
+      const message = tToast("bulkCategorized", { count: ids.length });
+      flashAck(message);
+      toast.push({ kind: "success", message });
     },
-    [selectedIds, toast, tToast],
+    [selectedIds, toast, tToast, flashAck],
   );
 
   const bulkSetProject = useCallback(
@@ -213,12 +237,11 @@ export function ExpensesTable({
         });
         throw new Error(result.error.userMessageKey);
       }
-      toast.push({
-        kind: "success",
-        message: tToast("bulkProjectAssigned", { count: ids.length }),
-      });
+      const message = tToast("bulkProjectAssigned", { count: ids.length });
+      flashAck(message);
+      toast.push({ kind: "success", message });
     },
-    [selectedIds, toast, tToast],
+    [selectedIds, toast, tToast, flashAck],
   );
 
   if (expenses.length === 0) {
@@ -329,16 +352,29 @@ export function ExpensesTable({
             aria-label={t("bulk.selectAll")}
             className="h-4 w-4 rounded border-edge text-accent focus:ring-focus-ring"
           />
-          <span className="text-body font-medium text-content">
-            {t("bulk.selectedCount", { count: selectedIds.size })}
-          </span>
-          <button
-            type="button"
-            onClick={clearSelection}
-            className="text-caption text-content-secondary hover:text-content hover:underline"
-          >
-            {t("bulk.clear")}
-          </button>
+          {bulkAckMessage ? (
+            <span
+              className="inline-flex items-center gap-1.5 text-body font-medium text-success"
+              role="status"
+              aria-live="polite"
+            >
+              <Check size={14} className="shrink-0" />
+              {bulkAckMessage}
+            </span>
+          ) : (
+            <>
+              <span className="text-body font-medium text-content">
+                {t("bulk.selectedCount", { count: selectedIds.size })}
+              </span>
+              <button
+                type="button"
+                onClick={clearSelection}
+                className="text-caption text-content-secondary hover:text-content hover:underline"
+              >
+                {t("bulk.clear")}
+              </button>
+            </>
+          )}
 
           <div className="ml-auto flex items-center gap-2">
             <BulkCategoryPicker onSelect={bulkSetCategory} />
