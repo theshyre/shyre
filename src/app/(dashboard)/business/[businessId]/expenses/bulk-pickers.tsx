@@ -7,6 +7,7 @@ import {
   useState,
   type KeyboardEvent,
 } from "react";
+import { createPortal } from "react-dom";
 import { useTranslations } from "next-intl";
 import { Tag, FolderKanban, Loader2, Check } from "lucide-react";
 import { Tooltip } from "@/components/Tooltip";
@@ -161,6 +162,16 @@ function DropdownPicker({
   const triggerRef = useRef<HTMLButtonElement>(null);
   const menuRef = useRef<HTMLDivElement>(null);
   const itemRefs = useRef<Array<HTMLButtonElement | null>>([]);
+  // Computed position for the portaled menu, in viewport coords
+  // (position: fixed). The menu lives at document.body level so
+  // its containing-table's overflow:auto can't clip it. Computed
+  // from the trigger's getBoundingClientRect() at open + on
+  // resize/scroll.
+  const [menuPos, setMenuPos] = useState<{
+    right: number;
+    top?: number;
+    bottom?: number;
+  } | null>(null);
 
   // Estimate: items capped at the scroll-region max (280px) plus
   // the help-footer when any item has help (~64px) plus a small
@@ -189,6 +200,41 @@ function DropdownPicker({
       return () => window.clearTimeout(id);
     }
   }, [open]);
+
+  // Compute the menu's viewport-coords position whenever it
+  // opens, the placement flips, or the window resizes/scrolls.
+  // Right-edge is anchored to the trigger's right edge so the
+  // dropdown reads as part of the trigger; vertical position
+  // depends on placement (bottom / top of trigger). 4px gap.
+  useEffect(() => {
+    if (!open) {
+      setMenuPos(null);
+      return;
+    }
+    const compute = (): void => {
+      const el = triggerRef.current;
+      if (!el) return;
+      const rect = el.getBoundingClientRect();
+      if (placement === "top") {
+        setMenuPos({
+          right: window.innerWidth - rect.right,
+          bottom: window.innerHeight - rect.top + 4,
+        });
+      } else {
+        setMenuPos({
+          right: window.innerWidth - rect.right,
+          top: rect.bottom + 4,
+        });
+      }
+    };
+    compute();
+    window.addEventListener("resize", compute);
+    window.addEventListener("scroll", compute, true);
+    return () => {
+      window.removeEventListener("resize", compute);
+      window.removeEventListener("scroll", compute, true);
+    };
+  }, [open, placement]);
 
   // Sync focus to the active item whenever the index changes.
   useEffect(() => {
@@ -297,30 +343,25 @@ function DropdownPicker({
     </button>
   );
 
-  return (
-    <div className="relative">
-      {disabled && disabledTooltip ? (
-        // labelMode="describe" preserves the button's visible text
-        // ("Set project") as its accessible name; the tooltip is
-        // supplemental ("No active projects to assign") via
-        // aria-describedby. Without this, screen readers would
-        // announce the disabled trigger by its tooltip text only.
-        <Tooltip label={disabledTooltip} labelMode="describe" showOnDisabled>
-          {triggerButton}
-        </Tooltip>
-      ) : (
-        triggerButton
-      )}
-      {open && (
-        <div
-          ref={menuRef}
-          tabIndex={-1}
-          onKeyDown={handleMenuKey}
-          className={`absolute right-0 z-20 flex flex-col rounded-md border border-edge bg-surface shadow-lg ${
-            placement === "top" ? "bottom-full mb-1" : "top-full mt-1"
-          }`}
-          style={{ width: menuWidthPx }}
-        >
+  // Menu lives at body-level via createPortal so the table's
+  // overflow:auto can't clip it. position: fixed + viewport
+  // coords from the trigger's getBoundingClientRect (computed
+  // in the effect above; nullish until first frame after open,
+  // which we guard by deferring render until menuPos resolves).
+  const menuNode =
+    open && menuPos !== null && typeof window !== "undefined" ? (
+      <div
+        ref={menuRef}
+        tabIndex={-1}
+        onKeyDown={handleMenuKey}
+        className="fixed z-50 flex flex-col rounded-md border border-edge bg-surface shadow-lg"
+        style={{
+          width: menuWidthPx,
+          right: menuPos.right,
+          ...(menuPos.top !== undefined ? { top: menuPos.top } : {}),
+          ...(menuPos.bottom !== undefined ? { bottom: menuPos.bottom } : {}),
+        }}
+      >
           {/* Items list — scrolls if it overflows the max height,
               keeping the help footer below it pinned. */}
           <div role="menu" className="max-h-[280px] overflow-y-auto">
@@ -411,8 +452,24 @@ function DropdownPicker({
               )}
             </div>
           )}
-        </div>
+      </div>
+    ) : null;
+
+  return (
+    <div className="relative">
+      {disabled && disabledTooltip ? (
+        // labelMode="describe" preserves the button's visible text
+        // ("Set project") as its accessible name; the tooltip is
+        // supplemental ("No active projects to assign") via
+        // aria-describedby. Without this, screen readers would
+        // announce the disabled trigger by its tooltip text only.
+        <Tooltip label={disabledTooltip} labelMode="describe" showOnDisabled>
+          {triggerButton}
+        </Tooltip>
+      ) : (
+        triggerButton
       )}
+      {menuNode !== null && createPortal(menuNode, document.body)}
     </div>
   );
 }
