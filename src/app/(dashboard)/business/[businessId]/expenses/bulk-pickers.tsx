@@ -46,16 +46,13 @@ export function BulkCategoryPicker({
     <DropdownPicker
       label={t("bulk.setCategory")}
       icon={<Tag size={14} />}
-      menuWidthPx={220}
-      items={EXPENSE_CATEGORIES.map((c) => {
-        const help = getCategoryHelp(c, t);
-        return {
-          key: c,
-          value: c,
-          label: t(`categories.${c}`),
-          tooltip: `${help.description}\n\n${help.examples}`,
-        };
-      })}
+      menuWidthPx={320}
+      items={EXPENSE_CATEGORIES.map((c) => ({
+        key: c,
+        value: c,
+        label: t(`categories.${c}`),
+        help: getCategoryHelp(c, t),
+      }))}
       onSelect={onSelect}
     />
   );
@@ -71,20 +68,20 @@ export function BulkProjectPicker({
   onSelect,
 }: ProjectProps): React.JSX.Element {
   const t = useTranslations("expenses");
-  const items = [
+  const items: DropdownItem[] = [
     {
       key: "__none",
       value: "",
       label: t("noProject"),
       muted: true,
-      tooltip: null,
+      help: null,
     },
     ...projects.map((p) => ({
       key: p.id,
       value: p.id,
       label: p.name,
       muted: false,
-      tooltip: null,
+      help: null,
     })),
   ];
   return (
@@ -113,8 +110,17 @@ interface DropdownItem {
   value: string;
   /** Visible label. */
   label: string;
-  /** Optional tooltip rendered on hover/focus. Null suppresses. */
-  tooltip?: string | null;
+  /** Optional rich help — description + examples — shown in the
+   *  menu's sticky footer when this item is the active one. We
+   *  render help in ONE persistent footer instead of per-item
+   *  tooltips because:
+   *    - tooltips flicker as the cursor moves through items
+   *    - tooltip auto-positioning gets clipped near viewport edges
+   *    - keyboard nav doesn't naturally trigger tooltips, so kbd
+   *      users were missing the help entirely
+   *  Footer pattern updates instantly on hover or arrow-nav, no
+   *  positioning logic, never clipped. */
+  help?: { description: string; examples: string } | null;
   /** When true, the item renders muted/italic — used for the
    *  "No project" clear-link option in the project picker. */
   muted?: boolean;
@@ -148,10 +154,18 @@ function DropdownPicker({
   const menuRef = useRef<HTMLDivElement>(null);
   const itemRefs = useRef<Array<HTMLButtonElement | null>>([]);
 
+  // Estimate: items capped at the scroll-region max (280px) plus
+  // the help-footer when any item has help (~64px) plus a small
+  // border allowance. The placement hook uses this to decide
+  // whether to flip the menu above the trigger.
+  const hasHelpFooter = items.some((it) => it.help);
   const placement = useDropdownPlacement({
     triggerRef,
     open,
-    estimatedMenuHeight: Math.min(items.length * 36 + 8, 360),
+    estimatedMenuHeight: Math.min(
+      items.length * 36 + (hasHelpFooter ? 64 : 0) + 8,
+      360,
+    ),
   });
 
   // On open: focus the first item; on close: return focus to
@@ -274,16 +288,17 @@ function DropdownPicker({
       {open && (
         <div
           ref={menuRef}
-          role="menu"
           tabIndex={-1}
           onKeyDown={handleMenuKey}
-          className={`absolute right-0 z-20 max-h-[360px] overflow-y-auto rounded-md border border-edge bg-surface shadow-lg ${
+          className={`absolute right-0 z-20 flex flex-col rounded-md border border-edge bg-surface shadow-lg ${
             placement === "top" ? "bottom-full mb-1" : "top-full mt-1"
           }`}
           style={{ width: menuWidthPx }}
         >
-          {items.map((item, i) => {
-            const button = (
+          {/* Items list — scrolls if it overflows the max height,
+              keeping the help footer below it pinned. */}
+          <div role="menu" className="max-h-[280px] overflow-y-auto">
+            {items.map((item, i) => (
               <button
                 ref={(el) => {
                   itemRefs.current[i] = el;
@@ -300,15 +315,34 @@ function DropdownPicker({
               >
                 {item.label}
               </button>
-            );
-            return item.tooltip ? (
-              <Tooltip key={item.key} label={item.tooltip} labelMode="describe">
-                {button}
-              </Tooltip>
-            ) : (
-              button
-            );
-          })}
+            ))}
+          </div>
+          {/* Sticky help footer — shows the active item's
+              description + examples. Only rendered when at least
+              one item in this menu has help (e.g. categories);
+              project menus have no help, so the footer is hidden
+              entirely and the menu collapses to just its items. */}
+          {items.some((it) => it.help) && (
+            <div className="border-t border-edge-muted bg-surface-inset px-3 py-2 space-y-0.5">
+              {activeIdx >= 0 && items[activeIdx]?.help ? (
+                <>
+                  <p className="text-caption text-content-secondary">
+                    {items[activeIdx]!.help!.description}
+                  </p>
+                  <p className="text-caption text-content-muted italic">
+                    {items[activeIdx]!.help!.examples}
+                  </p>
+                </>
+              ) : (
+                <p className="text-caption text-content-muted italic">
+                  {/* Idle / empty state — keeps the footer height
+                      stable so the menu doesn't bounce when the
+                      user moves out of an item briefly. */}
+                  &nbsp;
+                </p>
+              )}
+            </div>
+          )}
         </div>
       )}
     </div>
