@@ -32,6 +32,7 @@ interface ExpenseRecord {
   vendor: string | null;
   category: string;
   description: string | null;
+  notes: string | null;
   project_id: string | null;
   billable: boolean;
   is_sample: boolean;
@@ -188,6 +189,16 @@ export function ExpenseRow({
                   className={textareaClass}
                 />
               </div>
+              <div className="sm:col-span-3">
+                <label className={labelClass}>{t("fields.notes")}</label>
+                <textarea
+                  name="notes"
+                  rows={2}
+                  defaultValue={expense.notes ?? ""}
+                  placeholder={t("fields.notesPlaceholder")}
+                  className={textareaClass}
+                />
+              </div>
               <div className="sm:col-span-3 flex items-center gap-2">
                 <input
                   id={`billable-${expense.id}`}
@@ -243,6 +254,11 @@ export function ExpenseRow({
         {expense.description && (
           <p className="mt-1 text-caption text-content-muted line-clamp-1">
             {expense.description}
+          </p>
+        )}
+        {expense.notes && (
+          <p className="mt-1 text-caption text-content-muted italic line-clamp-1">
+            {expense.notes}
           </p>
         )}
       </td>

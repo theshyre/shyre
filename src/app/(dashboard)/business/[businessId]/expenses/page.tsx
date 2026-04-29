@@ -25,6 +25,7 @@ interface ExpenseRecord {
   vendor: string | null;
   category: string;
   description: string | null;
+  notes: string | null;
   project_id: string | null;
   billable: boolean;
   is_sample: boolean;
@@ -100,7 +101,7 @@ export default async function ExpensesPage({
   const { data: expRows } = await supabase
     .from("expenses")
     .select(
-      "id, team_id, user_id, incurred_on, amount, currency, vendor, category, description, project_id, billable, is_sample, projects(id, name)",
+      "id, team_id, user_id, incurred_on, amount, currency, vendor, category, description, notes, project_id, billable, is_sample, projects(id, name)",
     )
     .in("team_id", teamIds)
     .is("deleted_at", null)

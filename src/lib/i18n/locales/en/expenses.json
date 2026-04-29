@@ -36,6 +36,9 @@
     "category": "Category",
     "vendor": "Vendor",
     "description": "Description",
+    "notes": "Notes",
+    "notesPlaceholder": "Invoice #, order #, matter #, receipt details…",
+    "notesHint": "Audit-trail metadata. Receipt or order numbers, vendor confirmation IDs, anything you'd want to find later.",
     "project": "Project",
     "team": "Team",
     "billable": "Billable back to a customer"

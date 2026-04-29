@@ -19,6 +19,7 @@ interface ExpenseInput {
   vendor: string | null;
   category: string;
   description: string | null;
+  notes: string | null;
   project_id: string | null;
   billable: boolean;
 }
@@ -41,6 +42,7 @@ function readExpense(formData: FormData): ExpenseInput {
   const currency = blankToNull(formData.get("currency")) ?? "USD";
   const vendor = blankToNull(formData.get("vendor"));
   const description = blankToNull(formData.get("description"));
+  const notes = blankToNull(formData.get("notes"));
   const rawProjectId = blankToNull(formData.get("project_id"));
   const project_id = rawProjectId && rawProjectId !== "none" ? rawProjectId : null;
   const billable = formData.get("billable") === "on" || formData.get("billable") === "true";
@@ -52,6 +54,7 @@ function readExpense(formData: FormData): ExpenseInput {
     vendor,
     category,
     description,
+    notes,
     project_id,
     billable,
   };

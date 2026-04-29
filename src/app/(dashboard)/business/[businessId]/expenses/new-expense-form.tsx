@@ -174,6 +174,18 @@ export function NewExpenseForm({
           <label className={labelClass}>{t("fields.description")}</label>
           <textarea name="description" rows={2} className={textareaClass} />
         </div>
+        <div className="sm:col-span-3">
+          <label className={labelClass}>{t("fields.notes")}</label>
+          <textarea
+            name="notes"
+            rows={2}
+            placeholder={t("fields.notesPlaceholder")}
+            className={textareaClass}
+          />
+          <p className="mt-1 text-caption text-content-muted">
+            {t("fields.notesHint")}
+          </p>
+        </div>
         <div className="sm:col-span-3 flex items-center gap-2">
           <input
             id="billable"

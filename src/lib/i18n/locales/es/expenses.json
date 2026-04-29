@@ -36,6 +36,9 @@
     "category": "Categoría",
     "vendor": "Proveedor",
     "description": "Descripción",
+    "notes": "Notas",
+    "notesPlaceholder": "N.º factura, n.º pedido, n.º expediente, detalles del recibo…",
+    "notesHint": "Metadatos de auditoría. Números de recibo o pedido, ID de confirmación, cualquier cosa que quieras encontrar después.",
     "project": "Proyecto",
     "team": "Equipo",
     "billable": "Facturable al cliente"
