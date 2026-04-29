@@ -1,6 +1,9 @@
 {
   "title": "Proyectos",
   "editTitle": "Editar Proyecto",
+  "editSubtitle": "Detalles del proyecto · editar y guardar",
+  "editSubtitleWithCustomer": "Proyecto de {customer} · editar y guardar",
+  "untitled": "Proyecto sin nombre",
   "addProject": "Agregar Proyecto",
   "saveProject": "Guardar Proyecto",
   "saveChanges": "Guardar Cambios",

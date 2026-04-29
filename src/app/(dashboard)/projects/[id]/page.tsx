@@ -2,7 +2,7 @@ import type { Metadata } from "next";
 import { createClient } from "@/lib/supabase/server";
 import { getTranslations } from "next-intl/server";
 import { notFound } from "next/navigation";
-import { Clock, Hash, ExternalLink } from "lucide-react";
+import { Clock, Hash, ExternalLink, FolderKanban } from "lucide-react";
 
 export async function generateMetadata({
   params,
@@ -150,9 +150,38 @@ export default async function ProjectDetailPage({
 
   const recentEntries = allEntries.slice(0, 20);
 
+  // Defensive fallback: projects.name is NOT NULL in schema; this
+  // arm only fires under future schema drift. Mirrors the
+  // business / customer / team headers — every detail page must
+  // surface identifying text in the h1, never a generic noun.
+  const projectName = (project.name as string | null) ?? t("untitled");
+  // Customer context disambiguates two "Migration" projects under
+  // different customers — the form below doesn't show it
+  // prominently, so we surface it in the page header subline.
+  const customerName =
+    project.customers &&
+    typeof project.customers === "object" &&
+    "name" in project.customers
+      ? ((project.customers as { name: string | null }).name ?? null)
+      : null;
+
   return (
     <div>
-      <ProjectEditForm project={project} />
+      <div className="flex items-center gap-3">
+        <FolderKanban size={24} className="text-accent" />
+        <h1 className="text-page-title font-bold text-content break-words">
+          {projectName}
+        </h1>
+      </div>
+      <p className="mt-1 text-caption text-content-muted">
+        {customerName
+          ? t("editSubtitleWithCustomer", { customer: customerName })
+          : t("editSubtitle")}
+      </p>
+
+      <div className="mt-6">
+        <ProjectEditForm project={project} />
+      </div>
 
       <div className="mt-6">
         <ProjectCategoriesEditor

@@ -1,7 +1,6 @@
 "use client";
 
 import { useTranslations } from "next-intl";
-import { FolderKanban } from "lucide-react";
 import { AlertBanner } from "@theshyre/ui";
 import { useFormAction } from "@/hooks/use-form-action";
 import { SubmitButton } from "@/components/SubmitButton";
@@ -55,11 +54,6 @@ export function ProjectEditForm({
         name="category_set_id"
         value={project.category_set_id ?? ""}
       />
-
-      <div className="flex items-center gap-3">
-        <FolderKanban size={24} className="text-accent" />
-        <h1 className="text-2xl font-bold text-content">{t("editTitle")}</h1>
-      </div>
 
       <div className="rounded-lg border border-edge bg-surface-raised p-4 space-y-3">
         <div className="grid gap-3 sm:grid-cols-2">

@@ -1,7 +1,6 @@
 "use client";
 
 import { useTranslations } from "next-intl";
-import { Users } from "lucide-react";
 import { AlertBanner } from "@theshyre/ui";
 import {
   inputClass,
@@ -41,11 +40,6 @@ export function CustomerEditForm({
   return (
     <form action={handleSubmit} className="space-y-4">
       <input type="hidden" name="id" value={client.id} />
-
-      <div className="flex items-center gap-3">
-        <Users size={24} className="text-accent" />
-        <h1 className="text-2xl font-bold text-content">{t("editTitle")}</h1>
-      </div>
 
       {serverError && (
         <AlertBanner tone="error">{serverError}</AlertBanner>

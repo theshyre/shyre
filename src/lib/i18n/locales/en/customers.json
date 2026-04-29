@@ -1,6 +1,8 @@
 {
   "title": "Customers",
   "editTitle": "Edit Customer",
+  "editSubtitle": "Customer details · edit and save",
+  "untitled": "Untitled customer",
   "addCustomer": "Add Customer",
   "saveCustomer": "Save Customer",
   "saveChanges": "Save Changes",

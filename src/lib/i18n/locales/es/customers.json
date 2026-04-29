@@ -1,6 +1,8 @@
 {
   "title": "Clientes",
   "editTitle": "Editar cliente",
+  "editSubtitle": "Detalles del cliente · editar y guardar",
+  "untitled": "Cliente sin nombre",
   "addCustomer": "Agregar cliente",
   "saveCustomer": "Guardar cliente",
   "saveChanges": "Guardar cambios",

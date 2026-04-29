@@ -1,6 +1,9 @@
 {
   "title": "Projects",
   "editTitle": "Edit Project",
+  "editSubtitle": "Project details · edit and save",
+  "editSubtitleWithCustomer": "Project for {customer} · edit and save",
+  "untitled": "Untitled project",
   "addProject": "Add Project",
   "saveProject": "Save Project",
   "saveChanges": "Save Changes",

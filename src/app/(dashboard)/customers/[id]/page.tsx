@@ -3,7 +3,7 @@ import { createClient } from "@/lib/supabase/server";
 import { getUserTeams } from "@/lib/team-context";
 import { getTranslations } from "next-intl/server";
 import { notFound } from "next/navigation";
-import { FolderKanban } from "lucide-react";
+import { FolderKanban, Users } from "lucide-react";
 
 export async function generateMetadata({
   params,
@@ -220,9 +220,28 @@ export default async function ClientDetailPage({
         : groupNameById.get(p.principal_id) ?? "Group",
   }));
 
+  // Defensive fallback: customers.name is NOT NULL in schema, so
+  // this only fires if the column constraint changes or a future
+  // migration adds nullable rows. Mirrors the business/team
+  // headers — every detail page is required to render
+  // identifying text in the h1, never a generic noun.
+  const customerName = (client.name as string | null) ?? t("untitled");
+
   return (
     <div>
-      <CustomerEditForm client={client} />
+      <div className="flex items-center gap-3">
+        <Users size={24} className="text-accent" />
+        <h1 className="text-page-title font-bold text-content break-words">
+          {customerName}
+        </h1>
+      </div>
+      <p className="mt-1 text-caption text-content-muted">
+        {t("editSubtitle")}
+      </p>
+
+      <div className="mt-6">
+        <CustomerEditForm client={client} />
+      </div>
 
       <div className="mt-8">
         <div className="flex items-center gap-3">
