@@ -16,6 +16,10 @@ import { LinkPendingSpinner } from "@/components/LinkPendingSpinner";
 import type { ComponentType } from "react";
 
 interface Card {
+  /** Stable key — required because two cards can share the same
+   *  href (Members + Teams both land on /teams for multi-team
+   *  viewers) and React would warn on duplicate keys. */
+  id: string;
   title: string;
   description: string;
   href: string;
@@ -67,6 +71,7 @@ export default async function SettingsHubPage(): Promise<React.JSX.Element> {
     // Members card sits first — agency-owner finding: most-frequent
     // owner task should be most-prominent.
     {
+      id: "members",
       title: t("cards.members.title"),
       description: t("cards.members.description"),
       href: membersHref,
@@ -77,30 +82,35 @@ export default async function SettingsHubPage(): Promise<React.JSX.Element> {
     // two paths to the same place; the sidebar entry is always visible
     // to viewers who can act on it.
     {
+      id: "teams",
       title: teamsTitle,
       description: t("cards.teams.description"),
       href: "/teams",
       icon: Building2,
     },
     {
+      id: "security-groups",
       title: t("cards.securityGroups.title"),
       description: t("cards.securityGroups.description"),
       href: "/security-groups",
       icon: Shield,
     },
     {
+      id: "categories",
       title: t("cards.categories.title"),
       description: t("cards.categories.description"),
       href: "/categories",
       icon: Tags,
     },
     {
+      id: "templates",
       title: t("cards.templates.title"),
       description: t("cards.templates.description"),
       href: "/templates",
       icon: Bookmark,
     },
     {
+      id: "import",
       title: t("cards.import.title"),
       description: t("cards.import.description"),
       href: "/import",
@@ -124,7 +134,7 @@ export default async function SettingsHubPage(): Promise<React.JSX.Element> {
           const Icon = card.icon;
           return (
             <Link
-              key={card.href}
+              key={card.id}
               href={card.href}
               className="group flex items-start gap-3 rounded-lg border border-edge bg-surface-raised p-4 transition-colors hover:border-accent/40 hover:bg-hover"
             >
