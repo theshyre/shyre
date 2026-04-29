@@ -7,9 +7,17 @@
 
 ## Where it lives
 
-`/import` → "Import expenses from CSV" section, below the Harvest
-importer. Available to anyone with **owner** or **admin** role on at
-least one team.
+`/business/[businessId]/expenses` → **Import CSV** button in the
+top-right of the page header → opens
+`/business/[businessId]/expenses/import`. Owner / admin role on at
+least one team in the business required (the button is hidden for
+plain members).
+
+The cross-cutting `/import` page hosts only Harvest (which spans
+customers, projects, and time entries). Expense-only CSV import
+lives on the business's expenses surface where the data goes — it
+shouldn't take a Settings → Import detour to upload a CSV that
+ends up in one specific business's ledger.
 
 ## Required CSV shape
 

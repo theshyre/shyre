@@ -12,9 +12,15 @@
   "sampleTag": "ejemplo",
   "billableTag": "facturable",
   "lockedThrough": "Bloqueado hasta:",
+  "importCsv": "Importar CSV",
   "recategorizeBanner": {
     "title": "{count, plural, =1 {1 gasto en categoría 'Otros'} other {# gastos en categoría 'Otros'}}.",
     "body": "Reclasifícalos antes de generar informes fiscales — los gastos importados quedan en 'Otros' hasta que los categorices."
+  },
+  "import": {
+    "title": "Importar gastos desde CSV",
+    "description": "Carga masiva de gastos históricos desde un CSV con columnas Date / Amount / Item / Comments. Todas las filas se importan en categoría \"Otros\" — reclasifícalas en la página de Gastos después de importar.",
+    "backToExpenses": "Volver a gastos"
   },
   "toast": {
     "deleted": "Gasto eliminado",

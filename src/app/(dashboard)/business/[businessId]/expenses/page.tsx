@@ -1,8 +1,11 @@
 import type { Metadata } from "next";
+import Link from "next/link";
 import { notFound } from "next/navigation";
+import { Upload } from "lucide-react";
 import { createClient } from "@/lib/supabase/server";
 import { getTranslations } from "next-intl/server";
 import { getUserTeams } from "@/lib/team-context";
+import { LinkPendingSpinner } from "@/components/LinkPendingSpinner";
 
 export async function generateMetadata(): Promise<Metadata> {
   const t = await getTranslations("expenses");
@@ -190,6 +193,12 @@ export default async function ExpensesPage({
   // of 1 keeps the rule simple; users who categorize as they go
   // will never see it.
   const otherCount = expenses.filter((e) => e.category === "other").length;
+  // Import CSV link is owner|admin only — same gate as the
+  // /business/[businessId]/expenses/import page itself, but checked
+  // here to hide the entry point from members who would 404 on click.
+  const canImport = Array.from(teamRoleById.values()).some(
+    (r) => r === "owner" || r === "admin",
+  );
 
   return (
     <div className="space-y-4">
@@ -198,6 +207,16 @@ export default async function ExpensesPage({
         <span className="inline-flex items-center gap-1.5 rounded-full bg-surface-inset px-3 py-1 text-caption font-medium text-content-secondary">
           {t("monthTotal", { amount: monthTotalLabel })}
         </span>
+        {canImport && (
+          <Link
+            href={`/business/${businessId}/expenses/import`}
+            className="ml-auto inline-flex items-center gap-1.5 rounded-md border border-edge bg-surface-raised px-3 py-1.5 text-caption font-medium text-content-secondary hover:bg-hover transition-colors"
+          >
+            <Upload size={14} />
+            {t("importCsv")}
+            <LinkPendingSpinner size={10} className="" />
+          </Link>
+        )}
       </div>
 
       {lockSummary && (

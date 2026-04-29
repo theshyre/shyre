@@ -18,7 +18,7 @@ import {
 } from "@/lib/form-styles";
 import type { TeamListItem } from "@/lib/team-context";
 import { parseExpenseCsv } from "@/lib/expense-csv-import";
-import { importExpensesCsvAction } from "./expenses/actions";
+import { importExpensesCsvAction } from "./actions";
 
 interface Props {
   teams: TeamListItem[];
@@ -52,7 +52,7 @@ interface CommitSummary {
  * server action returns a fully-typed result we render inline as
  * the "done" step.
  */
-export function ExpensesCsvImport({ teams }: Props): React.JSX.Element {
+export function ImportForm({ teams }: Props): React.JSX.Element {
   const writableTeams = teams.filter(
     (t) => t.role === "owner" || t.role === "admin",
   );

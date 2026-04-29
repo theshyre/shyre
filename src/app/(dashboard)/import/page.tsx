@@ -4,7 +4,6 @@ import { Upload } from "lucide-react";
 import { createClient } from "@/lib/supabase/server";
 import { getUserTeams } from "@/lib/team-context";
 import { HarvestImport } from "./harvest-import";
-import { ExpensesCsvImport } from "./expenses-csv-import";
 import { ImportHistory, type ImportRunRow } from "./import-history";
 
 export async function generateMetadata(): Promise<Metadata> {
@@ -29,7 +28,6 @@ export default async function ImportPage(): Promise<React.JSX.Element> {
       <p className="mt-2 text-sm text-content-secondary">{t("subtitle")}</p>
 
       <HarvestImport teams={teams} />
-      <ExpensesCsvImport teams={teams} />
       <ImportHistory runs={runs} adminTeamIds={adminTeamIds} />
     </div>
   );

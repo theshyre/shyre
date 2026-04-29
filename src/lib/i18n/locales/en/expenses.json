@@ -12,9 +12,15 @@
   "sampleTag": "sample",
   "billableTag": "billable",
   "lockedThrough": "Locked through:",
+  "importCsv": "Import CSV",
   "recategorizeBanner": {
     "title": "{count, plural, =1 {1 expense in 'Other' category} other {# expenses in 'Other' category}}.",
     "body": "Recategorize before running tax reports — imported expenses default to 'Other' until you classify them."
+  },
+  "import": {
+    "title": "Import expenses from CSV",
+    "description": "Bulk-load historical expenses from a Date / Amount / Item / Comments CSV. Every row lands in category \"Other\" — recategorize on the Expenses page after import.",
+    "backToExpenses": "Back to expenses"
   },
   "toast": {
     "deleted": "Expense deleted",
