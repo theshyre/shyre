@@ -231,11 +231,15 @@ export function EditableCell(props: EditableCellProps): React.JSX.Element {
   const errorBorder = mode === "error";
 
   // ── Editing / saving / error: input rendering ────────────────
+  // min-w-0 + max-w-full are the load-bearing flexbox/grid escape
+  // hatches: native <select> and <input> default to min-content
+  // sizing under flex/grid descendants, which can blow past a
+  // table-fixed column width when the value (or longest <option>
+  // label) is wider than the column. Clamp explicitly so the
+  // edit input always respects its <td>'s width.
   return (
     <div
-      className={`relative ${props.className ?? ""}`}
-      // The wrapper provides the ring on error so the input doesn't
-      // need to grow a 2px border that shifts pixel-perfect grids.
+      className={`relative block min-w-0 max-w-full ${props.className ?? ""}`}
     >
       {props.variant === "select" ? (
         <select
@@ -248,7 +252,7 @@ export function EditableCell(props: EditableCellProps): React.JSX.Element {
           onKeyDown={handleKey}
           onBlur={() => void commit()}
           disabled={showSpinner}
-          className={`w-full rounded-sm border bg-surface px-1.5 py-0.5 text-inherit ${
+          className={`block w-full min-w-0 max-w-full rounded-sm border bg-surface px-1.5 py-0.5 text-inherit ${
             errorBorder ? "border-error" : "border-accent"
           } focus:outline-none focus:ring-1 focus:ring-accent`}
         >
@@ -271,7 +275,7 @@ export function EditableCell(props: EditableCellProps): React.JSX.Element {
           disabled={showSpinner}
           rows={(props as TextareaProps).rows ?? 2}
           placeholder={placeholder}
-          className={`w-full rounded-sm border bg-surface px-1.5 py-0.5 text-inherit resize-none ${
+          className={`block w-full min-w-0 max-w-full rounded-sm border bg-surface px-1.5 py-0.5 text-inherit resize-none ${
             errorBorder ? "border-error" : "border-accent"
           } focus:outline-none focus:ring-1 focus:ring-accent`}
         />
@@ -298,7 +302,7 @@ export function EditableCell(props: EditableCellProps): React.JSX.Element {
             min: (props as NumberProps).min,
             step: (props as NumberProps).step,
           })}
-          className={`w-full rounded-sm border bg-surface px-1.5 py-0.5 text-inherit ${
+          className={`block w-full min-w-0 max-w-full rounded-sm border bg-surface px-1.5 py-0.5 text-inherit ${
             errorBorder ? "border-error" : "border-accent"
           } focus:outline-none focus:ring-1 focus:ring-accent`}
         />
@@ -370,6 +374,13 @@ function renderDisplay({
     );
   }
 
+  // Footprint matches the edit input on purpose: 1px transparent
+  // border + identical px-1.5 py-0.5 padding + min-w-0 max-w-full
+  // clamp. Toggling display→edit becomes a pure content swap, no
+  // border thickness change, no padding shift, no width nudge —
+  // just the input replacing the button at the same coords. Per
+  // ux-designer review: "Consistency over cleverness" + the
+  // table-fixed colgroup owns column width above.
   return (
     <button
       type="button"
@@ -381,7 +392,7 @@ function renderDisplay({
         // table). Activation requires Enter/Space (button
         // default) or click.
       }}
-      className={`w-full text-left rounded-sm hover:bg-hover focus:outline-none focus-visible:ring-1 focus-visible:ring-accent ${
+      className={`block w-full min-w-0 max-w-full text-left rounded-sm border border-transparent px-1.5 py-0.5 hover:bg-hover focus:outline-none focus-visible:ring-1 focus-visible:ring-accent ${
         empty ? "text-content-muted" : "text-content"
       } ${className ?? ""}`}
     >

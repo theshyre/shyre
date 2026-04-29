@@ -206,9 +206,10 @@ export function ExpenseRow({
         </div>
       </td>
 
-      {/* Team (conditional) */}
+      {/* Team (conditional) — column width owned by the
+          <colgroup> in expenses-table.tsx. */}
       {teamName !== null && (
-        <td className="text-content-secondary truncate max-w-[160px]">
+        <td className="text-content-secondary truncate">
           <Tooltip label={teamName} labelMode="label">
             <span className="block truncate">{teamName}</span>
           </Tooltip>
@@ -227,7 +228,7 @@ export function ExpenseRow({
           onCommit={(v) => commitField("vendor", v)}
           disabled={!canEdit}
           placeholder="—"
-          className="truncate max-w-[180px]"
+          className="truncate"
         />
       </td>
 
@@ -252,7 +253,7 @@ export function ExpenseRow({
               <span className="text-content-muted">—</span>
             )
           }
-          className="truncate max-w-[280px]"
+          className="truncate"
         />
       </td>
 
@@ -277,7 +278,7 @@ export function ExpenseRow({
               <span className="text-content-muted">—</span>
             )
           }
-          className="truncate max-w-[200px]"
+          className="truncate"
         />
       </td>
 
@@ -301,7 +302,7 @@ export function ExpenseRow({
             })}
             onCommit={(v) => commitField("project_id", v)}
             disabled={!canEdit}
-            className="truncate max-w-[160px]"
+            className="truncate"
           />
           {expense.billable && (
             <Tooltip label={t("fields.billable")} labelMode="label">

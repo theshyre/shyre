@@ -254,7 +254,39 @@ export function ExpensesTable({
 
   return (
     <div className="density-table relative overflow-x-auto rounded-lg border border-edge bg-surface-raised">
-      <table className="w-full">
+      <table className="w-full table-fixed">
+        {/* Column-width lock. table-fixed + an explicit <colgroup>
+            tells the browser to ignore intrinsic content widths
+            during layout — without this, switching a cell to its
+            edit input (whose <select> reports a wider intrinsic
+            width than the display chip) reflows the whole row.
+            Widths in px per CLAUDE.md "Layout dimensions in px,
+            type and text-adjacent padding in rem" — they don't
+            scale with text-size / density; text inside scales
+            with rem-based typography rules and `truncate` keeps
+            long values honest. The trailing <col /> with no
+            width absorbs any slack so the table still fills
+            w-full when declared widths sum less than container. */}
+        {/* Widths sum to 1216px (single-team) — exactly the
+            dashboard's 1280-max-width minus 32×2 padding. Multi-
+            team adds the 140-px team column and triggers
+            horizontal scroll via the wrapper's overflow-x-auto;
+            acceptable cost for an agency view. No slack col —
+            the sum equals the content area, so table-fixed has
+            nothing to redistribute. */}
+        <colgroup>
+          <col style={{ width: 40 }} /> {/* selection */}
+          <col style={{ width: 100 }} /> {/* date */}
+          <col style={{ width: 128 }} /> {/* category */}
+          {showTeamColumn && <col style={{ width: 140 }} />}
+          <col style={{ width: 160 }} /> {/* vendor */}
+          <col style={{ width: 240 }} /> {/* description */}
+          <col style={{ width: 176 }} /> {/* notes */}
+          <col style={{ width: 140 }} /> {/* project */}
+          <col style={{ width: 112 }} /> {/* amount */}
+          <col style={{ width: 40 }} /> {/* author avatar */}
+          <col style={{ width: 80 }} /> {/* actions */}
+        </colgroup>
         <thead
           ref={theadRef}
           className="bg-surface-inset border-b border-edge"
