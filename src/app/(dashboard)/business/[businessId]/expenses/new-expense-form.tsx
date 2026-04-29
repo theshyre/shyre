@@ -15,7 +15,8 @@ import {
 } from "@/lib/form-styles";
 import { SubmitButton } from "@/components/SubmitButton";
 import { createExpenseAction } from "./actions";
-import { EXPENSE_CATEGORIES } from "./categories";
+import { EXPENSE_CATEGORIES, type ExpenseCategory } from "./categories";
+import { getCategoryHelp } from "./categories-help";
 import type { ProjectOption } from "./page";
 
 interface Props {
@@ -49,6 +50,7 @@ export function NewExpenseForm({
 }: Props): React.JSX.Element {
   const [open, setOpen] = useState(false);
   const [selectedTeamId, setSelectedTeamId] = useState(defaultTeamId);
+  const [selectedCategory, setSelectedCategory] = useState<string>("");
   const t = useTranslations("expenses");
   const tc = useTranslations("common");
   const showTeamPicker = teamOptions.length > 1;
@@ -127,7 +129,13 @@ export function NewExpenseForm({
         </div>
         <div>
           <label className={labelClass}>{t("fields.category")} *</label>
-          <select name="category" required defaultValue="" className={inputClass}>
+          <select
+            name="category"
+            required
+            value={selectedCategory}
+            onChange={(e) => setSelectedCategory(e.target.value)}
+            className={inputClass}
+          >
             <option value="" disabled>
               {t("selectCategory")}
             </option>
@@ -137,6 +145,7 @@ export function NewExpenseForm({
               </option>
             ))}
           </select>
+          <CategoryHint category={selectedCategory} />
         </div>
         {showTeamPicker && (
           <div>
@@ -216,5 +225,26 @@ export function NewExpenseForm({
         </button>
       </div>
     </form>
+  );
+}
+
+/** Show the description + examples for the chosen category as a
+ *  small caption below the dropdown. Renders nothing when no
+ *  category is picked yet — the placeholder option's "— Select
+ *  category —" already cues the user to make a choice. */
+function CategoryHint({ category }: { category: string }): React.JSX.Element | null {
+  const t = useTranslations("expenses");
+  if (!category) return null;
+  if (!(EXPENSE_CATEGORIES as readonly string[]).includes(category)) {
+    return null;
+  }
+  const help = getCategoryHelp(category as ExpenseCategory, t);
+  return (
+    <div className="mt-1 space-y-0.5">
+      <p className="text-caption text-content-muted">{help.description}</p>
+      <p className="text-caption text-content-muted italic">
+        {help.examples}
+      </p>
+    </div>
   );
 }

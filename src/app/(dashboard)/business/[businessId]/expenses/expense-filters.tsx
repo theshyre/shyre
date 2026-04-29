@@ -10,7 +10,15 @@ import {
 } from "react";
 import { useRouter, useSearchParams, usePathname } from "next/navigation";
 import { useTranslations } from "next-intl";
-import { Search, X, Calendar, Tag, FolderKanban } from "lucide-react";
+import {
+  Search,
+  X,
+  Calendar,
+  Tag,
+  FolderKanban,
+  HelpCircle,
+} from "lucide-react";
+import Link from "next/link";
 import { inputClass, selectClass, kbdClass } from "@/lib/form-styles";
 import { Tooltip } from "@/components/Tooltip";
 import { EXPENSE_CATEGORIES } from "./categories";
@@ -277,6 +285,15 @@ export function ExpenseFilters({
       {/* Category chips */}
       <div className="flex items-center gap-1.5 flex-wrap">
         <Tag size={12} className="text-content-muted shrink-0" />
+        <Tooltip label={t("categoryDocsHint")} labelMode="label">
+          <Link
+            href="/docs/guides/features/expense-categories"
+            className="inline-flex items-center text-content-muted hover:text-content"
+            aria-label={t("categoryDocsHint")}
+          >
+            <HelpCircle size={12} />
+          </Link>
+        </Tooltip>
         {EXPENSE_CATEGORIES.map((c) => {
           const active = currentFilters.categories.includes(c);
           const isOtherWarning = c === "other";

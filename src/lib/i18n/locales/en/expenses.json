@@ -88,5 +88,44 @@
     "professional_services": "Professional services",
     "fees": "Fees",
     "other": "Other"
-  }
+  },
+  "categoryHelp": {
+    "software": {
+      "description": "Apps, SaaS, hosting, and dev tools — anything where you pay to use software.",
+      "examples": "G Suite · Jira · Adobe CC · Slack · Notion · Linode / AWS / Vercel"
+    },
+    "hardware": {
+      "description": "Physical computing equipment that lasts more than a year.",
+      "examples": "Laptop · monitor · keyboard · external drive · printer · networking gear"
+    },
+    "subscriptions": {
+      "description": "Non-software recurring memberships. Software subs go under Software.",
+      "examples": "Industry magazines · paid newsletters · professional associations · co-working membership"
+    },
+    "travel": {
+      "description": "Business travel costs.",
+      "examples": "Flights · hotels · rental cars · ride share · mileage · airport parking"
+    },
+    "meals": {
+      "description": "Business meals (50% deductible per IRS Schedule C in the US).",
+      "examples": "Client lunches · working dinners while traveling · prospect coffees"
+    },
+    "office": {
+      "description": "Supplies, furniture, decor, and improvements to your workspace.",
+      "examples": "Pens / paper · desk / chair · blinds · plants · wall art · cleaning supplies"
+    },
+    "professional_services": {
+      "description": "Outside professionals you hired — not your own labor.",
+      "examples": "Legal fees · accountant · bookkeeper · contracted designer / developer"
+    },
+    "fees": {
+      "description": "Transaction, regulatory, and banking fees.",
+      "examples": "Bank fees · wire transfers · Stripe / PayPal fees · state filing fees · late penalties"
+    },
+    "other": {
+      "description": "Catch-all for things that don't fit anywhere else. Re-categorize before tax reports.",
+      "examples": "Default for CSV-imported rows · edge cases your bookkeeper hasn't classified yet"
+    }
+  },
+  "categoryDocsHint": "Not sure which category? See the reference."
 }

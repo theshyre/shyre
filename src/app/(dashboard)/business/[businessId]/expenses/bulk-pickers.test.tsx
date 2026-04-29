@@ -26,16 +26,23 @@ describe("BulkCategoryPicker", () => {
 
   it("invokes onSelect with the chosen category and closes", async () => {
     const onSelect = vi.fn(async () => {});
-    const { getByRole, queryByRole } = renderWithIntl(
+    const { getByRole, getAllByRole, queryByRole } = renderWithIntl(
       <BulkCategoryPicker onSelect={onSelect} />,
     );
     fireEvent.click(getByRole("button", { name: /Set category/i }));
-    const softwareItem = getByRole("menuitem", { name: /Software/ });
+    // Each menuitem now renders label + description + examples;
+    // a regex match on /Software/ would hit both the Software item
+    // (heading) and other items whose description contains the
+    // word. Filter by the heading <span> text instead.
+    const items = getAllByRole("menuitem");
+    const softwareItem = items.find((el) =>
+      el.querySelector("span")?.textContent === "Software",
+    );
+    if (!softwareItem) throw new Error("Software menu item not found");
     fireEvent.click(softwareItem);
     await waitFor(() => {
       expect(onSelect).toHaveBeenCalledWith("software");
     });
-    // Menu should close after selection.
     await waitFor(() => {
       expect(queryByRole("menu")).toBeNull();
     });

@@ -88,5 +88,44 @@
     "professional_services": "Servicios profesionales",
     "fees": "Tarifas",
     "other": "Otro"
-  }
+  },
+  "categoryHelp": {
+    "software": {
+      "description": "Apps, SaaS, hosting y herramientas de desarrollo — cualquier cosa donde pagas para usar software.",
+      "examples": "G Suite · Jira · Adobe CC · Slack · Notion · Linode / AWS / Vercel"
+    },
+    "hardware": {
+      "description": "Equipo de cómputo físico que dura más de un año.",
+      "examples": "Laptop · monitor · teclado · disco externo · impresora · equipo de red"
+    },
+    "subscriptions": {
+      "description": "Membresías recurrentes que no son software. Las suscripciones de software van en Software.",
+      "examples": "Revistas del sector · boletines pagados · asociaciones profesionales · co-working"
+    },
+    "travel": {
+      "description": "Gastos de viaje de negocios.",
+      "examples": "Vuelos · hoteles · renta de auto · ride share · kilometraje · estacionamiento"
+    },
+    "meals": {
+      "description": "Comidas de negocios (50% deducibles según el Schedule C del IRS en EE. UU.).",
+      "examples": "Comidas con clientes · cenas de trabajo en viajes · cafés con prospectos"
+    },
+    "office": {
+      "description": "Suministros, muebles, decoración y mejoras a tu espacio de trabajo.",
+      "examples": "Plumas / papel · escritorio / silla · persianas · plantas · cuadros · limpieza"
+    },
+    "professional_services": {
+      "description": "Profesionales externos que contrataste — no tu propia mano de obra.",
+      "examples": "Honorarios legales · contador · diseñador / desarrollador contratado"
+    },
+    "fees": {
+      "description": "Comisiones de transacción, regulatorias y bancarias.",
+      "examples": "Comisiones bancarias · transferencias · Stripe / PayPal · cuotas estatales · cargos por mora"
+    },
+    "other": {
+      "description": "Catch-all para lo que no encaja en otra parte. Reclasifica antes de los informes fiscales.",
+      "examples": "Predeterminado para filas importadas desde CSV · casos límite por clasificar"
+    }
+  },
+  "categoryDocsHint": "¿No estás seguro de la categoría? Ver la referencia."
 }

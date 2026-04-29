@@ -4,6 +4,7 @@ import { useState } from "react";
 import { useTranslations } from "next-intl";
 import { Tag, FolderKanban } from "lucide-react";
 import { EXPENSE_CATEGORIES } from "./categories";
+import { getCategoryHelp } from "./categories-help";
 import type { ProjectOption } from "./page";
 
 interface CategoryProps {
@@ -45,22 +46,33 @@ export function BulkCategoryPicker({
           />
           <div
             role="menu"
-            className="absolute right-0 top-full z-20 mt-1 w-[200px] rounded-md border border-edge bg-surface-raised shadow-md"
+            className="absolute right-0 top-full z-20 mt-1 w-[320px] max-h-[420px] overflow-y-auto rounded-md border border-edge bg-surface-raised shadow-md"
           >
-            {EXPENSE_CATEGORIES.map((c) => (
-              <button
-                key={c}
-                type="button"
-                role="menuitem"
-                onClick={async () => {
-                  setOpen(false);
-                  await onSelect(c);
-                }}
-                className="block w-full text-left px-3 py-1.5 text-caption text-content hover:bg-hover"
-              >
-                {t(`categories.${c}`)}
-              </button>
-            ))}
+            {EXPENSE_CATEGORIES.map((c) => {
+              const help = getCategoryHelp(c, t);
+              return (
+                <button
+                  key={c}
+                  type="button"
+                  role="menuitem"
+                  onClick={async () => {
+                    setOpen(false);
+                    await onSelect(c);
+                  }}
+                  className="block w-full text-left px-3 py-2 hover:bg-hover border-b border-edge-muted last:border-0"
+                >
+                  <span className="block text-body font-medium text-content">
+                    {t(`categories.${c}`)}
+                  </span>
+                  <span className="mt-0.5 block text-caption text-content-muted line-clamp-2">
+                    {help.description}
+                  </span>
+                  <span className="mt-0.5 block text-caption text-content-muted italic line-clamp-1">
+                    {help.examples}
+                  </span>
+                </button>
+              );
+            })}
           </div>
         </>
       )}
