@@ -24,11 +24,13 @@ The order matters: most of these set baseline state that the import + first invo
 
 ## 3 · Invoice numbering — biggest gotcha
 
-- [ ] **Sidebar → Profile → Business information → Invoice prefix + Next invoice number.**
+- [ ] **Sidebar → Settings → Teams → click your team → Invoice prefix + Next invoice number.**
 
-  This is the one that bites. If Harvest already issued `INV-2024-001` through `INV-2026-150`, set `Next invoice number` to **151** (or whatever's higher than your last Harvest invoice). Otherwise the next invoice you generate in Shyre collides with a Harvest one — same number, different system, your bookkeeper hates you.
+  These fields live on the Team Settings form at `/teams/[id]`, not on Profile. (Profile holds personal display name + integrations + preferences; team-level configuration like invoice numbering, prefix, and tax defaults belongs on the team.)
 
-  Default tax rate while you're here: set it once per business so new invoices pick it up.
+  This is the one that bites. If Harvest already issued `INV-2024-001` through `INV-2026-150`, set **Next invoice number** to **151** (or whatever's higher than your last Harvest invoice). Otherwise the next invoice you generate in Shyre collides with a Harvest one — same number, different system, your bookkeeper hates you.
+
+  **Default tax rate** is on the same Team Settings form (`tax_rate` field). Set it once per team so new invoices pick it up.
 
 ## 4 · Customers + projects (let the import create them)
 
@@ -83,7 +85,7 @@ For each year, in this order:
    - Revenue (if rates were set in Harvest)
    These should match within rounding cents. If a number is off by 10%+, undo the import (one click in `/import`'s history), fix the rate or mapping, re-run.
 5. **Lock the period.** Sidebar → Business → Period locks → set `period_end = 2025-12-31` (or whatever year you just imported). After the lock, any retro edit to a 2025 time entry / expense / invoice raises a check-violation so the books don't drift.
-6. Check `/admin/errors` for any silently-collected import failures. The route is sysadmin-only; if you're the sysadmin (you are, on a solo account), the link's in the sidebar under Admin.
+6. Check `/system/errors` for any silently-collected import failures. The route is sysadmin-only; if you're the sysadmin (you are, on a solo account), the link's in the sidebar under System.
 
 Recommended order:
 - **Current YTD first** (memory is freshest; verify against Harvest's YTD report) → if that matches, your mapping is right. Don't lock current year yet — you'll keep adding to it.
@@ -95,7 +97,7 @@ Recommended order:
 
 - [ ] **Pick a date.** Same day, you stop logging in Harvest and start in Shyre. Don't dual-track — every hour you log twice is an hour you'll have to reconcile or delete from one side.
 - [ ] **Generate one test invoice** for the just-imported month, against the just-imported customer. Open Sidebar → Invoices → New invoice → pick that customer. Confirm the line items pull, the totals match, the PDF downloads cleanly, the EIN + legal name show up correctly in the header. You don't have to send it; just verify it generates.
-- [ ] **Check `/admin/errors` one more time.** If anything's in there from the import or the test invoice, eyeball it now — silent errors get harder to debug as the log fills.
+- [ ] **Check `/system/errors` one more time.** If anything's in there from the import or the test invoice, eyeball it now — silent errors get harder to debug as the log fills.
 
 ## 11 · After cutover (first week)
 
@@ -109,7 +111,7 @@ Recommended order:
 - **`/time-entries/trash`** — soft-deleted time entries; restore with one click within 30 days.
 - **`/business/[id]/identity/history`** — every change to legal name / EIN / fiscal year / state registrations, with actor + timestamp.
 - **`/business/[id]/people/history`** — same for People.
-- **`/admin/errors`** — system-wide error log; first stop when something feels off.
+- **`/system/errors`** — system-wide error log; first stop when something feels off.
 - **CSV exports** — `/api/invoices/csv`, `/api/business/[id]/identity-history/csv`, `/api/business/[id]/people-history/csv`. Useful for handing the bookkeeper a snapshot.
 - **Period locks unlock** — if you ever absolutely have to amend a closed period, the lock can be removed (typed-confirm "unlock"). Both lock and unlock events are recorded in `team_period_locks_history` so the audit trail survives.
 
