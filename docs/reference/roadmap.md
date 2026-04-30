@@ -20,6 +20,31 @@ from a Gmail search and a wallet pile. Five-persona review completed
 and out-of-scope decisions lives in
 [`expense-receipt-ingestion.md`](./expense-receipt-ingestion.md).
 
+## Time — Unified Time view (running log)
+
+Replace the current `Day | Week` toggle on `/time-entries` with a
+date-banded vertical scrolling log: today at the top, prior days
+flowing downward, jump-to-date control, sticky filter bar, swim-lane
+mode when more than one author is visible. Log replaces Day; Week stays
+as the invoicing-prep grid. Eight-persona review completed 2026-04-30;
+full design including query strategy, RLS deep-scroll integration test
+plan, period-lock interaction, accessibility model, phasing, and
+out-of-scope decisions lives in [`unified-time.md`](./unified-time.md).
+
+## Work Orchestration — request → plan → AI → review → deploy
+
+A new `orchestrate` module that manages a change end-to-end across
+external systems (GitHub, Linear/Jira, Vercel/Amplify, Claude Code) and
+threads time + cost + invoice line items through every transition. Owns
+the state machine and audit trail; never replaces the issue tracker,
+the IDE, or the deploy system. The killer artifact: one row showing
+`AVDR-1247 · 2.5h logged · $375 billable · PR #482 merged · deployed
+14:22` — only Shyre knows the time + billing. Eight-persona review
+completed 2026-04-30. Threat model is a precondition; full design
+including data model, secret-vault model, prompt-injection containment,
+adapter pattern, runner choice, accessibility, phasing, and out-of-scope
+decisions lives in [`work-orchestration.md`](./work-orchestration.md).
+
 ## Other deferred work
 
 Smaller items surfaced by persona reviews but not yet promoted to their
