@@ -153,7 +153,6 @@ export class HarvestApiError extends Error {
   readonly kind:
     | "unauthorized"
     | "forbidden"
-    | "account_mismatch"
     | "not_found"
     | "rate_limited"
     | "bad_request"
@@ -165,7 +164,7 @@ export class HarvestApiError extends Error {
     endpoint: string;
     rawBody: string;
   }) {
-    const kind = classifyHarvestStatus(opts.status, opts.rawBody);
+    const kind = classifyHarvestStatus(opts.status);
     super(userFacingMessage(kind, opts.status));
     this.name = "HarvestApiError";
     this.status = opts.status;
@@ -175,44 +174,16 @@ export class HarvestApiError extends Error {
   }
 }
 
-/**
- * Classify a Harvest API failure.
- *
- * The non-obvious case: a 404 whose body is the HTML marketing-site
- * "Page not found" page — not a JSON `{"error": ...}` payload. Harvest's
- * API gateway routes requests by `Harvest-Account-Id` header *before*
- * authenticating, so a header that doesn't resolve to a real account
- * gets handed to the public web 404 handler. This is by far the most
- * common credential mismatch in practice — users paste the company
- * subdomain (e.g. "mycompany") instead of the numeric Account ID
- * shown next to their token at id.getharvest.com/developers.
- *
- * The body sniff (`<!doctype html` or `<title>Harvest: Page not found`)
- * separates that case from a real "endpoint doesn't exist" 404, which
- * Harvest returns with a JSON body.
- */
-export function classifyHarvestStatus(
+function classifyHarvestStatus(
   status: number,
-  rawBody: string,
 ): HarvestApiError["kind"] {
   if (status === 401) return "unauthorized";
   if (status === 403) return "forbidden";
-  if (status === 404) {
-    return looksLikeMarketingHtml(rawBody) ? "account_mismatch" : "not_found";
-  }
+  if (status === 404) return "not_found";
   if (status === 429) return "rate_limited";
   if (status === 400 || status === 422) return "bad_request";
   if (status >= 500) return "server_error";
   return "unknown";
-}
-
-function looksLikeMarketingHtml(body: string): boolean {
-  const head = body.slice(0, 512).toLowerCase();
-  return (
-    head.includes("<!doctype html") ||
-    head.includes("<html") ||
-    head.includes("page not found")
-  );
 }
 
 function userFacingMessage(
@@ -224,10 +195,8 @@ function userFacingMessage(
       return "Harvest rejected the credentials. Check that the personal access token is valid and that the Account ID matches the account that issued the token.";
     case "forbidden":
       return "Harvest denied access to that resource. The token might lack the required scope (need access to time entries, projects, and clients).";
-    case "account_mismatch":
-      return "Harvest doesn't recognize the Account ID. Visit id.getharvest.com/developers and copy the numeric Account ID shown next to your token — it's typically 7 digits, NOT your company subdomain.";
     case "not_found":
-      return "Harvest returned 404 with a JSON error. If the credentials are correct this is a Shyre bug — the importer is calling an endpoint Harvest doesn't have.";
+      return "Harvest returned 404. If the credentials are correct this is a Shyre bug — the importer is calling an endpoint Harvest doesn't have.";
     case "rate_limited":
       return "Harvest is rate-limiting the import. Shyre will retry automatically; if this persists, wait a minute and try again.";
     case "bad_request":

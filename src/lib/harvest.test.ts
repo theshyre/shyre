@@ -197,28 +197,8 @@ describe("HarvestApiError classification", () => {
     });
   });
 
-  it("404 with HTML marketing body → account_mismatch (wrong Account ID, not a Shyre bug)", async () => {
-    // Harvest's API gateway routes by Harvest-Account-Id BEFORE auth.
-    // An unrecognized account ID gets the public 404 marketing page,
-    // not a JSON error. This is the most common credential mismatch
-    // in the wild — users paste their company subdomain instead of
-    // the numeric Account ID.
-    mockErrorOnce(
-      404,
-      '<!DOCTYPE html><html lang="en"><head><title>Harvest: Page not found (404)</title></head><body>...</body></html>',
-    );
-    await expect(fetchHarvestClients(opts)).rejects.toSatisfy((err) => {
-      if (!(err instanceof HarvestApiError)) return false;
-      return (
-        err.kind === "account_mismatch" &&
-        err.message.includes("Account ID") &&
-        err.message.includes("id.getharvest.com/developers")
-      );
-    });
-  });
-
-  it("404 with JSON body → not_found with Shyre-bug attribution (the genuine endpoint-missing case)", async () => {
-    mockErrorOnce(404, '{"message":"resource not found"}');
+  it("404 → not_found with Shyre-bug attribution", async () => {
+    mockErrorOnce(404, "<html>not found</html>");
     await expect(fetchHarvestClients(opts)).rejects.toSatisfy((err) => {
       if (!(err instanceof HarvestApiError)) return false;
       return (
