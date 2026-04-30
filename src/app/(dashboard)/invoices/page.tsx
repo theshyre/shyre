@@ -62,15 +62,19 @@ export default async function InvoicesPage({
   const { limit } = parseListPagination(sp);
 
   // count: "exact" returns rows + full match count in one RLS
-  // pass; .range() clips to the load-more window. Stable
-  // ordering needs the id tiebreaker because created_at can
-  // collide on bulk-imported invoices, which would let
-  // .range() drop / duplicate rows across "Load more" clicks
-  // under concurrent writes.
+  // pass; .range() clips to the load-more window.
+  //
+  // Ordering: latest invoice first, by the issue date the user
+  // sees in the Issued column — not internal created_at, which on
+  // bulk imports can clump or even invert relative to issued_date
+  // and produces a list ordered by import time instead of business
+  // time. id DESC is the tiebreaker for same-day invoices and
+  // keeps .range() stable across "Load more" under concurrent
+  // writes.
   let query = supabase
     .from("invoices")
     .select("*, customers(name)", { count: "exact" })
-    .order("created_at", { ascending: false })
+    .order("issued_date", { ascending: false, nullsFirst: false })
     .order("id", { ascending: false });
   if (selectedTeamId) query = query.eq("team_id", selectedTeamId);
   if (filters.status) query = query.eq("status", filters.status);

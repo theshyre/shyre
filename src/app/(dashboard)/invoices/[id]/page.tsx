@@ -24,6 +24,10 @@ export async function generateMetadata({
 }
 import { formatDate, Avatar, resolveAvatarUrl } from "@theshyre/ui";
 import { formatCurrency } from "@/lib/invoice-utils";
+import {
+  deserializeAddress,
+  formatAddressMultiLine,
+} from "@/lib/schemas/address";
 import { InvoiceActions } from "./invoice-actions";
 import { InvoicePdfButton } from "./invoice-pdf-button";
 import { InvoiceStatusBadge } from "../invoice-status-badge";
@@ -132,8 +136,12 @@ export default async function InvoiceDetailPage({
           {client?.email && (
             <p className="text-body text-content-secondary">{client.email}</p>
           )}
-          {client?.address && (
-            <p className="text-body text-content-secondary">{client.address}</p>
+          {formatAddressMultiLine(deserializeAddress(client?.address ?? null)).map(
+            (line, i) => (
+              <p key={i} className="text-body text-content-secondary">
+                {line}
+              </p>
+            ),
           )}
         </div>
         <div className="rounded-lg border border-edge bg-surface-raised p-4">
@@ -148,11 +156,13 @@ export default async function InvoiceDetailPage({
               {settings.business_email}
             </p>
           )}
-          {settings?.business_address && (
-            <p className="text-body text-content-secondary">
-              {settings.business_address}
+          {formatAddressMultiLine(
+            deserializeAddress(settings?.business_address ?? null),
+          ).map((line, i) => (
+            <p key={i} className="text-body text-content-secondary">
+              {line}
             </p>
-          )}
+          ))}
         </div>
       </div>
 
