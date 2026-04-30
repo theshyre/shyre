@@ -2,7 +2,9 @@ import type { Metadata } from "next";
 import { createClient } from "@/lib/supabase/server";
 import { getTranslations } from "next-intl/server";
 import { notFound } from "next/navigation";
-import { FileText } from "lucide-react";
+import { FileText, Download } from "lucide-react";
+import { Tooltip } from "@/components/Tooltip";
+import { InvoiceActivity } from "./invoice-activity";
 
 export async function generateMetadata({
   params,
@@ -49,34 +51,61 @@ export default async function InvoiceDetailPage({
 
   if (!invoice) notFound();
 
-  const { data: lineItems } = await supabase
-    .from("invoice_line_items")
-    .select("*, time_entries(user_id)")
-    .eq("invoice_id", id)
-    .order("id");
+  // Line items, history, and payments are independent reads — fire
+  // them in parallel rather than waterfall. RLS scopes each one
+  // separately so a viewer who can't see history (non-owner/admin)
+  // gets [] from that query and the activity section just hides.
+  const [
+    { data: lineItems },
+    { data: settings },
+    { data: history },
+    { data: payments },
+  ] = await Promise.all([
+    supabase
+      .from("invoice_line_items")
+      .select("*, time_entries(user_id)")
+      .eq("invoice_id", id)
+      .order("id"),
+    supabase
+      .from("team_settings")
+      .select("business_name, business_email, business_address, business_phone")
+      .eq("team_id", invoice.team_id)
+      .single(),
+    supabase
+      .from("invoices_history")
+      .select("id, changed_at, changed_by_user_id, previous_state")
+      .eq("invoice_id", id)
+      .order("changed_at", { ascending: true }),
+    supabase
+      .from("invoice_payments")
+      .select(
+        "id, amount, currency, paid_on, method, reference, created_at, created_by_user_id",
+      )
+      .eq("invoice_id", id)
+      .order("paid_on", { ascending: true }),
+  ]);
 
-  const { data: settings } = await supabase
-    .from("team_settings")
-    .select("business_name, business_email, business_address, business_phone")
-    .eq("team_id", invoice.team_id)
-    .single();
-
-  // Resolve display names + avatars for the time-entry authors that
-  // these line items trace back to. Per CLAUDE.md "Time-entry
-  // authorship — MANDATORY", every surface that displays content
-  // tied to a time entry must show who logged it. Bulk-resolve in
-  // one query to keep the page fast on long invoices.
-  const userIds = Array.from(
-    new Set(
-      (lineItems ?? [])
-        .map((li) => {
-          const te = li.time_entries;
-          if (!te || typeof te !== "object" || !("user_id" in te)) return null;
-          return (te as { user_id: string | null }).user_id;
-        })
-        .filter((id): id is string => id !== null && id !== undefined),
+  // Resolve display names + avatars for everyone who appears on
+  // this page: time-entry authors on line items, plus actors on
+  // activity events (history changes + payment recorders + invoice
+  // creator). Bulk-resolve in one query.
+  const lineItemUserIds = (lineItems ?? [])
+    .map((li) => {
+      const te = li.time_entries;
+      if (!te || typeof te !== "object" || !("user_id" in te)) return null;
+      return (te as { user_id: string | null }).user_id;
+    })
+    .filter((id): id is string => id !== null && id !== undefined);
+  const activityUserIds = [
+    invoice.created_by_user_id as string | null,
+    ...(history ?? []).map(
+      (h) => h.changed_by_user_id as string | null,
     ),
-  );
+    ...(payments ?? []).map(
+      (p) => p.created_by_user_id as string | null,
+    ),
+  ].filter((id): id is string => id !== null && id !== undefined);
+  const userIds = Array.from(new Set([...lineItemUserIds, ...activityUserIds]));
   const { data: profiles } =
     userIds.length > 0
       ? await supabase
@@ -94,8 +123,6 @@ export default async function InvoiceDetailPage({
       avatarUrl: (p.avatar_url as string | null) ?? null,
     });
   }
-  const tAuthor = await getTranslations("common.authorship");
-
   const client =
     invoice.customers && typeof invoice.customers === "object"
       ? (invoice.customers as { name: string; email: string | null; address: string | null })
@@ -227,9 +254,22 @@ export default async function InvoiceDetailPage({
                         />
                         <span className="truncate">{profile.displayName}</span>
                       </span>
+                    ) : invoice.imported_from === "harvest" ? (
+                      // Imported invoice line items don't link back to
+                      // individual time entries (Harvest's invoice
+                      // payload returns aggregated description lines, no
+                      // entry-level mapping). Show an explicit
+                      // "Imported from Harvest" so the column doesn't
+                      // misread as "we don't know who logged this."
+                      <Tooltip label={t("table.importedFromHarvest")}>
+                        <span className="inline-flex items-center gap-1.5 text-caption text-content-muted">
+                          <Download size={12} aria-hidden="true" />
+                          <span>{t("table.importedFromHarvest")}</span>
+                        </span>
+                      </Tooltip>
                     ) : (
-                      <span className="text-caption text-content-muted italic">
-                        {tAuthor("unknownUser")}
+                      <span className="text-caption text-content-muted">
+                        —
                       </span>
                     )}
                   </td>
@@ -303,6 +343,51 @@ export default async function InvoiceDetailPage({
           </p>
         </div>
       )}
+
+      {/* Activity log — derived from invoices_history + invoice_payments
+          + status timestamps. Owner|admin only via RLS on the source
+          tables; for non-privileged viewers the section renders empty
+          and hides itself. */}
+      <InvoiceActivity
+        data={{
+          invoice: {
+            id: invoice.id as string,
+            status: (invoice.status as string | null) ?? null,
+            created_at: (invoice.created_at as string | null) ?? null,
+            created_by_user_id:
+              (invoice.created_by_user_id as string | null) ?? null,
+            sent_at: (invoice.sent_at as string | null) ?? null,
+            paid_at: (invoice.paid_at as string | null) ?? null,
+            voided_at: (invoice.voided_at as string | null) ?? null,
+            imported_at: (invoice.imported_at as string | null) ?? null,
+            imported_from: (invoice.imported_from as string | null) ?? null,
+            currency: (invoice.currency as string | null) ?? null,
+          },
+          history: (history ?? []).map((h) => ({
+            id: h.id as string,
+            changed_at: h.changed_at as string,
+            changed_by_user_id:
+              (h.changed_by_user_id as string | null) ?? null,
+            previous_state:
+              (h.previous_state as Record<string, unknown>) ?? {},
+          })),
+          payments: (payments ?? []).map((p) => ({
+            id: p.id as string,
+            amount: Number(p.amount),
+            currency: (p.currency as string | null) ?? null,
+            paid_on: p.paid_on as string,
+            method: (p.method as string | null) ?? null,
+            reference: (p.reference as string | null) ?? null,
+            created_at: p.created_at as string,
+            created_by_user_id:
+              (p.created_by_user_id as string | null) ?? null,
+          })),
+        }}
+        profileById={profileById}
+        unknownUserLabel={(await getTranslations("common.authorship"))(
+          "unknownUser",
+        )}
+      />
     </div>
   );
 }

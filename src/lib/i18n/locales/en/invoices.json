@@ -67,6 +67,17 @@
     "status": "Status",
     "importedFromHarvest": "Imported from Harvest"
   },
+  "activity": {
+    "title": "Invoice history",
+    "on": "on",
+    "imported": "Imported from Harvest.",
+    "created": "Invoice generated.",
+    "sent": "Invoice sent.",
+    "paid": "Marked as paid.",
+    "voided": "Voided.",
+    "paymentReceived": "Payment received on {date}.",
+    "updated": "Invoice updated."
+  },
   "pdf": {
     "invoice": "INVOICE",
     "billTo": "Bill To",
