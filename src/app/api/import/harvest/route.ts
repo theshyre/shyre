@@ -110,11 +110,34 @@ export async function POST(request: Request): Promise<NextResponse> {
   }
 
   const body = (await request.json()) as ImportRequestBody;
-  const { token, accountId, organizationId, action } = body;
+  // Trim before validating: the Harvest developer page presents the
+  // token and Account ID as inline runs of text. Pasting routinely
+  // includes a trailing newline or stray space, and an HTTP header
+  // value like `Harvest-Account-Id: 1234567 ` (with whitespace) gets
+  // dropped to Harvest's marketing 404 page rather than the API. The
+  // form input is a vanilla <input>, which doesn't strip whitespace.
+  const token = body.token?.trim() ?? "";
+  const accountId = body.accountId?.trim() ?? "";
+  const organizationId = body.organizationId;
+  const action = body.action;
 
   if (!token || !accountId || !organizationId) {
     return NextResponse.json(
       { error: "Missing required fields" },
+      { status: 400 },
+    );
+  }
+
+  // Defense-in-depth: header values must be plain ASCII for fetch() to
+  // emit them. A Unicode character pasted accidentally would otherwise
+  // throw a generic TypeError far from this surface.
+  if (!/^[\x20-\x7E]+$/.test(accountId) || !/^[\x20-\x7E]+$/.test(token)) {
+    return NextResponse.json(
+      {
+        error:
+          "Account ID or token contains characters that aren't valid in an HTTP header. Re-copy them from id.getharvest.com/developers (avoid double-clicking — that often grabs surrounding whitespace).",
+        errorCode: "invalid_input",
+      },
       { status: 400 },
     );
   }
