@@ -300,6 +300,48 @@ describe("DateField", () => {
   });
 
   // --------------------------------------------------------------
+  // Regression: prev/next month must NOT close the popover
+  // --------------------------------------------------------------
+
+  it("clicking the Previous month arrow keeps the popover open and shifts the view", () => {
+    // Earlier bug: clicking < (prev month) would unmount the focused
+    // day cell because focusedIso belonged to the OLD view; focus
+    // fell to body; the focusin handler interpreted body as "user
+    // tabbed out" and closed the popover mid-click. Both fixes —
+    // filtering body in the focusin handler AND shifting focusedIso
+    // along with the view — together must keep the popover open.
+    render(<DateField value="2026-04-30" onChange={() => {}} />);
+    fireEvent.click(screen.getByRole("button", { name: "Open calendar" }));
+    expect(
+      screen.getByRole("dialog", { name: "Calendar" }),
+    ).toBeTruthy();
+    fireEvent.click(
+      screen.getByRole("button", { name: "Previous month, March 2026" }),
+    );
+    // Popover still open with the new month visible
+    expect(
+      screen.queryByRole("dialog", { name: "Calendar" }),
+    ).not.toBeNull();
+    expect(screen.getByText("March 2026")).toBeTruthy();
+  });
+
+  it("focusin on document.body does NOT close the popover (DOM-removal noise)", () => {
+    render(<DateField value="2026-04-30" onChange={() => {}} />);
+    fireEvent.click(screen.getByRole("button", { name: "Open calendar" }));
+    expect(
+      screen.getByRole("dialog", { name: "Calendar" }),
+    ).toBeTruthy();
+    // Simulate the browser parking focus on body after a cell unmount.
+    const evt = new FocusEvent("focusin", { bubbles: true });
+    Object.defineProperty(evt, "target", { value: document.body });
+    document.dispatchEvent(evt);
+    // Popover stays open — body-target focusin is filtered out.
+    expect(
+      screen.queryByRole("dialog", { name: "Calendar" }),
+    ).not.toBeNull();
+  });
+
+  // --------------------------------------------------------------
   // dmy display format
   // --------------------------------------------------------------
 

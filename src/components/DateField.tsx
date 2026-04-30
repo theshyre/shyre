@@ -319,8 +319,21 @@ export function DateField(props: DateFieldProps): React.JSX.Element {
       }
     }
     function onFocusIn(e: FocusEvent): void {
+      const target = e.target as HTMLElement | null;
+      if (!target) return;
+      // Focus falling to <body> or <html> means an element just
+      // unmounted (e.g. the user clicked Prev month, the focused day
+      // cell rerendered in a different month, the old cell is gone,
+      // and the browser parked focus on <body> as a fallback). Don't
+      // confuse this with a real keyboard Tab-out — closing the
+      // popover here would dismiss it mid-click and nothing would
+      // ever land in the input. Real Tab-out lands on a focusable
+      // element OUTSIDE rootRef, never on body/html.
+      if (target === document.body || target === document.documentElement) {
+        return;
+      }
       if (!rootRef.current) return;
-      if (!rootRef.current.contains(e.target as Node)) {
+      if (!rootRef.current.contains(target)) {
         setOpen(false);
       }
     }
@@ -415,6 +428,23 @@ export function DateField(props: DateFieldProps): React.JSX.Element {
     setView((v) => {
       const total = v.year * 12 + v.month + delta;
       return { year: Math.floor(total / 12), month: ((total % 12) + 12) % 12 };
+    });
+    // Keep the focused cell in the new view so it doesn't unmount
+    // mid-click. Shift focusedIso by the same number of months;
+    // clamp to the last day if the day-of-month doesn't exist in
+    // the destination (Mar 31 + 1 month → Apr 30).
+    setFocusedIso((current) => {
+      if (!current) return current;
+      const d = parseIsoDate(current);
+      if (!d) return current;
+      const target = new Date(d);
+      target.setMonth(d.getMonth() + delta);
+      const expectedMonth = ((d.getMonth() + delta) % 12 + 12) % 12;
+      if (target.getMonth() !== expectedMonth) {
+        // Overflow — pick last day of the intended month instead.
+        target.setDate(0);
+      }
+      return toIso(target);
     });
   }, []);
 
