@@ -13,8 +13,8 @@ import {
   AlertTriangle,
   UserCog,
   FileText,
+  Loader2,
 } from "lucide-react";
-import { Spinner } from "@theshyre/ui";
 import {
   inputClass,
   labelClass,
@@ -366,7 +366,11 @@ export function HarvestImport({
 
         {step === "importing" && (
           <div className="flex flex-col items-center py-8 gap-3">
-            <Spinner size="h-8 w-8" />
+            <Loader2
+              className="h-8 w-8 animate-spin text-accent"
+              aria-label="Loading"
+              role="status"
+            />
             <p className="text-sm text-content-secondary">
               Importing data from Harvest...
             </p>
@@ -527,7 +531,11 @@ function CredentialsStep({
         disabled={loading || !token || !accountId}
         className={buttonPrimaryClass}
       >
-        {loading ? <Spinner /> : <Eye size={16} />}
+        {loading ? (
+          <Loader2 size={16} className="animate-spin" aria-hidden="true" />
+        ) : (
+          <Eye size={16} />
+        )}
         {loading ? "Connecting..." : "Connect & preview"}
       </button>
     </div>
