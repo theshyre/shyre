@@ -76,9 +76,16 @@ export interface InvoiceActivityInput {
     id: string;
     amount: number;
     currency: string | null;
+    /** Calendar date the payment was credited to AR. Always set. */
     paid_on: string;
+    /** Actual time-of-day the payment was recorded. Set on imports
+     *  from sources that track it (Harvest); null on manual entries
+     *  where we only know the date. */
+    paid_at: string | null;
     method: string | null;
     reference: string | null;
+    /** When the Shyre row was inserted — i.e. import time, NOT the
+     *  payment time. Don't surface this in the UI. */
     created_at: string;
     created_by_user_id: string | null;
   }>;
@@ -218,10 +225,17 @@ export function buildInvoiceActivity(
   }
 
   for (const p of payments) {
+    // Prefer the actual paid timestamp (Harvest's recorded-at) over
+    // the Shyre row's created_at, which only tells us when the import
+    // ran. Falls back to paid_on at midnight in the viewer's TZ
+    // (the Date constructor does the right thing with YYYY-MM-DD on
+    // the client) when neither source provides a real timestamp —
+    // e.g. a hand-entered payment where the user only knew the day.
+    const occurredAt = p.paid_at ?? p.paid_on;
     events.push({
       id: `payment-${p.id}`,
       type: "payment",
-      occurredAt: p.created_at,
+      occurredAt,
       actorUserId: p.created_by_user_id,
       payment: {
         amount: Number(p.amount),

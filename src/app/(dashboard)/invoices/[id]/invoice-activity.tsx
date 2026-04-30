@@ -1,5 +1,5 @@
 import { getTranslations } from "next-intl/server";
-import { Avatar, formatDateTime, resolveAvatarUrl } from "@theshyre/ui";
+import { Avatar, resolveAvatarUrl } from "@theshyre/ui";
 import {
   CheckCircle2,
   Send,
@@ -10,6 +10,7 @@ import {
   Pencil,
 } from "lucide-react";
 import { formatCurrency } from "@/lib/invoice-utils";
+import { LocalDateTime } from "@/components/LocalDateTime";
 import {
   buildInvoiceActivity,
   type InvoiceActivityEvent,
@@ -26,6 +27,31 @@ interface InvoiceActivityProps {
   data: InvoiceActivityInput;
   profileById: Map<string, ProfileLookup>;
   unknownUserLabel: string;
+}
+
+/**
+ * Format a YYYY-MM-DD or ISO timestamp as a calendar date string
+ * (e.g. "Apr 15, 2026") for the "Payment received on <date>" headline.
+ * Uses UTC component extraction so a date-only value doesn't shift
+ * across the dateline depending on server / viewer TZ.
+ */
+function formatPaymentHeadlineDate(value: string): string {
+  // Date-only fast path so "2026-04-15" doesn't get UTC-parsed and
+  // flip to Apr 14 in negative offsets.
+  const dateOnly = value.match(/^(\d{4})-(\d{2})-(\d{2})$/);
+  if (dateOnly) {
+    const [, y, m, d] = dateOnly;
+    const months = [
+      "Jan", "Feb", "Mar", "Apr", "May", "Jun",
+      "Jul", "Aug", "Sep", "Oct", "Nov", "Dec",
+    ];
+    return `${months[Number(m) - 1]} ${Number(d)}, ${y}`;
+  }
+  return new Date(value).toLocaleDateString("en-US", {
+    month: "short",
+    day: "numeric",
+    year: "numeric",
+  });
 }
 
 // Each event type maps to a single icon. Color comes from the row
@@ -54,7 +80,7 @@ export async function InvoiceActivity({
 
   const t = await getTranslations("invoices.activity");
 
-  function titleFor(event: InvoiceActivityEvent): string {
+  function titleFor(event: InvoiceActivityEvent): React.ReactNode {
     switch (event.type) {
       case "imported":
         return t("imported");
@@ -67,12 +93,13 @@ export async function InvoiceActivity({
       case "voided":
         return t("voided");
       case "payment":
+        // The "Payment received on <date>" headline uses the calendar
+        // date (paid_on), which is the bookkeeper's grain — same
+        // every day across timezones, no localization needed.
         return t("paymentReceived", {
-          date: formatDateTime(event.payment?.paidOn ?? event.occurredAt, "en-US")
-            .split(",")
-            .slice(0, 2)
-            .join(",")
-            .trim(),
+          date: formatPaymentHeadlineDate(
+            event.payment?.paidOn ?? event.occurredAt,
+          ),
         });
       case "updated":
         return t("updated");
@@ -132,9 +159,7 @@ export async function InvoiceActivity({
                 </div>
                 <p className="mt-0.5 text-caption text-content-muted">
                   {actorName} {t("on")}{" "}
-                  <time dateTime={event.occurredAt}>
-                    {formatDateTime(event.occurredAt)}
-                  </time>
+                  <LocalDateTime value={event.occurredAt} />
                 </p>
                 {event.payment?.method || event.payment?.reference ? (
                   <p className="mt-1 text-caption text-content-secondary">

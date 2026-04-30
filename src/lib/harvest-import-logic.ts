@@ -603,18 +603,25 @@ export function buildInvoicePaymentRow(
   amount: number;
   currency: string;
   paid_on: string;
+  paid_at: string | null;
   method: string | null;
   reference: string | null;
   notes: string | null;
 } {
-  // Pick the best available "when this was paid" value. paid_date
-  // is required NOT NULL in our schema; Harvest reliably populates it
-  // even when paid_at is null, but if both are null fall back to
-  // created_at so we don't drop the row.
+  // paid_on is the calendar date — required NOT NULL in our schema,
+  // and the bookkeeper's grain (matches bank statements). Harvest
+  // reliably populates paid_date; if not, derive from paid_at, then
+  // from created_at as a last resort.
   const paidOn =
     payment.paid_date ??
     (payment.paid_at ? payment.paid_at.slice(0, 10) : null) ??
     payment.created_at.slice(0, 10);
+
+  // paid_at is the actual time-of-day the payment was recorded.
+  // Used by the activity log so "Payment received at 9:26am" lines
+  // up with Harvest's view. Nullable in our schema since manual
+  // payments may not know the time.
+  const paidAt = payment.paid_at ?? payment.created_at;
 
   // Method = Harvest's payment_gateway name when present (e.g.
   // "Stripe", "PayPal"), else "Manual" for anything recorded by hand.
@@ -629,6 +636,7 @@ export function buildInvoicePaymentRow(
     amount: payment.amount,
     currency: (invoiceCurrency ?? "USD").toUpperCase(),
     paid_on: paidOn,
+    paid_at: paidAt,
     method,
     reference,
     notes: payment.notes,

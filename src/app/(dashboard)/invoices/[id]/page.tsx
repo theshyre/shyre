@@ -81,7 +81,7 @@ export default async function InvoiceDetailPage({
     supabase
       .from("invoice_payments")
       .select(
-        "id, amount, currency, paid_on, method, reference, created_at, created_by_user_id",
+        "id, amount, currency, paid_on, paid_at, method, reference, created_at, created_by_user_id",
       )
       .eq("invoice_id", id)
       .order("paid_on", { ascending: true }),
@@ -415,6 +415,7 @@ export default async function InvoiceDetailPage({
             amount: Number(p.amount),
             currency: (p.currency as string | null) ?? null,
             paid_on: p.paid_on as string,
+            paid_at: (p.paid_at as string | null) ?? null,
             method: (p.method as string | null) ?? null,
             reference: (p.reference as string | null) ?? null,
             created_at: p.created_at as string,

@@ -1443,9 +1443,21 @@ describe("buildInvoicePaymentRow", () => {
     expect(row.invoice_id).toBe("shyre-inv-1");
     expect(row.amount).toBe(352.35);
     expect(row.paid_on).toBe("2026-04-24");
+    expect(row.paid_at).toBe("2026-04-24T16:26:00Z");
     expect(row.method).toBe("Manual");
     expect(row.reference).toBeNull();
     expect(row.currency).toBe("USD");
+  });
+
+  it("falls back paid_at to created_at when Harvest's paid_at is null", () => {
+    const row = buildInvoicePaymentRow(
+      { ...basePayment, paid_at: null },
+      "shyre-inv-1",
+      "USD",
+    );
+    // Manual entry in Harvest: only date is known; created_at is the
+    // best available time-of-day.
+    expect(row.paid_at).toBe("2026-04-24T16:26:00Z");
   });
 
   it("uses the gateway name as method when present", () => {

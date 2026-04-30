@@ -90,9 +90,10 @@ describe("buildInvoiceActivity", () => {
           amount: 352.35,
           currency: "USD",
           paid_on: "2026-04-24",
+          paid_at: "2026-04-24T16:26:00Z",
           method: null,
           reference: null,
-          created_at: "2026-04-24T09:26:00Z",
+          created_at: "2026-04-30T22:00:00Z",
           created_by_user_id: "user-marcus",
         },
       ],
@@ -103,6 +104,34 @@ describe("buildInvoiceActivity", () => {
     const payment = events.find((e) => e.type === "payment");
     expect(payment?.payment?.amount).toBe(352.35);
     expect(payment?.payment?.currency).toBe("USD");
+    // Critical: the event timestamp is the actual paid time, NOT
+    // the Shyre row's created_at (which would be the import time).
+    expect(payment?.occurredAt).toBe("2026-04-24T16:26:00Z");
+  });
+
+  it("Payment event falls back to paid_on when paid_at is null (manual entry)", () => {
+    const events = buildInvoiceActivity({
+      invoice: {
+        ...baseInvoice,
+        paid_at: "2026-04-24T09:26:00Z",
+      },
+      history: [],
+      payments: [
+        {
+          id: "pay-2",
+          amount: 100,
+          currency: "USD",
+          paid_on: "2026-04-24",
+          paid_at: null,
+          method: null,
+          reference: null,
+          created_at: "2026-04-30T22:00:00Z",
+          created_by_user_id: "user-marcus",
+        },
+      ],
+    });
+    const payment = events.find((e) => e.type === "payment");
+    expect(payment?.occurredAt).toBe("2026-04-24");
   });
 
   it("falls back to created_by_user_id for status events with no matching history row", () => {
@@ -202,6 +231,7 @@ describe("buildInvoiceActivity", () => {
           amount: 100,
           currency: "USD",
           paid_on: "2026-04-25",
+          paid_at: "2026-04-25T09:00:00Z",
           method: null,
           reference: null,
           created_at: "2026-04-25T09:00:00Z",
