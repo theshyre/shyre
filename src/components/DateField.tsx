@@ -302,9 +302,18 @@ export function DateField(props: DateFieldProps): React.JSX.Element {
     });
   }, []);
 
-  // Click-outside + Escape + focus-leaves-root. `focusin` (capture) catches
-  // Tab leaving the popover into the page underneath; non-modal dialogs
-  // must not strand keyboard users when focus exits the surface.
+  // Close on Escape and on click-outside. Two earlier iterations also
+  // listened for `focusin` to catch keyboard Tab-out, but every variant
+  // we tried (full body filter, html filter, target-equality checks)
+  // also fired on the brief focus-fell-to-body window that follows any
+  // re-render which unmounts the focused cell — clicking Prev month or
+  // a day cell or a preset all park focus on body for a few ms before
+  // we re-focus the new cell. That brief gap closed the popover
+  // mid-click and the user's intent never landed. The cost of dropping
+  // the listener is "popover stays open if you tab through the page
+  // without clicking anything" — a less common path than every-click,
+  // and Escape still works. Re-add via a smarter Tab-key heuristic if
+  // it becomes a real complaint.
   useEffect(() => {
     if (!open) return;
     function onKey(e: KeyboardEvent): void {
@@ -313,37 +322,16 @@ export function DateField(props: DateFieldProps): React.JSX.Element {
     function onClick(e: MouseEvent): void {
       if (!rootRef.current) return;
       if (!rootRef.current.contains(e.target as Node)) {
-        // Click-outside: close without grabbing focus back (the user is
-        // moving on to whatever they clicked).
-        setOpen(false);
-      }
-    }
-    function onFocusIn(e: FocusEvent): void {
-      const target = e.target as HTMLElement | null;
-      if (!target) return;
-      // Focus falling to <body> or <html> means an element just
-      // unmounted (e.g. the user clicked Prev month, the focused day
-      // cell rerendered in a different month, the old cell is gone,
-      // and the browser parked focus on <body> as a fallback). Don't
-      // confuse this with a real keyboard Tab-out — closing the
-      // popover here would dismiss it mid-click and nothing would
-      // ever land in the input. Real Tab-out lands on a focusable
-      // element OUTSIDE rootRef, never on body/html.
-      if (target === document.body || target === document.documentElement) {
-        return;
-      }
-      if (!rootRef.current) return;
-      if (!rootRef.current.contains(target)) {
+        // Click-outside: close without grabbing focus back (the user
+        // is moving on to whatever they clicked).
         setOpen(false);
       }
     }
     window.addEventListener("keydown", onKey);
     document.addEventListener("mousedown", onClick);
-    document.addEventListener("focusin", onFocusIn);
     return () => {
       window.removeEventListener("keydown", onKey);
       document.removeEventListener("mousedown", onClick);
-      document.removeEventListener("focusin", onFocusIn);
     };
   }, [open, close]);
 

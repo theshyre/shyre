@@ -326,19 +326,51 @@ describe("DateField", () => {
   });
 
   it("focusin on document.body does NOT close the popover (DOM-removal noise)", () => {
+    // The component no longer listens for focusin at all — the
+    // earlier filter still leaked some re-render cases where focus
+    // briefly parked on body. Closing on click-outside + Escape is
+    // sufficient for the common paths. This test pins the
+    // no-focusin-listener behavior.
     render(<DateField value="2026-04-30" onChange={() => {}} />);
     fireEvent.click(screen.getByRole("button", { name: "Open calendar" }));
     expect(
       screen.getByRole("dialog", { name: "Calendar" }),
     ).toBeTruthy();
-    // Simulate the browser parking focus on body after a cell unmount.
     const evt = new FocusEvent("focusin", { bubbles: true });
     Object.defineProperty(evt, "target", { value: document.body });
     document.dispatchEvent(evt);
-    // Popover stays open — body-target focusin is filtered out.
     expect(
       screen.queryByRole("dialog", { name: "Calendar" }),
     ).not.toBeNull();
+  });
+
+  it("click-outside still closes the popover", () => {
+    render(
+      <div>
+        <DateField value="2026-04-30" onChange={() => {}} />
+        <button data-testid="outside">Outside</button>
+      </div>,
+    );
+    fireEvent.click(screen.getByRole("button", { name: "Open calendar" }));
+    expect(
+      screen.getByRole("dialog", { name: "Calendar" }),
+    ).toBeTruthy();
+    fireEvent.mouseDown(screen.getByTestId("outside"));
+    expect(
+      screen.queryByRole("dialog", { name: "Calendar" }),
+    ).toBeNull();
+  });
+
+  it("Escape still closes the popover", () => {
+    render(<DateField value="2026-04-30" onChange={() => {}} />);
+    fireEvent.click(screen.getByRole("button", { name: "Open calendar" }));
+    expect(
+      screen.getByRole("dialog", { name: "Calendar" }),
+    ).toBeTruthy();
+    fireEvent.keyDown(window, { key: "Escape" });
+    expect(
+      screen.queryByRole("dialog", { name: "Calendar" }),
+    ).toBeNull();
   });
 
   // --------------------------------------------------------------
