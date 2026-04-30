@@ -738,9 +738,22 @@ export interface ReconciliationReport {
   perCustomer: ReconciliationPerCustomer[];
 }
 
-/** Harvest reports hours to 2 decimal places; summing 1000 entries
- * can accumulate 1e-10 float error. Anything below this threshold is
- * treated as equal. */
+/**
+ * Reconciliation tolerance for "Harvest hours match Shyre hours."
+ *
+ * Harvest reports hours to 2 decimal places (0.01h precision). Shyre
+ * stores duration_min as integer minutes. The round-trip
+ * `Harvest 0.51h → 31 min → 0.5167h` introduces up to ½ minute
+ * (~0.00833h) of drift per entry. Summed over 100+ entries the bucket
+ * drift is real and benign — pure rounding noise that the user should
+ * not see flagged as a mismatch.
+ *
+ * The comparison uses *rounded* values (what the user actually sees in
+ * the UI) with `<=` so two buckets that visually read as 0.01h apart
+ * compare equal. Without this, two bucket rows displayed identically
+ * (both "0.01h off") could disagree on whether they match — which
+ * happened on Marcus's first real import (EyeReg flagged, Pierce
+ * passed, both visually 0.01h apart). */
 const HOURS_EPSILON = 0.01;
 
 /**
@@ -829,24 +842,34 @@ export function buildReconciliation(args: {
   }
 
   const perCustomer: ReconciliationPerCustomer[] = [...byCustomer.entries()]
-    .map(([name, b]) => ({
-      name,
-      harvestHours: roundHours(b.harvestHours),
-      shyreHours: roundHours(b.shyreHours),
-      harvestEntries: b.harvestEntries,
-      shyreEntries: b.shyreEntries,
-      match:
-        b.harvestEntries === b.shyreEntries &&
-        Math.abs(b.harvestHours - b.shyreHours) < HOURS_EPSILON,
-    }))
+    .map(([name, b]) => {
+      const harvestRounded = roundHours(b.harvestHours);
+      const shyreRounded = roundHours(b.shyreHours);
+      return {
+        name,
+        harvestHours: harvestRounded,
+        shyreHours: shyreRounded,
+        harvestEntries: b.harvestEntries,
+        shyreEntries: b.shyreEntries,
+        // Match on the rounded (what-the-user-sees) values with `<=`
+        // so a 0.01h display diff is consistently a match. Comparing
+        // unrounded values produced cosmetic contradictions where two
+        // identical-looking rows disagreed on the icon.
+        match:
+          b.harvestEntries === b.shyreEntries &&
+          Math.abs(harvestRounded - shyreRounded) <= HOURS_EPSILON,
+      };
+    })
     .sort(
       (a, b) =>
         b.harvestHours - a.harvestHours || a.name.localeCompare(b.name),
     );
 
+  const harvestHoursRounded = roundHours(harvestHours);
+  const shyreHoursRounded = roundHours(shyreHours);
   const match =
     harvestEntries === shyreEntries &&
-    Math.abs(harvestHours - shyreHours) < HOURS_EPSILON;
+    Math.abs(harvestHoursRounded - shyreHoursRounded) <= HOURS_EPSILON;
 
   return {
     harvest: {

@@ -895,6 +895,82 @@ describe("buildReconciliation", () => {
     expect(r.shyre).toEqual({ entries: 0, hours: 0 });
     expect(r.perCustomer).toEqual([]);
   });
+
+  describe("rounding-noise tolerance (regression)", () => {
+    /**
+     * Real import showed two customer buckets, both visually 0.01h
+     * apart, but one matched ✓ and the other flagged ⚠️ — because
+     * the comparison was on unrounded values with `< 0.01`. A bucket
+     * whose true diff was 0.0099h passed; a bucket whose true diff
+     * was 0.0100001h failed. Identical-looking rows, contradictory
+     * icons, no actionable signal.
+     *
+     * Fix: compare rounded values with `<=`. These tests pin that
+     * pure rounding noise from minute-rounding never trips a
+     * mismatch.
+     */
+    it("buckets that visually display 0.01h apart match (EyeReg regression)", () => {
+      // EyeReg's real numbers from Marcus's first import: Harvest
+      // 143.37h, Shyre 143.38h — both rounded display values, both
+      // legitimate, the diff entirely from minute-rounding drift
+      // accumulated across 121 entries. Old code compared unrounded
+      // floats: |143.37 - 143.3833| = 0.0133 < 0.01 was FALSE → red
+      // flag, even though the user-visible display said "0.01h off."
+      const r = buildReconciliation({
+        harvestEntries: [
+          { id: 1, hours: 143.37, client: { id: 1, name: "EyeReg" } },
+        ],
+        // 8603 min ÷ 60 = 143.3833h, rounds to 143.38 for display.
+        // This is exactly the per-bucket drift produced by storing
+        // Harvest hours as integer minutes.
+        shyreRows: [{ import_source_id: "1", duration_min: 8603 }],
+        skipReasons: {},
+      });
+      expect(r.perCustomer).toHaveLength(1);
+      expect(r.perCustomer[0]?.harvestHours).toBe(143.37);
+      expect(r.perCustomer[0]?.shyreHours).toBe(143.38);
+      expect(r.perCustomer[0]?.match).toBe(true);
+      expect(r.match).toBe(true);
+    });
+
+    it("two buckets that round to the same display diff agree on the match icon", () => {
+      // The visual contradiction the user saw: EyeReg ⚠️, Pierce ✓,
+      // both visually 0.01h apart. After the fix, both either match
+      // (rounded diff ≤ 0.01) or both don't.
+      const r = buildReconciliation({
+        harvestEntries: [
+          { id: 1, hours: 143.37, client: { id: 1, name: "EyeReg" } },
+          { id: 2, hours: 53.04, client: { id: 2, name: "Pierce" } },
+        ],
+        shyreRows: [
+          { import_source_id: "1", duration_min: 8603 }, // 143.38h
+          { import_source_id: "2", duration_min: 3182 }, // 53.0333h, rounds to 53.03
+        ],
+        skipReasons: {},
+      });
+      const eyereg = r.perCustomer.find((c) => c.name === "EyeReg")!;
+      const pierce = r.perCustomer.find((c) => c.name === "Pierce")!;
+      expect(eyereg.match).toBe(true);
+      expect(pierce.match).toBe(true);
+    });
+
+    it("genuine 0.5h+ mismatch still fails (epsilon doesn't paper over real drift)", () => {
+      const harvestEntries = [
+        { id: 1, hours: 5.0, client: { id: 1, name: "Liv" } },
+      ];
+      const shyreRows = [
+        // Stored as 240 min instead of 300 — a real 1h drift.
+        { import_source_id: "1", duration_min: 240 },
+      ];
+      const r = buildReconciliation({
+        harvestEntries,
+        shyreRows,
+        skipReasons: {},
+      });
+      expect(r.match).toBe(false);
+      expect(r.perCustomer[0]?.match).toBe(false);
+    });
+  });
 });
 
 // ────────────────────────────────────────────────────────────────
