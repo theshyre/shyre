@@ -7,6 +7,8 @@ import { revalidatePath } from "next/cache";
 import {
   invoicedEntriesRefusalMessage,
   invoicesOnImportedCustomersRefusalMessage,
+  manualEntriesOnImportedProjectsRefusalMessage,
+  manualProjectsOnImportedCustomersRefusalMessage,
 } from "./undo-refusal";
 
 /**
@@ -125,6 +127,62 @@ export async function undoImportRunAction(
         throw new Error(
           invoicesOnImportedCustomersRefusalMessage(
             invoicesOnImportedCustomers ?? 0,
+          ),
+        );
+      }
+    }
+
+    // Refusal check 3: manual time entries on imported projects.
+    // time_entries.project_id has ON DELETE CASCADE, so when undo
+    // deletes a project this run created, every time entry against
+    // it gets cascade-deleted by Postgres — including manual entries
+    // the user logged AFTER the import. The user reported this as
+    // "undo wiped out a time entry I added by hand"; refuse with
+    // counts so they can re-home the entries before retrying.
+    const { data: importedProjects } = await supabase
+      .from("projects")
+      .select("id")
+      .eq("import_run_id", runId);
+    const importedProjectIds = (importedProjects ?? []).map(
+      (p) => p.id as string,
+    );
+    if (importedProjectIds.length > 0) {
+      const { data: manualEntries } = await supabase
+        .from("time_entries")
+        .select("project_id")
+        .in("project_id", importedProjectIds)
+        .or(`import_run_id.is.null,import_run_id.neq.${runId}`);
+      if (manualEntries && manualEntries.length > 0) {
+        const distinctProjects = new Set(
+          manualEntries.map((e) => e.project_id as string),
+        );
+        throw new Error(
+          manualEntriesOnImportedProjectsRefusalMessage(
+            manualEntries.length,
+            distinctProjects.size,
+          ),
+        );
+      }
+    }
+
+    // Refusal check 4: manual projects parented to imported customers.
+    // projects.customer_id is ON DELETE CASCADE — a manual project
+    // under an imported customer would cascade-delete with the
+    // customer, taking its time entries with it.
+    if (importedCustomerIds.length > 0) {
+      const { data: manualProjects } = await supabase
+        .from("projects")
+        .select("customer_id")
+        .in("customer_id", importedCustomerIds)
+        .or(`import_run_id.is.null,import_run_id.neq.${runId}`);
+      if (manualProjects && manualProjects.length > 0) {
+        const distinctCustomers = new Set(
+          manualProjects.map((p) => p.customer_id as string),
+        );
+        throw new Error(
+          manualProjectsOnImportedCustomersRefusalMessage(
+            manualProjects.length,
+            distinctCustomers.size,
           ),
         );
       }
