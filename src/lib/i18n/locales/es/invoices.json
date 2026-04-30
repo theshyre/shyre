@@ -73,6 +73,8 @@
     "imported": "Importada desde Harvest.",
     "created": "Factura generada.",
     "sent": "Factura enviada.",
+    "sentTo": "Factura enviada a {email}.",
+    "sentToWithName": "Factura enviada a {name} <{email}>.",
     "paid": "Marcada como pagada.",
     "voided": "Anulada.",
     "paymentReceived": "Pago recibido el {date}.",

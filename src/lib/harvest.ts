@@ -417,6 +417,55 @@ export async function fetchHarvestInvoicePayments(
 }
 
 /**
+ * A message (send / reminder / thank-you) recorded against a Harvest
+ * invoice. Lives at `/v2/invoices/{INVOICE_ID}/messages`. We use it to
+ * pull the recipient out of the most recent `event_type=null` (default
+ * send) message, which is what feeds Harvest's "Sent invoice to X
+ * <Y>" activity-log line.
+ *
+ * `event_type` is null for a normal send, or one of "send", "view",
+ * "reminder", "thank_you" depending on the action. The default-send
+ * is what we display.
+ */
+export interface HarvestInvoiceMessageRecipient {
+  name: string | null;
+  email: string;
+}
+
+export interface HarvestInvoiceMessage {
+  id: number;
+  sent_by: string | null;
+  sent_by_email: string | null;
+  sent_from: string | null;
+  sent_from_email: string | null;
+  recipients: HarvestInvoiceMessageRecipient[];
+  subject: string | null;
+  body: string | null;
+  include_link_to_client_invoice: boolean;
+  attach_pdf: boolean;
+  send_me_a_copy: boolean;
+  thank_you: boolean;
+  /** Null for the default "send" event; otherwise "send", "view",
+   *  "reminder", "thank_you", or future Harvest event types. */
+  event_type: string | null;
+  reminder: boolean;
+  send_reminder_on: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
+export async function fetchHarvestInvoiceMessages(
+  invoiceId: number,
+  opts: HarvestRequestOptions,
+): Promise<HarvestInvoiceMessage[]> {
+  return fetchAllPages<HarvestInvoiceMessage>(
+    `/invoices/${invoiceId}/messages`,
+    "invoice_messages",
+    opts,
+  );
+}
+
+/**
  * Fetch the Harvest account's company info. Used for two things:
  * (1) validating credentials, (2) pulling the account's time zone so
  * time entries can be localized correctly.

@@ -87,6 +87,16 @@ export async function InvoiceActivity({
       case "created":
         return t("created");
       case "sent":
+        // When we know the recipient (Harvest imports + future
+        // in-app send actions populate this), surface it the same
+        // way Harvest's own log does: "Sent invoice to <name>
+        // <email>". Falls back to the bare title when not known.
+        if (event.sentTo) {
+          const { name, email } = event.sentTo;
+          return name
+            ? `${t("sentToWithName", { name, email })}`
+            : `${t("sentTo", { email })}`;
+        }
         return t("sent");
       case "paid":
         return t("paid");

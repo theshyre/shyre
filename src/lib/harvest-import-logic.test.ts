@@ -16,6 +16,7 @@ import {
   buildInvoiceRow,
   buildInvoiceLineItemRow,
   buildInvoicePaymentRow,
+  pickLatestSendRecipient,
   mapHarvestInvoiceState,
   type ImportContext,
   type UserMapChoice,
@@ -28,6 +29,7 @@ import type {
   HarvestInvoice,
   HarvestInvoiceLineItem,
   HarvestInvoicePayment,
+  HarvestInvoiceMessage,
 } from "./harvest";
 
 // ────────────────────────────────────────────────────────────────
@@ -1508,5 +1510,82 @@ describe("buildInvoicePaymentRow", () => {
       "USD",
     );
     expect(row.notes).toBe("Wire transfer ref 4421");
+  });
+});
+
+describe("pickLatestSendRecipient", () => {
+  function msg(over: Partial<HarvestInvoiceMessage> = {}): HarvestInvoiceMessage {
+    return {
+      id: 1,
+      sent_by: "Marcus Malcom",
+      sent_by_email: "marcus@malcom.io",
+      sent_from: "Marcus Malcom",
+      sent_from_email: "marcus@malcom.io",
+      recipients: [
+        { name: "Bret Andre", email: "bandre@fdapproval.com" },
+      ],
+      subject: "Invoice 141",
+      body: null,
+      include_link_to_client_invoice: false,
+      attach_pdf: true,
+      send_me_a_copy: false,
+      thank_you: false,
+      event_type: null,
+      reminder: false,
+      send_reminder_on: null,
+      created_at: "2026-04-20T16:21:00Z",
+      updated_at: "2026-04-20T16:21:00Z",
+      ...over,
+    };
+  }
+
+  it("returns the recipient of a default-send message (event_type=null)", () => {
+    const got = pickLatestSendRecipient([msg()]);
+    expect(got).toEqual({
+      email: "bandre@fdapproval.com",
+      name: "Bret Andre",
+    });
+  });
+
+  it("returns null when no messages exist", () => {
+    expect(pickLatestSendRecipient([])).toBeNull();
+  });
+
+  it("ignores 'view' and 'thank_you' messages — those have no meaningful recipient", () => {
+    const got = pickLatestSendRecipient([
+      msg({ id: 1, event_type: "view" }),
+      msg({ id: 2, event_type: "thank_you" }),
+    ]);
+    expect(got).toBeNull();
+  });
+
+  it("picks the newest send when multiple sends exist", () => {
+    const got = pickLatestSendRecipient([
+      msg({
+        id: 1,
+        created_at: "2026-04-20T16:21:00Z",
+        recipients: [{ name: "Bret Andre", email: "bandre@fdapproval.com" }],
+      }),
+      msg({
+        id: 2,
+        created_at: "2026-04-22T10:00:00Z",
+        recipients: [{ name: "Pat Reviewer", email: "pat@review.com" }],
+      }),
+    ]);
+    expect(got?.email).toBe("pat@review.com");
+  });
+
+  it("preserves null name when Harvest only has the email", () => {
+    const got = pickLatestSendRecipient([
+      msg({ recipients: [{ name: null, email: "x@y.com" }] }),
+    ]);
+    expect(got).toEqual({ email: "x@y.com", name: null });
+  });
+
+  it("includes 'reminder' messages — those are also user-recipient sends", () => {
+    const got = pickLatestSendRecipient([
+      msg({ event_type: "reminder" }),
+    ]);
+    expect(got?.email).toBe("bandre@fdapproval.com");
   });
 });

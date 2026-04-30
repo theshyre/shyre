@@ -73,6 +73,8 @@
     "imported": "Imported from Harvest.",
     "created": "Invoice generated.",
     "sent": "Invoice sent.",
+    "sentTo": "Sent invoice to {email}.",
+    "sentToWithName": "Sent invoice to {name} <{email}>.",
     "paid": "Marked as paid.",
     "voided": "Voided.",
     "paymentReceived": "Payment received on {date}.",

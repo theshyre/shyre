@@ -401,6 +401,8 @@ export default async function InvoiceDetailPage({
             imported_at: (invoice.imported_at as string | null) ?? null,
             imported_from: (invoice.imported_from as string | null) ?? null,
             currency: (invoice.currency as string | null) ?? null,
+            sent_to_email: (invoice.sent_to_email as string | null) ?? null,
+            sent_to_name: (invoice.sent_to_name as string | null) ?? null,
           },
           history: (history ?? []).map((h) => ({
             id: h.id as string,

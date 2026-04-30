@@ -12,6 +12,8 @@ const baseInvoice = {
   imported_at: null,
   imported_from: null,
   currency: "USD",
+  sent_to_email: null,
+  sent_to_name: null,
 };
 
 describe("buildInvoiceActivity", () => {
@@ -41,6 +43,37 @@ describe("buildInvoiceActivity", () => {
     });
     expect(events.map((e) => e.type)).toEqual(["imported"]);
     expect(events[0]?.occurredAt).toBe("2026-04-19T08:00:00Z");
+  });
+
+  it("Sent event includes sentTo when invoice has sent_to_email", () => {
+    const events = buildInvoiceActivity({
+      invoice: {
+        ...baseInvoice,
+        sent_at: "2026-04-20T09:21:00Z",
+        sent_to_email: "bandre@fdapproval.com",
+        sent_to_name: "Bret Andre",
+      },
+      history: [],
+      payments: [],
+    });
+    const sent = events.find((e) => e.type === "sent");
+    expect(sent?.sentTo).toEqual({
+      email: "bandre@fdapproval.com",
+      name: "Bret Andre",
+    });
+  });
+
+  it("Sent event omits sentTo when sent_to_email is null", () => {
+    const events = buildInvoiceActivity({
+      invoice: {
+        ...baseInvoice,
+        sent_at: "2026-04-20T09:21:00Z",
+      },
+      history: [],
+      payments: [],
+    });
+    const sent = events.find((e) => e.type === "sent");
+    expect(sent?.sentTo).toBeUndefined();
   });
 
   it("emits Sent + Created in newest-first order with actor resolved from history", () => {

@@ -50,6 +50,13 @@ export interface InvoiceActivityEvent {
     reference: string | null;
     paidOn: string;
   };
+  /** Populated only for `sent` events when we know the recipient
+   *  (Harvest imports populate this; manual sends will when the
+   *  in-app send action lands). */
+  sentTo?: {
+    email: string;
+    name: string | null;
+  };
 }
 
 export interface InvoiceActivityInput {
@@ -64,6 +71,11 @@ export interface InvoiceActivityInput {
     imported_at: string | null;
     imported_from: string | null;
     currency: string | null;
+    /** Most-recent send recipient — populated by importers and (in
+     *  the future) the in-app Send action. Null until the invoice
+     *  has been sent. */
+    sent_to_email: string | null;
+    sent_to_name: string | null;
   };
   history: Array<{
     id: string;
@@ -199,6 +211,9 @@ export function buildInvoiceActivity(
       type: "sent",
       occurredAt: invoice.sent_at,
       actorUserId: findActorAt(invoice.sent_at, history) ?? fallbackActor,
+      sentTo: invoice.sent_to_email
+        ? { email: invoice.sent_to_email, name: invoice.sent_to_name }
+        : undefined,
     });
   }
 

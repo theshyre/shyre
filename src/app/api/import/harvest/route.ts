@@ -11,6 +11,7 @@ import {
   fetchHarvestUsers,
   fetchHarvestInvoices,
   fetchHarvestInvoicePayments,
+  fetchHarvestInvoiceMessages,
   HarvestApiError,
 } from "@/lib/harvest";
 import {
@@ -21,6 +22,7 @@ import {
   buildInvoiceRow,
   buildInvoiceLineItemRow,
   buildInvoicePaymentRow,
+  pickLatestSendRecipient,
   collectUniqueHarvestUsers,
   collectUniqueTaskNames,
   normalizeDateRange,
@@ -651,6 +653,39 @@ export async function POST(request: Request): Promise<NextResponse> {
               deletePayError,
             );
             continue;
+          }
+
+          // Messages — used only for the latest send-recipient. Harvest
+          // returns full message bodies + subjects too, but until
+          // there's a UI to display them, importing the rest would be
+          // pure DB churn. The activity log just needs the email +
+          // name to render "Sent invoice to <name> <<email>>".
+          try {
+            const messages = await fetchHarvestInvoiceMessages(hi.id, opts);
+            const recipient = pickLatestSendRecipient(messages);
+            if (recipient) {
+              const { error: sentToError } = await supabase
+                .from("invoices")
+                .update({
+                  sent_to_email: recipient.email,
+                  sent_to_name: recipient.name,
+                })
+                .eq("id", shyreInvoiceId);
+              if (sentToError) {
+                recordError(
+                  `Invoice "${hi.number}" sent_to: ${sentToError.message}`,
+                  sentToError,
+                );
+                // Don't continue — sent_to is best-effort metadata,
+                // shouldn't abort the rest of this invoice's import.
+              }
+            }
+          } catch (err) {
+            recordError(
+              `Invoice "${hi.number}" messages fetch: ${err instanceof Error ? err.message : String(err)}`,
+              err,
+            );
+            // Same: best-effort. Fall through to the payments fetch.
           }
 
           // Harvest emits zero-amount payment records for things

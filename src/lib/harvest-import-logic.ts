@@ -579,6 +579,39 @@ export function buildInvoiceRow(
 }
 
 /**
+ * Pull the most-recent send recipient out of a list of Harvest invoice
+ * messages. Returns the first email + display-name pair we can find
+ * on the latest "send"-style message (event_type either null — the
+ * default send — or "send" / "reminder"; "view" and "thank_you" are
+ * server-generated and don't carry a meaningful recipient for our log).
+ *
+ * Returning null when no messages match is fine: the caller writes
+ * nothing to invoices.sent_to_*, leaving the column NULL.
+ */
+export function pickLatestSendRecipient(
+  messages: import("./harvest").HarvestInvoiceMessage[],
+): { email: string; name: string | null } | null {
+  const sends = messages.filter(
+    (m) =>
+      m.event_type === null ||
+      m.event_type === "send" ||
+      m.event_type === "reminder",
+  );
+  // Sort newest-first by created_at.
+  const sorted = [...sends].sort(
+    (a, b) =>
+      new Date(b.created_at).getTime() - new Date(a.created_at).getTime(),
+  );
+  for (const msg of sorted) {
+    const r = msg.recipients?.[0];
+    if (r?.email) {
+      return { email: r.email, name: r.name ?? null };
+    }
+  }
+  return null;
+}
+
+/**
  * Build an `invoice_payments` row from a Harvest payment record.
  *
  * Harvest's invoice payload only has the date a user clicked "Mark
@@ -617,11 +650,15 @@ export function buildInvoicePaymentRow(
     (payment.paid_at ? payment.paid_at.slice(0, 10) : null) ??
     payment.created_at.slice(0, 10);
 
-  // paid_at is the actual time-of-day the payment was recorded.
-  // Used by the activity log so "Payment received at 9:26am" lines
-  // up with Harvest's view. Nullable in our schema since manual
-  // payments may not know the time.
-  const paidAt = payment.paid_at ?? payment.created_at;
+  // paid_at = the wall-clock time the action happened, NOT Harvest's
+  // own paid_at field. Harvest's paid_at is the user-entered paid
+  // date stored as midnight UTC for manual payments — converting to
+  // local time then "moves" the event to the previous day in
+  // negative-offset zones. Harvest's own activity log (e.g. "Marcus
+  // on 04/24/2026 at 9:26am") uses created_at, which is the precise
+  // moment the user clicked Save. We follow the same convention so
+  // imported events line up with what the user sees in Harvest.
+  const paidAt = payment.created_at;
 
   // Method = Harvest's payment_gateway name when present (e.g.
   // "Stripe", "PayPal"), else "Manual" for anything recorded by hand.
