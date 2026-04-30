@@ -73,10 +73,33 @@ export async function addTeamMember(
   teamId: string,
   userId: string,
   role: "owner" | "admin" | "member",
+  options?: { joinedAt?: Date },
+): Promise<void> {
+  const row: Record<string, unknown> = {
+    team_id: teamId,
+    user_id: userId,
+    role,
+  };
+  if (options?.joinedAt) row.joined_at = options.joinedAt.toISOString();
+  const { error } = await adminClient().from("team_members").insert(row);
+  if (error) throw new Error(error.message);
+}
+
+/**
+ * Update an existing membership's joined_at. Used by tests that need to
+ * exercise the pre-membership defense-in-depth filter — seeding old
+ * entries and then bumping joined_at forward, or vice versa.
+ */
+export async function setMembershipJoinedAt(
+  teamId: string,
+  userId: string,
+  joinedAt: Date,
 ): Promise<void> {
   const { error } = await adminClient()
     .from("team_members")
-    .insert({ team_id: teamId, user_id: userId, role });
+    .update({ joined_at: joinedAt.toISOString() })
+    .eq("team_id", teamId)
+    .eq("user_id", userId);
   if (error) throw new Error(error.message);
 }
 

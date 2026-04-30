@@ -61,13 +61,32 @@ export async function createTestTimeEntry(
   teamId: string,
   projectId: string,
   userId: string,
-  overrides?: { description?: string; hoursAgo?: number },
+  overrides?: {
+    description?: string;
+    hoursAgo?: number;
+    /** Explicit start_time. Wins over hoursAgo. */
+    startTime?: Date;
+    /** Explicit end_time. Defaults to start + 1h when startTime is set. */
+    endTime?: Date;
+    durationMin?: number;
+    billable?: boolean;
+  },
 ): Promise<{ id: string }> {
   assertTestPrefix(prefix, "prefix");
   const description = `${prefix}${overrides?.description ?? "time entry"}`;
-  const hoursAgo = overrides?.hoursAgo ?? 2;
-  const end = new Date();
-  const start = new Date(end.getTime() - hoursAgo * 60 * 60 * 1000);
+
+  let start: Date;
+  let end: Date;
+  if (overrides?.startTime) {
+    start = overrides.startTime;
+    end = overrides.endTime ?? new Date(start.getTime() + 60 * 60 * 1000);
+  } else {
+    const hoursAgo = overrides?.hoursAgo ?? 2;
+    end = new Date();
+    start = new Date(end.getTime() - hoursAgo * 60 * 60 * 1000);
+  }
+  // Note: duration_min is a GENERATED ALWAYS column — set start/end and
+  // let Postgres compute it.
 
   const { data, error } = await adminClient()
     .from("time_entries")
@@ -78,7 +97,7 @@ export async function createTestTimeEntry(
       description,
       start_time: start.toISOString(),
       end_time: end.toISOString(),
-      billable: true,
+      billable: overrides?.billable ?? true,
     })
     .select("id")
     .single();

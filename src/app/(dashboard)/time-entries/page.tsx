@@ -19,6 +19,7 @@ import {
   getOffsetForZone,
 } from "@/lib/time/tz";
 import { getMyTemplates } from "@/lib/templates/queries";
+import { selfScopedFloor } from "@/lib/time/membership";
 import { TimeHome } from "./time-home";
 import { NoTeamEmptyState } from "./no-team-empty-state";
 import type { TimeView } from "./view-toggle";
@@ -170,6 +171,25 @@ export default async function TimeEntriesPage({
   const dayStartUtc = localDateMidnightUtc(day, tzOffsetMin);
   const dayEndUtc = localDateMidnightUtc(dayEnd, tzOffsetMin);
 
+  // Defense-in-depth: when self-scoped (members=me) on a single team,
+  // clamp the lower bound to team_members.joined_at. See
+  // `docs/reference/unified-time.md` §Authorization & cross-team safety.
+  // No-op when team is "all" or when memberFilter isn't strictly self.
+  const weekFloorUtc = await selfScopedFloor(
+    supabase,
+    callerId,
+    selectedTeamId ?? null,
+    memberFilter,
+    weekStartUtc,
+  );
+  const dayFloorUtc = await selfScopedFloor(
+    supabase,
+    callerId,
+    selectedTeamId ?? null,
+    memberFilter,
+    dayStartUtc,
+  );
+
   // Week entries — used by both views (week grid + day view's daily-total strip)
   let weekQuery = supabase
     .from("time_entries")
@@ -177,7 +197,7 @@ export default async function TimeEntriesPage({
       "*, projects(id, name, github_repo, category_set_id, require_timestamps, customers(id, name))",
     )
     .is("deleted_at", null)
-    .gte("start_time", weekStartUtc.toISOString())
+    .gte("start_time", weekFloorUtc.toISOString())
     .lt("start_time", weekEndUtc.toISOString())
     .order("start_time", { ascending: true });
   if (selectedTeamId) weekQuery = weekQuery.eq("team_id", selectedTeamId);
@@ -203,7 +223,7 @@ export default async function TimeEntriesPage({
       "*, projects(id, name, github_repo, category_set_id, require_timestamps, customers(id, name))",
     )
     .is("deleted_at", null)
-    .gte("start_time", dayStartUtc.toISOString())
+    .gte("start_time", dayFloorUtc.toISOString())
     .lt("start_time", dayEndUtc.toISOString())
     .order("start_time", { ascending: true });
   if (selectedTeamId) dayQuery = dayQuery.eq("team_id", selectedTeamId);
