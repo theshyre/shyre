@@ -23,6 +23,7 @@ import {
   buttonSecondaryClass,
 } from "@/lib/form-styles";
 import { InlineErrorCard } from "@/components/InlineErrorCard";
+import { DateField, type DateFieldPreset } from "@/components/DateField";
 import type { TeamListItem } from "@/lib/team-context";
 
 type Step = "credentials" | "preview" | "importing" | "done";
@@ -109,6 +110,36 @@ interface ApiErrorBody {
   status?: number;
   endpoint?: string;
   detail?: string;
+}
+
+/**
+ * Date presets for the import range. The going-live checklist
+ * recommends importing year-by-year (current YTD first, then last
+ * full year, etc.) — these presets one-click-fill the corresponding
+ * "from" / "to" boundaries.
+ */
+function pad2(n: number): string {
+  return String(n).padStart(2, "0");
+}
+function isoToday(): string {
+  const d = new Date();
+  return `${d.getFullYear()}-${pad2(d.getMonth() + 1)}-${pad2(d.getDate())}`;
+}
+function importFromPresets(): DateFieldPreset[] {
+  const year = new Date().getFullYear();
+  return [
+    { label: `Jan 1, ${year}`, value: `${year}-01-01` },
+    { label: `Jan 1, ${year - 1}`, value: `${year - 1}-01-01` },
+    { label: `Jan 1, ${year - 2}`, value: `${year - 2}-01-01` },
+  ];
+}
+function importToPresets(): DateFieldPreset[] {
+  const year = new Date().getFullYear();
+  return [
+    { label: "Today", value: isoToday() },
+    { label: `Dec 31, ${year - 1}`, value: `${year - 1}-12-31` },
+    { label: `Dec 31, ${year - 2}`, value: `${year - 2}-12-31` },
+  ];
 }
 
 export function HarvestImport({
@@ -453,20 +484,22 @@ function CredentialsStep({
           <div className="grid gap-3 sm:grid-cols-2">
             <div>
               <label className={labelClass}>From</label>
-              <input
-                type="date"
+              <DateField
                 value={fromDate}
-                onChange={(e) => setFromDate(e.target.value)}
-                className={inputClass}
+                onChange={setFromDate}
+                ariaLabel="Import range start"
+                presets={importFromPresets()}
+                max={toDate || undefined}
               />
             </div>
             <div>
               <label className={labelClass}>To</label>
-              <input
-                type="date"
+              <DateField
                 value={toDate}
-                onChange={(e) => setToDate(e.target.value)}
-                className={inputClass}
+                onChange={setToDate}
+                ariaLabel="Import range end"
+                presets={importToPresets()}
+                min={fromDate || undefined}
               />
             </div>
           </div>
