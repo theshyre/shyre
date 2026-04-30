@@ -105,6 +105,28 @@ describe("buildInvoiceActivity", () => {
     expect(payment?.payment?.currency).toBe("USD");
   });
 
+  it("falls back to created_by_user_id for status events with no matching history row", () => {
+    // The INSERT-time stamping path: an imported invoice lands at
+    // status='paid', the BEFORE-INSERT trigger sets paid_at, but no
+    // history row exists (history captures UPDATEs only). Without a
+    // fallback the event renders as "Unknown user" — wrong, since
+    // the importer is right there in created_by_user_id.
+    const events = buildInvoiceActivity({
+      invoice: {
+        ...baseInvoice,
+        imported_at: "2026-04-19T08:00:00Z",
+        imported_from: "harvest",
+        paid_at: "2024-07-10T10:00:00Z",
+        status: "paid",
+        created_by_user_id: "user-marcus",
+      },
+      history: [],
+      payments: [],
+    });
+    const paid = events.find((e) => e.type === "paid");
+    expect(paid?.actorUserId).toBe("user-marcus");
+  });
+
   it("emits Marked-paid as a fallback when paid_at is set but no payments rows exist", () => {
     // This is the imported-Harvest-paid case: Harvest reports the
     // invoice as paid, the import sets status='paid' which auto-stamps

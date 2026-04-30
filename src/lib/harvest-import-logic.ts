@@ -517,6 +517,13 @@ export function buildInvoiceRow(
   status: "draft" | "sent" | "paid" | "void";
   issued_date: string | null;
   due_date: string | null;
+  /** Preserve Harvest's actual sent timestamp. The DB INSERT trigger
+   *  (`tg_invoices_status_timestamps_insert`) only stamps `now()` when
+   *  the value is NULL, so passing through Harvest's value sticks. */
+  sent_at: string | null;
+  /** Same as sent_at — Harvest's actual paid timestamp wins over the
+   *  INSERT trigger's `now()` fallback. */
+  paid_at: string | null;
   subtotal: number;
   tax_rate: number;
   tax_amount: number;
@@ -553,6 +560,12 @@ export function buildInvoiceRow(
     status: mapHarvestInvoiceState(hi.state),
     issued_date: hi.issue_date,
     due_date: hi.due_date,
+    // Harvest exposes both `paid_at` (timestamp) and `paid_date` (date
+    // only). Prefer the timestamp when present so the activity log
+    // shows the actual time of day; fall back to the date string,
+    // which Postgres stores fine in a TIMESTAMPTZ column.
+    sent_at: hi.sent_at,
+    paid_at: hi.paid_at ?? hi.paid_date,
     subtotal,
     tax_rate: taxRate,
     tax_amount: taxAmount,

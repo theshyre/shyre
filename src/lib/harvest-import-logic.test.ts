@@ -1220,6 +1220,31 @@ describe("buildInvoiceRow", () => {
     expect(buildInvoiceRow({ ...baseInvoice, state: "closed" }, null, ctx).status).toBe("void");
   });
 
+  it("passes Harvest's sent_at and paid_at through unchanged", () => {
+    const row = buildInvoiceRow(baseInvoice, "cust-1", ctx);
+    expect(row.sent_at).toBe("2024-07-01T10:00:00Z");
+    expect(row.paid_at).toBe("2024-07-10T10:00:00Z");
+  });
+
+  it("falls back to paid_date when paid_at is null", () => {
+    const row = buildInvoiceRow(
+      { ...baseInvoice, paid_at: null, paid_date: "2024-07-12" },
+      "cust-1",
+      ctx,
+    );
+    expect(row.paid_at).toBe("2024-07-12");
+  });
+
+  it("preserves null sent_at / paid_at on draft invoices", () => {
+    const row = buildInvoiceRow(
+      { ...baseInvoice, sent_at: null, paid_at: null, paid_date: null },
+      "cust-1",
+      ctx,
+    );
+    expect(row.sent_at).toBeNull();
+    expect(row.paid_at).toBeNull();
+  });
+
   // Money-math invariant: subtotal + tax_amount === total. Bookkeeper
   // review flagged that a regression here is silent — the row would
   // ship to QuickBooks with mismatched totals and nobody notices

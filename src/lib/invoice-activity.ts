@@ -177,12 +177,21 @@ export function buildInvoiceActivity(
     });
   }
 
+  // For status-flip timestamps, prefer the actor recorded in
+  // invoices_history. If no match exists, the timestamp was stamped
+  // on INSERT (no history row exists for inserts — the trigger only
+  // captures UPDATEs), so the right actor is the row's creator.
+  // Without this fallback an imported-paid invoice renders "Marked
+  // as paid by Unknown user" — confusing for an importer who knows
+  // they ran the import.
+  const fallbackActor = invoice.created_by_user_id;
+
   if (invoice.sent_at) {
     events.push({
       id: `sent-${invoice.id}`,
       type: "sent",
       occurredAt: invoice.sent_at,
-      actorUserId: findActorAt(invoice.sent_at, history),
+      actorUserId: findActorAt(invoice.sent_at, history) ?? fallbackActor,
     });
   }
 
@@ -195,7 +204,7 @@ export function buildInvoiceActivity(
       id: `paid-${invoice.id}`,
       type: "paid",
       occurredAt: invoice.paid_at,
-      actorUserId: findActorAt(invoice.paid_at, history),
+      actorUserId: findActorAt(invoice.paid_at, history) ?? fallbackActor,
     });
   }
 
@@ -204,7 +213,7 @@ export function buildInvoiceActivity(
       id: `voided-${invoice.id}`,
       type: "voided",
       occurredAt: invoice.voided_at,
-      actorUserId: findActorAt(invoice.voided_at, history),
+      actorUserId: findActorAt(invoice.voided_at, history) ?? fallbackActor,
     });
   }
 

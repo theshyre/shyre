@@ -510,35 +510,89 @@ export async function POST(request: Request): Promise<NextResponse> {
       }
 
       let invoicesImported = 0;
+      let invoicesRefreshed = 0;
       let invoiceLineItemsImported = 0;
       for (const hi of harvestInvoices) {
-        const bySource = existingInvoicesBySourceId.get(String(hi.id));
-        if (bySource) {
-          invoiceMap.set(hi.id, bySource);
-          continue;
-        }
-
         const customerId = customerMap.get(hi.client.id) ?? null;
         const row = buildInvoiceRow(hi, customerId, ctx);
-        const { data: inserted, error } = await supabase
-          .from("invoices")
-          .insert(row)
-          .select("id")
-          .single();
 
-        if (error) {
-          recordError(`Invoice "${hi.number}": ${error.message}`, error);
-          continue;
+        const bySource = existingInvoicesBySourceId.get(String(hi.id));
+        let shyreInvoiceId: string;
+
+        if (bySource) {
+          // Re-import: refresh the row from Harvest. Update only the
+          // fields the importer owns — Harvest is the source of truth
+          // for status, totals, and the sent_at / paid_at timestamps
+          // we couldn't set on the original import. Leave team_id,
+          // user_id, created_at, created_by_user_id alone (those were
+          // set when the invoice first landed; refreshing them would
+          // misattribute the original creation).
+          const { error: updateError } = await supabase
+            .from("invoices")
+            .update({
+              customer_id: row.customer_id,
+              invoice_number: row.invoice_number,
+              status: row.status,
+              issued_date: row.issued_date,
+              due_date: row.due_date,
+              sent_at: row.sent_at,
+              paid_at: row.paid_at,
+              subtotal: row.subtotal,
+              tax_rate: row.tax_rate,
+              tax_amount: row.tax_amount,
+              total: row.total,
+              notes: row.notes,
+              import_run_id: row.import_run_id,
+            })
+            .eq("id", bySource);
+          if (updateError) {
+            recordError(
+              `Invoice "${hi.number}" refresh: ${updateError.message}`,
+              updateError,
+            );
+            continue;
+          }
+          shyreInvoiceId = bySource;
+          invoicesRefreshed++;
+
+          // Line items: Harvest may have added/removed/changed lines
+          // since the original import. Replace the set in one delete
+          // + insert (cheaper than diffing for typical < 20-line
+          // invoices). Cascade-delete on the FK would also drop child
+          // rows tied to time_entries via time_entry_id; in practice
+          // imported lines have time_entry_id=NULL so nothing is lost.
+          const { error: deleteLiError } = await supabase
+            .from("invoice_line_items")
+            .delete()
+            .eq("invoice_id", shyreInvoiceId);
+          if (deleteLiError) {
+            recordError(
+              `Invoice "${hi.number}" line item refresh: ${deleteLiError.message}`,
+              deleteLiError,
+            );
+            continue;
+          }
+        } else {
+          // First import: insert.
+          const { data: inserted, error } = await supabase
+            .from("invoices")
+            .insert(row)
+            .select("id")
+            .single();
+          if (error) {
+            recordError(`Invoice "${hi.number}": ${error.message}`, error);
+            continue;
+          }
+          if (!inserted) continue;
+          shyreInvoiceId = inserted.id as string;
+          invoicesImported++;
         }
-        if (!inserted) continue;
 
-        const shyreInvoiceId = inserted.id as string;
         invoiceMap.set(hi.id, shyreInvoiceId);
-        invoicesImported++;
 
-        // Line items piggyback on the parent insert. We stamp them all
-        // in one batch per invoice — typical invoice has < 20 lines,
-        // so chunking would be over-engineering.
+        // Line items piggyback on the parent. We stamp them all in
+        // one batch per invoice — typical invoice has < 20 lines, so
+        // chunking would be over-engineering.
         const lineItemRows = (hi.line_items ?? []).map((li) =>
           buildInvoiceLineItemRow(li, shyreInvoiceId),
         );
@@ -748,6 +802,7 @@ export async function POST(request: Request): Promise<NextResponse> {
           customers: customersImported,
           projects: projectsImported,
           invoices: invoicesImported,
+          invoicesRefreshed,
           invoiceLineItems: invoiceLineItemsImported,
           timeEntries: timeEntriesImported,
         },
