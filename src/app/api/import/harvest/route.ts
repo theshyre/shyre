@@ -515,6 +515,11 @@ export async function POST(request: Request): Promise<NextResponse> {
       let invoicesRefreshed = 0;
       let invoiceLineItemsImported = 0;
       let invoicePaymentsImported = 0;
+      // Skip reasons accumulate across both the invoices pass (here)
+      // and the time-entries pass below. Time entries declared a
+      // local map before this change; pulled it up so the payments
+      // skip path can record into the same bucket.
+      const skipReasons = new Map<string, number>();
       for (const hi of harvestInvoices) {
         const customerId = customerMap.get(hi.client.id) ?? null;
         const row = buildInvoiceRow(hi, customerId, ctx);
@@ -648,8 +653,28 @@ export async function POST(request: Request): Promise<NextResponse> {
             continue;
           }
 
-          if (harvestPayments.length > 0) {
-            const paymentRows = harvestPayments.map((p) =>
+          // Harvest emits zero-amount payment records for things
+          // like "thank you" notes and balance-zeroing adjustments;
+          // our invoice_payments.amount has a CHECK (amount > 0).
+          // Filter them out — they're not real payments, just
+          // bookkeeping noise that would otherwise abort the row.
+          // Negative amounts (refunds) are also out of scope today;
+          // dropping them is consistent with how the importer
+          // handles other Harvest-specific edge cases (the user's
+          // refund flow is to add a manual line item).
+          const realPayments = harvestPayments.filter((p) => p.amount > 0);
+          const skippedPayments =
+            harvestPayments.length - realPayments.length;
+          if (skippedPayments > 0) {
+            skipReasons.set(
+              "non-positive payment amount",
+              (skipReasons.get("non-positive payment amount") ?? 0) +
+                skippedPayments,
+            );
+          }
+
+          if (realPayments.length > 0) {
+            const paymentRows = realPayments.map((p) =>
               buildInvoicePaymentRow(p, shyreInvoiceId, hi.currency),
             );
             const { error: payError } = await supabase
@@ -755,7 +780,6 @@ export async function POST(request: Request): Promise<NextResponse> {
       // Time entries -------------------------------------------------
       let timeEntriesImported = 0;
       let timeEntriesSkipped = 0;
-      const skipReasons = new Map<string, number>();
 
       // Bulk-load project ticket-defaults once so the per-row build
       // can resolve short refs (#123 → octokit/rest.js#123) without
