@@ -23,6 +23,7 @@ import {
   Clock,
   FileText,
   Users,
+  UsersRound,
   Briefcase,
   FolderKanban,
   BarChart3,
@@ -120,6 +121,15 @@ export const MODULES: ModuleManifest[] = [
     section: "setup",
     navItems: [
       { labelKey: "business", href: "/business", icon: Briefcase },
+    ],
+  },
+  {
+    id: "teams",
+    labelKey: "modules.teams",
+    icon: UsersRound,
+    section: "setup",
+    navItems: [
+      { labelKey: "teams", href: "/teams", icon: UsersRound },
     ],
   },
   {

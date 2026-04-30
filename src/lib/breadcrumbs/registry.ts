@@ -159,7 +159,6 @@ export const BREADCRUMB_ROUTES: BreadcrumbRouteSpec[] = [
     pattern: "/teams",
     trail: [
       { id: "setup", labelKey: "setup", href: null },
-      { id: "settings", labelKey: "settings", href: "/settings" },
       { id: "teams", labelKey: "teams", href: "/teams" },
     ],
   },
@@ -167,7 +166,6 @@ export const BREADCRUMB_ROUTES: BreadcrumbRouteSpec[] = [
     pattern: "/teams/[teamId]",
     trail: [
       { id: "setup", labelKey: "setup", href: null },
-      { id: "settings", labelKey: "settings", href: "/settings" },
       { id: "teams", labelKey: "teams", href: "/teams" },
       {
         id: "teamName",

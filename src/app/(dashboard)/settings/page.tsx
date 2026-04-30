@@ -3,7 +3,6 @@ import Link from "next/link";
 import { getTranslations } from "next-intl/server";
 import {
   Settings,
-  Building2,
   Shield,
   Tags,
   Bookmark,
@@ -15,9 +14,7 @@ import { LinkPendingSpinner } from "@/components/LinkPendingSpinner";
 import type { ComponentType } from "react";
 
 interface Card {
-  /** Stable key — required because two cards can share the same
-   *  href (Members + Teams both land on /teams for multi-team
-   *  viewers) and React would warn on duplicate keys. */
+  /** Stable key for React. */
   id: string;
   title: string;
   description: string;
@@ -55,20 +52,11 @@ export default async function SettingsHubPage(): Promise<React.JSX.Element> {
   const membersHref =
     teams.length === 1 ? `/teams/${teams[0]!.id}` : "/teams";
 
-  // Teams card title surfaces the count + active-team name. Per the
-  // agency-owner finding, the count is the discoverability hook —
-  // an owner who doesn't yet have "Teams" as their mental model
-  // recognizes "Teams (3)" as the thing they're configuring. Solo
-  // users see their team name inline so the card reads as a direct
-  // pointer to "your one team."
-  const teamsTitle =
-    teams.length === 1
-      ? `${t("cards.teams.title")} · ${teams[0]!.name}`
-      : `${t("cards.teams.title")} (${teams.length})`;
-
   const cards: Card[] = [
     // Members card sits first — agency-owner finding: most-frequent
-    // owner task should be most-prominent.
+    // owner task should be most-prominent. Stays here as the
+    // discoverability hook for "invite a teammate"; the Teams entry
+    // proper lives in the sidebar (Setup section).
     {
       id: "members",
       title: t("cards.members.title"),
@@ -76,17 +64,10 @@ export default async function SettingsHubPage(): Promise<React.JSX.Element> {
       href: membersHref,
       icon: UserPlus,
     },
-    // Business is reachable from the sidebar (Setup section, role-gated
-    // to owner|admin of any business). Skipping the card here avoids
-    // two paths to the same place; the sidebar entry is always visible
-    // to viewers who can act on it.
-    {
-      id: "teams",
-      title: teamsTitle,
-      description: t("cards.teams.description"),
-      href: "/teams",
-      icon: Building2,
-    },
+    // Business + Teams are reachable from the sidebar (Setup section).
+    // Skipping the cards here avoids two paths to the same place; the
+    // sidebar entries are always visible to viewers who can act on
+    // them.
     {
       id: "security-groups",
       title: t("cards.securityGroups.title"),

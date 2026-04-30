@@ -24,7 +24,7 @@ The order matters: most of these set baseline state that the import + first invo
 
 ## 3 · Invoice numbering — biggest gotcha
 
-- [ ] **Sidebar → Settings → Teams → click your team → Invoice prefix + Next invoice number.**
+- [ ] **Sidebar → Teams → click your team → Invoice prefix + Next invoice number.**
 
   These fields live on the Team Settings form at `/teams/[id]`, not on Profile. (Profile holds personal display name + integrations + preferences; team-level configuration like invoice numbering, prefix, and tax defaults belongs on the team.)
 
