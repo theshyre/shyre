@@ -67,6 +67,28 @@
     "work": "Work",
     "setup": "Setup"
   },
+  "breadcrumb": {
+    "ariaLabel": "Breadcrumb",
+    "fallbackEntity": "(unavailable)",
+    "setup": "Setup",
+    "import": "Import",
+    "business": "Business",
+    "businessIdentity": "Identity",
+    "businessPeople": "People",
+    "businessExpenses": "Expenses",
+    "businessPeriodLocks": "Period locks",
+    "settings": "Settings",
+    "teams": "Teams",
+    "categories": "Categories",
+    "templates": "Templates",
+    "securityGroups": "Security groups",
+    "profile": "Your profile",
+    "system": "System",
+    "systemErrors": "Error log",
+    "systemUsers": "All accounts",
+    "systemTeams": "Instance teams",
+    "systemSampleData": "Sample data"
+  },
   "modules": {
     "stint": "Stint (Time Tracking)",
     "customers": "Customers",

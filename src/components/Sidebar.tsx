@@ -169,6 +169,26 @@ export default function Sidebar({
       ]
     : [];
 
+  // Section-level active state — true when the current pathname is
+  // on or under any item in this section. The header gets a subtle
+  // emphasis bump so a user landing on /import sees both "Import"
+  // (the item highlight) AND "SETUP" (the section header) as
+  // signaling "you are here." Per the UX review the bump is
+  // intentionally quiet — just one notch up in contrast, no accent
+  // color, so it doesn't compete with the loud item-row highlight.
+  function itemActive(item: NavItem): boolean {
+    if (item.href === "/") return pathname === "/";
+    return pathname === item.href || pathname.startsWith(`${item.href}/`);
+  }
+  function sectionHeaderClass(active: boolean): string {
+    return active
+      ? "px-3 pb-1 text-label font-semibold uppercase text-content-secondary"
+      : "px-3 pb-1 text-label font-semibold uppercase text-content-muted";
+  }
+  const isWorkActive = workItems.some(itemActive);
+  const isSetupActive = setupItems.some(itemActive);
+  const isSystemActive = systemItems.some(itemActive);
+
   async function handleSignOut(): Promise<void> {
     await supabase.auth.signOut();
     router.push("/login");
@@ -218,7 +238,7 @@ export default function Sidebar({
             aria-label={t("navSections.work")}
             className="space-y-0.5"
           >
-            <p className="px-3 pb-1 text-label font-semibold uppercase text-content-muted">
+            <p className={sectionHeaderClass(isWorkActive)}>
               {t("navSections.work")}
             </p>
             {workItems.map((item) => renderNavLink(item, t, pathname))}
@@ -229,7 +249,7 @@ export default function Sidebar({
             aria-label={t("navSections.setup")}
             className="space-y-0.5 border-t border-edge pt-3"
           >
-            <p className="px-3 pb-1 text-label font-semibold uppercase text-content-muted">
+            <p className={sectionHeaderClass(isSetupActive)}>
               {t("navSections.setup")}
             </p>
             {setupItems.map((item) => renderNavLink(item, t, pathname))}
@@ -240,7 +260,7 @@ export default function Sidebar({
             aria-label={t("navSections.systemAdmin")}
             className="space-y-0.5 border-t border-edge pt-3"
           >
-            <p className="px-3 pb-1 text-label font-semibold uppercase text-content-muted">
+            <p className={sectionHeaderClass(isSystemActive)}>
               {t("navSections.systemAdmin")}
             </p>
             {systemItems.map((item) => renderNavLink(item, t, pathname))}

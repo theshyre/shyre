@@ -67,6 +67,28 @@
     "work": "Trabajo",
     "setup": "Configuración"
   },
+  "breadcrumb": {
+    "ariaLabel": "Ruta de navegación",
+    "fallbackEntity": "(no disponible)",
+    "setup": "Configuración",
+    "import": "Importar",
+    "business": "Negocio",
+    "businessIdentity": "Identidad",
+    "businessPeople": "Personas",
+    "businessExpenses": "Gastos",
+    "businessPeriodLocks": "Bloqueos de período",
+    "settings": "Ajustes",
+    "teams": "Equipos",
+    "categories": "Categorías",
+    "templates": "Plantillas",
+    "securityGroups": "Grupos de seguridad",
+    "profile": "Tu perfil",
+    "system": "Sistema",
+    "systemErrors": "Registro de errores",
+    "systemUsers": "Todas las cuentas",
+    "systemTeams": "Equipos de la instancia",
+    "systemSampleData": "Datos de ejemplo"
+  },
   "modules": {
     "stint": "Stint (Tiempo)",
     "customers": "Clientes",

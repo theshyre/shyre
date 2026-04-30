@@ -107,3 +107,39 @@ The `<html>` font-size override above means every `rem`-based dimension scales w
 **Don't** change `@theshyre/design-tokens` to remove the `<html>` override — that's how type still scales, and modal/tooltip/dropdown content rendered via portals depends on it. The fix is per-app: pin structural dimensions to px and let type-adjacent padding ride the rem scale.
 
 **Form-field grids** (`grid-cols-2 gap-4` between First/Last name in a fixed-width form column) are a judgment call. Liv left those as rem — the swing is ~4px and the grid sits inside an already-fixed parent — and Shyre follows that line. Don't churn on these.
+
+## Wayfinding (sidebar + breadcrumbs)
+
+The sidebar and the page-level breadcrumb cooperate to answer "where am I?" with redundant signals. Bullet-pointed for callsite reference; the load-bearing patterns live in `src/components/Sidebar.tsx`, `src/components/Breadcrumbs.tsx`, and `src/lib/breadcrumbs/registry.ts`.
+
+### Sidebar sections
+
+- Three labeled groups: **WORK** (Track + Manage modules + Dashboard), **SETUP** (per-team configuration + setup operations: Business, Settings, Import), **SYSTEM** (sysadmin-only).
+- Each group is its own `<nav aria-label>` landmark — screen-reader users can rotor between sections.
+- Section header uses `text-label font-semibold uppercase`, `text-content-muted` by default.
+- **Active-section emphasis**: when any item in a section is active, its header bumps to `text-content-secondary` (one notch up in contrast). No accent color — that would compete with the loud item-row highlight.
+
+### Sidebar item active state
+
+- `aria-current="page"` for exact-match URLs (the canonical "you are here").
+- `aria-current="true"` for ancestor matches (e.g. `/business` while on `/business/abc/people`).
+- Visual: `bg-accent-soft text-accent-text` background + foreground. Verify 4.5:1 in light, dark, and high-contrast.
+
+### Breadcrumbs
+
+- Mounted in the dashboard layout above the page content, inside the `max-w-[1280px]` wrapper.
+- Hidden when the route doesn't match a registered trail OR the trail is a single segment (page title is enough on its own).
+- Format: `Setup › Business › Malcom IO LLC › People`. Separator is **`›`** (U+203A, single right-pointing angle quotation mark) wrapped in a `<span aria-hidden="true">` outside the link's accessible name.
+- A11y shape: `<nav aria-label="Breadcrumb">` → `<ol>` → `<li>` per segment. Last segment is `<span aria-current="page">` (text only, not a link).
+- Segments are one of three kinds:
+  - **Static label** (`labelKey` resolves via `common.breadcrumb.*`).
+  - **Dynamic resolver** (`resolver: "businessName"` etc., looks up the human label client-side via `lib/breadcrumbs/resolvers.ts`).
+  - **Structural** (`href: null`) — renders as plain text, not a link. "Setup" is the canonical example: it groups items but there's nowhere to navigate to.
+- Permission failures fall back to a generic label (`(unavailable)` in en) so a missing-row doesn't crash the breadcrumb.
+- Adding a new route: add an entry to `BREADCRUMB_ROUTES` in `src/lib/breadcrumbs/registry.ts`. Order doesn't matter — the matcher sorts by specificity (longest pattern wins).
+
+### Skip link
+
+- First focusable element on the page; visually hidden until focused, then surfaces as a real button at top-left.
+- Targets `<main id="main-content" tabIndex={-1}>` so activating it actually moves focus.
+- Lives in `src/components/SkipLink.tsx`. Keep this primitive — without it, keyboard users tab through ~15 sidebar items + the breadcrumb before reaching content.
