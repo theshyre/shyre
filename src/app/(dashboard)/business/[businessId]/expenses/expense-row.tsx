@@ -144,19 +144,26 @@ export function ExpenseRow({
         selected ? "bg-accent-soft/30" : ""
       }`}
     >
-      {/* Selection checkbox */}
+      {/* Selection checkbox — wrapped in a min-h-[1.75rem]
+          flex container so the checkbox shares the same line-box
+          as the EditableCell button next to it (which has the
+          same min-h). Without this the checkbox hugs the td's
+          padding-top while the cell text sits ~6px lower inside
+          its button's line-box, leaving a visible vertical gap. */}
       <td className="w-10">
-        <input
-          type="checkbox"
-          checked={selected}
-          onChange={() => onToggleSelect(expense.id)}
-          aria-label={t("bulk.selectRow", { vendor: ariaIdent })}
-          className="h-4 w-4 rounded border-edge text-accent focus:ring-focus-ring"
-        />
+        <span className="flex min-h-[1.75rem] items-center">
+          <input
+            type="checkbox"
+            checked={selected}
+            onChange={() => onToggleSelect(expense.id)}
+            aria-label={t("bulk.selectRow", { vendor: ariaIdent })}
+            className="h-4 w-4 rounded border-edge text-accent focus:ring-focus-ring"
+          />
+        </span>
       </td>
 
       {/* Date */}
-      <td className="text-content-secondary font-mono tabular-nums">
+      <td className="text-content-secondary tabular-nums">
         <EditableCell
           variant="date"
           value={expense.incurred_on}
@@ -167,6 +174,24 @@ export function ExpenseRow({
           })}
           onCommit={(v) => commitField("incurred_on", v)}
           disabled={!canEdit}
+        />
+      </td>
+
+      {/* Amount — placed early so the most-scanned value sits in
+          the same saccade as the date (per ux-designer review). */}
+      <td className="text-left tabular-nums text-content">
+        <EditableCell
+          variant="number"
+          value={expense.amount.toFixed(2)}
+          displayNode={formatExpenseAmount(expense.amount, expense.currency)}
+          ariaLabel={t("ariaActions.editField", {
+            vendor: ariaIdent,
+            field: t("fields.amount"),
+          })}
+          onCommit={(v) => commitField("amount", v)}
+          disabled={!canEdit}
+          min={0}
+          step={0.01}
         />
       </td>
 
@@ -232,7 +257,10 @@ export function ExpenseRow({
         />
       </td>
 
-      {/* Description */}
+      {/* Description — soft-clamp to 2 lines (line-clamp-2) so the
+          user can read more inline without a hover-tooltip dance.
+          Row height grows to a max of 2 lines for cells with long
+          content; short cells still occupy 1 line. */}
       <td className="text-content-secondary">
         <EditableCell
           variant="textarea"
@@ -246,18 +274,17 @@ export function ExpenseRow({
           placeholder="—"
           displayNode={
             expense.description ? (
-              <Tooltip label={expense.description} labelMode="label">
-                <span className="block truncate">{expense.description}</span>
-              </Tooltip>
+              <span className="block line-clamp-2 break-words">
+                {expense.description}
+              </span>
             ) : (
               <span className="text-content-muted">—</span>
             )
           }
-          className="truncate"
         />
       </td>
 
-      {/* Notes */}
+      {/* Notes — same line-clamp-2 treatment as Description. */}
       <td className="text-content-muted italic">
         <EditableCell
           variant="textarea"
@@ -271,14 +298,13 @@ export function ExpenseRow({
           placeholder="—"
           displayNode={
             expense.notes ? (
-              <Tooltip label={expense.notes} labelMode="label">
-                <span className="block truncate">{expense.notes}</span>
-              </Tooltip>
+              <span className="block line-clamp-2 break-words">
+                {expense.notes}
+              </span>
             ) : (
               <span className="text-content-muted">—</span>
             )
           }
-          className="truncate"
         />
       </td>
 
@@ -314,23 +340,6 @@ export function ExpenseRow({
         </div>
       </td>
 
-      {/* Amount */}
-      <td className="text-right font-mono tabular-nums text-content">
-        <EditableCell
-          variant="number"
-          value={expense.amount.toFixed(2)}
-          displayNode={formatExpenseAmount(expense.amount, expense.currency)}
-          ariaLabel={t("ariaActions.editField", {
-            vendor: ariaIdent,
-            field: t("fields.amount"),
-          })}
-          onCommit={(v) => commitField("amount", v)}
-          disabled={!canEdit}
-          min={0}
-          step={0.01}
-        />
-      </td>
-
       {/* Author (avatar only, name on tooltip) */}
       <td>
         {author ? (
@@ -352,7 +361,7 @@ export function ExpenseRow({
       </td>
 
       {/* Actions (split + delete; edit is per-cell) */}
-      <td className="text-right">
+      <td className="text-left">
         {!canEdit ? (
           <span aria-hidden="true" />
         ) : confirmingDelete ? (

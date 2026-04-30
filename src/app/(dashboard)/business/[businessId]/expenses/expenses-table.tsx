@@ -250,16 +250,6 @@ export function ExpensesTable({
           aria-label={t("bulk.label")}
           className="flex items-center gap-3 border-b border-edge bg-surface-inset px-4 py-2"
         >
-          <input
-            type="checkbox"
-            checked={allSelected}
-            ref={(el) => {
-              if (el) el.indeterminate = !allSelected && someSelected;
-            }}
-            onChange={toggleAll}
-            aria-label={t("bulk.selectAll")}
-            className="h-4 w-4 rounded border-edge text-accent focus:ring-focus-ring"
-          />
           <span className="text-body font-medium text-content">
             {t("bulk.selectedCount", { count: selectedIds.size })}
           </span>
@@ -303,7 +293,7 @@ export function ExpensesTable({
       )}
 
       <div className="overflow-x-auto">
-      <table className="w-full table-fixed">
+      <table className="w-full table-fixed [&_td]:align-top">
         {/* Column-width lock. table-fixed + an explicit <colgroup>
             tells the browser to ignore intrinsic content widths
             during layout — without this, switching a cell to its
@@ -324,34 +314,39 @@ export function ExpensesTable({
             the sum equals the content area, so table-fixed has
             nothing to redistribute. */}
         <colgroup>
-          <col style={{ width: 40 }} /> {/* selection */}
-          <col style={{ width: 116 }} /> {/* date — 116 fits "Apr 11, 2019" w/ density padding */}
-          <col style={{ width: 128 }} /> {/* category */}
+          <col style={{ width: 40 }} />
+          <col style={{ width: 132 }} />
+          <col style={{ width: 112 }} />
+          <col style={{ width: 128 }} />
           {showTeamColumn && <col style={{ width: 140 }} />}
-          <col style={{ width: 160 }} /> {/* vendor */}
-          <col style={{ width: 224 }} /> {/* description — most-elastic, absorbs date's +16 */}
-          <col style={{ width: 176 }} /> {/* notes */}
-          <col style={{ width: 140 }} /> {/* project */}
-          <col style={{ width: 112 }} /> {/* amount */}
-          <col style={{ width: 40 }} /> {/* author avatar */}
-          <col style={{ width: 80 }} /> {/* actions */}
+          <col style={{ width: 160 }} />
+          <col style={{ width: 208 }} />
+          <col style={{ width: 176 }} />
+          <col style={{ width: 140 }} />
+          <col style={{ width: 40 }} />
+          <col style={{ width: 80 }} />
         </colgroup>
         <thead className="bg-surface-inset border-b border-edge">
           <tr>
             <th className="text-left">
-              <input
-                type="checkbox"
-                checked={allSelected}
-                ref={(el) => {
-                  if (el) el.indeterminate = !allSelected && someSelected;
-                }}
-                onChange={toggleAll}
-                aria-label={t("bulk.selectAll")}
-                className="h-4 w-4 rounded border-edge text-accent focus:ring-focus-ring"
-              />
+              <span className="flex min-h-[1.75rem] items-center">
+                <input
+                  type="checkbox"
+                  checked={allSelected}
+                  ref={(el) => {
+                    if (el) el.indeterminate = !allSelected && someSelected;
+                  }}
+                  onChange={toggleAll}
+                  aria-label={t("bulk.selectAll")}
+                  className="h-4 w-4 rounded border-edge text-accent focus:ring-focus-ring"
+                />
+              </span>
             </th>
             <th className="text-left text-label font-semibold uppercase tracking-wider text-content-muted">
               {t("fields.incurredOn")}
+            </th>
+            <th className="text-left text-label font-semibold uppercase tracking-wider text-content-muted">
+              {t("fields.amount")}
             </th>
             <th className="text-left text-label font-semibold uppercase tracking-wider text-content-muted">
               {t("fields.category")}
@@ -373,13 +368,10 @@ export function ExpensesTable({
             <th className="text-left text-label font-semibold uppercase tracking-wider text-content-muted">
               {t("fields.project")}
             </th>
-            <th className="text-right text-label font-semibold uppercase tracking-wider text-content-muted">
-              {t("fields.amount")}
-            </th>
             <th className="text-left text-label font-semibold uppercase tracking-wider text-content-muted">
               {t("fields.author")}
             </th>
-            <th className="text-right text-label font-semibold uppercase tracking-wider text-content-muted">
+            <th className="text-left text-label font-semibold uppercase tracking-wider text-content-muted">
               {tc("table.actions")}
             </th>
           </tr>

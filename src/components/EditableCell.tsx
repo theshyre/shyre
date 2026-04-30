@@ -261,7 +261,7 @@ export function EditableCell(props: EditableCellProps): React.JSX.Element {
           onKeyDown={handleKey}
           onBlur={() => void commit()}
           disabled={showSpinner}
-          className={`block w-full min-w-0 max-w-full rounded-sm border bg-surface px-1.5 py-0.5 text-inherit ${
+          className={`block w-full min-w-0 max-w-full rounded-sm border bg-surface py-0.5 text-inherit ${
             errorBorder ? "border-error" : "border-accent"
           } focus:outline-none focus:ring-1 focus:ring-accent`}
         >
@@ -284,7 +284,7 @@ export function EditableCell(props: EditableCellProps): React.JSX.Element {
           disabled={showSpinner}
           rows={(props as TextareaProps).rows ?? 2}
           placeholder={placeholder}
-          className={`block w-full min-w-0 max-w-full rounded-sm border bg-surface px-1.5 py-0.5 text-inherit resize-none ${
+          className={`block w-full min-w-0 max-w-full rounded-sm border bg-surface py-0.5 text-inherit resize-none ${
             errorBorder ? "border-error" : "border-accent"
           } focus:outline-none focus:ring-1 focus:ring-accent`}
         />
@@ -311,7 +311,7 @@ export function EditableCell(props: EditableCellProps): React.JSX.Element {
             min: (props as NumberProps).min,
             step: (props as NumberProps).step,
           })}
-          className={`block w-full min-w-0 max-w-full rounded-sm border bg-surface px-1.5 py-0.5 text-inherit ${
+          className={`block w-full min-w-0 max-w-full rounded-sm border bg-surface py-0.5 text-inherit ${
             errorBorder ? "border-error" : "border-accent"
           } focus:outline-none focus:ring-1 focus:ring-accent`}
         />
@@ -383,25 +383,16 @@ function renderDisplay({
     );
   }
 
-  // Footprint matches the edit input on purpose: 1px transparent
-  // border + identical px-1.5 py-0.5 padding + min-w-0 max-w-full
-  // clamp. Toggling display→edit becomes a pure content swap, no
-  // border thickness change, no padding shift, no width nudge —
-  // just the input replacing the button at the same coords. Per
-  // ux-designer review: "Consistency over cleverness" + the
-  // table-fixed colgroup owns column width above.
+  // Layout-transparent button: no border, no horizontal/vertical
+  // padding. The parent <td>'s density-table padding is the only
+  // source of horizontal offset, so cell text sits at exactly the
+  // same x-coordinate as the corresponding <th>'s text.
   return (
     <button
       type="button"
       aria-label={ariaLabel}
       onClick={onActivate}
-      onFocus={() => {
-        // No auto-edit on focus — focus alone shouldn't switch
-        // mode (would clobber keyboard navigation through a
-        // table). Activation requires Enter/Space (button
-        // default) or click.
-      }}
-      className={`flex w-full min-h-[1.75rem] min-w-0 max-w-full items-center rounded-sm border border-transparent px-1.5 py-0.5 text-left hover:bg-hover focus:outline-none focus-visible:ring-1 focus-visible:ring-accent ${
+      className={`block w-full min-h-[1.75rem] min-w-0 max-w-full text-left hover:bg-hover focus:outline-none focus-visible:ring-1 focus-visible:ring-accent ${
         empty ? "text-content-muted" : "text-content"
       } ${className ?? ""}`}
     >
