@@ -190,10 +190,15 @@ describe("resolveTimeEntryUtcBounds", () => {
     expect(out.endUtcIso).toBe("2024-07-15T14:30:00.000Z");
   });
 
-  it("leaves end null for a still-running zero-hours entry (just started)", () => {
-    // This is the rare case: Harvest timer started seconds ago, no
-    // hours yet. Nothing to anchor an end time to. The route's
-    // skip-on-null-end path will drop these.
+  it("imports a zero-hours running entry as a 0-minute completed entry (regression: Harvest 0:00 entries became live timers in Shyre)", () => {
+    // Harvest lets users open a timer on a task with no time
+    // recorded — it shows as "0:00" with a timer icon. On import,
+    // is_running=true + hours=0 used to leave endUtc=null, which
+    // Shyre correctly interpreted as a live timer. Result: a
+    // forgotten Harvest 0:00 entry from January surfaced as
+    // "RUNNING 2748:15:36" in Shyre's running-timer card right
+    // after import. Now we set end=start so the row imports as a
+    // 0-minute completed entry, matching what Harvest displays.
     const out = resolveTimeEntryUtcBounds({
       ...base,
       started_time: "09:00",
@@ -201,7 +206,8 @@ describe("resolveTimeEntryUtcBounds", () => {
       hours: 0,
       is_running: true,
     });
-    expect(out.endUtcIso).toBeNull();
+    expect(out.startUtcIso).toBe("2024-07-15T13:00:00.000Z");
+    expect(out.endUtcIso).toBe("2024-07-15T13:00:00.000Z");
   });
 
   it("converts a still-running entry with non-zero hours into a completed session (regression: imports must not produce live timers)", () => {

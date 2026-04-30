@@ -176,22 +176,26 @@ export function resolveTimeEntryUtcBounds(args: {
       endUtc = zonedWallClockToUtc(endLocal, args.timeZone);
     }
   }
-  // If we still don't have an end time but hours is set, compute it
-  // from `start + hours`. This deliberately also covers Harvest's
-  // `is_running: true` case: an imported entry should NEVER produce
-  // a Shyre live timer (end_time = null). A forgotten Harvest timer
-  // started months ago, imported as live, would surface as "running
-  // for 2,747 hours" in Shyre's running-timer card. The honest value
-  // is the elapsed `hours` Harvest already tracked — treat it as a
-  // completed session of that length. The user can edit or split it
-  // post-import if they actually want a different shape.
-  if (!endUtc && args.hours > 0) {
-    endUtc = new Date(startUtc.getTime() + args.hours * 60 * 60 * 1000);
+  // No ended_time → derive end from hours. An imported entry must
+  // NEVER produce a Shyre live timer (end_time = null). Two flavors:
+  //   - hours > 0  → completed session of `hours` length. Covers both
+  //                  duration-only Harvest accounts AND running timers
+  //                  (Harvest tracks elapsed in `hours`, so a forgotten
+  //                  timer becomes "Started Mar 8, 1:00 AM, 1h 43m"
+  //                  not "running for 114 days").
+  //   - hours == 0 → zero-minute completed entry (end = start). Covers
+  //                  Harvest entries opened on a task with no time
+  //                  recorded — visible in Harvest's UI as "0:00" with
+  //                  the timer-icon. Importing as a live timer was the
+  //                  bug that bit Marcus's first re-import on AE-569.
+  if (!endUtc) {
+    const ms = args.hours > 0 ? args.hours * 60 * 60 * 1000 : 0;
+    endUtc = new Date(startUtc.getTime() + ms);
   }
 
   return {
     startUtcIso: startUtc.toISOString(),
-    endUtcIso: endUtc ? endUtc.toISOString() : null,
+    endUtcIso: endUtc.toISOString(),
   };
 }
 
