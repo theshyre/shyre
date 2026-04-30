@@ -944,29 +944,31 @@ function roundHours(h: number): number {
 /**
  * Build the imported time entry's description.
  *
- * The description should be JUST the user-written notes from Harvest.
- * The category chip already shows the task name, the project carries
- * the rate, and the linked-ticket chip surfaces the Jira/GitHub
- * reference — re-stamping any of that into the description duplicates
- * structured data as free text.
+ * Description = user's Harvest notes verbatim, falling back to the
+ * task name when notes are empty so a no-notes row still has a label.
+ * No rate prefix, no task-name prefix, no decoration of any kind.
  *
- * Earlier the importer prefixed with "[$135/hr] Programming:" on
- * every row. The taskName ride-along was always redundant (Harvest's
- * task → Shyre's category set is preserved separately by the
- * importer); the rate prefix was meant to capture per-entry
- * overrides but fired any time the project rate was unknown,
- * stamping every row with its own rate even when nothing was being
- * overridden.
+ * Earlier this function decorated descriptions with "[$135/hr]
+ * Programming: ..." to capture per-entry rate overrides + the
+ * Harvest task. Both prefixes turned out to be noise:
+ *   - taskName: Harvest's task → Shyre's category is preserved
+ *     separately as a real category (under the "Harvest Tasks" set).
+ *     Stamping it into the description was duplicate structured data.
+ *   - rate prefix: meant to preserve per-entry billable_rate
+ *     overrides. Iterations of "fire only when rate differs from
+ *     project rate" kept failing — Harvest reports projects without a
+ *     configured rate as either `null` OR `0`, and there's no clean
+ *     way to distinguish "real $0 rate" from "no rate set" in the
+ *     export. The audit-trail concern (recovering historical
+ *     per-entry rates) is satisfied by `import_run_id` + the original
+ *     Harvest data the user can re-fetch.
  *
- * Rules:
- *   - Notes present → use them verbatim, no decoration.
- *   - Notes missing AND task name present → fall back to the task
- *     name so the row isn't blank. (The category column also has it,
- *     but a no-notes row still benefits from a visible label.)
- *   - Rate prefix `[$N/hr]` only when Harvest has a real per-entry
- *     override against a *known* different project rate. If the
- *     project rate is null we treat the entry rate as "this is the
- *     project rate" — no override implied, no prefix.
+ * If a per-entry rate snapshot ever needs to land in Shyre proper,
+ * add a `time_entries.billable_rate_cents` column. Don't put it back
+ * in the description.
+ *
+ * The `billableRate` and `projectHourlyRate` arguments are kept for
+ * API compatibility (callers / tests pass them); both are unused.
  */
 export function buildEntryDescription(args: {
   notes: string | null;
@@ -974,19 +976,7 @@ export function buildEntryDescription(args: {
   billableRate: number | null;
   projectHourlyRate: number | null;
 }): string {
-  const taskName = args.taskName.trim();
   const notes = args.notes?.trim() ?? "";
-  const base = notes || taskName;
-
-  const rate = args.billableRate;
-  const projectRate = args.projectHourlyRate;
-  if (
-    rate !== null &&
-    rate > 0 &&
-    projectRate !== null &&
-    rate !== projectRate
-  ) {
-    return `[$${rate}/hr] ${base}`.trim();
-  }
-  return base;
+  const taskName = args.taskName.trim();
+  return notes || taskName;
 }

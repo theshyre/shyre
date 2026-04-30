@@ -543,7 +543,14 @@ describe("buildEntryDescription", () => {
       }),
     ).toBe("Something");
   });
-  it("prefixes rate when entry rate differs from a known project rate", () => {
+  it("never prefixes the rate, even when entry rate differs from project rate", () => {
+    // Earlier the importer stamped "[$N/hr]" onto every row to
+    // capture per-entry billable_rate overrides. Iterations of "only
+    // when project rate is known and differs" still misfired —
+    // Harvest reports unset project rates as either null OR 0, and
+    // those produce different branch behavior. The cleanest fix is
+    // to drop the prefix entirely; per-entry rate audit lives in
+    // the original Harvest data + import_run_id linkage.
     expect(
       buildEntryDescription({
         notes: "Extra work",
@@ -551,9 +558,9 @@ describe("buildEntryDescription", () => {
         billableRate: 200,
         projectHourlyRate: 150,
       }),
-    ).toBe("[$200/hr] Extra work");
+    ).toBe("Extra work");
   });
-  it("no rate prefix when rate matches project rate", () => {
+  it("no decoration when rate matches project rate", () => {
     expect(
       buildEntryDescription({
         notes: "Normal work",
@@ -563,7 +570,7 @@ describe("buildEntryDescription", () => {
       }),
     ).toBe("Normal work");
   });
-  it("no rate prefix when billable_rate is null", () => {
+  it("no decoration when billable_rate is null", () => {
     expect(
       buildEntryDescription({
         notes: "Work",
@@ -573,17 +580,29 @@ describe("buildEntryDescription", () => {
       }),
     ).toBe("Work");
   });
-  it("no rate prefix when project rate is unknown (regression: don't decorate every row)", () => {
+  it("no decoration when project rate is null (Harvest reports unset rates as null OR 0)", () => {
     // Marcus's import had projectHourlyRate=null + billableRate=135
-    // for every entry, which fired the prefix on every row even
-    // though no real override existed. Treat null project rate as
-    // "the entry rate IS the project rate" → no prefix.
+    // for every entry — every row wore a "[$135/hr]" stamp.
     expect(
       buildEntryDescription({
         notes: "AE-638: investigation",
         taskName: "Programming",
         billableRate: 135,
         projectHourlyRate: null,
+      }),
+    ).toBe("AE-638: investigation");
+  });
+  it("no decoration when project rate is 0 (Harvest's other 'unset' representation)", () => {
+    // When the user redid the import after the null-fix, descriptions
+    // STILL had the prefix because Harvest was reporting project
+    // hourly_rate as 0 (not null) for some projects. The fix-on-the-
+    // fix is to drop the prefix entirely.
+    expect(
+      buildEntryDescription({
+        notes: "AE-638: investigation",
+        taskName: "Programming",
+        billableRate: 135,
+        projectHourlyRate: 0,
       }),
     ).toBe("AE-638: investigation");
   });
@@ -776,7 +795,7 @@ describe("buildTimeEntryRow", () => {
     expect(out.category_id).toBeNull();
   });
 
-  it("embeds rate snapshot when billable_rate differs from project rate", () => {
+  it("description is the notes verbatim — no rate or task-name decoration", () => {
     const out = buildTimeEntryRow({
       entry: { ...baseEntry, billable_rate: 200 },
       projectId: "proj-1",
@@ -788,7 +807,7 @@ describe("buildTimeEntryRow", () => {
     });
     expect("skipped" in out).toBe(false);
     if ("skipped" in out) throw new Error("unreachable");
-    expect(out.description).toBe("[$200/hr] Some notes");
+    expect(out.description).toBe("Some notes");
   });
 
   it("detects a Jira ticket key in the description and writes provider+key", () => {
