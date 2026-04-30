@@ -48,6 +48,15 @@ interface Props {
   teamNameById: Map<string, string>;
   showTeamColumn: boolean;
   viewerUserId: string | null;
+  /** Total expense count for the business across all years (no
+   *  filter applied) — used in the bulk-strip "N of M expenses
+   *  selected" label so the user can tell whether bulk applies
+   *  to the filtered set or the whole business. */
+  totalCount: number;
+  /** Whether any filter is active. When true the bulk strip says
+   *  "N of {filtered} filtered expenses selected"; when false it
+   *  says "N of {total} expenses selected". */
+  hasFilter: boolean;
 }
 
 /**
@@ -70,6 +79,8 @@ export function ExpensesTable({
   teamNameById,
   showTeamColumn,
   viewerUserId,
+  totalCount,
+  hasFilter,
 }: Props): React.JSX.Element {
   const t = useTranslations("expenses");
   const tc = useTranslations("common");
@@ -251,7 +262,12 @@ export function ExpensesTable({
           className="flex items-center gap-3 border-b border-edge bg-surface-inset px-4 py-2"
         >
           <span className="text-body font-medium text-content">
-            {t("bulk.selectedCount", { count: selectedIds.size })}
+            {t("bulk.selectedCount", {
+              hasFilter: hasFilter ? "true" : "false",
+              count: selectedIds.size,
+              filteredTotal: expenses.length,
+              totalCount,
+            })}
           </span>
           <button
             type="button"
@@ -320,11 +336,11 @@ export function ExpensesTable({
           <col style={{ width: 128 }} />
           {showTeamColumn && <col style={{ width: 140 }} />}
           <col style={{ width: 160 }} />
-          <col style={{ width: 208 }} />
+          <col style={{ width: 192 }} />
           <col style={{ width: 176 }} />
           <col style={{ width: 140 }} />
           <col style={{ width: 40 }} />
-          <col style={{ width: 80 }} />
+          <col style={{ width: 96 }} />
         </colgroup>
         <thead className="bg-surface-inset border-b border-edge">
           <tr>

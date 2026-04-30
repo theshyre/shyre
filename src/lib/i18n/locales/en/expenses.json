@@ -77,13 +77,13 @@
     "to": "To",
     "active": "Filters:",
     "clearAll": "Clear all",
-    "resultCount": "Showing {shown} of {total}"
+    "resultCount": "{hasFilter, select, true {{shown, plural, =0 {No matches} =1 {1 match} other {# matches}} of {total, number} expenses} other {{total, plural, =0 {No expenses yet} =1 {1 expense} other {# expenses}}}}"
   },
   "bulk": {
     "label": "Bulk actions",
     "selectAll": "Select all",
     "selectRow": "Select {vendor}",
-    "selectedCount": "{count, plural, =1 {1 selected} other {# selected}}",
+    "selectedCount": "{hasFilter, select, true {{count, plural, =1 {1 of {filteredTotal, number} filtered expenses selected} other {# of {filteredTotal, number} filtered expenses selected}}} other {{count, plural, =1 {1 of {totalCount, number} expenses selected} other {# of {totalCount, number} expenses selected}}}}",
     "clear": "Clear selection",
     "delete": "Delete selected",
     "setCategory": "Set category",

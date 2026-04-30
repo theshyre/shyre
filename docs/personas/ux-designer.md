@@ -17,6 +17,9 @@ Cross-cutting reviewer for visible pixels. Not pixel-perfection; rather, is the 
 - **Context never hidden.** Team selectors, filters, and date scopes stay visible even when there's only one option (per project feedback).
 - **Authorship shown on every time entry.** Any list / card / row / line item that surfaces a `time_entries` record MUST render the author's avatar + display name via `<Avatar>` from `@theshyre/ui`. No conditional hide-when-single-author — consistent across solo + team. See `CLAUDE.md` → "Time-entry authorship — MANDATORY".
 - **Multi-select tables follow one pattern.** Column headers stay mounted; the bulk-action strip overlays the thead via an absolute-positioned `<div role="toolbar">`; zero CLS (vertical or horizontal) on selection toggle. See `CLAUDE.md` → "Multi-select tables — MANDATORY".
+- **Pagination on bulk-selectable tables: load-more, not numbered pages.** Numbered pages break Cmd-F, scroll-position, and per-page selection state. Load-more keeps a single continuous list, the bulk strip lives at the top of view, and "Load more" appends without losing context. Numbered pagination is a fit for read-mostly archives; load-more wins anywhere bulk-act-on-filtered-set is the primary task.
+- **Cross-page bulk select uses Gmail's two-step pattern.** Master checkbox = visible page only; a banner CTA "Select all N matching" promotes selection to the full filter set. Linear's all-pages-default is dangerous when a `delete` could nuke unloaded rows; Airtable's per-page-only makes "recategorize all the Other rows" a multi-click chore.
+- **Counts in the UI must reflect the full filter set, not the rendered page.** "X matches of Y", totals chips, and CTA labels ("Export N matching", "Delete N") must all derive from a server-side count, never from `expenses.length`. Where pagination is active, surface both numbers explicitly (filter badge "312 matches" + load-more footer "Showing 50 of 312") rather than picking one.
 
 ## Review checklist
 
@@ -38,3 +41,6 @@ When reviewing a change, flag:
 - [ ] **Every icon-only control has a `<Tooltip>`** (not native `title=`), and every ellipsis-truncated identity cell reveals its full value on hover and focus?
 - [ ] **Tooltip content doesn't duplicate the trigger's visible label**, stays under 80 chars, is routed through next-intl, and contains no HTML?
 - [ ] **Keyboard shortcuts on icon-only buttons surfaced via the Tooltip's `shortcut` prop**, not via a bare visible `<kbd>` crammed into the button?
+- [ ] **Paginated list page uses load-more (not numbered pagination)** so Cmd-F, scroll position, and selection state survive across page expansions?
+- [ ] **Cross-page select-all uses the Gmail two-step banner** ("N selected on page · Select all M matching") instead of silently extending selection across pages?
+- [ ] **All counts and totals (filter badge, bulk strip count, export label, totals chip) derive from server-side aggregate queries**, not from `rendered.length` / `loaded.reduce`?

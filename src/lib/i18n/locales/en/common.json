@@ -139,5 +139,11 @@
     "cannotDeletePersonal": "Your personal team cannot be deleted.",
     "cannotLeaveOwner": "Transfer ownership before leaving.",
     "dangerZone": "Danger Zone"
+  },
+  "pagination": {
+    "ariaLabel": "Load more rows",
+    "loadedOf": "Showing {loaded, number} of {total, number}",
+    "loadNMore": "Load {count, number} more",
+    "loadAll": "Load all {count, number}"
   }
 }

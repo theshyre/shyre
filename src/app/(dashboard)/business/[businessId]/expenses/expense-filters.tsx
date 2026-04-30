@@ -43,8 +43,13 @@ interface Props {
   /** Active projects in the business's teams — drives the project
    *  filter dropdown. */
   projects: ProjectOption[];
-  /** Filtered count rendered in the bar's "Showing N of M" label. */
-  filteredCount: number;
+  /** Server-side count of rows matching the current filter, BEFORE
+   *  pagination clips. Drives the "N matches of M expenses"
+   *  label so the badge stays accurate even when only the first
+   *  50 rows are loaded. */
+  matchingCount: number;
+  /** Total expense count for the business across all years (no
+   *  filter applied). The "universe" denominator. */
   totalCount: number;
 }
 
@@ -73,7 +78,7 @@ const SEARCH_DEBOUNCE_MS = 250;
 export function ExpenseFilters({
   availableYears,
   projects,
-  filteredCount,
+  matchingCount,
   totalCount,
 }: Props): React.JSX.Element {
   const t = useTranslations("expenses");
@@ -276,7 +281,8 @@ export function ExpenseFilters({
 
         <span className="ml-auto text-caption text-content-muted">
           {t("filters.resultCount", {
-            shown: filteredCount,
+            hasFilter: hasActiveFilters(currentFilters) ? "true" : "false",
+            shown: matchingCount,
             total: totalCount,
           })}
         </span>

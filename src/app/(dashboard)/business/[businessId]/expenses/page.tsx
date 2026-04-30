@@ -12,6 +12,8 @@ import { TableDensityDefault } from "@/components/TableDensityDefault";
 import { ExpensesTable } from "./expenses-table";
 import { ExpenseFilters } from "./expense-filters";
 import { parseExpenseFilters, hasActiveFilters } from "./filter-params";
+import { parseListPagination } from "@/lib/pagination/list-pagination";
+import { PaginationFooter } from "@/components/PaginationFooter";
 
 export async function generateMetadata(): Promise<Metadata> {
   const t = await getTranslations("expenses");
@@ -69,6 +71,10 @@ export default async function ExpensesPage({
   const { businessId } = await params;
   const rawSearchParams = await searchParams;
   const filters = parseExpenseFilters(rawSearchParams);
+  // Server-side pagination: default 50 rows on first render, grow
+  // via "?limit=N" with the load-more footer. URL-driven so the
+  // state is bookmarkable + survives a refresh.
+  const { limit } = parseListPagination(rawSearchParams);
 
   // Expenses are still team_id-scoped at the row level. The page
   // sums across every team in the business that the viewer can
@@ -127,10 +133,19 @@ export default async function ExpensesPage({
     ),
   ).sort((a, b) => b.localeCompare(a)); // newest first
 
+  // count: "exact" piggybacks on the same RLS pass — one query
+  // returns both the page rows AND the full match count, so the
+  // load-more footer + filter-bar count badge can show "showing 50
+  // of 312" without a second round-trip. Stable ordering needs the
+  // id tiebreaker because (incurred_on, created_at) isn't unique
+  // across CSV imports landing many rows in the same ms — without
+  // it, .range() can drop or duplicate rows across "Load more"
+  // clicks under concurrent writes.
   let expensesQuery = supabase
     .from("expenses")
     .select(
       "id, team_id, user_id, incurred_on, amount, currency, vendor, category, description, notes, project_id, billable, is_sample, projects(id, name)",
+      { count: "exact" },
     )
     .in("team_id", teamIds)
     .is("deleted_at", null);
@@ -168,9 +183,11 @@ export default async function ExpensesPage({
     expensesQuery = expensesQuery.eq("billable", filters.billable);
   }
 
-  const { data: expRows } = await expensesQuery
+  const { data: expRows, count: matchingCount } = await expensesQuery
     .order("incurred_on", { ascending: false })
-    .order("created_at", { ascending: false });
+    .order("created_at", { ascending: false })
+    .order("id", { ascending: false })
+    .range(0, limit - 1);
 
   const expenses: ExpenseRecord[] = (expRows ?? []).map((r) => ({
     ...r,
@@ -232,17 +249,34 @@ export default async function ExpensesPage({
           )
           .join(" · ");
 
-  // Monthly total (current calendar month). Expenses can be logged
-  // in different currencies, so sum per-currency and render each
-  // group on its own — naively summing across currencies would
-  // silently produce a wrong number.
+  // Monthly total (current calendar month). MUST come from a
+  // dedicated query scoped to teamIds + current-month, NOT
+  // computed from the rendered `expenses` array — the rendered
+  // set is filtered AND paginated, so summing it would (a) hide
+  // current-month totals when the user filters to a prior year
+  // and (b) under-count once the user paginates past the first
+  // 50 rows. The chip's label is a global "this month" fact and
+  // must be independent of UI state.
+  //
+  // Expenses can be logged in different currencies, so sum
+  // per-currency and render each group on its own — naively
+  // summing across currencies would silently produce a wrong
+  // number. The query selects only (amount, currency) for the
+  // current-month rows, no joins.
   const now = new Date();
   const monthStart = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}-01`;
+  const { data: monthRows } = await supabase
+    .from("expenses")
+    .select("amount, currency")
+    .in("team_id", teamIds)
+    .is("deleted_at", null)
+    .gte("incurred_on", monthStart);
   const monthByCurrency = new Map<string, number>();
-  for (const e of expenses) {
-    if (e.incurred_on < monthStart) continue;
-    const code = (e.currency ?? "USD").toUpperCase();
-    monthByCurrency.set(code, (monthByCurrency.get(code) ?? 0) + e.amount);
+  for (const row of monthRows ?? []) {
+    const code = ((row.currency as string | null) ?? "USD").toUpperCase();
+    const amt = Number(row.amount);
+    if (!Number.isFinite(amt)) continue;
+    monthByCurrency.set(code, (monthByCurrency.get(code) ?? 0) + amt);
   }
   const monthTotalLabel =
     monthByCurrency.size === 0
@@ -336,7 +370,7 @@ export default async function ExpensesPage({
       <ExpenseFilters
         availableYears={availableYears}
         projects={projects}
-        filteredCount={expenses.length}
+        matchingCount={matchingCount ?? expenses.length}
         totalCount={totalCount}
       />
 
@@ -348,6 +382,13 @@ export default async function ExpensesPage({
         teamNameById={teamNameById}
         showTeamColumn={showTeamColumn}
         viewerUserId={viewerUserId}
+        totalCount={totalCount}
+        hasFilter={filtersActive}
+      />
+
+      <PaginationFooter
+        loaded={expenses.length}
+        total={matchingCount ?? expenses.length}
       />
 
       {/* New users land on this page in compact density — post-CSV-import

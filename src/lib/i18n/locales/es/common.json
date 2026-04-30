@@ -139,5 +139,11 @@
     "cannotDeletePersonal": "Tu equipo personal no puede ser eliminada.",
     "cannotLeaveOwner": "Transfiere la propiedad antes de abandonar.",
     "dangerZone": "Zona de Peligro"
+  },
+  "pagination": {
+    "ariaLabel": "Cargar más filas",
+    "loadedOf": "Mostrando {loaded, number} de {total, number}",
+    "loadNMore": "Cargar {count, number} más",
+    "loadAll": "Cargar las {count, number}"
   }
 }

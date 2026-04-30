@@ -13,6 +13,11 @@ Keeper of the Shyre architecture. Ensures the shell / module boundary stays inta
 - **Platform API, not cross-module imports.** Modules may import from `@/lib/*` (platform), `@/components/*` (shared UI), and `@/hooks/*` — not from another module's directory.
 - **Migrations are idempotent and reversible-in-intent.** Name them for what they do, not when they happen.
 - **Architectural decisions are documented.** Each non-trivial change updates `docs/` so "why is this table here / why is this under shell" is answerable later.
+- **List-page pagination is server-side with `count: "exact"` on the same query.** One Supabase query returning `{ data, count }` via `.select(..., { count: "exact" }).range(offset, offset + limit - 1)` does both the page fetch and the full match count under a single RLS pass. Avoid separate count queries — they double RLS planner work and risk count/data drift under concurrent writes.
+- **`ORDER BY` on paginated queries ends with a unique tiebreaker.** Typically `id`. Without it, `.range()` can drop or duplicate rows under concurrent writes when the leading sort columns aren't unique (CSV imports landing many rows in the same `created_at` ms is the canonical failure mode).
+- **Default-scope filters apply only when search params are empty.** Never silently rewrite a shareable URL — `/business/x/expenses` = "default scope, page 1"; `/business/x/expenses?year=2025` = explicit user intent. Defaults kick in when the URL is bare; presence of any filter param means user-driven, no implicit filter.
+- **Bulk action signatures accept either an ID list or a filter spec.** Cross-page "select all matching" requires the action to re-apply the filter server-side under the same RLS, not to take a client-supplied ID list of unbounded size. Standard shape: `{ scope: "ids" | "filters", ids?, filters? }`.
+- **Pagination primitives live in `src/lib/pagination/`** (or another shared platform location), not inside a sibling module's directory. Other list pages (`/customers`, `/projects`, `/invoices`, `/trash`) import from `@/lib/pagination` rather than reaching across module boundaries — a layer violation otherwise.
 
 ## Review checklist
 
@@ -28,3 +33,8 @@ When reviewing a change, flag:
 - [ ] **Back-compat needed?** Redirect stubs at old URLs when routes move. Renames shouldn't break bookmarks.
 - [ ] **Cross-cutting change (auth, tz, theme) touches only shell?** Modules shouldn't invent their own.
 - [ ] **Documentation updated?** `docs/README.md` index, relevant `docs/*.md`, and `SECURITY_AUDIT_LOG.md` if applicable.
+- [ ] **Paginated list query uses `count: "exact"` on the same `.select()`** + `.range(offset, offset + limit - 1)`, not a separate count call?
+- [ ] **`ORDER BY` chain for paginated queries ends with a unique tiebreaker** (usually `id`) so `.range()` is stable under concurrent writes?
+- [ ] **Default filter values applied only when no search params present** — never silently rewriting a URL the user might bookmark?
+- [ ] **Bulk action accepts `{ scope: "ids" | "filters", ids?, filters? }`** so cross-page "select all matching" re-applies the filter server-side under RLS, not via client-supplied IDs?
+- [ ] **Pagination primitives placed in `src/lib/pagination/`** (or a shared platform location), reachable via `@/lib/pagination` from any list page?

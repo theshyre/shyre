@@ -77,13 +77,13 @@
     "to": "Hasta",
     "active": "Filtros:",
     "clearAll": "Limpiar todo",
-    "resultCount": "Mostrando {shown} de {total}"
+    "resultCount": "{hasFilter, select, true {{shown, plural, =0 {Sin coincidencias} =1 {1 coincidencia} other {# coincidencias}} de {total, number} gastos} other {{total, plural, =0 {Aún no hay gastos} =1 {1 gasto} other {# gastos}}}}"
   },
   "bulk": {
     "label": "Acciones en lote",
     "selectAll": "Seleccionar todo",
     "selectRow": "Seleccionar {vendor}",
-    "selectedCount": "{count, plural, =1 {1 seleccionado} other {# seleccionados}}",
+    "selectedCount": "{hasFilter, select, true {{count, plural, =1 {1 de {filteredTotal, number} gastos filtrados seleccionados} other {# de {filteredTotal, number} gastos filtrados seleccionados}}} other {{count, plural, =1 {1 de {totalCount, number} gastos seleccionados} other {# de {totalCount, number} gastos seleccionados}}}}",
     "clear": "Limpiar selección",
     "delete": "Eliminar seleccionados",
     "setCategory": "Asignar categoría",

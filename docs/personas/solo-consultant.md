@@ -13,6 +13,7 @@ The primary Shyre user. A single operator billing clients by the hour, generatin
 - **Fair pricing for a solo.** Features gated behind a "Teams" tier when a solo needs them are rage-inducing.
 - **Offline / spotty network resilience.** Consultants work on planes and in client offices with weird VPNs.
 - **Receipts and categorization that survive tax season.** When their accountant asks for last year's subscription expenses, the answer is one export.
+- **Default-period filters that match real workflows, not the calendar.** Daily-log + tax-prep are *both* part of the year, but they don't share a default. In Q1 the consultant is reconciling *last* year through April. A "current year" default forces an extra click on every page load through tax season. Prefer rolling-N-month, "since last close", or "remembered last selection" — anything that doesn't lie on January 1.
 
 ## Review checklist
 
@@ -27,3 +28,5 @@ When reviewing a change, flag:
 - [ ] **Breaks on flaky network?** Optimistic UI + clear retry story, or graceful degradation.
 - [ ] **Makes the export story worse?** CSVs must stay valid for every feature we add.
 - [ ] **Adds a new "onboarding" step before first use?** Solo users just want to start the timer.
+- [ ] **Doesn't default-filter to the calendar year on financial pages?** Q1 work is prior-year work; a "current year" default forces a fight every January–April.
+- [ ] **Bulk selection on a paginated list disambiguates "visible page" vs "all matching"?** Without the explicit cue, "Select all → recategorize" can silently miss most of the rows the user thought they were touching.
