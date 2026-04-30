@@ -590,14 +590,17 @@ export async function POST(request: Request): Promise<NextResponse> {
               : null;
           if (!displayName) {
             // No time entries reference this Harvest user in the
-            // selected range. For "shell": nothing to anchor, skip.
-            // For "bp:<id>": equally nothing to anchor — skip and
-            // record (the user's link intent is best handled by an
-            // import that actually carries entries).
-            recordError(
-              `Shell account requested for Harvest user ${harvestId} but no time entries reference them`,
-              new Error("shell-no-entries"),
-            );
+            // selected range. There is nothing to anchor a shell
+            // account to and the bp:<id> link intent has no entries
+            // to attach either — silent skip is the right behavior.
+            //
+            // Earlier this branch recorded a soft error
+            // ("Shell account requested for Harvest user X but no
+            // time entries reference them"). It surfaced as a red
+            // ERRORS row on a successful 177-entry import for users
+            // who'd been on Harvest historically but had zero entries
+            // in the selected date range. That's expected behavior,
+            // not a failure — drop the noise.
             continue;
           }
           try {
