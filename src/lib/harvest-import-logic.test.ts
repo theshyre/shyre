@@ -708,6 +708,7 @@ const baseEntry: HarvestTimeEntry = {
   task: { id: 1, name: "Engineering" },
   user: { id: 1, name: "Alice" },
   invoice: null,
+  external_reference: null,
   created_at: "2024-07-15",
   updated_at: "2024-07-15",
 };
@@ -839,6 +840,95 @@ describe("buildTimeEntryRow", () => {
     expect(out.linked_ticket_title).toBeNull();
     expect(out.linked_ticket_url).toBeNull();
     expect(out.linked_ticket_refreshed_at).toBeNull();
+  });
+
+  it("uses Harvest's external_reference (Jira) over description parsing — no key in text", () => {
+    // The description-parsing path missed Jira-linked entries whose
+    // descriptions don't repeat the key. Harvest's external_reference
+    // is the authoritative pointer in that case.
+    const out = buildTimeEntryRow({
+      entry: {
+        ...baseEntry,
+        notes: "Audit History CSV diff missing section-level N/A toggle",
+        external_reference: {
+          id: "AE-501",
+          group_id: null,
+          permalink: "https://acme.atlassian.net/browse/AE-501",
+          service: "jira",
+          service_icon_url: null,
+        },
+      },
+      projectId: "proj-1",
+      projectHourlyRate: 150,
+      userMapping,
+      categoryIdByTaskName,
+      ctx,
+      timeZone: "America/New_York",
+    });
+    expect("skipped" in out).toBe(false);
+    if ("skipped" in out) throw new Error("unreachable");
+    expect(out.linked_ticket_provider).toBe("jira");
+    expect(out.linked_ticket_key).toBe("AE-501");
+    // Permalink from Harvest is canonical — no Jira API call needed
+    // and we don't depend on the user's jira_base_url being set.
+    expect(out.linked_ticket_url).toBe(
+      "https://acme.atlassian.net/browse/AE-501",
+    );
+  });
+
+  it("uses Harvest's external_reference (GitHub) with permalink", () => {
+    const out = buildTimeEntryRow({
+      entry: {
+        ...baseEntry,
+        notes: "Reviewed the PR",
+        external_reference: {
+          id: "octocat/hello-world#99",
+          group_id: null,
+          permalink: "https://github.com/octocat/hello-world/issues/99",
+          service: "github",
+          service_icon_url: null,
+        },
+      },
+      projectId: "proj-1",
+      projectHourlyRate: 150,
+      userMapping,
+      categoryIdByTaskName,
+      ctx,
+      timeZone: "America/New_York",
+    });
+    expect("skipped" in out).toBe(false);
+    if ("skipped" in out) throw new Error("unreachable");
+    expect(out.linked_ticket_provider).toBe("github");
+    expect(out.linked_ticket_key).toBe("octocat/hello-world#99");
+    expect(out.linked_ticket_url).toBe(
+      "https://github.com/octocat/hello-world/issues/99",
+    );
+  });
+
+  it("ignores external_reference for unknown services (e.g. Trello) — falls back to description parse", () => {
+    const out = buildTimeEntryRow({
+      entry: {
+        ...baseEntry,
+        notes: "AE-700 work",
+        external_reference: {
+          id: "trello-card-123",
+          group_id: null,
+          permalink: "https://trello.com/c/abc",
+          service: "trello",
+          service_icon_url: null,
+        },
+      },
+      projectId: "proj-1",
+      projectHourlyRate: 150,
+      userMapping,
+      categoryIdByTaskName,
+      ctx,
+      timeZone: "America/New_York",
+    });
+    if ("skipped" in out) throw new Error("unreachable");
+    // Trello isn't a supported provider — fall through to text parse.
+    expect(out.linked_ticket_provider).toBe("jira");
+    expect(out.linked_ticket_key).toBe("AE-700");
   });
 
   it("detects a long-form GitHub reference (org/repo#NN) without project defaults", () => {

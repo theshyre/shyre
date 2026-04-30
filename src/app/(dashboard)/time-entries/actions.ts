@@ -574,6 +574,88 @@ export async function refreshTicketTitleAction(
 }
 
 /**
+ * Replace a time entry's description with the linked ticket's
+ * resolved title. Useful after a refresh has populated
+ * linked_ticket_title — the user can one-click sync the description
+ * to the source-of-truth title without retyping.
+ *
+ * If the title hasn't been fetched yet, falls back to attempting a
+ * refresh first so the action is one-click from a "key only" state.
+ *
+ * Owner-of-entry only — same gate as refreshTicketTitleAction.
+ */
+export async function applyTicketTitleAsDescriptionAction(
+  formData: FormData,
+): Promise<void> {
+  return runSafeAction(
+    formData,
+    async (fd, { supabase, userId }) => {
+      const id = String(fd.get("id") ?? "");
+      if (!id) throw new Error("Entry id required");
+
+      const { data: row } = await supabase
+        .from("time_entries")
+        .select(
+          "user_id, project_id, linked_ticket_provider, linked_ticket_key, linked_ticket_title",
+        )
+        .eq("id", id)
+        .maybeSingle();
+      if (!row) throw new Error("Entry not found");
+      if (row.user_id !== userId) {
+        throw new Error("Only the entry's author can sync its description.");
+      }
+      const provider = row.linked_ticket_provider as
+        | "jira"
+        | "github"
+        | null;
+      const key = row.linked_ticket_key as string | null;
+      if (!provider || !key) {
+        throw new Error("Entry has no linked ticket.");
+      }
+
+      // Use the existing cached title when present; otherwise refresh
+      // it through the same path the chip's refresh button uses so
+      // this action works one-click from a "key only" state.
+      let title = row.linked_ticket_title as string | null;
+      if (!title) {
+        const attachment = await buildTicketAttachment(
+          supabase,
+          userId,
+          key,
+          (row.project_id as string | null) ?? null,
+        );
+        title = attachment.linked_ticket_title;
+        // Persist the refreshed columns alongside the description
+        // change in a single update.
+        if (title) {
+          assertSupabaseOk(
+            await supabase
+              .from("time_entries")
+              .update({ ...attachment, description: title })
+              .eq("id", id)
+              .eq("user_id", userId),
+          );
+          revalidatePath("/time-entries");
+          return;
+        }
+        throw new Error("Could not resolve ticket title.");
+      }
+
+      assertSupabaseOk(
+        await supabase
+          .from("time_entries")
+          .update({ description: title })
+          .eq("id", id)
+          .eq("user_id", userId),
+      );
+
+      revalidatePath("/time-entries");
+    },
+    "applyTicketTitleAsDescriptionAction",
+  ) as unknown as void;
+}
+
+/**
  * Upsert the total duration for a (project, category, date) cell in the
  * weekly timesheet. If durationMin is 0, deletes all entries for that cell.
  * Otherwise, either:

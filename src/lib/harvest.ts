@@ -61,6 +61,21 @@ export interface HarvestTimeEntry {
    *  uses this to backfill time_entries.invoice_id + invoiced=true so
    *  Shyre's "billable but not yet invoiced" filter stays accurate. */
   invoice: { id: number; number: string } | null;
+  /** Harvest's structured pointer at an external ticket / issue
+   *  (Jira, GitHub, Trello, Asana, etc.) when the user attached one
+   *  via Harvest's integrations. Authoritative — trumps text-parsing
+   *  the description for ticket keys, since Harvest's value links
+   *  even when the description doesn't repeat the key. `service`
+   *  matches Harvest's slugs ("jira", "github", "trello", …);
+   *  `permalink` is the deep-link to the issue in the source system.
+   *  Null for entries logged without an integration. */
+  external_reference: {
+    id: string;
+    group_id: string | null;
+    permalink: string | null;
+    service: string | null;
+    service_icon_url: string | null;
+  } | null;
   created_at: string;
   updated_at: string;
 }

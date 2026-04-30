@@ -817,23 +817,48 @@ export function buildTimeEntryRow(args: {
       ? (args.invoiceMap?.get(harvestInvoiceId) ?? null)
       : null;
 
-  // Detect Jira/GitHub references in the imported description. Sync
-  // detection only — the API lookup happens later via the chip's
-  // refresh button. 177 imports × 1 outbound API call would
-  // rate-limit Jira/GitHub immediately and stretch import latency
-  // far past Vercel's 5-minute ceiling. Provider + key is enough for
-  // the chip to render and link out (Jira via the user's
-  // jira_base_url, GitHub via the canonical issue URL).
-  const ticket = description
-    ? resolveTicketReference(description, {
-        defaultGithubRepo: args.projectGithubRepo ?? null,
-        defaultJiraProjectKey: args.projectJiraProjectKey ?? null,
-      })
-    : null;
-  const ticketUrlValue =
-    ticket?.provider === "github"
-      ? ticketUrl({ provider: "github", key: ticket.key })
+  // Ticket detection. Harvest's `external_reference` is the
+  // authoritative link when a user attached one via Harvest's
+  // integrations (Jira / GitHub / etc.) — it's set even when the
+  // description doesn't mention the issue key, which is the case
+  // text-parsing miss that prompted this code path. Fall back to
+  // resolveTicketReference (description-based heuristic) when
+  // external_reference is absent or the service isn't one we
+  // currently surface.
+  //
+  // Sync detection only — the title lookup against the source
+  // system happens later via the chip's refresh path. 177 imports
+  // × 1 outbound API call would rate-limit Jira/GitHub immediately.
+  const externalRef = args.entry.external_reference;
+  const externalProvider =
+    externalRef && externalRef.id
+      ? externalRef.service === "jira"
+        ? "jira"
+        : externalRef.service === "github"
+          ? "github"
+          : null
       : null;
+  const ticket = externalProvider
+    ? {
+        provider: externalProvider as "jira" | "github",
+        key: externalRef!.id,
+      }
+    : description
+      ? resolveTicketReference(description, {
+          defaultGithubRepo: args.projectGithubRepo ?? null,
+          defaultJiraProjectKey: args.projectJiraProjectKey ?? null,
+        })
+      : null;
+  // URL: prefer Harvest's permalink (canonical), fall back to the
+  // synthesized GitHub URL when we only have a key. Jira URLs that
+  // come from text-parsing stay null and get filled in later by the
+  // chip refresh path that reads the user's jira_base_url.
+  const ticketUrlValue =
+    externalProvider && externalRef?.permalink
+      ? externalRef.permalink
+      : ticket?.provider === "github"
+        ? ticketUrl({ provider: "github", key: ticket.key })
+        : null;
 
   return {
     team_id: args.ctx.teamId,

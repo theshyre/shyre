@@ -144,30 +144,66 @@ export function EntryRow({
               )}
             </div>
           </Tooltip>
-          {entry.description ? (
-            <Tooltip label={entry.description}>
-              <div className="text-body text-content truncate mt-0.5">
-                {entry.description}
-              </div>
-            </Tooltip>
-          ) : (
-            <div className="text-body text-content-muted italic truncate mt-0.5">
-              {t("entry.untitled")}
-            </div>
-          )}
-          {entry.linked_ticket_provider && entry.linked_ticket_key && (
-            <div className="mt-1 min-w-0">
-              <TicketChip
-                entryId={entry.id}
-                provider={entry.linked_ticket_provider}
-                ticketKey={entry.linked_ticket_key}
-                url={entry.linked_ticket_url}
-                title={entry.linked_ticket_title}
-                canRefresh={canRefresh}
-                size="sm"
-              />
-            </div>
-          )}
+          {(() => {
+            const hasTicket = Boolean(
+              entry.linked_ticket_provider && entry.linked_ticket_key,
+            );
+            // When a chip is present, it carries the key (and title via
+            // tooltip) — repeating "AE-638: <full title>" right above
+            // the chip is the redundancy the user flagged. Hide the
+            // description text when:
+            //   - the description is exactly the resolved title, OR
+            //   - the description starts with `${key}:` (the imported
+            //     "key: title" prefix), AND the rest matches the title.
+            // Fall through and show the description when the user has
+            // additional notes beyond the key+title.
+            const description = entry.description ?? "";
+            const title = entry.linked_ticket_title ?? "";
+            const key = entry.linked_ticket_key ?? "";
+            const trimmed = description.trim();
+            const matchesTitle = title.length > 0 && trimmed === title;
+            const matchesKeyTitle =
+              title.length > 0 &&
+              key.length > 0 &&
+              trimmed === `${key}: ${title}`;
+            const matchesKeyOnly =
+              key.length > 0 && trimmed === `${key}:`.replace(/:$/, "");
+            const hideDescription =
+              hasTicket &&
+              (matchesTitle || matchesKeyTitle || matchesKeyOnly);
+
+            return (
+              <>
+                {!hideDescription &&
+                  (description ? (
+                    <Tooltip label={description}>
+                      <div className="text-body text-content truncate mt-0.5">
+                        {description}
+                      </div>
+                    </Tooltip>
+                  ) : !hasTicket ? (
+                    <div className="text-body text-content-muted italic truncate mt-0.5">
+                      {t("entry.untitled")}
+                    </div>
+                  ) : null)}
+                {hasTicket && (
+                  <div className="mt-1 min-w-0">
+                    <TicketChip
+                      entryId={entry.id}
+                      provider={
+                        entry.linked_ticket_provider as "jira" | "github"
+                      }
+                      ticketKey={entry.linked_ticket_key as string}
+                      url={entry.linked_ticket_url}
+                      title={entry.linked_ticket_title}
+                      canRefresh={canRefresh}
+                      size="sm"
+                    />
+                  </div>
+                )}
+              </>
+            );
+          })()}
         </td>
 
         {/* Author — per the MANDATORY authorship rule */}

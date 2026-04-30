@@ -6,6 +6,8 @@
     "open": "Open ticket",
     "refresh": "Refresh title",
     "refreshFailed": "Couldn't refresh — check your token in Settings.",
+    "applyTitle": "Use as description",
+    "applyTitleFailed": "Couldn't apply title — try refresh first.",
     "noCreds": "No {provider} token configured — saved without title."
   },
   "saveEntry": "Save Entry",
