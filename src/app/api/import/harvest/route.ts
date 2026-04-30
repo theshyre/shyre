@@ -647,6 +647,29 @@ export async function POST(request: Request): Promise<NextResponse> {
       let timeEntriesSkipped = 0;
       const skipReasons = new Map<string, number>();
 
+      // Bulk-load project ticket-defaults once so the per-row build
+      // can resolve short refs (#123 → octokit/rest.js#123) without
+      // a per-row DB query. First-time imports usually have these
+      // unset (the user configures them post-import); subsequent
+      // re-imports benefit when they're filled in.
+      const projectTicketDefaults = new Map<
+        string,
+        { github: string | null; jira: string | null }
+      >();
+      const shyreProjectIds = [...projectMap.values()];
+      if (shyreProjectIds.length > 0) {
+        const { data: projectRows } = await supabase
+          .from("projects")
+          .select("id, github_repo, jira_project_key")
+          .in("id", shyreProjectIds);
+        for (const row of projectRows ?? []) {
+          projectTicketDefaults.set(row.id as string, {
+            github: (row.github_repo as string | null) ?? null,
+            jira: (row.jira_project_key as string | null) ?? null,
+          });
+        }
+      }
+
       const okRows: Array<
         Exclude<
           ReturnType<typeof buildTimeEntryRow>,
@@ -655,11 +678,17 @@ export async function POST(request: Request): Promise<NextResponse> {
       > = [];
 
       for (const hte of harvestTimeEntries) {
+        const shyreProjectId = projectMap.get(hte.project.id) ?? null;
+        const ticketDefaults = shyreProjectId
+          ? projectTicketDefaults.get(shyreProjectId)
+          : undefined;
         // Dedupe by source id.
         const built = buildTimeEntryRow({
           entry: hte,
-          projectId: projectMap.get(hte.project.id) ?? null,
+          projectId: shyreProjectId,
           projectHourlyRate: projectRateById.get(hte.project.id) ?? null,
+          projectGithubRepo: ticketDefaults?.github ?? null,
+          projectJiraProjectKey: ticketDefaults?.jira ?? null,
           userMapping,
           categoryIdByTaskName,
           ctx,

@@ -21,6 +21,7 @@ import type {
   HarvestInvoiceLineItem,
   HarvestUser,
 } from "./harvest";
+import { resolveTicketReference, ticketUrl } from "./tickets/detect";
 
 // ────────────────────────────────────────────────────────────────
 // Date range normalization
@@ -601,14 +602,23 @@ export function buildInvoiceLineItemRow(
  *   - user was mapped to "skip"
  *   - start time couldn't be resolved
  *
- * Includes the rate note when `billable_rate` differs from the project
- * rate — so the per-entry rate snapshot is preserved in the description
- * even though Shyre's time_entries table has no rate column.
+ * Detects Jira/GitHub ticket references in the description and
+ * populates the `linked_ticket_*` columns synchronously. The lookup
+ * (Jira/GitHub API) is deliberately NOT performed here — 177 imports
+ * would mean 177 outbound calls and likely rate-limits. The chip
+ * renders with the key visible; the user can click refresh on any
+ * row to populate the resolved title.
  */
 export function buildTimeEntryRow(args: {
   entry: HarvestTimeEntry;
   projectId: string | null;
   projectHourlyRate: number | null;
+  /** Project's `github_repo` (e.g. "octokit/rest.js"). Lets a bare
+   *  `#123` in a Harvest note resolve to the project's repo. */
+  projectGithubRepo?: string | null;
+  /** Project's `jira_project_key` (e.g. "PROJ"). Reserved for
+   *  symmetry; today's resolver doesn't use it for short refs. */
+  projectJiraProjectKey?: string | null;
   userMapping: Record<number, UserMapChoice>;
   categoryIdByTaskName: Map<string, string>;
   ctx: ImportContext;
@@ -631,6 +641,11 @@ export function buildTimeEntryRow(args: {
       billable: boolean;
       invoiced: boolean;
       invoice_id: string | null;
+      linked_ticket_provider: "jira" | "github" | null;
+      linked_ticket_key: string | null;
+      linked_ticket_url: string | null;
+      linked_ticket_title: string | null;
+      linked_ticket_refreshed_at: string | null;
       imported_from: string;
       imported_at: string;
       import_run_id: string;
@@ -687,6 +702,24 @@ export function buildTimeEntryRow(args: {
       ? (args.invoiceMap?.get(harvestInvoiceId) ?? null)
       : null;
 
+  // Detect Jira/GitHub references in the imported description. Sync
+  // detection only — the API lookup happens later via the chip's
+  // refresh button. 177 imports × 1 outbound API call would
+  // rate-limit Jira/GitHub immediately and stretch import latency
+  // far past Vercel's 5-minute ceiling. Provider + key is enough for
+  // the chip to render and link out (Jira via the user's
+  // jira_base_url, GitHub via the canonical issue URL).
+  const ticket = description
+    ? resolveTicketReference(description, {
+        defaultGithubRepo: args.projectGithubRepo ?? null,
+        defaultJiraProjectKey: args.projectJiraProjectKey ?? null,
+      })
+    : null;
+  const ticketUrlValue =
+    ticket?.provider === "github"
+      ? ticketUrl({ provider: "github", key: ticket.key })
+      : null;
+
   return {
     team_id: args.ctx.teamId,
     user_id: targetUserId,
@@ -698,6 +731,14 @@ export function buildTimeEntryRow(args: {
     billable: args.entry.billable,
     invoiced: linkedInvoiceId !== null,
     invoice_id: linkedInvoiceId,
+    linked_ticket_provider: ticket?.provider ?? null,
+    linked_ticket_key: ticket?.key ?? null,
+    // GitHub URLs resolve from key alone; Jira URLs need the user's
+    // jira_base_url which lives on user_settings — leave null and let
+    // the chip's refresh path fill it in.
+    linked_ticket_url: ticketUrlValue,
+    linked_ticket_title: null,
+    linked_ticket_refreshed_at: null,
     imported_from: "harvest",
     imported_at: args.ctx.importedAt,
     import_run_id: args.ctx.importRunId,
@@ -901,16 +942,31 @@ function roundHours(h: number): number {
 }
 
 /**
- * Compose the entry description from notes + a rate-snapshot prefix
- * when Harvest's `billable_rate` differs from the project rate.
+ * Build the imported time entry's description.
  *
- * Shyre's time_entries table has no per-entry rate column (rate is a
- * project attribute), so for historical imports with rate changes the
- * snapshot would otherwise be lost. Prefixing the description keeps
- * the information visible to the user while not adding a schema
- * column just for this case.
+ * The description should be JUST the user-written notes from Harvest.
+ * The category chip already shows the task name, the project carries
+ * the rate, and the linked-ticket chip surfaces the Jira/GitHub
+ * reference — re-stamping any of that into the description duplicates
+ * structured data as free text.
  *
- * No prefix when rate matches project rate or isn't set.
+ * Earlier the importer prefixed with "[$135/hr] Programming:" on
+ * every row. The taskName ride-along was always redundant (Harvest's
+ * task → Shyre's category set is preserved separately by the
+ * importer); the rate prefix was meant to capture per-entry
+ * overrides but fired any time the project rate was unknown,
+ * stamping every row with its own rate even when nothing was being
+ * overridden.
+ *
+ * Rules:
+ *   - Notes present → use them verbatim, no decoration.
+ *   - Notes missing AND task name present → fall back to the task
+ *     name so the row isn't blank. (The category column also has it,
+ *     but a no-notes row still benefits from a visible label.)
+ *   - Rate prefix `[$N/hr]` only when Harvest has a real per-entry
+ *     override against a *known* different project rate. If the
+ *     project rate is null we treat the entry rate as "this is the
+ *     project rate" — no override implied, no prefix.
  */
 export function buildEntryDescription(args: {
   notes: string | null;
@@ -920,11 +976,16 @@ export function buildEntryDescription(args: {
 }): string {
   const taskName = args.taskName.trim();
   const notes = args.notes?.trim() ?? "";
-  const base = notes ? (taskName ? `${taskName}: ${notes}` : notes) : taskName;
+  const base = notes || taskName;
 
   const rate = args.billableRate;
   const projectRate = args.projectHourlyRate;
-  if (rate !== null && rate > 0 && rate !== projectRate) {
+  if (
+    rate !== null &&
+    rate > 0 &&
+    projectRate !== null &&
+    rate !== projectRate
+  ) {
     return `[$${rate}/hr] ${base}`.trim();
   }
   return base;

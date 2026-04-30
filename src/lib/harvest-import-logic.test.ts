@@ -513,7 +513,7 @@ describe("collectUniqueTaskNames", () => {
 // ────────────────────────────────────────────────────────────────
 
 describe("buildEntryDescription", () => {
-  it("joins task and notes", () => {
+  it("uses notes verbatim when present (no task-name prefix; category captures it)", () => {
     expect(
       buildEntryDescription({
         notes: "Fixed a bug",
@@ -521,9 +521,9 @@ describe("buildEntryDescription", () => {
         billableRate: null,
         projectHourlyRate: 150,
       }),
-    ).toBe("Engineering: Fixed a bug");
+    ).toBe("Fixed a bug");
   });
-  it("uses just task when no notes", () => {
+  it("falls back to task name when notes are empty (so the row isn't blank)", () => {
     expect(
       buildEntryDescription({
         notes: null,
@@ -533,7 +533,7 @@ describe("buildEntryDescription", () => {
       }),
     ).toBe("Engineering");
   });
-  it("uses just notes when no task", () => {
+  it("uses just notes when no task name", () => {
     expect(
       buildEntryDescription({
         notes: "Something",
@@ -543,7 +543,7 @@ describe("buildEntryDescription", () => {
       }),
     ).toBe("Something");
   });
-  it("prefixes rate when entry rate differs from project rate", () => {
+  it("prefixes rate when entry rate differs from a known project rate", () => {
     expect(
       buildEntryDescription({
         notes: "Extra work",
@@ -551,7 +551,7 @@ describe("buildEntryDescription", () => {
         billableRate: 200,
         projectHourlyRate: 150,
       }),
-    ).toBe("[$200/hr] Eng: Extra work");
+    ).toBe("[$200/hr] Extra work");
   });
   it("no rate prefix when rate matches project rate", () => {
     expect(
@@ -561,7 +561,7 @@ describe("buildEntryDescription", () => {
         billableRate: 150,
         projectHourlyRate: 150,
       }),
-    ).toBe("Eng: Normal work");
+    ).toBe("Normal work");
   });
   it("no rate prefix when billable_rate is null", () => {
     expect(
@@ -571,7 +571,21 @@ describe("buildEntryDescription", () => {
         billableRate: null,
         projectHourlyRate: 150,
       }),
-    ).toBe("Eng: Work");
+    ).toBe("Work");
+  });
+  it("no rate prefix when project rate is unknown (regression: don't decorate every row)", () => {
+    // Marcus's import had projectHourlyRate=null + billableRate=135
+    // for every entry, which fired the prefix on every row even
+    // though no real override existed. Treat null project rate as
+    // "the entry rate IS the project rate" → no prefix.
+    expect(
+      buildEntryDescription({
+        notes: "AE-638: investigation",
+        taskName: "Programming",
+        billableRate: 135,
+        projectHourlyRate: null,
+      }),
+    ).toBe("AE-638: investigation");
   });
 });
 
@@ -696,7 +710,7 @@ describe("buildTimeEntryRow", () => {
     expect(out.project_id).toBe("proj-1");
     expect(out.user_id).toBe("u-alice");
     expect(out.category_id).toBe("cat-1");
-    expect(out.description).toBe("Engineering: Some notes");
+    expect(out.description).toBe("Some notes");
     expect(out.start_time).toBe("2024-07-15T13:00:00.000Z");
     expect(out.end_time).toBe("2024-07-15T15:00:00.000Z");
     expect(out.import_source_id).toBe("100");
@@ -774,7 +788,93 @@ describe("buildTimeEntryRow", () => {
     });
     expect("skipped" in out).toBe(false);
     if ("skipped" in out) throw new Error("unreachable");
-    expect(out.description).toBe("[$200/hr] Engineering: Some notes");
+    expect(out.description).toBe("[$200/hr] Some notes");
+  });
+
+  it("detects a Jira ticket key in the description and writes provider+key", () => {
+    // Marcus's Harvest entries contained Jira keys like "AE-638"
+    // in the notes; the import didn't run the ticket linker, so
+    // the row landed with no linked_ticket_provider/key and the UI
+    // showed an empty GitHub Issue # field. resolveTicketReference
+    // is sync (no API call) so we can populate provider+key on
+    // every imported row safely.
+    const out = buildTimeEntryRow({
+      entry: { ...baseEntry, notes: "AE-638: Follow-up CSV export" },
+      projectId: "proj-1",
+      projectHourlyRate: 150,
+      userMapping,
+      categoryIdByTaskName,
+      ctx,
+      timeZone: "America/New_York",
+    });
+    expect("skipped" in out).toBe(false);
+    if ("skipped" in out) throw new Error("unreachable");
+    expect(out.linked_ticket_provider).toBe("jira");
+    expect(out.linked_ticket_key).toBe("AE-638");
+    // Title + url + refreshed_at left null — populated later by the
+    // chip's refresh button (177 imports × 1 API call = rate-limit).
+    expect(out.linked_ticket_title).toBeNull();
+    expect(out.linked_ticket_url).toBeNull();
+    expect(out.linked_ticket_refreshed_at).toBeNull();
+  });
+
+  it("detects a long-form GitHub reference (org/repo#NN) without project defaults", () => {
+    const out = buildTimeEntryRow({
+      entry: {
+        ...baseEntry,
+        notes: "Tackled octocat/hello-world#42 in the morning",
+      },
+      projectId: "proj-1",
+      projectHourlyRate: 150,
+      userMapping,
+      categoryIdByTaskName,
+      ctx,
+      timeZone: "America/New_York",
+    });
+    expect("skipped" in out).toBe(false);
+    if ("skipped" in out) throw new Error("unreachable");
+    expect(out.linked_ticket_provider).toBe("github");
+    expect(out.linked_ticket_key).toBe("octocat/hello-world#42");
+    // GitHub URLs are derivable from key alone — the importer
+    // populates linked_ticket_url so the chip can link out
+    // immediately (Jira URLs require user_settings.jira_base_url
+    // and stay null until refresh).
+    expect(out.linked_ticket_url).toBe(
+      "https://github.com/octocat/hello-world/issues/42",
+    );
+  });
+
+  it("resolves a short GitHub reference (#NN) when project has a github_repo default", () => {
+    const out = buildTimeEntryRow({
+      entry: { ...baseEntry, notes: "Closed #15" },
+      projectId: "proj-1",
+      projectHourlyRate: 150,
+      projectGithubRepo: "octocat/hello-world",
+      userMapping,
+      categoryIdByTaskName,
+      ctx,
+      timeZone: "America/New_York",
+    });
+    expect("skipped" in out).toBe(false);
+    if ("skipped" in out) throw new Error("unreachable");
+    expect(out.linked_ticket_provider).toBe("github");
+    expect(out.linked_ticket_key).toBe("octocat/hello-world#15");
+  });
+
+  it("leaves linked_ticket_* null when no reference is in the notes", () => {
+    const out = buildTimeEntryRow({
+      entry: { ...baseEntry, notes: "just some prose, nothing to link" },
+      projectId: "proj-1",
+      projectHourlyRate: 150,
+      userMapping,
+      categoryIdByTaskName,
+      ctx,
+      timeZone: "America/New_York",
+    });
+    expect("skipped" in out).toBe(false);
+    if ("skipped" in out) throw new Error("unreachable");
+    expect(out.linked_ticket_provider).toBeNull();
+    expect(out.linked_ticket_key).toBeNull();
   });
 });
 
