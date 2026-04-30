@@ -10,6 +10,7 @@ import {
   fetchHarvestTimeEntries,
   fetchHarvestUsers,
   fetchHarvestInvoices,
+  fetchHarvestInvoicePayments,
   HarvestApiError,
 } from "@/lib/harvest";
 import {
@@ -19,6 +20,7 @@ import {
   buildTimeEntryRow,
   buildInvoiceRow,
   buildInvoiceLineItemRow,
+  buildInvoicePaymentRow,
   collectUniqueHarvestUsers,
   collectUniqueTaskNames,
   normalizeDateRange,
@@ -512,6 +514,7 @@ export async function POST(request: Request): Promise<NextResponse> {
       let invoicesImported = 0;
       let invoicesRefreshed = 0;
       let invoiceLineItemsImported = 0;
+      let invoicePaymentsImported = 0;
       for (const hi of harvestInvoices) {
         const customerId = customerMap.get(hi.client.id) ?? null;
         const row = buildInvoiceRow(hi, customerId, ctx);
@@ -608,6 +611,59 @@ export async function POST(request: Request): Promise<NextResponse> {
             continue;
           }
           invoiceLineItemsImported += lineItemRows.length;
+        }
+
+        // Payments. Harvest's invoice payload only has paid_at as
+        // "the date a user clicked Mark paid" (often midnight UTC) —
+        // the actual payment records live at /v2/invoices/{id}/payments
+        // with the real timestamps + amounts + recorder. Only fetch
+        // for invoices that could plausibly have payments (status
+        // 'paid' or 'sent' — a 'sent' invoice can have partial
+        // payments too); skip drafts and voids to save the round-trip.
+        if (row.status === "paid" || row.status === "sent") {
+          let harvestPayments: Awaited<
+            ReturnType<typeof fetchHarvestInvoicePayments>
+          > = [];
+          try {
+            harvestPayments = await fetchHarvestInvoicePayments(hi.id, opts);
+          } catch (err) {
+            recordError(
+              `Invoice "${hi.number}" payments fetch: ${err instanceof Error ? err.message : String(err)}`,
+              err,
+            );
+            continue;
+          }
+
+          // Replace existing imported payments before inserting fresh
+          // ones — re-import semantics, same as line items.
+          const { error: deletePayError } = await supabase
+            .from("invoice_payments")
+            .delete()
+            .eq("invoice_id", shyreInvoiceId);
+          if (deletePayError) {
+            recordError(
+              `Invoice "${hi.number}" payment refresh: ${deletePayError.message}`,
+              deletePayError,
+            );
+            continue;
+          }
+
+          if (harvestPayments.length > 0) {
+            const paymentRows = harvestPayments.map((p) =>
+              buildInvoicePaymentRow(p, shyreInvoiceId, hi.currency),
+            );
+            const { error: payError } = await supabase
+              .from("invoice_payments")
+              .insert(paymentRows);
+            if (payError) {
+              recordError(
+                `Invoice "${hi.number}" payments: ${payError.message}`,
+                payError,
+              );
+              continue;
+            }
+            invoicePaymentsImported += paymentRows.length;
+          }
         }
       }
 
@@ -804,6 +860,7 @@ export async function POST(request: Request): Promise<NextResponse> {
           invoices: invoicesImported,
           invoicesRefreshed,
           invoiceLineItems: invoiceLineItemsImported,
+          invoicePayments: invoicePaymentsImported,
           timeEntries: timeEntriesImported,
         },
         skipped: {

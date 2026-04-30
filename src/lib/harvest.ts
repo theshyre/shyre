@@ -381,6 +381,42 @@ export async function fetchHarvestInvoices(
 }
 
 /**
+ * A payment recorded against a Harvest invoice.
+ *
+ * Lives at `/v2/invoices/{INVOICE_ID}/payments`, not on the invoice
+ * payload itself — the invoice's `paid_at` field is just "the date a
+ * user clicked Mark as Paid" and gets stamped to midnight UTC of
+ * that date when the user marks paid via Harvest's date picker. The
+ * actual recorded-at timestamp + amount + recorder live in this
+ * separate resource. Importing them is what gives the activity log
+ * accurate "Payment received" events instead of midnight stamps.
+ */
+export interface HarvestInvoicePayment {
+  id: number;
+  amount: number;
+  paid_at: string | null;
+  paid_date: string | null;
+  recorded_by: string | null;
+  recorded_by_email: string | null;
+  notes: string | null;
+  transaction_id: string | null;
+  payment_gateway: { id: number | null; name: string | null } | null;
+  created_at: string;
+  updated_at: string;
+}
+
+export async function fetchHarvestInvoicePayments(
+  invoiceId: number,
+  opts: HarvestRequestOptions,
+): Promise<HarvestInvoicePayment[]> {
+  return fetchAllPages<HarvestInvoicePayment>(
+    `/invoices/${invoiceId}/payments`,
+    "invoice_payments",
+    opts,
+  );
+}
+
+/**
  * Fetch the Harvest account's company info. Used for two things:
  * (1) validating credentials, (2) pulling the account's time zone so
  * time entries can be localized correctly.

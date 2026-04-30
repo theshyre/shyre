@@ -578,6 +578,63 @@ export function buildInvoiceRow(
   };
 }
 
+/**
+ * Build an `invoice_payments` row from a Harvest payment record.
+ *
+ * Harvest's invoice payload only has the date a user clicked "Mark
+ * paid" (often midnight UTC), so the activity log was rendering all
+ * imports as "Marked as paid at 12:00 AM". Real payment data lives at
+ * /v2/invoices/{id}/payments — each row carries the actual paid_at
+ * timestamp, the amount, and who recorded it. Importing those gives
+ * the activity log accurate "Payment received" events with the right
+ * dollar amount.
+ *
+ * `team_id` is intentionally omitted — the DB BEFORE-INSERT trigger
+ * (`tg_invoice_payments_set_team`) populates it from the parent
+ * invoice so callers can't pass a wrong team_id. Same pattern Shyre
+ * uses for cascade-style fields elsewhere.
+ */
+export function buildInvoicePaymentRow(
+  payment: import("./harvest").HarvestInvoicePayment,
+  shyreInvoiceId: string,
+  invoiceCurrency: string | null,
+): {
+  invoice_id: string;
+  amount: number;
+  currency: string;
+  paid_on: string;
+  method: string | null;
+  reference: string | null;
+  notes: string | null;
+} {
+  // Pick the best available "when this was paid" value. paid_date
+  // is required NOT NULL in our schema; Harvest reliably populates it
+  // even when paid_at is null, but if both are null fall back to
+  // created_at so we don't drop the row.
+  const paidOn =
+    payment.paid_date ??
+    (payment.paid_at ? payment.paid_at.slice(0, 10) : null) ??
+    payment.created_at.slice(0, 10);
+
+  // Method = Harvest's payment_gateway name when present (e.g.
+  // "Stripe", "PayPal"), else "Manual" for anything recorded by hand.
+  const method = payment.payment_gateway?.name ?? "Manual";
+
+  // Reference: prefer the gateway transaction id (canonical), fall
+  // back to nothing.
+  const reference = payment.transaction_id;
+
+  return {
+    invoice_id: shyreInvoiceId,
+    amount: payment.amount,
+    currency: (invoiceCurrency ?? "USD").toUpperCase(),
+    paid_on: paidOn,
+    method,
+    reference,
+    notes: payment.notes,
+  };
+}
+
 /** Build an invoice_line_items row from a Harvest line item. Caller
  *  supplies the parent Shyre invoice id; we don't currently link
  *  individual line items back to time_entries (Harvest's payload

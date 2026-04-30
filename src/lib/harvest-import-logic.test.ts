@@ -15,6 +15,7 @@ import {
   buildReconciliation,
   buildInvoiceRow,
   buildInvoiceLineItemRow,
+  buildInvoicePaymentRow,
   mapHarvestInvoiceState,
   type ImportContext,
   type UserMapChoice,
@@ -26,6 +27,7 @@ import type {
   HarvestUser,
   HarvestInvoice,
   HarvestInvoiceLineItem,
+  HarvestInvoicePayment,
 } from "./harvest";
 
 // ────────────────────────────────────────────────────────────────
@@ -1418,5 +1420,81 @@ describe("buildTimeEntryRow invoice backfill", () => {
     if ("skipped" in out) throw new Error("unreachable");
     expect(out.invoiced).toBe(false);
     expect(out.invoice_id).toBeNull();
+  });
+});
+
+describe("buildInvoicePaymentRow", () => {
+  const basePayment: HarvestInvoicePayment = {
+    id: 555,
+    amount: 352.35,
+    paid_at: "2026-04-24T16:26:00Z",
+    paid_date: "2026-04-24",
+    recorded_by: "Marcus Malcom",
+    recorded_by_email: "marcus@malcom.io",
+    notes: null,
+    transaction_id: null,
+    payment_gateway: null,
+    created_at: "2026-04-24T16:26:00Z",
+    updated_at: "2026-04-24T16:26:00Z",
+  };
+
+  it("maps the core fields and stamps Manual when no gateway is set", () => {
+    const row = buildInvoicePaymentRow(basePayment, "shyre-inv-1", "USD");
+    expect(row.invoice_id).toBe("shyre-inv-1");
+    expect(row.amount).toBe(352.35);
+    expect(row.paid_on).toBe("2026-04-24");
+    expect(row.method).toBe("Manual");
+    expect(row.reference).toBeNull();
+    expect(row.currency).toBe("USD");
+  });
+
+  it("uses the gateway name as method when present", () => {
+    const row = buildInvoicePaymentRow(
+      {
+        ...basePayment,
+        payment_gateway: { id: 1, name: "Stripe" },
+        transaction_id: "ch_abc123",
+      },
+      "shyre-inv-1",
+      "USD",
+    );
+    expect(row.method).toBe("Stripe");
+    expect(row.reference).toBe("ch_abc123");
+  });
+
+  it("falls back to paid_at's date portion when paid_date is null", () => {
+    const row = buildInvoicePaymentRow(
+      { ...basePayment, paid_date: null },
+      "shyre-inv-1",
+      "USD",
+    );
+    expect(row.paid_on).toBe("2026-04-24");
+  });
+
+  it("falls back to created_at's date when both paid_date and paid_at are null", () => {
+    const row = buildInvoicePaymentRow(
+      { ...basePayment, paid_date: null, paid_at: null },
+      "shyre-inv-1",
+      "USD",
+    );
+    expect(row.paid_on).toBe("2026-04-24");
+  });
+
+  it("uppercases the currency and defaults to USD when missing", () => {
+    expect(
+      buildInvoicePaymentRow(basePayment, "x", "usd").currency,
+    ).toBe("USD");
+    expect(
+      buildInvoicePaymentRow(basePayment, "x", null).currency,
+    ).toBe("USD");
+  });
+
+  it("preserves payment notes for the bookkeeper", () => {
+    const row = buildInvoicePaymentRow(
+      { ...basePayment, notes: "Wire transfer ref 4421" },
+      "shyre-inv-1",
+      "USD",
+    );
+    expect(row.notes).toBe("Wire transfer ref 4421");
   });
 });
