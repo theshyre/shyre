@@ -10,6 +10,7 @@ import {
   inputClass,
   labelClass,
   selectClass,
+  textareaClass,
   buttonSecondaryClass,
 } from "@/lib/form-styles";
 import { updateTimeEntryAction } from "./actions";
@@ -46,7 +47,7 @@ export function InlineEditForm({
 }: Props): React.JSX.Element {
   const t = useTranslations("time");
   const tc = useTranslations("common");
-  const descRef = useRef<HTMLInputElement>(null);
+  const descRef = useRef<HTMLTextAreaElement>(null);
   const formRef = useRef<HTMLFormElement>(null);
 
   const { pending, success, serverError, fieldErrors, handleSubmit } =
@@ -96,6 +97,8 @@ export function InlineEditForm({
         <input type="hidden" name="tz_offset_min" value={String(tzOffsetMin)} />
       )}
       <div className="grid gap-3 sm:grid-cols-2">
+        {/* Row 1: Project + Category — paired because the project's
+            category-set ids drive what the picker offers. */}
         <div>
           <label className={labelClass}>{t("fields.project")}</label>
           <select
@@ -110,16 +113,34 @@ export function InlineEditForm({
             ))}
           </select>
         </div>
-        <div>
+        <CategoryPicker
+          categories={categories}
+          categorySetIds={[
+            entry.projects?.category_set_id,
+            projects.find((p) => p.id === entry.project_id)
+              ?.extension_category_set_id,
+          ]}
+          defaultValue={entry.category_id}
+        />
+
+        {/* Row 2: Description — full-width, multi-line. Was the
+            biggest UX gripe: imported Harvest entries can run hundreds
+            of characters and a single-line input truncated everything
+            after ~50 chars. Three rows lets the user see + edit the
+            full text without horizontal scrolling. */}
+        <div className="sm:col-span-2">
           <label className={labelClass}>{t("fields.description")}</label>
-          <input
+          <textarea
             ref={descRef}
             name="description"
             defaultValue={entry.description ?? ""}
             placeholder={t("fields.descriptionPlaceholder")}
-            className={inputClass}
+            rows={3}
+            className={textareaClass}
           />
         </div>
+
+        {/* Row 3: Date/time fields. */}
         {requiresTimestamps ? (
           <>
             <div>
@@ -165,6 +186,8 @@ export function InlineEditForm({
             </div>
           </>
         )}
+
+        {/* Row 4: Metadata — GitHub issue + billable. */}
         <div>
           <label className={labelClass}>{t("fields.githubIssue")}</label>
           <input
@@ -185,19 +208,6 @@ export function InlineEditForm({
             />
             {t("fields.billable")}
           </label>
-        </div>
-        <div className="sm:col-span-2">
-          <CategoryPicker
-            categories={categories}
-            categorySetIds={[
-              entry.projects?.category_set_id,
-              // Look up the project's extension set via the projects list so
-              // edit pickers see base + project-specific additions.
-              projects.find((p) => p.id === entry.project_id)
-                ?.extension_category_set_id,
-            ]}
-            defaultValue={entry.category_id}
-          />
         </div>
       </div>
       <div className="flex gap-2">

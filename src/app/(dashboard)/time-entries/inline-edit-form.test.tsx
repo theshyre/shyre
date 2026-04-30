@@ -46,7 +46,9 @@ describe("InlineEditForm", () => {
     const { container } = renderWithIntl(
       <InlineEditForm entry={entry} projects={[project]} categories={[]} onDone={() => {}} />,
     );
-    const desc = container.querySelector<HTMLInputElement>('input[name="description"]');
+    // Description is a textarea now (multi-line) — was a single-line
+    // input that truncated long Harvest-imported text.
+    const desc = container.querySelector<HTMLTextAreaElement>('textarea[name="description"]');
     expect(desc?.value).toBe("original");
     const billable = container.querySelector<HTMLInputElement>('input[name="billable"]');
     expect(billable?.checked).toBe(true);
@@ -56,7 +58,7 @@ describe("InlineEditForm", () => {
     const { container } = renderWithIntl(
       <InlineEditForm entry={entry} projects={[project]} categories={[]} onDone={() => {}} />,
     );
-    const desc = container.querySelector('input[name="description"]');
+    const desc = container.querySelector('textarea[name="description"]');
     expect(desc).toHaveFocus();
   });
 
