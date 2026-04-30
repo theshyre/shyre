@@ -12,25 +12,34 @@ export async function generateMetadata(): Promise<Metadata> {
 import { TeamFilter } from "@/components/TeamFilter";
 import { getVisibleCategorySets } from "@/lib/categories/queries";
 import { NewProjectForm } from "./new-project-form";
+import { parseListPagination } from "@/lib/pagination/list-pagination";
+import { PaginationFooter } from "@/components/PaginationFooter";
 
 export default async function ProjectsPage({
   searchParams,
 }: {
-  searchParams: Promise<{ org?: string }>;
+  searchParams: Promise<{ org?: string; limit?: string }>;
 }): Promise<React.JSX.Element> {
   const supabase = await createClient();
   const teams = await getUserTeams();
-  const { org: selectedTeamId } = await searchParams;
+  const sp = await searchParams;
+  const { org: selectedTeamId } = sp;
   const t = await getTranslations("projects");
   const tc = await getTranslations("common");
+  const { limit } = parseListPagination(sp);
 
+  // count: "exact" + .range() + id tiebreaker — same shape as
+  // every other list page in Shyre. See the expenses page for
+  // the rationale on why created_at alone isn't a stable sort.
   let projectsQuery = supabase
     .from("projects_v")
-    .select("*, customers(name)")
+    .select("*, customers(name)", { count: "exact" })
     .neq("status", "archived")
-    .order("created_at", { ascending: false });
+    .order("created_at", { ascending: false })
+    .order("id", { ascending: false });
   if (selectedTeamId) projectsQuery = projectsQuery.eq("team_id", selectedTeamId);
-  const { data: projects } = await projectsQuery;
+  const { data: projects, count: projectsMatchingCount } =
+    await projectsQuery.range(0, limit - 1);
 
   let clientsQuery = supabase
     .from("customers")
@@ -147,6 +156,10 @@ export default async function ProjectsPage({
               })}
             </tbody>
           </table>
+          <PaginationFooter
+            loaded={projects.length}
+            total={projectsMatchingCount ?? projects.length}
+          />
         </div>
       ) : (
         <p className="mt-6 text-body text-content-muted">

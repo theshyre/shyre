@@ -18,13 +18,17 @@ import { Tooltip } from "@/components/Tooltip";
 import { InvoiceStatusBadge } from "./invoice-status-badge";
 import { NewInvoiceLink } from "./new-invoice-link";
 import { InvoiceFilters } from "./invoice-filters";
+import { parseListPagination } from "@/lib/pagination/list-pagination";
+import { PaginationFooter } from "@/components/PaginationFooter";
 
 interface SearchParams {
+  [key: string]: string | string[] | undefined;
   org?: string;
   status?: string;
   customerId?: string;
   from?: string;
   to?: string;
+  limit?: string;
 }
 
 function pickString(value: string | undefined): string | null {
@@ -55,17 +59,28 @@ export default async function InvoicesPage({
     from: pickString(sp.from),
     to: pickString(sp.to),
   };
+  const { limit } = parseListPagination(sp);
 
+  // count: "exact" returns rows + full match count in one RLS
+  // pass; .range() clips to the load-more window. Stable
+  // ordering needs the id tiebreaker because created_at can
+  // collide on bulk-imported invoices, which would let
+  // .range() drop / duplicate rows across "Load more" clicks
+  // under concurrent writes.
   let query = supabase
     .from("invoices")
-    .select("*, customers(name)")
-    .order("created_at", { ascending: false });
+    .select("*, customers(name)", { count: "exact" })
+    .order("created_at", { ascending: false })
+    .order("id", { ascending: false });
   if (selectedTeamId) query = query.eq("team_id", selectedTeamId);
   if (filters.status) query = query.eq("status", filters.status);
   if (filters.customerId) query = query.eq("customer_id", filters.customerId);
   if (filters.from) query = query.gte("issued_date", filters.from);
   if (filters.to) query = query.lte("issued_date", filters.to);
-  const { data: invoices } = await query;
+  const { data: invoices, count: matchingCount } = await query.range(
+    0,
+    limit - 1,
+  );
 
   // Customer list for the filter dropdown — scoped to the active team
   // when one is selected, otherwise all customers the viewer can see.
@@ -223,6 +238,10 @@ export default async function InvoicesPage({
               })}
             </tbody>
           </table>
+          <PaginationFooter
+            loaded={invoices.length}
+            total={matchingCount ?? invoices.length}
+          />
         </div>
       ) : (
         <p className="mt-4 text-body text-content-muted">{t("noInvoices")}</p>

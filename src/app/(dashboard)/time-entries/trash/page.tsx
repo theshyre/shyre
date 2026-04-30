@@ -5,24 +5,40 @@ import { Trash2, ArrowLeft } from "lucide-react";
 import { createClient } from "@/lib/supabase/server";
 import { formatDurationHMZero } from "@/lib/time/week";
 import { TrashList } from "./trash-list";
+import { parseListPagination } from "@/lib/pagination/list-pagination";
+import { PaginationFooter } from "@/components/PaginationFooter";
 
 export async function generateMetadata(): Promise<Metadata> {
   const t = await getTranslations("time.trash");
   return { title: t("title") };
 }
 
-export default async function TimeEntriesTrashPage(): Promise<React.JSX.Element> {
+interface PageProps {
+  searchParams: Promise<{ limit?: string }>;
+}
+
+export default async function TimeEntriesTrashPage({
+  searchParams,
+}: PageProps): Promise<React.JSX.Element> {
   const t = await getTranslations("time.trash");
   const supabase = await createClient();
+  const { limit } = parseListPagination(await searchParams);
 
-  const { data: rows } = await supabase
+  // Replaces the previous hardcoded `.limit(200)` with the
+  // standard list-page pagination shape — count: "exact" + range
+  // + id tiebreaker. The deleted_at sort already implies "newest
+  // trashed first," but rows trashed in the same ms (bulk delete)
+  // need the id tiebreaker for stable .range() across "Load more".
+  const { data: rows, count: matchingCount } = await supabase
     .from("time_entries")
     .select(
       "id, start_time, end_time, duration_min, description, billable, deleted_at, projects(name, customers(name)), categories(name, color)",
+      { count: "exact" },
     )
     .not("deleted_at", "is", null)
     .order("deleted_at", { ascending: false })
-    .limit(200);
+    .order("id", { ascending: false })
+    .range(0, limit - 1);
 
   const entries = (rows ?? []).map((r) => ({
     id: r.id,
@@ -58,10 +74,16 @@ export default async function TimeEntriesTrashPage(): Promise<React.JSX.Element>
           {t("empty")}
         </div>
       ) : (
-        <TrashList
-          entries={entries}
-          formatDuration={(m) => formatDurationHMZero(m ?? 0)}
-        />
+        <>
+          <TrashList
+            entries={entries}
+            formatDuration={(m) => formatDurationHMZero(m ?? 0)}
+          />
+          <PaginationFooter
+            loaded={entries.length}
+            total={matchingCount ?? entries.length}
+          />
+        </>
       )}
     </div>
   );
