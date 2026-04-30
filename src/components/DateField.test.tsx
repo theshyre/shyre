@@ -58,10 +58,34 @@ describe("looseParse", () => {
 });
 
 describe("DateField", () => {
-  it("renders with the given ISO value as text", () => {
+  it("renders with the given ISO value formatted for the default (US) display", () => {
     render(<DateField value="2026-04-30" onChange={() => {}} />);
     const input = screen.getByRole("textbox");
+    expect((input as HTMLInputElement).value).toBe("04/30/2026");
+  });
+
+  it("renders with ISO display when displayFormat='iso'", () => {
+    render(
+      <DateField
+        value="2026-04-30"
+        onChange={() => {}}
+        displayFormat="iso"
+      />,
+    );
+    const input = screen.getByRole("textbox");
     expect((input as HTMLInputElement).value).toBe("2026-04-30");
+  });
+
+  it("placeholder defaults to MM/DD/YYYY for US format", () => {
+    render(<DateField value="" onChange={() => {}} />);
+    const input = screen.getByRole("textbox") as HTMLInputElement;
+    expect(input.placeholder).toBe("MM/DD/YYYY");
+  });
+
+  it("placeholder defaults to YYYY-MM-DD for ISO format", () => {
+    render(<DateField value="" onChange={() => {}} displayFormat="iso" />);
+    const input = screen.getByRole("textbox") as HTMLInputElement;
+    expect(input.placeholder).toBe("YYYY-MM-DD");
   });
 
   it("commits a valid ISO on blur", () => {
@@ -92,7 +116,8 @@ describe("DateField", () => {
     fireEvent.change(input, { target: { value: "garbage" } });
     fireEvent.blur(input);
     expect(onChange).not.toHaveBeenCalled();
-    expect(input.value).toBe("2026-01-15");
+    // Default display is US-formatted.
+    expect(input.value).toBe("01/15/2026");
   });
 
   it("clears via empty input", () => {
@@ -133,10 +158,13 @@ describe("DateField", () => {
     expect(onChange).toHaveBeenCalledWith("2026-04-15");
   });
 
-  it("navigates to the previous month", () => {
+  it("navigates to the previous month (per-button context name)", () => {
     render(<DateField value="2026-04-30" onChange={() => {}} />);
     fireEvent.click(screen.getByRole("button", { name: "Open calendar" }));
-    fireEvent.click(screen.getByRole("button", { name: "Previous month" }));
+    // Per-button names include the target month so each press re-announces.
+    fireEvent.click(
+      screen.getByRole("button", { name: "Previous month, March 2026" }),
+    );
     expect(screen.getByText("March 2026")).toBeTruthy();
   });
 
