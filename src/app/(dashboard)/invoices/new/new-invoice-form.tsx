@@ -12,6 +12,10 @@ import {
   textareaClass,
   labelClass,
   selectClass,
+  formGridClass,
+  formSpanFull,
+  formSpanHalf,
+  formSpanQuarter,
 } from "@/lib/form-styles";
 import { TeamSelector } from "@/components/TeamSelector";
 import type { TeamListItem } from "@/lib/team-context";
@@ -67,8 +71,12 @@ export function NewInvoiceForm({
           {t("selectClientDescription")}
         </p>
 
-        <div className="grid gap-4 sm:grid-cols-2">
-          <div>
+        {/* 12-col grid — Customer is the hero (col-span-6); Due Date
+            and Tax Rate are compact (col-span-3 each). Notes
+            full-width below. See docs/reference/forms-and-buttons.md
+            → "Field sizing". */}
+        <div className={formGridClass}>
+          <div className={formSpanHalf}>
             <label className={labelClass}>{t("selectClient")}</label>
             <select
               autoFocus
@@ -84,11 +92,11 @@ export function NewInvoiceForm({
               ))}
             </select>
           </div>
-          <div>
+          <div className={formSpanQuarter}>
             <label className={labelClass}>{t("fields.dueDate")}</label>
             <input name="due_date" type="date" className={inputClass} />
           </div>
-          <div>
+          <div className={formSpanQuarter}>
             <label className={labelClass}>{t("fields.taxRate")}</label>
             <input
               name="tax_rate"
@@ -100,16 +108,15 @@ export function NewInvoiceForm({
               className={inputClass}
             />
           </div>
-        </div>
-
-        <div>
-          <label className={labelClass}>{t("fields.notes")}</label>
-          <textarea
-            name="notes"
-            rows={3}
-            placeholder={t("fields.notesPlaceholder")}
-            className={textareaClass}
-          />
+          <div className={formSpanFull}>
+            <label className={labelClass}>{t("fields.notes")}</label>
+            <textarea
+              name="notes"
+              rows={3}
+              placeholder={t("fields.notesPlaceholder")}
+              className={textareaClass}
+            />
+          </div>
         </div>
       </div>
 

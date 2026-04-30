@@ -12,6 +12,12 @@ import {
   selectClass,
   textareaClass,
   buttonSecondaryClass,
+  formGridClass,
+  formSpanFull,
+  formSpanHalf,
+  formSpanThird,
+  formSpanQuarter,
+  formSpanCompact,
 } from "@/lib/form-styles";
 import { updateTimeEntryAction } from "./actions";
 import { CategoryPicker } from "./category-picker";
@@ -96,10 +102,14 @@ export function InlineEditForm({
       {tzOffsetMin !== undefined && (
         <input type="hidden" name="tz_offset_min" value={String(tzOffsetMin)} />
       )}
-      <div className="grid gap-3 sm:grid-cols-2">
+      {/* 12-col grid — hero fields (Project, Category, Description)
+          get col-span-6 / 12; compact metadata (Date, Duration,
+          Issue, Billable) packs into col-span-4/3/3/2. See
+          docs/reference/forms-and-buttons.md → "Field sizing". */}
+      <div className={formGridClass}>
         {/* Row 1: Project + Category — paired because the project's
             category-set ids drive what the picker offers. */}
-        <div>
+        <div className={formSpanHalf}>
           <label className={labelClass}>{t("fields.project")}</label>
           <select
             defaultValue={entry.project_id}
@@ -113,22 +123,23 @@ export function InlineEditForm({
             ))}
           </select>
         </div>
-        <CategoryPicker
-          categories={categories}
-          categorySetIds={[
-            entry.projects?.category_set_id,
-            projects.find((p) => p.id === entry.project_id)
-              ?.extension_category_set_id,
-          ]}
-          defaultValue={entry.category_id}
-        />
+        <div className={formSpanHalf}>
+          <CategoryPicker
+            categories={categories}
+            categorySetIds={[
+              entry.projects?.category_set_id,
+              projects.find((p) => p.id === entry.project_id)
+                ?.extension_category_set_id,
+            ]}
+            defaultValue={entry.category_id}
+          />
+        </div>
 
-        {/* Row 2: Description — full-width, multi-line. Was the
-            biggest UX gripe: imported Harvest entries can run hundreds
-            of characters and a single-line input truncated everything
-            after ~50 chars. Three rows lets the user see + edit the
-            full text without horizontal scrolling. */}
-        <div className="sm:col-span-2">
+        {/* Row 2: Description — full-width, multi-line. Imported
+            Harvest entries can run hundreds of characters; a single-
+            line input truncated. 3 rows fits a typical paragraph
+            without auto-grow CLS in the multi-select-table parent. */}
+        <div className={formSpanFull}>
           <label className={labelClass}>{t("fields.description")}</label>
           <textarea
             ref={descRef}
@@ -140,10 +151,11 @@ export function InlineEditForm({
           />
         </div>
 
-        {/* Row 3: Date/time fields. */}
+        {/* Row 3: Date/time fields — compact. Datetime-locals get
+            slightly more room than the date+duration pair. */}
         {requiresTimestamps ? (
           <>
-            <div>
+            <div className={formSpanThird}>
               <label className={labelClass}>{t("fields.startTime")} *</label>
               <input
                 name="start_time"
@@ -154,7 +166,7 @@ export function InlineEditForm({
               />
               <FieldError error={fieldErrors.start_time} />
             </div>
-            <div>
+            <div className={formSpanThird}>
               <label className={labelClass}>{t("fields.endTime")}</label>
               <input
                 name="end_time"
@@ -166,7 +178,7 @@ export function InlineEditForm({
           </>
         ) : (
           <>
-            <div>
+            <div className={formSpanThird}>
               <label className={labelClass}>{t("fields.date")} *</label>
               <input
                 name="entry_date"
@@ -176,7 +188,7 @@ export function InlineEditForm({
                 className={inputClass}
               />
             </div>
-            <div>
+            <div className={formSpanQuarter}>
               <label className={labelClass}>{t("fields.duration")} *</label>
               <DurationInput
                 name="duration_min"
@@ -187,8 +199,10 @@ export function InlineEditForm({
           </>
         )}
 
-        {/* Row 4: Metadata — GitHub issue + billable. */}
-        <div>
+        {/* Row 4: Metadata — GitHub issue + billable. Compact spans;
+            metadata shouldn't be as visually loud as Project /
+            Description. */}
+        <div className={formSpanQuarter}>
           <label className={labelClass}>{t("fields.githubIssue")}</label>
           <input
             name="github_issue"
@@ -198,8 +212,8 @@ export function InlineEditForm({
             className={inputClass}
           />
         </div>
-        <div className="flex items-end pb-1">
-          <label className="flex items-center gap-2 text-sm font-medium text-content cursor-pointer">
+        <div className={`${formSpanCompact} flex items-end pb-1`}>
+          <label className="flex items-center gap-2 text-body-lg font-medium text-content cursor-pointer">
             <input
               name="billable"
               type="checkbox"

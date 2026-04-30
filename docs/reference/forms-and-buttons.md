@@ -30,3 +30,45 @@
 3. **Soft delete + Undo toast is mandatory for any destructive action the user could realistically want back.** After delete completes, push an `Undo` toast (`useToast()`) for 10s that restores the soft-deleted row(s). Example: time entry row → `deleteTimeEntryAction` sets `deleted_at`, toast offers `restoreTimeEntriesAction`. A `/trash` surface must exist so users can recover from the grave after the toast expires. This is independent of the confirmation tier — typed-confirm and Undo-toast both apply.
 4. **Confirm button disabled until confirmation matches** — typed word/name must match (case-insensitive) before the destructive button enables.
 5. **Cancel button always present** — easy escape from destructive flows, plus Escape key from anywhere inside the prompt.
+
+## Field sizing
+
+Forms with mixed-width fields use a 12-column grid (`formGridClass`) and let each field declare the span that fits its content. Don't fall back to `grid-cols-2` for "simple" forms — a 10-character date input and a 200-character description don't share the same horizontal budget. Don't cap input width with `max-w-*` to make an oversized field look right — shrink the column instead.
+
+Default rubric:
+
+| Field type | Span | Constant |
+|---|---|---|
+| Description / Notes textarea | 12 | `formSpanFull` |
+| Project / Customer / Vendor select | 6 | `formSpanHalf` |
+| Category / Team select | 4–6 | `formSpanThird` / `formSpanHalf` |
+| Date / Datetime input | 3–4 | `formSpanQuarter` / `formSpanThird` |
+| Duration / Amount / Tax / Issue # | 2–3 | `formSpanCompact` / `formSpanQuarter` |
+| Billable / single checkbox | 2 | `formSpanCompact` |
+
+Concrete examples:
+
+```tsx
+import {
+  formGridClass,
+  formSpanFull,
+  formSpanHalf,
+  formSpanThird,
+  formSpanQuarter,
+  formSpanCompact,
+} from "@/lib/form-styles";
+
+<div className={formGridClass}>
+  <div className={formSpanHalf}>{/* Project */}</div>
+  <div className={formSpanHalf}>{/* Category */}</div>
+  <div className={formSpanFull}>{/* Description textarea */}</div>
+  <div className={formSpanThird}>{/* Date */}</div>
+  <div className={formSpanQuarter}>{/* Duration */}</div>
+  <div className={formSpanQuarter}>{/* GitHub Issue # */}</div>
+  <div className={formSpanCompact}>{/* Billable checkbox */}</div>
+</div>
+```
+
+The columns collapse to one (`col-span-12`) below the `sm:` breakpoint so a narrow viewport stacks naturally. Gap stays at `gap-3` (rem) per the layout-in-px rule — column spans are unitless ratios; only the gutter is type-adjacent.
+
+Reference implementations: `inline-edit-form.tsx`, `new-time-entry-form.tsx`, `new-expense-form.tsx`, `new-invoice-form.tsx`.

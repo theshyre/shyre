@@ -9,9 +9,14 @@ import {
   inputClass,
   textareaClass,
   labelClass,
+  selectClass,
   kbdClass,
   buttonPrimaryClass,
   buttonSecondaryClass,
+  formGridClass,
+  formSpanFull,
+  formSpanThird,
+  formSpanQuarter,
 } from "@/lib/form-styles";
 import { SubmitButton } from "@/components/SubmitButton";
 import { createExpenseAction } from "./actions";
@@ -104,8 +109,13 @@ export function NewExpenseForm({
         <AlertBanner tone="error">{serverError}</AlertBanner>
       )}
 
-      <div className="grid gap-3 sm:grid-cols-3">
-        <div>
+      {/* 12-col grid — see docs/reference/forms-and-buttons.md →
+          "Field sizing". Compact metadata (Date, Amount, Category)
+          on the first row; Vendor + Project + Team in row 2;
+          Description + Notes full-width below. */}
+      <div className={formGridClass}>
+        {/* Row 1: Compact essentials — Date, Amount, Category. */}
+        <div className={formSpanThird}>
           <label className={labelClass}>{t("fields.incurredOn")} *</label>
           <input
             name="incurred_on"
@@ -116,7 +126,7 @@ export function NewExpenseForm({
             className={inputClass}
           />
         </div>
-        <div>
+        <div className={formSpanQuarter}>
           <label className={labelClass}>{t("fields.amount")} *</label>
           <input
             name="amount"
@@ -127,14 +137,16 @@ export function NewExpenseForm({
             className={inputClass}
           />
         </div>
-        <div>
+        <div className={formSpanThird}>
           <label className={labelClass}>{t("fields.category")} *</label>
+          {/* selectClass not inputClass — the select needs the
+              chevron padding-right. */}
           <select
             name="category"
             required
             value={selectedCategory}
             onChange={(e) => setSelectedCategory(e.target.value)}
-            className={inputClass}
+            className={selectClass}
           >
             <option value="" disabled>
               {t("selectCategory")}
@@ -147,14 +159,35 @@ export function NewExpenseForm({
           </select>
           <CategoryHint category={selectedCategory} />
         </div>
+
+        {/* Row 2: Vendor + Project + (optional) Team. */}
+        <div className={formSpanThird}>
+          <label className={labelClass}>{t("fields.vendor")}</label>
+          <input name="vendor" type="text" className={inputClass} />
+        </div>
+        <div className={formSpanThird}>
+          <label className={labelClass}>{t("fields.project")}</label>
+          <select
+            name="project_id"
+            defaultValue="none"
+            className={selectClass}
+          >
+            <option value="none">{t("noProject")}</option>
+            {projectsForTeam.map((p) => (
+              <option key={p.id} value={p.id}>
+                {p.name}
+              </option>
+            ))}
+          </select>
+        </div>
         {showTeamPicker && (
-          <div>
+          <div className={formSpanThird}>
             <label className={labelClass}>{t("fields.team")} *</label>
             <select
               value={selectedTeamId}
               onChange={(e) => setSelectedTeamId(e.target.value)}
               required
-              className={inputClass}
+              className={selectClass}
             >
               {teamOptions.map((tm) => (
                 <option key={tm.id} value={tm.id}>
@@ -164,26 +197,15 @@ export function NewExpenseForm({
             </select>
           </div>
         )}
-        <div className={showTeamPicker ? "sm:col-span-2" : "sm:col-span-2"}>
-          <label className={labelClass}>{t("fields.vendor")}</label>
-          <input name="vendor" type="text" className={inputClass} />
-        </div>
-        <div>
-          <label className={labelClass}>{t("fields.project")}</label>
-          <select name="project_id" defaultValue="none" className={inputClass}>
-            <option value="none">{t("noProject")}</option>
-            {projectsForTeam.map((p) => (
-              <option key={p.id} value={p.id}>
-                {p.name}
-              </option>
-            ))}
-          </select>
-        </div>
-        <div className="sm:col-span-3">
+
+        {/* Row 3: Description (full-width). */}
+        <div className={formSpanFull}>
           <label className={labelClass}>{t("fields.description")}</label>
           <textarea name="description" rows={2} className={textareaClass} />
         </div>
-        <div className="sm:col-span-3">
+
+        {/* Row 4: Notes (full-width). */}
+        <div className={formSpanFull}>
           <label className={labelClass}>{t("fields.notes")}</label>
           <textarea
             name="notes"
@@ -195,14 +217,19 @@ export function NewExpenseForm({
             {t("fields.notesHint")}
           </p>
         </div>
-        <div className="sm:col-span-3 flex items-center gap-2">
+
+        {/* Row 5: Billable. */}
+        <div className={`${formSpanFull} flex items-center gap-2`}>
           <input
             id="billable"
             type="checkbox"
             name="billable"
             className="h-4 w-4"
           />
-          <label htmlFor="billable" className="text-body text-content-secondary">
+          <label
+            htmlFor="billable"
+            className="text-body-lg font-medium text-content cursor-pointer"
+          >
             {t("fields.billable")}
           </label>
         </div>

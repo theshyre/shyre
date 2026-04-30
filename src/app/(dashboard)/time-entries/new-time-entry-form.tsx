@@ -11,7 +11,14 @@ import {
   inputClass,
   labelClass,
   selectClass,
+  textareaClass,
   buttonSecondaryClass,
+  formGridClass,
+  formSpanFull,
+  formSpanHalf,
+  formSpanThird,
+  formSpanQuarter,
+  formSpanCompact,
 } from "@/lib/form-styles";
 import { GitHubIssuePicker } from "@/components/GitHubIssuePicker";
 import { TeamSelector } from "@/components/TeamSelector";
@@ -87,8 +94,14 @@ export function NewTimeEntryForm({
         <input type="hidden" name="tz_offset_min" value={String(tzOffsetMin)} />
       )}
       <TeamSelector teams={teams} defaultTeamId={defaultTeamId} />
-      <div className="grid gap-3 sm:grid-cols-2">
-        <div>
+      {/* 12-col grid — see docs/reference/forms-and-buttons.md →
+          "Field sizing". Hero fields (Project, Category,
+          Description) ride col-span-6/12; compact metadata (Date,
+          Duration, Issue, Billable) takes col-span-4/3/3/2. */}
+      <div className={formGridClass}>
+        {/* Row 1: Project + Category — paired (Project's category-
+            set ids drive what the picker offers). */}
+        <div className={formSpanHalf}>
           <label className={labelClass}>{t("fields.project")} *</label>
           <select
             name="project_id"
@@ -109,17 +122,33 @@ export function NewTimeEntryForm({
           </select>
           <FieldError error={fieldErrors.project_id} />
         </div>
-        <div>
-          <label className={labelClass}>{t("fields.description")}</label>
-          <input
-            name="description"
-            placeholder={t("fields.descriptionPlaceholder")}
-            className={inputClass}
+        <div className={formSpanHalf}>
+          <CategoryPicker
+            categories={categories}
+            categorySetIds={[
+              selectedProject?.category_set_id,
+              selectedProject?.extension_category_set_id,
+            ]}
           />
         </div>
+
+        {/* Row 2: Description — full-width textarea (matches
+            inline-edit-form). Was a single-line input that
+            truncated long Harvest-imported text. */}
+        <div className={formSpanFull}>
+          <label className={labelClass}>{t("fields.description")}</label>
+          <textarea
+            name="description"
+            placeholder={t("fields.descriptionPlaceholder")}
+            rows={3}
+            className={textareaClass}
+          />
+        </div>
+
+        {/* Row 3: Date/time — compact. */}
         {selectedProject?.require_timestamps ?? true ? (
           <>
-            <div>
+            <div className={formSpanThird}>
               <label className={labelClass}>{t("fields.startTime")} *</label>
               <input
                 name="start_time"
@@ -128,14 +157,14 @@ export function NewTimeEntryForm({
                 className={inputClass}
               />
             </div>
-            <div>
+            <div className={formSpanThird}>
               <label className={labelClass}>{t("fields.endTime")}</label>
               <input name="end_time" type="datetime-local" className={inputClass} />
             </div>
           </>
         ) : (
           <>
-            <div>
+            <div className={formSpanThird}>
               <label className={labelClass}>{t("fields.date")} *</label>
               <input
                 name="entry_date"
@@ -145,7 +174,7 @@ export function NewTimeEntryForm({
                 className={inputClass}
               />
             </div>
-            <div>
+            <div className={formSpanQuarter}>
               <label className={labelClass}>{t("fields.duration")} *</label>
               <DurationInput
                 name="duration_min"
@@ -155,8 +184,10 @@ export function NewTimeEntryForm({
             </div>
           </>
         )}
+
+        {/* Row 4: Metadata — compact. */}
         {linkedRepo ? (
-          <div>
+          <div className={formSpanQuarter}>
             <label className={labelClass}>{t("fields.githubIssue")}</label>
             <GitHubIssuePicker
               repo={linkedRepo}
@@ -165,7 +196,7 @@ export function NewTimeEntryForm({
             />
           </div>
         ) : (
-          <div>
+          <div className={formSpanQuarter}>
             <label className={labelClass}>{t("fields.githubIssue")}</label>
             <input
               name="github_issue"
@@ -175,7 +206,7 @@ export function NewTimeEntryForm({
             />
           </div>
         )}
-        <div className="flex items-end pb-1">
+        <div className={`${formSpanCompact} flex items-end pb-1`}>
           <label className="flex items-center gap-2 text-body-lg font-medium text-content cursor-pointer">
             <input
               name="billable"
@@ -185,15 +216,6 @@ export function NewTimeEntryForm({
             />
             {t("fields.billable")}
           </label>
-        </div>
-        <div className="sm:col-span-2">
-          <CategoryPicker
-            categories={categories}
-            categorySetIds={[
-              selectedProject?.category_set_id,
-              selectedProject?.extension_category_set_id,
-            ]}
-          />
         </div>
       </div>
       <div className="flex gap-2">

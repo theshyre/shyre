@@ -47,3 +47,35 @@ export const buttonGhostClass = [
 
 export const kbdClass =
   "rounded border border-edge bg-surface-inset px-1.5 py-0.5 text-[10px] text-content-muted font-mono";
+
+/**
+ * 12-column form grid + span helpers.
+ *
+ * Use a 12-column grid for any form with mixed-width fields rather
+ * than `grid-cols-2`, which forces a 10-character date input and a
+ * 200-character description into the same horizontal budget. Each
+ * field declares the span that fits its content.
+ *
+ * The columns collapse to one on mobile (`col-span-12`) so a narrow
+ * viewport stacks. The `sm:` breakpoint (640px+) is where the grid
+ * reads as a grid.
+ *
+ * Mapping (canonical, also documented at
+ * `docs/reference/forms-and-buttons.md` → "Field sizing"):
+ *
+ *   Description / Notes textarea       → formSpanFull       (col-span-12)
+ *   Project / Customer / Vendor select → formSpanHalf       (sm:col-span-6)
+ *   Category / Team select             → formSpanThird/Half (sm:col-span-4 or 6)
+ *   Date / Datetime input              → formSpanThird/Q    (sm:col-span-4 or 3)
+ *   Duration / Amount / Tax / Issue #  → formSpanQuarter/C  (sm:col-span-3 or 2)
+ *   Billable / single checkbox         → formSpanCompact    (sm:col-span-2)
+ *
+ * Don't cap input width with `max-w-*` to make a too-wide field
+ * look right — shrink the column instead.
+ */
+export const formGridClass = "grid grid-cols-12 gap-3";
+export const formSpanFull = "col-span-12";
+export const formSpanHalf = "col-span-12 sm:col-span-6";
+export const formSpanThird = "col-span-12 sm:col-span-4";
+export const formSpanQuarter = "col-span-6 sm:col-span-3";
+export const formSpanCompact = "col-span-6 sm:col-span-2";
