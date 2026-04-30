@@ -175,7 +175,17 @@ export function resolveTimeEntryUtcBounds(args: {
       const endLocal = `${args.spent_date}T${endHm}:00`;
       endUtc = zonedWallClockToUtc(endLocal, args.timeZone);
     }
-  } else if (!args.is_running && args.hours > 0) {
+  }
+  // If we still don't have an end time but hours is set, compute it
+  // from `start + hours`. This deliberately also covers Harvest's
+  // `is_running: true` case: an imported entry should NEVER produce
+  // a Shyre live timer (end_time = null). A forgotten Harvest timer
+  // started months ago, imported as live, would surface as "running
+  // for 2,747 hours" in Shyre's running-timer card. The honest value
+  // is the elapsed `hours` Harvest already tracked — treat it as a
+  // completed session of that length. The user can edit or split it
+  // post-import if they actually want a different shape.
+  if (!endUtc && args.hours > 0) {
     endUtc = new Date(startUtc.getTime() + args.hours * 60 * 60 * 1000);
   }
 
