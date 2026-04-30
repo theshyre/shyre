@@ -4,13 +4,18 @@ import { useCallback, useEffect, useState } from "react";
 import Link from "next/link";
 import { useTranslations } from "next-intl";
 import { useRouter } from "next/navigation";
-import { Square } from "lucide-react";
+import { Square, ArrowRight } from "lucide-react";
 import { LinkPendingSpinner } from "@theshyre/ui";
 import { buttonDangerClass, kbdClass } from "@/lib/form-styles";
 import { EntryAuthor } from "@/components/EntryAuthor";
 import { stopTimerAction } from "@/app/(dashboard)/time-entries/actions";
 import { useRunningEntry } from "@/hooks/use-running-entry";
 import { notifyTimerChanged } from "@/lib/timer-events";
+import { Tooltip } from "@/components/Tooltip";
+import {
+  formatTimerStarted,
+  entryDeepLink,
+} from "@/lib/time/timer-started";
 
 interface Props {
   /** Viewer's display name — passed to the author chip in the running card. */
@@ -104,6 +109,9 @@ export default function Timer({
     avatar_url: avatarUrl,
   };
 
+  const startedCaption = formatTimerStarted(running.start_time, nowMs);
+  const entryHref = entryDeepLink(running.start_time, running.id);
+
   return (
     <div className="border-t border-success/30">
       <div className="px-4 py-2 border-b border-success/30 bg-success-soft">
@@ -136,7 +144,18 @@ export default function Timer({
             {running.description}
           </p>
         )}
+        <Tooltip label={new Date(running.start_time).toLocaleString()}>
+          <p className="text-caption text-content-muted">{startedCaption}</p>
+        </Tooltip>
         <EntryAuthor author={author} size={16} />
+        <Link
+          href={entryHref}
+          className="inline-flex items-center gap-1 text-caption text-content-secondary hover:text-content focus-visible:outline-none focus-visible:underline"
+        >
+          View entry
+          <ArrowRight size={12} />
+          <LinkPendingSpinner />
+        </Link>
         <button
           type="button"
           onClick={handleStop}

@@ -85,7 +85,11 @@ export function EntryRow({
 
   return (
     <>
-      <tr className={rowClass} onClick={() => onToggleExpand(entry.id)}>
+      <tr
+        id={`entry-${entry.id}`}
+        className={rowClass}
+        onClick={() => onToggleExpand(entry.id)}
+      >
         {/* Bulk-select checkbox — clicks here don't toggle the row
             expansion; they mutate the parent's selectedIds set. */}
         <td

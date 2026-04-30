@@ -3,10 +3,16 @@
 import { useCallback, useEffect, useState } from "react";
 import { useTranslations } from "next-intl";
 import { useRouter } from "next/navigation";
-import { Square } from "lucide-react";
+import Link from "next/link";
+import { Square, ArrowRight } from "lucide-react";
 import { stopTimerAction } from "@/app/(dashboard)/time-entries/actions";
 import { useRunningEntry } from "@/hooks/use-running-entry";
 import { notifyTimerChanged } from "@/lib/timer-events";
+import { Tooltip } from "@/components/Tooltip";
+import {
+  formatTimerStarted,
+  entryDeepLink,
+} from "@/lib/time/timer-started";
 
 /**
  * Sticky running-timer strip at the top of the dashboard main column.
@@ -54,6 +60,9 @@ export function RunningTimerHeaderPill(): React.JSX.Element | null {
       (nowMs - new Date(running.start_time).getTime()),
   );
 
+  const startedCaption = formatTimerStarted(running.start_time, nowMs);
+  const entryHref = entryDeepLink(running.start_time, running.id);
+
   return (
     <div className="sticky top-0 z-20 border-b border-success/30 bg-success-soft">
       <div className="mx-auto max-w-[1280px] flex items-center gap-3 px-[32px] py-2">
@@ -79,6 +88,19 @@ export function RunningTimerHeaderPill(): React.JSX.Element | null {
             </span>
           )}
         </span>
+        <Tooltip label={new Date(running.start_time).toLocaleString()}>
+          <span className="text-caption text-content-muted shrink-0 hidden sm:inline">
+            {startedCaption}
+          </span>
+        </Tooltip>
+        <Link
+          href={entryHref}
+          className="inline-flex items-center gap-1 rounded px-2 py-1 text-caption text-content-secondary hover:bg-success/10 hover:text-content focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus-ring shrink-0"
+          aria-label="View this time entry"
+        >
+          View entry
+          <ArrowRight size={12} />
+        </Link>
         <button
           type="button"
           onClick={handleStop}
