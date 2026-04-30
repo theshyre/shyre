@@ -172,6 +172,17 @@ Inline expansion (per `forms-and-buttons.md` tier 1), never a modal:
 - Entry with `start_time` and `end_time` straddling midnight renders
   in **both** bands, with arrow icon + caption: "↑ continues from
   Tuesday" / "↓ continues into Wednesday". Two channels.
+- **Totals attribution: start-day** (closed 2026-04-30, bookkeeper
+  review). The full duration is attributed to the band of the
+  `start_time` for both the per-band total and the CSV export — both
+  paths must agree, asserted in the round-trip parity test. Visual
+  rendering in *both* bands is a UI-only affordance; the second band
+  shows the entry as a continuation pill with no minutes contribution
+  to its band's total. Rationale: split-by-duration creates rounding
+  drift across band boundaries (a 90-minute entry crossing midnight
+  rounds inconsistently); start-day attribution matches the existing
+  Week-grid behavior so the Log doesn't introduce a new totals
+  semantics for bookkeepers to learn.
 - Running timer that has been on for >24h shows in today's band with
   a danger pill ("Running for 2d 4h"); the user is offered a one-click
   "Stop and split" affordance to break it at midnight, mirroring the
@@ -254,11 +265,68 @@ bookkeeper audit case and the export button consume.
 
 ### Indexes
 
-Verify before shipping: `time_entries (team_id, start_time DESC)` and
-`time_entries (team_id, user_id, start_time DESC)` are present. The
-existing day/week views already exercise the first index; the second
-is needed for swim-lane queries (`members=all` filtered to a date
-range). Add in the same migration if missing.
+Audit completed 2026-04-30 against the live schema. Today
+`time_entries` has a `(user_id, start_time)` partial index on
+`WHERE deleted_at IS NULL` (`idx_time_entries_active_start_time`,
+landed in `20260415130000_time_entries_soft_delete.sql`) plus
+single-column indexes on `team_id`, `user_id`, `start_time`. The
+team-scoped filter the day/week page already uses
+(`WHERE team_id = ? AND start_time >= ? AND start_time < ? AND
+deleted_at IS NULL`) is **not** covered by any composite — current
+plans rely on the bitmap-heap merge, which is fine at today's row
+counts but degrades on a 5-year scan.
+
+Phase 1 adds **two** composite partial indexes in one migration
+(both `WHERE deleted_at IS NULL`):
+
+- `time_entries (team_id, start_time DESC)` — backs the team-scoped
+  range query used by day, week, and the upcoming Log default
+  (`members=me` resolves to user_id filter on top, so this index
+  alone is the working set for most queries).
+- `time_entries (team_id, user_id, start_time DESC)` — backs the
+  swim-lane query (`members=all` or member list filtered to a date
+  range).
+
+Both use `IF NOT EXISTS` per `migrations.md`. Additive; safe to
+ship code + migration in one PR.
+
+### Aggregate helpers
+
+Single canonical query path consumed by **band totals, masthead
+totals, filter-chip counts, and CSV export**. Lives at
+`src/lib/time/aggregates/` (platform-shared, not under
+`src/app/(dashboard)/time-entries/`) so future modules (Reports,
+Invoicing pre-bill review, Orchestrate) reuse it without crossing
+module boundaries.
+
+Function signature (sketch — phase-2 work, but the location and
+shape are locked in phase 1):
+
+```ts
+export interface TimeEntryAggregateRow {
+  bucket: string;        // YYYY-MM-DD when group_by='day'; YYYY-Www when 'week'; YYYY-MM when 'month'
+  total_min: number;
+  billable_min: number;
+  entry_count: number;
+}
+
+export async function timeEntriesAggregate(input: {
+  teamId: string | null;       // null = all teams visible to the caller
+  fromUtc: Date;
+  toUtc: Date;
+  groupBy: "day" | "week" | "month";
+  memberFilter: string[] | null;
+  billableOnly: boolean;
+}): Promise<TimeEntryAggregateRow[]>;
+```
+
+The same function backs the export route's totals row. A
+bookkeeper-grade parity test (round-trip equality with CSV export
+for the same range) sits next to the helper. RLS still applies —
+the function is implemented as a server action / server-side query
+that runs under the caller's session, **not** a `SECURITY DEFINER`
+helper (SAL-006 lesson: aggregates that bypass RLS are the
+unguarded flank).
 
 ### Caching
 
@@ -293,14 +361,16 @@ The Log adds **two new test surfaces** to
    *blocked-user-sees-zero* (member sees only own + permitted).
 2. `describe("Unified Time view: pre-membership data visibility")` —
    member who joined 2025-06-01 scrolls to 2024 sees no entries in
-   their own log. **Decision required up front** (not deferred
-   in code):
-   - **Status quo**: pre-membership entries are visible to owner/admin
-     per existing semantics. Document explicitly. No new gate.
-   - **Defense in depth**: action layer adds a `membership_started_at`
-     filter so a member viewing their own log never sees pre-join
-     entries. Documented as a soft policy, enforced in queries, tested.
-   Pick one; don't leave ambiguous.
+   their own log. **Decision (closed 2026-04-30, security review):
+   defense-in-depth.** The action layer adds a `membership_started_at`
+   filter for the self-scoped path (`user_id = auth.uid()`) so a
+   member viewing their own log never sees entries from before they
+   joined the team. Owner/admin paths are unchanged. Rationale: a
+   new contractor's first scroll into pre-join history reads as a
+   privacy bug to a user who doesn't know our role model, and the
+   gate costs one WHERE clause + one integration test —
+   pre-empting an avoidable SAL entry. Status-quo (RLS-permitted-only)
+   was rejected.
 
 ### Export must respect the visible scope
 
@@ -426,16 +496,30 @@ sticky positioning).
 ## Phasing
 
 **Phase 1 — schema-and-query-shape parity, no new view yet.** Lock
-in the foundation that doesn't get re-litigated:
+in the foundation that doesn't get re-litigated. Phase 1 is shippable
+independently — most of its value lands on the existing day/week
+views regardless of whether the Log itself ever ships:
 
-1. `time-edges.ts` shared fixtures.
-2. Index audit + add `time_entries (team_id, user_id, start_time DESC)`
-   if missing.
-3. RLS deep-scroll integration tests against the existing day/week
-   views (regression baseline).
-4. Pre-membership-visibility decision documented + tested.
-5. Aggregate-query helpers (per-day total, per-day billable split,
-   per-range total) used by both day/week views and the upcoming Log.
+1. `src/__tests__/fixtures/time-edges.ts` shared fixtures (DST
+   spring-forward, fall-back, NYE 23:45–00:30, leap-day, far-future
+   timer). Reused by day/week tests today and Log tests later.
+2. Index migration: `(team_id, start_time DESC)` and
+   `(team_id, user_id, start_time DESC)`, both partial on
+   `WHERE deleted_at IS NULL`. Both `IF NOT EXISTS`.
+3. Pre-membership-visibility filter: action-layer
+   `membership_started_at` gate for self-scoped reads. Documented
+   in `SECURITY_AUDIT_LOG.md` (SAL-NNN — Pre-membership decision)
+   and tested.
+4. RLS deep-scroll integration tests against the existing day/week
+   views: SAL-006 personas (member-self, member-other, owner) over
+   a 5-year window. Both directions (allowed-succeeds,
+   blocked-zero). Aggregate-helper rows assert `total === 0` when
+   row count is zero for the blocked viewer.
+5. Aggregate-query helpers in `src/lib/time/aggregates/`:
+   `timeEntriesAggregate(...)` consumed by day/week band totals,
+   masthead totals, filter-chip counts, and the CSV export route.
+   Bookkeeper-grade parity test asserts band totals round-trip
+   identically with CSV export for the same range.
 
 **Phase 2 — Log view behind a flag.** `view=log` works; defaults
 remain `view=week`. Daily band rendering, sticky headers, swim-lane
@@ -473,19 +557,41 @@ Things considered but deliberately deferred:
 
 ## Open decisions
 
-Closed decisions are above; these still need a call before phase 2
-starts:
+Closed decisions (incl. those closed during the 2026-04-30 review
+round) are above; these still need a call before phase 2 starts:
 
-- **Pre-membership visibility**: status-quo (RLS-permitted only) vs.
-  defense-in-depth gate. Pick one; document; test.
 - **Print route**: do we add `/time-entries/day/YYYY-MM-DD` for the
   print/share case in phase 2, or defer entirely?
 - **`L` shortcut after Day retires**: remap to "expand focused day"
   or remove.
 - **Server cap value**: 500 rows/fetch is a placeholder; calibrate
-  against the largest real teams' working ranges.
+  against the largest real teams' working ranges. Calibration owner
+  TBD before phase 2.
 - **`?from`/`?to` cap**: 370 days is a placeholder; tighten if the
   RLS evaluation cost over multi-year ranges proves super-linear.
+  Calibration owner TBD before phase 2.
+- **Virtualization `K` (DOM-node ceiling)**: deliberately TBD until
+  phase 2 benchmark sets the number. The phase-1 fixtures module
+  ships without committing a `K`; the contract test lands in phase 2
+  alongside the first benchmark.
+
+## Decisions closed in the 2026-04-30 review
+
+These were ambiguous in earlier drafts and are now locked:
+
+- **Pre-membership visibility**: defense-in-depth gate, not status quo.
+  Action layer adds a `membership_started_at` filter for self-scoped
+  reads. (See "Authorization & cross-team safety" §2.)
+- **Cross-midnight totals attribution**: start-day, both UI band and
+  CSV export. Continuation pill in the second band contributes zero
+  minutes. (See "Multi-day / cross-midnight entries.")
+- **Aggregate helpers location**: `src/lib/time/aggregates/`, not
+  module-internal. (See "Aggregate helpers.")
+- **Phase 3 retirement window**: Phase 3 (default flip + Day
+  retirement) is split from Phase 2 by ≥4 weeks of telemetry-on
+  opt-in usage. The same release does not flip-the-default and
+  remove the Day-view code; an explicit deprecation window with
+  view-toggle telemetry sits between them.
 
 ## Security audit log entries to add when this ships
 
