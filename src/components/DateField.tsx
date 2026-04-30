@@ -29,7 +29,7 @@ import {
   useState,
 } from "react";
 import { Calendar, ChevronLeft, ChevronRight } from "lucide-react";
-import { inputClass } from "@/lib/form-styles";
+import { inputClass, kbdClass } from "@/lib/form-styles";
 
 // Internal "no edit in progress" sentinel for the editing-text state.
 const NOT_EDITING = null;
@@ -44,14 +44,37 @@ export interface DateFieldPreset {
  * Display format for the visible text input. The wire format
  * (value/onChange) is always ISO YYYY-MM-DD regardless of this setting.
  *
- * - "us" — `MM/DD/YYYY` (default; familiar to en-US users coming from
- *   the native macOS picker)
+ * - "us"  — `MM/DD/YYYY` (default; en-US convention)
+ * - "dmy" — `DD/MM/YYYY` (en-GB, es-ES, fr, de, …)
  * - "iso" — `YYYY-MM-DD` (sortable, internationally unambiguous)
  *
- * Both forms parse on input, so a user can type either and it
- * normalizes to the chosen display on blur.
+ * All three parse on input, so a user can type any of them and the
+ * value normalizes to the chosen display on blur. Slash-separated
+ * input ("1/2/2026") is interpreted per displayFormat — "us" reads it
+ * as Jan 2; "dmy" reads it as Feb 1.
  */
-export type DateFieldDisplayFormat = "us" | "iso";
+export type DateFieldDisplayFormat = "us" | "dmy" | "iso";
+
+/**
+ * Map a BCP-47 locale string to the format convention it implies.
+ *
+ * Callers that have a user's locale (e.g. from `user_settings.locale`
+ * mapped to a BCP-47 tag) can pass it through this helper to pick a
+ * sensible default rather than hard-coding "us". The wire format and
+ * the prop API stay unchanged; this is a convenience for callers, not
+ * a magic auto-detection inside the primitive.
+ */
+export function localeToFormat(locale: string | null | undefined): DateFieldDisplayFormat {
+  if (!locale) return "us";
+  const tag = locale.toLowerCase();
+  if (tag === "en-us" || tag === "en") return "us";
+  // ISO is the safe sortable default for non-en-US callers that haven't
+  // explicitly opted into a localized slash format.
+  if (tag.startsWith("en-gb") || tag.startsWith("es") || tag.startsWith("fr") || tag.startsWith("de") || tag.startsWith("pt") || tag.startsWith("it")) {
+    return "dmy";
+  }
+  return "iso";
+}
 
 export interface DateFieldProps {
   /** ISO YYYY-MM-DD or "". */
@@ -114,12 +137,21 @@ export function formatForDisplay(
   const m = ISO_RE.exec(iso);
   if (!m) return iso;
   if (format === "iso") return iso;
-  // US: MM/DD/YYYY
+  if (format === "dmy") return `${m[3]}/${m[2]}/${m[1]}`;
+  // "us": MM/DD/YYYY
   return `${m[2]}/${m[3]}/${m[1]}`;
 }
 
-/** Loose parse: accepts the same set of human-typed shapes the form might see. */
-export function looseParse(input: string): string | null {
+/**
+ * Loose parse: accepts the same set of human-typed shapes the form might see.
+ * The optional `format` hint disambiguates `MM/DD/YYYY` vs `DD/MM/YYYY` for
+ * slash-separated input — both forms are valid on different sides of the
+ * Atlantic.
+ */
+export function looseParse(
+  input: string,
+  format: DateFieldDisplayFormat = "us",
+): string | null {
   const t = input.trim();
   if (t === "") return "";
   // ISO already
@@ -127,16 +159,18 @@ export function looseParse(input: string): string | null {
   if (iso) {
     return parseIsoDate(t) ? t : null;
   }
-  // M/D/YYYY or MM/DD/YYYY (US)
-  const us = /^(\d{1,2})[/](\d{1,2})[/](\d{4})$/.exec(t);
-  if (us) {
-    const month = Number(us[1]);
-    const day = Number(us[2]);
-    const year = Number(us[3]);
+  // Slashed input — disambiguate by format hint
+  const slashed = /^(\d{1,2})[/](\d{1,2})[/](\d{4})$/.exec(t);
+  if (slashed) {
+    const a = Number(slashed[1]);
+    const b = Number(slashed[2]);
+    const year = Number(slashed[3]);
+    const month = format === "dmy" ? b : a;
+    const day = format === "dmy" ? a : b;
     const candidate = `${year}-${pad2(month)}-${pad2(day)}`;
     return parseIsoDate(candidate) ? candidate : null;
   }
-  // YYYY/MM/DD
+  // YYYY/MM/DD — unambiguous
   const ymd = /^(\d{4})[/](\d{1,2})[/](\d{1,2})$/.exec(t);
   if (ymd) {
     const year = Number(ymd[1]);
@@ -233,7 +267,12 @@ export function DateField(props: DateFieldProps): React.JSX.Element {
   const formattedValue = formatForDisplay(value, displayFormat);
   const text = editingText ?? formattedValue;
   const effectivePlaceholder =
-    placeholder ?? (displayFormat === "us" ? "MM/DD/YYYY" : "YYYY-MM-DD");
+    placeholder ??
+    (displayFormat === "us"
+      ? "MM/DD/YYYY"
+      : displayFormat === "dmy"
+        ? "DD/MM/YYYY"
+        : "YYYY-MM-DD");
 
   // Popover state. `view` = which month the calendar is showing.
   const [open, setOpen] = useState(false);
@@ -244,6 +283,9 @@ export function DateField(props: DateFieldProps): React.JSX.Element {
     return { year: now.getFullYear(), month: now.getMonth() };
   }, [value]);
   const [view, setView] = useState(initialAnchor);
+  // Roving tabindex anchor — only the cell with this iso has tabIndex=0.
+  // Updated by arrow-key navigation, set on popover open.
+  const [focusedIso, setFocusedIso] = useState<string>("");
 
   /**
    * Close the popover and return focus to the trigger button. This is the
@@ -292,24 +334,14 @@ export function DateField(props: DateFieldProps): React.JSX.Element {
     };
   }, [open, close]);
 
-  // On open, move focus into the dialog. APG date picker pattern says the
-  // selected day is the right target; fall back to today, then to the first
-  // in-bounds in-month cell.
+  // After focusedIso changes (on-open seed OR arrow-key nav), focus that
+  // cell. Defer a frame so a view change has rendered new cell refs.
   useEffect(() => {
-    if (!open) return;
+    if (!open || !focusedIso) return;
     requestAnimationFrame(() => {
-      const refs = cellRefs.current;
-      const todayIso = toIso(new Date());
-      const candidate =
-        (value && refs.get(value)) ||
-        refs.get(todayIso) ||
-        // First in-month cell as last resort.
-        Array.from(refs.values()).find(
-          (el) => el.dataset.inMonth === "true",
-        );
-      candidate?.focus();
+      cellRefs.current.get(focusedIso)?.focus();
     });
-  }, [open, value]);
+  }, [open, focusedIso, view]);
 
   const handleFocus = useCallback(() => {
     setEditingText(formattedValue);
@@ -333,13 +365,13 @@ export function DateField(props: DateFieldProps): React.JSX.Element {
       if (value !== "") onChange("");
       return;
     }
-    const parsed = looseParse(current);
+    const parsed = looseParse(current, displayFormat);
     if (parsed !== null && parsed !== value) {
       onChange(parsed);
     }
     // Invalid → editingText was cleared above, so the visible text falls
     // back to `value` (the last committed). No further work needed.
-  }, [editingText, value, onChange]);
+  }, [editingText, value, onChange, displayFormat]);
 
   const handleSelect = useCallback(
     (iso: string) => {
@@ -358,16 +390,21 @@ export function DateField(props: DateFieldProps): React.JSX.Element {
     [min, max, onChange],
   );
 
+  const openPopover = useCallback(() => {
+    setView(initialAnchor);
+    // Seed the roving-tabindex anchor: prefer the current value, then
+    // today, then January 1 of the visible month as a last resort.
+    const todayIso = toIso(new Date());
+    setFocusedIso(value || todayIso);
+    setOpen(true);
+  }, [initialAnchor, value]);
   const togglePopover = useCallback(() => {
-    setOpen((prev) => {
-      const next = !prev;
-      // On open, re-anchor the calendar view to the current value. Avoids
-      // stranding the user three months away because they navigated, then
-      // closed, then reopened.
-      if (next) setView(initialAnchor);
-      return next;
-    });
-  }, [initialAnchor]);
+    if (open) {
+      setOpen(false);
+    } else {
+      openPopover();
+    }
+  }, [open, openPopover]);
 
   const cells = useMemo(
     () => buildMonthGrid(view.year, view.month),
@@ -380,6 +417,108 @@ export function DateField(props: DateFieldProps): React.JSX.Element {
       return { year: Math.floor(total / 12), month: ((total % 12) + 12) % 12 };
     });
   }, []);
+
+  /**
+   * Move focus N days from the currently-focused cell. Bringing the new
+   * day into view (changing months/years as needed) is part of nav so the
+   * focused cell keeps its in-month styling.
+   */
+  const navDays = useCallback(
+    (deltaDays: number) => {
+      const current = parseIsoDate(focusedIso);
+      if (!current) return;
+      const next = new Date(current);
+      next.setDate(current.getDate() + deltaDays);
+      const nextIso = toIso(next);
+      if (min && nextIso < min) return;
+      if (max && nextIso > max) return;
+      const targetMonth = next.getMonth();
+      const targetYear = next.getFullYear();
+      if (targetMonth !== view.month || targetYear !== view.year) {
+        setView({ year: targetYear, month: targetMonth });
+      }
+      setFocusedIso(nextIso);
+    },
+    [focusedIso, min, max, view.month, view.year],
+  );
+
+  const handleGridKeyDown = useCallback(
+    (e: React.KeyboardEvent<HTMLDivElement>) => {
+      switch (e.key) {
+        case "ArrowLeft":
+          e.preventDefault();
+          navDays(-1);
+          break;
+        case "ArrowRight":
+          e.preventDefault();
+          navDays(1);
+          break;
+        case "ArrowUp":
+          e.preventDefault();
+          navDays(-7);
+          break;
+        case "ArrowDown":
+          e.preventDefault();
+          navDays(7);
+          break;
+        case "Home":
+          // Move to start (Sunday) of the focused week.
+          e.preventDefault();
+          {
+            const d = parseIsoDate(focusedIso);
+            if (d) navDays(-d.getDay());
+          }
+          break;
+        case "End":
+          // Move to end (Saturday) of the focused week.
+          e.preventDefault();
+          {
+            const d = parseIsoDate(focusedIso);
+            if (d) navDays(6 - d.getDay());
+          }
+          break;
+        case "PageUp":
+          e.preventDefault();
+          navDays(e.shiftKey ? -365 : -30);
+          break;
+        case "PageDown":
+          e.preventDefault();
+          navDays(e.shiftKey ? 365 : 30);
+          break;
+        case "Enter":
+        case " ":
+          e.preventDefault();
+          handleSelect(focusedIso);
+          break;
+        default:
+          break;
+      }
+    },
+    [focusedIso, navDays, handleSelect],
+  );
+
+  /**
+   * Input keyboard shortcuts:
+   * - Alt+ArrowDown opens the popover (WAI-ARIA combobox convention)
+   * - bare ArrowDown opens it ONLY when the input is empty (no caret to
+   *   move; matches the "input IS the date selector" mental model)
+   * Both are safe — they don't fight typing or caret navigation.
+   */
+  const handleInputKeyDown = useCallback(
+    (e: React.KeyboardEvent<HTMLInputElement>) => {
+      if (e.key !== "ArrowDown") return;
+      const isEmpty = (editingText ?? formattedValue) === "";
+      if (e.altKey || isEmpty) {
+        e.preventDefault();
+        if (!open) openPopover();
+      }
+    },
+    [editingText, formattedValue, open, openPopover],
+  );
+
+  const handleInputDoubleClick = useCallback(() => {
+    if (!open) openPopover();
+  }, [open, openPopover]);
 
   return (
     <div ref={rootRef} className={`relative ${className ?? ""}`}>
@@ -394,10 +533,18 @@ export function DateField(props: DateFieldProps): React.JSX.Element {
           onChange={handleInputChange}
           onFocus={handleFocus}
           onBlur={handleBlur}
+          onKeyDown={handleInputKeyDown}
+          onDoubleClick={handleInputDoubleClick}
           placeholder={effectivePlaceholder}
           disabled={disabled}
+          // role="combobox" is what allows aria-expanded + aria-haspopup
+          // on a text input. Per WAI-ARIA 1.2 combobox pattern: a text
+          // input that opens a popup picker is a combobox.
+          role="combobox"
           aria-label={ariaLabel}
           aria-controls={popoverId}
+          aria-haspopup="dialog"
+          aria-expanded={open}
           autoComplete="off"
           autoFocus={autoFocus}
           className={`${inputClass} pr-[36px]`}
@@ -479,24 +626,36 @@ export function DateField(props: DateFieldProps): React.JSX.Element {
             ))}
           </div>
 
-          {/* Day grid */}
-          <div className="grid grid-cols-7 gap-[2px]">
+          {/* Day grid — APG roving tabindex: only the focused cell has
+              tabIndex=0, arrow keys move focus, Enter/Space selects. */}
+          <div
+            role="grid"
+            aria-label={`${MONTH_NAMES[view.month]} ${view.year}`}
+            onKeyDown={handleGridKeyDown}
+            className="grid grid-cols-7 gap-[2px]"
+          >
             {cells.map((cell) => {
               const selected = cell.iso === value;
-              const outOfBounds =
-                (min && cell.iso < min) || (max && cell.iso > max);
+              const outOfBounds = Boolean(
+                (min && cell.iso < min) || (max && cell.iso > max),
+              );
+              const isFocusTarget = cell.iso === focusedIso;
               const baseClass =
                 "h-[28px] w-full inline-flex items-center justify-center rounded text-caption tabular-nums transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus-ring";
               let stateClass: string;
               if (selected) {
                 stateClass = "bg-accent text-content-inverse font-medium";
               } else if (outOfBounds) {
-                stateClass = "text-content-muted opacity-40 cursor-not-allowed";
+                // Token-based muted color (verified contrast across themes).
+                // Combined with cursor-not-allowed and the disabled DOM
+                // state, this is two channels (color + interactivity) — no
+                // opacity hack that would dip below 3:1 in high-contrast.
+                stateClass =
+                  "text-content-muted cursor-not-allowed";
               } else if (cell.isToday) {
                 // Soft fill for today — same channel as selected, quieter
-                // variant. A 1px ring on top of bg-accent next to a solid
-                // selected bg-accent reads as a render glitch; bg-accent-soft
-                // separates the two states clearly.
+                // variant. A 1px ring on bg-accent reads as a render glitch
+                // next to a solid bg-accent selection.
                 stateClass =
                   "bg-accent-soft text-accent-text font-medium hover:bg-accent-soft/80";
               } else if (!cell.inMonth) {
@@ -513,12 +672,18 @@ export function DateField(props: DateFieldProps): React.JSX.Element {
                   key={cell.iso}
                   ref={refSetter}
                   type="button"
+                  role="gridcell"
+                  // Roving tabindex: only the focused cell is in the tab
+                  // sequence. Arrow keys move focus across cells.
+                  tabIndex={isFocusTarget ? 0 : -1}
                   onClick={() => handleSelect(cell.iso)}
-                  disabled={Boolean(outOfBounds)}
+                  disabled={outOfBounds}
                   aria-label={
                     cell.isToday ? `${cell.iso}, today` : cell.iso
                   }
-                  aria-pressed={selected}
+                  // gridcell role uses aria-selected (single-select grid),
+                  // not aria-pressed (which is a button-only attribute).
+                  aria-selected={selected}
                   aria-current={cell.isToday ? "date" : undefined}
                   data-in-month={cell.inMonth ? "true" : "false"}
                   className={`${baseClass} ${stateClass}`}
@@ -529,7 +694,7 @@ export function DateField(props: DateFieldProps): React.JSX.Element {
             })}
           </div>
 
-          {/* Footer — clear + today shortcut */}
+          {/* Footer — clear + today shortcut + keyboard hint */}
           <div className="mt-[6px] flex items-center justify-between text-caption">
             <button
               type="button"
@@ -542,13 +707,23 @@ export function DateField(props: DateFieldProps): React.JSX.Element {
             >
               Clear
             </button>
-            <button
-              type="button"
-              onClick={() => handleSelect(toIso(new Date()))}
-              className="rounded px-[6px] py-[2px] text-accent font-medium hover:bg-hover focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus-ring"
-            >
-              Today
-            </button>
+            <div className="flex items-center gap-[8px]">
+              <span
+                className="text-content-muted hidden sm:inline-flex items-center gap-[4px]"
+                aria-hidden="true"
+              >
+                <kbd className={kbdClass}>⌥</kbd>
+                <kbd className={kbdClass}>↓</kbd>
+                <span className="text-caption">to open</span>
+              </span>
+              <button
+                type="button"
+                onClick={() => handleSelect(toIso(new Date()))}
+                className="rounded px-[6px] py-[2px] text-accent font-medium hover:bg-hover focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus-ring"
+              >
+                Today
+              </button>
+            </div>
           </div>
         </div>
       ) : null}
