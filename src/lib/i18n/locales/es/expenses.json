@@ -84,6 +84,8 @@
     "selectAll": "Seleccionar todo",
     "selectRow": "Seleccionar {vendor}",
     "selectedCount": "{hasFilter, select, true {{count, plural, =1 {1 de {filteredTotal, number} gastos filtrados seleccionados} other {# de {filteredTotal, number} gastos filtrados seleccionados}}} other {{count, plural, =1 {1 de {totalCount, number} gastos seleccionados} other {# de {totalCount, number} gastos seleccionados}}}}",
+    "selectAllMatching": "Seleccionar los {count, number} coincidentes",
+    "allMatchingSelected": "Los {count, number} gastos coincidentes están seleccionados",
     "clear": "Limpiar selección",
     "delete": "Eliminar seleccionados",
     "setCategory": "Asignar categoría",

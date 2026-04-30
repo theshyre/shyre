@@ -21,6 +21,8 @@ import {
 import { ExpenseRow, type ExpenseAuthor } from "./expense-row";
 import { BulkCategoryPicker, BulkProjectPicker } from "./bulk-pickers";
 import type { ProjectOption } from "./page";
+import type { ExpenseFilters } from "./filter-params";
+import { appendFilterParams } from "./filter-formdata";
 
 interface ExpenseRecord {
   id: string;
@@ -57,6 +59,20 @@ interface Props {
    *  "N of {filtered} filtered expenses selected"; when false it
    *  says "N of {total} expenses selected". */
   hasFilter: boolean;
+  /** Server-side count of rows matching the current filter (before
+   *  pagination clips). Drives the Gmail two-step "Select all N
+   *  matching" banner that appears when the user has selected
+   *  every loaded row but more rows match the filter than were
+   *  loaded. */
+  matchingCount: number;
+  /** Active filter spec — passed to bulk actions when the user
+   *  invokes "Select all matching" so the action runs against the
+   *  same row universe the user sees. */
+  filters: ExpenseFilters;
+  /** Business id for filter-scope bulk actions. The action
+   *  re-derives accessible team_ids from this + the caller's
+   *  team_members rows under RLS. */
+  businessId: string;
 }
 
 /**
@@ -81,6 +97,9 @@ export function ExpensesTable({
   viewerUserId,
   totalCount,
   hasFilter,
+  matchingCount,
+  filters,
+  businessId,
 }: Props): React.JSX.Element {
   const t = useTranslations("expenses");
   const tc = useTranslations("common");
@@ -92,6 +111,13 @@ export function ExpensesTable({
   // (cell save → re-fetch → expenses prop changes → component
   // re-renders, selection persists because state is local).
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
+  // Gmail two-step: when the user selects every loaded row AND
+  // more rows match the filter than were loaded (paginated), the
+  // strip surfaces "Select all N matching" — clicking it flips
+  // this flag, which makes bulk actions send `scope=filters` so
+  // the server re-runs the same filter and operates on every
+  // matching row, not just the loaded ids.
+  const [selectAllMatching, setSelectAllMatching] = useState(false);
   // Inline ack message rendered in the toolbar (where the
   // user's eye lives during a bulk action) for ~3s after a
   // successful bulk update. Toast at viewport bottom is the
@@ -121,29 +147,59 @@ export function ExpensesTable({
     () => expenses.map((e) => e.id),
     [expenses],
   );
-  const allSelected =
+  const allLoadedSelected =
     visibleIds.length > 0 &&
     visibleIds.every((id) => selectedIds.has(id));
-  const someSelected = selectedIds.size > 0;
+  const someSelected = selectedIds.size > 0 || selectAllMatching;
+  // Pagination active = matching rows server-side > loaded rows.
+  // Drives the Gmail "Select all N matching" CTA visibility.
+  const paginated = matchingCount > expenses.length;
 
-  const toggleOne = useCallback((id: string): void => {
-    setSelectedIds((prev) => {
-      const next = new Set(prev);
-      if (next.has(id)) next.delete(id);
-      else next.add(id);
-      return next;
-    });
-  }, []);
+  const toggleOne = useCallback(
+    (id: string): void => {
+      // Toggling an individual row exits matching mode and reverts
+      // to id-list selection. Otherwise the row would visually
+      // toggle while the strip still claimed "all matching" — a
+      // lie. Drop matching mode + restart from the visible-row
+      // selection minus the toggled id.
+      if (selectAllMatching) {
+        setSelectAllMatching(false);
+        setSelectedIds(new Set(visibleIds.filter((vId) => vId !== id)));
+        return;
+      }
+      setSelectedIds((prev) => {
+        const next = new Set(prev);
+        if (next.has(id)) next.delete(id);
+        else next.add(id);
+        return next;
+      });
+    },
+    [selectAllMatching, visibleIds],
+  );
 
   const toggleAll = useCallback((): void => {
+    // Master checkbox always operates on the visible/loaded set.
+    // The Gmail "Select all N matching" banner appears separately
+    // after every visible row is selected — a deliberate two-step
+    // so cross-page bulk requires explicit opt-in.
+    if (selectAllMatching) {
+      setSelectAllMatching(false);
+      setSelectedIds(new Set());
+      return;
+    }
     setSelectedIds((prev) => {
       if (prev.size > 0) return new Set();
       return new Set(visibleIds);
     });
-  }, [visibleIds]);
+  }, [selectAllMatching, visibleIds]);
 
   const clearSelection = useCallback((): void => {
     setSelectedIds(new Set());
+    setSelectAllMatching(false);
+  }, []);
+
+  const enableSelectAllMatching = useCallback((): void => {
+    setSelectAllMatching(true);
   }, []);
 
   // Escape clears an active selection. Only bound while
@@ -151,7 +207,10 @@ export function ExpensesTable({
   useEffect(() => {
     if (!someSelected) return;
     function onKey(e: KeyboardEvent): void {
-      if (e.key === "Escape") setSelectedIds(new Set());
+      if (e.key === "Escape") {
+        setSelectedIds(new Set());
+        setSelectAllMatching(false);
+      }
     }
     document.addEventListener("keydown", onKey);
     return () => document.removeEventListener("keydown", onKey);
@@ -160,6 +219,31 @@ export function ExpensesTable({
   // ── Bulk action handlers ────────────────────────────────────
 
   const bulkDelete = useCallback(async () => {
+    // Branch on selectAllMatching: in matching mode the action
+    // operates on every row matching the filter (server-side
+    // re-resolution); otherwise on the explicit id list. Undo
+    // toast always uses the resolved id list returned from the
+    // delete — but we don't have that yet at the action layer
+    // (it returns ActionResult, not data). For now: matching-mode
+    // delete doesn't expose an Undo (the user opted into a bulk
+    // operation across pages — the Trash surface is the recovery
+    // path). Id-mode delete keeps the existing Undo.
+    if (selectAllMatching) {
+      const fd = new FormData();
+      fd.set("scope", "filters");
+      fd.set("businessId", businessId);
+      appendFilterParams(fd, filters);
+      await bulkDeleteExpensesAction(fd);
+      setSelectedIds(new Set());
+      setSelectAllMatching(false);
+      toast.push({
+        kind: "info",
+        message: tToast("bulkDeleted", { count: matchingCount }),
+        durationMs: 10_000,
+      });
+      return;
+    }
+
     const ids = Array.from(selectedIds);
     if (ids.length === 0) return;
     const fd = new FormData();
@@ -177,7 +261,15 @@ export function ExpensesTable({
         await bulkRestoreExpensesAction(restoreFd);
       },
     });
-  }, [selectedIds, toast, tToast]);
+  }, [
+    selectAllMatching,
+    selectedIds,
+    matchingCount,
+    filters,
+    businessId,
+    toast,
+    tToast,
+  ]);
 
   // INTENTIONAL: bulkSetCategory and bulkSetProject do NOT clear
   // the selection on success. Two reasons:
@@ -194,11 +286,20 @@ export function ExpensesTable({
 
   const bulkSetCategory = useCallback(
     async (category: string): Promise<void> => {
-      const ids = Array.from(selectedIds);
-      if (ids.length === 0) return;
       const fd = new FormData();
-      for (const id of ids) fd.append("id", id);
       fd.set("category", category);
+      let count: number;
+      if (selectAllMatching) {
+        fd.set("scope", "filters");
+        fd.set("businessId", businessId);
+        appendFilterParams(fd, filters);
+        count = matchingCount;
+      } else {
+        const ids = Array.from(selectedIds);
+        if (ids.length === 0) return;
+        for (const id of ids) fd.append("id", id);
+        count = ids.length;
+      }
       const result = await bulkUpdateExpenseCategoryAction(fd);
       // runSafeAction returns ActionResult — null/undefined for
       // legacy void actions, { success } for the wrapped path.
@@ -209,20 +310,38 @@ export function ExpensesTable({
         });
         throw new Error(result.error.userMessageKey);
       }
-      const message = tToast("bulkCategorized", { count: ids.length });
+      const message = tToast("bulkCategorized", { count });
       flashAck(message);
       toast.push({ kind: "success", message });
     },
-    [selectedIds, toast, tToast, flashAck],
+    [
+      selectAllMatching,
+      selectedIds,
+      matchingCount,
+      filters,
+      businessId,
+      toast,
+      tToast,
+      flashAck,
+    ],
   );
 
   const bulkSetProject = useCallback(
     async (projectId: string): Promise<void> => {
-      const ids = Array.from(selectedIds);
-      if (ids.length === 0) return;
       const fd = new FormData();
-      for (const id of ids) fd.append("id", id);
       fd.set("project_id", projectId);
+      let count: number;
+      if (selectAllMatching) {
+        fd.set("scope", "filters");
+        fd.set("businessId", businessId);
+        appendFilterParams(fd, filters);
+        count = matchingCount;
+      } else {
+        const ids = Array.from(selectedIds);
+        if (ids.length === 0) return;
+        for (const id of ids) fd.append("id", id);
+        count = ids.length;
+      }
       const result = await bulkUpdateExpenseProjectAction(fd);
       if (result && "success" in result && !result.success) {
         toast.push({
@@ -231,11 +350,20 @@ export function ExpensesTable({
         });
         throw new Error(result.error.userMessageKey);
       }
-      const message = tToast("bulkProjectAssigned", { count: ids.length });
+      const message = tToast("bulkProjectAssigned", { count });
       flashAck(message);
       toast.push({ kind: "success", message });
     },
-    [selectedIds, toast, tToast, flashAck],
+    [
+      selectAllMatching,
+      selectedIds,
+      matchingCount,
+      filters,
+      businessId,
+      toast,
+      tToast,
+      flashAck,
+    ],
   );
 
   if (expenses.length === 0) {
@@ -261,14 +389,20 @@ export function ExpensesTable({
           aria-label={t("bulk.label")}
           className="flex items-center gap-3 border-b border-edge bg-surface-inset px-4 py-2"
         >
-          <span className="text-body font-medium text-content">
-            {t("bulk.selectedCount", {
-              hasFilter: hasFilter ? "true" : "false",
-              count: selectedIds.size,
-              filteredTotal: expenses.length,
-              totalCount,
-            })}
-          </span>
+          {selectAllMatching ? (
+            <span className="text-body font-medium text-content">
+              {t("bulk.allMatchingSelected", { count: matchingCount })}
+            </span>
+          ) : (
+            <span className="text-body font-medium text-content">
+              {t("bulk.selectedCount", {
+                hasFilter: hasFilter ? "true" : "false",
+                count: selectedIds.size,
+                filteredTotal: expenses.length,
+                totalCount,
+              })}
+            </span>
+          )}
           <button
             type="button"
             onClick={clearSelection}
@@ -276,6 +410,21 @@ export function ExpensesTable({
           >
             {t("bulk.clear")}
           </button>
+          {/* Gmail two-step: when the user has selected every
+              loaded row AND more rows match the filter than were
+              loaded, surface a CTA to promote selection to the
+              full match set. Without this, master-checkbox bulk
+              would silently leave unloaded rows untouched — the
+              audit-trail risk Agency Owner persona flagged. */}
+          {!selectAllMatching && allLoadedSelected && paginated && (
+            <button
+              type="button"
+              onClick={enableSelectAllMatching}
+              className="text-caption font-medium text-accent hover:underline"
+            >
+              {t("bulk.selectAllMatching", { count: matchingCount })}
+            </button>
+          )}
           {bulkAckMessage && (
             <span
               className="inline-flex items-center gap-1.5 text-body font-medium text-success"
@@ -299,7 +448,7 @@ export function ExpensesTable({
                   ariaLabel={t("bulk.delete")}
                   onConfirm={bulkDelete}
                   summary={tc("actions.deleteCount", {
-                    count: selectedIds.size,
+                    count: selectAllMatching ? matchingCount : selectedIds.size,
                   })}
                 />
               </span>
@@ -348,9 +497,13 @@ export function ExpensesTable({
               <span className="flex min-h-[1.75rem] items-center">
                 <input
                   type="checkbox"
-                  checked={allSelected}
+                  checked={selectAllMatching || allLoadedSelected}
                   ref={(el) => {
-                    if (el) el.indeterminate = !allSelected && someSelected;
+                    if (el)
+                      el.indeterminate =
+                        !selectAllMatching &&
+                        !allLoadedSelected &&
+                        selectedIds.size > 0;
                   }}
                   onChange={toggleAll}
                   aria-label={t("bulk.selectAll")}
@@ -411,7 +564,7 @@ export function ExpensesTable({
                     : null
                 }
                 canEdit={canEdit}
-                selected={selectedIds.has(e.id)}
+                selected={selectAllMatching || selectedIds.has(e.id)}
                 onToggleSelect={toggleOne}
               />
             );

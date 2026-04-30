@@ -7,6 +7,9 @@ import { revalidatePath } from "next/cache";
 import { ALLOWED_EXPENSE_CATEGORIES } from "./allow-lists";
 import { filterAuthorizedExpenseIds } from "./bulk-auth";
 import { validateSplits, type ExpenseSplit } from "./split-helpers";
+import { parseExpenseFilters } from "./filter-params";
+import { applyExpenseFilters } from "./query-filters";
+import { readFilterParamsFromFormData } from "./filter-formdata";
 
 function blankToNull(v: FormDataEntryValue | null): string | null {
   if (v == null) return null;
@@ -479,7 +482,72 @@ export async function restoreExpenseAction(formData: FormData): Promise<
  *  authorized id list — anything filtered out fails silently as
  *  the per-row RLS would have blocked the write anyway, and we
  *  don't want to leak existence of rows in other teams via an
- *  error message. */
+ *  error message.
+ *
+ *  ─────────────────────────────────────────────────────────────
+ *  Scope resolution: bulk actions accept either an explicit ID
+ *  list (default, from `fd.getAll("id")`) OR a filter spec
+ *  (`scope=filters` + `filter_*` params + `businessId`). The
+ *  filter path lets the table's "Select all N matching" CTA hit
+ *  every row matching the user's current filter, even rows that
+ *  pagination hasn't loaded yet. Both paths funnel into
+ *  authorizeExpenseBulk so the per-row role check is the single
+ *  gate against unauthorized writes. */
+async function resolveAuthorizedExpenseIds(
+  supabase: import("@supabase/supabase-js").SupabaseClient,
+  fd: FormData,
+  callerUserId: string,
+): Promise<string[]> {
+  const scope = String(fd.get("scope") ?? "ids");
+
+  if (scope === "filters") {
+    const businessId = String(fd.get("businessId") ?? "").trim();
+    if (!businessId) {
+      throw new Error("businessId is required for filter-scope bulk.");
+    }
+
+    // Reuse the same parser the list page uses so any drift
+    // between the visible set and the bulk-action set is a type
+    // error, not a silent runtime mismatch. The FormData→raw step
+    // is shared with the client (`filter-formdata.ts`) so the
+    // round-trip is unit-tested in one place.
+    const filters = parseExpenseFilters(readFilterParamsFromFormData(fd));
+
+    // Resolve viewer's accessible teams in the business — same
+    // chain as page.tsx so filter-scope bulk operates on exactly
+    // the same row universe the user sees in the list.
+    const { data: tmRows } = await supabase
+      .from("team_members")
+      .select("team_id")
+      .eq("user_id", callerUserId);
+    const userTeamIds = (tmRows ?? []).map((r) => r.team_id as string);
+    if (userTeamIds.length === 0) return [];
+
+    const { data: businessTeams } = await supabase
+      .from("teams")
+      .select("id")
+      .eq("business_id", businessId)
+      .in("id", userTeamIds);
+    const teamIds = (businessTeams ?? []).map((r) => r.id as string);
+    if (teamIds.length === 0) return [];
+
+    const baseQuery = supabase
+      .from("expenses")
+      .select("id")
+      .in("team_id", teamIds)
+      .is("deleted_at", null);
+    const filteredQuery = applyExpenseFilters(baseQuery, filters);
+    const { data: matchRows } = await filteredQuery;
+    const ids = (matchRows ?? []).map((r) => r.id as string);
+    if (ids.length === 0) return [];
+    return authorizeExpenseBulk(supabase, ids, callerUserId);
+  }
+
+  const ids = fd.getAll("id").map(String).filter(Boolean);
+  if (ids.length === 0) return [];
+  return authorizeExpenseBulk(supabase, ids, callerUserId);
+}
+
 async function authorizeExpenseBulk(
   supabase: import("@supabase/supabase-js").SupabaseClient,
   ids: readonly string[],
@@ -525,14 +593,16 @@ export async function bulkUpdateExpenseCategoryAction(
   return runSafeAction(
     formData,
     async (fd, { supabase, userId }) => {
-      const ids = fd.getAll("id").map(String).filter(Boolean);
       const category = String(fd.get("category") ?? "").trim();
-      if (ids.length === 0) throw new Error("No rows selected.");
       if (!ALLOWED_EXPENSE_CATEGORIES.has(category)) {
         throw new Error("Invalid category.");
       }
 
-      const authorized = await authorizeExpenseBulk(supabase, ids, userId);
+      const authorized = await resolveAuthorizedExpenseIds(
+        supabase,
+        fd,
+        userId,
+      );
       if (authorized.length === 0) {
         throw new Error("None of the selected rows are editable.");
       }
@@ -562,13 +632,15 @@ export async function bulkUpdateExpenseProjectAction(
   return runSafeAction(
     formData,
     async (fd, { supabase, userId }) => {
-      const ids = fd.getAll("id").map(String).filter(Boolean);
       const rawProject = String(fd.get("project_id") ?? "").trim();
-      if (ids.length === 0) throw new Error("No rows selected.");
       const projectId =
         rawProject === "" || rawProject === "none" ? null : rawProject;
 
-      const authorized = await authorizeExpenseBulk(supabase, ids, userId);
+      const authorized = await resolveAuthorizedExpenseIds(
+        supabase,
+        fd,
+        userId,
+      );
       if (authorized.length === 0) {
         throw new Error("None of the selected rows are editable.");
       }
@@ -598,10 +670,11 @@ export async function bulkDeleteExpensesAction(
   return runSafeAction(
     formData,
     async (fd, { supabase, userId }) => {
-      const ids = fd.getAll("id").map(String).filter(Boolean);
-      if (ids.length === 0) throw new Error("No rows selected.");
-
-      const authorized = await authorizeExpenseBulk(supabase, ids, userId);
+      const authorized = await resolveAuthorizedExpenseIds(
+        supabase,
+        fd,
+        userId,
+      );
       if (authorized.length === 0) {
         throw new Error("None of the selected rows are deletable.");
       }

@@ -12,6 +12,7 @@ import { TableDensityDefault } from "@/components/TableDensityDefault";
 import { ExpensesTable } from "./expenses-table";
 import { ExpenseFilters } from "./expense-filters";
 import { parseExpenseFilters, hasActiveFilters } from "./filter-params";
+import { applyExpenseFilters } from "./query-filters";
 import { parseListPagination } from "@/lib/pagination/list-pagination";
 import { PaginationFooter } from "@/components/PaginationFooter";
 
@@ -141,7 +142,13 @@ export default async function ExpensesPage({
   // across CSV imports landing many rows in the same ms — without
   // it, .range() can drop or duplicate rows across "Load more"
   // clicks under concurrent writes.
-  let expensesQuery = supabase
+  //
+  // Filter clauses are applied via the shared `applyExpenseFilters`
+  // helper so the bulk actions running in filter-scope mode
+  // ("Select all N matching") apply EXACTLY the same filters as
+  // the rendered list. Drift between the two would be a class of
+  // bugs we want to make impossible.
+  const baseExpensesQuery = supabase
     .from("expenses")
     .select(
       "id, team_id, user_id, incurred_on, amount, currency, vendor, category, description, notes, project_id, billable, is_sample, projects(id, name)",
@@ -150,38 +157,7 @@ export default async function ExpensesPage({
     .in("team_id", teamIds)
     .is("deleted_at", null);
 
-  // Text search: match vendor / description / notes via Postgres
-  // ilike. Supabase's `or()` builder takes a comma-separated list
-  // of `column.operator.value` clauses; commas / parens in the
-  // user's input would break the parser, so we strip the most
-  // common offenders. The match itself is fuzzy, not regex —
-  // good-enough for "find Linode" or "find Invoice #12045531".
-  if (filters.q) {
-    const sanitized = filters.q.replace(/[,()]/g, " ").trim();
-    if (sanitized) {
-      const pattern = `%${sanitized}%`;
-      expensesQuery = expensesQuery.or(
-        `vendor.ilike.${pattern},description.ilike.${pattern},notes.ilike.${pattern}`,
-      );
-    }
-  }
-
-  if (filters.from) expensesQuery = expensesQuery.gte("incurred_on", filters.from);
-  if (filters.to) expensesQuery = expensesQuery.lte("incurred_on", filters.to);
-
-  if (filters.categories.length > 0) {
-    expensesQuery = expensesQuery.in("category", filters.categories);
-  }
-
-  if (filters.project === "none") {
-    expensesQuery = expensesQuery.is("project_id", null);
-  } else if (filters.project !== null) {
-    expensesQuery = expensesQuery.eq("project_id", filters.project);
-  }
-
-  if (filters.billable !== null) {
-    expensesQuery = expensesQuery.eq("billable", filters.billable);
-  }
+  const expensesQuery = applyExpenseFilters(baseExpensesQuery, filters);
 
   const { data: expRows, count: matchingCount } = await expensesQuery
     .order("incurred_on", { ascending: false })
@@ -384,6 +360,9 @@ export default async function ExpensesPage({
         viewerUserId={viewerUserId}
         totalCount={totalCount}
         hasFilter={filtersActive}
+        matchingCount={matchingCount ?? expenses.length}
+        filters={filters}
+        businessId={businessId}
       />
 
       <PaginationFooter
