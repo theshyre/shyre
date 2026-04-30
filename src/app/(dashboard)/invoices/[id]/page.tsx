@@ -51,15 +51,17 @@ export default async function InvoiceDetailPage({
 
   if (!invoice) notFound();
 
-  // Line items, history, and payments are independent reads — fire
-  // them in parallel rather than waterfall. RLS scopes each one
-  // separately so a viewer who can't see history (non-owner/admin)
-  // gets [] from that query and the activity section just hides.
+  // Line items, history, payments, and entry-authors-on-this-invoice
+  // are independent reads — fire them in parallel rather than
+  // waterfall. RLS scopes each one separately so a viewer who can't
+  // see history (non-owner/admin) gets [] from that query and the
+  // activity section just hides.
   const [
     { data: lineItems },
     { data: settings },
     { data: history },
     { data: payments },
+    { data: invoicedEntries },
   ] = await Promise.all([
     supabase
       .from("invoice_line_items")
@@ -83,7 +85,33 @@ export default async function InvoiceDetailPage({
       )
       .eq("invoice_id", id)
       .order("paid_on", { ascending: true }),
+    // Harvest's invoice payload doesn't expose a line-item ↔ time-entry
+    // mapping, so imported invoice_line_items.time_entry_id is NULL and
+    // the line-item-level avatar lookup misses. But the time entries
+    // themselves carry invoice_id (set by the same import pass when
+    // Harvest reports them as billed), so we can derive the author(s)
+    // for unattributed lines from the entries that rolled up into this
+    // invoice. For a solo consultant — the dominant case — this collapses
+    // to a single user.
+    supabase
+      .from("time_entries")
+      .select("user_id")
+      .eq("invoice_id", id),
   ]);
+
+  // Distinct authors of time entries linked to this invoice. If exactly
+  // one, use them as the implicit author for any line item that didn't
+  // resolve through its own time_entry_id. Multi-author invoices fall
+  // through to the "Imported from Harvest" fallback.
+  const uniqueEntryAuthorIds = Array.from(
+    new Set(
+      (invoicedEntries ?? [])
+        .map((e) => (e.user_id as string | null) ?? null)
+        .filter((id): id is string => id !== null),
+    ),
+  );
+  const implicitAuthorUserId =
+    uniqueEntryAuthorIds.length === 1 ? uniqueEntryAuthorIds[0]! : null;
 
   // Resolve display names + avatars for everyone who appears on
   // this page: time-entry authors on line items, plus actors on
@@ -105,7 +133,13 @@ export default async function InvoiceDetailPage({
       (p) => p.created_by_user_id as string | null,
     ),
   ].filter((id): id is string => id !== null && id !== undefined);
-  const userIds = Array.from(new Set([...lineItemUserIds, ...activityUserIds]));
+  const userIds = Array.from(
+    new Set([
+      ...lineItemUserIds,
+      ...activityUserIds,
+      ...(implicitAuthorUserId ? [implicitAuthorUserId] : []),
+    ]),
+  );
   const { data: profiles } =
     userIds.length > 0
       ? await supabase
@@ -230,10 +264,15 @@ export default async function InvoiceDetailPage({
           <tbody>
             {(lineItems ?? []).map((item) => {
               const te = item.time_entries;
-              const userId =
+              const directUserId =
                 te && typeof te === "object" && "user_id" in te
                   ? ((te as { user_id: string | null }).user_id ?? null)
                   : null;
+              // Direct attribution wins; otherwise fall back to the
+              // implicit author derived from time_entries.invoice_id
+              // (only set when this invoice has a single distinct
+              // entry author).
+              const userId = directUserId ?? implicitAuthorUserId;
               const profile = userId ? profileById.get(userId) : null;
               return (
                 <tr
