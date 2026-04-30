@@ -27,8 +27,13 @@ import {
   FolderKanban,
   BarChart3,
   Settings,
+  Upload,
   type LucideIcon,
 } from "lucide-react";
+
+/** Sidebar section a nav item belongs to. The label rendered for each
+ *  section comes from `common.navSections.<section>` in i18n. */
+export type SidebarSection = "track" | "manage" | "setup";
 
 export interface ModuleNavItem {
   /** i18n key under `nav.*` that resolves to the label */
@@ -47,9 +52,10 @@ export interface ModuleManifest {
   icon: LucideIcon;
   /**
    * Which sidebar section this module's nav entries belong to.
-   * "track" (daily work), "manage" (ongoing records), or "admin" (setup).
+   * "track" (daily work), "manage" (ongoing records), or "setup"
+   * (per-team configuration + setup operations).
    */
-  section: "track" | "manage" | "admin";
+  section: SidebarSection;
   /** Nav entries contributed by this module */
   navItems: ModuleNavItem[];
 }
@@ -111,7 +117,7 @@ export const MODULES: ModuleManifest[] = [
     id: "business",
     labelKey: "modules.business",
     icon: Briefcase,
-    section: "admin",
+    section: "setup",
     navItems: [
       { labelKey: "business", href: "/business", icon: Briefcase },
     ],
@@ -120,10 +126,36 @@ export const MODULES: ModuleManifest[] = [
     id: "settings",
     labelKey: "modules.admin",
     icon: Settings,
-    section: "admin",
+    section: "setup",
     navItems: [
       { labelKey: "admin", href: "/settings", icon: Settings },
     ],
+  },
+];
+
+/**
+ * Platform tools — sidebar entries that don't belong to a single module
+ * because they cross-cut multiple verticals.
+ *
+ * Import is the canonical example: it writes into Stint's `time_entries`
+ * AND Business expenses AND (future) Invoicing rows AND Customers. Its
+ * `import_runs` ledger is shell-owned, not vertical-owned. Modeling it
+ * as a `ModuleManifest` would relax the meaning of "module" to
+ * "anything with a sidebar entry," and the next sysadmin tool / billing
+ * console / feature-flag panel would inherit the same shape.
+ *
+ * Renders alongside module nav items via `navItemsForSection` so the
+ * sidebar doesn't care which list contributed an entry.
+ */
+export const PLATFORM_TOOLS: Array<{
+  id: string;
+  section: SidebarSection;
+  navItem: ModuleNavItem;
+}> = [
+  {
+    id: "import",
+    section: "setup",
+    navItem: { labelKey: "import", href: "/import", icon: Upload },
   },
 ];
 
@@ -135,11 +167,18 @@ export function getModule(id: string): ModuleManifest | undefined {
 }
 
 /**
- * Nav items for a given section, flattened across all modules. Preserves
- * module declaration order.
+ * Nav items for a given section, flattened across modules + platform
+ * tools. Preserves declaration order within each list (modules first,
+ * then platform tools) so the sidebar layout stays predictable.
  */
 export function navItemsForSection(
-  section: ModuleManifest["section"],
+  section: SidebarSection,
 ): ModuleNavItem[] {
-  return MODULES.filter((m) => m.section === section).flatMap((m) => m.navItems);
+  const fromModules = MODULES.filter((m) => m.section === section).flatMap(
+    (m) => m.navItems,
+  );
+  const fromPlatformTools = PLATFORM_TOOLS.filter(
+    (t) => t.section === section,
+  ).map((t) => t.navItem);
+  return [...fromModules, ...fromPlatformTools];
 }

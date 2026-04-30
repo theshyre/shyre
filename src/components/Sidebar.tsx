@@ -33,19 +33,36 @@ type Translator = ReturnType<typeof useTranslations>;
 /** Shared link renderer for both Work and Setup sections. Pulled out
  *  of the component body so a section-aware nav can map over its
  *  items without duplicating the active-state + badge + spinner
- *  scaffolding. */
+ *  scaffolding.
+ *
+ *  `pathname` is threaded through so the link can compute exact-match
+ *  vs ancestor-match for `aria-current`:
+ *    - exact match → `aria-current="page"` (the canonical "you are here")
+ *    - ancestor match (e.g. /business is "active" while on
+ *      /business/[id]/people) → `aria-current="true"` (an honest "your
+ *      current page lives somewhere under this") */
 function renderNavLink(
   item: NavItem,
   t: Translator,
-  isItemActive: (href: string) => boolean,
+  pathname: string,
 ): React.JSX.Element {
   const Icon = item.icon;
-  const isActive = isItemActive(item.href);
+  const isExact =
+    item.href === "/" ? pathname === "/" : pathname === item.href;
+  const isAncestor =
+    item.href !== "/" && pathname.startsWith(`${item.href}/`);
+  const isActive = isExact || isAncestor;
+  const ariaCurrent: "page" | "true" | undefined = isExact
+    ? "page"
+    : isAncestor
+      ? "true"
+      : undefined;
   const showBadge = (item.badge ?? 0) > 0;
   return (
     <Link
       key={item.href}
       href={item.href}
+      aria-current={ariaCurrent}
       className={`flex items-center gap-3 rounded-lg px-3 py-2 text-body-lg font-medium transition-colors ${
         isActive
           ? "bg-accent-soft text-accent-text"
@@ -127,11 +144,12 @@ export default function Sidebar({
     ...navItemsForSection("manage"),
   ];
 
-  // "Setup" section: registered admin-tier modules, role-gated.
-  // The Business item is filtered out when the viewer can't manage
-  // any business — RLS would block them from seeing the people /
-  // identity / registrations data the surface displays anyway.
-  const setupItems: NavItem[] = navItemsForSection("admin").filter(
+  // "Setup" section: registered setup-tier modules + platform tools
+  // (Import). The Business item is filtered out when the viewer can't
+  // manage any business — RLS would block them from seeing the
+  // people / identity / registrations data the surface displays
+  // anyway.
+  const setupItems: NavItem[] = navItemsForSection("setup").filter(
     (item) => item.href !== "/business" || canManageBusiness,
   );
 
@@ -157,9 +175,12 @@ export default function Sidebar({
     router.refresh();
   }
 
+  // Used by ambient-context affordances (team chip, profile, docs)
+  // that don't go through renderNavLink. Truthy when the URL is on or
+  // under the given href.
   function isItemActive(href: string): boolean {
     if (href === "/") return pathname === "/";
-    return pathname.startsWith(href);
+    return pathname === href || pathname.startsWith(`${href}/`);
   }
 
   const version = process.env.NEXT_PUBLIC_APP_VERSION;
@@ -179,41 +200,53 @@ export default function Sidebar({
         </div>
       </div>
 
-      {/* Main nav. The "Work" group keeps its heading because it
-          carries 6+ items and benefits from a label. Setup (Business
-          + Settings) used to have its own heading; per the IA review
-          a 2-item group doesn't earn a heading — render as a
-          divider-separated continuation of the work block instead.
-          The System group keeps its heading because it's role-gated
-          and the heading + warning-tinted icon together signal
-          "elevated privilege" without users having to read the
-          item label. */}
-      <nav
-        aria-label={t("nav.primary")}
-        className="flex-1 overflow-y-auto px-3 py-3 space-y-3"
-      >
+      {/* Main nav. Three labeled groups (Work / Setup / System) so a
+          user landing on any page knows which area they're in without
+          having to read item labels. Each group is its own <nav> with
+          an aria-label so screen-reader landmark navigation can jump
+          between them. The Setup heading was deliberately omitted in
+          an earlier iteration when the section had only 2 items; with
+          Import promoted to a sidebar entry the section now has 3
+          items, and consistent labeling beats the earlier
+          "minimum-chrome" call. */}
+      {/* Outer container is presentational — each section is its own
+          <nav aria-label> landmark below, so a screen reader user can
+          jump between Work / Setup / System with the rotor. */}
+      <div className="flex-1 overflow-y-auto px-3 py-3 space-y-3">
         {workItems.length > 0 && (
-          <div className="space-y-0.5">
+          <nav
+            aria-label={t("navSections.work")}
+            className="space-y-0.5"
+          >
             <p className="px-3 pb-1 text-label font-semibold uppercase text-content-muted">
               {t("navSections.work")}
             </p>
-            {workItems.map((item) => renderNavLink(item, t, isItemActive))}
-          </div>
+            {workItems.map((item) => renderNavLink(item, t, pathname))}
+          </nav>
         )}
         {setupItems.length > 0 && (
-          <div className="space-y-0.5 border-t border-edge pt-3">
-            {setupItems.map((item) => renderNavLink(item, t, isItemActive))}
-          </div>
+          <nav
+            aria-label={t("navSections.setup")}
+            className="space-y-0.5 border-t border-edge pt-3"
+          >
+            <p className="px-3 pb-1 text-label font-semibold uppercase text-content-muted">
+              {t("navSections.setup")}
+            </p>
+            {setupItems.map((item) => renderNavLink(item, t, pathname))}
+          </nav>
         )}
         {systemItems.length > 0 && (
-          <div className="space-y-0.5 border-t border-edge pt-3">
+          <nav
+            aria-label={t("navSections.systemAdmin")}
+            className="space-y-0.5 border-t border-edge pt-3"
+          >
             <p className="px-3 pb-1 text-label font-semibold uppercase text-content-muted">
               {t("navSections.systemAdmin")}
             </p>
-            {systemItems.map((item) => renderNavLink(item, t, isItemActive))}
-          </div>
+            {systemItems.map((item) => renderNavLink(item, t, pathname))}
+          </nav>
         )}
-      </nav>
+      </div>
 
       {/* Bottom block — ambient context + identity + controls */}
       <div className="border-t border-edge">

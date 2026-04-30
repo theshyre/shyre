@@ -7,7 +7,6 @@ import {
   Shield,
   Tags,
   Bookmark,
-  Upload,
   UserPlus,
 } from "lucide-react";
 import { getUserTeams } from "@/lib/team-context";
@@ -109,13 +108,10 @@ export default async function SettingsHubPage(): Promise<React.JSX.Element> {
       href: "/templates",
       icon: Bookmark,
     },
-    {
-      id: "import",
-      title: t("cards.import.title"),
-      description: t("cards.import.description"),
-      href: "/import",
-      icon: Upload,
-    },
+    // Import was previously a card here. Promoted to a sidebar entry
+    // under the Setup section (see src/lib/modules/registry.ts
+    // PLATFORM_TOOLS). Single path to one feature; the hub no longer
+    // re-surfaces it.
   ];
 
   return (

@@ -8,6 +8,7 @@ import { ToastProvider } from "@/components/Toast";
 import { GlobalKeyboardHelp } from "@/components/GlobalKeyboardHelp";
 import { GlobalCommandPalette } from "@/components/GlobalCommandPalette";
 import { RunningTimerHeaderPill } from "@/components/RunningTimerHeaderPill";
+import { SkipLink } from "@/components/SkipLink";
 import type { TextSize } from "@/components/text-size-provider";
 import type { TableDensity } from "@/components/table-density-provider";
 import { getUserContext } from "@/lib/team-context";
@@ -98,6 +99,10 @@ export default async function DashboardLayout({
   return (
     <ToastProvider>
       <TableDensityProvider>
+        {/* Skip link MUST be the first focusable element so a keyboard
+            user pressing Tab on page load lands on it before the
+            sidebar's ~15 nav entries. Visually hidden until focused. */}
+        <SkipLink targetId="main-content" />
         <div className="flex h-full">
           <TimezoneSync />
           <ThemeSync preferredTheme={preferredTheme} />
@@ -114,7 +119,11 @@ export default async function DashboardLayout({
             teamCount={teamCount}
             primaryTeamName={primaryTeamName}
           />
-          <main className="flex-1 overflow-y-auto">
+          <main
+            id="main-content"
+            tabIndex={-1}
+            className="flex-1 overflow-y-auto focus:outline-none"
+          >
             <RunningTimerHeaderPill />
             <div className="mx-auto max-w-[1280px] px-[32px] py-8">{children}</div>
           </main>

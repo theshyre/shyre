@@ -13,11 +13,12 @@ top-right of the page header → opens
 least one team in the business required (the button is hidden for
 plain members).
 
-The cross-cutting `/import` page hosts only Harvest (which spans
-customers, projects, and time entries). Expense-only CSV import
-lives on the business's expenses surface where the data goes — it
-shouldn't take a Settings → Import detour to upload a CSV that
-ends up in one specific business's ledger.
+The cross-cutting `/import` page (sidebar → Setup → Import) hosts
+only Harvest (which spans customers, projects, and time entries).
+Expense-only CSV import lives on the business's expenses surface
+where the data goes — it shouldn't take a sidebar Setup → Import
+detour to upload a CSV that ends up in one specific business's
+ledger.
 
 ## Required CSV shape
 
