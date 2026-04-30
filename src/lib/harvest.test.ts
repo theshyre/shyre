@@ -157,6 +157,75 @@ describe("Harvest endpoint names", () => {
     await fetchHarvestCompany(opts);
     expect(lastFetchedUrl()).toContain("/v2/company");
   });
+
+  /**
+   * Pagination regression: when the first page's response includes a
+   * `links.next` URL (Harvest returns absolute URLs like
+   * "https://api.harvestapp.com/v2/time_entries?cursor=..."), the
+   * fetcher must NOT double the "/v2" prefix when building the next
+   * page request. Earlier code took `pathname + search` raw, which
+   * concatenated with HARVEST_API's trailing "/v2" produced
+   * "/v2/v2/time_entries?cursor=..." and Harvest's gateway dropped
+   * to its marketing 404 — which classified as `not_found` and read
+   * to the user as "this is a Shyre bug" while looking like a
+   * credential issue under the hood.
+   *
+   * The fix strips a leading "/v2" from `nextUrl.pathname` before
+   * passing back into harvestFetch.
+   */
+  it("paginates without double-prefixing /v2 when links.next is an absolute URL", async () => {
+    interface FakeRes {
+      ok: boolean;
+      status: number;
+      json: () => Promise<unknown>;
+      text: () => Promise<string>;
+      headers: Headers;
+    }
+    const page1: FakeRes = {
+      ok: true,
+      status: 200,
+      json: () =>
+        Promise.resolve({
+          time_entries: [{ id: 1 }],
+          links: {
+            next: "https://api.harvestapp.com/v2/time_entries?cursor=abc&per_page=100",
+          },
+        }),
+      text: () => Promise.resolve(""),
+      headers: new Headers(),
+    };
+    const page2: FakeRes = {
+      ok: true,
+      status: 200,
+      json: () =>
+        Promise.resolve({
+          time_entries: [{ id: 2 }],
+          links: { next: null },
+        }),
+      text: () => Promise.resolve(""),
+      headers: new Headers(),
+    };
+    const calls: string[] = [];
+    let callIdx = 0;
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async (url: string): Promise<FakeRes> => {
+        calls.push(url);
+        return callIdx++ === 0 ? page1 : page2;
+      }),
+    );
+    const result = await fetchHarvestTimeEntries(opts);
+    expect(result).toHaveLength(2);
+    expect(calls).toHaveLength(2);
+    // Critical: no double "/v2/v2/" anywhere in either URL.
+    for (const url of calls) {
+      expect(url).not.toMatch(/\/v2\/v2\//);
+      expect(url).toMatch(/^https:\/\/api\.harvestapp\.com\/v2\/time_entries(\?|$)/);
+    }
+    // The cursor from the first page's links.next made it onto the
+    // second request.
+    expect(calls[1]).toContain("cursor=abc");
+  });
 });
 
 describe("HarvestApiError classification", () => {

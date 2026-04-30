@@ -57,20 +57,7 @@ function errorResponse(
   err: unknown,
   context: { userId?: string; teamId?: string; action?: string },
 ): NextResponse {
-  // TEMP-DIAG: when the inner error is a HarvestApiError, attach the
-  // request-fingerprint fields to the logError context so /system/errors
-  // shows them. Lets us compare what Shyre actually sent vs. what the user
-  // pasted, without putting the full token in the log.
-  const harvestDiag =
-    err instanceof HarvestApiError
-      ? {
-          harvestRequestUrl: err.requestUrl,
-          harvestTokenFingerprint: err.tokenFingerprint,
-          harvestAccountIdSent: err.accountIdSent,
-          harvestResponseContentType: err.responseContentType,
-        }
-      : {};
-  logError(err, { ...context, ...harvestDiag, url: "/api/import/harvest" });
+  logError(err, { ...context, url: "/api/import/harvest" });
 
   if (err instanceof HarvestApiError) {
     return NextResponse.json(
@@ -80,12 +67,6 @@ function errorResponse(
         status: err.status,
         endpoint: err.endpoint,
         detail: err.rawBody,
-        diag: {
-          requestUrl: err.requestUrl,
-          tokenFingerprint: err.tokenFingerprint,
-          accountIdSent: err.accountIdSent,
-          responseContentType: err.responseContentType,
-        },
       },
       { status: 502 },
     );

@@ -150,14 +150,6 @@ export class HarvestApiError extends Error {
   readonly status: number;
   readonly endpoint: string;
   readonly rawBody: string;
-  /** TEMP-DIAG: full URL fetched, exact bytes shape we sent. */
-  readonly requestUrl?: string;
-  /** TEMP-DIAG: token length + first/last 4 chars (not the full token). */
-  readonly tokenFingerprint?: string;
-  /** TEMP-DIAG: account ID value exactly as sent (not sensitive — visible in UI). */
-  readonly accountIdSent?: string;
-  /** TEMP-DIAG: content-type Harvest replied with (HTML vs JSON splits the case). */
-  readonly responseContentType?: string;
   readonly kind:
     | "unauthorized"
     | "forbidden"
@@ -171,10 +163,6 @@ export class HarvestApiError extends Error {
     status: number;
     endpoint: string;
     rawBody: string;
-    requestUrl?: string;
-    tokenFingerprint?: string;
-    accountIdSent?: string;
-    responseContentType?: string;
   }) {
     const kind = classifyHarvestStatus(opts.status);
     super(userFacingMessage(kind, opts.status));
@@ -182,10 +170,6 @@ export class HarvestApiError extends Error {
     this.status = opts.status;
     this.endpoint = opts.endpoint;
     this.rawBody = opts.rawBody;
-    this.requestUrl = opts.requestUrl;
-    this.tokenFingerprint = opts.tokenFingerprint;
-    this.accountIdSent = opts.accountIdSent;
-    this.responseContentType = opts.responseContentType;
     this.kind = kind;
   }
 }
@@ -238,11 +222,9 @@ async function harvestFetch<T>(
 ): Promise<T> {
   let lastBody = "";
   let lastStatus = 0;
-  let lastContentType: string | null = null;
-  const fullUrl = `${HARVEST_API}${path}`;
 
   for (let attempt = 0; attempt <= RETRY_DELAYS_MS.length; attempt++) {
-    const res = await fetch(fullUrl, {
+    const res = await fetch(`${HARVEST_API}${path}`, {
       headers: {
         Authorization: `Bearer ${opts.token}`,
         "Harvest-Account-Id": opts.accountId,
@@ -257,7 +239,6 @@ async function harvestFetch<T>(
 
     lastStatus = res.status;
     lastBody = await res.text();
-    lastContentType = res.headers.get("content-type");
 
     // 429 Too Many Requests — back off and retry.
     // 503 Service Unavailable — transient; retry a few times.
@@ -276,23 +257,10 @@ async function harvestFetch<T>(
     break;
   }
 
-  // TEMP-DIAG: token fingerprint = "len=N first=abcd…last=wxyz". Lets us see
-  // whether the bytes we shipped match what the user pasted, without ever
-  // putting the full secret into a log row.
-  const tok = opts.token;
-  const tokenFingerprint =
-    tok.length > 8
-      ? `len=${tok.length} first=${tok.slice(0, 4)}…last=${tok.slice(-4)}`
-      : `len=${tok.length}`;
-
   throw new HarvestApiError({
     status: lastStatus,
     endpoint: path.split("?")[0] ?? path,
     rawBody: cappedBody(lastBody),
-    requestUrl: fullUrl,
-    tokenFingerprint,
-    accountIdSent: opts.accountId,
-    responseContentType: lastContentType ?? undefined,
   });
 }
 
@@ -331,10 +299,15 @@ async function fetchAllPages<T>(
 
     const links = data.links as { next: string | null } | undefined;
     if (links?.next) {
-      // next URL is absolute — extract pathname+search (already carries
-      // per_page + any filters we sent).
+      // next URL is absolute (e.g. https://api.harvestapp.com/v2/time_entries?cursor=...).
+      // Extract pathname+search and strip the "/v2" prefix — harvestFetch
+      // concatenates with HARVEST_API which already ends in "/v2", so a
+      // raw pathname produced "/v2/v2/time_entries?cursor=..." and Harvest's
+      // gateway dropped to its marketing 404 page (which we couldn't
+      // distinguish from "wrong Account-Id" until we logged the URL).
       const nextUrl = new URL(links.next);
-      url = nextUrl.pathname + nextUrl.search;
+      const stripped = nextUrl.pathname.replace(/^\/v2(?=\/)/, "");
+      url = stripped + nextUrl.search;
     } else {
       url = null;
     }
