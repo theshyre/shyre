@@ -724,6 +724,54 @@ export function buildInvoiceLineItemRow(
  * renders with the key visible; the user can click refresh on any
  * row to populate the resolved title.
  */
+/**
+ * Decide what provider to attribute Harvest's external_reference
+ * to. Three signals, in priority order:
+ *
+ *   1. `service` says "jira" or "github" (case-insensitive,
+ *      substring match — Harvest uses bare slugs but a future API
+ *      change could prefix them, e.g. "atlassian-jira").
+ *   2. `permalink` host hints — atlassian.net, jira.com,
+ *      github.com — used when service is null but the URL is
+ *      clearly one of ours.
+ *   3. ID format heuristic — "ABC-123" is unambiguously a Jira
+ *      key; "owner/repo#NN" is GitHub. Used when both service
+ *      and permalink are unhelpful.
+ *
+ * Returns null when the reference points at something we don't
+ * surface yet (Trello, Asana, etc.) — the caller falls back to
+ * description-based parsing.
+ *
+ * Exported so tests can pin the heuristic without rebuilding the
+ * full HarvestTimeEntry shape.
+ */
+export function pickExternalProvider(
+  externalRef: HarvestTimeEntry["external_reference"],
+): "jira" | "github" | null {
+  if (!externalRef || !externalRef.id) return null;
+
+  const service = externalRef.service?.toLowerCase() ?? "";
+  if (service.includes("jira")) return "jira";
+  if (service.includes("github")) return "github";
+
+  const permalink = externalRef.permalink?.toLowerCase() ?? "";
+  if (permalink.includes("atlassian.net") || permalink.includes("jira.")) {
+    return "jira";
+  }
+  if (permalink.includes("github.com")) return "github";
+
+  // ID-shape fallback. Jira keys are uppercase project + dash + digits
+  // (e.g. AE-638, PROJ-1, NUMBERS_PROJ-99). GitHub keys are
+  // owner/repo#NN or just #NN. Be conservative: only attribute when
+  // the shape is unambiguous so we don't mis-attribute Trello-style
+  // ids that happen to contain digits.
+  const id = externalRef.id;
+  if (/^[A-Z][A-Z0-9_]*-\d+$/.test(id)) return "jira";
+  if (/^[\w.-]+\/[\w.-]+#\d+$/.test(id)) return "github";
+
+  return null;
+}
+
 export function buildTimeEntryRow(args: {
   entry: HarvestTimeEntry;
   projectId: string | null;
@@ -830,14 +878,7 @@ export function buildTimeEntryRow(args: {
   // system happens later via the chip's refresh path. 177 imports
   // × 1 outbound API call would rate-limit Jira/GitHub immediately.
   const externalRef = args.entry.external_reference;
-  const externalProvider =
-    externalRef && externalRef.id
-      ? externalRef.service === "jira"
-        ? "jira"
-        : externalRef.service === "github"
-          ? "github"
-          : null
-      : null;
+  const externalProvider = pickExternalProvider(externalRef);
   const ticket = externalProvider
     ? {
         provider: externalProvider as "jira" | "github",

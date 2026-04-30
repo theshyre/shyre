@@ -17,6 +17,7 @@ import {
   buildInvoiceLineItemRow,
   buildInvoicePaymentRow,
   pickLatestSendRecipient,
+  pickExternalProvider,
   mapHarvestInvoiceState,
   type ImportContext,
   type UserMapChoice,
@@ -840,6 +841,36 @@ describe("buildTimeEntryRow", () => {
     expect(out.linked_ticket_title).toBeNull();
     expect(out.linked_ticket_url).toBeNull();
     expect(out.linked_ticket_refreshed_at).toBeNull();
+  });
+
+  it("attributes Jira from external_reference when service is null but id looks like a Jira key", () => {
+    // Real bug: Harvest's API returned external_reference for an
+    // entry whose description didn't echo the key, but `service`
+    // came back null. The earlier strict equality check skipped it,
+    // leaving the entry without a chip. The id-shape fallback now
+    // picks it up.
+    const out = buildTimeEntryRow({
+      entry: {
+        ...baseEntry,
+        notes: "Audit History CSV diff missing section-level N/A toggle",
+        external_reference: {
+          id: "AE-501",
+          group_id: null,
+          permalink: null,
+          service: null,
+          service_icon_url: null,
+        },
+      },
+      projectId: "proj-1",
+      projectHourlyRate: 150,
+      userMapping,
+      categoryIdByTaskName,
+      ctx,
+      timeZone: "America/New_York",
+    });
+    if ("skipped" in out) throw new Error("unreachable");
+    expect(out.linked_ticket_provider).toBe("jira");
+    expect(out.linked_ticket_key).toBe("AE-501");
   });
 
   it("uses Harvest's external_reference (Jira) over description parsing — no key in text", () => {
@@ -1677,5 +1708,122 @@ describe("pickLatestSendRecipient", () => {
       msg({ event_type: "reminder" }),
     ]);
     expect(got?.email).toBe("bandre@fdapproval.com");
+  });
+});
+
+describe("pickExternalProvider", () => {
+  it("returns null for null / no-id references", () => {
+    expect(pickExternalProvider(null)).toBeNull();
+    expect(
+      pickExternalProvider({
+        id: "",
+        group_id: null,
+        permalink: null,
+        service: "jira",
+        service_icon_url: null,
+      }),
+    ).toBeNull();
+  });
+
+  it("matches service name case-insensitively", () => {
+    expect(
+      pickExternalProvider({
+        id: "AE-1",
+        group_id: null,
+        permalink: null,
+        service: "Jira",
+        service_icon_url: null,
+      }),
+    ).toBe("jira");
+    expect(
+      pickExternalProvider({
+        id: "AE-1",
+        group_id: null,
+        permalink: null,
+        service: "JIRA",
+        service_icon_url: null,
+      }),
+    ).toBe("jira");
+  });
+
+  it("matches service via substring (e.g. atlassian-jira)", () => {
+    expect(
+      pickExternalProvider({
+        id: "AE-1",
+        group_id: null,
+        permalink: null,
+        service: "atlassian-jira",
+        service_icon_url: null,
+      }),
+    ).toBe("jira");
+    expect(
+      pickExternalProvider({
+        id: "owner/repo#1",
+        group_id: null,
+        permalink: null,
+        service: "github-issues",
+        service_icon_url: null,
+      }),
+    ).toBe("github");
+  });
+
+  it("falls back to permalink host when service is null", () => {
+    expect(
+      pickExternalProvider({
+        id: "AE-1",
+        group_id: null,
+        permalink: "https://acme.atlassian.net/browse/AE-1",
+        service: null,
+        service_icon_url: null,
+      }),
+    ).toBe("jira");
+    expect(
+      pickExternalProvider({
+        id: "owner/repo#1",
+        group_id: null,
+        permalink: "https://github.com/owner/repo/issues/1",
+        service: null,
+        service_icon_url: null,
+      }),
+    ).toBe("github");
+  });
+
+  it("falls back to id-shape heuristic when service AND permalink are unhelpful", () => {
+    // The user's case: Harvest's API returns an external_reference
+    // but neither service nor permalink told us what kind it is. The
+    // ID itself is a valid Jira key shape — attribute as Jira.
+    expect(
+      pickExternalProvider({
+        id: "AE-501",
+        group_id: null,
+        permalink: null,
+        service: null,
+        service_icon_url: null,
+      }),
+    ).toBe("jira");
+    expect(
+      pickExternalProvider({
+        id: "octocat/hello-world#42",
+        group_id: null,
+        permalink: null,
+        service: null,
+        service_icon_url: null,
+      }),
+    ).toBe("github");
+  });
+
+  it("returns null for unrecognized services with non-conforming IDs (Trello et al.)", () => {
+    // We deliberately don't attempt to attribute random ids when
+    // the source isn't one of ours — would mis-tag Trello cards as
+    // Jira if their ids happened to contain hyphens + digits.
+    expect(
+      pickExternalProvider({
+        id: "trello-card-abc",
+        group_id: null,
+        permalink: "https://trello.com/c/abc",
+        service: "trello",
+        service_icon_url: null,
+      }),
+    ).toBeNull();
   });
 });
