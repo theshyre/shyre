@@ -167,14 +167,24 @@ export async function POST(request: Request): Promise<NextResponse> {
       }
 
       // Suggest a default mapping by matching Harvest users to existing
-      // Shyre team members via email / display_name. UI can override.
+      // Shyre team members and unlinked business people via email /
+      // display_name. UI can override.
       const shyreMembers = await fetchTeamMembersForMapping(
         supabase,
         organizationId,
       );
+      const businessPeople = await fetchBusinessPeopleForMapping(
+        supabase,
+        organizationId,
+      );
+      const callerDisplayName = await fetchCallerDisplayName(
+        supabase,
+        user.id,
+      );
       const defaultMapping = proposeDefaultUserMapping(
         harvestUsers,
         shyreMembers,
+        businessPeople,
       );
       const uniqueUsers = collectUniqueHarvestUsers(timeEntries);
 
@@ -202,6 +212,9 @@ export async function POST(request: Request): Promise<NextResponse> {
             uniqueUsers.find((x) => x.id === u.id)?.entryCount ?? 0,
         })),
         shyreMembers,
+        businessPeople,
+        callerDisplayName,
+        callerUserId: user.id,
         defaultMapping,
       });
     } catch (err) {
@@ -544,32 +557,43 @@ export async function POST(request: Request): Promise<NextResponse> {
         }
       }
 
-      // Materialize "shell" mapping choices -------------------------
-      // Any Harvest user the operator chose "Create shell account" for
-      // becomes a non-loggable auth.users row + team_members row right
-      // here, BEFORE buildTimeEntryRow runs — that function calls
-      // resolveEntryUserId which throws on an unmaterialized "shell"
-      // sentinel. We dedupe Harvest users from the entry stream
-      // (each entry carries user.id + user.name) so a single materialize
-      // call covers every entry by that author. Idempotent on re-import:
-      // materializeHarvestShellAccount returns the existing user_id when
-      // a matching shell already exists for this team.
-      const shellHarvestIds = Object.entries(userMapping)
-        .filter(([, choice]) => choice === "shell")
-        .map(([k]) => Number(k));
-      if (shellHarvestIds.length > 0) {
-        const adminClient = createAdminClient();
-        const harvestNameById = new Map<number, string>();
-        for (const e of harvestTimeEntries) {
-          if (!harvestNameById.has(e.user.id)) {
-            harvestNameById.set(e.user.id, e.user.name);
-          }
+      // Materialize "shell" + "bp:<id>" mapping choices -------------
+      // Both flows produce a non-loggable auth.users row + team_members
+      // row BEFORE buildTimeEntryRow runs (that function throws on an
+      // unmaterialized sentinel). The bp:<id> variant additionally
+      // links the resulting shell user to an existing business_people
+      // row so the user's "I added Mariah under Business → People"
+      // intent connects through to the imported time entries — no
+      // orphan shell account created alongside the existing record.
+      //
+      // Both are idempotent on re-import (materializeHarvestShellAccount
+      // returns the existing user_id; the business_people link uses
+      // `user_id IS NULL` as a guard so a second run is a no-op).
+      const harvestNameById = new Map<number, string>();
+      for (const e of harvestTimeEntries) {
+        if (!harvestNameById.has(e.user.id)) {
+          harvestNameById.set(e.user.id, e.user.name);
         }
-        for (const harvestId of shellHarvestIds) {
+      }
+
+      const shellEntries = Object.entries(userMapping).filter(
+        ([, choice]) => choice === "shell" || (typeof choice === "string" && choice.startsWith("bp:")),
+      );
+      if (shellEntries.length > 0) {
+        const adminClient = createAdminClient();
+        for (const [k, choice] of shellEntries) {
+          const harvestId = Number(k);
           const displayName = harvestNameById.get(harvestId);
+          const linkedBusinessPersonId =
+            typeof choice === "string" && choice.startsWith("bp:")
+              ? choice.slice(3)
+              : null;
           if (!displayName) {
-            // Mapping selected "shell" for a user that has no entries
-            // in the import range — nothing to anchor, skip.
+            // No time entries reference this Harvest user in the
+            // selected range. For "shell": nothing to anchor, skip.
+            // For "bp:<id>": equally nothing to anchor — skip and
+            // record (the user's link intent is best handled by an
+            // import that actually carries entries).
             recordError(
               `Shell account requested for Harvest user ${harvestId} but no time entries reference them`,
               new Error("shell-no-entries"),
@@ -582,6 +606,24 @@ export async function POST(request: Request): Promise<NextResponse> {
               harvestUserId: harvestId,
               displayName,
             });
+            if (linkedBusinessPersonId) {
+              // Idempotent claim — only updates rows that don't yet have
+              // a user_id set. A second import run is a no-op.
+              const { error: linkErr } = await adminClient
+                .from("business_people")
+                .update({ user_id: userId })
+                .eq("id", linkedBusinessPersonId)
+                .is("user_id", null);
+              if (linkErr) {
+                recordError(
+                  `business_people link failed for ${displayName} → person ${linkedBusinessPersonId}: ${linkErr.message}`,
+                  linkErr,
+                );
+                // Don't fail the whole import — the time entries can
+                // still attach to the shell user. The link can be
+                // recovered manually from the People page.
+              }
+            }
             // Rewrite mapping in place — buildTimeEntryRow now sees a
             // real user_id and the resolver path stays linear.
             userMapping[harvestId] = userId;
@@ -813,6 +855,77 @@ async function fetchTeamMembersForMapping(
     email: null,
     display_name: displayNameById.get(id) ?? null,
   }));
+}
+
+/**
+ * Fetch unlinked business_people for the team's parent business. These
+ * are payroll/HR records (1099 contractors, ex-employees) that the user
+ * has captured under Business → People but who don't have a Shyre login
+ * yet. Surfacing them in the import dropdown lets the user link a
+ * Harvest user to an existing person record in one step instead of
+ * creating an orphan shell account that doesn't tie back to the
+ * People-page row they already filled in.
+ *
+ * RLS already gates SELECT on business_people to owner|admin (SAL-010),
+ * which is exactly the scope required to run an import — so the regular
+ * session client is appropriate here, no admin escalation needed.
+ */
+async function fetchBusinessPeopleForMapping(
+  supabase: SBClient,
+  teamId: string,
+): Promise<
+  Array<{
+    id: string;
+    legal_name: string;
+    preferred_name: string | null;
+    work_email: string | null;
+    employment_type: string;
+  }>
+> {
+  // teams.business_id resolves the parent business; business_people
+  // hangs off business_id, not team_id.
+  const { data: team } = await supabase
+    .from("teams")
+    .select("business_id")
+    .eq("id", teamId)
+    .maybeSingle();
+  const businessId = (team?.business_id as string | undefined) ?? null;
+  if (!businessId) return [];
+
+  // Only unlinked rows are eligible for "claim this person" — a row with
+  // user_id already set is its own active member and would already
+  // appear in the Shyre team members section.
+  const { data: people } = await supabase
+    .from("business_people")
+    .select("id, legal_name, preferred_name, work_email, employment_type")
+    .eq("business_id", businessId)
+    .is("user_id", null)
+    .order("legal_name");
+  return (people ?? []).map((p) => ({
+    id: p.id as string,
+    legal_name: p.legal_name as string,
+    preferred_name: (p.preferred_name as string | null) ?? null,
+    work_email: (p.work_email as string | null) ?? null,
+    employment_type: p.employment_type as string,
+  }));
+}
+
+/**
+ * Fetch the caller's display name so the UI's "Me" option can read
+ * "Me (Marcus Malcom)" instead of just "Me" — disambiguates against
+ * the Shyre team members section, which currently lists the caller as
+ * a separate option (visually duplicating the same destination).
+ */
+async function fetchCallerDisplayName(
+  supabase: SBClient,
+  userId: string,
+): Promise<string | null> {
+  const { data } = await supabase
+    .from("user_profiles")
+    .select("display_name")
+    .eq("user_id", userId)
+    .maybeSingle();
+  return (data?.display_name as string | null) ?? null;
 }
 
 /**

@@ -272,8 +272,16 @@ export function collectUniqueHarvestUsers(
 }
 
 /** Propose a default mapping: try to match Harvest users to Shyre team
- * members by email (strict) or display name (case-insensitive). Any
- * user that doesn't match defaults to "importer". The UI can override. */
+ * members by email (strict) or display name (case-insensitive). If no
+ * Shyre member matches, fall back to checking unlinked business_people
+ * — when a Harvest user matches a person record (by work_email or
+ * legal_name / preferred_name), default the mapping to `bp:<personId>`
+ * so the import preserves the user's "I added them under Business →
+ * People" intent without creating an orphan shell account.
+ *
+ * Anything that doesn't match either pool defaults to "importer". The
+ * UI can override.
+ */
 export function proposeDefaultUserMapping(
   harvestUsers: HarvestUser[],
   shyreMembers: ReadonlyArray<{
@@ -281,12 +289,25 @@ export function proposeDefaultUserMapping(
     email: string | null;
     display_name: string | null;
   }>,
+  businessPeople: ReadonlyArray<{
+    id: string;
+    legal_name: string;
+    preferred_name: string | null;
+    work_email: string | null;
+  }> = [],
 ): Record<number, UserMapChoice> {
-  const byEmail = new Map<string, string>();
-  const byName = new Map<string, string>();
+  const memberByEmail = new Map<string, string>();
+  const memberByName = new Map<string, string>();
   for (const m of shyreMembers) {
-    if (m.email) byEmail.set(m.email.toLowerCase(), m.user_id);
-    if (m.display_name) byName.set(m.display_name.toLowerCase(), m.user_id);
+    if (m.email) memberByEmail.set(m.email.toLowerCase(), m.user_id);
+    if (m.display_name) memberByName.set(m.display_name.toLowerCase(), m.user_id);
+  }
+  const personByEmail = new Map<string, string>();
+  const personByName = new Map<string, string>();
+  for (const p of businessPeople) {
+    if (p.work_email) personByEmail.set(p.work_email.toLowerCase(), p.id);
+    if (p.legal_name) personByName.set(p.legal_name.toLowerCase(), p.id);
+    if (p.preferred_name) personByName.set(p.preferred_name.toLowerCase(), p.id);
   }
 
   const out: Record<number, UserMapChoice> = {};
@@ -294,10 +315,14 @@ export function proposeDefaultUserMapping(
     const email = h.email?.toLowerCase();
     const fullName = `${h.first_name} ${h.last_name}`.trim().toLowerCase();
 
-    if (email && byEmail.has(email)) {
-      out[h.id] = byEmail.get(email)!;
-    } else if (byName.has(fullName)) {
-      out[h.id] = byName.get(fullName)!;
+    if (email && memberByEmail.has(email)) {
+      out[h.id] = memberByEmail.get(email)!;
+    } else if (memberByName.has(fullName)) {
+      out[h.id] = memberByName.get(fullName)!;
+    } else if (email && personByEmail.has(email)) {
+      out[h.id] = `bp:${personByEmail.get(email)!}`;
+    } else if (personByName.has(fullName)) {
+      out[h.id] = `bp:${personByName.get(fullName)!}`;
     } else {
       out[h.id] = "importer";
     }
@@ -324,6 +349,12 @@ export function resolveEntryUserId(
     throw new Error(
       `Unmaterialized "shell" mapping for Harvest user ${harvestUserId}. ` +
         "The import route must create shell accounts before time-entry mapping.",
+    );
+  }
+  if (typeof choice === "string" && choice.startsWith("bp:")) {
+    throw new Error(
+      `Unmaterialized "bp:" mapping for Harvest user ${harvestUserId}. ` +
+        "The import route must materialize business-person links before time-entry mapping.",
     );
   }
   return choice;

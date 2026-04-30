@@ -314,6 +314,118 @@ describe("proposeDefaultUserMapping", () => {
     const out = proposeDefaultUserMapping(harvestUsers, shyreMembers);
     expect(out[1]).toBe("u-alice");
   });
+
+  describe("with business_people fallback", () => {
+    const businessPeople = [
+      {
+        id: "bp-mariah",
+        legal_name: "Mariah Schock",
+        preferred_name: null,
+        work_email: "mariah@example.com",
+      },
+      {
+        id: "bp-zed",
+        legal_name: "Zachary Edwards",
+        preferred_name: "Zed",
+        work_email: null,
+      },
+    ];
+
+    it("matches an unlinked business person by work_email when no team member matches", () => {
+      const harvestUsers: HarvestUser[] = [
+        {
+          id: 99,
+          first_name: "Mariah",
+          last_name: "Schock",
+          email: "mariah@example.com",
+          is_active: false,
+        },
+      ];
+      const out = proposeDefaultUserMapping(
+        harvestUsers,
+        shyreMembers,
+        businessPeople,
+      );
+      expect(out[99]).toBe("bp:bp-mariah");
+    });
+
+    it("matches by legal_name when no email is available", () => {
+      const harvestUsers: HarvestUser[] = [
+        {
+          id: 100,
+          first_name: "Mariah",
+          last_name: "Schock",
+          email: null,
+          is_active: false,
+        },
+      ];
+      const out = proposeDefaultUserMapping(
+        harvestUsers,
+        shyreMembers,
+        businessPeople,
+      );
+      expect(out[100]).toBe("bp:bp-mariah");
+    });
+
+    it("matches by preferred_name", () => {
+      const harvestUsers: HarvestUser[] = [
+        {
+          id: 101,
+          first_name: "Zed",
+          last_name: "",
+          email: null,
+          is_active: false,
+        },
+      ];
+      const out = proposeDefaultUserMapping(
+        harvestUsers,
+        shyreMembers,
+        businessPeople,
+      );
+      expect(out[101]).toBe("bp:bp-zed");
+    });
+
+    it("Shyre team member match wins over business-person match", () => {
+      const harvestUsers: HarvestUser[] = [
+        {
+          id: 1,
+          first_name: "Alice",
+          last_name: "Wong",
+          email: "alice@example.com",
+          is_active: true,
+        },
+      ];
+      // Add an Alice in business_people too — should still pick the team member.
+      const out = proposeDefaultUserMapping(harvestUsers, shyreMembers, [
+        ...businessPeople,
+        {
+          id: "bp-alice-fake",
+          legal_name: "Alice Wong",
+          preferred_name: null,
+          work_email: "alice@example.com",
+        },
+      ]);
+      expect(out[1]).toBe("u-alice");
+    });
+
+    it("still falls back to importer when neither pool matches", () => {
+      const harvestUsers: HarvestUser[] = [
+        {
+          id: 200,
+          first_name: "Nobody",
+          last_name: "Newperson",
+          email: null,
+          is_active: false,
+        },
+      ];
+      const out = proposeDefaultUserMapping(
+        harvestUsers,
+        shyreMembers,
+        businessPeople,
+      );
+      expect(out[200]).toBe("importer");
+    });
+  });
 });
 
 describe("resolveEntryUserId", () => {
@@ -338,6 +450,12 @@ describe("resolveEntryUserId", () => {
     const shellMapping: Record<number, UserMapChoice> = { 5: "shell" };
     expect(() => resolveEntryUserId(5, shellMapping, "u-me")).toThrow(
       /Unmaterialized "shell" mapping/,
+    );
+  });
+  it("throws on unmaterialized 'bp:<id>' — route is required to rewrite first", () => {
+    const bpMapping: Record<number, UserMapChoice> = { 6: "bp:bp-mariah" };
+    expect(() => resolveEntryUserId(6, bpMapping, "u-me")).toThrow(
+      /Unmaterialized "bp:" mapping/,
     );
   });
 });

@@ -43,6 +43,14 @@ interface ShyreMemberSummary {
   display_name: string | null;
 }
 
+interface BusinessPersonSummary {
+  id: string;
+  legal_name: string;
+  preferred_name: string | null;
+  work_email: string | null;
+  employment_type: string;
+}
+
 interface PreviewData {
   companyName: string;
   timeZone: string;
@@ -56,6 +64,14 @@ interface PreviewData {
   projectNames: string[];
   harvestUsers: HarvestUserSummary[];
   shyreMembers: ShyreMemberSummary[];
+  businessPeople: BusinessPersonSummary[];
+  /** Caller's display_name from user_profiles. Drives the "Me (Marcus
+   *  Malcom)" label in the mapping dropdown. */
+  callerDisplayName: string | null;
+  /** Caller's auth user id. Used to filter the caller out of the
+   *  "Shyre team members" optgroup so they aren't a duplicate of the
+   *  "Me" option (both resolve to the same person). */
+  callerUserId: string;
   defaultMapping: Record<string, UserMapChoice>;
 }
 
@@ -590,6 +606,9 @@ function PreviewStep({
         <UserMappingTable
           harvestUsers={preview.harvestUsers}
           shyreMembers={preview.shyreMembers}
+          businessPeople={preview.businessPeople}
+          callerDisplayName={preview.callerDisplayName}
+          callerUserId={preview.callerUserId}
           mapping={userMapping}
           setMapping={setUserMapping}
         />
@@ -634,16 +653,32 @@ function PreviewStep({
 function UserMappingTable({
   harvestUsers,
   shyreMembers,
+  businessPeople,
+  callerDisplayName,
+  callerUserId,
   mapping,
   setMapping,
 }: {
   harvestUsers: HarvestUserSummary[];
   shyreMembers: ShyreMemberSummary[];
+  businessPeople: BusinessPersonSummary[];
+  callerDisplayName: string | null;
+  callerUserId: string;
   mapping: Record<number, UserMapChoice>;
   setMapping: (
     fn: (prev: Record<number, UserMapChoice>) => Record<number, UserMapChoice>,
   ) => void;
 }): React.JSX.Element {
+  // The caller is already covered by the "Me" option — listing them in
+  // the "Shyre team members" optgroup as a separate row both resolves to
+  // the same user_id and reads as a duplicate. Filter them out.
+  const otherShyreMembers = shyreMembers.filter(
+    (m) => m.user_id !== callerUserId,
+  );
+  const meLabel = callerDisplayName
+    ? `Me (${callerDisplayName})`
+    : "Me (attribute to caller)";
+
   return (
     <div className="rounded-lg border border-edge bg-surface p-4 space-y-3">
       <div>
@@ -653,11 +688,14 @@ function UserMappingTable({
         </h3>
         <p className="mt-1 text-caption text-content-muted">
           Each Harvest user who logged time becomes the author of their entries
-          in Shyre. Pick a Shyre user for each, fall back to <em>me</em> to
+          in Shyre. Pick a Shyre user for each, fall back to <em>Me</em> to
           attribute them to you, or — for ex-collaborators who won&apos;t sign
           in — <em>Create shell account</em> to anchor their historical entries
-          under their name without granting login. Choose <em>Skip</em> to drop
-          a user&apos;s entries entirely.
+          under their name without granting login. If the person is already
+          listed under <em>Business → People</em> but doesn&apos;t have a
+          Shyre login, pick them from the <em>Business people</em> section
+          to link the import to that existing record. Choose <em>Skip</em>{" "}
+          to drop a user&apos;s entries entirely.
         </p>
       </div>
 
@@ -688,18 +726,39 @@ function UserMappingTable({
                 }))
               }
               className={selectClass}
-              style={{ maxWidth: 260 }}
+              style={{ maxWidth: 280 }}
             >
-              <option value="importer">Me (attribute to caller)</option>
+              <option value="importer">{meLabel}</option>
               <option value="shell">Create shell account (no login)</option>
               <option value="skip">Skip (drop entries)</option>
-              <optgroup label="Shyre team members">
-                {shyreMembers.map((m) => (
-                  <option key={m.user_id} value={m.user_id}>
-                    {m.display_name ?? m.email ?? m.user_id.slice(0, 8)}
-                  </option>
-                ))}
-              </optgroup>
+              {otherShyreMembers.length > 0 ? (
+                <optgroup label="Shyre team members">
+                  {otherShyreMembers.map((m) => (
+                    <option key={m.user_id} value={m.user_id}>
+                      {m.display_name ?? m.email ?? m.user_id.slice(0, 8)}
+                    </option>
+                  ))}
+                </optgroup>
+              ) : null}
+              {businessPeople.length > 0 ? (
+                <optgroup label="Business people (no Shyre login)">
+                  {businessPeople.map((p) => {
+                    const name = p.preferred_name || p.legal_name;
+                    const tag =
+                      p.employment_type === "1099_contractor"
+                        ? " — 1099"
+                        : p.employment_type === "w2_employee"
+                          ? " — W-2"
+                          : "";
+                    return (
+                      <option key={p.id} value={`bp:${p.id}`}>
+                        {name}
+                        {tag}
+                      </option>
+                    );
+                  })}
+                </optgroup>
+              ) : null}
             </select>
           </li>
         ))}
