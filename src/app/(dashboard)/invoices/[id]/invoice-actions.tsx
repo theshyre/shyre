@@ -1,8 +1,9 @@
 "use client";
 
 import { useState, type KeyboardEvent } from "react";
+import { useRouter } from "next/navigation";
 import { useTranslations } from "next-intl";
-import { Send, CheckCircle, XCircle, AlertTriangle, X } from "lucide-react";
+import { Send, CheckCircle, XCircle, AlertTriangle, Trash2, X } from "lucide-react";
 import { useFormAction } from "@/hooks/use-form-action";
 import { SubmitButton } from "@/components/SubmitButton";
 import {
@@ -10,7 +11,7 @@ import {
   inputClass,
 } from "@/lib/form-styles";
 import { allowedNextStatuses, type InvoiceStatus } from "@/lib/invoice-status";
-import { updateInvoiceStatusAction } from "../actions";
+import { updateInvoiceStatusAction, deleteInvoiceAction } from "../actions";
 
 interface InvoiceActionsProps {
   invoiceId: string;
@@ -67,6 +68,17 @@ export function InvoiceActions({
           />
         );
       })}
+      {/* Hard-delete is only ever offered on a void invoice — voiding
+          is the canonical "I don't want this on the record" action,
+          and delete is the rarer cleanup pass. The DB action also
+          enforces this server-side. */}
+      {currentStatus === "void" && (
+        <DeleteButton
+          invoiceId={invoiceId}
+          invoiceNumber={invoiceNumber}
+          label={t("deleteInvoice")}
+        />
+      )}
     </div>
   );
 }
@@ -201,6 +213,142 @@ function VoidButton({
         >
           <XCircle size={12} />
           {t("voidConfirm")}
+        </button>
+        <button
+          type="button"
+          onClick={() => {
+            setOpen(false);
+            setTyped("");
+            setError(null);
+          }}
+          disabled={pending}
+          aria-label={tc("actions.cancel")}
+          className="rounded p-1 text-content-muted hover:bg-hover transition-colors"
+        >
+          <X size={12} />
+        </button>
+      </div>
+      {error && <p className="text-caption text-error">{error}</p>}
+    </div>
+  );
+}
+
+/**
+ * Hard-delete a void invoice. Same typed-confirm pattern as
+ * VoidButton — typing the invoice number arms the destructive
+ * action so it's not a single-click mistake. Server enforces the
+ * "must be void" precondition independently; the UI only renders
+ * the button when status === 'void' to keep it out of sight on
+ * normal invoices.
+ */
+function DeleteButton({
+  invoiceId,
+  invoiceNumber,
+  label,
+}: {
+  invoiceId: string;
+  invoiceNumber: string;
+  label: string;
+}): React.JSX.Element {
+  const t = useTranslations("invoices.actions");
+  const tc = useTranslations("common");
+  const router = useRouter();
+  const [open, setOpen] = useState(false);
+  const [typed, setTyped] = useState("");
+  const [pending, setPending] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  const armed = typed.trim().toLowerCase() === invoiceNumber.toLowerCase();
+
+  async function fire(): Promise<void> {
+    if (!armed || pending) return;
+    setPending(true);
+    setError(null);
+    try {
+      const fd = new FormData();
+      fd.set("id", invoiceId);
+      // runSafeAction returns { success, error } shape — we have to
+      // read it explicitly, not assume a thrown rejection.
+      const result = (await deleteInvoiceAction(fd)) as unknown as
+        | { success: boolean; error?: { message: string } }
+        | void;
+      if (
+        result &&
+        (result as { success: boolean }).success === false
+      ) {
+        throw new Error(
+          (result as { error?: { message: string } }).error?.message ??
+            "Delete failed",
+        );
+      }
+      // Navigate out — the invoice no longer exists.
+      router.push("/invoices");
+    } catch (err: unknown) {
+      setError(err instanceof Error ? err.message : String(err));
+    } finally {
+      setPending(false);
+    }
+  }
+
+  function onKey(e: KeyboardEvent<HTMLInputElement>): void {
+    if (e.key === "Enter" && armed && !pending) {
+      e.preventDefault();
+      void fire();
+    } else if (e.key === "Escape") {
+      e.preventDefault();
+      setOpen(false);
+      setTyped("");
+      setError(null);
+    }
+  }
+
+  if (!open) {
+    return (
+      <button
+        type="button"
+        onClick={() => {
+          setError(null);
+          setOpen(true);
+        }}
+        className={`${buttonSecondaryClass} text-error border-error/40 hover:bg-error-soft`}
+      >
+        <Trash2 size={16} />
+        {label}
+      </button>
+    );
+  }
+
+  return (
+    <div className="flex flex-col gap-1">
+      <div
+        role="group"
+        aria-label={label}
+        className="inline-flex items-center gap-2 rounded-md border border-error/40 bg-error-soft px-2 py-1.5"
+      >
+        <span className="text-caption text-content whitespace-nowrap">
+          {t("deletePrompt", { number: invoiceNumber })}
+        </span>
+        <input
+          autoFocus
+          type="text"
+          value={typed}
+          onChange={(e) => setTyped(e.target.value)}
+          onKeyDown={onKey}
+          aria-label={t("deleteConfirmInputLabel", { number: invoiceNumber })}
+          autoCapitalize="none"
+          autoCorrect="off"
+          spellCheck={false}
+          className={`${inputClass} w-32 font-mono`}
+        />
+        <button
+          type="button"
+          onClick={() => void fire()}
+          disabled={!armed || pending}
+          aria-label={t("deleteConfirm")}
+          className="inline-flex items-center gap-1 rounded bg-error px-2 py-1 text-caption font-semibold text-content-inverse hover:opacity-90 disabled:opacity-40 disabled:cursor-not-allowed transition-opacity"
+        >
+          <Trash2 size={12} />
+          {t("deleteConfirm")}
         </button>
         <button
           type="button"

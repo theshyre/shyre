@@ -115,7 +115,11 @@
     "markOverdue": "Marcar Vencida",
     "voidPrompt": "Escribe {number} para anular",
     "voidConfirm": "Anular",
-    "voidConfirmInputLabel": "Escribe el número de factura ({number}) para confirmar"
+    "voidConfirmInputLabel": "Escribe el número de factura ({number}) para confirmar",
+    "deleteInvoice": "Eliminar Factura",
+    "deletePrompt": "Escribe {number} para eliminar",
+    "deleteConfirm": "Eliminar",
+    "deleteConfirmInputLabel": "Escribe el número de factura ({number}) para confirmar la eliminación"
   },
   "status": {
     "draft": "Borrador",

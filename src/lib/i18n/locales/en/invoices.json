@@ -115,7 +115,11 @@
     "markOverdue": "Mark Overdue",
     "voidPrompt": "Type {number} to void",
     "voidConfirm": "Void",
-    "voidConfirmInputLabel": "Type the invoice number ({number}) to confirm"
+    "voidConfirmInputLabel": "Type the invoice number ({number}) to confirm",
+    "deleteInvoice": "Delete Invoice",
+    "deletePrompt": "Type {number} to delete",
+    "deleteConfirm": "Delete",
+    "deleteConfirmInputLabel": "Type the invoice number ({number}) to confirm deletion"
   },
   "status": {
     "draft": "Draft",

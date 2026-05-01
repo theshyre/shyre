@@ -204,7 +204,26 @@ function RunRow({
               fd.set("run_id", run.id);
               fd.set("team_id", run.team_id);
               try {
-                await undoImportRunAction(fd);
+                // runSafeAction returns { success, error } instead of
+                // throwing on server-side failures (so useFormAction
+                // can render the message inline). The previous code
+                // only caught thrown errors, so a refusal — like
+                // "1 invoice references an imported customer" — went
+                // straight to the admin error log with no UI signal.
+                // Read the result and throw on failure so the catch
+                // surfaces the message in the inline error card.
+                const result = (await undoImportRunAction(fd)) as unknown as
+                  | { success: boolean; error?: { message: string } }
+                  | void;
+                if (
+                  result &&
+                  (result as { success: boolean }).success === false
+                ) {
+                  throw new Error(
+                    (result as { error?: { message: string } }).error
+                      ?.message ?? "Undo failed",
+                  );
+                }
                 // Success — the page revalidates and the run re-renders
                 // with undone_at set, so this row collapses the undo UI
                 // naturally on the next render.

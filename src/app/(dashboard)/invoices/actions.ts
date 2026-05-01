@@ -347,3 +347,84 @@ export async function updateInvoiceStatusAction(
     revalidatePath(`/invoices/${id}`);
   }, "updateInvoiceStatusAction") as unknown as void;
 }
+
+/**
+ * Hard-delete an invoice. Restricted to status='void' invoices —
+ * any other status would be silently re-writing the books, which is
+ * the bookkeeper-grade failure mode. Voiding is the canonical
+ * "I don't want this on the record" action; delete is the rarer
+ * "this was a mistake from the start, scrub it" follow-up.
+ *
+ * Cascade behavior:
+ *   - invoice_line_items get cascade-deleted (FK ON DELETE CASCADE).
+ *   - invoice_payments get cascade-deleted (same).
+ *   - time_entries.invoice_id is already NULL on void invoices
+ *     (the void-unlock trigger detached them), so they're not
+ *     touched here.
+ *   - invoices_history captures the DELETE event via the existing
+ *     audit trigger, preserving the audit trail.
+ *
+ * Used by the user's "I voided this by mistake, now I want to undo
+ * the import" flow: the undo refusal check #2 ("invoices on
+ * imported customers") doesn't excuse void invoices today, so the
+ * user has to delete the void invoice first to unblock undo.
+ */
+export async function deleteInvoiceAction(
+  formData: FormData,
+): Promise<void> {
+  return runSafeAction(
+    formData,
+    async (formData, { supabase }) => {
+      const id = formData.get("id") as string;
+      if (!id) throw new Error("Invoice id is required.");
+
+      const { data: row, error: fetchError } = await supabase
+        .from("invoices")
+        .select("team_id, status")
+        .eq("id", id)
+        .maybeSingle();
+      if (fetchError) throw fetchError;
+      if (!row) throw new Error("Invoice not found.");
+
+      const teamId = row.team_id as string;
+      const currentStatus = row.status as string;
+
+      const { role } = await validateTeamAccess(teamId);
+      if (role !== "owner" && role !== "admin") {
+        throw new Error("Only owners and admins can delete invoices.");
+      }
+
+      // Refuse delete on anything but void. A user wanting to clear
+      // a draft / sent / paid / overdue invoice should void it first
+      // (which records a status transition + actor in the history).
+      if (currentStatus !== "void") {
+        throw new Error(
+          "Only void invoices can be deleted. Void this invoice first, then delete.",
+        );
+      }
+
+      // Refuse if there are recorded payments — even on a void
+      // invoice, deleting it with payment rows attached would lose
+      // the payment audit trail. The user should first remove
+      // payments (a future surface) or accept the void as the
+      // terminal state.
+      const { count: paymentCount } = await supabase
+        .from("invoice_payments")
+        .select("id", { count: "exact", head: true })
+        .eq("invoice_id", id);
+      if ((paymentCount ?? 0) > 0) {
+        throw new Error(
+          "This invoice has recorded payments and cannot be deleted. Remove the payments first.",
+        );
+      }
+
+      assertSupabaseOk(
+        await supabase.from("invoices").delete().eq("id", id),
+      );
+
+      revalidatePath("/invoices");
+      revalidatePath("/import");
+    },
+    "deleteInvoiceAction",
+  ) as unknown as void;
+}
