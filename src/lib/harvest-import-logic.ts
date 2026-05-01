@@ -525,6 +525,9 @@ export function buildInvoiceRow(
    *  INSERT trigger's `now()` fallback. */
   paid_at: string | null;
   subtotal: number;
+  discount_amount: number;
+  discount_rate: number | null;
+  discount_reason: string | null;
   tax_rate: number;
   tax_amount: number;
   total: number;
@@ -535,13 +538,23 @@ export function buildInvoiceRow(
   import_source_id: string;
 } {
   // Harvest reports `amount` as the invoice total (incl. tax) and
-  // `tax_amount` as the tax portion — subtotal is the difference. If
-  // tax_amount is zero / missing, subtotal == total. tax_rate is stored
-  // as a percentage (e.g. 8.25 for 8.25%); Harvest's `tax` field is
-  // already in that shape, so we pass it through unchanged.
+  // `tax_amount` as the tax portion. Subtotal is computed by adding
+  // back the discount (which Harvest already deducted from `amount`)
+  // and removing tax. tax_rate is stored as a percentage (e.g. 8.25
+  // for 8.25%); Harvest's `tax` field is already in that shape, so
+  // we pass it through unchanged.
+  //
+  // Discount is the recovered piece — without it, a 100%-discount
+  // Harvest invoice imports as $0 across all four columns. With it,
+  // we get $290.40 subtotal / $290.40 discount / $0 total — the real
+  // shape an auditor needs to see.
   const total = hi.amount ?? 0;
   const taxAmount = hi.tax_amount ?? 0;
-  const subtotal = total - taxAmount;
+  const discountAmount = hi.discount_amount ?? 0;
+  const discountRate = hi.discount ?? null;
+  // subtotal = total + discount - tax (un-deduct the discount Harvest
+  // baked in, then strip the tax that's also baked in).
+  const subtotal = total + discountAmount - taxAmount;
   const taxRate = hi.tax ?? 0;
 
   // Harvest splits subject and notes; collapse them into Shyre's
@@ -567,6 +580,12 @@ export function buildInvoiceRow(
     sent_at: hi.sent_at,
     paid_at: hi.paid_at ?? hi.paid_date,
     subtotal,
+    discount_amount: discountAmount,
+    discount_rate: discountRate,
+    // Auto-tag imported discounts so a bookkeeper auditing the
+    // discount column can tell apart "user-applied" vs
+    // "imported, original reason unknown."
+    discount_reason: discountAmount > 0 ? "imported_from_harvest" : null,
     tax_rate: taxRate,
     tax_amount: taxAmount,
     total,

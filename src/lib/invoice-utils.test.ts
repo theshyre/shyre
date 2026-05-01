@@ -72,6 +72,77 @@ describe("invoice-utils", () => {
       expect(totals.taxAmount).toBe(9.07);
       expect(totals.total).toBe(119.06);
     });
+
+    describe("discount", () => {
+      it("subtracts a flat discount amount", () => {
+        const totals = calculateInvoiceTotals(lineItems, 0, { amount: 100 });
+        expect(totals.subtotal).toBe(2000);
+        expect(totals.discountAmount).toBe(100);
+        expect(totals.total).toBe(1900);
+      });
+
+      it("computes discount from a rate when amount isn't given", () => {
+        const totals = calculateInvoiceTotals(lineItems, 0, { rate: 10 });
+        expect(totals.discountRate).toBe(10);
+        expect(totals.discountAmount).toBe(200);
+        expect(totals.total).toBe(1800);
+      });
+
+      it("100% discount drops total to $0 (the user's import case)", () => {
+        // Real bug that drove this: a Harvest invoice with a 100%
+        // pro-bono discount imported as $0 across the board with no
+        // record of the discount. Now: subtotal stays, discount
+        // recorded, total = 0.
+        const totals = calculateInvoiceTotals(lineItems, 0, { rate: 100 });
+        expect(totals.subtotal).toBe(2000);
+        expect(totals.discountAmount).toBe(2000);
+        expect(totals.discountRate).toBe(100);
+        expect(totals.total).toBe(0);
+      });
+
+      it("clamps discount at subtotal — total never goes negative", () => {
+        const totals = calculateInvoiceTotals(lineItems, 0, { amount: 5000 });
+        expect(totals.discountAmount).toBe(2000);
+        expect(totals.total).toBe(0);
+      });
+
+      it("applies tax AFTER discount (US norm; matches QBO + Harvest)", () => {
+        // Subtotal 2000 - 200 discount = 1800 taxable.
+        // Tax 10% × 1800 = 180. Total = 1980 (NOT 2000 - 200 + 200).
+        const totals = calculateInvoiceTotals(lineItems, 10, { rate: 10 });
+        expect(totals.discountAmount).toBe(200);
+        expect(totals.taxAmount).toBe(180);
+        expect(totals.total).toBe(1980);
+      });
+
+      it("0% / no discount preserves prior behavior (regression)", () => {
+        const totals = calculateInvoiceTotals(lineItems, 10);
+        expect(totals.discountAmount).toBe(0);
+        expect(totals.discountRate).toBeNull();
+        expect(totals.total).toBe(2200);
+      });
+
+      it("explicit amount wins over rate when both are passed", () => {
+        const totals = calculateInvoiceTotals(lineItems, 0, {
+          amount: 50,
+          rate: 10,
+        });
+        expect(totals.discountAmount).toBe(50);
+        // discountRate stays null because the amount won — the rate
+        // wasn't the source of truth on this row.
+        expect(totals.discountRate).toBeNull();
+      });
+
+      it("rounds the rate × subtotal computation at penny boundaries", () => {
+        // 99.99 × 33% = 32.9967 — round to 33.00.
+        const items: LineItemResult[] = [
+          { description: "Work", quantity: 1, unitPrice: 99.99, amount: 99.99 },
+        ];
+        const totals = calculateInvoiceTotals(items, 0, { rate: 33 });
+        expect(totals.discountAmount).toBe(33);
+        expect(totals.total).toBe(66.99);
+      });
+    });
   });
 
   describe("generateInvoiceNumber", () => {

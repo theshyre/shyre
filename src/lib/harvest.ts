@@ -139,6 +139,15 @@ export interface HarvestInvoice {
   tax_amount: number;
   tax2: number | null;
   tax2_amount: number;
+  /** Discount percentage (0-100) when the user set a percentage on
+   *  the Harvest invoice. NULL when no discount or when the user
+   *  set a flat discount amount via the UI. */
+  discount: number | null;
+  /** Computed discount in dollars. Set whenever Harvest's invoice
+   *  carries a discount, regardless of whether `discount` (rate)
+   *  is set. Drove a real import bug: a 100%-discount invoice
+   *  imported as $0 across the board with no record. */
+  discount_amount: number;
   line_items: HarvestInvoiceLineItem[];
   created_at: string;
   updated_at: string;

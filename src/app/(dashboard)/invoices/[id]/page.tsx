@@ -277,12 +277,31 @@ export default async function InvoiceDetailPage({
 
       {/* Line items table — dimmed when void to telegraph "this is
           dead, don't act on it" without removing the audit-trail
-          numbers (bookkeepers still need to read them). */}
+          numbers (bookkeepers still need to read them). The PAID /
+          VOID watermark sits absolutely positioned inside this
+          container so it overlays the content without affecting
+          layout, mirroring the PDF treatment. */}
       <div
-        className={`mt-6 overflow-hidden rounded-lg border border-edge bg-surface-raised ${
+        className={`relative mt-6 overflow-hidden rounded-lg border border-edge bg-surface-raised ${
           isVoid ? "opacity-70" : ""
         }`}
       >
+        {(status === "paid" || status === "void") && (
+          <div
+            aria-hidden="true"
+            className="pointer-events-none absolute inset-0 flex items-center justify-center z-10"
+          >
+            <span
+              className={`select-none -rotate-12 border-4 px-7 py-2.5 rounded-md text-[3rem] font-extrabold tracking-[0.25em] opacity-30 ${
+                status === "paid"
+                  ? "border-success text-success"
+                  : "border-warning text-warning"
+              }`}
+            >
+              {status === "paid" ? "PAID" : "VOID"}
+            </span>
+          </div>
+        )}
         <table className="w-full text-body">
           <thead>
             <tr className="border-b border-edge bg-surface-inset">
@@ -375,42 +394,81 @@ export default async function InvoiceDetailPage({
           </tbody>
         </table>
 
-        {/* Totals */}
-        <div className="border-t border-edge bg-surface-inset px-4 py-3">
-          <div className="flex justify-end gap-[32px]">
-            <div className="text-right space-y-1">
-              <p className="text-body text-content-muted">
-                {t("fields.subtotal")}
-              </p>
-              <p className="text-body text-content-muted">
-                {t("fields.taxAmount")} ({Number(invoice.tax_rate)}%)
-              </p>
-              <p className="text-body font-semibold text-content">
-                {t("fields.total")}
-              </p>
+        {/* Totals — Subtotal / Discount? / Tax? / Payments? / Amount Due
+            shape mirrors what bookkeepers expect and matches the PDF.
+            The grand-total label flips to "Amount Due" when payments
+            are recorded so the user sees the actual balance owed,
+            same convention Harvest uses. */}
+        {(() => {
+          const currency = (invoice.currency as string | null) ?? undefined;
+          const paymentsTotal = (payments ?? []).reduce(
+            (sum, p) => sum + Number(p.amount ?? 0),
+            0,
+          );
+          const discountAmount = Number(invoice.discount_amount ?? 0);
+          const discountRate = invoice.discount_rate as number | null;
+          const taxRate = Number(invoice.tax_rate ?? 0);
+          const taxAmount = Number(invoice.tax_amount ?? 0);
+          const total = Number(invoice.total ?? 0);
+          const amountDue = Math.max(0, total - paymentsTotal);
+          const showPayments = paymentsTotal > 0;
+          return (
+            <div className="border-t border-edge bg-surface-inset px-4 py-3">
+              <div className="flex justify-end gap-[32px]">
+                <div className="text-right space-y-1">
+                  <p className="text-body text-content-muted">
+                    {t("fields.subtotal")}
+                  </p>
+                  {discountAmount > 0 && (
+                    <p className="text-body text-content-muted">
+                      {t("fields.discount")}
+                      {discountRate !== null && ` (${Number(discountRate)}%)`}
+                    </p>
+                  )}
+                  {taxRate > 0 && (
+                    <p className="text-body text-content-muted">
+                      {t("fields.taxAmount")} ({taxRate}%)
+                    </p>
+                  )}
+                  {showPayments && (
+                    <p className="text-body text-content-muted">
+                      {t("fields.payments")}
+                    </p>
+                  )}
+                  <p className="text-body font-semibold text-content">
+                    {showPayments ? t("fields.amountDue") : t("fields.total")}
+                  </p>
+                </div>
+                <div className="text-right space-y-1">
+                  <p className="text-body font-mono tabular-nums text-content-secondary">
+                    {formatCurrency(Number(invoice.subtotal), currency)}
+                  </p>
+                  {discountAmount > 0 && (
+                    <p className="text-body font-mono tabular-nums text-content-secondary">
+                      −{formatCurrency(discountAmount, currency)}
+                    </p>
+                  )}
+                  {taxRate > 0 && (
+                    <p className="text-body font-mono tabular-nums text-content-secondary">
+                      {formatCurrency(taxAmount, currency)}
+                    </p>
+                  )}
+                  {showPayments && (
+                    <p className="text-body font-mono tabular-nums text-content-secondary">
+                      −{formatCurrency(paymentsTotal, currency)}
+                    </p>
+                  )}
+                  <p className="text-body font-mono tabular-nums font-semibold text-content">
+                    {formatCurrency(
+                      showPayments ? amountDue : total,
+                      currency,
+                    )}
+                  </p>
+                </div>
+              </div>
             </div>
-            <div className="text-right space-y-1">
-              <p className="text-body font-mono tabular-nums text-content-secondary">
-                {formatCurrency(
-                  Number(invoice.subtotal),
-                  (invoice.currency as string | null) ?? undefined,
-                )}
-              </p>
-              <p className="text-body font-mono tabular-nums text-content-secondary">
-                {formatCurrency(
-                  Number(invoice.tax_amount),
-                  (invoice.currency as string | null) ?? undefined,
-                )}
-              </p>
-              <p className="text-body font-mono tabular-nums font-semibold text-content">
-                {formatCurrency(
-                  Number(invoice.total),
-                  (invoice.currency as string | null) ?? undefined,
-                )}
-              </p>
-            </div>
-          </div>
-        </div>
+          );
+        })()}
       </div>
 
       {/* Notes */}

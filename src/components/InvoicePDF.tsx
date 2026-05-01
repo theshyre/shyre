@@ -212,6 +212,28 @@ const styles = StyleSheet.create({
     color: ink,
   },
 
+  // Watermark stamp (PAID / VOID). Absolutely positioned so it
+  // overlays the invoice without affecting layout. Tilted, hollow
+  // outline, semi-transparent — same shape Harvest uses on its PDF.
+  stamp: {
+    position: "absolute",
+    top: 220,
+    left: 200,
+    paddingTop: 14,
+    paddingBottom: 14,
+    paddingLeft: 28,
+    paddingRight: 28,
+    borderWidth: 4,
+    borderRadius: 6,
+    transform: "rotate(-12deg)",
+    opacity: 0.35,
+  },
+  stampText: {
+    fontSize: 56,
+    fontFamily: "Helvetica-Bold",
+    letterSpacing: 6,
+  },
+
   // Notes.
   notes: {
     marginTop: 28,
@@ -240,6 +262,16 @@ export interface InvoicePDFProps {
   dueDate: string | null;
   notes: string | null;
   subtotal: number;
+  /** Status flips the watermark + the totals' grand-total label.
+   *  Defaults to draft when omitted (legacy callers). */
+  status?: string;
+  /** Dollar discount applied to this invoice. Surfaces a
+   *  "Discount" line in the totals block when > 0. */
+  discountAmount?: number;
+  /** Percentage 0-100 if the user typed a rate; null/undefined for
+   *  flat-amount discounts. Display-only — appended to the
+   *  Discount label as " (10%)". */
+  discountRate?: number | null;
   taxRate: number;
   taxAmount: number;
   total: number;
@@ -359,6 +391,9 @@ export function InvoicePDF(props: InvoicePDFProps): React.JSX.Element {
     dueDate,
     notes,
     subtotal,
+    status,
+    discountAmount = 0,
+    discountRate = null,
     taxRate,
     taxAmount,
     total,
@@ -395,9 +430,35 @@ export function InvoicePDF(props: InvoicePDFProps): React.JSX.Element {
   const amountDue = Math.max(0, total - paymentsTotal);
   const showPaymentsRollup = paymentsTotal > 0;
 
+  // Watermark stamp — PAID for paid status (or fully-paid invoices
+  // even when status is still 'sent'), VOID when voided. Skip for
+  // draft / sent / overdue: those are transient and the stamp
+  // would be misleading on a still-collectible invoice.
+  const watermark: { text: string; color: string } | null = (() => {
+    if (status === "void") return { text: "VOID", color: "#B45309" }; // warning amber
+    if (status === "paid" || (paymentsTotal >= total && total > 0)) {
+      return { text: "PAID", color: "#16A34A" }; // success green
+    }
+    return null;
+  })();
+
   return (
     <Document>
       <Page size="A4" style={styles.page}>
+        {watermark && (
+          <View
+            style={[
+              styles.stamp,
+              { borderColor: watermark.color },
+            ]}
+          >
+            <Text
+              style={[styles.stampText, { color: watermark.color }]}
+            >
+              {watermark.text}
+            </Text>
+          </View>
+        )}
         {/* Header: branded wordmark left, From block right */}
         <View style={styles.header}>
           <Text style={styles.brandMark}>
@@ -486,16 +547,26 @@ export function InvoicePDF(props: InvoicePDFProps): React.JSX.Element {
         </View>
 
         {/* Totals.
-            With recorded payments: Subtotal / Tax / Payments / Amount Due
-            Without payments:        Subtotal / Tax / Total
-            (Harvest-style "Amount Due" shifts the visual emphasis to
-            the actual outstanding balance for partially / fully paid
-            invoices.) */}
+            Order: Subtotal / Discount? / Tax? / Payments? / grand total.
+            Grand total label flips between Total / Amount Due based on
+            whether payments are present. Harvest convention; matches
+            what the web detail page renders so the user sees the same
+            shape across surfaces. */}
         <View style={styles.totalsBlock}>
           <View style={styles.totalRow}>
             <Text style={styles.totalLabel}>Subtotal</Text>
             <Text style={styles.totalValue}>{fmt(subtotal)}</Text>
           </View>
+          {discountAmount > 0 && (
+            <View style={styles.totalRow}>
+              <Text style={styles.totalLabel}>
+                {discountRate !== null && discountRate !== undefined
+                  ? `Discount (${discountRate}%)`
+                  : "Discount"}
+              </Text>
+              <Text style={styles.totalValue}>-{fmt(discountAmount)}</Text>
+            </View>
+          )}
           {taxRate > 0 && (
             <View style={styles.totalRow}>
               <Text style={styles.totalLabel}>Tax ({taxRate}%)</Text>

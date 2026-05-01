@@ -13,10 +13,13 @@ interface InvoicePdfButtonProps {
     due_date: string | null;
     notes: string | null;
     subtotal: number | null;
+    discount_amount: number | null;
+    discount_rate: number | null;
     tax_rate: number | null;
     tax_amount: number | null;
     total: number | null;
     currency: string | null;
+    status: string | null;
   };
   lineItems: Array<{
     id: string;
@@ -61,6 +64,13 @@ export function InvoicePdfButton({
         dueDate={invoice.due_date}
         notes={invoice.notes}
         subtotal={Number(invoice.subtotal ?? 0)}
+        status={invoice.status ?? undefined}
+        discountAmount={Number(invoice.discount_amount ?? 0)}
+        discountRate={
+          invoice.discount_rate !== null && invoice.discount_rate !== undefined
+            ? Number(invoice.discount_rate)
+            : null
+        }
         taxRate={Number(invoice.tax_rate ?? 0)}
         taxAmount={Number(invoice.tax_amount ?? 0)}
         total={Number(invoice.total ?? 0)}

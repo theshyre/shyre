@@ -89,8 +89,15 @@
     "notes": "Notas",
     "notesPlaceholder": "Términos de pago, notas al cliente...",
     "subtotal": "Subtotal",
+    "discount": "Descuento",
+    "discountAmount": "Importe del descuento",
+    "discountRate": "Descuento %",
+    "discountReason": "Razón del descuento",
+    "discountReasonPlaceholder": "p. ej. pro bono, ajuste, promocional...",
     "taxRate": "Tasa de Impuesto (%)",
     "taxAmount": "Impuesto",
+    "payments": "Pagos",
+    "amountDue": "Saldo a pagar",
     "total": "Total"
   },
   "lineItem": {

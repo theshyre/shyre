@@ -189,6 +189,10 @@ export function NewInvoiceForm({
   }>({ start: "", end: "" });
   const [grouping, setGrouping] = useState<InvoiceGroupingMode>("by_project");
   const [taxRate, setTaxRate] = useState<number>(defaultTaxRate);
+  // Discount: amount wins when both are entered, mirroring the
+  // server action's "explicit amount > rate" precedence.
+  const [discountRate, setDiscountRate] = useState<string>("");
+  const [discountAmount, setDiscountAmount] = useState<string>("");
 
   // Restore the user's last choices on mount. Reading localStorage
   // during render would mismatch hydration (server has no
@@ -257,9 +261,17 @@ export function NewInvoiceForm({
     [filtered, grouping],
   );
 
+  const discountForCalc = useMemo(() => {
+    const amt = parseFloat(discountAmount);
+    if (Number.isFinite(amt) && amt > 0) return { amount: amt };
+    const rt = parseFloat(discountRate);
+    if (Number.isFinite(rt) && rt > 0) return { rate: rt };
+    return {};
+  }, [discountAmount, discountRate]);
+
   const totals = useMemo(
-    () => calculateInvoiceTotals(lines, taxRate),
-    [lines, taxRate],
+    () => calculateInvoiceTotals(lines, taxRate, discountForCalc),
+    [lines, taxRate, discountForCalc],
   );
 
   // Inferred period bounds for display — even when "All" is picked,
@@ -365,6 +377,61 @@ export function NewInvoiceForm({
                 />
               </div>
             </div>
+            {/* Discount — collapsed by default since most invoices
+                don't have one. Fields don't live in the main grid
+                because they're a tightly-coupled trio (rate / amount /
+                reason) and the user shouldn't have to scan around to
+                find them. */}
+            <details className="border-t border-edge pt-3">
+              <summary className="cursor-pointer text-body text-content-secondary hover:text-content">
+                {t("fields.discount")}
+              </summary>
+              <div className={`${formGridClass} mt-3`}>
+                <div className={formSpanQuarter}>
+                  <label className={labelClass}>
+                    {t("fields.discountRate")}
+                  </label>
+                  <input
+                    name="discount_rate"
+                    type="number"
+                    step="0.01"
+                    min="0"
+                    max="100"
+                    value={discountRate}
+                    onChange={(e) => setDiscountRate(e.target.value)}
+                    className={inputClass}
+                    placeholder="0"
+                  />
+                </div>
+                <div className={formSpanQuarter}>
+                  <label className={labelClass}>
+                    {t("fields.discountAmount")}
+                  </label>
+                  <input
+                    name="discount_amount"
+                    type="number"
+                    step="0.01"
+                    min="0"
+                    value={discountAmount}
+                    onChange={(e) => setDiscountAmount(e.target.value)}
+                    className={inputClass}
+                    placeholder="0.00"
+                  />
+                </div>
+                <div className={formSpanHalf}>
+                  <label className={labelClass}>
+                    {t("fields.discountReason")}
+                  </label>
+                  <input
+                    name="discount_reason"
+                    type="text"
+                    maxLength={200}
+                    className={inputClass}
+                    placeholder={t("fields.discountReasonPlaceholder")}
+                  />
+                </div>
+              </div>
+            </details>
           </section>
 
           <section className="rounded-lg border border-edge bg-surface-raised p-4 space-y-3">
@@ -607,6 +674,18 @@ export function NewInvoiceForm({
                     {formatCurrency(totals.subtotal)}
                   </span>
                 </div>
+                {totals.discountAmount > 0 && (
+                  <div className="flex justify-between text-body">
+                    <span className="text-content-muted">
+                      {t("fields.discount")}
+                      {totals.discountRate !== null &&
+                        ` (${totals.discountRate}%)`}
+                    </span>
+                    <span className="font-mono tabular-nums">
+                      −{formatCurrency(totals.discountAmount)}
+                    </span>
+                  </div>
+                )}
                 {taxRate > 0 && (
                   <div className="flex justify-between text-body">
                     <span className="text-content-muted">

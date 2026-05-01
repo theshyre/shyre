@@ -1339,6 +1339,8 @@ const baseInvoice: HarvestInvoice = {
   tax_amount: 83,
   tax2: null,
   tax2_amount: 0,
+  discount: null,
+  discount_amount: 0,
   line_items: [],
   created_at: "2024-07-01",
   updated_at: "2024-07-10",
@@ -1409,6 +1411,59 @@ describe("buildInvoiceRow", () => {
     const row = buildInvoiceRow(baseInvoice, "cust-1", ctx);
     expect(row.sent_at).toBe("2024-07-01T10:00:00Z");
     expect(row.paid_at).toBe("2024-07-10T10:00:00Z");
+  });
+
+  it("preserves a 100%-discount invoice: subtotal stays, discount recorded, total = 0", () => {
+    // Real bug: a Harvest invoice with a 100% pro-bono discount
+    // imported as $0 across the board, losing the discount entirely.
+    // The auditor needs to see "billed $290.40, discounted -$290.40,
+    // total $0", not three zeros.
+    const row = buildInvoiceRow(
+      {
+        ...baseInvoice,
+        amount: 0,
+        tax_amount: 0,
+        tax: 0,
+        discount: 100,
+        discount_amount: 290.4,
+      },
+      "cust-1",
+      ctx,
+    );
+    expect(row.subtotal).toBe(290.4);
+    expect(row.discount_amount).toBe(290.4);
+    expect(row.discount_rate).toBe(100);
+    expect(row.discount_reason).toBe("imported_from_harvest");
+    expect(row.total).toBe(0);
+  });
+
+  it("preserves a partial-discount invoice with tax", () => {
+    // Subtotal $1000, 10% discount = $100 off, taxable $900 × 8.3% = $74.70.
+    // Harvest reports `amount` as the final total ($974.70) and the
+    // discount/tax amounts separately. We rebuild subtotal from those.
+    const row = buildInvoiceRow(
+      {
+        ...baseInvoice,
+        amount: 974.7,
+        tax: 8.3,
+        tax_amount: 74.7,
+        discount: 10,
+        discount_amount: 100,
+      },
+      "cust-1",
+      ctx,
+    );
+    expect(row.subtotal).toBe(1000);
+    expect(row.discount_amount).toBe(100);
+    expect(row.discount_rate).toBe(10);
+    expect(row.tax_amount).toBe(74.7);
+    expect(row.total).toBe(974.7);
+  });
+
+  it("no-discount invoices keep discount_reason null (no false-positive audit tag)", () => {
+    const row = buildInvoiceRow(baseInvoice, "cust-1", ctx);
+    expect(row.discount_amount).toBe(0);
+    expect(row.discount_reason).toBeNull();
   });
 
   it("falls back to paid_date when paid_at is null", () => {

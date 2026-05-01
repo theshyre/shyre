@@ -41,6 +41,30 @@ export async function createInvoiceAction(formData: FormData): Promise<void> {
     const due_date = (formData.get("due_date") as string) || null;
     const taxRateStr = formData.get("tax_rate") as string;
     const taxRate = taxRateStr ? parseFloat(taxRateStr) : 0;
+    // Discount: form may submit either a rate OR an amount. Both
+    // resolve into a dollar value at calculateInvoiceTotals. Rate
+    // is preserved on the row only when the user actually entered
+    // one (display-only — discount_amount is the reconciliation
+    // source of truth).
+    const discountRateStr = formData.get("discount_rate") as string | null;
+    const discountAmountStr = formData.get("discount_amount") as
+      | string
+      | null;
+    const discountReason =
+      ((formData.get("discount_reason") as string) || "").trim() || null;
+    const discount: { amount?: number; rate?: number } = {};
+    if (discountAmountStr && discountAmountStr.trim()) {
+      const v = parseFloat(discountAmountStr);
+      if (!Number.isNaN(v) && v > 0) discount.amount = v;
+    }
+    if (
+      discount.amount === undefined &&
+      discountRateStr &&
+      discountRateStr.trim()
+    ) {
+      const v = parseFloat(discountRateStr);
+      if (!Number.isNaN(v) && v > 0) discount.rate = v;
+    }
 
     // Date-range filter for billable hours. Both bounds optional;
     // when omitted the action falls back to the legacy "all
@@ -186,7 +210,7 @@ export async function createInvoiceAction(formData: FormData): Promise<void> {
     // runs in the browser, so the user's pre-submit total matches
     // the posted invoice to the cent.
     const groupedLines = groupEntriesIntoLineItems(candidates, grouping_mode);
-    const totals = calculateInvoiceTotals(groupedLines, taxRate);
+    const totals = calculateInvoiceTotals(groupedLines, taxRate, discount);
     const invoiceNumber = generateInvoiceNumber(prefix, nextNum);
 
     // period_start / period_end: prefer the form-supplied bounds when
@@ -212,6 +236,9 @@ export async function createInvoiceAction(formData: FormData): Promise<void> {
           due_date: due_date || null,
           status: "draft",
           subtotal: totals.subtotal,
+          discount_amount: totals.discountAmount,
+          discount_rate: totals.discountRate,
+          discount_reason: discountReason,
           tax_rate: totals.taxRate,
           tax_amount: totals.taxAmount,
           total: totals.total,
