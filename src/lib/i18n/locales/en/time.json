@@ -212,7 +212,11 @@
     "entriesDeleted": "{count, plural, one {# entry} other {# entries}} moved to trash",
     "undo": "Undo",
     "timerStarted": "Timer started",
-    "timerStopped": "Timer stopped"
+    "timerStopped": "Timer stopped",
+    "duplicateFailed": "Couldn't duplicate the entry.",
+    "timerStartFailed": "Couldn't start the timer.",
+    "timerStopFailed": "Couldn't stop the timer.",
+    "deleteFailed": "Couldn't delete the entry."
   },
   "trash": {
     "title": "Trash",

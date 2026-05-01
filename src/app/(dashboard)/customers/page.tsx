@@ -3,6 +3,7 @@ import { createClient } from "@/lib/supabase/server";
 import { getUserTeams } from "@/lib/team-context";
 import { getTranslations } from "next-intl/server";
 import Link from "next/link";
+import { tableClass } from "@/lib/table-styles";
 
 export async function generateMetadata(): Promise<Metadata> {
   const t = await getTranslations("customers");
@@ -113,7 +114,7 @@ export default async function ClientsPage({
 
       {customers && customers.length > 0 ? (
         <div className="mt-6 overflow-hidden rounded-lg border border-edge bg-surface-raised">
-          <table className="w-full text-sm">
+          <table className={tableClass}>
             <thead>
               <tr className="border-b border-edge bg-surface-inset">
                 <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider text-content-muted">

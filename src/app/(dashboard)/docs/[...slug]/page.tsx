@@ -6,6 +6,7 @@ import fs from "fs/promises";
 import path from "path";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
+import { tableClass } from "@/lib/table-styles";
 
 export async function generateMetadata({
   params,
@@ -173,7 +174,7 @@ export default async function DocPage({
             ),
             table: (props) => (
               <div className="my-4 overflow-x-auto rounded-lg border border-edge">
-                <table {...props} className="w-full text-sm" />
+                <table {...props} className={tableClass} />
               </div>
             ),
             thead: (props) => <thead {...props} className="bg-surface-inset" />,

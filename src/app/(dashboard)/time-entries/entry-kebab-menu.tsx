@@ -5,6 +5,7 @@ import { createPortal } from "react-dom";
 import { useTranslations } from "next-intl";
 import { MoreVertical, Pencil, Play, Square, Copy, Trash2 } from "lucide-react";
 import { useToast } from "@/components/Toast";
+import { assertActionResult } from "@/lib/action-result";
 import { notifyTimerChanged } from "@/lib/timer-events";
 import { localDayBoundsIso } from "@/lib/local-day-bounds";
 import {
@@ -84,11 +85,40 @@ export function EntryKebabMenu({ entry, onEdit }: Props): React.JSX.Element {
     };
   }, [open]);
 
+  // Wrap the action call so a server-side failure surfaces as a
+  // visible toast instead of a silent no-op. runSafeAction returns
+  // { success, error } rather than throwing, so a bare await
+  // resolves on failure too — the user wouldn't know nothing
+  // happened. assertActionResult reads the result and throws.
+  async function runWithToast(
+    promise: Promise<unknown>,
+    successMessage: string | null,
+    failureMessage: string,
+    onSuccess?: () => void,
+  ): Promise<void> {
+    try {
+      await assertActionResult(promise);
+      if (successMessage) {
+        toast.push({ kind: "success", message: successMessage });
+      }
+      onSuccess?.();
+    } catch (err) {
+      toast.push({
+        kind: "error",
+        message: err instanceof Error ? err.message : failureMessage,
+      });
+    }
+  }
+
   async function handleDuplicate(): Promise<void> {
     setPending(true);
     const fd = new FormData();
     fd.set("id", entry.id);
-    await duplicateTimeEntryAction(fd);
+    await runWithToast(
+      duplicateTimeEntryAction(fd),
+      null,
+      tToast("duplicateFailed"),
+    );
     setPending(false);
     setOpen(false);
   }
@@ -106,9 +136,12 @@ export function EntryKebabMenu({ entry, onEdit }: Props): React.JSX.Element {
     const [dayStart, dayEnd] = localDayBoundsIso();
     fd.set("day_start_iso", dayStart);
     fd.set("day_end_iso", dayEnd);
-    await startTimerAction(fd);
-    notifyTimerChanged();
-    toast.push({ kind: "success", message: tToast("timerStarted") });
+    await runWithToast(
+      startTimerAction(fd),
+      tToast("timerStarted"),
+      tToast("timerStartFailed"),
+      notifyTimerChanged,
+    );
     setPending(false);
     setOpen(false);
   }
@@ -119,9 +152,12 @@ export function EntryKebabMenu({ entry, onEdit }: Props): React.JSX.Element {
     setPending(true);
     const fd = new FormData();
     fd.set("id", entry.id);
-    await stopTimerAction(fd);
-    notifyTimerChanged();
-    toast.push({ kind: "success", message: tToast("timerStopped") });
+    await runWithToast(
+      stopTimerAction(fd),
+      tToast("timerStopped"),
+      tToast("timerStopFailed"),
+      notifyTimerChanged,
+    );
     setPending(false);
     setOpen(false);
   }
@@ -130,7 +166,11 @@ export function EntryKebabMenu({ entry, onEdit }: Props): React.JSX.Element {
     setPending(true);
     const fd = new FormData();
     fd.set("id", entry.id);
-    await deleteTimeEntryAction(fd);
+    await runWithToast(
+      deleteTimeEntryAction(fd),
+      null,
+      tToast("deleteFailed"),
+    );
     setPending(false);
     setOpen(false);
     setConfirmDelete(false);

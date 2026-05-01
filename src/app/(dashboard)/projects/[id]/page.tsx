@@ -3,6 +3,7 @@ import { createClient } from "@/lib/supabase/server";
 import { getTranslations } from "next-intl/server";
 import { notFound } from "next/navigation";
 import { Clock, Hash, ExternalLink, FolderKanban } from "lucide-react";
+import { tableClass } from "@/lib/table-styles";
 
 export async function generateMetadata({
   params,
@@ -210,7 +211,7 @@ export default async function ProjectDetailPage({
             </h2>
           </div>
           <div className="mt-3 overflow-hidden rounded-lg border border-edge bg-surface-raised">
-            <table className="w-full text-sm">
+            <table className={tableClass}>
               <thead>
                 <tr className="border-b border-edge bg-surface-inset">
                   <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider text-content-muted">

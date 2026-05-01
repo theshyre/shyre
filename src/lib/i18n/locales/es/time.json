@@ -212,7 +212,11 @@
     "entriesDeleted": "{count, plural, one {# entrada movida a la papelera} other {# entradas movidas a la papelera}}",
     "undo": "Deshacer",
     "timerStarted": "Cronómetro iniciado",
-    "timerStopped": "Cronómetro detenido"
+    "timerStopped": "Cronómetro detenido",
+    "duplicateFailed": "No se pudo duplicar la entrada.",
+    "timerStartFailed": "No se pudo iniciar el cronómetro.",
+    "timerStopFailed": "No se pudo detener el cronómetro.",
+    "deleteFailed": "No se pudo eliminar la entrada."
   },
   "trash": {
     "title": "Papelera",

@@ -3,6 +3,7 @@ import { requireSystemAdmin } from "@/lib/system-admin";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { Users, Crown } from "lucide-react";
 import { formatDate } from "@theshyre/ui";
+import { tableClass } from "@/lib/table-styles";
 
 export const metadata: Metadata = { title: "Admin · Users" };
 
@@ -48,7 +49,7 @@ export default async function AdminUsersPage(): Promise<React.JSX.Element> {
       </div>
 
       <div className="mt-6 overflow-hidden rounded-lg border border-edge bg-surface-raised">
-        <table className="w-full text-sm">
+        <table className={tableClass}>
           <thead>
             <tr className="border-b border-edge bg-surface-inset">
               <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider text-content-muted">

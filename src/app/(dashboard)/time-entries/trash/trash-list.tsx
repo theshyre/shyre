@@ -9,6 +9,8 @@ import {
 } from "../actions";
 import { InlineDeleteButton } from "@/components/InlineDeleteButton";
 import { useToast } from "@/components/Toast";
+import { assertActionResult } from "@/lib/action-result";
+import { tableClass } from "@/lib/table-styles";
 
 interface TrashEntry {
   id: string;
@@ -38,7 +40,7 @@ export function TrashList({ entries, formatDuration }: Props): React.JSX.Element
     fd.set("id", id);
     startTransition(async () => {
       try {
-        await restoreTimeEntryAction(fd);
+        await assertActionResult(restoreTimeEntryAction(fd));
         toast.push({ kind: "success", message: t("restoredToast") });
       } catch (err) {
         toast.push({
@@ -53,7 +55,7 @@ export function TrashList({ entries, formatDuration }: Props): React.JSX.Element
     const fd = new FormData();
     fd.set("id", id);
     try {
-      await permanentlyDeleteTimeEntryAction(fd);
+      await assertActionResult(permanentlyDeleteTimeEntryAction(fd));
       toast.push({ kind: "success", message: t("permanentlyDeletedToast") });
     } catch (err) {
       toast.push({
@@ -65,7 +67,7 @@ export function TrashList({ entries, formatDuration }: Props): React.JSX.Element
 
   return (
     <div className="rounded-lg border border-edge bg-surface-raised overflow-hidden">
-      <table className="w-full text-sm">
+      <table className={tableClass}>
         <thead>
           <tr className="border-b border-edge bg-surface-inset">
             <th className="px-4 py-2 text-left text-[10px] font-semibold uppercase tracking-wider text-content-muted">
