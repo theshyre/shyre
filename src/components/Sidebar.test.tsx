@@ -98,44 +98,24 @@ describe("Sidebar", () => {
     ).not.toBeInTheDocument();
   });
 
-  it("renders profile identity that links to /profile", () => {
+  it("renders the profile-popover trigger with the user's display name", () => {
+    // Sidebar footer was restructured: profile + controls + docs +
+    // sign-out + version collapsed into a single popover trigger
+    // anchored on the avatar row. The trigger button is what's
+    // visible in the closed state.
     renderWithIntl(<Sidebar {...defaults} />);
-    const profileLink = screen.getByRole("link", { name: /your profile/i });
-    expect(profileLink).toHaveAttribute("href", "/profile");
-    expect(profileLink).toHaveTextContent("Marcus");
-    expect(profileLink).toHaveTextContent("marcus@malcom.io");
+    const trigger = screen.getByRole("button", { name: /your profile/i });
+    expect(trigger).toBeInTheDocument();
+    expect(trigger).toHaveTextContent("Marcus");
+    expect(trigger.getAttribute("aria-haspopup")).toBe("menu");
   });
 
-  it("renders text-size switcher + theme popover trigger in the footer", () => {
+  it("links the brand row to / and exposes the version via tooltip", () => {
+    // Brand row replaced the standalone version footer + tagline
+    // line. Tagline is gone (~16px back); version is reachable via
+    // the brand-row tooltip when needed.
     renderWithIntl(<Sidebar {...defaults} />);
-    // Three A buttons = text size
-    expect(
-      screen.getByRole("radio", { name: /compact/i }),
-    ).toBeInTheDocument();
-    expect(
-      screen.getByRole("radio", { name: /regular/i, checked: true }),
-    ).toBeInTheDocument();
-    expect(
-      screen.getByRole("radio", { name: /^large$/i }),
-    ).toBeInTheDocument();
-    // Theme popover trigger
-    expect(
-      screen.getByRole("button", { name: /theme/i }),
-    ).toBeInTheDocument();
-  });
-
-  it("renders documentation link and sign-out button", () => {
-    renderWithIntl(<Sidebar {...defaults} />);
-    expect(
-      screen.getByRole("link", { name: /documentation/i }),
-    ).toBeInTheDocument();
-    expect(
-      screen.getByRole("button", { name: /sign out/i }),
-    ).toBeInTheDocument();
-  });
-
-  it("renders the version string from NEXT_PUBLIC_APP_VERSION", () => {
-    renderWithIntl(<Sidebar {...defaults} />);
-    expect(screen.getByText(/shyre v0\.1\.0/i)).toBeInTheDocument();
+    const brandLink = screen.getByRole("link", { name: /shyre/i });
+    expect(brandLink).toHaveAttribute("href", "/");
   });
 });

@@ -6,18 +6,15 @@ import { useTranslations } from "next-intl";
 import { createClient } from "@/lib/supabase/client";
 import {
   LayoutDashboard,
-  LogOut,
-  BookOpen,
   ShieldAlert,
   Building2,
 } from "lucide-react";
 import type { ComponentType } from "react";
 import Timer from "./Timer";
-import { Avatar } from "./Avatar";
 import { LinkPendingSpinner } from "./LinkPendingSpinner";
-import { TextSizeSwitcher } from "./TextSizeSwitcher";
-import { ThemePickerPopover } from "./ThemePickerPopover";
+import { Tooltip } from "./Tooltip";
 import { Logo } from "./Logo";
+import { ProfilePopover } from "./ProfilePopover";
 import { navItemsForSection } from "@/lib/modules/registry";
 
 interface NavItem {
@@ -207,18 +204,27 @@ export default function Sidebar({
 
   return (
     <aside className="flex h-full w-[256px] flex-col border-r border-edge bg-surface-raised">
-      {/* Platform brand */}
-      <div className="flex items-center gap-3 px-4 py-3 border-b border-edge">
-        <Logo size={32} className="text-accent shrink-0" />
-        <div className="min-w-0">
-          <p className="text-body-lg font-bold text-content tracking-wide leading-tight">
+      {/* Platform brand. The previous version had a marketing tagline
+          ("Run your consulting business") under the wordmark — useful
+          on first impression, dead weight on every page after, and
+          ate ~16px in the bottom-chrome budget. Build version is
+          available via the logo tooltip for users who need it. */}
+      <Tooltip
+        label={
+          version ? `${t("appName")} v${version}` : t("appName")
+        }
+      >
+        <Link
+          href="/"
+          aria-label={t("appName")}
+          className="flex items-center gap-3 px-4 py-3 border-b border-edge hover:bg-hover transition-colors"
+        >
+          <Logo size={28} className="text-accent shrink-0" />
+          <span className="text-body-lg font-bold text-content tracking-wide">
             {t("appName")}
-          </p>
-          <p className="text-caption text-content-muted leading-tight">
-            {t("appTagline")}
-          </p>
-        </div>
-      </div>
+          </span>
+        </Link>
+      </Tooltip>
 
       {/* Main nav. Three labeled groups (Work / Setup / System) so a
           user landing on any page knows which area they're in without
@@ -310,68 +316,26 @@ export default function Sidebar({
         </Link>
       )}
 
-      <Link
-        href="/profile"
-        aria-label={t("nav.profile")}
-        className={`group px-4 py-3 border-t border-edge transition-colors hover:bg-hover ${
-          isItemActive("/profile") ? "bg-accent-soft" : ""
-        }`}
-      >
-        <div className="flex items-center gap-3">
-          <Avatar
-            avatarUrl={avatarUrl ?? null}
-            displayName={displayName}
-            size={32}
-          />
-          <div className="min-w-0 flex-1">
-            <p className="text-body-lg font-semibold text-content truncate">
-              {displayName}
-            </p>
-            <p className="text-caption text-content-muted truncate">{email}</p>
-          </div>
-          <LinkPendingSpinner />
-        </div>
-      </Link>
-
-      {/* Controls row: text size + theme (language deferred — request.ts
-          still hardcodes locale, so a picker would be a placebo). */}
-      <div className="flex items-center justify-between gap-2 px-4 py-2 border-t border-edge">
-        <TextSizeSwitcher dense />
-        <ThemePickerPopover />
+      {/* Single-row profile + popover trigger. The avatar row used to
+          carry a two-line block (display name + email) and was
+          followed by separate rows for text-size, theme picker, docs,
+          sign-out, and version footer. That stack ate ~140px of
+          bottom chrome and pushed nav items off-screen on smaller
+          laptops. Collapsed into one row + a popover keyed off the
+          avatar following the standard "GitHub / Linear / Notion"
+          pattern: avatar opens a menu with the rare actions. The
+          email is now reachable via the tooltip on the avatar. */}
+      <div className="border-t border-edge">
+        <ProfilePopover
+          displayName={displayName}
+          email={email}
+          avatarUrl={avatarUrl ?? null}
+          userId={userId}
+          isProfileActive={isItemActive("/profile")}
+          isDocsActive={isItemActive("/docs")}
+          onSignOut={handleSignOut}
+        />
       </div>
-
-      {/* Docs + sign out */}
-      <div className="border-t border-edge px-3 py-2 space-y-0.5">
-        <Link
-          href="/docs"
-          className={`flex items-center gap-3 rounded-lg px-3 py-2 text-body font-medium transition-colors ${
-            isItemActive("/docs")
-              ? "bg-accent-soft text-accent-text"
-              : "text-content-muted hover:bg-hover hover:text-content"
-          }`}
-        >
-          <BookOpen size={16} className="shrink-0" />
-          <span className="flex-1">{t("nav.docs")}</span>
-          <LinkPendingSpinner />
-        </Link>
-        <button
-          type="button"
-          onClick={handleSignOut}
-          className="flex w-full items-center gap-3 rounded-lg px-3 py-2 text-body font-medium text-content-muted hover:bg-hover hover:text-content transition-colors"
-        >
-          <LogOut size={16} className="shrink-0" />
-          <span className="flex-1 text-left">{t("actions.signOut")}</span>
-        </button>
-      </div>
-
-      {/* Version — build-time from package.json via next.config.ts */}
-      {version && (
-        <div className="border-t border-edge px-4 py-2 text-center">
-          <span className="text-caption text-content-muted">
-            {t("appVersion", { version })}
-          </span>
-        </div>
-      )}
     </aside>
   );
 }
