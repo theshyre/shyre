@@ -55,6 +55,10 @@
         "title": "No matching entries.",
         "help": "Adjust the date range or pick a different client.",
         "clearFilters": "Clear filters"
+      },
+      "orphans": {
+        "message": "{count, plural, =1 {1 uninvoiced entry sits outside this date range — likely a stragger from before the last invoice.} other {# uninvoiced entries sit outside this date range — likely straggers from before the last invoice.}}",
+        "switchToAll": "Switch to All uninvoiced"
       }
     }
   },

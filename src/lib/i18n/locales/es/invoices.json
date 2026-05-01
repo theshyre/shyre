@@ -55,6 +55,10 @@
         "title": "No hay registros coincidentes.",
         "help": "Ajusta el rango de fechas o elige otro cliente.",
         "clearFilters": "Limpiar filtros"
+      },
+      "orphans": {
+        "message": "{count, plural, =1 {1 entrada sin facturar queda fuera de este rango — probablemente una rezagada de antes de la última factura.} other {# entradas sin facturar quedan fuera de este rango — probablemente rezagadas de antes de la última factura.}}",
+        "switchToAll": "Cambiar a Todas no facturadas"
       }
     }
   },

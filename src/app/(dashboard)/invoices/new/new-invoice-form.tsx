@@ -282,6 +282,22 @@ export function NewInvoiceForm({
     [filtered],
   );
 
+  // Safety net: when a date filter is active for the selected customer,
+  // count uninvoiced entries that the filter excludes — those are
+  // typically orphans (forgotten entries from before the last
+  // invoice's period_end). Surfaced as a warning so the user can
+  // notice + widen if they want, instead of silently leaving money
+  // on the table.
+  const orphanedByFilter = useMemo(() => {
+    if (!range.start && !range.end) return 0;
+    return candidates.filter((c) => {
+      if (customerId && c.customerId !== customerId) return false;
+      if (range.start && c.date && c.date < range.start) return true;
+      if (range.end && c.date && c.date > range.end) return true;
+      return false;
+    }).length;
+  }, [candidates, customerId, range.start, range.end]);
+
   return (
     <form
       action={handleSubmit}
@@ -565,6 +581,23 @@ export function NewInvoiceForm({
                   </div>
                 )}
               </div>
+
+              {orphanedByFilter > 0 && (
+                <div className="rounded-md border border-warning/40 bg-warning-soft/30 p-2.5 text-caption text-content-secondary">
+                  <p>
+                    {tNew("preview.orphans.message", {
+                      count: orphanedByFilter,
+                    })}
+                  </p>
+                  <button
+                    type="button"
+                    onClick={() => setPreset("all")}
+                    className="mt-1 text-accent hover:underline"
+                  >
+                    {tNew("preview.orphans.switchToAll")}
+                  </button>
+                </div>
+              )}
               <div className="border-t border-edge pt-3 space-y-1.5">
                 <div className="flex justify-between text-body">
                   <span className="text-content-muted">
