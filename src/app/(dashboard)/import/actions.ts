@@ -195,10 +195,32 @@ export async function undoImportRunAction(
       }
     }
 
-    // Delete in FK order: time_entries → categories → category_sets →
-    // projects → invoices (cascades to invoice_line_items) → customers.
-    // Plus: expenses, which the CSV importer writes to directly. Each
-    // delete scopes by team_id too, so even a leaked run_id can't
+    // Delete order matters: invoices BEFORE projects so the
+    // time_entries.invoice_id FK SET NULL clears the lock-guard
+    // trigger before the project cascade kicks in. The previous
+    // order was projects → invoices, which meant project deletion
+    // cascade-deleted invoiced time entries; the lock-guard
+    // trigger then refused the cascade because the linked invoice
+    // was still in 'sent'/'paid' (not yet deleted by us). User
+    // hit this on a force-undo where the import had created
+    // an invoice the entries were tied to.
+    //
+    // Final order:
+    //   1. expenses  (orphan-safe)
+    //   2. time_entries  (rows tagged with this import_run_id;
+    //                     pre-undoes the lock-guard's "invoiced"
+    //                     check by removing entries we own)
+    //   3. invoices  (FK SET NULL on remaining time_entries +
+    //                 cascade to invoice_line_items / invoice_payments)
+    //   4. categories
+    //   5. category_sets
+    //   6. projects  (CASCADE may now eat manual time entries
+    //                 with invoiced=true / invoice_id=NULL — the
+    //                 lock-guard's `OR invoice_id IS NULL` short-
+    //                 circuits, so the cascade succeeds)
+    //   7. customers
+    //
+    // Each delete still scopes by team_id so a leaked run_id can't
     // touch another team.
     assertSupabaseOk(
       await supabase
@@ -210,6 +232,13 @@ export async function undoImportRunAction(
     assertSupabaseOk(
       await supabase
         .from("time_entries")
+        .delete()
+        .eq("team_id", teamId)
+        .eq("import_run_id", runId),
+    );
+    assertSupabaseOk(
+      await supabase
+        .from("invoices")
         .delete()
         .eq("team_id", teamId)
         .eq("import_run_id", runId),
@@ -230,13 +259,6 @@ export async function undoImportRunAction(
     assertSupabaseOk(
       await supabase
         .from("projects")
-        .delete()
-        .eq("team_id", teamId)
-        .eq("import_run_id", runId),
-    );
-    assertSupabaseOk(
-      await supabase
-        .from("invoices")
         .delete()
         .eq("team_id", teamId)
         .eq("import_run_id", runId),

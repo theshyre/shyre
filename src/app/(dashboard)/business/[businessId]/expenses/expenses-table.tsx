@@ -12,6 +12,7 @@ import { Check } from "lucide-react";
 import { useToast } from "@/components/Toast";
 import { Tooltip } from "@/components/Tooltip";
 import { InlineDeleteRowConfirm } from "@/components/InlineDeleteRowConfirm";
+import { assertActionResult } from "@/lib/action-result";
 import {
   bulkDeleteExpensesAction,
   bulkRestoreExpensesAction,
@@ -233,7 +234,7 @@ export function ExpensesTable({
       fd.set("scope", "filters");
       fd.set("businessId", businessId);
       appendFilterParams(fd, filters);
-      await bulkDeleteExpensesAction(fd);
+      await assertActionResult(bulkDeleteExpensesAction(fd));
       setSelectedIds(new Set());
       setSelectAllMatching(false);
       toast.push({
