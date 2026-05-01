@@ -18,7 +18,7 @@
     "budgetHours": "Budget Hours",
     "githubRepo": "GitHub Repo",
     "githubRepoPlaceholder": "owner/repo",
-    "githubRepoHint": "Bare #123 in a time-entry description resolves to this repo.",
+    "githubRepoHint": "Use the short form (e.g. theshyre/shyre) or paste a full GitHub URL — both work. A bare #123 in a time-entry description then resolves to this repo.",
     "jiraProjectKey": "Jira project key",
     "jiraProjectKeyPlaceholder": "PROJ",
     "jiraProjectKeyHint": "Used to build issue URLs like {base}/browse/{key}-123.",

@@ -18,7 +18,7 @@
     "budgetHours": "Horas presupuestadas",
     "githubRepo": "Repositorio GitHub",
     "githubRepoPlaceholder": "propietario/repo",
-    "githubRepoHint": "#123 en una descripción de tiempo se resuelve a este repo.",
+    "githubRepoHint": "Forma corta (ej. theshyre/shyre) o pega la URL completa de GitHub — ambas funcionan. #123 en la descripción de una entrada se resuelve a este repo.",
     "jiraProjectKey": "Clave de proyecto Jira",
     "jiraProjectKeyPlaceholder": "PROJ",
     "jiraProjectKeyHint": "Usada para construir URLs de issues como {base}/browse/{key}-123.",

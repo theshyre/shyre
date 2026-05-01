@@ -4,6 +4,7 @@ import { runSafeAction } from "@/lib/safe-action";
 import { assertSupabaseOk } from "@/lib/errors";
 import { validateTeamAccess } from "@/lib/team-context";
 import { revalidatePath } from "next/cache";
+import { normalizeGithubRepo } from "@/lib/projects/normalize";
 
 /** Atlassian project keys are uppercase 2+ chars, letters/digits.
  *  Normalize for symmetry with the detection regex in
@@ -33,7 +34,7 @@ export async function createProjectAction(formData: FormData): Promise<void> {
     const hourly_rate = rateStr ? parseFloat(rateStr) : null;
     const budgetStr = formData.get("budget_hours") as string;
     const budget_hours = budgetStr ? parseFloat(budgetStr) : null;
-    const github_repo = (formData.get("github_repo") as string) || null;
+    const github_repo = normalizeGithubRepo(formData.get("github_repo"));
     const jira_project_key = normalizeJiraKey(formData.get("jira_project_key"));
     const category_set_id = (formData.get("category_set_id") as string) || null;
     const require_timestamps = formData.get("require_timestamps") === "on";
@@ -66,7 +67,7 @@ export async function updateProjectAction(formData: FormData): Promise<void> {
     const description = (formData.get("description") as string) || null;
     const budgetStr = formData.get("budget_hours") as string;
     const budget_hours = budgetStr ? parseFloat(budgetStr) : null;
-    const github_repo = (formData.get("github_repo") as string) || null;
+    const github_repo = normalizeGithubRepo(formData.get("github_repo"));
     const jira_project_key = normalizeJiraKey(formData.get("jira_project_key"));
     const status = formData.get("status") as string;
     const category_set_id = (formData.get("category_set_id") as string) || null;
