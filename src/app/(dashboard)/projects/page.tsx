@@ -14,11 +14,43 @@ import { getVisibleCategorySets } from "@/lib/categories/queries";
 import { NewProjectForm } from "./new-project-form";
 import { parseListPagination } from "@/lib/pagination/list-pagination";
 import { PaginationFooter } from "@/components/PaginationFooter";
+import { SortableTableHeader } from "@/components/SortableTableHeader";
+import {
+  tableClass,
+  tableHeaderCellClass,
+  tableHeaderRowClass,
+  tableBodyRowClass,
+  tableBodyCellClass,
+  tableWrapperClass,
+} from "@/lib/table-styles";
+
+// Whitelist for sort keys — gates URL input before it reaches the
+// query builder. Everything else falls back to the default.
+const ALLOWED_SORTS = ["name", "hourly_rate", "status", "created_at"] as const;
+type SortKey = (typeof ALLOWED_SORTS)[number];
+const DEFAULT_SORT: SortKey = "name";
+
+function parseSort(
+  raw: string | undefined,
+): SortKey {
+  return (ALLOWED_SORTS as readonly string[]).includes(raw ?? "")
+    ? (raw as SortKey)
+    : DEFAULT_SORT;
+}
+
+function parseDir(raw: string | undefined): "asc" | "desc" {
+  return raw === "desc" ? "desc" : "asc";
+}
 
 export default async function ProjectsPage({
   searchParams,
 }: {
-  searchParams: Promise<{ org?: string; limit?: string }>;
+  searchParams: Promise<{
+    org?: string;
+    limit?: string;
+    sort?: string;
+    dir?: string;
+  }>;
 }): Promise<React.JSX.Element> {
   const supabase = await createClient();
   const teams = await getUserTeams();
@@ -28,14 +60,19 @@ export default async function ProjectsPage({
   const tc = await getTranslations("common");
   const { limit } = parseListPagination(sp);
 
+  const sort = parseSort(sp.sort);
+  const dir = parseDir(sp.dir);
+
   // count: "exact" + .range() + id tiebreaker — same shape as
   // every other list page in Shyre. See the expenses page for
   // the rationale on why created_at alone isn't a stable sort.
+  // nullsFirst: false on hourly_rate so projects without a rate
+  // ($-/hr) stay at the bottom regardless of asc/desc.
   let projectsQuery = supabase
     .from("projects_v")
     .select("*, customers(name)", { count: "exact" })
     .neq("status", "archived")
-    .order("created_at", { ascending: false })
+    .order(sort, { ascending: dir === "asc", nullsFirst: false })
     .order("id", { ascending: false });
   if (selectedTeamId) projectsQuery = projectsQuery.eq("team_id", selectedTeamId);
   const { data: projects, count: projectsMatchingCount } =
@@ -63,15 +100,33 @@ export default async function ProjectsPage({
   );
 
   const teamName = (teamId: string) =>
-    teams.find((o) => o.id === teamId)?.name ?? "\u2014";
+    teams.find((o) => o.id === teamId)?.name ?? "—";
 
   // Team-scope column appears only for multi-team viewers. For solos
   // the team is ambient (one team, never switched), and the column
   // adds visual noise that distracts from project / customer / rate.
   // For agencies, the column tells you which scope the project lives
-  // in at a glance \u2014 the symptom of "Teams and Projects feel close"
+  // in at a glance — the symptom of "Teams and Projects feel close"
   // dissolves into "Team is the chip on every Project."
   const showTeamColumn = teams.length > 1;
+
+  // Preserve filter + pagination params across sort clicks. Sort
+  // clicks reset to page 1 implicitly because we don't carry a page
+  // number — limit is the only pagination control on this page.
+  const buildSortHref = ({
+    sort: nextSort,
+    dir: nextDir,
+  }: {
+    sort: string;
+    dir: "asc" | "desc";
+  }): string => {
+    const params = new URLSearchParams();
+    if (selectedTeamId) params.set("org", selectedTeamId);
+    if (sp.limit) params.set("limit", sp.limit);
+    params.set("sort", nextSort);
+    params.set("dir", nextDir);
+    return `/projects?${params.toString()}`;
+  };
 
   return (
     <div>
@@ -89,27 +144,39 @@ export default async function ProjectsPage({
       />
 
       {projects && projects.length > 0 ? (
-        <div className="mt-6 overflow-hidden rounded-lg border border-edge bg-surface-raised">
-          <table className="w-full text-body">
+        <div className={`mt-6 ${tableWrapperClass}`}>
+          <table className={tableClass}>
             <thead>
-              <tr className="border-b border-edge bg-surface-inset">
-                <th className="px-4 py-3 text-left text-label font-semibold uppercase tracking-wider text-content-muted">
-                  {tc("table.name")}
-                </th>
+              <tr className={tableHeaderRowClass}>
+                <SortableTableHeader
+                  label={tc("table.name")}
+                  sortKey="name"
+                  currentSort={sort}
+                  currentDir={dir}
+                  href={buildSortHref}
+                />
                 {showTeamColumn && (
-                  <th className="px-4 py-3 text-left text-label font-semibold uppercase tracking-wider text-content-muted">
+                  <th scope="col" className={`${tableHeaderCellClass} text-left`}>
                     {tc("nav.teams")}
                   </th>
                 )}
-                <th className="px-4 py-3 text-left text-label font-semibold uppercase tracking-wider text-content-muted">
+                <th scope="col" className={`${tableHeaderCellClass} text-left`}>
                   {t("table.customer")}
                 </th>
-                <th className="px-4 py-3 text-left text-label font-semibold uppercase tracking-wider text-content-muted">
-                  {t("table.hourlyRate")}
-                </th>
-                <th className="px-4 py-3 text-left text-label font-semibold uppercase tracking-wider text-content-muted">
-                  {t("table.status")}
-                </th>
+                <SortableTableHeader
+                  label={t("table.hourlyRate")}
+                  sortKey="hourly_rate"
+                  currentSort={sort}
+                  currentDir={dir}
+                  href={buildSortHref}
+                />
+                <SortableTableHeader
+                  label={t("table.status")}
+                  sortKey="status"
+                  currentSort={sort}
+                  currentDir={dir}
+                  href={buildSortHref}
+                />
               </tr>
             </thead>
             <tbody>
@@ -121,10 +188,7 @@ export default async function ProjectsPage({
                     ? (project.customers as { name: string }).name
                     : "—";
                 return (
-                  <tr
-                    key={project.id}
-                    className="border-b border-edge last:border-0 hover:bg-hover transition-colors"
-                  >
+                  <tr key={project.id} className={tableBodyRowClass}>
                     <td className="px-4 py-3">
                       <Link
                         href={`/projects/${project.id}`}
@@ -140,16 +204,17 @@ export default async function ProjectsPage({
                         </span>
                       </td>
                     )}
-                    <td className="px-4 py-3 text-content-secondary">
-                      {customerName}
-                    </td>
-                    <td className="px-4 py-3 text-content-secondary font-mono">
+                    <td className={tableBodyCellClass}>{customerName}</td>
+                    <td className={`${tableBodyCellClass} font-mono`}>
                       {project.hourly_rate
                         ? `$${Number(project.hourly_rate).toFixed(2)}/hr`
                         : "—"}
                     </td>
                     <td className="px-4 py-3">
-                      <StatusBadge status={project.status ?? "active"} label={tc(`status.${project.status ?? "active"}`)} />
+                      <StatusBadge
+                        status={project.status ?? "active"}
+                        label={tc(`status.${project.status ?? "active"}`)}
+                      />
                     </td>
                   </tr>
                 );
@@ -170,7 +235,13 @@ export default async function ProjectsPage({
   );
 }
 
-function StatusBadge({ status, label }: { status: string; label: string }): React.JSX.Element {
+function StatusBadge({
+  status,
+  label,
+}: {
+  status: string;
+  label: string;
+}): React.JSX.Element {
   const colorMap: Record<string, string> = {
     active: "bg-success-soft text-success",
     paused: "bg-warning-soft text-warning",
@@ -181,10 +252,11 @@ function StatusBadge({ status, label }: { status: string; label: string }): Reac
 
   return (
     <span
-      className={`inline-flex items-center gap-1.5 rounded-full px-2.5 py-0.5 text-xs font-medium ${classes}`}
+      className={`inline-flex items-center gap-1.5 rounded-full px-2.5 py-0.5 text-caption font-medium ${classes}`}
     >
       <span className="h-1.5 w-1.5 rounded-full bg-current" />
       {label}
     </span>
   );
 }
+
