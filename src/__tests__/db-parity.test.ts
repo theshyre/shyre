@@ -43,6 +43,7 @@ import {
   ALLOWED_COMPENSATION_TYPES,
   ALLOWED_COMPENSATION_SCHEDULES,
 } from "@/app/(dashboard)/business/people-allow-lists";
+import { ALLOWED_INVOICE_GROUPING_MODES } from "@/app/(dashboard)/invoices/allow-lists";
 
 const MIGRATIONS_DIR = join(process.cwd(), "supabase", "migrations");
 
@@ -150,6 +151,11 @@ const PAIRS: Pair[] = [
     name: "compensationSchedules",
     appSet: ALLOWED_COMPENSATION_SCHEDULES,
     column: "compensation_schedule",
+  },
+  {
+    name: "invoiceGroupingModes",
+    appSet: ALLOWED_INVOICE_GROUPING_MODES,
+    column: "grouping_mode",
   },
 ];
 
