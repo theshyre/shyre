@@ -18,6 +18,7 @@ import {
   buildInvoicePaymentRow,
   pickLatestSendRecipient,
   pickExternalProvider,
+  extractJiraKeyFromPermalink,
   mapHarvestInvoiceState,
   type ImportContext,
   type UserMapChoice,
@@ -841,6 +842,65 @@ describe("buildTimeEntryRow", () => {
     expect(out.linked_ticket_title).toBeNull();
     expect(out.linked_ticket_url).toBeNull();
     expect(out.linked_ticket_refreshed_at).toBeNull();
+  });
+
+  it("uses the human Jira key from the permalink, not Harvest's numeric id", () => {
+    // Real bug: Harvest's external_reference.id for a Jira
+    // attachment is the internal issue id (numeric, e.g. 12702),
+    // not the human key (AE-638). The chip rendered "12702" — useless
+    // to the user. Parse the human key from the permalink instead.
+    const out = buildTimeEntryRow({
+      entry: {
+        ...baseEntry,
+        notes: "Audit History CSV diff missing section-level N/A toggle",
+        external_reference: {
+          id: "12702",
+          group_id: null,
+          permalink: "https://acme.atlassian.net/browse/AE-639",
+          service: "jira",
+          service_icon_url: null,
+        },
+      },
+      projectId: "proj-1",
+      projectHourlyRate: 150,
+      userMapping,
+      categoryIdByTaskName,
+      ctx,
+      timeZone: "America/New_York",
+    });
+    if ("skipped" in out) throw new Error("unreachable");
+    expect(out.linked_ticket_provider).toBe("jira");
+    expect(out.linked_ticket_key).toBe("AE-639");
+    expect(out.linked_ticket_url).toBe(
+      "https://acme.atlassian.net/browse/AE-639",
+    );
+  });
+
+  it("falls back to Harvest's id when the permalink doesn't carry a Jira key", () => {
+    // Defense-in-depth: if Harvest's permalink format ever changes
+    // or comes back null, don't drop the link entirely — use whatever
+    // id Harvest gave us so the chip still renders.
+    const out = buildTimeEntryRow({
+      entry: {
+        ...baseEntry,
+        notes: "Some note",
+        external_reference: {
+          id: "AE-700",
+          group_id: null,
+          permalink: null,
+          service: "jira",
+          service_icon_url: null,
+        },
+      },
+      projectId: "proj-1",
+      projectHourlyRate: 150,
+      userMapping,
+      categoryIdByTaskName,
+      ctx,
+      timeZone: "America/New_York",
+    });
+    if ("skipped" in out) throw new Error("unreachable");
+    expect(out.linked_ticket_key).toBe("AE-700");
   });
 
   it("attributes Jira from external_reference when service is null but id looks like a Jira key", () => {
@@ -1708,6 +1768,50 @@ describe("pickLatestSendRecipient", () => {
       msg({ event_type: "reminder" }),
     ]);
     expect(got?.email).toBe("bandre@fdapproval.com");
+  });
+});
+
+describe("extractJiraKeyFromPermalink", () => {
+  it("returns the key from a standard Jira Cloud /browse/ URL", () => {
+    expect(
+      extractJiraKeyFromPermalink(
+        "https://acme.atlassian.net/browse/AE-638",
+      ),
+    ).toBe("AE-638");
+  });
+
+  it("handles trailing slash", () => {
+    expect(
+      extractJiraKeyFromPermalink(
+        "https://acme.atlassian.net/browse/PROJ-1/",
+      ),
+    ).toBe("PROJ-1");
+  });
+
+  it("handles query string (Jira deep links)", () => {
+    expect(
+      extractJiraKeyFromPermalink(
+        "https://acme.atlassian.net/browse/PROJ-99?focusedCommentId=12345",
+      ),
+    ).toBe("PROJ-99");
+  });
+
+  it("supports underscores + digits in the project component", () => {
+    expect(
+      extractJiraKeyFromPermalink(
+        "https://acme.atlassian.net/browse/PROJ_2-42",
+      ),
+    ).toBe("PROJ_2-42");
+  });
+
+  it("returns null on null / non-Jira / malformed permalinks", () => {
+    expect(extractJiraKeyFromPermalink(null)).toBeNull();
+    expect(
+      extractJiraKeyFromPermalink("https://github.com/x/y/issues/1"),
+    ).toBeNull();
+    expect(
+      extractJiraKeyFromPermalink("https://acme.atlassian.net/browse/"),
+    ).toBeNull();
   });
 });
 

@@ -725,6 +725,29 @@ export function buildInvoiceLineItemRow(
  * row to populate the resolved title.
  */
 /**
+ * Extract the human-readable Jira key (e.g. "AE-638") from a Jira
+ * issue permalink. Jira Cloud URLs always include the key in the
+ * `/browse/{KEY}` segment regardless of internal id; on-prem
+ * variants follow the same pattern. Returns null when the permalink
+ * doesn't match — caller falls back to whatever Harvest gave us as
+ * the id.
+ *
+ * Why this exists: Harvest's external_reference.id for a Jira
+ * attachment is the *numeric internal issue id* (e.g. "12702"), not
+ * the human key the user knows. The permalink does carry the human
+ * key, so we parse it out for display.
+ */
+export function extractJiraKeyFromPermalink(
+  permalink: string | null,
+): string | null {
+  if (!permalink) return null;
+  // Match "/browse/<KEY>" where KEY is project + dash + digits;
+  // tolerate trailing slash or query string.
+  const match = permalink.match(/\/browse\/([A-Z][A-Z0-9_]*-\d+)\b/);
+  return match?.[1] ?? null;
+}
+
+/**
  * Decide what provider to attribute Harvest's external_reference
  * to. Three signals, in priority order:
  *
@@ -879,10 +902,21 @@ export function buildTimeEntryRow(args: {
   // × 1 outbound API call would rate-limit Jira/GitHub immediately.
   const externalRef = args.entry.external_reference;
   const externalProvider = pickExternalProvider(externalRef);
-  const ticket = externalProvider
+  // For Jira attachments, prefer the human key parsed from the
+  // permalink ("AE-638") over Harvest's external_reference.id, which
+  // is the numeric internal issue id ("12702") — meaningless to the
+  // user. GitHub references already arrive in human form
+  // (owner/repo#NN), so we keep their id as-is.
+  const externalKey = externalProvider
+    ? externalProvider === "jira"
+      ? (extractJiraKeyFromPermalink(externalRef?.permalink ?? null) ??
+        externalRef!.id)
+      : externalRef!.id
+    : null;
+  const ticket = externalProvider && externalKey
     ? {
         provider: externalProvider as "jira" | "github",
-        key: externalRef!.id,
+        key: externalKey,
       }
     : description
       ? resolveTicketReference(description, {
