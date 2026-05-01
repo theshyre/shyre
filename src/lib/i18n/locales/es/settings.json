@@ -3,6 +3,7 @@
   "sections": {
     "business": "Información del Negocio",
     "defaults": "Valores por Defecto",
+    "branding": "Marca",
     "rateAccess": "Tarifas y Acceso",
     "profile": "Perfil",
     "preferences": "Preferencias",
@@ -10,6 +11,10 @@
     "security": "Seguridad",
     "integrations": "Integraciones",
     "advanced": "Avanzado"
+  },
+  "branding": {
+    "help": "Logotipo de dos tonos mostrado en superficies externas (PDF de facturas). Si está vacío, se usa el nombre del negocio.",
+    "preview": "Vista previa"
   },
   "profile": {
     "displayName": "Nombre visible",
@@ -52,6 +57,9 @@
     "invoicePrefix": "Prefijo de Factura",
     "invoiceNextNum": "Siguiente Número de Factura",
     "taxRate": "Tasa de Impuesto (%)",
+    "wordmarkPrimary": "Logotipo (primario)",
+    "wordmarkSecondary": "Logotipo (secundario)",
+    "brandColor": "Color de marca (hex)",
     "githubToken": "Token de Acceso Personal de GitHub",
     "githubTokenPlaceholder": "ghp_...",
     "githubTokenHelp": "Usado para obtener títulos de issues de repos vinculados. Genera uno en github.com/settings/tokens — los PATs fine-grained con Issues:read en los repos a vincular son recomendados (menor riesgo que Classic). Se almacena encriptado.",

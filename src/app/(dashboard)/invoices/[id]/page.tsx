@@ -70,7 +70,9 @@ export default async function InvoiceDetailPage({
       .order("id"),
     supabase
       .from("team_settings")
-      .select("business_name, business_email, business_address, business_phone")
+      .select(
+        "business_name, business_email, business_address, business_phone, wordmark_primary, wordmark_secondary, brand_color",
+      )
       .eq("team_id", invoice.team_id)
       .single(),
     supabase
@@ -178,6 +180,10 @@ export default async function InvoiceDetailPage({
             lineItems={lineItems ?? []}
             client={client}
             business={settings}
+            paymentsTotal={(payments ?? []).reduce(
+              (sum, p) => sum + Number(p.amount ?? 0),
+              0,
+            )}
           />
           <InvoiceActions
             invoiceId={invoice.id}

@@ -138,4 +138,124 @@ describe("InvoicePDF", () => {
     );
     expect(html).toContain("—");
   });
+
+  it("renders a two-tone wordmark when wordmarkPrimary + secondary are set", () => {
+    const html = renderToString(
+      <InvoicePDF
+        {...baseProps}
+        business={{
+          name: "Malcom IO",
+          email: null,
+          phone: null,
+          address: null,
+          wordmarkPrimary: "malcom",
+          wordmarkSecondary: ".io",
+          brandColor: "#7BAE5F",
+        }}
+        client={{ name: "Client", email: null, address: null }}
+      />,
+    );
+    // Both halves render.
+    expect(html).toContain("malcom");
+    expect(html).toContain(".io");
+    // Brand color is applied (the primary half is wrapped in a Text
+    // with color: <hex>).
+    expect(html.toLowerCase()).toContain("color:#7bae5f");
+  });
+
+  it("falls back to business.name when no wordmark is configured", () => {
+    const html = renderToString(
+      <InvoicePDF
+        {...baseProps}
+        business={{
+          name: "Acme Co",
+          email: null,
+          phone: null,
+          address: null,
+        }}
+        client={{ name: "Client", email: null, address: null }}
+      />,
+    );
+    expect(html).toContain("Acme Co");
+  });
+
+  it("rejects malformed brand colors (defends against worker crash)", () => {
+    // A non-hex value should be silently ignored — the wordmark
+    // still renders, just in default ink.
+    expect(() =>
+      renderToString(
+        <InvoicePDF
+          {...baseProps}
+          business={{
+            name: "Acme",
+            email: null,
+            phone: null,
+            address: null,
+            wordmarkPrimary: "Acme",
+            brandColor: "javascript:alert(1)",
+          }}
+          client={{ name: "Client", email: null, address: null }}
+        />,
+      ),
+    ).not.toThrow();
+  });
+
+  it("appends '(Net 30)' to the due date when issue→due gap is 30 days", () => {
+    const html = renderToString(
+      <InvoicePDF
+        {...baseProps}
+        issuedDate="2026-04-19"
+        dueDate="2026-05-19"
+        business={{ name: "Acme", email: null, phone: null, address: null }}
+        client={{ name: "Client", email: null, address: null }}
+      />,
+    );
+    expect(html).toContain("Net 30");
+  });
+
+  it("does NOT append a Net label for non-canonical date gaps", () => {
+    const html = renderToString(
+      <InvoicePDF
+        {...baseProps}
+        issuedDate="2026-01-19"
+        dueDate="2026-01-29"
+        business={{ name: "Acme", email: null, phone: null, address: null }}
+        client={{ name: "Client", email: null, address: null }}
+      />,
+    );
+    // 10 days isn't a canonical net term — no badge.
+    expect(html).not.toContain("Net 10");
+  });
+
+  it("renders Subtotal / Payments / Amount Due rollup when payments > 0", () => {
+    const html = renderToString(
+      <InvoicePDF
+        {...baseProps}
+        paymentsTotal={1000}
+        business={{ name: "Acme", email: null, phone: null, address: null }}
+        client={{ name: "Client", email: null, address: null }}
+      />,
+    );
+    expect(html).toContain("Payments");
+    expect(html).toContain("Amount Due");
+    // Negative payment line — React inserts <!-- --> between the
+    // literal "-" and the formatted amount, so match each part.
+    expect(html).toContain("-");
+    expect(html).toContain("$1,000.00");
+    // Total label disappears in this mode (Amount Due replaces it).
+    expect(html).not.toMatch(/>Total</);
+  });
+
+  it("falls back to Subtotal / Total without payments", () => {
+    const html = renderToString(
+      <InvoicePDF
+        {...baseProps}
+        paymentsTotal={0}
+        business={{ name: "Acme", email: null, phone: null, address: null }}
+        client={{ name: "Client", email: null, address: null }}
+      />,
+    );
+    expect(html).toContain("Total");
+    expect(html).not.toContain("Amount Due");
+  });
 });

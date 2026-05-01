@@ -1,7 +1,7 @@
 "use client";
 
 import { useTranslations } from "next-intl";
-import { Building2, Lock } from "lucide-react";
+import { Building2, Lock, Palette } from "lucide-react";
 import { AlertBanner } from "@theshyre/ui";
 import { useFormAction } from "@/hooks/use-form-action";
 import { SubmitButton } from "@/components/SubmitButton";
@@ -24,6 +24,9 @@ interface TeamSettings {
   invoice_prefix: string | null;
   invoice_next_num: number | null;
   tax_rate: number | null;
+  wordmark_primary: string | null;
+  wordmark_secondary: string | null;
+  brand_color: string | null;
   rate_visibility: string | null;
   rate_editability: string | null;
   time_entries_visibility: string | null;
@@ -39,6 +42,9 @@ const DEFAULTS: TeamSettings = {
   invoice_prefix: "INV",
   invoice_next_num: 1,
   tax_rate: 0,
+  wordmark_primary: null,
+  wordmark_secondary: null,
+  brand_color: null,
   rate_visibility: "owner",
   rate_editability: "owner",
   time_entries_visibility: "own_only",
@@ -180,6 +186,70 @@ export function TeamSettingsForm({
       </section>
 
       <section className="rounded-lg border border-edge bg-surface-raised p-4 space-y-3">
+        <div className="flex items-center gap-2 mb-1">
+          <Palette size={18} className="text-accent" />
+          <h2 className="text-sm font-semibold uppercase tracking-wider text-content-muted">
+            {t("sections.branding")}
+          </h2>
+        </div>
+        <p className="text-caption text-content-muted">
+          {t("branding.help")}
+        </p>
+        <div className="grid gap-3 sm:grid-cols-3">
+          <div>
+            <label className={labelClass}>
+              {t("fields.wordmarkPrimary")}
+            </label>
+            <input
+              name="wordmark_primary"
+              defaultValue={org.wordmark_primary ?? ""}
+              maxLength={50}
+              disabled={!isAdmin}
+              className={inputClass}
+              placeholder="malcom"
+            />
+            <FieldError error={fieldErrors?.wordmark_primary} />
+          </div>
+          <div>
+            <label className={labelClass}>
+              {t("fields.wordmarkSecondary")}
+            </label>
+            <input
+              name="wordmark_secondary"
+              defaultValue={org.wordmark_secondary ?? ""}
+              maxLength={50}
+              disabled={!isAdmin}
+              className={inputClass}
+              placeholder=".io"
+            />
+            <FieldError error={fieldErrors?.wordmark_secondary} />
+          </div>
+          <div>
+            <label className={labelClass}>{t("fields.brandColor")}</label>
+            <div className="flex gap-2 items-stretch">
+              <input
+                name="brand_color"
+                type="text"
+                defaultValue={org.brand_color ?? ""}
+                disabled={!isAdmin}
+                className={`${inputClass} font-mono`}
+                placeholder="#7BAE5F"
+                pattern="^#[0-9A-Fa-f]{3}([0-9A-Fa-f]{3})?$"
+              />
+            </div>
+            <FieldError error={fieldErrors?.brand_color} />
+          </div>
+        </div>
+        <BrandingPreview
+          primary={org.wordmark_primary}
+          secondary={org.wordmark_secondary}
+          color={org.brand_color}
+          fallback={org.business_name}
+          previewLabel={t("branding.preview")}
+        />
+      </section>
+
+      <section className="rounded-lg border border-edge bg-surface-raised p-4 space-y-3">
         <div className="flex items-center gap-2 mb-2">
           <Lock size={18} className="text-accent" />
           <h2 className="text-sm font-semibold uppercase tracking-wider text-content-muted">
@@ -269,5 +339,56 @@ export function TeamSettingsForm({
         <SubmitButton label={t("saveSettings")} pending={pending} success={success} successMessage={t("saved")} />
       )}
     </form>
+  );
+}
+
+/**
+ * Live preview of the branded wordmark — shown directly under the
+ * branding inputs so the user sees what their values produce on
+ * the invoice PDF without saving + downloading first.
+ *
+ * Falls back to business_name when no wordmark is set, matching
+ * the PDF's render-time fallback. The preview is a static snapshot
+ * of the saved value — typing in the form fields doesn't update it
+ * live, since we don't track form state in this component. That's
+ * fine for now: the user sees their last-saved render and can save
+ * to refresh it.
+ */
+function BrandingPreview({
+  primary,
+  secondary,
+  color,
+  fallback,
+  previewLabel,
+}: {
+  primary: string | null;
+  secondary: string | null;
+  color: string | null;
+  fallback: string | null;
+  previewLabel: string;
+}): React.JSX.Element | null {
+  const primaryText = primary ?? fallback ?? "";
+  if (!primaryText) return null;
+  // Validate the color before splatting it into inline style — a
+  // malformed value would silently fall through to the browser's
+  // CSS error path. The DB CHECK guards persistence, but until the
+  // user saves, the form value isn't validated yet.
+  const hexOk =
+    color !== null && color !== "" && /^#[0-9A-Fa-f]{3,6}$/.test(color);
+  const accent = hexOk ? color : undefined;
+  return (
+    <div className="rounded-md border border-edge-muted bg-surface-inset p-3">
+      <p className="text-caption text-content-muted uppercase tracking-wider mb-1.5">
+        {previewLabel}
+      </p>
+      <div className="text-2xl font-bold tracking-tight">
+        <span style={accent ? { color: accent } : undefined}>
+          {primaryText}
+        </span>
+        {secondary ? (
+          <span className="text-content">{secondary}</span>
+        ) : null}
+      </div>
+    </div>
   );
 }

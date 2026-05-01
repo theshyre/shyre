@@ -35,7 +35,13 @@ interface InvoicePdfButtonProps {
     business_email: string | null;
     business_address: string | null;
     business_phone: string | null;
+    wordmark_primary: string | null;
+    wordmark_secondary: string | null;
+    brand_color: string | null;
   } | null;
+  /** Sum of recorded payments. Surfaces "Subtotal / Payments /
+   *  Amount Due" in the totals block when > 0. */
+  paymentsTotal: number;
 }
 
 export function InvoicePdfButton({
@@ -43,6 +49,7 @@ export function InvoicePdfButton({
   lineItems,
   client,
   business,
+  paymentsTotal,
 }: InvoicePdfButtonProps): React.JSX.Element {
   const t = useTranslations("invoices.actions");
 
@@ -57,12 +64,16 @@ export function InvoicePdfButton({
         taxRate={Number(invoice.tax_rate ?? 0)}
         taxAmount={Number(invoice.tax_amount ?? 0)}
         total={Number(invoice.total ?? 0)}
+        paymentsTotal={paymentsTotal}
         currency={invoice.currency ?? "USD"}
         business={{
           name: business?.business_name ?? null,
           email: business?.business_email ?? null,
           address: business?.business_address ?? null,
           phone: business?.business_phone ?? null,
+          wordmarkPrimary: business?.wordmark_primary ?? null,
+          wordmarkSecondary: business?.wordmark_secondary ?? null,
+          brandColor: business?.brand_color ?? null,
         }}
         client={{
           name: client?.name ?? "Client",

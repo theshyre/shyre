@@ -3,6 +3,7 @@
   "sections": {
     "business": "Business Information",
     "defaults": "Defaults",
+    "branding": "Branding",
     "rateAccess": "Rate & Access",
     "profile": "Profile",
     "preferences": "Preferences",
@@ -10,6 +11,10 @@
     "security": "Security",
     "integrations": "Integrations",
     "advanced": "Advanced"
+  },
+  "branding": {
+    "help": "Two-tone wordmark shown on outward-facing surfaces (invoice PDFs). Falls back to the business name in default ink when blank.",
+    "preview": "Preview"
   },
   "profile": {
     "displayName": "Display name",
@@ -52,6 +57,9 @@
     "invoicePrefix": "Invoice Prefix",
     "invoiceNextNum": "Next Invoice Number",
     "taxRate": "Tax Rate (%)",
+    "wordmarkPrimary": "Wordmark (primary)",
+    "wordmarkSecondary": "Wordmark (secondary)",
+    "brandColor": "Brand color (hex)",
     "githubToken": "GitHub Personal Access Token",
     "githubTokenPlaceholder": "ghp_...",
     "githubTokenHelp": "Used to fetch issue titles from linked repos. Generate at github.com/settings/tokens — fine-grained PATs with Issues:read on the repos you'll link to are recommended (smaller blast radius than Classic). Stored encrypted.",

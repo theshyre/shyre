@@ -20,6 +20,19 @@ export const teamSettingsSchema = z.object({
     .max(100, "Tax rate cannot exceed 100%")
     .optional()
     .default(0),
+  // Branding — paired DB CHECKs enforce length caps + hex format.
+  // Empty strings come from optional form inputs; treat them as null
+  // server-side so we don't write empty rows to the DB.
+  wordmark_primary: z.string().max(50).optional().or(z.literal("")),
+  wordmark_secondary: z.string().max(50).optional().or(z.literal("")),
+  brand_color: z
+    .string()
+    .regex(
+      /^#[0-9A-Fa-f]{3}([0-9A-Fa-f]{3})?$/,
+      "Use a hex color like #7BAE5F",
+    )
+    .optional()
+    .or(z.literal("")),
   team_id: z.string().uuid("Invalid team"),
 });
 

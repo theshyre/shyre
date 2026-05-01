@@ -243,6 +243,11 @@ export interface InvoicePDFProps {
   taxRate: number;
   taxAmount: number;
   total: number;
+  /** Sum of recorded payments. Surfaces the "Subtotal / Payments /
+   *  Amount Due" rollup in the totals block when > 0. Default 0
+   *  preserves the current "Subtotal / Tax / Total" output for
+   *  unpaid invoices. */
+  paymentsTotal?: number;
   /** ISO 4217 currency code. Defaults to USD when omitted so legacy
    *  rows without a currency value still render. */
   currency?: string;
@@ -251,6 +256,11 @@ export interface InvoicePDFProps {
     email: string | null;
     address: string | null;
     phone: string | null;
+    /** Two-tone wordmark + accent color from team_settings. When
+     *  null, falls back to `name` rendered in default ink. */
+    wordmarkPrimary?: string | null;
+    wordmarkSecondary?: string | null;
+    brandColor?: string | null;
   };
   client: {
     name: string;
@@ -282,6 +292,48 @@ function makeFmt(currency: string): (amount: number) => string {
     formatter ? formatter.format(amount) : `${code} ${amount.toFixed(2)}`;
 }
 
+/**
+ * Validate hex color string for @react-pdf/renderer. The DB CHECK
+ * constraint already filters at write time, but defending here keeps
+ * a hand-built test fixture or a stale cached value from blowing up
+ * a worker thread at PDF time.
+ */
+function safeHex(color: string | null | undefined): string | null {
+  if (!color) return null;
+  return /^#[0-9A-Fa-f]{3}([0-9A-Fa-f]{3})?$/.test(color) ? color : null;
+}
+
+/**
+ * Days between two YYYY-MM-DD strings (or ISO timestamps), used to
+ * show "(Net 30)" alongside the due date when the gap is a familiar
+ * payment-term value (Net 7/14/15/30/45/60/90). Falls back to no
+ * label when the gap doesn't match a standard term — Harvest only
+ * renders the badge for canonical terms too.
+ */
+function netLabelForDateRange(
+  issuedIso: string | null,
+  dueIso: string | null,
+): string | null {
+  if (!issuedIso || !dueIso) return null;
+  const a = parseDateOnly(issuedIso);
+  const b = parseDateOnly(dueIso);
+  if (!a || !b) return null;
+  const diff = Math.round((b.getTime() - a.getTime()) / 86_400_000);
+  const NET_TERMS = new Set([7, 14, 15, 30, 45, 60, 90]);
+  return NET_TERMS.has(diff) ? `Net ${diff}` : null;
+}
+
+function parseDateOnly(iso: string): Date | null {
+  const dateOnly = iso.match(/^(\d{4})-(\d{2})-(\d{2})$/);
+  if (dateOnly) {
+    return new Date(
+      Date.UTC(Number(dateOnly[1]), Number(dateOnly[2]) - 1, Number(dateOnly[3])),
+    );
+  }
+  const d = new Date(iso);
+  return Number.isNaN(d.getTime()) ? null : d;
+}
+
 function formatPdfDate(iso: string | null): string {
   if (!iso) return "—";
   // Date-only strings ("YYYY-MM-DD") parse as UTC midnight, which
@@ -310,6 +362,7 @@ export function InvoicePDF(props: InvoicePDFProps): React.JSX.Element {
     taxRate,
     taxAmount,
     total,
+    paymentsTotal = 0,
     currency,
     business,
     client,
@@ -323,12 +376,34 @@ export function InvoicePDF(props: InvoicePDFProps): React.JSX.Element {
     deserializeAddress(client.address),
   );
 
+  // Two-tone wordmark with optional brand color. Falls back to
+  // business.name in default ink — preserves the original brand-mark
+  // shape for teams that haven't configured branding yet.
+  const accentColor = safeHex(business.brandColor) ?? ink;
+  const primaryWordmark = business.wordmarkPrimary ?? business.name ?? "";
+  const secondaryWordmark = business.wordmarkSecondary ?? "";
+
+  // Net N suffix on the due date when the issue→due gap matches a
+  // canonical payment term. Null otherwise (date stands alone).
+  const netLabel = netLabelForDateRange(issuedDate, dueDate);
+  const dueDateText = netLabel
+    ? `${formatPdfDate(dueDate)} (${netLabel})`
+    : formatPdfDate(dueDate);
+
+  // Amount due = total - payments. Clamp at 0 so over-payments don't
+  // render as a negative number (refund handling is out of scope).
+  const amountDue = Math.max(0, total - paymentsTotal);
+  const showPaymentsRollup = paymentsTotal > 0;
+
   return (
     <Document>
       <Page size="A4" style={styles.page}>
-        {/* Header: brand mark left, From block right */}
+        {/* Header: branded wordmark left, From block right */}
         <View style={styles.header}>
-          <Text style={styles.brandMark}>{business.name ?? ""}</Text>
+          <Text style={styles.brandMark}>
+            <Text style={{ color: accentColor }}>{primaryWordmark}</Text>
+            {secondaryWordmark ? <Text>{secondaryWordmark}</Text> : null}
+          </Text>
           <View style={styles.fromBlock}>
             <Text style={styles.fromLabel}>From</Text>
             <View style={styles.fromDivider} />
@@ -362,7 +437,7 @@ export function InvoicePDF(props: InvoicePDFProps): React.JSX.Element {
             </View>
             <View style={styles.metaPair}>
               <Text style={styles.metaKey}>Due Date</Text>
-              <Text style={styles.metaValue}>{formatPdfDate(dueDate)}</Text>
+              <Text style={styles.metaValue}>{dueDateText}</Text>
             </View>
           </View>
           <View style={styles.invoiceForBlock}>
@@ -410,7 +485,12 @@ export function InvoicePDF(props: InvoicePDFProps): React.JSX.Element {
           ))}
         </View>
 
-        {/* Totals */}
+        {/* Totals.
+            With recorded payments: Subtotal / Tax / Payments / Amount Due
+            Without payments:        Subtotal / Tax / Total
+            (Harvest-style "Amount Due" shifts the visual emphasis to
+            the actual outstanding balance for partially / fully paid
+            invoices.) */}
         <View style={styles.totalsBlock}>
           <View style={styles.totalRow}>
             <Text style={styles.totalLabel}>Subtotal</Text>
@@ -422,10 +502,23 @@ export function InvoicePDF(props: InvoicePDFProps): React.JSX.Element {
               <Text style={styles.totalValue}>{fmt(taxAmount)}</Text>
             </View>
           )}
-          <View style={styles.grandTotalRow}>
-            <Text style={styles.grandTotalLabel}>Total</Text>
-            <Text style={styles.grandTotalValue}>{fmt(total)}</Text>
-          </View>
+          {showPaymentsRollup ? (
+            <>
+              <View style={styles.totalRow}>
+                <Text style={styles.totalLabel}>Payments</Text>
+                <Text style={styles.totalValue}>-{fmt(paymentsTotal)}</Text>
+              </View>
+              <View style={styles.grandTotalRow}>
+                <Text style={styles.grandTotalLabel}>Amount Due</Text>
+                <Text style={styles.grandTotalValue}>{fmt(amountDue)}</Text>
+              </View>
+            </>
+          ) : (
+            <View style={styles.grandTotalRow}>
+              <Text style={styles.grandTotalLabel}>Total</Text>
+              <Text style={styles.grandTotalValue}>{fmt(total)}</Text>
+            </View>
+          )}
         </View>
 
         {/* Notes */}

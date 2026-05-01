@@ -48,6 +48,16 @@ export async function updateTeamSettingsAction(formData: FormData): Promise<void
     const invoice_next_num = numStr ? parseInt(numStr, 10) : 1;
     const taxStr = formData.get("tax_rate") as string;
     const tax_rate = taxStr ? parseFloat(taxStr) : 0;
+    // Branding fields. Empty strings → null so we don't write empty
+    // rows the DB CHECK would reject (length 1..50). Brand color is
+    // also validated by the schema, but the form may submit it
+    // empty when the user clears the picker.
+    const wordmark_primary =
+      (formData.get("wordmark_primary") as string)?.trim() || null;
+    const wordmark_secondary =
+      (formData.get("wordmark_secondary") as string)?.trim() || null;
+    const brand_color =
+      (formData.get("brand_color") as string)?.trim() || null;
 
     const patch: Record<string, unknown> = {
       team_id: teamId,
@@ -58,6 +68,9 @@ export async function updateTeamSettingsAction(formData: FormData): Promise<void
       invoice_prefix,
       invoice_next_num,
       tax_rate,
+      wordmark_primary,
+      wordmark_secondary,
+      brand_color,
     };
 
     // Guardrail: only include default_rate in the upsert if rate_editability
