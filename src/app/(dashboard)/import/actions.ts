@@ -195,6 +195,57 @@ export async function undoImportRunAction(
       }
     }
 
+    // Force-undo unlock pre-pass.
+    //
+    // The lock-guard trigger on time_entries refuses UPDATE/DELETE
+    // when invoiced=true AND invoice_id points at a non-void
+    // invoice. Force-undo bypasses refusal #3/#4 (manual data on
+    // imported records), which means the project cascade WILL hit
+    // manual time entries that may be invoiced via a manual
+    // (non-imported) invoice. Without this pre-pass, the cascade
+    // crashes mid-transaction with the trigger's CHECK_VIOLATION.
+    //
+    // Clear invoiced + invoice_id on every entry the cascade is
+    // about to eat. The trigger's "unlock-path mutation" branch
+    // accepts the clear (NEW.invoiced=false AND
+    // NEW.invoice_id=NULL is the documented unlock shape).
+    // Invoice line_items have FK SET NULL on time_entry_id, so the
+    // invoice survives with its line description + amount intact —
+    // only the back-pointer to the about-to-be-deleted entry is
+    // severed.
+    if (force) {
+      // Manual entries on imported projects.
+      if (importedProjectIds.length > 0) {
+        assertSupabaseOk(
+          await supabase
+            .from("time_entries")
+            .update({ invoiced: false, invoice_id: null })
+            .in("project_id", importedProjectIds)
+            .not("invoice_id", "is", null),
+        );
+      }
+      // Entries on manual projects parented to imported customers
+      // (those manual projects cascade-delete with the customer).
+      if (importedCustomerIds.length > 0) {
+        const { data: cascadingProjects } = await supabase
+          .from("projects")
+          .select("id")
+          .in("customer_id", importedCustomerIds);
+        const cascadingIds = (cascadingProjects ?? []).map(
+          (p) => p.id as string,
+        );
+        if (cascadingIds.length > 0) {
+          assertSupabaseOk(
+            await supabase
+              .from("time_entries")
+              .update({ invoiced: false, invoice_id: null })
+              .in("project_id", cascadingIds)
+              .not("invoice_id", "is", null),
+          );
+        }
+      }
+    }
+
     // Delete order matters: invoices BEFORE projects so the
     // time_entries.invoice_id FK SET NULL clears the lock-guard
     // trigger before the project cascade kicks in. The previous
