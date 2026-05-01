@@ -9,6 +9,11 @@
     "undoing": "Undoing…",
     "undoneAt": "Undone on {date}",
     "undoneBy": "by {name}",
+    "forceUndoExplain": "You can undo anyway — the manual data listed above will be cascade-deleted along with the imported records. Re-create those entries afterwards if you still need them.",
+    "forceUndoPrompt": "Type \"delete\" to confirm:",
+    "forceUndoInputLabel": "Type \"delete\" to confirm force undo",
+    "forceUndoConfirm": "Undo anyway",
+    "forceUndoCancel": "Cancel",
     "confirm": {
       "prompt": "Type \"undo\" to confirm",
       "inputAriaLabel": "Confirm undo",

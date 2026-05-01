@@ -117,6 +117,60 @@ function RunRow({
   const [confirming, setConfirming] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [pending, setPending] = useState(false);
+  // True when the last failure was a refusal the user can force
+  // through (manual entries on imported projects, manual projects
+  // on imported customers). The "Undo anyway" follow-up only renders
+  // when this is true — refusals that protect against FK errors
+  // (orphan invoices) cannot be forced and stay surfaced as a
+  // hard block.
+  const [forceable, setForceable] = useState(false);
+
+  // Run the undo action; can be called twice (first attempt + forced
+  // retry). Server-side errors return { success: false, error } —
+  // we read the result and throw on failure so the catch handler
+  // surfaces the message inline.
+  async function runUndo(force: boolean): Promise<void> {
+    setPending(true);
+    setError(null);
+    setForceable(false);
+    const fd = new FormData();
+    fd.set("run_id", run.id);
+    fd.set("team_id", run.team_id);
+    if (force) fd.set("force", "true");
+    try {
+      const result = (await undoImportRunAction(fd)) as unknown as
+        | {
+            success: boolean;
+            error?: { message?: string; userMessageKey?: string };
+          }
+        | void;
+      if (
+        result &&
+        (result as { success: boolean }).success === false
+      ) {
+        const err = (
+          result as {
+            error?: { message?: string; userMessageKey?: string };
+          }
+        ).error;
+        throw new Error(
+          err?.message ?? err?.userMessageKey ?? "Undo failed",
+        );
+      }
+      setConfirming(false);
+    } catch (err) {
+      const message = err instanceof Error ? err.message : "Undo failed";
+      setError(message);
+      // Detect "manual data" refusals — only those are safe to force.
+      // Refusals #1 / #2 (invoices) would crash with FK errors mid-
+      // transaction even with force=true, so we never offer the
+      // bypass on those.
+      setForceable(/manual (time entry|time entries|project|projects)/i.test(message));
+      setConfirming(false);
+    } finally {
+      setPending(false);
+    }
+  }
 
   const counts = buildCountsList(run.summary, {
     customer: (n) => t("counts.customers", { count: n }),
@@ -198,63 +252,98 @@ function RunRow({
               setError(null);
             }}
             onConfirm={async () => {
-              setPending(true);
-              setError(null);
-              const fd = new FormData();
-              fd.set("run_id", run.id);
-              fd.set("team_id", run.team_id);
-              try {
-                // runSafeAction returns { success, error } instead of
-                // throwing on server-side failures (so useFormAction
-                // can render the message inline). The previous code
-                // only caught thrown errors, so a refusal — like
-                // "1 invoice references an imported customer" — went
-                // straight to the admin error log with no UI signal.
-                // Read the result and throw on failure so the catch
-                // surfaces the message in the inline error card.
-                //
-                // The serialized error carries `message` only when
-                // code === "UNKNOWN" (i.e. our own action threw a
-                // user-targeted Error). Falls back to the i18n key
-                // for structured errors. SerializedAppError shape
-                // lives in src/lib/errors.ts.
-                const result = (await undoImportRunAction(fd)) as unknown as
-                  | {
-                      success: boolean;
-                      error?: { message?: string; userMessageKey?: string };
-                    }
-                  | void;
-                if (
-                  result &&
-                  (result as { success: boolean }).success === false
-                ) {
-                  const err = (
-                    result as {
-                      error?: { message?: string; userMessageKey?: string };
-                    }
-                  ).error;
-                  throw new Error(
-                    err?.message ?? err?.userMessageKey ?? "Undo failed",
-                  );
-                }
-                // Success — the page revalidates and the run re-renders
-                // with undone_at set, so this row collapses the undo UI
-                // naturally on the next render.
-                setConfirming(false);
-              } catch (err) {
-                setError(
-                  err instanceof Error ? err.message : "Undo failed",
-                );
-                setConfirming(false);
-              } finally {
-                setPending(false);
-              }
+              await runUndo(false);
             }}
           />
         ) : null}
       </div>
 
-      {error ? <InlineErrorCard title={error} /> : null}
+      {error ? (
+        <div className="space-y-2">
+          <InlineErrorCard title={error} />
+          {forceable && shouldShowUndo ? (
+            <ForceUndoConfirm
+              pending={pending}
+              onCancel={() => {
+                setError(null);
+                setForceable(false);
+              }}
+              onConfirm={async () => {
+                await runUndo(true);
+              }}
+            />
+          ) : null}
+        </div>
+      ) : null}
+    </div>
+  );
+}
+
+/**
+ * Two-step opt-in for the force-undo path. The user has already
+ * read the refusal explanation in the InlineErrorCard above; this
+ * card adds a typed-confirm to arm "delete the manual data anyway."
+ * Same pattern as VoidButton's typed-confirm — type "delete" to
+ * arm. Single-word keyword (not the run id) because the user is
+ * already past the first opt-in by clicking Undo.
+ */
+function ForceUndoConfirm({
+  pending,
+  onCancel,
+  onConfirm,
+}: {
+  pending: boolean;
+  onCancel: () => void;
+  onConfirm: () => Promise<void>;
+}): React.JSX.Element {
+  const t = useTranslations("import.history");
+  const [typed, setTyped] = useState("");
+  const armed = typed.trim().toLowerCase() === "delete";
+  return (
+    <div className="rounded-md border border-warning/40 bg-warning-soft/30 p-2.5 space-y-2">
+      <p className="text-caption text-content-secondary">
+        {t("forceUndoExplain")}
+      </p>
+      <div className="flex items-center gap-2 flex-wrap">
+        <span className="text-caption text-content-muted">
+          {t("forceUndoPrompt")}
+        </span>
+        <input
+          type="text"
+          value={typed}
+          onChange={(e) => setTyped(e.target.value)}
+          onKeyDown={(e) => {
+            if (e.key === "Enter" && armed && !pending) {
+              e.preventDefault();
+              void onConfirm();
+            } else if (e.key === "Escape") {
+              e.preventDefault();
+              onCancel();
+            }
+          }}
+          autoCapitalize="none"
+          autoCorrect="off"
+          spellCheck={false}
+          aria-label={t("forceUndoInputLabel")}
+          className="rounded-md border border-edge bg-surface px-2 py-1 text-caption font-mono w-24"
+        />
+        <button
+          type="button"
+          onClick={() => void onConfirm()}
+          disabled={!armed || pending}
+          className="inline-flex items-center gap-1 rounded bg-error px-2 py-1 text-caption font-semibold text-content-inverse hover:opacity-90 disabled:opacity-40 disabled:cursor-not-allowed transition-opacity"
+        >
+          {t("forceUndoConfirm")}
+        </button>
+        <button
+          type="button"
+          onClick={onCancel}
+          disabled={pending}
+          className="rounded p-1 text-content-muted hover:bg-hover transition-colors text-caption"
+        >
+          {t("forceUndoCancel")}
+        </button>
+      </div>
     </div>
   );
 }

@@ -9,6 +9,11 @@
     "undoing": "Deshaciendo…",
     "undoneAt": "Deshecho el {date}",
     "undoneBy": "por {name}",
+    "forceUndoExplain": "Puedes deshacer de todos modos — los datos manuales listados arriba se eliminarán en cascada junto con los registros importados. Vuelve a crearlos después si los necesitas.",
+    "forceUndoPrompt": "Escribe \"delete\" para confirmar:",
+    "forceUndoInputLabel": "Escribe \"delete\" para confirmar deshacer forzado",
+    "forceUndoConfirm": "Deshacer de todos modos",
+    "forceUndoCancel": "Cancelar",
     "confirm": {
       "prompt": "Escribe \"deshacer\" para confirmar",
       "inputAriaLabel": "Confirmar deshacer",

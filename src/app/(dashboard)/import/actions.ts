@@ -38,6 +38,13 @@ export async function undoImportRunAction(
   return runSafeAction(formData, async (formData, { supabase, userId }) => {
     const runId = formData.get("run_id") as string;
     const teamId = formData.get("team_id") as string;
+    // Force-undo: when explicitly opted in, the manual-data refusal
+    // checks (#3 + #4) are skipped. Used by the "Undo anyway" path
+    // after the first refusal — the user has read the count and
+    // accepts the cascade-delete. Refusals #1 and #2 still fire
+    // because those would crash with FK errors mid-transaction
+    // (orphan invoices); force can't paper over those.
+    const force = formData.get("force") === "true";
 
     if (!runId || !teamId) {
       throw new Error("run_id and team_id are required.");
@@ -136,9 +143,8 @@ export async function undoImportRunAction(
     // time_entries.project_id has ON DELETE CASCADE, so when undo
     // deletes a project this run created, every time entry against
     // it gets cascade-deleted by Postgres — including manual entries
-    // the user logged AFTER the import. The user reported this as
-    // "undo wiped out a time entry I added by hand"; refuse with
-    // counts so they can re-home the entries before retrying.
+    // the user logged AFTER the import. Skipped when `force=true`:
+    // the user has read the count and accepts the loss.
     const { data: importedProjects } = await supabase
       .from("projects")
       .select("id")
@@ -146,7 +152,7 @@ export async function undoImportRunAction(
     const importedProjectIds = (importedProjects ?? []).map(
       (p) => p.id as string,
     );
-    if (importedProjectIds.length > 0) {
+    if (!force && importedProjectIds.length > 0) {
       const { data: manualEntries } = await supabase
         .from("time_entries")
         .select("project_id")
@@ -168,8 +174,9 @@ export async function undoImportRunAction(
     // Refusal check 4: manual projects parented to imported customers.
     // projects.customer_id is ON DELETE CASCADE — a manual project
     // under an imported customer would cascade-delete with the
-    // customer, taking its time entries with it.
-    if (importedCustomerIds.length > 0) {
+    // customer, taking its time entries with it. Skipped when
+    // `force=true`: the user has read the count and accepts the loss.
+    if (!force && importedCustomerIds.length > 0) {
       const { data: manualProjects } = await supabase
         .from("projects")
         .select("customer_id")
