@@ -24,6 +24,7 @@ export function GlobalKeyboardHelp(): React.JSX.Element {
         { keys: "⌘K", description: t("shortcuts.commandPalette") },
         { keys: "/", description: t("shortcuts.focusSearch") },
         { keys: "N", description: t("shortcuts.newItem") },
+        { keys: "[", description: t("shortcuts.goBack") },
         { keys: "Escape", description: t("shortcuts.closeOrCancel") },
       ],
     },

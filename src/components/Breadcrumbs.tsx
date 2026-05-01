@@ -24,12 +24,36 @@
  */
 
 import Link from "next/link";
-import { usePathname } from "next/navigation";
+import { usePathname, useRouter } from "next/navigation";
 import { useTranslations } from "next-intl";
 import { useEffect, useMemo, useState } from "react";
 import { matchBreadcrumbRoute, expandHref } from "@/lib/breadcrumbs/match";
 import { resolveSegmentLabel } from "@/lib/breadcrumbs/resolvers";
 import type { BreadcrumbSegmentSpec } from "@/lib/breadcrumbs/registry";
+
+/**
+ * "Up one level" keyboard shortcut for the breadcrumb trail.
+ *
+ * `[` (left bracket — visually points back) when no text input is
+ * focused navigates to the parent breadcrumb segment, or `router.back()`
+ * when no trail is available. Picked because:
+ *   - single key, no modifier — fast for keyboard users
+ *   - `[` is unbound elsewhere (`/`, `N`, `K`, `Space` are all taken)
+ *   - mirrors `Cmd+[` (browser back) without conflicting with it
+ *
+ * Skipped when an editable element is focused so keystrokes inside
+ * forms don't get hijacked. Same gate the rest of the app's
+ * single-key shortcuts use.
+ */
+const BACK_SHORTCUT_KEY = "[";
+
+function isEditableTarget(target: EventTarget | null): boolean {
+  if (!(target instanceof HTMLElement)) return false;
+  const tag = target.tagName;
+  if (tag === "INPUT" || tag === "TEXTAREA" || tag === "SELECT") return true;
+  if (target.isContentEditable) return true;
+  return false;
+}
 
 interface ResolvedSegment {
   id: string;
@@ -39,6 +63,7 @@ interface ResolvedSegment {
 
 export function Breadcrumbs(): React.JSX.Element | null {
   const pathname = usePathname();
+  const router = useRouter();
   // The breadcrumb messages live under the `common` namespace
   // (common.breadcrumb.*) so the keys ride alongside `nav.*` and
   // `navSections.*` instead of needing their own JSON file. Same
@@ -97,6 +122,39 @@ export function Breadcrumbs(): React.JSX.Element | null {
     }
     return s;
   });
+
+  // "Up one level" keyboard shortcut. The handler runs unconditionally
+  // — even on routes without a registered trail — and falls back to
+  // router.back() when there's no parent breadcrumb to jump to. That
+  // means the shortcut works on every page, not just ones with
+  // breadcrumbs visible, so the user gets a consistent "go back"
+  // affordance the way Cmd+[ in a browser does.
+  useEffect(() => {
+    function handler(event: KeyboardEvent): void {
+      if (event.key !== BACK_SHORTCUT_KEY) return;
+      if (event.metaKey || event.ctrlKey || event.altKey) return;
+      if (isEditableTarget(event.target)) return;
+      // Find the deepest parent in the trail that's actually
+      // navigable (skip structural "Setup" / "Work" segments with
+      // null hrefs — those shouldn't act as link targets even
+      // though they appear in the chain).
+      const match = matchBreadcrumbRoute(pathname);
+      const parentHref = match
+        ? match.trail
+            .slice(0, -1)
+            .reverse()
+            .find((s) => s.href !== null)
+        : undefined;
+      event.preventDefault();
+      if (parentHref?.href) {
+        router.push(expandHref(parentHref.href, match!.params));
+      } else {
+        router.back();
+      }
+    }
+    window.addEventListener("keydown", handler);
+    return () => window.removeEventListener("keydown", handler);
+  }, [pathname, router]);
 
   // Hide on routes with no trail or a single segment (page title is
   // enough on its own).

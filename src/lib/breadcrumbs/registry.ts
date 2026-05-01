@@ -25,7 +25,12 @@
  * test catches missing entries for any registered top-level page.
  */
 
-export type DynamicResolverKey = "businessName" | "teamName" | "customerName";
+export type DynamicResolverKey =
+  | "businessName"
+  | "teamName"
+  | "customerName"
+  | "projectName"
+  | "invoiceNumber";
 
 export interface BreadcrumbSegmentSpec {
   /** Stable id for tests / debugging. */
@@ -60,6 +65,104 @@ export interface BreadcrumbRouteSpec {
  * point at the URL the user reaches by clicking.
  */
 export const BREADCRUMB_ROUTES: BreadcrumbRouteSpec[] = [
+  // ─────────────────────────────────────────────────────────
+  // Work section (everyday surfaces). Each top-level page is a
+  // single-segment trail because the Work-section pages don't roll
+  // up under a structural parent like Setup does — they're peers
+  // in the sidebar. The structural-parent label still helps screen
+  // readers anchor "you're on a Work page", and matches the
+  // sidebar IA the user sees.
+  // ─────────────────────────────────────────────────────────
+  {
+    pattern: "/time-entries",
+    trail: [
+      { id: "work", labelKey: "work", href: null },
+      { id: "time", labelKey: "time", href: "/time-entries" },
+    ],
+  },
+  {
+    pattern: "/customers",
+    trail: [
+      { id: "work", labelKey: "work", href: null },
+      { id: "customers", labelKey: "customers", href: "/customers" },
+    ],
+  },
+  {
+    pattern: "/customers/[customerId]",
+    trail: [
+      { id: "work", labelKey: "work", href: null },
+      { id: "customers", labelKey: "customers", href: "/customers" },
+      {
+        id: "customerName",
+        resolver: "customerName",
+        resolverParam: "customerId",
+        href: "/customers/[customerId]",
+      },
+    ],
+  },
+  {
+    pattern: "/projects",
+    trail: [
+      { id: "work", labelKey: "work", href: null },
+      { id: "projects", labelKey: "projects", href: "/projects" },
+    ],
+  },
+  {
+    pattern: "/projects/[projectId]",
+    trail: [
+      { id: "work", labelKey: "work", href: null },
+      { id: "projects", labelKey: "projects", href: "/projects" },
+      {
+        id: "projectName",
+        resolver: "projectName",
+        resolverParam: "projectId",
+        href: "/projects/[projectId]",
+      },
+    ],
+  },
+  {
+    pattern: "/invoices",
+    trail: [
+      { id: "work", labelKey: "work", href: null },
+      { id: "invoices", labelKey: "invoices", href: "/invoices" },
+    ],
+  },
+  {
+    pattern: "/invoices/new",
+    trail: [
+      { id: "work", labelKey: "work", href: null },
+      { id: "invoices", labelKey: "invoices", href: "/invoices" },
+      { id: "invoiceNew", labelKey: "invoiceNew", href: "/invoices/new" },
+    ],
+  },
+  {
+    pattern: "/invoices/[invoiceId]",
+    trail: [
+      { id: "work", labelKey: "work", href: null },
+      { id: "invoices", labelKey: "invoices", href: "/invoices" },
+      {
+        id: "invoiceNumber",
+        resolver: "invoiceNumber",
+        resolverParam: "invoiceId",
+        href: "/invoices/[invoiceId]",
+      },
+    ],
+  },
+  {
+    pattern: "/reports",
+    trail: [
+      { id: "work", labelKey: "work", href: null },
+      { id: "reports", labelKey: "reports", href: "/reports" },
+    ],
+  },
+  {
+    pattern: "/trash",
+    trail: [
+      { id: "work", labelKey: "work", href: null },
+      { id: "trash", labelKey: "trash", href: "/trash" },
+    ],
+  },
+
   // /import
   {
     pattern: "/import",

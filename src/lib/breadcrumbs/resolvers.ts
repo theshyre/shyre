@@ -56,10 +56,36 @@ async function resolveCustomerName(id: string): Promise<string | null> {
   return data.name as string;
 }
 
+async function resolveProjectName(id: string): Promise<string | null> {
+  if (!id) return null;
+  const supabase = createClient();
+  const { data, error } = await supabase
+    .from("projects")
+    .select("name")
+    .eq("id", id)
+    .maybeSingle();
+  if (error || !data?.name) return null;
+  return data.name as string;
+}
+
+async function resolveInvoiceNumber(id: string): Promise<string | null> {
+  if (!id) return null;
+  const supabase = createClient();
+  const { data, error } = await supabase
+    .from("invoices")
+    .select("invoice_number")
+    .eq("id", id)
+    .maybeSingle();
+  if (error || !data?.invoice_number) return null;
+  return data.invoice_number as string;
+}
+
 const RESOLVERS: Record<DynamicResolverKey, Resolver> = {
   businessName: resolveBusinessName,
   teamName: resolveTeamName,
   customerName: resolveCustomerName,
+  projectName: resolveProjectName,
+  invoiceNumber: resolveInvoiceNumber,
 };
 
 /** Look up an entity name by resolver key + id. Null on miss. */
