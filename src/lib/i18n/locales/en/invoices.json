@@ -2,6 +2,56 @@
   "title": "Invoices",
   "newInvoice": "New Invoice",
   "createInvoice": "Create Invoice",
+  "servicePeriod": "Services rendered",
+  "new": {
+    "billableHours": {
+      "heading": "Billable hours to include",
+      "preset": {
+        "all": "All uninvoiced",
+        "lastMonth": "Last month",
+        "thisMonth": "This month",
+        "last30Days": "Last 30 days",
+        "custom": "Custom"
+      },
+      "startDate": "Start date",
+      "endDate": "End date",
+      "activeRange": "Including entries from {start} through {end}.",
+      "noRange": "Including all uninvoiced billable entries."
+    },
+    "grouping": {
+      "heading": "How to display hours",
+      "by_project": {
+        "label": "By project",
+        "help": "One line per project — the typical format clients expect."
+      },
+      "by_task": {
+        "label": "By task",
+        "help": "One line per category — useful when scope-of-work is task-based."
+      },
+      "by_person": {
+        "label": "By person",
+        "help": "One line per consultant — surfaces who did the work."
+      },
+      "detailed": {
+        "label": "Detailed",
+        "help": "One line per time entry — full transparency."
+      }
+    },
+    "preview": {
+      "heading": "Preview",
+      "entries": "Time entries",
+      "hours": "Total hours",
+      "lines": "Invoice lines",
+      "period": "Period",
+      "linesSample": "Sample lines",
+      "moreLines": "+ {count} more",
+      "empty": {
+        "title": "No matching entries.",
+        "help": "Adjust the date range or pick a different client.",
+        "clearFilters": "Clear filters"
+      }
+    }
+  },
   "noInvoices": "No invoices yet. Create one from unbilled time entries.",
   "selectClient": "Select a client",
   "allClients": "All clients (team-wide)",

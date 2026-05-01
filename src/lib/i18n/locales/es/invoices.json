@@ -2,6 +2,56 @@
   "title": "Facturas",
   "newInvoice": "Nueva Factura",
   "createInvoice": "Crear Factura",
+  "servicePeriod": "Servicios prestados",
+  "new": {
+    "billableHours": {
+      "heading": "Horas facturables a incluir",
+      "preset": {
+        "all": "Todas no facturadas",
+        "lastMonth": "Mes pasado",
+        "thisMonth": "Este mes",
+        "last30Days": "Últimos 30 días",
+        "custom": "Personalizado"
+      },
+      "startDate": "Fecha inicio",
+      "endDate": "Fecha fin",
+      "activeRange": "Incluyendo entradas del {start} al {end}.",
+      "noRange": "Incluyendo todas las entradas facturables sin facturar."
+    },
+    "grouping": {
+      "heading": "Cómo mostrar las horas",
+      "by_project": {
+        "label": "Por proyecto",
+        "help": "Una línea por proyecto — el formato habitual que esperan los clientes."
+      },
+      "by_task": {
+        "label": "Por tarea",
+        "help": "Una línea por categoría — útil cuando el alcance es por tarea."
+      },
+      "by_person": {
+        "label": "Por persona",
+        "help": "Una línea por consultor — muestra quién hizo el trabajo."
+      },
+      "detailed": {
+        "label": "Detallado",
+        "help": "Una línea por registro — transparencia completa."
+      }
+    },
+    "preview": {
+      "heading": "Vista previa",
+      "entries": "Registros de tiempo",
+      "hours": "Horas totales",
+      "lines": "Líneas de factura",
+      "period": "Período",
+      "linesSample": "Líneas de muestra",
+      "moreLines": "+ {count} más",
+      "empty": {
+        "title": "No hay registros coincidentes.",
+        "help": "Ajusta el rango de fechas o elige otro cliente.",
+        "clearFilters": "Limpiar filtros"
+      }
+    }
+  },
   "noInvoices": "Aún no hay facturas. Crea una a partir de registros de tiempo no facturados.",
   "selectClient": "Selecciona un cliente",
   "allClients": "Todos los clientes (todo el equipo)",

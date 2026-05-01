@@ -6,12 +6,17 @@ import { validateTeamAccess } from "@/lib/team-context";
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import {
-  calculateLineItemAmount,
   calculateInvoiceTotals,
   generateInvoiceNumber,
-  minutesToHours,
 } from "@/lib/invoice-utils";
-import type { LineItemResult } from "@/lib/invoice-utils";
+import {
+  groupEntriesIntoLineItems,
+  type EntryCandidate,
+} from "@/lib/invoice-grouping";
+import {
+  ALLOWED_INVOICE_GROUPING_MODES,
+  type InvoiceGroupingMode,
+} from "./allow-lists";
 import {
   isValidInvoiceStatusTransition,
   type InvoiceStatus,
@@ -36,6 +41,25 @@ export async function createInvoiceAction(formData: FormData): Promise<void> {
     const due_date = (formData.get("due_date") as string) || null;
     const taxRateStr = formData.get("tax_rate") as string;
     const taxRate = taxRateStr ? parseFloat(taxRateStr) : 0;
+
+    // Date-range filter for billable hours. Both bounds optional;
+    // when omitted the action falls back to the legacy "all
+    // unbilled" sweep. period_start/end on the invoice row use the
+    // explicit form values when set, else the actual min/max of
+    // included entry dates (computed below).
+    const range_start =
+      (formData.get("range_start") as string)?.trim() || null;
+    const range_end = (formData.get("range_end") as string)?.trim() || null;
+
+    // Grouping mode — defaults to by_project (US small-business norm
+    // per the bookkeeper review). Validated against the allow-list
+    // mirrored to the DB CHECK constraint via db-parity.test.ts.
+    const groupingRaw =
+      (formData.get("grouping_mode") as string)?.trim() || "by_project";
+    if (!ALLOWED_INVOICE_GROUPING_MODES.has(groupingRaw)) {
+      throw new Error(`Invalid grouping_mode: ${groupingRaw}`);
+    }
+    const grouping_mode = groupingRaw as InvoiceGroupingMode;
 
     // Get team settings for invoice number + team-level default rate.
     const { data: settings } = await supabase
@@ -64,16 +88,31 @@ export async function createInvoiceAction(formData: FormData): Promise<void> {
       ]),
     );
 
-    // Get unbilled time entries — filter by client if specified, otherwise all team entries
-    const query = supabase
+    // Get unbilled time entries. Pulls the columns needed by the
+    // grouping logic + the entry date for period_start / period_end
+    // computation. Range filter: when set, exclude entries whose
+    // start_time falls outside [range_start, range_end + 1 day).
+    let query = supabase
       .from("time_entries")
-      .select("id, description, duration_min, project_id, user_id, projects(name, hourly_rate, customer_id, customers(default_rate))")
+      .select(
+        "id, description, duration_min, project_id, user_id, start_time, projects(name, hourly_rate, customer_id, customers(default_rate)), categories(name), user_profiles!time_entries_user_id_fkey(display_name)",
+      )
       .eq("team_id", teamId)
       .eq("invoiced", false)
       .eq("billable", true)
       .not("end_time", "is", null)
       .not("duration_min", "is", null)
       .is("deleted_at", null);
+    if (range_start) {
+      query = query.gte("start_time", `${range_start}T00:00:00Z`);
+    }
+    if (range_end) {
+      // Inclusive upper bound — add a day so an entry on range_end
+      // itself is included regardless of timezone slop.
+      const next = new Date(`${range_end}T00:00:00Z`);
+      next.setUTCDate(next.getUTCDate() + 1);
+      query = query.lt("start_time", next.toISOString());
+    }
 
     const { data: entries } = await query;
 
@@ -95,45 +134,71 @@ export async function createInvoiceAction(formData: FormData): Promise<void> {
       throw new Error("No unbilled time entries found.");
     }
 
-    // Build line items. Rate cascade (highest non-null wins):
+    // Build per-entry candidates with the rate cascade resolved.
+    // Rate cascade (highest non-null wins):
     //   project.hourly_rate
     //     → customer.default_rate
     //       → team_members.default_rate (the user who logged this entry)
     //         → team_settings.default_rate
-    const lineItems: (LineItemResult & { time_entry_id: string })[] =
-      filteredEntries.map((entry) => {
-        const projRaw = entry.projects;
-        const proj = projRaw && typeof projRaw === "object" && "name" in projRaw
+    const candidates: EntryCandidate[] = filteredEntries.map((entry) => {
+      const projRaw = entry.projects;
+      const proj =
+        projRaw && typeof projRaw === "object" && "name" in projRaw
           ? (projRaw as unknown as {
               name: string;
               hourly_rate: number | null;
               customers: { default_rate: number | null } | null;
             })
           : null;
-        const hours = minutesToHours(entry.duration_min ?? 0);
-        const entryUserId = (entry as { user_id: string }).user_id;
-        const memberRate = memberRateByUserId.get(entryUserId) ?? null;
-        const rate =
-          (proj?.hourly_rate ? Number(proj.hourly_rate) : null) ??
-          (proj?.customers?.default_rate ? Number(proj.customers.default_rate) : null) ??
-          memberRate ??
-          defaultRate;
-        const amount = calculateLineItemAmount(hours, rate);
-        const desc = entry.description
-          ? `${proj?.name ?? "Project"}: ${entry.description}`
-          : (proj?.name ?? "Project work");
+      const entryUserId = (entry as { user_id: string }).user_id;
+      const memberRate = memberRateByUserId.get(entryUserId) ?? null;
+      const rate =
+        (proj?.hourly_rate ? Number(proj.hourly_rate) : null) ??
+        (proj?.customers?.default_rate
+          ? Number(proj.customers.default_rate)
+          : null) ??
+        memberRate ??
+        defaultRate;
+      const catRaw = (entry as { categories?: unknown }).categories;
+      const cat =
+        catRaw && typeof catRaw === "object" && "name" in catRaw
+          ? (catRaw as { name: string | null })
+          : null;
+      const profRaw = (entry as { user_profiles?: unknown }).user_profiles;
+      const prof =
+        profRaw && typeof profRaw === "object" && "display_name" in profRaw
+          ? (profRaw as { display_name: string | null })
+          : null;
+      const startIso = (entry as { start_time: string | null }).start_time;
+      return {
+        id: entry.id,
+        durationMin: Number(entry.duration_min ?? 0),
+        rate,
+        description: entry.description ?? null,
+        projectName: proj?.name ?? "Project",
+        taskName: cat?.name ?? null,
+        personName: prof?.display_name ?? "Unknown",
+        date: startIso ? startIso.slice(0, 10) : "",
+      };
+    });
 
-        return {
-          description: desc,
-          quantity: hours,
-          unitPrice: rate,
-          amount,
-          time_entry_id: entry.id,
-        };
-      });
-
-    const totals = calculateInvoiceTotals(lineItems, taxRate);
+    // Group + line-item the candidates. Same logic the live preview
+    // runs in the browser, so the user's pre-submit total matches
+    // the posted invoice to the cent.
+    const groupedLines = groupEntriesIntoLineItems(candidates, grouping_mode);
+    const totals = calculateInvoiceTotals(groupedLines, taxRate);
     const invoiceNumber = generateInvoiceNumber(prefix, nextNum);
+
+    // period_start / period_end: prefer the form-supplied bounds when
+    // set; else fall back to the actual min/max of included entry
+    // dates. Stored explicitly on the invoice row so the PDF + detail
+    // page don't have to re-derive on every render.
+    const dates = candidates
+      .map((c) => c.date)
+      .filter((d): d is string => d.length > 0)
+      .sort();
+    const period_start = range_start ?? dates[0] ?? null;
+    const period_end = range_end ?? dates[dates.length - 1] ?? null;
 
     // Create invoice (customer_id may be null for org-only invoices)
     const invoice = assertSupabaseOk(
@@ -151,19 +216,27 @@ export async function createInvoiceAction(formData: FormData): Promise<void> {
           tax_amount: totals.taxAmount,
           total: totals.total,
           notes,
+          period_start,
+          period_end,
+          grouping_mode,
         })
         .select("id")
         .single()
     )!;
 
-    // Create line items
-    const lineItemRows = lineItems.map((item) => ({
+    // Create line items. time_entry_id is set only when the line
+    // collapses exactly one source entry — for grouped lines (one
+    // line covering many entries) the FK has nowhere meaningful to
+    // point. The full set of source entry ids lives in the
+    // time_entries.invoice_id writeback below.
+    const lineItemRows = groupedLines.map((line) => ({
       invoice_id: invoice.id,
-      description: item.description,
-      quantity: item.quantity,
-      unit_price: item.unitPrice,
-      amount: item.amount,
-      time_entry_id: item.time_entry_id,
+      description: line.description,
+      quantity: line.quantity,
+      unit_price: line.unitPrice,
+      amount: line.amount,
+      time_entry_id:
+        line.sourceEntryIds.length === 1 ? line.sourceEntryIds[0] : null,
     }));
 
     assertSupabaseOk(
@@ -172,8 +245,10 @@ export async function createInvoiceAction(formData: FormData): Promise<void> {
         .insert(lineItemRows)
     );
 
-    // Mark time entries as invoiced
-    const entryIds = lineItems.map((item) => item.time_entry_id);
+    // Mark every source entry as invoiced — even ones that rolled
+    // up into a multi-entry line. That's how the lock chip + the
+    // entries-by-invoice-id query find them.
+    const entryIds = groupedLines.flatMap((l) => l.sourceEntryIds);
     await supabase
       .from("time_entries")
       .update({ invoiced: true, invoice_id: invoice.id })

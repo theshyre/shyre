@@ -234,7 +234,7 @@ export default async function InvoiceDetailPage({
       </div>
 
       {/* Dates */}
-      <div className="mt-4 flex gap-6 text-body text-content-secondary">
+      <div className="mt-4 flex flex-wrap gap-6 text-body text-content-secondary">
         <div>
           <span className="text-content-muted">{t("pdf.date")}:</span>{" "}
           {invoice.issued_date ? formatDate(invoice.issued_date) : "—"}
@@ -243,6 +243,20 @@ export default async function InvoiceDetailPage({
           <span className="text-content-muted">{t("pdf.dueDate")}:</span>{" "}
           {invoice.due_date ? formatDate(invoice.due_date) : "—"}
         </div>
+        {(invoice.period_start || invoice.period_end) && (
+          <div>
+            <span className="text-content-muted">
+              {t("servicePeriod")}:
+            </span>{" "}
+            {invoice.period_start
+              ? formatDate(invoice.period_start as string)
+              : "—"}{" "}
+            →{" "}
+            {invoice.period_end
+              ? formatDate(invoice.period_end as string)
+              : "—"}
+          </div>
+        )}
       </div>
 
       {/* Line items table */}

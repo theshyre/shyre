@@ -658,7 +658,11 @@ describe("createInvoiceAction", () => {
     expect(mockRedirect).toHaveBeenCalledWith("/invoices/inv-fresh");
   });
 
-  it("prefixes the line-item description with the project name when a description exists", async () => {
+  it("detailed grouping preserves the entry description as the line label", async () => {
+    // Pre-redesign behavior was a hardcoded "Project: description"
+    // prefix on every line. After the Harvest-style redesign the
+    // user picks a grouping mode and lines render accordingly:
+    // detailed → entry description; by_project → project name.
     mockValidateTeamAccess.mockResolvedValue({ userId: fakeUserId, role: "owner" });
     state.settings = {
       invoice_prefix: "INV",
@@ -679,7 +683,9 @@ describe("createInvoiceAction", () => {
       },
     ];
     try {
-      await createInvoiceAction(fd({ team_id: "team-1" }));
+      await createInvoiceAction(
+        fd({ team_id: "team-1", grouping_mode: "detailed" }),
+      );
     } catch {
       // redirect
     }
@@ -687,7 +693,7 @@ describe("createInvoiceAction", () => {
       (i) => i.table === "invoice_line_items",
     );
     const rows = lineInsert?.rows as Array<{ description: string }>;
-    expect(rows[0]?.description).toBe("Alpha: implement the feature");
+    expect(rows[0]?.description).toBe("implement the feature");
   });
 
   it("uses a project-only description when the time entry has no description", async () => {
