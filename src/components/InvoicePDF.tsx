@@ -212,28 +212,6 @@ const styles = StyleSheet.create({
     color: ink,
   },
 
-  // Watermark stamp (PAID / VOID). Absolutely positioned so it
-  // overlays the invoice without affecting layout. Tilted, hollow
-  // outline, semi-transparent — same shape Harvest uses on its PDF.
-  stamp: {
-    position: "absolute",
-    top: 220,
-    left: 200,
-    paddingTop: 14,
-    paddingBottom: 14,
-    paddingLeft: 28,
-    paddingRight: 28,
-    borderWidth: 4,
-    borderRadius: 6,
-    transform: "rotate(-12deg)",
-    opacity: 0.35,
-  },
-  stampText: {
-    fontSize: 56,
-    fontFamily: "Helvetica-Bold",
-    letterSpacing: 6,
-  },
-
   // Notes.
   notes: {
     marginTop: 28,
@@ -430,35 +408,20 @@ export function InvoicePDF(props: InvoicePDFProps): React.JSX.Element {
   const amountDue = Math.max(0, total - paymentsTotal);
   const showPaymentsRollup = paymentsTotal > 0;
 
-  // Watermark stamp — PAID for paid status (or fully-paid invoices
-  // even when status is still 'sent'), VOID when voided. Skip for
-  // draft / sent / overdue: those are transient and the stamp
-  // would be misleading on a still-collectible invoice.
-  const watermark: { text: string; color: string } | null = (() => {
-    if (status === "void") return { text: "VOID", color: "#B45309" }; // warning amber
-    if (status === "paid" || (paymentsTotal >= total && total > 0)) {
-      return { text: "PAID", color: "#16A34A" }; // success green
-    }
-    return null;
-  })();
+  // The PDF deliberately doesn't render a PAID / VOID watermark.
+  // Harvest's reference PDF doesn't either — the paid signal is
+  // carried by the totals block ("Payments / Amount Due $0.00"),
+  // and a rotated stamp at PDF resolution overlaps the line items
+  // table at common page sizes. The web detail page still renders
+  // the watermark since it has a viewport-aware container; PDF
+  // print surfaces stay clean.
+  // `status` arrives in props but we don't act on it here today —
+  // kept for forward compatibility (e.g. a future "DRAFT" footer).
+  void status;
 
   return (
     <Document>
       <Page size="A4" style={styles.page}>
-        {watermark && (
-          <View
-            style={[
-              styles.stamp,
-              { borderColor: watermark.color },
-            ]}
-          >
-            <Text
-              style={[styles.stampText, { color: watermark.color }]}
-            >
-              {watermark.text}
-            </Text>
-          </View>
-        )}
         {/* Header: branded wordmark left, From block right */}
         <View style={styles.header}>
           <Text style={styles.brandMark}>
