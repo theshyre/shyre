@@ -19,6 +19,7 @@ import {
   Loader2,
   ChevronsDown,
   ChevronsUp,
+  Lock,
   Play,
   Plus,
   Square,
@@ -80,6 +81,15 @@ interface Row {
   isNew?: boolean;
   /** Per-day duration in minutes, length 7 (Mon..Sun) */
   byDay: number[];
+  /** Per-day "any entry in this cell is invoiced" flag, length 7.
+   *  When true, the cell renders read-only with a lock indicator —
+   *  the DB trigger refuses UPDATE/DELETE on those rows, and the
+   *  upsert action also refuses early with a friendlier message. */
+  invoicedByDay: boolean[];
+  /** Per-day lookup of an invoice id for the lock chip's link
+   *  target. Same length / index as byDay; null when the day is
+   *  not locked. */
+  invoiceIdByDay: (string | null)[];
 }
 
 /** Dimension the grid collapses rows under. Changes the visual hierarchy
@@ -234,6 +244,11 @@ export function WeekTimesheet({
           // row as own — mirrors pre-multi-author behavior.
           isOwn: currentUserId === undefined || e.user_id === currentUserId,
           byDay: Array.from({ length: DAYS_IN_WEEK }, () => 0),
+          invoicedByDay: Array.from({ length: DAYS_IN_WEEK }, () => false),
+          invoiceIdByDay: Array.from(
+            { length: DAYS_IN_WEEK },
+            () => null as string | null,
+          ),
         };
         byKey.set(key, row);
       }
@@ -241,6 +256,15 @@ export function WeekTimesheet({
       const dayIndex = dayIndexOf(localDate);
       if (dayIndex >= 0 && dayIndex < DAYS_IN_WEEK) {
         row.byDay[dayIndex] = (row.byDay[dayIndex] ?? 0) + (e.duration_min ?? 0);
+        if (e.invoiced && e.invoice_id) {
+          row.invoicedByDay[dayIndex] = true;
+          // First invoice id wins — typical cell has at most one
+          // entry, but if Harvest re-attached a duplicate we'd
+          // surface the first invoice for the lock-chip link.
+          if (row.invoiceIdByDay[dayIndex] === null) {
+            row.invoiceIdByDay[dayIndex] = e.invoice_id;
+          }
+        }
       }
     }
 
@@ -258,6 +282,11 @@ export function WeekTimesheet({
           isOwn: true,
           isNew: true,
           byDay: Array.from({ length: DAYS_IN_WEEK }, () => 0),
+          invoicedByDay: Array.from({ length: DAYS_IN_WEEK }, () => false),
+          invoiceIdByDay: Array.from(
+            { length: DAYS_IN_WEEK },
+            () => null as string | null,
+          ),
         });
       }
     }
@@ -462,7 +491,35 @@ export function WeekTimesheet({
     fd.set("team_id", project.team_id);
     fd.set("duration_min", String(minutes));
     fd.set("tz_offset_min", String(tzOffsetMin));
-    await save.wrap(upsertTimesheetCellAction(fd));
+    // runSafeAction returns { success, error } — it doesn't throw on
+    // server-side failures (it logs + returns a user-safe shape so
+    // useFormAction can render the message). useAutosaveStatus.wrap
+    // only flips to "error" when the wrapped promise rejects, so
+    // without an explicit throw inside the wrap, the cell would
+    // silently render "Saved" on a failed write (the user reported
+    // exactly this: editing a locked cell silently shows green).
+    //
+    // Throw inside the wrapped promise so save.wrap sees the
+    // rejection, then catch the re-throw at this boundary — status
+    // is already updated to "error" with the message, and not
+    // catching here would surface as an unhandled rejection.
+    try {
+      await save.wrap(
+        (async () => {
+          const result = (await upsertTimesheetCellAction(fd)) as unknown as
+            | { success: boolean; error?: { message: string } }
+            | void;
+          if (result && (result as { success: boolean }).success === false) {
+            throw new Error(
+              (result as { error?: { message: string } }).error?.message ??
+                "Save failed. Please try again.",
+            );
+          }
+        })(),
+      );
+    } catch {
+      // save.wrap already flipped status → "error" with the message.
+    }
   }
 
   async function deleteRow(
@@ -1018,6 +1075,7 @@ function TimesheetRow({
   const t = useTranslations("time.timesheet");
   const tc = useTranslations("common.actions");
   const tEntry = useTranslations("time.entry");
+  const tLock = useTranslations("time.lock");
   const project = projects.find((p) => p.id === row.projectId);
   const category = row.categoryId
     ? categories.find((c) => c.id === row.categoryId)
@@ -1187,6 +1245,20 @@ function TimesheetRow({
                 <span className="h-1.5 w-1.5 rounded-full bg-success animate-pulse" />
                 {formatDurationHMZero(min + liveElapsedMin)}
               </div>
+            ) : row.invoicedByDay[i] ? (
+              // Locked cell — entry is invoiced and the DB trigger
+              // refuses UPDATE/DELETE. Render as static read-only
+              // with a Lock affordance so the user doesn't try to
+              // edit and hit a server error. Tooltip + clickable
+              // link via the lock icon's parent <a>.
+              <Link
+                href={`/invoices/${row.invoiceIdByDay[i]}`}
+                title={tLock("locked")}
+                className="flex w-full items-center justify-end gap-1.5 py-1 font-mono text-title tabular-nums text-content-muted hover:text-content"
+              >
+                <Lock size={12} aria-hidden="true" className="text-warning" />
+                {formatDurationHMZero(min)}
+              </Link>
             ) : editable ? (
               // Input is sized to its content (5-char "12:30" max),
               // not the cell. Wrapping <label> keeps the entire cell

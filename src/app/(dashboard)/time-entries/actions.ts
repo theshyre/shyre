@@ -683,7 +683,9 @@ export async function upsertTimesheetCellAction(
     // Find existing (non-deleted) entries in this (project, category, day) cell
     let q = supabase
       .from("time_entries")
-      .select("id, description, billable, github_issue, duration_min")
+      .select(
+        "id, description, billable, github_issue, duration_min, invoiced, invoice_id",
+      )
       .eq("project_id", project_id)
       .eq("user_id", userId)
       .is("deleted_at", null)
@@ -693,6 +695,22 @@ export async function upsertTimesheetCellAction(
     else q = q.is("category_id", null);
     const { data: existing, error: existingErr } = await q;
     if (existingErr) throw existingErr;
+
+    // Refuse early when any entry in the cell is invoiced. The DB
+    // trigger added in 20260501040000 would also block this, but
+    // its error message is generic and the cell-level edit path
+    // can give a clearer one ("this cell has an invoiced entry").
+    // Without an explicit refusal here the runSafeAction wrapper
+    // would surface the trigger's CHECK_VIOLATION as a string the
+    // user has to parse — clearer to bail early.
+    const lockedEntry = (existing ?? []).find(
+      (e) => e.invoiced === true && e.invoice_id !== null,
+    );
+    if (lockedEntry) {
+      throw new Error(
+        "This cell has an invoiced entry and is locked. Void the invoice first, or remove the entry from it.",
+      );
+    }
 
     // Zero duration → soft-delete everything in the cell so it can be
     // recovered via the trash. Matches row-level delete semantics.
