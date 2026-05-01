@@ -164,17 +164,23 @@ async function main(): Promise<void> {
 
   // Resolve the team. The owner's first owned team is the dogfood
   // home — typically "Malcom IO" — matching how the app picks the
-  // default team after sign-in.
+  // default team after sign-in. Order by joined_at (NOT created_at —
+  // team_members uses joined_at, see migration 002_multi_tenant.sql).
   const { data: membership, error: memErr } = await supabase
     .from("team_members")
     .select("team_id, role, teams(id, name)")
     .eq("user_id", userId)
     .eq("role", "owner")
-    .order("created_at", { ascending: true })
+    .order("joined_at", { ascending: true })
     .limit(1)
     .maybeSingle();
 
-  if (memErr || !membership) {
+  if (memErr) {
+    throw new Error(
+      `Failed to look up owned teams for ${OWNER_EMAIL}: ${memErr.message}`,
+    );
+  }
+  if (!membership) {
     throw new Error(
       `Could not find an owned team for ${OWNER_EMAIL}. Create a team first.`,
     );
