@@ -1,7 +1,7 @@
 "use server";
 
 import { runSafeAction } from "@/lib/safe-action";
-import { assertSupabaseOk } from "@/lib/errors";
+import { assertSupabaseOk, AppError } from "@/lib/errors";
 import { validateTeamAccess } from "@/lib/team-context";
 import { revalidatePath } from "next/cache";
 import {
@@ -102,7 +102,7 @@ export async function undoImportRunAction(
         const blockingEntryCount = invoicedEntries.filter((e) =>
           blockingInvoiceIds.includes(e.invoice_id as string),
         ).length;
-        throw new Error(
+        throw AppError.refusal(
           invoicedEntriesRefusalMessage(
             blockingEntryCount,
             blockingInvoiceIds.length,
@@ -131,7 +131,7 @@ export async function undoImportRunAction(
         .or(`import_run_id.is.null,import_run_id.neq.${runId}`);
 
       if ((invoicesOnImportedCustomers ?? 0) > 0) {
-        throw new Error(
+        throw AppError.refusal(
           invoicesOnImportedCustomersRefusalMessage(
             invoicesOnImportedCustomers ?? 0,
           ),
@@ -162,7 +162,7 @@ export async function undoImportRunAction(
         const distinctProjects = new Set(
           manualEntries.map((e) => e.project_id as string),
         );
-        throw new Error(
+        throw AppError.refusal(
           manualEntriesOnImportedProjectsRefusalMessage(
             manualEntries.length,
             distinctProjects.size,
@@ -186,7 +186,7 @@ export async function undoImportRunAction(
         const distinctCustomers = new Set(
           manualProjects.map((p) => p.customer_id as string),
         );
-        throw new Error(
+        throw AppError.refusal(
           manualProjectsOnImportedCustomersRefusalMessage(
             manualProjects.length,
             distinctCustomers.size,

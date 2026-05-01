@@ -7,6 +7,7 @@ import {
   CheckCircle,
   XCircle,
   Undo2,
+  Loader2,
   X,
 } from "lucide-react";
 import { InlineErrorCard } from "@/components/InlineErrorCard";
@@ -129,10 +130,16 @@ function RunRow({
   // retry). Server-side errors return { success: false, error } —
   // we read the result and throw on failure so the catch handler
   // surfaces the message inline.
+  //
+  // forceable state lifecycle: only changed by the catch handler
+  // (set true on a manual-data refusal) or on success (cleared so
+  // the card unmounts). We deliberately do NOT clear forceable at
+  // the start of runUndo, which would unmount the ForceUndoConfirm
+  // card the moment the user clicks Undo Anyway and leave them
+  // staring at a blank space while the request is in flight.
   async function runUndo(force: boolean): Promise<void> {
     setPending(true);
     setError(null);
-    setForceable(false);
     const fd = new FormData();
     fd.set("run_id", run.id);
     fd.set("team_id", run.team_id);
@@ -157,6 +164,9 @@ function RunRow({
           err?.message ?? err?.userMessageKey ?? "Undo failed",
         );
       }
+      // Success — clear all surfaced refusal state so the row
+      // re-renders cleanly with `undone_at` set.
+      setForceable(false);
       setConfirming(false);
     } catch (err) {
       const message = err instanceof Error ? err.message : "Undo failed";
@@ -325,21 +335,30 @@ function ForceUndoConfirm({
           autoCorrect="off"
           spellCheck={false}
           aria-label={t("forceUndoInputLabel")}
-          className="rounded-md border border-edge bg-surface px-2 py-1 text-caption font-mono w-24"
+          disabled={pending}
+          className="rounded-md border border-edge bg-surface px-2 py-1 text-caption font-mono w-24 disabled:opacity-50"
         />
         <button
           type="button"
           onClick={() => void onConfirm()}
           disabled={!armed || pending}
-          className="inline-flex items-center gap-1 rounded bg-error px-2 py-1 text-caption font-semibold text-content-inverse hover:opacity-90 disabled:opacity-40 disabled:cursor-not-allowed transition-opacity"
+          aria-busy={pending}
+          className="inline-flex items-center gap-1.5 rounded bg-error px-2 py-1 text-caption font-semibold text-content-inverse hover:opacity-90 disabled:opacity-40 disabled:cursor-not-allowed transition-opacity"
         >
-          {t("forceUndoConfirm")}
+          {pending && (
+            <Loader2
+              size={12}
+              className="animate-spin"
+              aria-hidden="true"
+            />
+          )}
+          {pending ? t("forceUndoPending") : t("forceUndoConfirm")}
         </button>
         <button
           type="button"
           onClick={onCancel}
           disabled={pending}
-          className="rounded p-1 text-content-muted hover:bg-hover transition-colors text-caption"
+          className="rounded p-1 text-content-muted hover:bg-hover transition-colors text-caption disabled:opacity-50"
         >
           {t("forceUndoCancel")}
         </button>

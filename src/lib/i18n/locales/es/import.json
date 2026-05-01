@@ -13,6 +13,7 @@
     "forceUndoPrompt": "Escribe \"delete\" para confirmar:",
     "forceUndoInputLabel": "Escribe \"delete\" para confirmar deshacer forzado",
     "forceUndoConfirm": "Deshacer de todos modos",
+    "forceUndoPending": "Deshaciendo…",
     "forceUndoCancel": "Cancelar",
     "confirm": {
       "prompt": "Escribe \"deshacer\" para confirmar",

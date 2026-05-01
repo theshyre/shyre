@@ -13,6 +13,7 @@
     "forceUndoPrompt": "Type \"delete\" to confirm:",
     "forceUndoInputLabel": "Type \"delete\" to confirm force undo",
     "forceUndoConfirm": "Undo anyway",
+    "forceUndoPending": "Undoing…",
     "forceUndoCancel": "Cancel",
     "confirm": {
       "prompt": "Type \"undo\" to confirm",

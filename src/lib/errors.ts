@@ -92,13 +92,19 @@ export class AppError extends Error {
     if (this.code === "VALIDATION_ERROR" && this.details.fieldErrors) {
       result.fieldErrors = this.details.fieldErrors as Record<string, string>;
     }
-    // Forward the literal message for UNKNOWN-coded errors only —
-    // those originate from `throw new Error("user-readable text")`
-    // inside our own actions and are deliberately written for the
-    // user. Structured codes (auth, validation, conflict, …) keep
-    // their i18n key as the only client-facing channel so internal
-    // text from third-party libraries can't slip through.
-    if (this.code === "UNKNOWN" && this.message) {
+    // Forward the literal message for UNKNOWN- and CONFLICT-coded
+    // errors. UNKNOWN originates from `throw new Error("…")` inside
+    // our own actions; CONFLICT is the deliberate-refusal factory
+    // (AppError.refusal) used for business-rule blocks like
+    // "1 manual time entry exists on a project this import created."
+    // Both are deliberately written for the user. Structured codes
+    // (auth, validation, …) still keep their i18n key as the only
+    // client-facing channel so internal text from third-party
+    // libraries can't slip through.
+    if (
+      (this.code === "UNKNOWN" || this.code === "CONFLICT") &&
+      this.message
+    ) {
       result.message = this.message;
     }
     return result;
@@ -164,6 +170,32 @@ export class AppError extends Error {
       code: "CONFLICT",
       message: message ?? "Resource conflict",
       userMessageKey: "errors.conflict",
+    });
+  }
+
+  /**
+   * Deliberate business-rule refusal — "this can't happen because
+   * the data isn't in the right state." Examples: invoice can't be
+   * deleted because it's not voided yet; undo can't proceed
+   * because manual entries depend on imported records.
+   *
+   * Severity = "info" so logger.ts skips the admin error-log write
+   * (these are expected user-facing refusals, not bugs needing
+   * attention). The CONFLICT code (409) signals "client should
+   * adjust state and retry" to any future API consumer.
+   *
+   * Use this instead of `throw new Error("…")` for any deliberate
+   * refusal whose message is written for the user. UNKNOWN-coded
+   * errors still log as "error" — that's the catch-all for
+   * unexpected throws (network, type errors, library bugs) which
+   * legitimately want admin attention.
+   */
+  static refusal(message: string): AppError {
+    return new AppError({
+      code: "CONFLICT",
+      message,
+      userMessageKey: "errors.conflict",
+      severity: "info",
     });
   }
 

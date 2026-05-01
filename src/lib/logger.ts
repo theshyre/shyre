@@ -30,6 +30,15 @@ async function writeErrorLog(
 ): Promise<void> {
   const appError = toAppError(error);
 
+  // Skip info-severity entries entirely. Info is reserved for
+  // deliberate user-facing refusals (AppError.refusal) — expected
+  // business-rule blocks like "this invoice isn't voided yet" or
+  // "manual data depends on imported records." Those land in the
+  // user's UI inline; admins don't need a parallel log.
+  if (appError.severity === "info") {
+    return;
+  }
+
   // Preferred path: service-role client, bypasses RLS, works without a user
   // session. Fails if SUPABASE_SERVICE_ROLE_KEY is not configured.
   try {
