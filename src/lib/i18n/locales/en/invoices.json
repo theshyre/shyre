@@ -52,15 +52,18 @@
       "linesSample": "Sample lines",
       "moreLines": "+ {count} more",
       "empty": {
-        "title": "No matching entries.",
+        "title": "No matching entries",
         "help": "Adjust the date range or pick a different client.",
+        "allFiltered": "{count, plural, =1 {This client has 1 uninvoiced entry, but none fall in the selected range.} other {This client has # uninvoiced entries, but none fall in the selected range.}}",
+        "zeroForCustomer": "This client has no uninvoiced billable entries.",
         "clearFilters": "Clear filters"
       },
       "orphans": {
         "message": "{count, plural, =1 {1 uninvoiced entry sits outside this date range — likely a stragger from before the last invoice.} other {# uninvoiced entries sit outside this date range — likely straggers from before the last invoice.}}",
         "switchToAll": "Switch to All uninvoiced"
       }
-    }
+    },
+    "submitDisabledHint": "Add billable entries to enable. Pick a client and a date range that includes uninvoiced work."
   },
   "noInvoices": "No invoices yet. Create one from unbilled time entries.",
   "selectClient": "Select a client",

@@ -23,6 +23,7 @@ export default getRequestConfig(async () => {
     expenses,
     admin,
     importMessages,
+    paymentTerms,
   ] = await Promise.all([
     import(`./locales/${locale}/common.json`),
     import(`./locales/${locale}/auth.json`),
@@ -43,6 +44,7 @@ export default getRequestConfig(async () => {
     import(`./locales/${locale}/expenses.json`),
     import(`./locales/${locale}/admin.json`),
     import(`./locales/${locale}/import.json`),
+    import(`./locales/${locale}/paymentTerms.json`),
   ]);
 
   return {
@@ -67,6 +69,7 @@ export default getRequestConfig(async () => {
       expenses: expenses.default,
       admin: admin.default,
       import: importMessages.default,
+      paymentTerms: paymentTerms.default,
     },
   };
 });

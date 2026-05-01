@@ -56,6 +56,15 @@ export async function updateCustomerAction(formData: FormData): Promise<void> {
 
     const patch: Record<string, unknown> = { name, email, address, notes };
 
+    // payment_terms_days: integer 0..365 inclusive, or null to fall
+    // back to team_settings.default_payment_terms_days. Empty string
+    // from the form means "Use team default" (the inherit chip).
+    if (formData.has("payment_terms_days")) {
+      const raw = (formData.get("payment_terms_days") as string).trim();
+      patch.payment_terms_days =
+        raw === "" ? null : Math.max(0, Math.min(365, parseInt(raw, 10) || 0));
+    }
+
     // Guardrail: honor rate_editability on the default_rate column. See
     // the equivalent guardrail in projects/actions.ts updateProjectAction.
     if (formData.has("default_rate")) {

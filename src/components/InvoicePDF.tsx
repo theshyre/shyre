@@ -258,6 +258,11 @@ export interface InvoicePDFProps {
    *  preserves the current "Subtotal / Tax / Total" output for
    *  unpaid invoices. */
   paymentsTotal?: number;
+  /** Denormalized payment-terms label ("Net 30", "Due on receipt").
+   *  Prefer this when present — it's frozen at create-time. Falls
+   *  back to the date-diff heuristic for legacy invoices that
+   *  pre-date the payment_terms_label column. */
+  paymentTermsLabel?: string | null;
   /** ISO 4217 currency code. Defaults to USD when omitted so legacy
    *  rows without a currency value still render. */
   currency?: string;
@@ -376,6 +381,7 @@ export function InvoicePDF(props: InvoicePDFProps): React.JSX.Element {
     taxAmount,
     total,
     paymentsTotal = 0,
+    paymentTermsLabel,
     currency,
     business,
     client,
@@ -396,9 +402,14 @@ export function InvoicePDF(props: InvoicePDFProps): React.JSX.Element {
   const primaryWordmark = business.wordmarkPrimary ?? business.name ?? "";
   const secondaryWordmark = business.wordmarkSecondary ?? "";
 
-  // Net N suffix on the due date when the issue→due gap matches a
-  // canonical payment term. Null otherwise (date stands alone).
-  const netLabel = netLabelForDateRange(issuedDate, dueDate);
+  // Payment-terms label. Prefer the denormalized invoice column
+  // (frozen at create-time) so changing customer/team defaults
+  // doesn't retroactively alter sent invoices. Fall back to the
+  // date-diff heuristic for legacy invoices created before the
+  // payment_terms_label column existed.
+  const netLabel =
+    paymentTermsLabel?.trim() ||
+    netLabelForDateRange(issuedDate, dueDate);
   const dueDateText = netLabel
     ? `${formatPdfDate(dueDate)} (${netLabel})`
     : formatPdfDate(dueDate);

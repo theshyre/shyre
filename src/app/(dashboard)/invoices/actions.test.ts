@@ -845,6 +845,128 @@ describe("createInvoiceAction", () => {
     expect(bobRow?.unit_price).toBe(30); // no member rate → team default
   });
 
+  it("payment_terms_days: persists days + denormalized label", async () => {
+    mockValidateTeamAccess.mockResolvedValue({ userId: fakeUserId, role: "owner" });
+    state.timeEntries = [
+      {
+        id: "e1",
+        duration_min: 60,
+        description: "a",
+        projects: {
+          name: "P",
+          hourly_rate: 100,
+          customer_id: null,
+          customers: null,
+        },
+      },
+    ];
+    try {
+      await createInvoiceAction(
+        fd({ team_id: "team-1", payment_terms_days: "30" }),
+      );
+    } catch {
+      // redirect
+    }
+    const inv = state.inserts.find((i) => i.table === "invoices");
+    const row = inv?.rows as {
+      payment_terms_days: number | null;
+      payment_terms_label: string | null;
+    };
+    expect(row.payment_terms_days).toBe(30);
+    expect(row.payment_terms_label).toBe("Net 30");
+  });
+
+  it("payment_terms_days: 0 maps to 'Due on receipt'", async () => {
+    mockValidateTeamAccess.mockResolvedValue({ userId: fakeUserId, role: "owner" });
+    state.timeEntries = [
+      {
+        id: "e1",
+        duration_min: 60,
+        description: "a",
+        projects: {
+          name: "P",
+          hourly_rate: 100,
+          customer_id: null,
+          customers: null,
+        },
+      },
+    ];
+    try {
+      await createInvoiceAction(
+        fd({ team_id: "team-1", payment_terms_days: "0" }),
+      );
+    } catch {
+      // redirect
+    }
+    const inv = state.inserts.find((i) => i.table === "invoices");
+    const row = inv?.rows as {
+      payment_terms_days: number | null;
+      payment_terms_label: string | null;
+    };
+    expect(row.payment_terms_days).toBe(0);
+    expect(row.payment_terms_label).toBe("Due on receipt");
+  });
+
+  it("payment_terms_days: empty / missing → both null (legacy unset)", async () => {
+    mockValidateTeamAccess.mockResolvedValue({ userId: fakeUserId, role: "owner" });
+    state.timeEntries = [
+      {
+        id: "e1",
+        duration_min: 60,
+        description: "a",
+        projects: {
+          name: "P",
+          hourly_rate: 100,
+          customer_id: null,
+          customers: null,
+        },
+      },
+    ];
+    try {
+      await createInvoiceAction(fd({ team_id: "team-1" }));
+    } catch {
+      // redirect
+    }
+    const inv = state.inserts.find((i) => i.table === "invoices");
+    const row = inv?.rows as {
+      payment_terms_days: number | null;
+      payment_terms_label: string | null;
+    };
+    expect(row.payment_terms_days).toBeNull();
+    expect(row.payment_terms_label).toBeNull();
+  });
+
+  it("payment_terms_days: clamps out-of-range values to 0..365", async () => {
+    mockValidateTeamAccess.mockResolvedValue({ userId: fakeUserId, role: "owner" });
+    state.timeEntries = [
+      {
+        id: "e1",
+        duration_min: 60,
+        description: "a",
+        projects: {
+          name: "P",
+          hourly_rate: 100,
+          customer_id: null,
+          customers: null,
+        },
+      },
+    ];
+    try {
+      await createInvoiceAction(
+        fd({ team_id: "team-1", payment_terms_days: "9999" }),
+      );
+    } catch {
+      // redirect
+    }
+    const inv = state.inserts.find((i) => i.table === "invoices");
+    const row = inv?.rows as {
+      payment_terms_days: number | null;
+      payment_terms_label: string | null;
+    };
+    expect(row.payment_terms_days).toBe(365);
+    expect(row.payment_terms_label).toBe("Net 365");
+  });
+
   it("cascade: project rate still beats the per-member rate", async () => {
     mockValidateTeamAccess.mockResolvedValue({ userId: fakeUserId, role: "owner" });
     state.settings = {

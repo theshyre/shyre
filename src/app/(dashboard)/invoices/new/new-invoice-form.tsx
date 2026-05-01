@@ -9,11 +9,15 @@ import {
   Users,
   FolderKanban,
   CheckSquare,
+  FileSearch,
 } from "lucide-react";
 import { AlertBanner } from "@theshyre/ui";
 import { useFormAction } from "@/hooks/use-form-action";
 import { useDirtyTitle } from "@/hooks/use-dirty-title";
 import { SubmitButton } from "@/components/SubmitButton";
+import { DateField } from "@/components/DateField";
+import { PaymentTermsField } from "@/components/PaymentTermsField";
+import { Tooltip } from "@/components/Tooltip";
 import {
   inputClass,
   textareaClass,
@@ -32,6 +36,11 @@ import {
 } from "@/lib/invoice-grouping";
 import { calculateInvoiceTotals } from "@/lib/invoice-utils";
 import { formatCurrency } from "@/lib/invoice-utils";
+import {
+  computeDueDate,
+  resolvePaymentTermsDays,
+  resolvePaymentTermsSource,
+} from "@/lib/payment-terms";
 import type { InvoiceGroupingMode } from "../allow-lists";
 import { createInvoiceAction } from "../actions";
 
@@ -39,6 +48,7 @@ interface CustomerOption {
   id: string;
   name: string;
   default_rate: number | null;
+  payment_terms_days: number | null;
 }
 
 /** Per-entry payload streamed to the client by `page.tsx`. The
@@ -159,6 +169,7 @@ export function NewInvoiceForm({
   candidates,
   lastInvoiceEndByCustomer,
   defaultTaxRate,
+  teamDefaultTermsDays,
   teams,
 }: {
   customers: CustomerOption[];
@@ -169,10 +180,15 @@ export function NewInvoiceForm({
    *  been invoiced yet. */
   lastInvoiceEndByCustomer: Record<string, string>;
   defaultTaxRate: number;
+  /** team_settings.default_payment_terms_days. Cascade fallback
+   *  when the selected customer has no payment_terms_days override.
+   *  null = no team default (user picks date manually). */
+  teamDefaultTermsDays: number | null;
   teams: TeamListItem[];
 }): React.JSX.Element {
   const t = useTranslations("invoices");
   const tNew = useTranslations("invoices.new");
+  const tPay = useTranslations("paymentTerms");
 
   const [dirty, setDirty] = useState(false);
   useDirtyTitle(dirty);
@@ -194,17 +210,76 @@ export function NewInvoiceForm({
   const [discountRate, setDiscountRate] = useState<string>("");
   const [discountAmount, setDiscountAmount] = useState<string>("");
 
+  // Today as YYYY-MM-DD, computed once per render. Used as the
+  // anchor for due-date math and as the default issue date.
+  const todayYmd = useMemo(() => {
+    const d = new Date();
+    return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+  }, []);
+
+  // Resolve the payment-terms cascade for the selected customer.
+  // null when no customer is selected (the form falls back to the
+  // team default, but we don't pre-fill due_date until the user
+  // either picks a customer or clicks a chip).
+  const selectedCustomer = customerId
+    ? (customers.find((c) => c.id === customerId) ?? null)
+    : null;
+  const cascadeInputs = useMemo(
+    () => ({
+      customerTermsDays: selectedCustomer?.payment_terms_days ?? null,
+      teamDefaultDays: teamDefaultTermsDays,
+    }),
+    [selectedCustomer, teamDefaultTermsDays],
+  );
+  const resolvedTermsDays = useMemo(
+    () => resolvePaymentTermsDays(cascadeInputs),
+    [cascadeInputs],
+  );
+  const termsSource = useMemo(
+    () => resolvePaymentTermsSource(cascadeInputs),
+    [cascadeInputs],
+  );
+
+  // Payment terms days actually selected on this invoice. Starts at
+  // the cascade value; updates either when the user clicks a chip
+  // (PaymentTermsField onChange) or when the customer changes (the
+  // useEffect below replays the cascade for the new customer).
+  const [termsDays, setTermsDays] = useState<number | null>(
+    resolvedTermsDays,
+  );
+
+  // Due date as YYYY-MM-DD. Auto-computed from termsDays + today
+  // unless the user has overridden it (dueDateTouched).
+  const [dueDate, setDueDate] = useState<string>(
+    resolvedTermsDays != null
+      ? computeDueDate(todayYmd, resolvedTermsDays)
+      : "",
+  );
+  const [dueDateTouched, setDueDateTouched] = useState(false);
+
+  // When the customer changes, re-resolve the cascade and re-fill
+  // due_date — UNLESS the user has explicitly set a date already
+  // (dueDateTouched). Solo-consultant review: "the chip should drive
+  // the date but a hand-typed override should win."
+  useEffect(() => {
+    setTermsDays(resolvedTermsDays);
+    if (!dueDateTouched) {
+      setDueDate(
+        resolvedTermsDays != null
+          ? computeDueDate(todayYmd, resolvedTermsDays)
+          : "",
+      );
+    }
+    // dueDateTouched intentionally NOT in deps — that flips
+    // mid-edit when the user types and we don't want this effect to
+    // re-fire and stomp their value.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [resolvedTermsDays, todayYmd]);
+
   // Restore the user's last choices on mount. Reading localStorage
   // during render would mismatch hydration (server has no
   // localStorage); reading in an effect after mount is the
-  // conventional pattern. The `react-hooks/set-state-in-effect`
-  // rule fires on this — disabled with rationale, since the
-  // state initializer can't see localStorage and the alternative
-  // (lazy init) would cause hydration mismatch.
-  /* eslint-disable react-hooks/set-state-in-effect -- localStorage
-     can't be read during render (no SSR) and lazy init would
-     mismatch hydration — set after mount is the conventional
-     pattern here. */
+  // conventional pattern.
   useEffect(() => {
     const storedGrouping = loadStored<InvoiceGroupingMode>(
       STORAGE_GROUPING,
@@ -214,7 +289,6 @@ export function NewInvoiceForm({
     const storedPreset = loadStored<RangePreset>(STORAGE_PRESET, PRESETS);
     if (storedPreset) setPreset(storedPreset);
   }, []);
-  /* eslint-enable react-hooks/set-state-in-effect */
 
   useEffect(() => {
     if (typeof window !== "undefined") {
@@ -310,6 +384,19 @@ export function NewInvoiceForm({
     }).length;
   }, [candidates, customerId, range.start, range.end]);
 
+  // Total uninvoiced for the customer (no range filter applied).
+  // Drives the empty-state disambiguation: "0 in this range" vs
+  // "0 anywhere" are very different signals — the former is a
+  // user-narrowed result, the latter is paid-up-or-no-work.
+  // Without this, "No matching entries" was indistinguishable from
+  // a system error (which it actually was, before the PGRST200 fix).
+  const totalUninvoicedForCustomer = useMemo(() => {
+    return candidates.filter((c) => {
+      if (customerId && c.customerId !== customerId) return false;
+      return true;
+    }).length;
+  }, [candidates, customerId]);
+
   return (
     <form
       action={handleSubmit}
@@ -326,7 +413,9 @@ export function NewInvoiceForm({
           <AlertBanner tone="error">{serverError}</AlertBanner>
         </div>
       )}
-      <TeamSelector teams={teams} />
+      <div className="mb-4">
+        <TeamSelector teams={teams} />
+      </div>
 
       {/* Hidden inputs: the form's interactive controls are React-
           state-driven, but the action consumes FormData. Mirror state
@@ -341,12 +430,22 @@ export function NewInvoiceForm({
           <section className="rounded-lg border border-edge bg-surface-raised p-4 space-y-4">
             <div className={formGridClass}>
               <div className={formSpanHalf}>
-                <label className={labelClass}>{t("selectClient")}</label>
+                <label className={labelClass} htmlFor="customer_id">
+                  {t("selectClient")}
+                </label>
                 <select
                   autoFocus
+                  id="customer_id"
                   name="customer_id"
                   value={customerId}
-                  onChange={(e) => setCustomerId(e.target.value)}
+                  onChange={(e) => {
+                    setCustomerId(e.target.value);
+                    // Customer change → re-pull cascade source and
+                    // re-fill due date (handled by the effect on
+                    // resolvedTermsDays). Clear the touched flag
+                    // so the new cascade actually applies.
+                    setDueDateTouched(false);
+                  }}
                   className={selectClass}
                 >
                   <option value="">{t("allClients")}</option>
@@ -357,13 +456,60 @@ export function NewInvoiceForm({
                   ))}
                 </select>
               </div>
-              <div className={formSpanQuarter}>
-                <label className={labelClass}>{t("fields.dueDate")}</label>
-                <input name="due_date" type="date" className={inputClass} />
+              <div className={formSpanHalf}>
+                <label className={labelClass} htmlFor="due_date">
+                  {t("fields.dueDate")}
+                </label>
+                <DateField
+                  id="due_date"
+                  name="due_date"
+                  value={dueDate}
+                  onChange={(next) => {
+                    setDueDate(next);
+                    setDueDateTouched(true);
+                  }}
+                />
               </div>
+            </div>
+
+            {/* Payment-terms chips drive the due-date field.
+                Cascade resolves customer override → team default →
+                manual. Source line below the chips tells the user
+                where the default came from. */}
+            <div>
+              <PaymentTermsField
+                name="payment_terms_days"
+                defaultValue={termsDays}
+                inheritLabel={null}
+                label={tPay("label")}
+                helperText={
+                  termsSource === "customer" && selectedCustomer
+                    ? tPay("invoice.fromCustomer", { customer: selectedCustomer.name })
+                    : termsSource === "team"
+                      ? tPay("invoice.fromTeam")
+                      : tPay("invoice.noDefault")
+                }
+                onChange={(days) => {
+                  setTermsDays(days);
+                  if (days != null) {
+                    setDueDate(computeDueDate(todayYmd, days));
+                    setDueDateTouched(false);
+                  }
+                }}
+              />
+            </div>
+
+            {/* Tax demoted to its own row. Most invoices use the
+                team default; tucking it here vs sharing the row with
+                client / due date avoids the visual imbalance UX
+                review flagged. */}
+            <div className={formGridClass}>
               <div className={formSpanQuarter}>
-                <label className={labelClass}>{t("fields.taxRate")}</label>
+                <label className={labelClass} htmlFor="tax_rate">
+                  {t("fields.taxRate")}
+                </label>
                 <input
+                  id="tax_rate"
                   name="tax_rate"
                   type="number"
                   step="0.01"
@@ -466,29 +612,27 @@ export function NewInvoiceForm({
             {preset === "custom" && (
               <div className="grid grid-cols-2 gap-3">
                 <div>
-                  <label className={labelClass}>
+                  <label className={labelClass} htmlFor="range_start_picker">
                     {tNew("billableHours.startDate")}
                   </label>
-                  <input
-                    type="date"
+                  <DateField
+                    id="range_start_picker"
                     value={customRange.start}
-                    onChange={(e) =>
-                      setCustomRange((p) => ({ ...p, start: e.target.value }))
+                    onChange={(next) =>
+                      setCustomRange((p) => ({ ...p, start: next }))
                     }
-                    className={inputClass}
                   />
                 </div>
                 <div>
-                  <label className={labelClass}>
+                  <label className={labelClass} htmlFor="range_end_picker">
                     {tNew("billableHours.endDate")}
                   </label>
-                  <input
-                    type="date"
+                  <DateField
+                    id="range_end_picker"
                     value={customRange.end}
-                    onChange={(e) =>
-                      setCustomRange((p) => ({ ...p, end: e.target.value }))
+                    onChange={(next) =>
+                      setCustomRange((p) => ({ ...p, end: next }))
                     }
-                    className={inputClass}
                   />
                 </div>
               </div>
@@ -577,13 +721,26 @@ export function NewInvoiceForm({
             </div>
           </section>
 
-          <SubmitButton
-            label={t("createInvoice")}
-            pending={pending}
-            success={success}
-            disabled={lines.length === 0}
-            icon={FileText}
-          />
+          {lines.length === 0 ? (
+            <Tooltip label={tNew("submitDisabledHint")}>
+              <span className="inline-block">
+                <SubmitButton
+                  label={t("createInvoice")}
+                  pending={pending}
+                  success={success}
+                  disabled
+                  icon={FileText}
+                />
+              </span>
+            </Tooltip>
+          ) : (
+            <SubmitButton
+              label={t("createInvoice")}
+              pending={pending}
+              success={success}
+              icon={FileText}
+            />
+          )}
         </div>
 
         {/* Right rail — sticky live preview */}
@@ -592,11 +749,36 @@ export function NewInvoiceForm({
             {tNew("preview.heading")}
           </h2>
           {lines.length === 0 ? (
-            <div className="text-body text-content-muted">
-              <p className="mb-1.5">{tNew("preview.empty.title")}</p>
-              <p className="text-caption">
-                {tNew("preview.empty.help")}
-              </p>
+            <div
+              role="status"
+              aria-live="polite"
+              className="text-body text-content-muted"
+            >
+              <div className="flex items-center gap-1.5 text-content-secondary">
+                <FileSearch size={14} aria-hidden />
+                <p className="font-medium">
+                  {tNew("preview.empty.title")}
+                </p>
+              </div>
+              {/* Disambiguate "no work" from "filter excluded all of
+                  it." The earlier UI said the same thing for both
+                  states, which masked the PGRST200 bug for several
+                  sessions of debugging. */}
+              {customerId && totalUninvoicedForCustomer > 0 ? (
+                <p className="mt-1.5 text-caption">
+                  {tNew("preview.empty.allFiltered", {
+                    count: totalUninvoicedForCustomer,
+                  })}
+                </p>
+              ) : customerId ? (
+                <p className="mt-1.5 text-caption">
+                  {tNew("preview.empty.zeroForCustomer")}
+                </p>
+              ) : (
+                <p className="mt-1.5 text-caption">
+                  {tNew("preview.empty.help")}
+                </p>
+              )}
               {(preset !== "all" || customerId) && (
                 <button
                   type="button"

@@ -1,0 +1,23 @@
+{
+  "ariaGroup": "Términos de pago",
+  "label": "Términos de pago",
+  "dueOnReceipt": "Pago al recibir",
+  "netN": "Neto {n}",
+  "custom": "Personalizado",
+  "customPlaceholder": "Días",
+  "customAriaLabel": "Términos de pago personalizados en días",
+  "customSuffix": "días",
+  "customer": {
+    "inheritLabel": "Usar predeterminado del equipo",
+    "helper": "Anula el predeterminado del equipo para este cliente. Deja \"Usar predeterminado del equipo\" para heredarlo."
+  },
+  "team": {
+    "inheritLabel": "Preguntar cada vez",
+    "helper": "Predeterminado aplicado cuando un cliente no tiene anulación. Deja \"Preguntar cada vez\" si no quieres un predeterminado."
+  },
+  "invoice": {
+    "noDefault": "Sin términos de pago predeterminados — elige una fecha manualmente.",
+    "fromCustomer": "Predeterminado para {customer}",
+    "fromTeam": "Predeterminado del equipo"
+  }
+}

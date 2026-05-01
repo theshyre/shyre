@@ -1,0 +1,23 @@
+{
+  "ariaGroup": "Payment terms",
+  "label": "Payment terms",
+  "dueOnReceipt": "Due on receipt",
+  "netN": "Net {n}",
+  "custom": "Custom",
+  "customPlaceholder": "Days",
+  "customAriaLabel": "Custom payment terms in days",
+  "customSuffix": "days",
+  "customer": {
+    "inheritLabel": "Use team default",
+    "helper": "Override the team-wide default for this customer. Leave on \"Use team default\" to inherit."
+  },
+  "team": {
+    "inheritLabel": "Ask each time",
+    "helper": "Default applied when a customer has no override. Leave on \"Ask each time\" if you don't want a default."
+  },
+  "invoice": {
+    "noDefault": "No default payment terms — pick a due date manually.",
+    "fromCustomer": "Default for {customer}",
+    "fromTeam": "Team default"
+  }
+}

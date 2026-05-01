@@ -59,6 +59,44 @@ trim, strip protocol/host where canonical, drop trailing fragments,
 validate against a tight regex, throw inline on garbage. Mirror
 `src/lib/projects/normalize.ts` for each field; co-locate tests.
 
+## Invoice flow follow-ups (from 2026-05-01 four-persona review)
+
+Smaller items pulled out of the new-invoice review (UX, A11y,
+Bookkeeper, Solo) that aren't blocking but are worth tracking:
+
+- **Override `period_start` / `period_end`** independent of included
+  entry dates. Today the period is inferred from min/max which
+  doesn't always match the contractual billing period (e.g. "April
+  2026" vs "Apr 2 – Apr 28"). Bookkeeper-blocking at audit time.
+  Add a collapsed "Override billing period" disclosure.
+- **DRY the rate cascade.** The same project → customer → member →
+  team-default cascade lives in `new/page.tsx` and `actions.ts`. If
+  they ever drift, preview total ≠ posted total. Extract to one
+  shared resolver imported by both.
+- **Fiscal-period span warning.** When "All uninvoiced" or a custom
+  range crosses a quarter or tax-year boundary, surface a soft
+  warning so a Q1-close sweep doesn't accidentally pull in Q2 work.
+- **Discount GL category.** `discount_reason` is free text; add a
+  `discount_category` enum (promotional / early-pay / write-off /
+  goodwill) so QuickBooks/Xero exports map cleanly.
+- **Tax pre/post-discount toggle.** Currently hardcoded to tax-after-
+  discount. ~30% of US states tax pre-discount; add a per-team
+  setting.
+- **Open-draft hint.** When "Since last invoice" anchor would skip
+  work because of a long-lived draft, surface a "There's an open
+  draft for {customer}" hint.
+- **A11y: arrow-key nav on radiogroups.** Both the range presets and
+  the grouping cards are `role="radiogroup"` but lack arrow-key
+  navigation between siblings. WAI-ARIA radiogroup requires a single
+  tab stop with arrows. Same fix on `<PaymentTermsField>`.
+- **A11y + i18n: `<DateField>` follow-ups.** Calendar dialog needs
+  a focus trap (`role="dialog"` implies one); aria-modal missing;
+  click-outside doesn't return focus to the trigger. Hard-coded
+  English strings ("Open calendar", weekday/month names, cell
+  aria-labels) violate the project's i18n rule. These touch
+  `@theshyre/ui` and should land via the cross-repo promotion PR
+  (see `docs/reference/promotion-candidates.md`).
+
 ## Other deferred work
 
 Smaller items surfaced by persona reviews but not yet promoted to their

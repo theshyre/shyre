@@ -52,15 +52,18 @@
       "linesSample": "Líneas de muestra",
       "moreLines": "+ {count} más",
       "empty": {
-        "title": "No hay registros coincidentes.",
+        "title": "No hay registros coincidentes",
         "help": "Ajusta el rango de fechas o elige otro cliente.",
+        "allFiltered": "{count, plural, =1 {Este cliente tiene 1 entrada sin facturar, pero ninguna cae en el rango seleccionado.} other {Este cliente tiene # entradas sin facturar, pero ninguna cae en el rango seleccionado.}}",
+        "zeroForCustomer": "Este cliente no tiene entradas facturables sin facturar.",
         "clearFilters": "Limpiar filtros"
       },
       "orphans": {
         "message": "{count, plural, =1 {1 entrada sin facturar queda fuera de este rango — probablemente una rezagada de antes de la última factura.} other {# entradas sin facturar quedan fuera de este rango — probablemente rezagadas de antes de la última factura.}}",
         "switchToAll": "Cambiar a Todas no facturadas"
       }
-    }
+    },
+    "submitDisabledHint": "Añade entradas facturables para habilitar. Elige un cliente y un rango de fechas que incluya trabajo sin facturar."
   },
   "noInvoices": "Aún no hay facturas. Crea una a partir de registros de tiempo no facturados.",
   "selectClient": "Selecciona un cliente",

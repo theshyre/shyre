@@ -41,6 +41,26 @@ export async function createInvoiceAction(formData: FormData): Promise<void> {
     const due_date = (formData.get("due_date") as string) || null;
     const taxRateStr = formData.get("tax_rate") as string;
     const taxRate = taxRateStr ? parseFloat(taxRateStr) : 0;
+
+    // Payment terms: integer days (0..365) or null when no chip
+    // was selected. The label is denormalized here so the PDF
+    // renderer doesn't need to know the mapping; freezing both
+    // values means later edits to customer/team defaults don't
+    // mutate historical invoices.
+    const termsRaw = (formData.get("payment_terms_days") as string)?.trim();
+    let payment_terms_days: number | null = null;
+    if (termsRaw && termsRaw !== "") {
+      const parsed = parseInt(termsRaw, 10);
+      if (Number.isFinite(parsed)) {
+        payment_terms_days = Math.max(0, Math.min(365, parsed));
+      }
+    }
+    const payment_terms_label =
+      payment_terms_days === null
+        ? null
+        : payment_terms_days === 0
+          ? "Due on receipt"
+          : `Net ${payment_terms_days}`;
     // Discount: form may submit either a rate OR an amount. Both
     // resolve into a dollar value at calculateInvoiceTotals. Rate
     // is preserved on the row only when the user actually entered
@@ -246,6 +266,8 @@ export async function createInvoiceAction(formData: FormData): Promise<void> {
           period_start,
           period_end,
           grouping_mode,
+          payment_terms_days,
+          payment_terms_label,
         })
         .select("id")
         .single()

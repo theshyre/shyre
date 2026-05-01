@@ -73,6 +73,14 @@ export async function updateTeamSettingsAction(formData: FormData): Promise<void
       brand_color,
     };
 
+    // default_payment_terms_days: integer 0..365 inclusive, or null
+    // ("Ask each time"). Empty string from the inherit chip → null.
+    if (formData.has("default_payment_terms_days")) {
+      const raw = (formData.get("default_payment_terms_days") as string).trim();
+      patch.default_payment_terms_days =
+        raw === "" ? null : Math.max(0, Math.min(365, parseInt(raw, 10) || 0));
+    }
+
     // Guardrail: only include default_rate in the upsert if rate_editability
     // allows this caller. Role is already owner/admin here, but
     // rate_editability = 'owner' would block an admin from changing the

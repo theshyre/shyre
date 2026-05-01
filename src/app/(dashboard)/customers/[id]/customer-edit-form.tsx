@@ -11,6 +11,7 @@ import { useFormAction } from "@/hooks/use-form-action";
 import { AddressFields } from "@/components/AddressFields";
 import { FieldError } from "@/components/FieldError";
 import { SubmitButton } from "@/components/SubmitButton";
+import { PaymentTermsField } from "@/components/PaymentTermsField";
 import { deserializeAddress } from "@/lib/schemas/address";
 import { updateCustomerAction } from "../actions";
 
@@ -21,6 +22,7 @@ interface Client {
   address: string | null;
   notes: string | null;
   default_rate: number | null;
+  payment_terms_days: number | null;
 }
 
 export function CustomerEditForm({
@@ -29,6 +31,7 @@ export function CustomerEditForm({
   client: Client;
 }): React.JSX.Element {
   const t = useTranslations("customers");
+  const tPay = useTranslations("paymentTerms");
 
   const { pending, success, serverError, fieldErrors, handleSubmit } =
     useFormAction({
@@ -79,6 +82,17 @@ export function CustomerEditForm({
             />
             <FieldError error={fieldErrors.default_rate} />
           </div>
+        </div>
+
+        <div>
+          <PaymentTermsField
+            name="payment_terms_days"
+            defaultValue={client.payment_terms_days}
+            label={tPay("label")}
+            inheritLabel={tPay("customer.inheritLabel")}
+            helperText={tPay("customer.helper")}
+          />
+          <FieldError error={fieldErrors.payment_terms_days} />
         </div>
 
         <AddressFields

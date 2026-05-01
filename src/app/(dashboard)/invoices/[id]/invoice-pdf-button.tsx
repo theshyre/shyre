@@ -20,6 +20,7 @@ interface InvoicePdfButtonProps {
     total: number | null;
     currency: string | null;
     status: string | null;
+    payment_terms_label: string | null;
   };
   lineItems: Array<{
     id: string;
@@ -75,6 +76,7 @@ export function InvoicePdfButton({
         taxAmount={Number(invoice.tax_amount ?? 0)}
         total={Number(invoice.total ?? 0)}
         paymentsTotal={paymentsTotal}
+        paymentTermsLabel={invoice.payment_terms_label}
         currency={invoice.currency ?? "USD"}
         business={{
           name: business?.business_name ?? null,

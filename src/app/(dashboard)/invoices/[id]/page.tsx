@@ -258,6 +258,12 @@ export default async function InvoiceDetailPage({
         <div>
           <span className="text-content-muted">{t("pdf.dueDate")}:</span>{" "}
           {invoice.due_date ? formatDate(invoice.due_date) : "—"}
+          {invoice.payment_terms_label ? (
+            <span className="text-content-muted">
+              {" "}
+              ({invoice.payment_terms_label as string})
+            </span>
+          ) : null}
         </div>
         {(invoice.period_start || invoice.period_end) && (
           <div>

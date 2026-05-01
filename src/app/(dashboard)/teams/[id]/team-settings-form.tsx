@@ -13,6 +13,7 @@ import {
   labelClass,
   selectClass,
 } from "@/lib/form-styles";
+import { PaymentTermsField } from "@/components/PaymentTermsField";
 import { updateTeamSettingsAction } from "./team-settings-actions";
 
 interface TeamSettings {
@@ -24,6 +25,7 @@ interface TeamSettings {
   invoice_prefix: string | null;
   invoice_next_num: number | null;
   tax_rate: number | null;
+  default_payment_terms_days: number | null;
   wordmark_primary: string | null;
   wordmark_secondary: string | null;
   brand_color: string | null;
@@ -42,6 +44,7 @@ const DEFAULTS: TeamSettings = {
   invoice_prefix: "INV",
   invoice_next_num: 1,
   tax_rate: 0,
+  default_payment_terms_days: null,
   wordmark_primary: null,
   wordmark_secondary: null,
   brand_color: null,
@@ -61,6 +64,7 @@ export function TeamSettingsForm({
   role: string;
 }): React.JSX.Element {
   const t = useTranslations("settings");
+  const tPay = useTranslations("paymentTerms");
   const org = teamSettings ?? DEFAULTS;
   const isOwner = role === "owner";
   const isAdmin = isOwner || role === "admin";
@@ -182,6 +186,15 @@ export function TeamSettingsForm({
               className={inputClass}
             />
           </div>
+        </div>
+        <div className="pt-2">
+          <PaymentTermsField
+            name="default_payment_terms_days"
+            defaultValue={org.default_payment_terms_days}
+            label={tPay("label")}
+            inheritLabel={tPay("team.inheritLabel")}
+            helperText={tPay("team.helper")}
+          />
         </div>
       </section>
 
