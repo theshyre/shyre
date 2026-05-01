@@ -12,6 +12,7 @@ import {
   Clock,
 } from "lucide-react";
 import { ResolveButton } from "./resolve-button";
+import { LocalDateTime } from "@/components/LocalDateTime";
 
 const SEVERITY_CONFIG: Record<
   string,
@@ -142,7 +143,7 @@ export default async function ErrorDashboardPage({
                   <div className="text-right shrink-0">
                     <p className="text-xs text-content-muted flex items-center gap-1">
                       <Clock size={10} />
-                      {new Date(err.created_at).toLocaleString()}
+                      <LocalDateTime value={err.created_at} />
                     </p>
                     {err.action && (
                       <p className="text-[10px] text-content-muted font-mono">
