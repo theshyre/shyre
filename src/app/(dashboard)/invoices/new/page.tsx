@@ -25,7 +25,6 @@ interface RawEntryRow {
     customers?: { default_rate: number | null } | null;
   } | null;
   categories?: { name: string | null } | null;
-  user_profiles?: { display_name: string | null } | null;
 }
 
 export default async function NewInvoicePage(): Promise<React.JSX.Element> {
@@ -82,12 +81,20 @@ export default async function NewInvoicePage(): Promise<React.JSX.Element> {
   // the payload reasonable; if a customer has more than 5k
   // uninvoiced entries the form will show a warning and the user
   // should narrow with a date range first.
+  // Note: don't try to embed `user_profiles!fkey(display_name)` here.
+  // PostgREST embedding requires a direct FK between the two tables;
+  // both `time_entries.user_id` and `user_profiles.user_id` reference
+  // `auth.users(id)` separately, so there's no edge to traverse and
+  // the embed errors with PGRST200, leaving the whole query empty
+  // (silent breakage — preview shows "no matching entries" even when
+  // the customer has billable hours). Display names are fetched in
+  // a second query and joined in JS, same shape as memberRows below.
   const teamIds = teams.map((t) => t.id);
   const { data: rawEntries } = teamIds.length
     ? await supabase
         .from("time_entries")
         .select(
-          "id, team_id, description, duration_min, start_time, user_id, project_id, projects(name, hourly_rate, customer_id, customers(default_rate)), categories(name), user_profiles!time_entries_user_id_fkey(display_name)",
+          "id, team_id, description, duration_min, start_time, user_id, project_id, projects(name, hourly_rate, customer_id, customers(default_rate)), categories(name)",
         )
         .in("team_id", teamIds)
         .eq("invoiced", false)
@@ -98,6 +105,26 @@ export default async function NewInvoicePage(): Promise<React.JSX.Element> {
         .order("start_time", { ascending: true })
         .limit(5000)
     : { data: [] as RawEntryRow[] };
+
+  // Display names — fetched in one shot for every distinct user_id
+  // appearing in the candidate set. The `time-entry authorship`
+  // mandate (see CLAUDE.md) requires every surfaced entry carries
+  // its author; the preview groups under "By person" rely on this.
+  const distinctUserIds = Array.from(
+    new Set((rawEntries ?? []).map((r) => r.user_id as string)),
+  );
+  const { data: profileRows } = distinctUserIds.length
+    ? await supabase
+        .from("user_profiles")
+        .select("user_id, display_name")
+        .in("user_id", distinctUserIds)
+    : { data: [] as Array<{ user_id: string; display_name: string | null }> };
+  const displayNameByUserId = new Map<string, string>();
+  for (const p of profileRows ?? []) {
+    if (p.display_name) {
+      displayNameByUserId.set(p.user_id as string, p.display_name as string);
+    }
+  }
 
   // Resolve member rates so the rate cascade can run client-side
   // matching the action's resolution. Owner/admin only on this
@@ -148,7 +175,7 @@ export default async function NewInvoicePage(): Promise<React.JSX.Element> {
       projectName: proj?.name ?? "Project",
       customerId: (proj?.customer_id as string | null) ?? null,
       taskName: r.categories?.name ?? null,
-      personName: r.user_profiles?.display_name ?? "Unknown",
+      personName: displayNameByUserId.get(r.user_id) ?? "Unknown",
       teamId: r.team_id,
       date:
         r.start_time && r.start_time.length >= 10
