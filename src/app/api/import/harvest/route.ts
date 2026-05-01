@@ -877,28 +877,40 @@ export async function POST(request: Request): Promise<NextResponse> {
       // Batch insert with idempotency via the partial unique index.
       // Conflicts are pre-existing imports — count them as skipped
       // rather than erroring the whole batch.
+      // Upsert on the partial unique index (team_id, imported_from,
+      // import_source_id). Re-import refreshes the row from Harvest
+      // — same semantics the invoices pass already uses, and what
+      // makes the user-facing "re-import to fix data" workflow
+      // actually work. Without this, an entry's linked_ticket_*
+      // columns (or a corrected description, or a new ticket
+      // attachment in Harvest) would never propagate; the row would
+      // just sit at its first-import state.
+      //
+      // Fields explicitly preserved across the upsert: id, created_at,
+      // user_id rewriting from shell-account materialization (those
+      // are computed from the Harvest payload anyway). The id is
+      // preserved by the unique-constraint upsert path — Postgres
+      // updates the existing row in place.
       const BATCH_SIZE = 100;
       for (let i = 0; i < okRows.length; i += BATCH_SIZE) {
         const batch = okRows.slice(i, i + BATCH_SIZE);
-        const { error } = await supabase
+        const { error, count } = await supabase
           .from("time_entries")
-          .insert(batch);
+          .upsert(batch, {
+            onConflict: "team_id,imported_from,import_source_id",
+            ignoreDuplicates: false,
+            count: "exact",
+          });
 
         if (error) {
-          // Duplicate-source-id hits the partial unique index; treat as
-          // skipped (already imported).
-          if (error.code === "23505") {
-            timeEntriesSkipped += batch.length;
-            skipReasons.set(
-              "already imported",
-              (skipReasons.get("already imported") ?? 0) + batch.length,
-            );
-          } else {
-            recordError(`Time entries batch: ${error.message}`, error);
-          }
+          recordError(`Time entries batch: ${error.message}`, error);
           continue;
         }
-        timeEntriesImported += batch.length;
+        // Postgres returns the count of rows affected — both inserts
+        // and updates. We don't have a clean way to split the two
+        // from the client; report the total as imported and let the
+        // reconciliation step expose the actual landed state.
+        timeEntriesImported += count ?? batch.length;
       }
 
       // Reconciliation — re-query the landed Shyre rows by the Harvest
