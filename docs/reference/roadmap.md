@@ -45,6 +45,20 @@ including data model, secret-vault model, prompt-injection containment,
 adapter pattern, runner choice, accessibility, phasing, and out-of-scope
 decisions lives in [`work-orchestration.md`](./work-orchestration.md).
 
+## Paste-shape normalization sweep
+
+Apply the GitHub-repo paste normalizer pattern (commit `fe56355`) to
+every other URL-shaped input where users paste from the address bar.
+Known candidates: `user_settings.jira_base_url` (currently rejects
+non-`https://` but stores trailing slashes / query strings / paths
+verbatim), business website, customer website, avatar URLs, and any
+GitHub username field that's not the canonical repo. Same silent-
+breakage class — the value gets stored verbatim, then a downstream
+URL builder concatenates and produces a malformed link. Pattern:
+trim, strip protocol/host where canonical, drop trailing fragments,
+validate against a tight regex, throw inline on garbage. Mirror
+`src/lib/projects/normalize.ts` for each field; co-locate tests.
+
 ## Other deferred work
 
 Smaller items surfaced by persona reviews but not yet promoted to their
