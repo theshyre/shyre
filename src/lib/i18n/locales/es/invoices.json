@@ -117,6 +117,10 @@
     "overdue": "Vencida",
     "void": "Anulada"
   },
+  "statusDescription": {
+    "void": "Esta factura ha sido anulada y no se puede cobrar.",
+    "overdue": "El pago de esta factura está vencido."
+  },
   "table": {
     "invoiceNumber": "Factura #",
     "team": "Equipo",

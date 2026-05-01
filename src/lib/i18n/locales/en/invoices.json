@@ -117,6 +117,10 @@
     "overdue": "Overdue",
     "void": "Void"
   },
+  "statusDescription": {
+    "void": "This invoice has been voided and cannot be collected.",
+    "overdue": "Payment for this invoice is past due."
+  },
   "table": {
     "invoiceNumber": "Invoice #",
     "team": "Team",

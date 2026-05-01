@@ -164,6 +164,15 @@ export default async function InvoiceDetailPage({
       ? (invoice.customers as { name: string; email: string | null; address: string | null })
       : null;
 
+  const status = (invoice.status as string | null) ?? "draft";
+  // Terminal states (void / paid) get a prominent badge on its own
+  // row under the page title — the user can't miss the state at a
+  // glance. Draft / sent / overdue stay on the title row as a
+  // small pill (the bigger chip would be visual noise on the
+  // common in-flight states). UX persona review picked this split.
+  const showProminentBadge = status === "void" || status === "paid";
+  const isVoid = status === "void";
+
   return (
     <div>
       <div className="flex items-center justify-between flex-wrap gap-3">
@@ -172,7 +181,9 @@ export default async function InvoiceDetailPage({
           <h1 className="text-page-title font-bold text-content font-mono">
             {invoice.invoice_number}
           </h1>
-          <InvoiceStatusBadge status={invoice.status ?? "draft"} />
+          {!showProminentBadge && (
+            <InvoiceStatusBadge status={status} />
+          )}
         </div>
         <div className="flex items-center gap-2 flex-wrap">
           <InvoicePdfButton
@@ -187,11 +198,16 @@ export default async function InvoiceDetailPage({
           />
           <InvoiceActions
             invoiceId={invoice.id}
-            currentStatus={invoice.status ?? "draft"}
+            currentStatus={status}
             invoiceNumber={invoice.invoice_number}
           />
         </div>
       </div>
+      {showProminentBadge && (
+        <div className="mt-3">
+          <InvoiceStatusBadge status={status} size="prominent" />
+        </div>
+      )}
 
       {/* Invoice details */}
       <div className="mt-6 grid gap-6 sm:grid-cols-2">
@@ -259,8 +275,14 @@ export default async function InvoiceDetailPage({
         )}
       </div>
 
-      {/* Line items table */}
-      <div className="mt-6 overflow-hidden rounded-lg border border-edge bg-surface-raised">
+      {/* Line items table — dimmed when void to telegraph "this is
+          dead, don't act on it" without removing the audit-trail
+          numbers (bookkeepers still need to read them). */}
+      <div
+        className={`mt-6 overflow-hidden rounded-lg border border-edge bg-surface-raised ${
+          isVoid ? "opacity-70" : ""
+        }`}
+      >
         <table className="w-full text-body">
           <thead>
             <tr className="border-b border-edge bg-surface-inset">
