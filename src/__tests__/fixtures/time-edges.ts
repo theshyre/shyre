@@ -87,6 +87,9 @@ export function makeEntry(input: MakeEntryInput): TimeEntry {
     linked_ticket_url: null,
     linked_ticket_title: null,
     linked_ticket_refreshed_at: null,
+    invoiced: false,
+    invoice_id: null,
+    invoice_number: null,
     projects: input.project ?? null,
     author: input.author ?? DEFAULT_AUTHOR,
   };

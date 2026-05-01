@@ -2,7 +2,8 @@
 
 import { useEffect, useState } from "react";
 import { useTranslations } from "next-intl";
-import { DollarSign, Minus } from "lucide-react";
+import Link from "next/link";
+import { DollarSign, Minus, Lock } from "lucide-react";
 import { formatDurationHM } from "@/lib/time/week";
 import { EntryAuthor } from "@/components/EntryAuthor";
 import { Tooltip } from "@/components/Tooltip";
@@ -186,19 +187,27 @@ export function EntryRow({
                       {t("entry.untitled")}
                     </div>
                   ) : null)}
-                {hasTicket && (
-                  <div className="mt-1 min-w-0">
-                    <TicketChip
-                      entryId={entry.id}
-                      provider={
-                        entry.linked_ticket_provider as "jira" | "github"
-                      }
-                      ticketKey={entry.linked_ticket_key as string}
-                      url={entry.linked_ticket_url}
-                      title={entry.linked_ticket_title}
-                      canRefresh={canRefresh}
-                      size="sm"
-                    />
+                {(hasTicket || entry.invoiced) && (
+                  <div className="mt-1 min-w-0 flex items-center gap-1.5 flex-wrap">
+                    {hasTicket && (
+                      <TicketChip
+                        entryId={entry.id}
+                        provider={
+                          entry.linked_ticket_provider as "jira" | "github"
+                        }
+                        ticketKey={entry.linked_ticket_key as string}
+                        url={entry.linked_ticket_url}
+                        title={entry.linked_ticket_title}
+                        canRefresh={canRefresh}
+                        size="sm"
+                      />
+                    )}
+                    {entry.invoiced && entry.invoice_id && (
+                      <InvoicedLockChip
+                        invoiceId={entry.invoice_id}
+                        invoiceNumber={entry.invoice_number}
+                      />
+                    )}
                   </div>
                 )}
               </>
@@ -268,5 +277,42 @@ export function EntryRow({
         </tr>
       )}
     </>
+  );
+}
+
+/**
+ * Lock indicator chip — rendered next to the ticket chip (or on its
+ * own) for entries that have been billed. Clickable; opens the
+ * parent invoice in the same tab. Tooltip carries the long-form
+ * "Locked — invoice <number>" affordance for the static row text.
+ *
+ * Three-channel signal per the redundant-encoding rule: lock icon
+ * + "INV-<n>" text + accent-warning color. The DB trigger refuses
+ * UPDATE/DELETE on these rows; the chip's purpose is to telegraph
+ * that to the user before they hit "save" and get a backend error.
+ */
+function InvoicedLockChip({
+  invoiceId,
+  invoiceNumber,
+}: {
+  invoiceId: string;
+  invoiceNumber: string | null;
+}): React.JSX.Element {
+  const t = useTranslations("time.lock");
+  const label = invoiceNumber
+    ? t("lockedOn", { invoice: invoiceNumber })
+    : t("locked");
+  return (
+    <Tooltip label={label}>
+      <Link
+        href={`/invoices/${invoiceId}`}
+        className="inline-flex items-center gap-1.5 rounded-md border border-warning/40 bg-warning-soft/30 px-1.5 py-0.5 text-caption font-medium text-warning hover:border-warning/60 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-warning"
+      >
+        <Lock size={12} aria-hidden="true" />
+        <span className="font-mono tabular-nums">
+          {invoiceNumber ?? t("locked")}
+        </span>
+      </Link>
+    </Tooltip>
   );
 }

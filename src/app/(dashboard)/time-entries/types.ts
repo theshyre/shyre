@@ -42,6 +42,15 @@ export interface TimeEntry {
   linked_ticket_url: string | null;
   linked_ticket_title: string | null;
   linked_ticket_refreshed_at: string | null;
+  /** True when this entry has been billed — either via Shyre's
+   *  invoice generator or a Harvest import that marked it invoiced.
+   *  Renders as a lock indicator and disables editing per the DB
+   *  trigger that refuses UPDATE/DELETE on invoiced rows. */
+  invoiced: boolean;
+  invoice_id: string | null;
+  /** Resolved invoice_number for display in the lock tooltip + link
+   *  to /invoices/<id>. Null when invoice_id is null. */
+  invoice_number: string | null;
   projects: ProjectInfo | null;
   /** Per the mandatory authorship rule — present on every display-bound entry. */
   author: AuthorInfo | null;

@@ -10,6 +10,11 @@
     "applyTitleFailed": "Couldn't apply title — try refresh first.",
     "noCreds": "No {provider} token configured — saved without title."
   },
+  "lock": {
+    "locked": "Invoiced",
+    "lockedOn": "Locked — invoice {invoice}",
+    "editBlocked": "This entry is part of an invoice and is locked. Void the invoice to edit, or remove the entry from it."
+  },
   "saveEntry": "Save Entry",
   "saveChanges": "Save Changes",
   "editTitle": "Edit entry",

@@ -26,12 +26,29 @@ import type { TimeView } from "./view-toggle";
 
 // Supabase returns `projects(..., customers(...))` with `customers` as a
 // 1-element array even though it's a single FK row. Unwrap so downstream
-// code can read `entry.projects.customers.name` cleanly.
-function normalizeEntry<T extends { projects: unknown }>(row: T): T {
+// code can read `entry.projects.customers.name` cleanly. Same shape for
+// the optional `invoices(invoice_number)` join — flatten it onto the
+// row as `invoice_number` so the lock-state UI can read it directly.
+function normalizeEntry<
+  T extends { projects: unknown; invoices?: unknown },
+>(row: T): T & { invoice_number: string | null } {
   const projects = row.projects as
     | { customers?: unknown; [key: string]: unknown }
     | null;
-  if (!projects) return row;
+  const invoices = row.invoices as
+    | { invoice_number?: string | null }
+    | Array<{ invoice_number?: string | null }>
+    | null;
+  const invoiceNumber = (() => {
+    if (!invoices) return null;
+    if (Array.isArray(invoices)) {
+      return (invoices[0]?.invoice_number as string | null) ?? null;
+    }
+    return (invoices.invoice_number as string | null) ?? null;
+  })();
+  if (!projects) {
+    return { ...row, invoice_number: invoiceNumber };
+  }
   const customers = projects.customers;
   const unwrapped = Array.isArray(customers)
     ? (customers[0] ?? null)
@@ -39,6 +56,7 @@ function normalizeEntry<T extends { projects: unknown }>(row: T): T {
   return {
     ...row,
     projects: { ...projects, customers: unwrapped },
+    invoice_number: invoiceNumber,
   };
 }
 
@@ -194,7 +212,7 @@ export default async function TimeEntriesPage({
   let weekQuery = supabase
     .from("time_entries")
     .select(
-      "*, projects(id, name, github_repo, category_set_id, require_timestamps, customers(id, name))",
+      "*, projects(id, name, github_repo, category_set_id, require_timestamps, customers(id, name)), invoices(invoice_number)",
     )
     .is("deleted_at", null)
     .gte("start_time", weekFloorUtc.toISOString())
@@ -220,7 +238,7 @@ export default async function TimeEntriesPage({
   let dayQuery = supabase
     .from("time_entries")
     .select(
-      "*, projects(id, name, github_repo, category_set_id, require_timestamps, customers(id, name))",
+      "*, projects(id, name, github_repo, category_set_id, require_timestamps, customers(id, name)), invoices(invoice_number)",
     )
     .is("deleted_at", null)
     .gte("start_time", dayFloorUtc.toISOString())
@@ -245,7 +263,7 @@ export default async function TimeEntriesPage({
   let runningQuery = supabase
     .from("time_entries")
     .select(
-      "*, projects(id, name, github_repo, category_set_id, require_timestamps, customers(id, name))",
+      "*, projects(id, name, github_repo, category_set_id, require_timestamps, customers(id, name)), invoices(invoice_number)",
     )
     .is("end_time", null)
     .is("deleted_at", null)

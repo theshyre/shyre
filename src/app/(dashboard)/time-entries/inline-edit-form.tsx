@@ -53,8 +53,16 @@ export function InlineEditForm({
 }: Props): React.JSX.Element {
   const t = useTranslations("time");
   const tc = useTranslations("common");
+  const tLock = useTranslations("time.lock");
   const descRef = useRef<HTMLTextAreaElement>(null);
   const formRef = useRef<HTMLFormElement>(null);
+
+  // Locked entries get a read-only banner + disabled inputs. The
+  // DB trigger refuses UPDATE/DELETE on rows where invoiced=true,
+  // so the form would error on save anyway — this surfaces the
+  // state up front instead of letting the user type into a draft
+  // that can't be saved.
+  const locked = entry.invoiced && entry.invoice_id != null;
 
   const { pending, success, serverError, fieldErrors, handleSubmit } =
     useFormAction({
@@ -95,6 +103,9 @@ export function InlineEditForm({
       onKeyDown={handleKeyDown}
       className="space-y-3"
     >
+      {locked && (
+        <AlertBanner tone="warning">{tLock("editBlocked")}</AlertBanner>
+      )}
       {serverError && (
         <AlertBanner tone="error">{serverError}</AlertBanner>
       )}
@@ -228,6 +239,7 @@ export function InlineEditForm({
         <SubmitButton
           label={t("saveChanges")}
           pending={pending}
+          disabled={locked}
           success={success}
           successMessage={tc("actions.saved")}
         />

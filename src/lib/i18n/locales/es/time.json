@@ -10,6 +10,11 @@
     "applyTitleFailed": "No se pudo aplicar el título — intenta actualizar primero.",
     "noCreds": "Sin token de {provider} configurado — guardado sin título."
   },
+  "lock": {
+    "locked": "Facturado",
+    "lockedOn": "Bloqueado — factura {invoice}",
+    "editBlocked": "Esta entrada forma parte de una factura y está bloqueada. Anula la factura para editar, o quita la entrada de ella."
+  },
   "saveEntry": "Guardar Registro",
   "saveChanges": "Guardar Cambios",
   "editTitle": "Editar registro",
