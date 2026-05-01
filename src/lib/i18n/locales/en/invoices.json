@@ -7,6 +7,7 @@
     "billableHours": {
       "heading": "Billable hours to include",
       "preset": {
+        "sinceLastInvoice": "Since last invoice",
         "all": "All uninvoiced",
         "lastMonth": "Last month",
         "thisMonth": "This month",
@@ -16,7 +17,12 @@
       "startDate": "Start date",
       "endDate": "End date",
       "activeRange": "Including entries from {start} through {end}.",
-      "noRange": "Including all uninvoiced billable entries."
+      "noRange": "Including all uninvoiced billable entries.",
+      "sinceLastInvoice": {
+        "pickCustomer": "Pick a client to anchor the range to their last invoice.",
+        "firstInvoice": "No prior invoice for this client — including everything uninvoiced.",
+        "previousEnd": "Anchored to the day after the previous invoice's service period ({date})."
+      }
     },
     "grouping": {
       "heading": "How to display hours",

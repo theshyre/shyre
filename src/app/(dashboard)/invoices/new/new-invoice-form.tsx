@@ -54,9 +54,16 @@ export interface PreviewCandidate extends EntryCandidate {
   teamId: string;
 }
 
-type RangePreset = "all" | "lastMonth" | "thisMonth" | "last30Days" | "custom";
+type RangePreset =
+  | "sinceLastInvoice"
+  | "all"
+  | "lastMonth"
+  | "thisMonth"
+  | "last30Days"
+  | "custom";
 
 const PRESETS: RangePreset[] = [
+  "sinceLastInvoice",
   "all",
   "lastMonth",
   "thisMonth",
@@ -77,34 +84,57 @@ function loadStored<T extends string>(key: string, allowed: readonly T[]): T | n
   return allowed.includes(v as T) ? (v as T) : null;
 }
 
+function fmtYmd(d: Date): string {
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+}
+
+/** Day after a YYYY-MM-DD date string, in the same shape. Used
+ *  to roll past a previous invoice's period_end so the new range
+ *  doesn't double-count the boundary day. */
+function nextDay(ymd: string): string {
+  const d = new Date(`${ymd}T00:00:00Z`);
+  d.setUTCDate(d.getUTCDate() + 1);
+  return `${d.getUTCFullYear()}-${String(d.getUTCMonth() + 1).padStart(2, "0")}-${String(d.getUTCDate()).padStart(2, "0")}`;
+}
+
 /** Compute (start, end) in YYYY-MM-DD for a preset. `custom` returns
  *  the inputs untouched so the date inputs win. `all` returns null/null
- *  so the preview pulls every uninvoiced entry. */
+ *  so the preview pulls every uninvoiced entry. `sinceLastInvoice`
+ *  resolves only when the selected customer has a prior invoice
+ *  with a known period_end / issued_date — caller passes that in. */
 function rangeForPreset(
   preset: RangePreset,
   custom: { start: string; end: string },
   today: Date,
+  lastInvoiceEnd: string | null,
 ): { start: string | null; end: string | null } {
-  const fmt = (d: Date): string =>
-    `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
   switch (preset) {
     case "all":
       return { start: null, end: null };
     case "thisMonth": {
       const start = new Date(today.getFullYear(), today.getMonth(), 1);
       const end = new Date(today.getFullYear(), today.getMonth() + 1, 0);
-      return { start: fmt(start), end: fmt(end) };
+      return { start: fmtYmd(start), end: fmtYmd(end) };
     }
     case "lastMonth": {
       const start = new Date(today.getFullYear(), today.getMonth() - 1, 1);
       const end = new Date(today.getFullYear(), today.getMonth(), 0);
-      return { start: fmt(start), end: fmt(end) };
+      return { start: fmtYmd(start), end: fmtYmd(end) };
     }
     case "last30Days": {
       const end = new Date(today);
       const start = new Date(today);
       start.setDate(start.getDate() - 29);
-      return { start: fmt(start), end: fmt(end) };
+      return { start: fmtYmd(start), end: fmtYmd(end) };
+    }
+    case "sinceLastInvoice": {
+      // No prior invoice → fall through to "no upper bound, no
+      // lower bound" so the preview shows every uninvoiced entry
+      // and the user can still ship. Helper text in the UI
+      // explains that the preset is "All" until the customer has
+      // their first invoice.
+      if (!lastInvoiceEnd) return { start: null, end: null };
+      return { start: nextDay(lastInvoiceEnd), end: fmtYmd(today) };
     }
     case "custom":
       return {
@@ -127,11 +157,17 @@ const GROUPING_OPTIONS: {
 export function NewInvoiceForm({
   customers,
   candidates,
+  lastInvoiceEndByCustomer,
   defaultTaxRate,
   teams,
 }: {
   customers: CustomerOption[];
   candidates: PreviewCandidate[];
+  /** Map of customer_id → most-recent non-void / non-draft invoice's
+   *  period_end (or issued_date fallback). Drives the
+   *  "Since last invoice" preset. Empty when the customer hasn't
+   *  been invoiced yet. */
+  lastInvoiceEndByCustomer: Record<string, string>;
   defaultTaxRate: number;
   teams: TeamListItem[];
 }): React.JSX.Element {
@@ -142,7 +178,11 @@ export function NewInvoiceForm({
   useDirtyTitle(dirty);
 
   const [customerId, setCustomerId] = useState<string>("");
-  const [preset, setPreset] = useState<RangePreset>("lastMonth");
+  // Default to "sinceLastInvoice" — falls through to "all"
+  // semantics when the customer has no prior invoice (the
+  // preset's helper text explains this). Picked as default per the
+  // user's stated workflow ("I use this all the time").
+  const [preset, setPreset] = useState<RangePreset>("sinceLastInvoice");
   const [customRange, setCustomRange] = useState<{
     start: string;
     end: string;
@@ -192,9 +232,13 @@ export function NewInvoiceForm({
   // render so a stale "this month" doesn't haunt a user with the tab
   // open across midnight.
   const today = useMemo(() => new Date(), []);
+  const lastInvoiceEnd = customerId
+    ? (lastInvoiceEndByCustomer[customerId] ?? null)
+    : null;
   const range = useMemo(
-    () => rangeForPreset(preset, customRange, today),
-    [preset, customRange, today],
+    () =>
+      rangeForPreset(preset, customRange, today, lastInvoiceEnd),
+    [preset, customRange, today, lastInvoiceEnd],
   );
 
   // Filter candidates → group → totals. All client-side; same logic
@@ -365,6 +409,23 @@ export function NewInvoiceForm({
                   />
                 </div>
               </div>
+            )}
+            {preset === "sinceLastInvoice" && !customerId && (
+              <p className="text-caption text-content-muted">
+                {tNew("billableHours.sinceLastInvoice.pickCustomer")}
+              </p>
+            )}
+            {preset === "sinceLastInvoice" && customerId && !lastInvoiceEnd && (
+              <p className="text-caption text-content-muted">
+                {tNew("billableHours.sinceLastInvoice.firstInvoice")}
+              </p>
+            )}
+            {preset === "sinceLastInvoice" && lastInvoiceEnd && (
+              <p className="text-caption text-content-muted">
+                {tNew("billableHours.sinceLastInvoice.previousEnd", {
+                  date: lastInvoiceEnd,
+                })}
+              </p>
             )}
             {range.start || range.end ? (
               <p className="text-caption text-content-muted">

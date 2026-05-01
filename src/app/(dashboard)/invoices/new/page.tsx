@@ -39,6 +39,32 @@ export default async function NewInvoicePage(): Promise<React.JSX.Element> {
     .eq("archived", false)
     .order("name");
 
+  // Per-customer "where does my last invoice end?" — used by the
+  // "Since last invoice" preset on the new form. Pulls the most-
+  // recent non-void invoice per customer; period_end wins, else
+  // fall back to issued_date for legacy rows that pre-date the
+  // period_start / period_end columns. Drafts are deliberately
+  // excluded (a draft isn't a customer-facing checkpoint), but
+  // sent / paid both count.
+  const { data: lastInvoiceRows } = await supabase
+    .from("invoices")
+    .select("customer_id, period_end, issued_date, status, created_at")
+    .not("customer_id", "is", null)
+    .neq("status", "void")
+    .neq("status", "draft")
+    .order("created_at", { ascending: false });
+  const lastInvoiceEndByCustomer: Record<string, string> = {};
+  for (const row of lastInvoiceRows ?? []) {
+    const cid = row.customer_id as string | null;
+    if (!cid) continue;
+    if (cid in lastInvoiceEndByCustomer) continue; // first wins (newest)
+    const end =
+      (row.period_end as string | null) ??
+      (row.issued_date as string | null) ??
+      null;
+    if (end) lastInvoiceEndByCustomer[cid] = end;
+  }
+
   const { data: settings } = await supabase
     .from("team_settings_v")
     .select(
@@ -141,6 +167,7 @@ export default async function NewInvoicePage(): Promise<React.JSX.Element> {
       <NewInvoiceForm
         customers={customers ?? []}
         candidates={candidates}
+        lastInvoiceEndByCustomer={lastInvoiceEndByCustomer}
         defaultTaxRate={settings?.tax_rate ? Number(settings.tax_rate) : 0}
         teams={teams}
       />

@@ -7,6 +7,7 @@
     "billableHours": {
       "heading": "Horas facturables a incluir",
       "preset": {
+        "sinceLastInvoice": "Desde la última factura",
         "all": "Todas no facturadas",
         "lastMonth": "Mes pasado",
         "thisMonth": "Este mes",
@@ -16,7 +17,12 @@
       "startDate": "Fecha inicio",
       "endDate": "Fecha fin",
       "activeRange": "Incluyendo entradas del {start} al {end}.",
-      "noRange": "Incluyendo todas las entradas facturables sin facturar."
+      "noRange": "Incluyendo todas las entradas facturables sin facturar.",
+      "sinceLastInvoice": {
+        "pickCustomer": "Elige un cliente para anclar el rango a su última factura.",
+        "firstInvoice": "No hay factura previa para este cliente — incluyendo todo lo no facturado.",
+        "previousEnd": "Anclado al día siguiente al período de la factura anterior ({date})."
+      }
     },
     "grouping": {
       "heading": "Cómo mostrar las horas",
