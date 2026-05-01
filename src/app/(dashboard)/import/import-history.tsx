@@ -212,16 +212,29 @@ function RunRow({
                 // straight to the admin error log with no UI signal.
                 // Read the result and throw on failure so the catch
                 // surfaces the message in the inline error card.
+                //
+                // The serialized error carries `message` only when
+                // code === "UNKNOWN" (i.e. our own action threw a
+                // user-targeted Error). Falls back to the i18n key
+                // for structured errors. SerializedAppError shape
+                // lives in src/lib/errors.ts.
                 const result = (await undoImportRunAction(fd)) as unknown as
-                  | { success: boolean; error?: { message: string } }
+                  | {
+                      success: boolean;
+                      error?: { message?: string; userMessageKey?: string };
+                    }
                   | void;
                 if (
                   result &&
                   (result as { success: boolean }).success === false
                 ) {
+                  const err = (
+                    result as {
+                      error?: { message?: string; userMessageKey?: string };
+                    }
+                  ).error;
                   throw new Error(
-                    (result as { error?: { message: string } }).error
-                      ?.message ?? "Undo failed",
+                    err?.message ?? err?.userMessageKey ?? "Undo failed",
                   );
                 }
                 // Success — the page revalidates and the run re-renders

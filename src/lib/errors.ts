@@ -25,6 +25,21 @@ export interface SerializedAppError {
   userMessageKey: string;
   statusCode: number;
   fieldErrors?: Record<string, string>;
+  /** Optional verbatim message — populated only when code === "UNKNOWN".
+   *
+   *  Structured errors (validation, auth, conflict, …) carry an i18n
+   *  key in `userMessageKey`; the client translates and shows that.
+   *
+   *  Ad-hoc `throw new Error("user-readable explanation")` paths in
+   *  actions normalize to `AppError.unknown(err)` — those originate
+   *  inside the app's own code and are deliberately written for the
+   *  user, so passing the literal message through is correct. (We
+   *  don't include `cause.stack` or anything else — just the
+   *  message string the action chose to throw.)
+   *
+   *  For non-UNKNOWN codes this stays undefined so structured errors
+   *  can't accidentally leak internal text. */
+  message?: string;
 }
 
 const DEFAULT_STATUS: Record<ErrorCode, number> = {
@@ -76,6 +91,15 @@ export class AppError extends Error {
     };
     if (this.code === "VALIDATION_ERROR" && this.details.fieldErrors) {
       result.fieldErrors = this.details.fieldErrors as Record<string, string>;
+    }
+    // Forward the literal message for UNKNOWN-coded errors only —
+    // those originate from `throw new Error("user-readable text")`
+    // inside our own actions and are deliberately written for the
+    // user. Structured codes (auth, validation, conflict, …) keep
+    // their i18n key as the only client-facing channel so internal
+    // text from third-party libraries can't slip through.
+    if (this.code === "UNKNOWN" && this.message) {
+      result.message = this.message;
     }
     return result;
   }

@@ -108,7 +108,15 @@ export function useFormAction<T = unknown>({
           // Handle safeAction ActionResult
           if (result && typeof result === "object" && "success" in result) {
             if (!result.success) {
-              setServerError(translateError(result.error.userMessageKey));
+              // Verbatim message (UNKNOWN-coded errors originate
+              // from `throw new Error("…")` inside actions and are
+              // user-targeted) wins over the translated i18n key.
+              // Falls back to translating the userMessageKey for
+              // structured errors that don't carry a message.
+              const errorMessage =
+                result.error.message ??
+                translateError(result.error.userMessageKey);
+              setServerError(errorMessage);
               if (result.error.fieldErrors) {
                 setFieldErrors(result.error.fieldErrors);
               }
