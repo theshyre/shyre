@@ -19,8 +19,8 @@
       "activeRange": "Including entries from {start} through {end}.",
       "noRange": "Including all uninvoiced billable entries.",
       "sinceLastInvoice": {
-        "pickCustomer": "Pick a client to anchor the range to their last invoice.",
-        "firstInvoice": "No prior invoice for this client — including everything uninvoiced.",
+        "pickCustomer": "Pick a customer to anchor the range to their last invoice.",
+        "firstInvoice": "No prior invoice for this customer — including everything uninvoiced.",
         "previousEnd": "Anchored to the day after the previous invoice's service period ({date})."
       }
     },
@@ -28,7 +28,7 @@
       "heading": "How to display hours",
       "by_project": {
         "label": "By project",
-        "help": "One line per project — the typical format clients expect."
+        "help": "One line per project — the typical format customers expect."
       },
       "by_task": {
         "label": "By task",
@@ -53,9 +53,9 @@
       "moreLines": "+ {count} more",
       "empty": {
         "title": "No matching entries",
-        "help": "Adjust the date range or pick a different client.",
-        "allFiltered": "{count, plural, =1 {This client has 1 uninvoiced entry, but none fall in the selected range.} other {This client has # uninvoiced entries, but none fall in the selected range.}}",
-        "zeroForCustomer": "This client has no uninvoiced billable entries.",
+        "help": "Adjust the date range or pick a different customer.",
+        "allFiltered": "{count, plural, =1 {This customer has 1 uninvoiced entry, but none fall in the selected range.} other {This customer has # uninvoiced entries, but none fall in the selected range.}}",
+        "zeroForCustomer": "This customer has no uninvoiced billable entries.",
         "clearFilters": "Clear filters"
       },
       "orphans": {
@@ -63,26 +63,26 @@
         "switchToAll": "Switch to All uninvoiced"
       }
     },
-    "submitDisabledHint": "Add billable entries to enable. Pick a client and a date range that includes uninvoiced work."
+    "submitDisabledHint": "Add billable entries to enable. Pick a customer and a date range that includes uninvoiced work."
   },
   "noInvoices": "No invoices yet. Create one from unbilled time entries.",
-  "selectClient": "Select a client",
-  "allClients": "All clients (team-wide)",
-  "selectClientDescription": "Choose a client to see their unbilled time entries.",
+  "selectClient": "Select a customer",
+  "allClients": "All customers (team-wide)",
+  "selectClientDescription": "Choose a customer to see their unbilled time entries.",
   "exportCsv": "Export CSV",
   "filters": {
     "heading": "Filters",
     "status": "Status",
-    "customer": "Client",
+    "customer": "Customer",
     "from": "Issued from",
     "to": "Issued to",
     "anyStatus": "Any status",
-    "anyCustomer": "Any client",
+    "anyCustomer": "Any customer",
     "apply": "Apply filters",
     "clear": "Clear filters"
   },
   "unbilledTime": "Unbilled Time Entries",
-  "noUnbilledTime": "No unbilled time entries for this client.",
+  "noUnbilledTime": "No unbilled time entries for this customer.",
   "lineItems": "Line Items",
   "generateLineItems": "Generate Line Items",
   "fields": {
@@ -90,7 +90,7 @@
     "issuedDate": "Issue Date",
     "dueDate": "Due Date",
     "notes": "Notes",
-    "notesPlaceholder": "Payment terms, notes to client...",
+    "notesPlaceholder": "Payment terms, notes to customer...",
     "subtotal": "Subtotal",
     "discount": "Discount",
     "discountAmount": "Discount amount",
@@ -138,7 +138,7 @@
   "table": {
     "invoiceNumber": "Invoice #",
     "team": "Team",
-    "customer": "Client",
+    "customer": "Customer",
     "issuedDate": "Issued",
     "dueDate": "Due",
     "total": "Total",

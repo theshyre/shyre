@@ -1,5 +1,6 @@
 "use client";
 
+import { useState } from "react";
 import { useTranslations } from "next-intl";
 import { Building2, Lock, Palette } from "lucide-react";
 import { AlertBanner } from "@theshyre/ui";
@@ -66,6 +67,10 @@ export function TeamSettingsForm({
   const t = useTranslations("settings");
   const tPay = useTranslations("paymentTerms");
   const org = teamSettings ?? DEFAULTS;
+
+  const [defaultTermsDays, setDefaultTermsDays] = useState<number | null>(
+    org.default_payment_terms_days,
+  );
   const isOwner = role === "owner";
   const isAdmin = isOwner || role === "admin";
   // canSetRatePerms = owner always; admin only if the delegation flag is on.
@@ -190,7 +195,8 @@ export function TeamSettingsForm({
         <div className="pt-2">
           <PaymentTermsField
             name="default_payment_terms_days"
-            defaultValue={org.default_payment_terms_days}
+            value={defaultTermsDays}
+            onChange={setDefaultTermsDays}
             label={tPay("label")}
             inheritLabel={tPay("team.inheritLabel")}
             helperText={tPay("team.helper")}

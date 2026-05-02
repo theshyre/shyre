@@ -1,5 +1,6 @@
 "use client";
 
+import { useState } from "react";
 import { useTranslations } from "next-intl";
 import { AlertBanner } from "@theshyre/ui";
 import {
@@ -32,6 +33,10 @@ export function CustomerEditForm({
 }): React.JSX.Element {
   const t = useTranslations("customers");
   const tPay = useTranslations("paymentTerms");
+
+  const [paymentTermsDays, setPaymentTermsDays] = useState<number | null>(
+    client.payment_terms_days,
+  );
 
   const { pending, success, serverError, fieldErrors, handleSubmit } =
     useFormAction({
@@ -87,7 +92,8 @@ export function CustomerEditForm({
         <div>
           <PaymentTermsField
             name="payment_terms_days"
-            defaultValue={client.payment_terms_days}
+            value={paymentTermsDays}
+            onChange={setPaymentTermsDays}
             label={tPay("label")}
             inheritLabel={tPay("customer.inheritLabel")}
             helperText={tPay("customer.helper")}

@@ -39,9 +39,9 @@ describe("InvoiceFilters", () => {
       />,
     );
     expect(screen.getByLabelText(/status/i)).toBeInTheDocument();
-    expect(screen.getByLabelText(/client/i)).toBeInTheDocument();
-    expect(screen.getByLabelText(/from/i)).toBeInTheDocument();
-    expect(screen.getByLabelText(/to/i)).toBeInTheDocument();
+    expect(screen.getByLabelText(/customer/i)).toBeInTheDocument();
+    expect(screen.getByLabelText(/issued from/i)).toBeInTheDocument();
+    expect(screen.getByLabelText(/issued to/i)).toBeInTheDocument();
   });
 
   it("populates the status select with every invoice status", () => {
@@ -87,7 +87,7 @@ describe("InvoiceFilters", () => {
     );
     const status = screen.getByLabelText(/status/i);
     await user.selectOptions(status, "paid");
-    const customer = screen.getByLabelText(/client/i);
+    const customer = screen.getByLabelText(/customer/i);
     await user.selectOptions(customer, "c1");
 
     await user.click(screen.getByRole("button", { name: /apply/i }));

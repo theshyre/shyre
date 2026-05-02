@@ -479,7 +479,7 @@ export function NewInvoiceForm({
             <div>
               <PaymentTermsField
                 name="payment_terms_days"
-                defaultValue={termsDays}
+                value={termsDays}
                 inheritLabel={null}
                 label={tPay("label")}
                 helperText={

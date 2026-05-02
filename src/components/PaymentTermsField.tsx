@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useId } from "react";
+import { useState, useId } from "react";
 import { useTranslations } from "next-intl";
 import {
   PAYMENT_TERMS_PRESETS,
@@ -8,41 +8,23 @@ import {
 } from "@/lib/payment-terms";
 import { inputClass, labelClass } from "@/lib/form-styles";
 
-type ChipState =
-  | { kind: "inherit" }
-  | { kind: "preset"; days: number }
-  | { kind: "custom"; days: number | null };
-
-function initialState(value: number | null | undefined): ChipState {
-  if (value == null) return { kind: "inherit" };
-  if (isPresetTermsDays(value)) return { kind: "preset", days: value };
-  return { kind: "custom", days: value };
-}
-
 interface Props {
   /** Form-data key for the hidden input. The number of days (or
-   *  empty string when `kind === "inherit"`) is mirrored here. */
+   *  empty string when the inherit chip is active) is mirrored
+   *  here so server actions can read the value out of FormData. */
   name: string;
-  /** Initial value. `null`/`undefined` selects "inherit"; a preset
-   *  selects the matching chip; any other integer goes into Custom. */
-  defaultValue: number | null | undefined;
-  /** Label for the "no override" / "no default" / "no terms" chip.
-   *  Drives the meaning of `kind: "inherit"` per call site:
-   *   - customer edit: "Use team default"
-   *   - team settings: "No default"
-   *   - new-invoice (when no cascade hit): "No terms"
-   *  Pass `null` to hide the inherit chip entirely (rare — only when
-   *  the field is truly required and there's no fallback). */
+  /** Current value (controlled). `null`/`undefined` selects the
+   *  inherit chip; a preset selects the matching chip; any other
+   *  integer puts the field into Custom mode. */
+  value?: number | null;
+  /** Backwards-compat alias for `value`. */
+  defaultValue?: number | null;
+  /** Label for the "no override" / "no default" chip. Pass `null`
+   *  to hide the inherit chip entirely. */
   inheritLabel: string | null;
-  /** Optional `<label>` text. When provided, renders a labeled
-   *  fieldset; when omitted, the chip row stands alone. */
   label?: string;
-  /** Optional helper rendered after the chip row, e.g. the cascade
-   *  source ("Net 30 (default for Acme)"). */
   helperText?: string | null;
-  /** Optional callback fired whenever the resolved value changes.
-   *  Lets callers (the new-invoice form) react to a chip click by
-   *  recomputing the due-date field. */
+  /** Fired when the user clicks a chip or types a custom value. */
   onChange?: (days: number | null) => void;
 }
 
@@ -50,20 +32,24 @@ interface Props {
  * Payment-terms chip selector. Used on the customer edit form, team
  * settings, and the new-invoice form.
  *
- * Why a single component for three call sites: the wire format
- * (integer days nullable) and the chip vocabulary (0 / 15 / 30 /
- * 45 / 60 / 90 / Custom / Inherit) must stay identical across
- * surfaces — drift between "what the user picked" and "what the
- * server saved" caused two bugs in earlier sessions of related work.
- *
- * Why "Inherit" instead of just "None": at every call site the
- * blank case has a real meaning. On a customer it falls back to the
- * team default; on team settings it means "ask each time." Naming
- * the chip per-context avoids the user staring at a blank-looking
- * "None" pill and wondering whether anything is selected.
+ * Design: fully controlled. Parent owns `value`; this component
+ * derives chip state from `value` every render. Internal state is
+ * limited to:
+ *   - `customMode`: the user has clicked the Custom chip so the
+ *     number input should show even before they type
+ *   - `customDraft`: the typing buffer for the number input
+ * No useEffect-driven state sync. An earlier revision used a
+ * useEffect that fired `onChange` based on internal state changes;
+ * because callers pass inline arrow functions for `onChange`, the
+ * deps array changed every render, the effect fired on every
+ * parent re-render, and it raced with the parent's own state
+ * updates — symptom: "selecting a customer doesn't take the first
+ * time" on the new-invoice form. Fully controlled here removes
+ * the entire class.
  */
 export function PaymentTermsField({
   name,
+  value,
   defaultValue,
   inheritLabel,
   label,
@@ -71,43 +57,63 @@ export function PaymentTermsField({
   onChange,
 }: Props): React.JSX.Element {
   const t = useTranslations("paymentTerms");
-  const [state, setState] = useState<ChipState>(() => initialState(defaultValue));
   const radioName = useId();
 
-  // Re-sync from props when defaultValue changes (e.g. customer
-  // selection on the new-invoice form changes the cascade source).
-  // We treat the prop as authoritative on change rather than only on
-  // mount, since the form's resolved value comes from the cascade.
-  useEffect(() => {
-    setState(initialState(defaultValue));
-  }, [defaultValue]);
+  const resolvedValue = value !== undefined ? value : (defaultValue ?? null);
 
-  // Mirror to onChange whenever the resolved value changes.
-  useEffect(() => {
-    if (!onChange) return;
-    if (state.kind === "inherit") onChange(null);
-    else if (state.kind === "preset") onChange(state.days);
-    else onChange(state.days);
-  }, [state, onChange]);
+  const startsInCustom =
+    resolvedValue != null && !isPresetTermsDays(resolvedValue);
 
-  // Hidden value: empty for inherit, the integer otherwise. Server
-  // action treats empty as null. Custom with no entered value also
-  // serializes as empty so the action doesn't try to save NaN.
+  // customMode: the user has actively chosen Custom. Lets the
+  // number input render even when value is null (they clicked
+  // Custom but haven't typed yet) or when value is a preset that
+  // they've since switched away from. customDraft holds the typing
+  // buffer; we don't echo the live value into it because that
+  // would clobber a partially-typed number on every keystroke.
+  const [customMode, setCustomMode] = useState(startsInCustom);
+  const [customDraft, setCustomDraft] = useState<string>(
+    startsInCustom ? String(resolvedValue) : "",
+  );
+
+  const isInheritActive = resolvedValue == null && !customMode;
+  const isCustomActive =
+    customMode || (resolvedValue != null && !isPresetTermsDays(resolvedValue));
+
   const hiddenValue: string =
-    state.kind === "inherit"
-      ? ""
-      : state.kind === "preset"
-        ? String(state.days)
-        : state.days != null
-          ? String(state.days)
-          : "";
+    resolvedValue != null ? String(resolvedValue) : "";
 
-  const isActive = (s: ChipState["kind"], days?: number): boolean => {
-    if (s !== state.kind) return false;
-    if (days === undefined) return true;
-    if (state.kind === "preset") return state.days === days;
-    return false;
-  };
+  function emit(next: number | null): void {
+    if (onChange) onChange(next);
+  }
+
+  function pickPreset(days: number): void {
+    setCustomMode(false);
+    setCustomDraft("");
+    emit(days);
+  }
+
+  function pickInherit(): void {
+    setCustomMode(false);
+    setCustomDraft("");
+    emit(null);
+  }
+
+  function pickCustom(): void {
+    setCustomMode(true);
+    // If we already have a non-preset value, keep it; otherwise
+    // clear so the input renders empty until they type. Don't
+    // touch the parent value yet — the number input emits on
+    // typing.
+    const parsed = customDraft.trim() === "" ? null : parseInt(customDraft, 10);
+    if (parsed != null && Number.isFinite(parsed)) {
+      emit(parsed);
+    } else {
+      // Was on a preset → switch to custom-empty. Clear the
+      // parent value so the hidden input doesn't carry the old
+      // preset over into the form submission.
+      emit(null);
+    }
+  }
 
   return (
     <div role="group" aria-label={label ?? t("ariaGroup")}>
@@ -118,61 +124,58 @@ export function PaymentTermsField({
           <button
             type="button"
             role="radio"
-            aria-checked={isActive("inherit")}
+            aria-checked={isInheritActive}
             data-name={radioName}
-            onClick={() => setState({ kind: "inherit" })}
-            className={chipClass(isActive("inherit"))}
+            onClick={pickInherit}
+            className={chipClass(isInheritActive)}
           >
             {inheritLabel}
           </button>
         )}
-        {PAYMENT_TERMS_PRESETS.map((days) => (
-          <button
-            key={days}
-            type="button"
-            role="radio"
-            aria-checked={isActive("preset", days)}
-            data-name={radioName}
-            onClick={() => setState({ kind: "preset", days })}
-            className={chipClass(isActive("preset", days))}
-          >
-            {days === 0 ? t("dueOnReceipt") : t("netN", { n: days })}
-          </button>
-        ))}
+        {PAYMENT_TERMS_PRESETS.map((days) => {
+          const active = !customMode && resolvedValue === days;
+          return (
+            <button
+              key={days}
+              type="button"
+              role="radio"
+              aria-checked={active}
+              data-name={radioName}
+              onClick={() => pickPreset(days)}
+              className={chipClass(active)}
+            >
+              {days === 0 ? t("dueOnReceipt") : t("netN", { n: days })}
+            </button>
+          );
+        })}
         <button
           type="button"
           role="radio"
-          aria-checked={isActive("custom")}
+          aria-checked={isCustomActive}
           data-name={radioName}
-          onClick={() =>
-            setState((prev) =>
-              prev.kind === "custom" ? prev : { kind: "custom", days: null },
-            )
-          }
-          className={chipClass(isActive("custom"))}
+          onClick={pickCustom}
+          className={chipClass(isCustomActive)}
         >
           {t("custom")}
         </button>
       </div>
-      {state.kind === "custom" && (
+      {isCustomActive && (
         <div className="mt-2 flex items-center gap-2">
           <input
             type="number"
             min={0}
             max={365}
             step={1}
-            value={state.days ?? ""}
+            value={customDraft}
             onChange={(e) => {
               const raw = e.target.value;
+              setCustomDraft(raw);
               if (raw === "") {
-                setState({ kind: "custom", days: null });
+                emit(null);
                 return;
               }
               const n = parseInt(raw, 10);
-              setState({
-                kind: "custom",
-                days: Number.isFinite(n) ? n : null,
-              });
+              emit(Number.isFinite(n) ? n : null);
             }}
             placeholder={t("customPlaceholder")}
             className={`${inputClass} max-w-[8rem]`}
