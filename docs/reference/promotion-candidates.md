@@ -58,6 +58,25 @@ dashboard layouts.
 **If absent in core:** lift it as-is (it's tiny — visually-hidden
 anchor with focus-visible reveal). Replace local copy with import.
 
+## 4. Cross-browser `select` chrome — promote alongside `selectClass`
+
+**Path:** `src/app/globals.css` (`.shyre-select`) +
+`src/lib/form-styles.ts` (selectClass override).
+
+**Why:** Safari renders native `<select>` taller than Chrome's, with
+its own double-arrow widget inside the field. Side-by-side with
+`<input>` and `DateField` the heights diverge visibly — user-
+reported as "selects look strange in Safari." Shyre fixes it locally
+by adding `.shyre-select` (appearance: none + chevron-down
+background image) and appending the class to the upstream
+`selectClass` export. Cross-cutting concern; both Shyre and Liv
+have selects, both will hit this in Safari.
+
+**If absent in core:** lift the CSS rule into the
+`@theshyre/design-tokens` (or wherever the upstream form chrome
+lives), and update `@theshyre/ui`'s `selectClass` to include the
+hook. Drop the Shyre override.
+
 ## NOT promotion candidates (kept Shyre-local)
 
 The platform-architect review explicitly called these out as

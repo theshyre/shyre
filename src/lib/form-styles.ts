@@ -3,14 +3,37 @@
  * MANDATORY: Never inline form field classes — use these constants.
  */
 
-import { buttonPrimaryClass as baseButtonPrimaryClass } from "@theshyre/ui";
+import {
+  buttonPrimaryClass as baseButtonPrimaryClass,
+  selectClass as baseSelectClass,
+} from "@theshyre/ui";
 
 export {
   inputClass,
-  selectClass,
   textareaClass,
   searchInputClass,
 } from "@theshyre/ui";
+
+/**
+ * Cross-browser select.
+ *
+ * Safari renders <select> noticeably taller than Chrome's, with its
+ * native double-arrow widget inside the field. The result is two
+ * different visual heights side-by-side with our text inputs and
+ * DateField, which the user reported as "selects look strange in
+ * Safari."
+ *
+ * The visual fix lives in `globals.css` under `.shyre-select`
+ * (appearance: none + chevron-down background image). This wrapper
+ * just appends the class to the @theshyre/ui base so every existing
+ * `selectClass` consumer picks up the override automatically — no
+ * call-site changes needed.
+ *
+ * Promote upstream: should land in @theshyre/ui in the next
+ * theshyre-core release. Tracked in
+ * docs/reference/promotion-candidates.md.
+ */
+export const selectClass = `${baseSelectClass} shyre-select`;
 
 /**
  * Shyre's primary button wraps the shared `buttonPrimaryClass` and adds

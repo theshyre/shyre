@@ -53,8 +53,15 @@ describe("form-styles", () => {
   });
 
   describe("selectClass", () => {
-    it("matches inputClass", () => {
-      expect(selectClass).toBe(inputClass);
+    it("extends inputClass with the cross-browser .shyre-select hook", () => {
+      // Shyre overrides the upstream selectClass to add a CSS class
+      // that strips Safari's native double-arrow widget and renders
+      // a custom chevron, so heights match across browsers. The base
+      // input classes must still be present so all field chrome
+      // (border, focus ring, etc.) carries through.
+      expect(selectClass).toContain("border-edge");
+      expect(selectClass).toContain("focus:ring-focus-ring/30");
+      expect(selectClass).toContain("shyre-select");
     });
   });
 

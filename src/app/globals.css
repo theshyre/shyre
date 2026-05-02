@@ -94,3 +94,38 @@ html[data-density="comfortable"] {
 [data-density-table] tr {
   min-height: var(--table-row-min-h);
 }
+
+/* ============================================================
+ * Cross-browser select chrome.
+ *
+ * Safari renders <select> taller than Chrome with its native
+ * double-arrow widget inside the field, producing visibly different
+ * heights side-by-side with our text inputs and DateField. The
+ * `.shyre-select` class strips the native widget and renders a
+ * chevron via background-image so the trigger affordance is
+ * preserved without inflating the field height.
+ *
+ * Why a CSS class instead of Tailwind utilities: the chevron is a
+ * data-URL SVG that must be a literal string for the browser, and
+ * Tailwind's arbitrary-value extractor doesn't reliably pick up
+ * data URLs from template literals. A static CSS class is simpler.
+ *
+ * Stroke color #9ca3af (gray-400) matches text-content-muted across
+ * every theme well enough to read as the trigger affordance without
+ * competing with the selected option's text.
+ * ============================================================ */
+.shyre-select {
+  -webkit-appearance: none;
+  appearance: none;
+  background-repeat: no-repeat;
+  background-position: right 0.75rem center;
+  background-size: 16px;
+  background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%239ca3af' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'><path d='m6 9 6 6 6-6'/></svg>");
+  padding-right: 2.25rem;
+}
+
+/* Hide IE/Edge's legacy ::-ms-expand arrow; harmless on modern
+ * browsers. */
+.shyre-select::-ms-expand {
+  display: none;
+}
