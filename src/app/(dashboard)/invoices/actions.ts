@@ -136,10 +136,18 @@ export async function createInvoiceAction(formData: FormData): Promise<void> {
     // grouping logic + the entry date for period_start / period_end
     // computation. Range filter: when set, exclude entries whose
     // start_time falls outside [range_start, range_end + 1 day).
+    //
+    // Note: don't try to embed `user_profiles!fkey(display_name)`.
+    // PostgREST embedding requires a direct FK between the two
+    // tables; both `time_entries.user_id` and `user_profiles.user_id`
+    // reference `auth.users(id)` separately, so there's no edge to
+    // traverse — the embed errors with PGRST200 and the whole query
+    // returns nothing. Display names come via a second query joined
+    // in JS, same shape as `new/page.tsx`.
     let query = supabase
       .from("time_entries")
       .select(
-        "id, description, duration_min, project_id, user_id, start_time, projects(name, hourly_rate, customer_id, customers(default_rate)), categories(name), user_profiles!time_entries_user_id_fkey(display_name)",
+        "id, description, duration_min, project_id, user_id, start_time, projects(name, hourly_rate, customer_id, customers(default_rate)), categories(name)",
       )
       .eq("team_id", teamId)
       .eq("invoiced", false)
@@ -159,6 +167,27 @@ export async function createInvoiceAction(formData: FormData): Promise<void> {
     }
 
     const { data: entries } = await query;
+
+    // Display names for the entries we ended up with. One query for
+    // every distinct user_id so the personName lookup matches what
+    // the new-invoice page renders.
+    const distinctUserIds = Array.from(
+      new Set(
+        (entries ?? []).map((e) => (e as { user_id: string }).user_id),
+      ),
+    );
+    const { data: profileRows } = distinctUserIds.length
+      ? await supabase
+          .from("user_profiles")
+          .select("user_id, display_name")
+          .in("user_id", distinctUserIds)
+      : { data: [] as Array<{ user_id: string; display_name: string | null }> };
+    const displayNameByUserId = new Map<string, string>();
+    for (const p of profileRows ?? []) {
+      if (p.display_name) {
+        displayNameByUserId.set(p.user_id as string, p.display_name as string);
+      }
+    }
 
     // Filter entries based on client selection
     let filteredEntries;
@@ -208,11 +237,6 @@ export async function createInvoiceAction(formData: FormData): Promise<void> {
         catRaw && typeof catRaw === "object" && "name" in catRaw
           ? (catRaw as { name: string | null })
           : null;
-      const profRaw = (entry as { user_profiles?: unknown }).user_profiles;
-      const prof =
-        profRaw && typeof profRaw === "object" && "display_name" in profRaw
-          ? (profRaw as { display_name: string | null })
-          : null;
       const startIso = (entry as { start_time: string | null }).start_time;
       return {
         id: entry.id,
@@ -221,7 +245,7 @@ export async function createInvoiceAction(formData: FormData): Promise<void> {
         description: entry.description ?? null,
         projectName: proj?.name ?? "Project",
         taskName: cat?.name ?? null,
-        personName: prof?.display_name ?? "Unknown",
+        personName: displayNameByUserId.get(entryUserId) ?? "Unknown",
         date: startIso ? startIso.slice(0, 10) : "",
       };
     });

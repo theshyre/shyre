@@ -109,7 +109,29 @@ function mockSupabase() {
     if (table === "invoice_line_items") {
       return lineItemsChain();
     }
+    if (table === "user_profiles") {
+      return userProfilesChain();
+    }
     throw new Error(`unexpected table ${table}`);
+  }
+
+  // Display-name lookup. Production reads
+  // `.from("user_profiles").select("user_id, display_name").in("user_id", ids)`
+  // — tests don't actually need real names so this returns an empty
+  // array and the action falls back to "Unknown" for personName.
+  function userProfilesChain() {
+    const q = {
+      select: () => q,
+      in: () => q,
+      then: (
+        resolve: (v: {
+          data: Array<{ user_id: string; display_name: string | null }>;
+        }) => void,
+      ) => {
+        resolve({ data: [] });
+      },
+    };
+    return q;
   }
 
   function teamMembersChain() {
