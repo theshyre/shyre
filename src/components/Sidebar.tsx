@@ -217,7 +217,7 @@ export default function Sidebar({
         <Link
           href="/"
           aria-label={t("appName")}
-          className="flex items-center gap-3 px-4 py-3 border-b border-edge hover:bg-hover transition-colors"
+          className="flex items-center gap-3 px-4 py-3 hover:bg-hover transition-colors"
         >
           <Logo size={28} className="text-accent shrink-0" />
           <span className="text-body-lg font-bold text-content tracking-wide">
@@ -225,6 +225,45 @@ export default function Sidebar({
           </span>
         </Link>
       </Tooltip>
+
+      {/* Ambient team-context chip. Sits right under the wordmark so
+          the user always sees which team they're acting in (the
+          "way down in the corner" position previously made the chip
+          feel disconnected from the page they were operating on).
+          Solo (1 team) shows the team name as a static-ish
+          indicator confirming the scope; multi-team shows the count
+          and clicks through to /teams. There's no global active-
+          team state in Shyre today (each list page reads ?org=
+          independently via TeamFilter), so this chip is
+          informational, not a switcher. */}
+      {teamCount > 0 && (
+        <Link
+          href="/teams"
+          aria-label={
+            teamCount === 1
+              ? `${t("nav.teams")}: ${primaryTeamName ?? ""}`
+              : t("nav.teams")
+          }
+          className={`flex items-center gap-2 border-y border-edge px-4 py-2 text-caption transition-colors hover:bg-hover ${
+            isItemActive("/teams")
+              ? "bg-accent-soft text-accent-text"
+              : "text-content-secondary"
+          }`}
+        >
+          <Building2 size={14} className="shrink-0 text-content-muted" />
+          {teamCount === 1 && primaryTeamName ? (
+            <span className="truncate flex-1">{primaryTeamName}</span>
+          ) : (
+            <span className="flex-1">
+              {t("nav.teamCount", { count: teamCount })}
+            </span>
+          )}
+          <LinkPendingSpinner />
+        </Link>
+      )}
+      {teamCount === 0 && (
+        <div className="border-b border-edge" aria-hidden="true" />
+      )}
 
       {/* Main nav. Three labeled groups (Work / Setup / System) so a
           user landing on any page knows which area they're in without
@@ -282,39 +321,6 @@ export default function Sidebar({
           userId={userId}
         />
       </div>
-
-      {/* Ambient team-context chip. Solo (1 team) shows the team
-          name as a static-ish indicator confirming the scope they're
-          working in. Multi-team shows the count + links to /teams
-          where the user can pick which one to drill into. There's
-          no global active-team state in Shyre today (each list page
-          reads ?org= independently via TeamFilter), so this chip is
-          informational, not a switcher — clicking opens /teams. */}
-      {teamCount > 0 && (
-        <Link
-          href="/teams"
-          aria-label={
-            teamCount === 1
-              ? `${t("nav.teams")}: ${primaryTeamName ?? ""}`
-              : t("nav.teams")
-          }
-          className={`flex items-center gap-2 border-t border-edge px-4 py-2 text-caption transition-colors hover:bg-hover ${
-            isItemActive("/teams")
-              ? "bg-accent-soft text-accent-text"
-              : "text-content-secondary"
-          }`}
-        >
-          <Building2 size={14} className="shrink-0 text-content-muted" />
-          {teamCount === 1 && primaryTeamName ? (
-            <span className="truncate flex-1">{primaryTeamName}</span>
-          ) : (
-            <span className="flex-1">
-              {t("nav.teamCount", { count: teamCount })}
-            </span>
-          )}
-          <LinkPendingSpinner />
-        </Link>
-      )}
 
       {/* Single-row profile + popover trigger. The avatar row used to
           carry a two-line block (display name + email) and was

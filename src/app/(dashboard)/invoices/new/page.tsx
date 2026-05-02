@@ -67,7 +67,7 @@ export default async function NewInvoicePage(): Promise<React.JSX.Element> {
   const { data: settings } = await supabase
     .from("team_settings_v")
     .select(
-      "invoice_prefix, invoice_next_num, tax_rate, default_rate, default_payment_terms_days",
+      "invoice_prefix, invoice_next_num, tax_rate, default_rate, default_payment_terms_days, business_name",
     )
     .limit(1)
     .maybeSingle();
@@ -201,6 +201,12 @@ export default async function NewInvoicePage(): Promise<React.JSX.Element> {
             ? Number(settings.default_payment_terms_days)
             : null
         }
+        previewInvoiceNumber={
+          settings?.invoice_prefix && settings?.invoice_next_num != null
+            ? `${settings.invoice_prefix}-${String(settings.invoice_next_num).padStart(4, "0")}`
+            : null
+        }
+        businessName={(settings?.business_name as string | null) ?? null}
         teams={teams}
       />
     </div>

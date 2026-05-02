@@ -61,7 +61,19 @@
       "orphans": {
         "message": "{count, plural, =1 {1 entrada sin facturar queda fuera de este rango — probablemente una rezagada de antes de la última factura.} other {# entradas sin facturar quedan fuera de este rango — probablemente rezagadas de antes de la última factura.}}",
         "switchToAll": "Cambiar a Todas no facturadas"
-      }
+      },
+      "fullOpen": "Vista previa",
+      "fullOpenAria": "Vista previa de la factura completa antes de crearla",
+      "fullModalTitle": "Vista previa de la factura",
+      "fullModalSubtitle": "Cómo se verá este borrador una vez creado. El PDF final incluye marca y diseño de totales.",
+      "fullBillTo": "Facturar a",
+      "fullBusinessFallback": "Tu negocio",
+      "fullCustomerFallback": "(Sin cliente seleccionado)",
+      "fullNoLines": "Sin líneas en la selección actual.",
+      "fullColDescription": "Descripción",
+      "fullColQty": "Cant.",
+      "fullColRate": "Tarifa",
+      "fullColAmount": "Importe"
     },
     "submitDisabledHint": "Añade entradas facturables para habilitar. Elige un cliente y un rango de fechas que incluya trabajo sin facturar."
   },

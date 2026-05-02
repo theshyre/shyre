@@ -10,6 +10,7 @@ import {
   FolderKanban,
   CheckSquare,
   FileSearch,
+  Eye,
 } from "lucide-react";
 import { AlertBanner } from "@theshyre/ui";
 import { useFormAction } from "@/hooks/use-form-action";
@@ -18,6 +19,8 @@ import { SubmitButton } from "@/components/SubmitButton";
 import { DateField } from "@/components/DateField";
 import { PaymentTermsField } from "@/components/PaymentTermsField";
 import { Tooltip } from "@/components/Tooltip";
+import { buttonSecondaryClass } from "@/lib/form-styles";
+import { InvoicePreviewModal } from "./invoice-preview-modal";
 import {
   inputClass,
   textareaClass,
@@ -170,6 +173,8 @@ export function NewInvoiceForm({
   lastInvoiceEndByCustomer,
   defaultTaxRate,
   teamDefaultTermsDays,
+  previewInvoiceNumber,
+  businessName,
   teams,
 }: {
   customers: CustomerOption[];
@@ -184,6 +189,13 @@ export function NewInvoiceForm({
    *  when the selected customer has no payment_terms_days override.
    *  null = no team default (user picks date manually). */
   teamDefaultTermsDays: number | null;
+  /** Pre-formatted invoice number (e.g. "INV-0042") shown in the
+   *  full-preview modal header. Null on first-run teams that
+   *  haven't issued any invoice yet. */
+  previewInvoiceNumber: string | null;
+  /** Business name shown atop the preview modal so the user sees
+   *  what the customer would see. */
+  businessName: string | null;
   teams: TeamListItem[];
 }): React.JSX.Element {
   const t = useTranslations("invoices");
@@ -209,6 +221,9 @@ export function NewInvoiceForm({
   // server action's "explicit amount > rate" precedence.
   const [discountRate, setDiscountRate] = useState<string>("");
   const [discountAmount, setDiscountAmount] = useState<string>("");
+  const [discountReason, setDiscountReason] = useState<string>("");
+  const [notes, setNotes] = useState<string>("");
+  const [previewOpen, setPreviewOpen] = useState(false);
 
   // Today as YYYY-MM-DD, computed once per render. Used as the
   // anchor for due-date math and as the default issue date.
@@ -217,69 +232,61 @@ export function NewInvoiceForm({
     return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
   }, []);
 
-  // Resolve the payment-terms cascade for the selected customer.
-  // null when no customer is selected (the form falls back to the
-  // team default, but we don't pre-fill due_date until the user
-  // either picks a customer or clicks a chip).
+  // Resolve the payment-terms cascade for the currently-selected
+  // customer. selectedCustomer is recomputed every render — that's
+  // cheap (Map-like .find on a usually small list) and avoids the
+  // useMemo dependency dance that previously caused a useEffect to
+  // re-fire on every parent re-render and race with the parent's
+  // own state updates (the "select doesn't take on first click"
+  // bug).
   const selectedCustomer = customerId
     ? (customers.find((c) => c.id === customerId) ?? null)
     : null;
-  const cascadeInputs = useMemo(
-    () => ({
-      customerTermsDays: selectedCustomer?.payment_terms_days ?? null,
-      teamDefaultDays: teamDefaultTermsDays,
-    }),
-    [selectedCustomer, teamDefaultTermsDays],
-  );
-  const resolvedTermsDays = useMemo(
-    () => resolvePaymentTermsDays(cascadeInputs),
-    [cascadeInputs],
-  );
-  const termsSource = useMemo(
-    () => resolvePaymentTermsSource(cascadeInputs),
-    [cascadeInputs],
-  );
+  const cascadeInputs = {
+    customerTermsDays: selectedCustomer?.payment_terms_days ?? null,
+    teamDefaultDays: teamDefaultTermsDays,
+  };
+  const resolvedTermsDays = resolvePaymentTermsDays(cascadeInputs);
+  const termsSource = resolvePaymentTermsSource(cascadeInputs);
 
-  // Payment terms days actually selected on this invoice. Starts at
-  // the cascade value; updates either when the user clicks a chip
-  // (PaymentTermsField onChange) or when the customer changes (the
-  // useEffect below replays the cascade for the new customer).
+  // termsDays + dueDate are seeded from the cascade and updated
+  // ONLY by user actions (customer change, chip click, manual date
+  // edit). No useEffect-driven sync — the previous version had one,
+  // and it raced with the customer onChange in Safari, causing the
+  // first-click-doesn't-take symptom. All cascade updates now flow
+  // through onChange handlers synchronously.
   const [termsDays, setTermsDays] = useState<number | null>(
     resolvedTermsDays,
   );
-
-  // Due date as YYYY-MM-DD. Auto-computed from termsDays + today
-  // unless the user has overridden it (dueDateTouched).
   const [dueDate, setDueDate] = useState<string>(
     resolvedTermsDays != null
       ? computeDueDate(todayYmd, resolvedTermsDays)
       : "",
   );
-  const [dueDateTouched, setDueDateTouched] = useState(false);
 
-  // When the customer changes, re-resolve the cascade and re-fill
-  // due_date — UNLESS the user has explicitly set a date already
-  // (dueDateTouched). Solo-consultant review: "the chip should drive
-  // the date but a hand-typed override should win."
-  useEffect(() => {
-    setTermsDays(resolvedTermsDays);
-    if (!dueDateTouched) {
-      setDueDate(
-        resolvedTermsDays != null
-          ? computeDueDate(todayYmd, resolvedTermsDays)
-          : "",
-      );
-    }
-    // dueDateTouched intentionally NOT in deps — that flips
-    // mid-edit when the user types and we don't want this effect to
-    // re-fire and stomp their value.
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [resolvedTermsDays, todayYmd]);
+  /** Apply the cascade when the customer changes. Called from the
+   *  select's onChange so the update is synchronous with the user
+   *  interaction — no post-render effects, no race window. */
+  function applyCustomerCascade(nextCustomerId: string): void {
+    const nextCustomer = nextCustomerId
+      ? (customers.find((c) => c.id === nextCustomerId) ?? null)
+      : null;
+    const nextDays =
+      (nextCustomer?.payment_terms_days ?? teamDefaultTermsDays) ?? null;
+    setTermsDays(nextDays);
+    setDueDate(
+      nextDays != null ? computeDueDate(todayYmd, nextDays) : "",
+    );
+  }
 
   // Restore the user's last choices on mount. Reading localStorage
   // during render would mismatch hydration (server has no
   // localStorage); reading in an effect after mount is the
   // conventional pattern.
+  /* eslint-disable react-hooks/set-state-in-effect -- localStorage
+     can't be read during render (no SSR) and lazy init would
+     mismatch hydration — set after mount is the conventional
+     pattern here. */
   useEffect(() => {
     const storedGrouping = loadStored<InvoiceGroupingMode>(
       STORAGE_GROUPING,
@@ -289,6 +296,7 @@ export function NewInvoiceForm({
     const storedPreset = loadStored<RangePreset>(STORAGE_PRESET, PRESETS);
     if (storedPreset) setPreset(storedPreset);
   }, []);
+  /* eslint-enable react-hooks/set-state-in-effect */
 
   useEffect(() => {
     if (typeof window !== "undefined") {
@@ -403,9 +411,6 @@ export function NewInvoiceForm({
       onChange={() => {
         if (!dirty) setDirty(true);
       }}
-      onInput={() => {
-        if (!dirty) setDirty(true);
-      }}
       className="mt-6"
     >
       {serverError && (
@@ -434,17 +439,14 @@ export function NewInvoiceForm({
                   {t("selectClient")}
                 </label>
                 <select
-                  autoFocus
                   id="customer_id"
                   name="customer_id"
                   value={customerId}
                   onChange={(e) => {
-                    setCustomerId(e.target.value);
-                    // Customer change → re-pull cascade source and
-                    // re-fill due date (handled by the effect on
-                    // resolvedTermsDays). Clear the touched flag
-                    // so the new cascade actually applies.
-                    setDueDateTouched(false);
+                    const next = e.target.value;
+                    setCustomerId(next);
+                    applyCustomerCascade(next);
+                    if (!dirty) setDirty(true);
                   }}
                   className={selectClass}
                 >
@@ -466,7 +468,7 @@ export function NewInvoiceForm({
                   value={dueDate}
                   onChange={(next) => {
                     setDueDate(next);
-                    setDueDateTouched(true);
+                    if (!dirty) setDirty(true);
                   }}
                 />
               </div>
@@ -493,8 +495,8 @@ export function NewInvoiceForm({
                   setTermsDays(days);
                   if (days != null) {
                     setDueDate(computeDueDate(todayYmd, days));
-                    setDueDateTouched(false);
                   }
+                  if (!dirty) setDirty(true);
                 }}
               />
             </div>
@@ -572,6 +574,8 @@ export function NewInvoiceForm({
                     name="discount_reason"
                     type="text"
                     maxLength={200}
+                    value={discountReason}
+                    onChange={(e) => setDiscountReason(e.target.value)}
                     className={inputClass}
                     placeholder={t("fields.discountReasonPlaceholder")}
                   />
@@ -714,6 +718,8 @@ export function NewInvoiceForm({
                 <textarea
                   name="notes"
                   rows={3}
+                  value={notes}
+                  onChange={(e) => setNotes(e.target.value)}
                   placeholder={t("fields.notesPlaceholder")}
                   className={textareaClass}
                 />
@@ -721,26 +727,64 @@ export function NewInvoiceForm({
             </div>
           </section>
 
-          {lines.length === 0 ? (
-            <Tooltip label={tNew("submitDisabledHint")}>
-              <span className="inline-block">
-                <SubmitButton
-                  label={t("createInvoice")}
-                  pending={pending}
-                  success={success}
-                  disabled
-                  icon={FileText}
-                />
-              </span>
-            </Tooltip>
-          ) : (
-            <SubmitButton
-              label={t("createInvoice")}
-              pending={pending}
-              success={success}
-              icon={FileText}
-            />
-          )}
+          <div className="flex items-center gap-2">
+            {lines.length === 0 ? (
+              <Tooltip label={tNew("submitDisabledHint")}>
+                <span className="inline-block">
+                  <SubmitButton
+                    label={t("createInvoice")}
+                    pending={pending}
+                    success={success}
+                    disabled
+                    icon={FileText}
+                  />
+                </span>
+              </Tooltip>
+            ) : (
+              <SubmitButton
+                label={t("createInvoice")}
+                pending={pending}
+                success={success}
+                icon={FileText}
+              />
+            )}
+            <button
+              type="button"
+              onClick={() => setPreviewOpen(true)}
+              disabled={lines.length === 0}
+              className={buttonSecondaryClass}
+              aria-label={tNew("preview.fullOpenAria")}
+            >
+              <Eye size={14} />
+              {tNew("preview.fullOpen")}
+            </button>
+          </div>
+
+          <InvoicePreviewModal
+            open={previewOpen}
+            onClose={() => setPreviewOpen(false)}
+            invoiceNumber={previewInvoiceNumber}
+            customerName={selectedCustomer?.name ?? null}
+            issuedDate={todayYmd}
+            dueDate={dueDate}
+            paymentTermsDays={termsDays}
+            periodStart={inferredPeriod?.start ?? null}
+            periodEnd={inferredPeriod?.end ?? null}
+            lines={lines.map((line) => ({
+              description: line.description,
+              quantity: line.quantity,
+              unitPrice: line.unitPrice,
+              amount: line.amount,
+            }))}
+            subtotal={totals.subtotal}
+            discountAmount={totals.discountAmount}
+            discountRate={totals.discountRate}
+            taxRate={taxRate}
+            taxAmount={totals.taxAmount}
+            total={totals.total}
+            notes={notes.trim() === "" ? null : notes}
+            businessName={businessName}
+          />
         </div>
 
         {/* Right rail — sticky live preview */}

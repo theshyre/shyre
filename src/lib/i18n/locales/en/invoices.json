@@ -61,7 +61,19 @@
       "orphans": {
         "message": "{count, plural, =1 {1 uninvoiced entry sits outside this date range — likely a stragger from before the last invoice.} other {# uninvoiced entries sit outside this date range — likely straggers from before the last invoice.}}",
         "switchToAll": "Switch to All uninvoiced"
-      }
+      },
+      "fullOpen": "Preview",
+      "fullOpenAria": "Preview the full invoice before creating",
+      "fullModalTitle": "Invoice preview",
+      "fullModalSubtitle": "What this draft will look like once created. Final PDF includes branding and totals layout.",
+      "fullBillTo": "Bill to",
+      "fullBusinessFallback": "Your business",
+      "fullCustomerFallback": "(No customer selected)",
+      "fullNoLines": "No line items in the current selection.",
+      "fullColDescription": "Description",
+      "fullColQty": "Qty",
+      "fullColRate": "Rate",
+      "fullColAmount": "Amount"
     },
     "submitDisabledHint": "Add billable entries to enable. Pick a customer and a date range that includes uninvoiced work."
   },
