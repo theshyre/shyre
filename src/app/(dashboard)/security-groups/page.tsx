@@ -23,20 +23,62 @@ export default async function SecurityGroupsPage(): Promise<React.JSX.Element> {
     .in("team_id", teamIds)
     .order("created_at", { ascending: false });
 
-  // Members of those groups (with profiles)
+  // Members of those groups + all team members. Two-step fetch:
+  // neither security_group_members nor team_members has an FK to
+  // user_profiles (both go through auth.users separately), so
+  // PostgREST embedding fails with PGRST200. Pull display names in
+  // a single second query and stitch in JS.
   const groupIds = (groups ?? []).map((g) => g.id);
-  const { data: groupMembers } = groupIds.length
-    ? await supabase
-        .from("security_group_members")
-        .select("group_id, user_id, user_profiles(display_name)")
-        .in("group_id", groupIds)
-    : { data: [] };
+  const [groupMembersRes, teamMembersRes] = await Promise.all([
+    groupIds.length
+      ? supabase
+          .from("security_group_members")
+          .select("group_id, user_id")
+          .in("group_id", groupIds)
+      : Promise.resolve({
+          data: [] as Array<{ group_id: string; user_id: string }>,
+        }),
+    supabase
+      .from("team_members")
+      .select("team_id, user_id")
+      .in("team_id", teamIds),
+  ]);
+  const rawGroupMembers = groupMembersRes.data ?? [];
+  const rawTeamMembers = teamMembersRes.data ?? [];
 
-  // All members of user's teams (for the "add member" dropdown)
-  const { data: teamMembers } = await supabase
-    .from("team_members")
-    .select("team_id, user_id, user_profiles(display_name)")
-    .in("team_id", teamIds);
+  const distinctUserIds = Array.from(
+    new Set([
+      ...rawGroupMembers.map((m) => m.user_id as string),
+      ...rawTeamMembers.map((m) => m.user_id as string),
+    ]),
+  );
+  const { data: profileRows } = distinctUserIds.length
+    ? await supabase
+        .from("user_profiles")
+        .select("user_id, display_name")
+        .in("user_id", distinctUserIds)
+    : { data: [] as Array<{ user_id: string; display_name: string | null }> };
+  const profileByUserId = new Map<string, { display_name: string | null }>();
+  for (const p of profileRows ?? []) {
+    profileByUserId.set(p.user_id as string, {
+      display_name: (p.display_name as string | null) ?? null,
+    });
+  }
+
+  // Re-shape into the embedded form the client component already
+  // accepts (`user_profiles` may be an object or an array). Object
+  // form is the simpler shape; downstream `Array.isArray` checks
+  // continue to work.
+  const groupMembers = rawGroupMembers.map((m) => ({
+    group_id: m.group_id,
+    user_id: m.user_id,
+    user_profiles: profileByUserId.get(m.user_id as string) ?? null,
+  }));
+  const teamMembers = rawTeamMembers.map((m) => ({
+    team_id: m.team_id,
+    user_id: m.user_id,
+    user_profiles: profileByUserId.get(m.user_id as string) ?? null,
+  }));
 
   return (
     <div>
@@ -49,8 +91,8 @@ export default async function SecurityGroupsPage(): Promise<React.JSX.Element> {
       <SecurityGroupsSection
         teams={teams}
         groups={groups ?? []}
-        groupMembers={groupMembers ?? []}
-        teamMembers={teamMembers ?? []}
+        groupMembers={groupMembers}
+        teamMembers={teamMembers}
       />
     </div>
   );

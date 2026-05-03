@@ -140,14 +140,47 @@ export default async function ClientDetailPage({
     ...shares.map((s) => s.team_id),
   ];
 
-  // Members of all those teams
-  const { data: teamMembersData } = allTeamIds.length
+  // Members of all those teams. Two-step fetch: team_members has no
+  // FK to user_profiles (both reference auth.users separately), so
+  // PostgREST embedding fails with PGRST200. Pull profiles in a
+  // second query and stitch on the embedded shape the principal
+  // picker / display-name resolver already expects.
+  const { data: rawTeamMembers } = allTeamIds.length
     ? await supabase
         .from("team_members")
-        .select("team_id, user_id, user_profiles(display_name, is_shell)")
+        .select("team_id, user_id")
         .in("team_id", allTeamIds)
-    : { data: [] };
-  const teamMembers = (teamMembersData ?? []) as unknown as TeamMemberRow[];
+    : { data: [] as Array<{ team_id: string; user_id: string }> };
+  const distinctMemberUserIds = Array.from(
+    new Set((rawTeamMembers ?? []).map((m) => m.user_id as string)),
+  );
+  const { data: memberProfileRows } = distinctMemberUserIds.length
+    ? await supabase
+        .from("user_profiles")
+        .select("user_id, display_name, is_shell")
+        .in("user_id", distinctMemberUserIds)
+    : {
+        data: [] as Array<{
+          user_id: string;
+          display_name: string | null;
+          is_shell: boolean | null;
+        }>,
+      };
+  const profileByMemberUserId = new Map<
+    string,
+    { display_name: string | null; is_shell: boolean | null }
+  >();
+  for (const p of memberProfileRows ?? []) {
+    profileByMemberUserId.set(p.user_id as string, {
+      display_name: (p.display_name as string | null) ?? null,
+      is_shell: (p.is_shell as boolean | null) ?? null,
+    });
+  }
+  const teamMembers: TeamMemberRow[] = (rawTeamMembers ?? []).map((m) => ({
+    team_id: m.team_id as string,
+    user_id: m.user_id as string,
+    user_profiles: profileByMemberUserId.get(m.user_id as string) ?? null,
+  }));
 
   // Security groups of all those teams
   const { data: groupsData } = allTeamIds.length
