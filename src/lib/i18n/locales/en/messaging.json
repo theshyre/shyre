@@ -1,0 +1,90 @@
+{
+  "page": {
+    "title": "Email",
+    "intro": "Send invoices, reminders, and payment thank-yous from {business}'s own domain. Powered by Resend; bring your own API key."
+  },
+  "config": {
+    "heading": "Email config",
+    "apiKey": "Resend API key",
+    "apiKeyPlaceholder": "re_…",
+    "apiKeyHasValuePlaceholder": "(saved — paste a new key to replace)",
+    "apiKeyHint": "Sign up at resend.com (free tier covers 3,000 emails/month) and create an API key. The key is encrypted at rest with AES-256-GCM; only the messaging module can decrypt.",
+    "fromEmail": "From address",
+    "fromEmailHint": "Must use a verified domain (configure below).",
+    "fromName": "From name",
+    "replyToEmail": "Reply-To",
+    "replyToEmailHint": "Where customer replies land — usually your real mailbox (e.g. marcus@malcom.io).",
+    "dailyCap": "Daily send cap",
+    "dailyCapHint": "Sent today: {sent} / {cap}. Caps abuse if a key is compromised.",
+    "signature": "Signature",
+    "signaturePlaceholder": "Marcus / Malcom IO\n503-555-0123",
+    "signatureHint": "Auto-appended below every invoice email body. Use plain text — line breaks are preserved.",
+    "save": "Save email config",
+    "testSendButton": "Send test to me",
+    "testSendNeedsKey": "Save an API key first",
+    "testSending": "Sending…",
+    "testSent": "Test email sent — check your inbox.",
+    "testSendFailed": "Test send failed."
+  },
+  "domain": {
+    "heading": "Verified domains",
+    "intro": "Add your domain so emails come from your address (info@malcom.io) instead of a generic sender. Add the DNS records below to your domain registrar, then click Verify.",
+    "addLabel": "Add a domain",
+    "addButton": "Add domain",
+    "adding": "Adding…",
+    "added": "Domain added — add the DNS records, then verify.",
+    "addFailed": "Could not add domain.",
+    "needsApiKey": "Save an API key before adding a domain.",
+    "empty": "No domains added yet. Add one to start sending.",
+    "recordsIntro": "Add these records to your DNS, then click Verify.",
+    "colType": "Type",
+    "colName": "Name",
+    "colValue": "Value",
+    "copy": "Copy",
+    "copied": "Copied to clipboard.",
+    "recheck": "Verify",
+    "rechecking": "Checking…",
+    "rechecked": "Status refreshed.",
+    "recheckFailed": "Verification check failed."
+  },
+  "template": {
+    "heading": {
+      "invoice_send": "Invoice email template",
+      "invoice_reminder": "Reminder email template",
+      "payment_thanks": "Payment thank-you template"
+    },
+    "intro": {
+      "invoice_send": "Default subject + body for the email that delivers a new invoice. Customizable per send.",
+      "invoice_reminder": "Default subject + body for late-invoice reminders (Phase 2).",
+      "payment_thanks": "Default subject + body for the thank-you email when a payment lands (Phase 3)."
+    },
+    "subjectLabel": "Subject",
+    "bodyLabel": "Body",
+    "save": "Save template",
+    "variablesHeading": "Variables",
+    "variablesIntro": "Wrap any of these in % signs to insert at send time."
+  },
+  "send": {
+    "openButton": "Send invoice",
+    "modalTitle": "Send invoice",
+    "modalSubtitle": "Review the email before it goes to your customer.",
+    "tabCompose": "Compose",
+    "tabPreview": "Preview",
+    "to": "To",
+    "cc": "Cc",
+    "replyTo": "Reply-To",
+    "subject": "Subject",
+    "body": "Body",
+    "sendCopyToMe": "Send a copy to me",
+    "sendButton": "Send",
+    "sending": "Sending…",
+    "sent": "Invoice sent.",
+    "sendFailed": "Send failed.",
+    "previewSubject": "Subject",
+    "previewBody": "Body",
+    "previewAttachment": "Attachment",
+    "previewMissingConfig": "Email isn't configured yet. Visit /teams/{teamId}/email to set up.",
+    "previewMissingDomain": "From address {address} isn't on a verified domain. Visit /teams/{teamId}/email to verify.",
+    "kbdSend": "⌘↵"
+  }
+}

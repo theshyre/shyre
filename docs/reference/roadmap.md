@@ -139,6 +139,35 @@ Solo). All non-blocking but worth tracking:
 - **`void status` code smell** in `InvoicePDF.tsx`. Either render a
   DRAFT / VOID footer now or drop the prop. Platform-architect.
 
+## Messaging — Phase 2 / 3
+
+Email-invoice Phase 1 (manual Send Invoice with audit trail + PDF +
+Resend BYO key + verified domain + signature + daily cap + webhook
+status updates) shipped 2026-05-03. Follow-up phases:
+
+- **Phase 1.5 — magic link to hosted invoice page.** Bookkeeper
+  flagged that some AP systems strip attachments. The send body
+  already includes `%invoice_url%`; the hosted page (`/i/<token>`
+  or similar) doesn't exist yet. Render-only view, no auth, signed
+  short-lived token.
+- **Phase 2 — auto-reminders.** pg_cron-driven, per-team
+  `auto_reminders_enabled` flag, per-invoice opt-out, T-5 pre-due
+  reminder, "3 days late + every 7 days after" default, cap-3
+  reminders, auto-pause when invoice marks paid / void / partial.
+  Webhook-driven status (`bounced_at`) suppresses sends.
+- **Phase 3 — thank-you-on-payment.** Bookkeeper wants to skip
+  (AP teams auto-archive); revisit after Phase 2 data shows whether
+  the manual-send rate matters.
+- **Retroactive github_token plaintext drop.** Phase 1 added the
+  encrypted column alongside; Phase 2 migrates the read path then
+  drops the plaintext column in a separate PR per CLAUDE.md's
+  two-PR rule.
+- **Per-customer signature override.** Solo: "I want a different
+  sign-off for Pierce vs Acme." Defer until two-customer pain
+  appears.
+- **Provider abstraction realized.** Postmark / SES / SendGrid each
+  drop into `src/lib/messaging/providers/`. Today only Resend.
+
 ## Other deferred work
 
 Smaller items surfaced by persona reviews but not yet promoted to their

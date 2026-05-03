@@ -1,0 +1,90 @@
+{
+  "page": {
+    "title": "Correo",
+    "intro": "Envía facturas, recordatorios y agradecimientos de pago desde el dominio de {business}. Impulsado por Resend; trae tu propia API key."
+  },
+  "config": {
+    "heading": "Configuración de correo",
+    "apiKey": "Clave de API de Resend",
+    "apiKeyPlaceholder": "re_…",
+    "apiKeyHasValuePlaceholder": "(guardada — pega una nueva clave para reemplazarla)",
+    "apiKeyHint": "Regístrate en resend.com (la capa gratuita cubre 3.000 correos/mes) y crea una clave de API. La clave se cifra en reposo con AES-256-GCM; solo el módulo de mensajería puede descifrarla.",
+    "fromEmail": "Dirección remitente",
+    "fromEmailHint": "Debe usar un dominio verificado (configura más abajo).",
+    "fromName": "Nombre remitente",
+    "replyToEmail": "Responder a",
+    "replyToEmailHint": "Dónde llegan las respuestas del cliente — normalmente tu buzón real (p. ej. marcus@malcom.io).",
+    "dailyCap": "Límite diario de envíos",
+    "dailyCapHint": "Enviados hoy: {sent} / {cap}. Limita el abuso si una clave se compromete.",
+    "signature": "Firma",
+    "signaturePlaceholder": "Marcus / Malcom IO\n503-555-0123",
+    "signatureHint": "Se añade automáticamente al final de cada correo. Texto plano — los saltos de línea se preservan.",
+    "save": "Guardar configuración",
+    "testSendButton": "Enviarme una prueba",
+    "testSendNeedsKey": "Guarda primero una clave de API",
+    "testSending": "Enviando…",
+    "testSent": "Correo de prueba enviado — revisa tu bandeja de entrada.",
+    "testSendFailed": "Falló el envío de prueba."
+  },
+  "domain": {
+    "heading": "Dominios verificados",
+    "intro": "Añade tu dominio para que los correos vengan de tu dirección (info@malcom.io) en vez de un remitente genérico. Añade los registros DNS abajo a tu registrador y luego pulsa Verificar.",
+    "addLabel": "Añadir un dominio",
+    "addButton": "Añadir dominio",
+    "adding": "Añadiendo…",
+    "added": "Dominio añadido — añade los registros DNS y luego verifica.",
+    "addFailed": "No se pudo añadir el dominio.",
+    "needsApiKey": "Guarda una clave de API antes de añadir un dominio.",
+    "empty": "Aún no hay dominios añadidos. Añade uno para empezar a enviar.",
+    "recordsIntro": "Añade estos registros a tu DNS y luego pulsa Verificar.",
+    "colType": "Tipo",
+    "colName": "Nombre",
+    "colValue": "Valor",
+    "copy": "Copiar",
+    "copied": "Copiado al portapapeles.",
+    "recheck": "Verificar",
+    "rechecking": "Comprobando…",
+    "rechecked": "Estado actualizado.",
+    "recheckFailed": "Falló la verificación."
+  },
+  "template": {
+    "heading": {
+      "invoice_send": "Plantilla de correo de factura",
+      "invoice_reminder": "Plantilla de recordatorio",
+      "payment_thanks": "Plantilla de agradecimiento por pago"
+    },
+    "intro": {
+      "invoice_send": "Asunto y cuerpo predeterminados del correo que entrega una factura nueva. Personalizable en cada envío.",
+      "invoice_reminder": "Asunto y cuerpo predeterminados de los recordatorios de facturas vencidas (Fase 2).",
+      "payment_thanks": "Asunto y cuerpo predeterminados del agradecimiento cuando llega un pago (Fase 3)."
+    },
+    "subjectLabel": "Asunto",
+    "bodyLabel": "Cuerpo",
+    "save": "Guardar plantilla",
+    "variablesHeading": "Variables",
+    "variablesIntro": "Envuelve cualquiera de estas con signos % para insertarla al enviar."
+  },
+  "send": {
+    "openButton": "Enviar factura",
+    "modalTitle": "Enviar factura",
+    "modalSubtitle": "Revisa el correo antes de que vaya a tu cliente.",
+    "tabCompose": "Redactar",
+    "tabPreview": "Vista previa",
+    "to": "Para",
+    "cc": "Cc",
+    "replyTo": "Responder a",
+    "subject": "Asunto",
+    "body": "Cuerpo",
+    "sendCopyToMe": "Enviarme una copia",
+    "sendButton": "Enviar",
+    "sending": "Enviando…",
+    "sent": "Factura enviada.",
+    "sendFailed": "Falló el envío.",
+    "previewSubject": "Asunto",
+    "previewBody": "Cuerpo",
+    "previewAttachment": "Adjunto",
+    "previewMissingConfig": "El correo aún no está configurado. Visita /teams/{teamId}/email para configurarlo.",
+    "previewMissingDomain": "La dirección remitente {address} no está en un dominio verificado. Visita /teams/{teamId}/email para verificarlo.",
+    "kbdSend": "⌘↵"
+  }
+}
