@@ -3,6 +3,50 @@
     "title": "Correo",
     "intro": "Envía facturas, recordatorios y agradecimientos de pago desde el dominio de {business}. Impulsado por Resend; trae tu propia API key."
   },
+  "setup": {
+    "heading": "Configuración ({done}/{total})",
+    "docsLink": "Guía completa",
+    "allDone": "El correo está configurado. Ya puedes enviar facturas.",
+    "kek": {
+      "title": "Clave maestra de cifrado configurada",
+      "detailOk": "EMAIL_KEY_ENCRYPTION_KEY está configurada en este despliegue.",
+      "detailTodo": "Añade una clave de 32 bytes en hex (openssl rand -hex 32) a Vercel como EMAIL_KEY_ENCRYPTION_KEY y vuelve a desplegar.",
+      "cta": "Cómo configurar la clave maestra →"
+    },
+    "apiKey": {
+      "title": "Clave de API de Resend guardada",
+      "detailOk": "Clave de API cifrada y almacenada.",
+      "detailTodo": "Regístrate en resend.com (gratis), crea una clave de API y pégala abajo.",
+      "detailBlocked": "Configura primero la clave maestra de cifrado.",
+      "cta": "Añadir clave de API →"
+    },
+    "domain": {
+      "title": "Dominio remitente verificado",
+      "detailOk": "Registros DKIM y SPF verificados en Resend.",
+      "detailTodo": "Añade el dominio abajo, copia los registros DNS a tu registrador y pulsa Verificar.",
+      "detailBlocked": "Guarda primero una clave de API — Resend la necesita para verificar el dominio.",
+      "cta": "Verificar dominio →"
+    },
+    "from": {
+      "title": "Direcciones De / Responder a configuradas",
+      "detailOk": "Dirección remitente y de respuesta configuradas.",
+      "detailTodo": "Configura la dirección remitente (p. ej. info@malcom.io) y la de respuesta (tu buzón real).",
+      "detailBlocked": "Guarda primero una clave de API.",
+      "cta": "Configurar De + Responder a →"
+    },
+    "webhook": {
+      "title": "Secreto de webhook de Resend configurado",
+      "detailOk": "RESEND_WEBHOOK_SECRET está configurado; los eventos delivered/bounced actualizarán el estado de la factura.",
+      "detailTodo": "Crea un webhook en el panel de Resend, copia el secreto whsec_… a RESEND_WEBHOOK_SECRET en Vercel y redespliega.",
+      "cta": "Cómo configurar el secreto del webhook →"
+    },
+    "test": {
+      "title": "Envío de prueba confirmado",
+      "detailTodo": "Pulsa \"Enviarme una prueba\" abajo para verificar la entrega antes de enviar a un cliente.",
+      "detailBlocked": "Completa primero los pasos anteriores.",
+      "cta": "Enviar una prueba →"
+    }
+  },
   "config": {
     "heading": "Configuración de correo",
     "apiKey": "Clave de API de Resend",
@@ -63,6 +107,57 @@
     "save": "Guardar plantilla",
     "variablesHeading": "Variables",
     "variablesIntro": "Envuelve cualquiera de estas con signos % para insertarla al enviar."
+  },
+  "deploy": {
+    "title": "Despliegue",
+    "intro": "Conecta Shyre con tu entorno de despliegue para que /system/deploy envíe los secretos a nivel de instancia (clave maestra de cifrado, secreto del webhook de Resend) directamente a tu proveedor — sin copiar y pegar en un panel.",
+    "statusHeading": "Estado",
+    "statusVercelConnected": "Conexión con Vercel guardada",
+    "statusEncryptionKey": "EMAIL_KEY_ENCRYPTION_KEY configurada en el despliegue",
+    "statusWebhookSecret": "RESEND_WEBHOOK_SECRET configurado en el despliegue",
+    "lastSynced": "Última sincronización: {when}",
+    "docsLink": "Guía de configuración",
+    "connection": {
+      "heading": "Conexión con Vercel",
+      "intro": "Pega un token de API de Vercel y el ID de proyecto. El token está protegido por RLS y nunca se expone al cliente.",
+      "apiToken": "Token de API de Vercel",
+      "apiTokenPlaceholder": "Token de vercel.com/account/tokens",
+      "apiTokenSetPlaceholder": "(guardado — pega uno nuevo para reemplazarlo)",
+      "apiTokenHint": "Créalo en vercel.com/account/tokens con permisos de cuenta completos o sólo de este proyecto. Permisos necesarios: lectura + escritura de variables de entorno del proyecto.",
+      "projectId": "ID de proyecto",
+      "projectIdHint": "Vercel: Project Settings → General → Project ID. Empieza con prj_.",
+      "vercelTeamId": "ID de equipo de Vercel (opcional)",
+      "vercelTeamIdHint": "Sólo necesario para cuentas de equipo / organización. Cuentas personales déjalo vacío.",
+      "deployHookUrl": "URL del Deploy Hook (opcional)",
+      "deployHookUrlHint": "Vercel project Settings → Git → Deploy Hooks → Create. POST a esta URL dispara un redeploy tras cambiar las variables. Sin él, redeploy manual.",
+      "save": "Guardar conexión"
+    },
+    "provision": {
+      "kekHeading": "Clave maestra de cifrado",
+      "kekIntro": "Genera una clave de 32 bytes, la escribe en Vercel como EMAIL_KEY_ENCRYPTION_KEY en todos los entornos y dispara un redeploy.",
+      "kekAlreadySet": "EMAIL_KEY_ENCRYPTION_KEY ya está configurada en este despliegue.",
+      "kekDangerHeading": "⚠️ Rotar la clave maestra invalida todas las claves de API guardadas.",
+      "kekDangerDetail": "Cada team_email_config.api_key_encrypted en la base de datos está envuelta (directamente o vía la DEK del equipo) por la clave maestra actual. Reemplazarla hace que las claves existentes sean irrecuperables — los usuarios tendrán que volver a pegar sus claves de Resend. Escribe 'regenerate' abajo para confirmar.",
+      "kekConfirmLabel": "Escribe 'regenerate' para confirmar",
+      "kekProvisionButton": "Provisionar clave de cifrado",
+      "kekRotateButton": "Rotar clave de cifrado",
+      "kekPending": "Provisionando…",
+      "kekSent": "Clave de cifrado escrita en Vercel. Redeploy en progreso.",
+      "kekFailed": "No se pudo provisionar la clave de cifrado.",
+      "webhookHeading": "Secreto del webhook de Resend",
+      "webhookIntro": "Pega el secreto de firma whsec_… del panel de Resend → Webhooks. Shyre lo escribe en Vercel como RESEND_WEBHOOK_SECRET y dispara un redeploy.",
+      "webhookAlreadySet": "RESEND_WEBHOOK_SECRET ya está configurado. Pegar uno nuevo lo reemplaza.",
+      "webhookSecretLabel": "Secreto de firma del webhook",
+      "webhookSetButton": "Guardar y desplegar",
+      "webhookPending": "Guardando…",
+      "webhookSent": "Secreto del webhook escrito en Vercel. Redeploy en progreso.",
+      "webhookFailed": "No se pudo configurar el secreto del webhook.",
+      "redeployIntro": "Dispara un redeploy sin cambiar variables de entorno. Útil si editaste las variables directamente en Vercel.",
+      "redeployButton": "Disparar redeploy",
+      "redeployPending": "Disparando…",
+      "redeployTriggered": "Redeploy disparado.",
+      "redeployFailed": "No se pudo disparar el redeploy."
+    }
   },
   "send": {
     "openButton": "Enviar factura",

@@ -44,6 +44,10 @@
       "sampleData": {
         "title": "Sample data tool",
         "description": "Dev-only: seed or wipe demo customers, projects, and entries."
+      },
+      "deploy": {
+        "title": "Deployment",
+        "description": "Connect Vercel and provision instance secrets (encryption key, webhook secret) without leaving Shyre."
       }
     }
   }

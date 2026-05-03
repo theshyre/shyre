@@ -44,6 +44,10 @@
       "sampleData": {
         "title": "Datos de ejemplo (dev)",
         "description": "Solo dev: carga o borra clientes, proyectos y entradas de demostración."
+      },
+      "deploy": {
+        "title": "Despliegue",
+        "description": "Conecta Vercel y provisiona los secretos de la instancia (clave de cifrado, secreto del webhook) sin salir de Shyre."
       }
     }
   }

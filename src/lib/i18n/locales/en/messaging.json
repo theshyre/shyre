@@ -3,6 +3,50 @@
     "title": "Email",
     "intro": "Send invoices, reminders, and payment thank-yous from {business}'s own domain. Powered by Resend; bring your own API key."
   },
+  "setup": {
+    "heading": "Setup ({done}/{total})",
+    "docsLink": "Full guide",
+    "allDone": "Email is fully set up. You can send invoices anytime.",
+    "kek": {
+      "title": "Master encryption key configured",
+      "detailOk": "EMAIL_KEY_ENCRYPTION_KEY is set in this deployment.",
+      "detailTodo": "Add a 32-byte hex key (openssl rand -hex 32) to Vercel as EMAIL_KEY_ENCRYPTION_KEY, then redeploy.",
+      "cta": "How to set the master key →"
+    },
+    "apiKey": {
+      "title": "Resend API key saved",
+      "detailOk": "API key encrypted and stored.",
+      "detailTodo": "Sign up at resend.com (free), create an API key, paste it below.",
+      "detailBlocked": "Set the master encryption key first.",
+      "cta": "Add API key →"
+    },
+    "domain": {
+      "title": "Sending domain verified",
+      "detailOk": "DKIM and SPF records verified at Resend.",
+      "detailTodo": "Add the domain below, copy the DNS records into your registrar, then click Verify.",
+      "detailBlocked": "Save an API key first — Resend domain checks need it.",
+      "cta": "Verify domain →"
+    },
+    "from": {
+      "title": "From / Reply-To addresses set",
+      "detailOk": "From address and reply-to configured.",
+      "detailTodo": "Set the From address (e.g. info@malcom.io) and the Reply-To (your real mailbox).",
+      "detailBlocked": "Save an API key first.",
+      "cta": "Set From + Reply-To →"
+    },
+    "webhook": {
+      "title": "Resend webhook secret configured",
+      "detailOk": "RESEND_WEBHOOK_SECRET is set; delivered/bounced events will update invoice status.",
+      "detailTodo": "Create a webhook in Resend dashboard, copy the whsec_… signing secret to RESEND_WEBHOOK_SECRET in Vercel, redeploy.",
+      "cta": "How to set the webhook secret →"
+    },
+    "test": {
+      "title": "Test send confirmed",
+      "detailTodo": "Click \"Send test to me\" below to verify end-to-end delivery before sending to a customer.",
+      "detailBlocked": "Complete the previous steps first.",
+      "cta": "Send a test →"
+    }
+  },
   "config": {
     "heading": "Email config",
     "apiKey": "Resend API key",
@@ -63,6 +107,57 @@
     "save": "Save template",
     "variablesHeading": "Variables",
     "variablesIntro": "Wrap any of these in % signs to insert at send time."
+  },
+  "deploy": {
+    "title": "Deployment",
+    "intro": "Connect Shyre to your deployment environment so /system/deploy can push instance-wide secrets (master encryption key, Resend webhook secret) directly to your hosting provider — no copy-pasting into a dashboard.",
+    "statusHeading": "Status",
+    "statusVercelConnected": "Vercel connection saved",
+    "statusEncryptionKey": "EMAIL_KEY_ENCRYPTION_KEY set in deployment",
+    "statusWebhookSecret": "RESEND_WEBHOOK_SECRET set in deployment",
+    "lastSynced": "Last synced: {when}",
+    "docsLink": "Setup guide",
+    "connection": {
+      "heading": "Vercel connection",
+      "intro": "Paste a Vercel API token and your project ID. The token is RLS-protected and never exposed to client code.",
+      "apiToken": "Vercel API token",
+      "apiTokenPlaceholder": "Token from vercel.com/account/tokens",
+      "apiTokenSetPlaceholder": "(saved — paste a new token to replace)",
+      "apiTokenHint": "Create at vercel.com/account/tokens with scope = full account or just this project. Required scopes: read + write to project env vars.",
+      "projectId": "Project ID",
+      "projectIdHint": "From Vercel project Settings → General → Project ID. Starts with prj_.",
+      "vercelTeamId": "Vercel team ID (optional)",
+      "vercelTeamIdHint": "Only needed for team / organization Vercel accounts. Personal accounts leave blank.",
+      "deployHookUrl": "Deploy hook URL (optional)",
+      "deployHookUrlHint": "Vercel project Settings → Git → Deploy Hooks → Create. Posting to this URL triggers a redeploy after env vars change. Without it, you'll need to redeploy manually.",
+      "save": "Save connection"
+    },
+    "provision": {
+      "kekHeading": "Master encryption key",
+      "kekIntro": "Generate a fresh 32-byte key, write it to Vercel as EMAIL_KEY_ENCRYPTION_KEY across all environments, and trigger a redeploy.",
+      "kekAlreadySet": "EMAIL_KEY_ENCRYPTION_KEY is already set in this deployment.",
+      "kekDangerHeading": "⚠️ Rotating the master key invalidates every stored API key.",
+      "kekDangerDetail": "Every team_email_config.api_key_encrypted in the database is wrapped (directly or via the team's DEK) under the current master key. Replace it and existing API keys become unrecoverable — users will need to re-paste their Resend keys. Type 'regenerate' below to confirm.",
+      "kekConfirmLabel": "Type 'regenerate' to confirm",
+      "kekProvisionButton": "Provision encryption key",
+      "kekRotateButton": "Rotate encryption key",
+      "kekPending": "Provisioning…",
+      "kekSent": "Encryption key written to Vercel. Redeploy is in progress.",
+      "kekFailed": "Could not provision encryption key.",
+      "webhookHeading": "Resend webhook secret",
+      "webhookIntro": "Paste the whsec_… signing secret from Resend dashboard → Webhooks. Shyre writes it to Vercel as RESEND_WEBHOOK_SECRET and triggers a redeploy.",
+      "webhookAlreadySet": "RESEND_WEBHOOK_SECRET is already set. Pasting a new value replaces it.",
+      "webhookSecretLabel": "Webhook signing secret",
+      "webhookSetButton": "Save & deploy",
+      "webhookPending": "Saving…",
+      "webhookSent": "Webhook secret written to Vercel. Redeploy is in progress.",
+      "webhookFailed": "Could not set webhook secret.",
+      "redeployIntro": "Trigger a redeploy without changing env vars. Useful if you edited the env directly in Vercel.",
+      "redeployButton": "Trigger redeploy",
+      "redeployPending": "Triggering…",
+      "redeployTriggered": "Redeploy triggered.",
+      "redeployFailed": "Could not trigger redeploy."
+    }
   },
   "send": {
     "openButton": "Send invoice",

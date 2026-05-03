@@ -1,7 +1,7 @@
 import "server-only";
 
 import { createHash, randomUUID } from "node:crypto";
-import { decryptSecret } from "./encryption";
+import { decryptForTeam } from "./encryption";
 import {
   assertFromDomainAllowed,
   drain,
@@ -78,7 +78,7 @@ export async function sendInvoice(
   if (!cfg.apiKeyCipher) {
     throw new Error("Email API key is missing. Visit /settings/email.");
   }
-  const apiKey = decryptSecret(cfg.apiKeyCipher);
+  const apiKey = await decryptForTeam(supabase, input.teamId, cfg.apiKeyCipher);
   if (!apiKey) {
     throw new Error("Email API key could not be decrypted.");
   }

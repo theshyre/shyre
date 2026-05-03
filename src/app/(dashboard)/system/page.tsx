@@ -7,6 +7,7 @@ import {
   Users,
   ListTree,
   Database,
+  Cloud,
 } from "lucide-react";
 import { createClient } from "@/lib/supabase/server";
 import { LinkPendingSpinner } from "@/components/LinkPendingSpinner";
@@ -71,6 +72,12 @@ export default async function SystemHubPage(): Promise<React.JSX.Element> {
       description: t("cards.sampleData.description"),
       href: "/system/sample-data",
       icon: Database,
+    },
+    {
+      title: t("cards.deploy.title"),
+      description: t("cards.deploy.description"),
+      href: "/system/deploy",
+      icon: Cloud,
     },
   ];
 

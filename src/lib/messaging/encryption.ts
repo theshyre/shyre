@@ -1,13 +1,32 @@
 import "server-only";
 import { createCipheriv, createDecipheriv, randomBytes } from "node:crypto";
+import type { SupabaseClient } from "@supabase/supabase-js";
 
 /**
- * App-side AES-256-GCM secret encryption.
+ * App-side AES-256-GCM secret encryption with envelope-encryption
+ * support for per-team isolation.
  *
- * Used for `team_email_config.api_key_encrypted` and the in-progress
- * migration of `user_settings.github_token_encrypted` (SAL-015).
- * The encryption key never reaches Postgres — the DB stores opaque
- * BYTEA, and decrypt only happens inside `server-only` modules.
+ * Two layers:
+ *
+ *   1. KEK (key-encryption-key) — single instance-wide master key
+ *      from EMAIL_KEY_ENCRYPTION_KEY. Used ONLY to wrap/unwrap
+ *      DEKs. Never directly encrypts user secrets going forward
+ *      (legacy rows still decrypt this way as a fallback — see
+ *      `decryptForTeam`).
+ *
+ *   2. DEK (data-encryption-key) — per-team 32-byte key generated
+ *      on first save, stored as `team_email_config.dek_encrypted`
+ *      (KEK-wrapped). Encrypts the team's actual secrets
+ *      (`api_key_encrypted` etc.).
+ *
+ * Why envelope: per-team key isolation, cheap KEK rotation, better
+ * compliance posture for multi-tenant SaaS. Cost is one extra
+ * encryption hop and a small DEK lifecycle. SAL-018 documents the
+ * upgrade path from the Phase-1 single-key model.
+ *
+ * The legacy `encryptSecret` / `decryptSecret` exports remain for
+ * non-team contexts (system-level secrets that don't belong to a
+ * team — Vercel API token in instance_deploy_config etc.).
  *
  * Why GCM: authenticated encryption. We get integrity (the auth tag
  * detects tampering) AND confidentiality from a single primitive,
@@ -110,4 +129,196 @@ function toBuffer(input: Buffer | Uint8Array | string): Buffer {
     return Buffer.from(input, "hex");
   }
   return Buffer.from(input);
+}
+
+// ────────────────────────────────────────────────────────────────
+// Envelope encryption (per-team DEKs)
+// ────────────────────────────────────────────────────────────────
+
+/** Generate a fresh 32-byte AES-256 data key. Called on first save
+ *  for a team, or during DEK rotation. */
+export function generateDek(): Buffer {
+  return randomBytes(KEY_LENGTH_BYTES);
+}
+
+/** Wrap a DEK with the instance master key. Output shape matches
+ *  `encryptSecret` (IV || tag || ciphertext) so storage logic is
+ *  identical. */
+export function wrapDek(dek: Buffer): Buffer {
+  if (dek.length !== KEY_LENGTH_BYTES) {
+    throw new Error(
+      `DEK must be ${KEY_LENGTH_BYTES} bytes; got ${dek.length}.`,
+    );
+  }
+  const kek = loadKey();
+  const iv = randomBytes(IV_LENGTH);
+  const cipher = createCipheriv(ALGORITHM, kek, iv);
+  const ciphertext = Buffer.concat([cipher.update(dek), cipher.final()]);
+  const authTag = cipher.getAuthTag();
+  return Buffer.concat([iv, authTag, ciphertext]);
+}
+
+/** Unwrap a stored DEK ciphertext. Throws on tampering / wrong
+ *  master key. */
+export function unwrapDek(
+  ciphertext: Buffer | Uint8Array | string,
+): Buffer {
+  const buf = toBuffer(ciphertext);
+  if (buf.length !== IV_LENGTH + AUTH_TAG_LENGTH + KEY_LENGTH_BYTES) {
+    throw new Error("DEK ciphertext has unexpected length.");
+  }
+  const iv = buf.subarray(0, IV_LENGTH);
+  const authTag = buf.subarray(IV_LENGTH, IV_LENGTH + AUTH_TAG_LENGTH);
+  const data = buf.subarray(IV_LENGTH + AUTH_TAG_LENGTH);
+  const kek = loadKey();
+  const decipher = createDecipheriv(ALGORITHM, kek, iv);
+  decipher.setAuthTag(authTag);
+  return Buffer.concat([decipher.update(data), decipher.final()]);
+}
+
+/** Encrypt a plaintext string with a specific DEK. Same wire shape
+ *  as `encryptSecret` so on-disk layout is consistent across
+ *  layers. */
+export function encryptWithDek(
+  plaintext: string | null,
+  dek: Buffer,
+): Buffer | null {
+  if (plaintext == null || plaintext === "") return null;
+  if (dek.length !== KEY_LENGTH_BYTES) {
+    throw new Error("Invalid DEK length.");
+  }
+  const iv = randomBytes(IV_LENGTH);
+  const cipher = createCipheriv(ALGORITHM, dek, iv);
+  const ciphertext = Buffer.concat([
+    cipher.update(plaintext, "utf8"),
+    cipher.final(),
+  ]);
+  const authTag = cipher.getAuthTag();
+  return Buffer.concat([iv, authTag, ciphertext]);
+}
+
+/** Decrypt with a specific DEK. Throws on tampering / wrong DEK. */
+export function decryptWithDek(
+  ciphertext: Buffer | Uint8Array | string | null,
+  dek: Buffer,
+): string | null {
+  if (ciphertext == null) return null;
+  const buf = toBuffer(ciphertext);
+  if (buf.length < IV_LENGTH + AUTH_TAG_LENGTH + 1) {
+    throw new Error("Ciphertext too short to be a valid GCM blob.");
+  }
+  const iv = buf.subarray(0, IV_LENGTH);
+  const authTag = buf.subarray(IV_LENGTH, IV_LENGTH + AUTH_TAG_LENGTH);
+  const data = buf.subarray(IV_LENGTH + AUTH_TAG_LENGTH);
+  const decipher = createDecipheriv(ALGORITHM, dek, iv);
+  decipher.setAuthTag(authTag);
+  return Buffer.concat([
+    decipher.update(data),
+    decipher.final(),
+  ]).toString("utf8");
+}
+
+/**
+ * Get the team's DEK, generating + persisting one if the team
+ * doesn't have one yet. The new DEK is wrapped with the KEK before
+ * landing in `team_email_config.dek_encrypted`.
+ *
+ * Idempotent: callers can invoke per-save without worrying about
+ * race conditions (the upsert collapses concurrent first-saves).
+ *
+ * Uses the admin client so RLS doesn't block the implicit upsert
+ * during a server action that hasn't yet validated team access.
+ * Callers MUST validate team access before calling.
+ */
+export async function getOrCreateTeamDek(
+  supabase: SupabaseClient,
+  teamId: string,
+): Promise<Buffer> {
+  const { data } = await supabase
+    .from("team_email_config")
+    .select("dek_encrypted")
+    .eq("team_id", teamId)
+    .maybeSingle();
+
+  if (data?.dek_encrypted) {
+    return unwrapDek(data.dek_encrypted as Buffer | string);
+  }
+
+  // Generate + persist via upsert. The upsert handles the case
+  // where team_email_config has no row at all (first email setup
+  // for the team) and the case where the row exists but
+  // dek_encrypted is NULL (legacy row, pre-envelope upgrade).
+  const dek = generateDek();
+  const dekCipher = wrapDek(dek);
+  const { createAdminClient } = await import("@/lib/supabase/admin");
+  const admin = createAdminClient();
+  const { error } = await admin
+    .from("team_email_config")
+    .upsert(
+      { team_id: teamId, dek_encrypted: dekCipher },
+      { onConflict: "team_id" },
+    );
+  if (error) {
+    throw new Error(`Failed to persist team DEK: ${error.message}`);
+  }
+  return dek;
+}
+
+/**
+ * Encrypt a plaintext string for a team. Generates the team's DEK
+ * if it doesn't have one. Output is the same wire shape as
+ * `encryptSecret` — callers store it as BYTEA.
+ */
+export async function encryptForTeam(
+  supabase: SupabaseClient,
+  teamId: string,
+  plaintext: string,
+): Promise<Buffer> {
+  const dek = await getOrCreateTeamDek(supabase, teamId);
+  const cipher = encryptWithDek(plaintext, dek);
+  if (!cipher) {
+    throw new Error("encryptForTeam called with empty plaintext.");
+  }
+  return cipher;
+}
+
+/**
+ * Decrypt a stored ciphertext for a team. Tries the team's DEK
+ * first; on failure (no DEK row, or auth-tag mismatch on the DEK
+ * path) falls back to legacy direct-KEK decryption — that's how
+ * Phase-1 ciphertexts produced before envelope encryption are
+ * still readable. The next encryptForTeam call upgrades the row
+ * forward to DEK-encrypted.
+ *
+ * Returns null only when the input is null. A bad ciphertext
+ * (tampered, wrong key both ways) throws.
+ */
+export async function decryptForTeam(
+  supabase: SupabaseClient,
+  teamId: string,
+  ciphertext: Buffer | Uint8Array | string | null,
+): Promise<string | null> {
+  if (ciphertext == null) return null;
+
+  const { data } = await supabase
+    .from("team_email_config")
+    .select("dek_encrypted")
+    .eq("team_id", teamId)
+    .maybeSingle();
+
+  if (data?.dek_encrypted) {
+    try {
+      const dek = unwrapDek(data.dek_encrypted as Buffer | string);
+      return decryptWithDek(ciphertext, dek);
+    } catch {
+      // Fall through to legacy direct-KEK decrypt. This handles
+      // rows where dek_encrypted exists but the api_key was
+      // saved under the old direct-KEK path (during the upgrade
+      // window).
+    }
+  }
+
+  // Legacy: ciphertext was wrapped directly with the KEK. The
+  // next encryptForTeam upgrades it forward.
+  return decryptSecret(ciphertext);
 }

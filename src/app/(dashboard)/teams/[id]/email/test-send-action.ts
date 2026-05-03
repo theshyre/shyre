@@ -3,7 +3,7 @@
 import { runSafeAction } from "@/lib/safe-action";
 import { AppError } from "@/lib/errors";
 import { validateTeamAccess } from "@/lib/team-context";
-import { decryptSecret } from "@/lib/messaging/encryption";
+import { decryptForTeam } from "@/lib/messaging/encryption";
 import { senderFor } from "@/lib/messaging/providers";
 import {
   sanitizeHeaderValue,
@@ -55,7 +55,11 @@ export async function sendTestEmailAction(formData: FormData): Promise<void> {
       );
     }
 
-    const apiKey = decryptSecret(cfg.api_key_encrypted as Buffer | string);
+    const apiKey = await decryptForTeam(
+      supabase,
+      teamId,
+      cfg.api_key_encrypted as Buffer | string,
+    );
     if (!apiKey) throw new Error("Could not decrypt the saved API key.");
 
     // From-domain allow-list — defense in depth.

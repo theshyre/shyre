@@ -7,6 +7,7 @@ import { validateTeamAccess } from "@/lib/team-context";
 import { EmailConfigForm } from "./email-config-form";
 import { DomainVerification } from "./domain-verification";
 import { TemplateEditor } from "./template-editor";
+import { SetupChecklist } from "./setup-checklist";
 
 export async function generateMetadata(): Promise<Metadata> {
   const t = await getTranslations("messaging");
@@ -77,6 +78,27 @@ export default async function TeamEmailSettingsPage({
   // user paste a replacement.
   const hasApiKey = Boolean(config?.api_key_encrypted);
 
+  // Setup-checklist signals. Env-var detection is server-only and
+  // happens at request time so the checklist always reflects the
+  // currently-deployed Vercel env. Domain-verification check uses
+  // the from_email's domain (if any) against verified rows.
+  const encryptionKeyConfigured = Boolean(process.env.EMAIL_KEY_ENCRYPTION_KEY);
+  const webhookSecretConfigured = Boolean(process.env.RESEND_WEBHOOK_SECRET);
+  const fromAddressSet = Boolean(config?.from_email);
+  const fromDomain = config?.from_email
+    ? (config.from_email as string)
+        .slice((config.from_email as string).lastIndexOf("@") + 1)
+        .toLowerCase()
+    : null;
+  const domainVerified = Boolean(
+    fromDomain &&
+      (domains ?? []).some(
+        (d) =>
+          (d.domain as string).toLowerCase() === fromDomain &&
+          d.status === "verified",
+      ),
+  );
+
   // Default template falls back when the team hasn't customized.
   // Same default lives in the renderer's send path so what the
   // editor shows is what the actual send would use.
@@ -98,6 +120,15 @@ export default async function TeamEmailSettingsPage({
         {t("page.intro", { business: businessName })}
       </p>
 
+      <SetupChecklist
+        encryptionKeyConfigured={encryptionKeyConfigured}
+        webhookSecretConfigured={webhookSecretConfigured}
+        apiKeySaved={hasApiKey}
+        fromAddressSet={fromAddressSet}
+        domainVerified={domainVerified}
+      />
+
+      <div id="config" />
       <EmailConfigForm
         teamId={teamId}
         initial={{
@@ -114,6 +145,7 @@ export default async function TeamEmailSettingsPage({
         }}
       />
 
+      <div id="domain" />
       <DomainVerification
         teamId={teamId}
         domains={(domains ?? []).map((d) => ({

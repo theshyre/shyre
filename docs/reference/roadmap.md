@@ -145,6 +145,17 @@ Email-invoice Phase 1 (manual Send Invoice with audit trail + PDF +
 Resend BYO key + verified domain + signature + daily cap + webhook
 status updates) shipped 2026-05-03. Follow-up phases:
 
+- **Resend automation.** Today the user signs up at resend.com,
+  creates an API key, sets up the webhook in Resend's dashboard,
+  and pastes the signing secret into Shyre. Shyre then writes the
+  secret to Vercel via the deploy-automation page. A future
+  iteration would have Shyre call Resend's API to provision the
+  webhook + verify the domain on the user's behalf — they'd just
+  paste a Resend API key once.
+- **Encrypt instance_deploy_config.api_token.** Today RLS-only.
+  Phase 2 wraps under the master key (same pattern as the
+  team-scoped secrets after SAL-018). Defers because the bootstrap
+  UX flips the chicken-and-egg in awkward ways.
 - **Phase 1.5 — magic link to hosted invoice page.** Bookkeeper
   flagged that some AP systems strip attachments. The send body
   already includes `%invoice_url%`; the hosted page (`/i/<token>`

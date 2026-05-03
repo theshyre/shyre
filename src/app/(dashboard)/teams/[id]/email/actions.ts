@@ -4,9 +4,11 @@ import { runSafeAction } from "@/lib/safe-action";
 import { assertSupabaseOk, AppError } from "@/lib/errors";
 import { validateTeamAccess } from "@/lib/team-context";
 import { revalidatePath } from "next/cache";
-import { encryptSecret } from "@/lib/messaging/encryption";
+import {
+  decryptForTeam,
+  encryptForTeam,
+} from "@/lib/messaging/encryption";
 import { senderFor } from "@/lib/messaging/providers";
-import { decryptSecret } from "@/lib/messaging/encryption";
 import { sanitizeHeaderValue, validateRecipient } from "@/lib/messaging/render";
 
 /**
@@ -72,9 +74,13 @@ export async function updateEmailConfigAction(
     // API key: only update when a new value is supplied. Empty
     // string means "no change." This lets the form stay safely
     // blank when the user is editing other fields.
+    //
+    // Envelope encryption: encryptForTeam generates the team's DEK
+    // on first save (if missing) and uses it to encrypt the API
+    // key. Subsequent saves reuse the existing DEK. SAL-018.
     const apiKeyRaw = (formData.get("api_key") as string)?.trim();
     if (apiKeyRaw) {
-      const cipher = encryptSecret(apiKeyRaw);
+      const cipher = await encryptForTeam(supabase, teamId, apiKeyRaw);
       patch.api_key_encrypted = cipher;
     }
 
@@ -114,7 +120,11 @@ export async function addEmailDomainAction(formData: FormData): Promise<void> {
         "Save an API key first — Resend domain verification needs it.",
       );
     }
-    const apiKey = decryptSecret(cfg.api_key_encrypted as Buffer | string);
+    const apiKey = await decryptForTeam(
+      supabase,
+      teamId,
+      cfg.api_key_encrypted as Buffer | string,
+    );
     if (!apiKey) throw new Error("Could not decrypt the saved API key.");
 
     const sender = senderFor("resend", apiKey);
@@ -171,7 +181,11 @@ export async function verifyEmailDomainAction(
     if (!cfg?.api_key_encrypted) {
       throw new Error("API key missing.");
     }
-    const apiKey = decryptSecret(cfg.api_key_encrypted as Buffer | string);
+    const apiKey = await decryptForTeam(
+      supabase,
+      teamId,
+      cfg.api_key_encrypted as Buffer | string,
+    );
     if (!apiKey) throw new Error("Could not decrypt the saved API key.");
 
     const sender = senderFor("resend", apiKey);
