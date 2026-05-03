@@ -24,6 +24,7 @@ interface Client {
   notes: string | null;
   default_rate: number | null;
   payment_terms_days: number | null;
+  show_country_on_invoice: boolean | null;
 }
 
 export function CustomerEditForm({
@@ -107,6 +108,21 @@ export function CustomerEditForm({
           label={t("fields.address")}
           errors={fieldErrors}
         />
+
+        <label className="flex items-start gap-2 text-sm font-medium text-content cursor-pointer">
+          <input
+            name="show_country_on_invoice"
+            type="checkbox"
+            defaultChecked={client.show_country_on_invoice ?? false}
+            className="mt-0.5 h-4 w-4 rounded border-edge text-accent focus:ring-focus-ring"
+          />
+          <span>
+            {t("fields.showCountryOnInvoice")}
+            <span className="ml-1 block text-caption font-normal text-content-muted">
+              {t("fields.showCountryOnInvoiceHint")}
+            </span>
+          </span>
+        </label>
 
         <div>
           <label className={labelClass}>{t("fields.notes")}</label>

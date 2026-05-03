@@ -22,6 +22,22 @@ function normalizeJiraKey(value: FormDataEntryValue | null): string | null {
   return s;
 }
 
+/** Invoice code rendered as `[CODE]` on each line item. Hyphens
+ *  allowed (unlike Jira keys, which are hyphen-free by Atlassian
+ *  convention). 2–16 chars, uppercase, must start with a letter.
+ *  Empty → null. */
+function normalizeInvoiceCode(value: FormDataEntryValue | null): string | null {
+  if (value == null) return null;
+  const s = String(value).trim().toUpperCase();
+  if (!s) return null;
+  if (!/^[A-Z][A-Z0-9-]{1,15}$/.test(s)) {
+    throw new Error(
+      "Invoice code must be uppercase letters / digits / hyphens, 2–16 chars (e.g. PC-ITOPS).",
+    );
+  }
+  return s;
+}
+
 export async function createProjectAction(formData: FormData): Promise<void> {
   return runSafeAction(formData, async (formData, { supabase }) => {
     const teamId = formData.get("team_id") as string;
@@ -36,6 +52,7 @@ export async function createProjectAction(formData: FormData): Promise<void> {
     const budget_hours = budgetStr ? parseFloat(budgetStr) : null;
     const github_repo = normalizeGithubRepo(formData.get("github_repo"));
     const jira_project_key = normalizeJiraKey(formData.get("jira_project_key"));
+    const invoice_code = normalizeInvoiceCode(formData.get("invoice_code"));
     const category_set_id = (formData.get("category_set_id") as string) || null;
     const require_timestamps = formData.get("require_timestamps") === "on";
 
@@ -50,6 +67,7 @@ export async function createProjectAction(formData: FormData): Promise<void> {
         budget_hours,
         github_repo,
         jira_project_key,
+        invoice_code,
         category_set_id,
         require_timestamps,
       })
@@ -69,6 +87,7 @@ export async function updateProjectAction(formData: FormData): Promise<void> {
     const budget_hours = budgetStr ? parseFloat(budgetStr) : null;
     const github_repo = normalizeGithubRepo(formData.get("github_repo"));
     const jira_project_key = normalizeJiraKey(formData.get("jira_project_key"));
+    const invoice_code = normalizeInvoiceCode(formData.get("invoice_code"));
     const status = formData.get("status") as string;
     const category_set_id = (formData.get("category_set_id") as string) || null;
     const require_timestamps = formData.get("require_timestamps") === "on";
@@ -79,6 +98,7 @@ export async function updateProjectAction(formData: FormData): Promise<void> {
       budget_hours,
       github_repo,
       jira_project_key,
+      invoice_code,
       status,
       category_set_id,
       require_timestamps,

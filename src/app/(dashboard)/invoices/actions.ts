@@ -147,7 +147,7 @@ export async function createInvoiceAction(formData: FormData): Promise<void> {
     let query = supabase
       .from("time_entries")
       .select(
-        "id, description, duration_min, project_id, user_id, start_time, projects(name, hourly_rate, customer_id, customers(default_rate)), categories(name)",
+        "id, description, duration_min, project_id, user_id, start_time, projects(name, hourly_rate, invoice_code, customer_id, customers(default_rate)), categories(name)",
       )
       .eq("team_id", teamId)
       .eq("invoiced", false)
@@ -220,6 +220,7 @@ export async function createInvoiceAction(formData: FormData): Promise<void> {
           ? (projRaw as unknown as {
               name: string;
               hourly_rate: number | null;
+              invoice_code: string | null;
               customers: { default_rate: number | null } | null;
             })
           : null;
@@ -244,6 +245,8 @@ export async function createInvoiceAction(formData: FormData): Promise<void> {
         rate,
         description: entry.description ?? null,
         projectName: proj?.name ?? "Project",
+        projectInvoiceCode:
+          (proj?.invoice_code as string | null) ?? null,
         taskName: cat?.name ?? null,
         personName: displayNameByUserId.get(entryUserId) ?? "Unknown",
         date: startIso ? startIso.slice(0, 10) : "",

@@ -119,6 +119,18 @@ export function NewProjectForm({
             className={inputClass}
           />
         </div>
+        <div>
+          <label className={labelClass}>{t("fields.invoiceCode")}</label>
+          <input
+            name="invoice_code"
+            placeholder={t("fields.invoiceCodePlaceholder")}
+            maxLength={16}
+            className={`${inputClass} font-mono`}
+          />
+          <p className="mt-1 text-caption text-content-muted">
+            {t("fields.invoiceCodeHint")}
+          </p>
+        </div>
         <div className="sm:col-span-2">
           <label className={labelClass}>{t("fields.categorySet")}</label>
           <select name="category_set_id" className={selectClass}>

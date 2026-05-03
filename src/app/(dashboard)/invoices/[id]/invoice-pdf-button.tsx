@@ -23,7 +23,6 @@ interface InvoicePdfButtonProps {
     payment_terms_label: string | null;
   };
   lineItems: Array<{
-    id: string;
     description: string;
     quantity: number;
     unit_price: number;
@@ -33,6 +32,7 @@ interface InvoicePdfButtonProps {
     name: string;
     email: string | null;
     address: string | null;
+    show_country_on_invoice: boolean | null;
   } | null;
   business: {
     business_name: string | null;
@@ -42,6 +42,7 @@ interface InvoicePdfButtonProps {
     wordmark_primary: string | null;
     wordmark_secondary: string | null;
     brand_color: string | null;
+    show_country_on_invoice: boolean | null;
   } | null;
   /** Sum of recorded payments. Surfaces "Subtotal / Payments /
    *  Amount Due" in the totals block when > 0. */
@@ -86,11 +87,13 @@ export function InvoicePdfButton({
           wordmarkPrimary: business?.wordmark_primary ?? null,
           wordmarkSecondary: business?.wordmark_secondary ?? null,
           brandColor: business?.brand_color ?? null,
+          showCountry: business?.show_country_on_invoice ?? false,
         }}
         client={{
           name: client?.name ?? "Client",
           email: client?.email ?? null,
           address: client?.address ?? null,
+          showCountry: client?.show_country_on_invoice ?? false,
         }}
         lineItems={lineItems.map((li) => ({
           description: li.description,

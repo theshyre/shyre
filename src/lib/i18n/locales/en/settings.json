@@ -60,6 +60,8 @@
     "wordmarkPrimary": "Wordmark (primary)",
     "wordmarkSecondary": "Wordmark (secondary)",
     "brandColor": "Brand color (hex)",
+    "showCountryOnInvoice": "Show country on invoice (From block)",
+    "showCountryOnInvoiceHint": "When on, the country line of your business address renders under the From block on every invoice. Off by default — most domestic invoices read cleaner without it. Independent of the per-customer toggle.",
     "githubToken": "GitHub Personal Access Token",
     "githubTokenPlaceholder": "ghp_...",
     "githubTokenHelp": "Used to fetch issue titles from linked repos. Generate at github.com/settings/tokens — fine-grained PATs with Issues:read on the repos you'll link to are recommended (smaller blast radius than Classic). Stored encrypted.",

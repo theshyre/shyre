@@ -27,6 +27,7 @@ interface TeamSettings {
   invoice_next_num: number | null;
   tax_rate: number | null;
   default_payment_terms_days: number | null;
+  show_country_on_invoice: boolean | null;
   wordmark_primary: string | null;
   wordmark_secondary: string | null;
   brand_color: string | null;
@@ -46,6 +47,7 @@ const DEFAULTS: TeamSettings = {
   invoice_next_num: 1,
   tax_rate: 0,
   default_payment_terms_days: null,
+  show_country_on_invoice: false,
   wordmark_primary: null,
   wordmark_secondary: null,
   brand_color: null,
@@ -139,6 +141,21 @@ export function TeamSettingsForm({
           disabled={!isAdmin}
           errors={fieldErrors}
         />
+        <label className="flex items-start gap-2 text-sm font-medium text-content cursor-pointer">
+          <input
+            name="show_country_on_invoice"
+            type="checkbox"
+            defaultChecked={org.show_country_on_invoice ?? false}
+            disabled={!isAdmin}
+            className="mt-0.5 h-4 w-4 rounded border-edge text-accent focus:ring-focus-ring"
+          />
+          <span>
+            {t("fields.showCountryOnInvoice")}
+            <span className="ml-1 block text-caption font-normal text-content-muted">
+              {t("fields.showCountryOnInvoiceHint")}
+            </span>
+          </span>
+        </label>
       </section>
 
       <section className="rounded-lg border border-edge bg-surface-raised p-4 space-y-3">

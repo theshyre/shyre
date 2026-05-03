@@ -21,6 +21,7 @@ interface RawEntryRow {
   projects: {
     name: string | null;
     hourly_rate: number | null;
+    invoice_code: string | null;
     customer_id: string | null;
     customers?: { default_rate: number | null } | null;
   } | null;
@@ -94,7 +95,7 @@ export default async function NewInvoicePage(): Promise<React.JSX.Element> {
     ? await supabase
         .from("time_entries")
         .select(
-          "id, team_id, description, duration_min, start_time, user_id, project_id, projects(name, hourly_rate, customer_id, customers(default_rate)), categories(name)",
+          "id, team_id, description, duration_min, start_time, user_id, project_id, projects(name, hourly_rate, invoice_code, customer_id, customers(default_rate)), categories(name)",
         )
         .in("team_id", teamIds)
         .eq("invoiced", false)
@@ -173,6 +174,7 @@ export default async function NewInvoicePage(): Promise<React.JSX.Element> {
       rate,
       description: r.description ?? null,
       projectName: proj?.name ?? "Project",
+      projectInvoiceCode: (proj?.invoice_code as string | null) ?? null,
       customerId: (proj?.customer_id as string | null) ?? null,
       taskName: r.categories?.name ?? null,
       personName: displayNameByUserId.get(r.user_id) ?? "Unknown",

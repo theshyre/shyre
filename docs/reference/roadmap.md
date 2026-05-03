@@ -97,6 +97,48 @@ Bookkeeper, Solo) that aren't blocking but are worth tracking:
   `@theshyre/ui` and should land via the cross-repo promotion PR
   (see `docs/reference/promotion-candidates.md`).
 
+## Invoice PDF / web detail follow-ups (from 2026-05-02 three-persona review)
+
+Pulled out of the post-payment-terms PDF rewrite (UX, Bookkeeper,
+Solo). All non-blocking but worth tracking:
+
+- **Currency locale.** `Intl.NumberFormat` is hard-coded to `en-US`
+  in `InvoicePDF.tsx`. A EUR or GBP invoice renders `€1,234.56` in
+  US style instead of locale-correct `1.234,56 €`. Pull locale from
+  team_settings; fall back to `en-US` for USD. Bookkeeper-flagged.
+- **Locale-aware date format.** `formatPdfDate` is hard-coded to
+  `MM/DD/YYYY`. UK / EU clients receive `04/05/2026` and read it
+  as 4 May. Same locale source as the currency fix. Solo-flagged.
+- **Remit-to / payment instructions.** First-time clients receive
+  Shyre's PDF and have to email back asking "where do I send the
+  check / wire?" Add a structured "Payment" block (ACH / check
+  mailing / online pay link) to team_settings; render above or
+  beside Notes. Solo-flagged as the biggest credibility miss vs
+  Harvest's Stripe pay-link.
+- **PO number field.** Mid-market AP teams reject invoices without
+  a PO reference. Add `invoices.client_po_number` (per-invoice) +
+  optional `customers.default_po_number`. Solo-flagged.
+- **Tax ID / EIN / VAT line on the From block.** Required for
+  1099 / W-9 reconciliation in January; without it expect a
+  follow-up email every year-end. Add `team_settings.tax_id` (free
+  text). Solo-flagged.
+- **`Item Type` column on CSV / QuickBooks export.** Don't render
+  on the PDF, but the export must carry the type so QB / Xero map
+  lines to GL accounts (Service vs Product vs Expense). Default
+  `Service` for time-entry-derived; `Expense` once reimbursable
+  expenses ship. Bookkeeper-flagged.
+- **Discount GL category enum** — separate from this round's
+  parentheses fix. Free-text `discount_reason` won't map to GL
+  accounts; add `discount_category` enum (promotional / early-pay
+  / write-off / goodwill).
+- **Tax pre/post-discount toggle.** Hardcoded to tax-after-discount
+  is wrong for ~30% of US states. Per-team setting.
+- **Mid-market polish:** `formatRateForLabel` hardcodes `$`,
+  breaks for non-USD invoices; `discountRate` may render as
+  `10.00%` — trim trailing zeros.
+- **`void status` code smell** in `InvoicePDF.tsx`. Either render a
+  DRAFT / VOID footer now or drop the prop. Platform-architect.
+
 ## Other deferred work
 
 Smaller items surfaced by persona reviews but not yet promoted to their

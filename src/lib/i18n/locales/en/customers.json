@@ -12,7 +12,9 @@
     "email": "Email",
     "address": "Address",
     "notes": "Notes",
-    "defaultRate": "Default Rate ($/hr)"
+    "defaultRate": "Default Rate ($/hr)",
+    "showCountryOnInvoice": "Show country on invoice",
+    "showCountryOnInvoiceHint": "When on, the country line of this customer's address renders under the Invoice For block. Off by default — most domestic invoices read cleaner without it."
   },
   "table": {
     "defaultRate": "Default Rate"

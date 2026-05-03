@@ -21,6 +21,7 @@ interface Project {
   budget_hours: number | null;
   github_repo: string | null;
   jira_project_key: string | null;
+  invoice_code: string | null;
   status: string | null;
   category_set_id: string | null;
   require_timestamps: boolean;
@@ -125,6 +126,19 @@ export function ProjectEditForm({
             />
             <p className="mt-1 text-caption text-content-muted">
               {t("fields.jiraProjectKeyHint")}
+            </p>
+          </div>
+          <div>
+            <label className={labelClass}>{t("fields.invoiceCode")}</label>
+            <input
+              name="invoice_code"
+              placeholder={t("fields.invoiceCodePlaceholder")}
+              defaultValue={project.invoice_code ?? ""}
+              maxLength={16}
+              className={`${inputClass} font-mono`}
+            />
+            <p className="mt-1 text-caption text-content-muted">
+              {t("fields.invoiceCodeHint")}
             </p>
           </div>
           <div className="sm:col-span-2">

@@ -27,12 +27,39 @@ export async function generateMetadata({
 import { formatDate, Avatar, resolveAvatarUrl } from "@theshyre/ui";
 import { formatCurrency } from "@/lib/invoice-utils";
 import {
+  groupEntriesIntoLineItems,
+  type EntryCandidate,
+} from "@/lib/invoice-grouping";
+import {
   deserializeAddress,
   formatAddressMultiLine,
 } from "@/lib/schemas/address";
 import { InvoiceActions } from "./invoice-actions";
 import { InvoicePdfButton } from "./invoice-pdf-button";
 import { InvoiceStatusBadge } from "../invoice-status-badge";
+
+/**
+ * Drop the country line from a multi-line formatted address unless
+ * the caller wants to show it. `formatAddressMultiLine` returns
+ * `[street, "city, state zip", country]` with country at the tail
+ * when present. The country line reads as noise on domestic
+ * invoices, so it's hidden by default; the per-address toggles
+ * (`team_settings.show_country_on_invoice` and
+ * `customers.show_country_on_invoice`) re-enable it. Mirrors the
+ * PDF helper of the same shape.
+ */
+function trimCountryLines(lines: string[], showCountry: boolean): string[] {
+  if (showCountry) return lines;
+  // Trim only when there are 2+ lines — single-line legacy
+  // plain-text addresses must survive intact. With 2+ lines, the
+  // country (when present) is the last line and never has a comma,
+  // while the city/state/zip line always does — so a comma-less
+  // last line is the country to drop.
+  if (lines.length < 2) return lines;
+  const last = lines[lines.length - 1];
+  if (last && !last.includes(",")) return lines.slice(0, -1);
+  return lines;
+}
 
 export default async function InvoiceDetailPage({
   params,
@@ -45,7 +72,9 @@ export default async function InvoiceDetailPage({
 
   const { data: invoice } = await supabase
     .from("invoices")
-    .select("*, customers(name, email, address)")
+    .select(
+      "*, customers(name, email, address, show_country_on_invoice)",
+    )
     .eq("id", id)
     .single();
 
@@ -71,7 +100,7 @@ export default async function InvoiceDetailPage({
     supabase
       .from("team_settings")
       .select(
-        "business_name, business_email, business_address, business_phone, wordmark_primary, wordmark_secondary, brand_color",
+        "business_name, business_email, business_address, business_phone, wordmark_primary, wordmark_secondary, brand_color, show_country_on_invoice",
       )
       .eq("team_id", invoice.team_id)
       .single(),
@@ -95,9 +124,17 @@ export default async function InvoiceDetailPage({
     // for unattributed lines from the entries that rolled up into this
     // invoice. For a solo consultant — the dominant case — this collapses
     // to a single user.
+    //
+    // Project + category + date are pulled here too so the page can
+    // re-derive each line item's description in the new
+    // `[<code>] Project: Task (range)` format. When source entries
+    // are no longer present (FK SET NULL after entry deletion), the
+    // page falls back to the stored `invoice_line_items.description`.
     supabase
       .from("time_entries")
-      .select("user_id")
+      .select(
+        "id, user_id, duration_min, description, start_time, projects(name, invoice_code, hourly_rate, customers(default_rate)), categories(name)",
+      )
       .eq("invoice_id", id),
   ]);
 
@@ -161,8 +198,86 @@ export default async function InvoiceDetailPage({
   }
   const client =
     invoice.customers && typeof invoice.customers === "object"
-      ? (invoice.customers as { name: string; email: string | null; address: string | null })
+      ? (invoice.customers as {
+          name: string;
+          email: string | null;
+          address: string | null;
+          show_country_on_invoice: boolean | null;
+        })
       : null;
+
+  // Re-derive line item descriptions from source entries when
+  // available, so any invoice (including drafts created before the
+  // [code] / per-line-date format landed) automatically reflects
+  // the new shape. Falls back to the stored `lineItems` when no
+  // source entries are linked (legacy Harvest-import edge case).
+  const resolvedLineItems = (() => {
+    const sourceEntries = invoicedEntries ?? [];
+    if (sourceEntries.length === 0) {
+      return (lineItems ?? []).map((li) => ({
+        description: (li.description as string) ?? "",
+        quantity: Number(li.quantity ?? 0),
+        unit_price: Number(li.unit_price ?? 0),
+        amount: Number(li.amount ?? 0),
+      }));
+    }
+    type SrcRow = {
+      id: string;
+      user_id: string | null;
+      duration_min: number | null;
+      description: string | null;
+      start_time: string | null;
+      projects: {
+        name: string | null;
+        invoice_code: string | null;
+        hourly_rate: number | null;
+        customers: { default_rate: number | null } | null;
+      } | null;
+      categories: { name: string | null } | null;
+    };
+    const candidates: EntryCandidate[] = sourceEntries.map((row) => {
+      const r = row as unknown as SrcRow;
+      const proj = r.projects ?? null;
+      const rate =
+        (proj?.hourly_rate != null ? Number(proj.hourly_rate) : null) ??
+        (proj?.customers?.default_rate != null
+          ? Number(proj.customers.default_rate)
+          : null) ??
+        0;
+      return {
+        id: r.id,
+        durationMin: Number(r.duration_min ?? 0),
+        rate,
+        description: r.description,
+        projectName: proj?.name ?? "Project",
+        projectInvoiceCode: proj?.invoice_code ?? null,
+        taskName: r.categories?.name ?? null,
+        // personName isn't surfaced for the line description in the
+        // current grouping modes, but the type requires it. Author
+        // resolution for display-time avatar lookup is handled
+        // separately via implicitAuthorUserId, so passing a
+        // placeholder here is safe.
+        personName: r.user_id ?? "Unknown",
+        date:
+          r.start_time && r.start_time.length >= 10
+            ? r.start_time.slice(0, 10)
+            : "",
+      };
+    });
+    const groupingMode = (invoice.grouping_mode as
+      | "by_project"
+      | "by_task"
+      | "by_person"
+      | "detailed"
+      | null) ?? "by_project";
+    const grouped = groupEntriesIntoLineItems(candidates, groupingMode);
+    return grouped.map((line) => ({
+      description: line.description,
+      quantity: line.quantity,
+      unit_price: line.unitPrice,
+      amount: line.amount,
+    }));
+  })();
 
   const status = (invoice.status as string | null) ?? "draft";
   // Terminal states (void / paid) get a prominent badge on its own
@@ -188,7 +303,7 @@ export default async function InvoiceDetailPage({
         <div className="flex items-center gap-2 flex-wrap">
           <InvoicePdfButton
             invoice={invoice}
-            lineItems={lineItems ?? []}
+            lineItems={resolvedLineItems}
             client={client}
             business={settings}
             paymentsTotal={(payments ?? []).reduce(
@@ -219,13 +334,14 @@ export default async function InvoiceDetailPage({
           {client?.email && (
             <p className="text-body text-content-secondary">{client.email}</p>
           )}
-          {formatAddressMultiLine(deserializeAddress(client?.address ?? null)).map(
-            (line, i) => (
-              <p key={i} className="text-body text-content-secondary">
-                {line}
-              </p>
-            ),
-          )}
+          {trimCountryLines(
+            formatAddressMultiLine(deserializeAddress(client?.address ?? null)),
+            client?.show_country_on_invoice ?? false,
+          ).map((line, i) => (
+            <p key={i} className="text-body text-content-secondary">
+              {line}
+            </p>
+          ))}
         </div>
         <div className="rounded-lg border border-edge bg-surface-raised p-4">
           <h3 className="text-label font-semibold uppercase tracking-wider text-content-muted mb-2">
@@ -239,8 +355,11 @@ export default async function InvoiceDetailPage({
               {settings.business_email}
             </p>
           )}
-          {formatAddressMultiLine(
-            deserializeAddress(settings?.business_address ?? null),
+          {trimCountryLines(
+            formatAddressMultiLine(
+              deserializeAddress(settings?.business_address ?? null),
+            ),
+            settings?.show_country_on_invoice ?? false,
           ).map((line, i) => (
             <p key={i} className="text-body text-content-secondary">
               {line}
@@ -329,22 +448,20 @@ export default async function InvoiceDetailPage({
             </tr>
           </thead>
           <tbody>
-            {(lineItems ?? []).map((item) => {
-              const te = item.time_entries;
-              const directUserId =
-                te && typeof te === "object" && "user_id" in te
-                  ? ((te as { user_id: string | null }).user_id ?? null)
-                  : null;
-              // Direct attribution wins; otherwise fall back to the
-              // implicit author derived from time_entries.invoice_id
-              // (only set when this invoice has a single distinct
-              // entry author).
-              const userId = directUserId ?? implicitAuthorUserId;
+            {resolvedLineItems.map((item, idx) => {
+              // Author for the row. Re-derived lines roll up multiple
+              // entries; per-line author resolution is replaced by
+              // the invoice-level implicit author (single-author
+              // invoices, the dominant case). Multi-author falls
+              // through to the Harvest-import / em-dash branches.
+              const userId = implicitAuthorUserId;
               const profile = userId ? profileById.get(userId) : null;
               return (
                 <tr
-                  key={item.id}
-                  className="border-b border-edge last:border-0"
+                  key={idx}
+                  className={`border-b border-edge last:border-0 ${
+                    idx % 2 === 1 ? "bg-surface-inset/40" : ""
+                  }`}
                 >
                   <td className="px-4 py-3 text-content">{item.description}</td>
                   <td className="px-4 py-3">
@@ -442,7 +559,7 @@ export default async function InvoiceDetailPage({
                     </p>
                   )}
                   <p className="text-body font-semibold text-content">
-                    {showPayments ? t("fields.amountDue") : t("fields.total")}
+                    {t("fields.amountDue")}
                   </p>
                 </div>
                 <div className="text-right space-y-1">
@@ -451,7 +568,7 @@ export default async function InvoiceDetailPage({
                   </p>
                   {discountAmount > 0 && (
                     <p className="text-body font-mono tabular-nums text-content-secondary">
-                      −{formatCurrency(discountAmount, currency)}
+                      ({formatCurrency(discountAmount, currency)})
                     </p>
                   )}
                   {taxRate > 0 && (
@@ -461,7 +578,7 @@ export default async function InvoiceDetailPage({
                   )}
                   {showPayments && (
                     <p className="text-body font-mono tabular-nums text-content-secondary">
-                      −{formatCurrency(paymentsTotal, currency)}
+                      ({formatCurrency(paymentsTotal, currency)})
                     </p>
                   )}
                   <p className="text-body font-mono tabular-nums font-semibold text-content">

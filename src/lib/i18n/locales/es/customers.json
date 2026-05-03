@@ -12,7 +12,9 @@
     "email": "Correo electrónico",
     "address": "Dirección",
     "notes": "Notas",
-    "defaultRate": "Tarifa por defecto ($/hr)"
+    "defaultRate": "Tarifa por defecto ($/hr)",
+    "showCountryOnInvoice": "Mostrar país en la factura",
+    "showCountryOnInvoiceHint": "Cuando está activo, la línea de país de la dirección de este cliente se muestra bajo el bloque \"Facturar a\". Desactivado por defecto — la mayoría de las facturas domésticas se leen mejor sin él."
   },
   "table": {
     "defaultRate": "Tarifa por defecto"

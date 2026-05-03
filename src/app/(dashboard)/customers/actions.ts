@@ -54,7 +54,18 @@ export async function updateCustomerAction(formData: FormData): Promise<void> {
     const address = extractAddress(formData, "address");
     const notes = (formData.get("notes") as string) || null;
 
-    const patch: Record<string, unknown> = { name, email, address, notes };
+    // Checkbox absent from FormData when unchecked; the customer
+    // edit form always renders the input, so we treat absence as
+    // false. Always set so the user can toggle off.
+    const show_country_on_invoice =
+      formData.get("show_country_on_invoice") === "on";
+    const patch: Record<string, unknown> = {
+      name,
+      email,
+      address,
+      notes,
+      show_country_on_invoice,
+    };
 
     // payment_terms_days: integer 0..365 inclusive, or null to fall
     // back to team_settings.default_payment_terms_days. Empty string

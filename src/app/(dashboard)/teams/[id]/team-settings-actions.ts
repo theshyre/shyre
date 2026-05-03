@@ -59,6 +59,12 @@ export async function updateTeamSettingsAction(formData: FormData): Promise<void
     const brand_color =
       (formData.get("brand_color") as string)?.trim() || null;
 
+    // show_country_on_invoice — checkbox absent from FormData when
+    // unchecked. The form always renders this input, so absence
+    // means false.
+    const show_country_on_invoice =
+      formData.get("show_country_on_invoice") === "on";
+
     const patch: Record<string, unknown> = {
       team_id: teamId,
       business_name,
@@ -68,6 +74,7 @@ export async function updateTeamSettingsAction(formData: FormData): Promise<void
       invoice_prefix,
       invoice_next_num,
       tax_rate,
+      show_country_on_invoice,
       wordmark_primary,
       wordmark_secondary,
       brand_color,

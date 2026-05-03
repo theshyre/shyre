@@ -22,13 +22,13 @@ const inkSecondary = "#374151";
 const inkMuted = "#6b7280";
 const inkFaint = "#9ca3af";
 const ruleSoft = "#e5e7eb";
-const ruleSofter = "#f3f4f6";
+const zebraBg = "#f7f7f7";
 
 const styles = StyleSheet.create({
   page: {
-    paddingTop: 56,
-    paddingBottom: 56,
-    paddingHorizontal: 56,
+    paddingTop: 36,
+    paddingBottom: 36,
+    paddingHorizontal: 36,
     fontSize: 10,
     fontFamily: "Helvetica",
     color: ink,
@@ -43,7 +43,7 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     justifyContent: "space-between",
     alignItems: "flex-start",
-    marginBottom: 36,
+    marginBottom: 28,
   },
   brandMark: {
     fontSize: 24,
@@ -51,43 +51,45 @@ const styles = StyleSheet.create({
     color: ink,
     letterSpacing: -0.5,
   },
-  fromBlock: {
+  // From / Invoice For shared block. Fixed width so both stack
+  // identically on the right column, and a fixed-width label so
+  // the body's left edge aligns across "From" (4 chars) and
+  // "Invoice For" (11 chars).
+  rightBlock: {
     flexDirection: "row",
     alignItems: "flex-start",
-    gap: 12,
-    maxWidth: 240,
+    gap: 8,
+    width: 240,
   },
-  fromLabel: {
+  rightLabel: {
     fontSize: 10,
     color: inkMuted,
+    width: 56,
     paddingTop: 1,
   },
-  fromDivider: {
-    width: 1,
-    backgroundColor: ruleSoft,
-    alignSelf: "stretch",
-  },
-  fromBody: {
+  rightBody: {
     flexDirection: "column" as const,
+    flex: 1,
   },
-  fromName: {
+  rightName: {
     fontSize: 11,
     fontFamily: "Helvetica-Bold",
     color: ink,
     marginBottom: 2,
   },
-  fromLine: {
+  rightLine: {
     fontSize: 10,
     color: inkSecondary,
   },
 
   // Meta band: Invoice ID / Issue Date / Due Date on the left,
-  // Invoice For on the right.
+  // Invoice For on the right. Top-aligned so the date column and
+  // customer name sit at the same y.
   metaRow: {
     flexDirection: "row",
     justifyContent: "space-between",
     alignItems: "flex-start",
-    marginBottom: 28,
+    marginBottom: 24,
   },
   metaLeft: {
     flexDirection: "column" as const,
@@ -111,30 +113,6 @@ const styles = StyleSheet.create({
     fontFamily: "Helvetica-Bold",
     color: ink,
   },
-  invoiceForBlock: {
-    flexDirection: "row",
-    alignItems: "flex-start",
-    gap: 12,
-    maxWidth: 240,
-  },
-  invoiceForLabel: {
-    fontSize: 10,
-    color: inkMuted,
-    paddingTop: 1,
-  },
-  invoiceForBody: {
-    flexDirection: "column" as const,
-  },
-  invoiceForName: {
-    fontSize: 11,
-    fontFamily: "Helvetica-Bold",
-    color: ink,
-    marginBottom: 2,
-  },
-  invoiceForLine: {
-    fontSize: 10,
-    color: inkSecondary,
-  },
 
   // Line-items table.
   table: {
@@ -150,13 +128,14 @@ const styles = StyleSheet.create({
   },
   tableRow: {
     flexDirection: "row",
-    paddingVertical: 10,
+    paddingVertical: 8,
     paddingHorizontal: 4,
-    borderBottomWidth: 0.5,
-    borderBottomColor: ruleSofter,
+  },
+  tableRowZebra: {
+    backgroundColor: zebraBg,
   },
   colDescription: { flex: 4, paddingRight: 8 },
-  colQty: { flex: 1, textAlign: "right" as const, paddingRight: 8 },
+  colHours: { flex: 1, textAlign: "right" as const, paddingRight: 8 },
   colRate: { flex: 1.2, textAlign: "right" as const, paddingRight: 8 },
   colAmount: { flex: 1.2, textAlign: "right" as const },
   headerText: {
@@ -171,6 +150,12 @@ const styles = StyleSheet.create({
   cellMuted: {
     fontSize: 10,
     color: inkSecondary,
+  },
+  // Mono font on numeric columns so decimals stack vertically.
+  // Helvetica's `tabular-nums` doesn't exist in @react-pdf/renderer;
+  // built-in Courier is the cheapest path to column alignment.
+  cellMono: {
+    fontFamily: "Courier",
   },
 
   // Totals — right-aligned column with label/value pairs.
@@ -192,6 +177,7 @@ const styles = StyleSheet.create({
   totalValue: {
     fontSize: 10,
     color: ink,
+    fontFamily: "Courier",
   },
   grandTotalRow: {
     flexDirection: "row",
@@ -208,7 +194,7 @@ const styles = StyleSheet.create({
   },
   grandTotalValue: {
     fontSize: 12,
-    fontFamily: "Helvetica-Bold",
+    fontFamily: "Courier-Bold",
     color: ink,
   },
 
@@ -231,6 +217,18 @@ const styles = StyleSheet.create({
     fontSize: 10,
     color: inkSecondary,
     lineHeight: 1.5,
+  },
+
+  // Page footer ("Page X of Y"). Fixed-bottom so it appears on
+  // every page when the line items wrap.
+  footer: {
+    position: "absolute",
+    bottom: 18,
+    left: 36,
+    right: 36,
+    textAlign: "center" as const,
+    fontSize: 9,
+    color: inkFaint,
   },
 });
 
@@ -276,11 +274,18 @@ export interface InvoicePDFProps {
     wordmarkPrimary?: string | null;
     wordmarkSecondary?: string | null;
     brandColor?: string | null;
+    /** team_settings.show_country_on_invoice. Suppresses the
+     *  country line in the From block when false (default). */
+    showCountry?: boolean;
   };
   client: {
     name: string;
     email: string | null;
     address: string | null;
+    /** customers.show_country_on_invoice. Independent of the
+     *  team's toggle — a US team invoicing a UK customer will
+     *  often suppress From's country and show the customer's. */
+    showCountry?: boolean;
   };
   lineItems: Array<{
     description: string;
@@ -367,6 +372,32 @@ function formatPdfDate(iso: string | null): string {
   return `${mm}/${dd}/${yyyy}`;
 }
 
+/**
+ * Filter the country line out of an address's display lines unless
+ * the caller explicitly wants it. `formatAddressMultiLine` returns
+ * `[street, "city, state zip", country]` with country at the tail
+ * when present. Hide it by default — the country line reads as
+ * noise on domestic invoices, which is ~90% of the volume. The
+ * `showCountry` toggle is per-block so a US team can show the
+ * customer's country without showing their own.
+ */
+function addressLinesForBlock(
+  addressJson: string | null,
+  showCountry: boolean,
+): string[] {
+  const all = formatAddressMultiLine(deserializeAddress(addressJson));
+  if (showCountry) return all;
+  // Trim only when there are 2+ lines — `formatAddressMultiLine`
+  // returns a single line for legacy plain-text addresses (just
+  // street), and we don't want to drop their only line. With 2+
+  // lines, the country (when present) is always last and never
+  // contains a comma; the city/state/zip line always does.
+  if (all.length < 2) return all;
+  const last = all[all.length - 1];
+  if (last && !last.includes(",")) return all.slice(0, -1);
+  return all;
+}
+
 export function InvoicePDF(props: InvoicePDFProps): React.JSX.Element {
   const {
     invoiceNumber,
@@ -388,11 +419,13 @@ export function InvoicePDF(props: InvoicePDFProps): React.JSX.Element {
     lineItems,
   } = props;
   const fmt = makeFmt(currency ?? "USD");
-  const businessAddressLines = formatAddressMultiLine(
-    deserializeAddress(business.address),
+  const businessAddressLines = addressLinesForBlock(
+    business.address,
+    business.showCountry ?? false,
   );
-  const clientAddressLines = formatAddressMultiLine(
-    deserializeAddress(client.address),
+  const clientAddressLines = addressLinesForBlock(
+    client.address,
+    client.showCountry ?? false,
   );
 
   // Two-tone wordmark with optional brand color. Falls back to
@@ -418,6 +451,11 @@ export function InvoicePDF(props: InvoicePDFProps): React.JSX.Element {
   // render as a negative number (refund handling is out of scope).
   const amountDue = Math.max(0, total - paymentsTotal);
   const showPaymentsRollup = paymentsTotal > 0;
+  // Bottom-row label: "Amount Due" unconditionally now. Earlier code
+  // only flipped to "Amount Due" when payments were present, leaving
+  // unpaid invoices labeled "Total" — confusing for AP teams who key
+  // on "Amount Due" as the field they'll cut a check against.
+  const grandTotalAmount = showPaymentsRollup ? amountDue : total;
 
   // The PDF deliberately doesn't render a PAID / VOID watermark.
   // Harvest's reference PDF doesn't either — the paid signal is
@@ -439,21 +477,20 @@ export function InvoicePDF(props: InvoicePDFProps): React.JSX.Element {
             <Text style={{ color: accentColor }}>{primaryWordmark}</Text>
             {secondaryWordmark ? <Text>{secondaryWordmark}</Text> : null}
           </Text>
-          <View style={styles.fromBlock}>
-            <Text style={styles.fromLabel}>From</Text>
-            <View style={styles.fromDivider} />
-            <View style={styles.fromBody}>
-              <Text style={styles.fromName}>{business.name ?? ""}</Text>
+          <View style={styles.rightBlock}>
+            <Text style={styles.rightLabel}>From</Text>
+            <View style={styles.rightBody}>
+              <Text style={styles.rightName}>{business.name ?? ""}</Text>
               {businessAddressLines.map((line, i) => (
-                <Text key={i} style={styles.fromLine}>
+                <Text key={i} style={styles.rightLine}>
                   {line}
                 </Text>
               ))}
               {business.email && (
-                <Text style={styles.fromLine}>{business.email}</Text>
+                <Text style={styles.rightLine}>{business.email}</Text>
               )}
               {business.phone && (
-                <Text style={styles.fromLine}>{business.phone}</Text>
+                <Text style={styles.rightLine}>{business.phone}</Text>
               )}
             </View>
           </View>
@@ -475,18 +512,17 @@ export function InvoicePDF(props: InvoicePDFProps): React.JSX.Element {
               <Text style={styles.metaValue}>{dueDateText}</Text>
             </View>
           </View>
-          <View style={styles.invoiceForBlock}>
-            <Text style={styles.invoiceForLabel}>Invoice For</Text>
-            <View style={styles.fromDivider} />
-            <View style={styles.invoiceForBody}>
-              <Text style={styles.invoiceForName}>{client.name}</Text>
+          <View style={styles.rightBlock}>
+            <Text style={styles.rightLabel}>Invoice For</Text>
+            <View style={styles.rightBody}>
+              <Text style={styles.rightName}>{client.name}</Text>
               {clientAddressLines.map((line, i) => (
-                <Text key={i} style={styles.invoiceForLine}>
+                <Text key={i} style={styles.rightLine}>
                   {line}
                 </Text>
               ))}
               {client.email && (
-                <Text style={styles.invoiceForLine}>{client.email}</Text>
+                <Text style={styles.rightLine}>{client.email}</Text>
               )}
             </View>
           </View>
@@ -498,22 +534,34 @@ export function InvoicePDF(props: InvoicePDFProps): React.JSX.Element {
             <Text style={[styles.headerText, styles.colDescription]}>
               Description
             </Text>
-            <Text style={[styles.headerText, styles.colQty]}>Quantity</Text>
-            <Text style={[styles.headerText, styles.colRate]}>Unit Price</Text>
+            <Text style={[styles.headerText, styles.colHours]}>Hours</Text>
+            <Text style={[styles.headerText, styles.colRate]}>Rate</Text>
             <Text style={[styles.headerText, styles.colAmount]}>Amount</Text>
           </View>
           {lineItems.map((item, i) => (
-            <View key={i} style={styles.tableRow}>
+            <View
+              key={i}
+              style={[
+                styles.tableRow,
+                i % 2 === 1 ? styles.tableRowZebra : {},
+              ]}
+            >
               <Text style={[styles.cellText, styles.colDescription]}>
                 {item.description}
               </Text>
-              <Text style={[styles.cellMuted, styles.colQty]}>
+              <Text
+                style={[styles.cellMuted, styles.colHours, styles.cellMono]}
+              >
                 {item.quantity.toFixed(2)}
               </Text>
-              <Text style={[styles.cellMuted, styles.colRate]}>
+              <Text
+                style={[styles.cellMuted, styles.colRate, styles.cellMono]}
+              >
                 {fmt(item.unitPrice)}
               </Text>
-              <Text style={[styles.cellText, styles.colAmount]}>
+              <Text
+                style={[styles.cellText, styles.colAmount, styles.cellMono]}
+              >
                 {fmt(item.amount)}
               </Text>
             </View>
@@ -522,10 +570,10 @@ export function InvoicePDF(props: InvoicePDFProps): React.JSX.Element {
 
         {/* Totals.
             Order: Subtotal / Discount? / Tax? / Payments? / grand total.
-            Grand total label flips between Total / Amount Due based on
-            whether payments are present. Harvest convention; matches
-            what the web detail page renders so the user sees the same
-            shape across surfaces. */}
+            Grand total label is always "Amount Due" so AP teams have
+            a stable field to key on. Discount line uses parentheses
+            (accounting convention) instead of a hyphen-minus so it
+            survives fax / scan / copy-paste. */}
         <View style={styles.totalsBlock}>
           <View style={styles.totalRow}>
             <Text style={styles.totalLabel}>Subtotal</Text>
@@ -538,7 +586,7 @@ export function InvoicePDF(props: InvoicePDFProps): React.JSX.Element {
                   ? `Discount (${discountRate}%)`
                   : "Discount"}
               </Text>
-              <Text style={styles.totalValue}>-{fmt(discountAmount)}</Text>
+              <Text style={styles.totalValue}>({fmt(discountAmount)})</Text>
             </View>
           )}
           {taxRate > 0 && (
@@ -547,23 +595,18 @@ export function InvoicePDF(props: InvoicePDFProps): React.JSX.Element {
               <Text style={styles.totalValue}>{fmt(taxAmount)}</Text>
             </View>
           )}
-          {showPaymentsRollup ? (
-            <>
-              <View style={styles.totalRow}>
-                <Text style={styles.totalLabel}>Payments</Text>
-                <Text style={styles.totalValue}>-{fmt(paymentsTotal)}</Text>
-              </View>
-              <View style={styles.grandTotalRow}>
-                <Text style={styles.grandTotalLabel}>Amount Due</Text>
-                <Text style={styles.grandTotalValue}>{fmt(amountDue)}</Text>
-              </View>
-            </>
-          ) : (
-            <View style={styles.grandTotalRow}>
-              <Text style={styles.grandTotalLabel}>Total</Text>
-              <Text style={styles.grandTotalValue}>{fmt(total)}</Text>
+          {showPaymentsRollup && (
+            <View style={styles.totalRow}>
+              <Text style={styles.totalLabel}>Payments</Text>
+              <Text style={styles.totalValue}>({fmt(paymentsTotal)})</Text>
             </View>
           )}
+          <View style={styles.grandTotalRow}>
+            <Text style={styles.grandTotalLabel}>Amount Due</Text>
+            <Text style={styles.grandTotalValue}>
+              {fmt(grandTotalAmount)}
+            </Text>
+          </View>
         </View>
 
         {/* Notes */}
@@ -573,6 +616,16 @@ export function InvoicePDF(props: InvoicePDFProps): React.JSX.Element {
             <Text style={styles.notesText}>{notes}</Text>
           </View>
         )}
+
+        {/* Page footer — Harvest convention. `fixed` makes it render
+            on every page when line items spill across pages. */}
+        <Text
+          style={styles.footer}
+          fixed
+          render={({ pageNumber, totalPages }) =>
+            `Page ${pageNumber} of ${totalPages}`
+          }
+        />
       </Page>
     </Document>
   );

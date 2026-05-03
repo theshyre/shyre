@@ -246,7 +246,11 @@ describe("InvoicePDF", () => {
     expect(html).not.toMatch(/>Total</);
   });
 
-  it("falls back to Subtotal / Total without payments", () => {
+  it("uses 'Amount Due' as the bottom-row label even without payments", () => {
+    // Earlier code flipped to "Amount Due" only when payments were
+    // present, leaving unpaid invoices labeled "Total" — which
+    // confused AP teams that key on "Amount Due" as the field
+    // they cut a check against. Now unconditional.
     const html = renderToString(
       <InvoicePDF
         {...baseProps}
@@ -255,7 +259,8 @@ describe("InvoicePDF", () => {
         client={{ name: "Client", email: null, address: null }}
       />,
     );
-    expect(html).toContain("Total");
-    expect(html).not.toContain("Amount Due");
+    expect(html).toContain("Amount Due");
+    // "Subtotal" is fine; only the standalone "Total" label is gone.
+    expect(html).not.toMatch(/>Total</);
   });
 });

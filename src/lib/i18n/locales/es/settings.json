@@ -60,6 +60,8 @@
     "wordmarkPrimary": "Logotipo (primario)",
     "wordmarkSecondary": "Logotipo (secundario)",
     "brandColor": "Color de marca (hex)",
+    "showCountryOnInvoice": "Mostrar país en la factura (bloque \"De\")",
+    "showCountryOnInvoiceHint": "Cuando está activo, la línea de país de la dirección de tu negocio se muestra bajo el bloque \"De\" en cada factura. Desactivado por defecto — la mayoría de las facturas domésticas se leen mejor sin él. Independiente del ajuste por cliente.",
     "githubToken": "Token de Acceso Personal de GitHub",
     "githubTokenPlaceholder": "ghp_...",
     "githubTokenHelp": "Usado para obtener títulos de issues de repos vinculados. Genera uno en github.com/settings/tokens — los PATs fine-grained con Issues:read en los repos a vincular son recomendados (menor riesgo que Classic). Se almacena encriptado.",
