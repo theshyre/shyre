@@ -15,12 +15,45 @@ System admin only. Single Shyre instance per row (`instance_deploy_config.id = 1
 
 ## One-time Vercel setup
 
-1. **API token** — vercel.com → account → Settings → Tokens → Create. Scope: full account, or scoped to just the Shyre project. Copy it (Vercel only shows the value once).
-2. **Project ID** — Vercel project → Settings → General → Project ID (starts with `prj_…`).
-3. **Team ID** (only for team / org accounts) — Vercel team → Settings → General → Team ID (starts with `team_…`). Personal accounts skip.
-4. **Deploy hook URL** — Vercel project → Settings → Git → Deploy Hooks → Create. Pick a name (`Shyre env push`), branch (`main`). Copy the URL — it's the secret; treat it like a password.
+You'll collect four values from Vercel and paste them into `/system/deploy`. The whole walk takes ~5 minutes.
 
-Paste all four into `/system/deploy` → Save connection.
+### 1. API token
+
+Direct link: [vercel.com/account/settings/tokens](https://vercel.com/account/settings/tokens) (or click your avatar in the top-right of any Vercel page → **Settings** → **Tokens** in the left sidebar).
+
+In the **Create Token** form:
+
+- **Token name** — anything memorable, e.g. `Shyre API Token`.
+- **Scope** — Vercel shows two options:
+  - `<Your team> projects` — grants the token write access to every project owned by that Vercel team. **Recommended** for least-privilege if you're OK with the token having reach across all your Vercel projects (Shyre will only ever touch the one you connect to it).
+  - `Full Account` — same project access plus account-level operations Shyre doesn't use. Fine but slightly broader.
+- **Expiration** — `1 Year` is the sensible default. Shorter is more secure but means you re-issue more often. Set a calendar reminder when the token is due to expire — Shyre doesn't auto-warn (yet).
+
+Click **Create**. Vercel shows the token value **once** — copy it now into a password manager *and* paste it into Shyre. If you lose it before saving in Shyre, just create another.
+
+### 2. Project ID
+
+Open your Shyre project in Vercel → **Settings** → **General** → scroll to **Project ID**. Copy the value — it starts with `prj_…`.
+
+### 3. Vercel Team ID *(team / organization accounts only)*
+
+Personal Vercel accounts skip this — leave it blank in Shyre.
+
+For team accounts: Vercel team page → **Settings** → **General** → **Team ID** (starts with `team_…`). Without it, Shyre's Vercel API calls 404 because team-owned projects aren't reachable from the personal-account scope.
+
+### 4. Deploy hook URL
+
+Vercel project → **Settings** → **Git** → scroll to **Deploy Hooks** → **Create Hook**.
+
+- **Name** — e.g. `Shyre env push`.
+- **Branch** — your production branch (usually `main`).
+- Click **Create Hook**, then **copy the resulting URL**. It looks like `https://api.vercel.com/v1/integrations/deploy/prj_…/…`.
+
+⚠️ **The URL itself is the secret.** Anyone who has it can trigger a redeploy of your project. Treat it like a password — don't paste it in Slack or commit it. If it ever leaks, delete the hook from this same page and create a new one.
+
+### Paste into Shyre
+
+Open `/system/deploy` (Shyre sidebar → System → Deployment, or visit directly). Paste all four values into the Connection form → **Save connection**. Shyre validates the token by listing your project's env vars before persisting; an invalid token fails inline rather than saving a broken config.
 
 ## Provisioning the encryption key
 
