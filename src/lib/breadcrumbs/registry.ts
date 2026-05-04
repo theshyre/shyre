@@ -279,6 +279,66 @@ export const BREADCRUMB_ROUTES: BreadcrumbRouteSpec[] = [
     ],
   },
   {
+    pattern: "/teams/[teamId]/general",
+    trail: [
+      { id: "setup", labelKey: "setup", href: null },
+      { id: "teams", labelKey: "teams", href: "/teams" },
+      {
+        id: "teamName",
+        resolver: "teamName",
+        resolverParam: "teamId",
+        href: "/teams/[teamId]",
+      },
+      { id: "teamGeneral", labelKey: "teamGeneral", href: "/teams/[teamId]/general" },
+    ],
+  },
+  {
+    pattern: "/teams/[teamId]/members",
+    trail: [
+      { id: "setup", labelKey: "setup", href: null },
+      { id: "teams", labelKey: "teams", href: "/teams" },
+      {
+        id: "teamName",
+        resolver: "teamName",
+        resolverParam: "teamId",
+        href: "/teams/[teamId]",
+      },
+      { id: "teamMembers", labelKey: "teamMembers", href: "/teams/[teamId]/members" },
+    ],
+  },
+  {
+    pattern: "/teams/[teamId]/relationships",
+    trail: [
+      { id: "setup", labelKey: "setup", href: null },
+      { id: "teams", labelKey: "teams", href: "/teams" },
+      {
+        id: "teamName",
+        resolver: "teamName",
+        resolverParam: "teamId",
+        href: "/teams/[teamId]",
+      },
+      {
+        id: "teamRelationships",
+        labelKey: "teamRelationships",
+        href: "/teams/[teamId]/relationships",
+      },
+    ],
+  },
+  {
+    pattern: "/teams/[teamId]/email",
+    trail: [
+      { id: "setup", labelKey: "setup", href: null },
+      { id: "teams", labelKey: "teams", href: "/teams" },
+      {
+        id: "teamName",
+        resolver: "teamName",
+        resolverParam: "teamId",
+        href: "/teams/[teamId]",
+      },
+      { id: "teamEmail", labelKey: "teamEmail", href: "/teams/[teamId]/email" },
+    ],
+  },
+  {
     pattern: "/categories",
     trail: [
       { id: "setup", labelKey: "setup", href: null },

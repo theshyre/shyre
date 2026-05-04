@@ -81,6 +81,10 @@
     "businessPeriodLocks": "Period locks",
     "settings": "Settings",
     "teams": "Teams",
+    "teamGeneral": "General settings",
+    "teamMembers": "Members",
+    "teamRelationships": "Team relationships",
+    "teamEmail": "Email setup",
     "categories": "Categories",
     "templates": "Templates",
     "securityGroups": "Security groups",
@@ -178,5 +182,32 @@
     "loadedOf": "Showing {loaded, number} of {total, number}",
     "loadNMore": "Load {count, number} more",
     "loadAll": "Load all {count, number}"
+  },
+  "viewAll": "View all",
+  "teamHub": {
+    "configureHeading": "Configure",
+    "general": {
+      "title": "General settings",
+      "description": "Business identity, defaults, branding, and the team-level rate / time-entry visibility rules."
+    },
+    "members": {
+      "title": "Members",
+      "description": "Invite teammates, assign roles, transfer ownership.",
+      "unnamed": "Unnamed",
+      "shell": "shell"
+    },
+    "relationships": {
+      "title": "Team relationships",
+      "description": "Parent / child team shares — let another team see this team's projects, time, or invoices."
+    },
+    "emailSetup": {
+      "title": "Email setup",
+      "description": "Connect Resend, verify your sending domain, configure From / Reply-To, edit invoice templates."
+    },
+    "empty": {
+      "customers": "No customers yet.",
+      "projects": "No projects yet.",
+      "members": "No members yet."
+    }
   }
 }

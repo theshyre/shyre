@@ -81,6 +81,10 @@
     "businessPeriodLocks": "Bloqueos de período",
     "settings": "Ajustes",
     "teams": "Equipos",
+    "teamGeneral": "Configuración general",
+    "teamMembers": "Miembros",
+    "teamRelationships": "Relaciones de equipo",
+    "teamEmail": "Configuración de correo",
     "categories": "Categorías",
     "templates": "Plantillas",
     "securityGroups": "Grupos de seguridad",
@@ -178,5 +182,32 @@
     "loadedOf": "Mostrando {loaded, number} de {total, number}",
     "loadNMore": "Cargar {count, number} más",
     "loadAll": "Cargar las {count, number}"
+  },
+  "viewAll": "Ver todo",
+  "teamHub": {
+    "configureHeading": "Configurar",
+    "general": {
+      "title": "Configuración general",
+      "description": "Identidad del negocio, valores por defecto, marca y reglas de visibilidad de tarifas y entradas de tiempo."
+    },
+    "members": {
+      "title": "Miembros",
+      "description": "Invita compañeros, asigna roles, transfiere la propiedad.",
+      "unnamed": "Sin nombre",
+      "shell": "shell"
+    },
+    "relationships": {
+      "title": "Relaciones de equipo",
+      "description": "Compartir entre equipos padre / hijo — deja que otro equipo vea proyectos, tiempo o facturas de este equipo."
+    },
+    "emailSetup": {
+      "title": "Configuración de correo",
+      "description": "Conecta Resend, verifica tu dominio remitente, configura De / Responder a, edita plantillas de factura."
+    },
+    "empty": {
+      "customers": "Sin clientes todavía.",
+      "projects": "Sin proyectos todavía.",
+      "members": "Sin miembros todavía."
+    }
   }
 }

@@ -1,6 +1,6 @@
 import type { Metadata } from "next";
 import { createClient } from "@/lib/supabase/server";
-import { validateTeamAccess, getUserTeams } from "@/lib/team-context";
+import { validateTeamAccess } from "@/lib/team-context";
 import { getTranslations } from "next-intl/server";
 import { notFound } from "next/navigation";
 import Link from "next/link";
@@ -25,11 +25,33 @@ import {
   FolderKanban,
   ArrowRight,
   Mail,
+  Network,
+  type LucideIcon,
 } from "lucide-react";
-import { TeamSettingsForm } from "./team-settings-form";
-import { TeamSection } from "./team-section";
-import { RelationshipsSection } from "./relationships-section";
+import { LinkPendingSpinner } from "@/components/LinkPendingSpinner";
 
+/**
+ * Team overview — the at-a-glance landing for a team.
+ *
+ * Two halves:
+ *
+ *   1. Cross-cutting previews (Customers, Projects, Members) — these
+ *      summarize work that lives in other top-level pages and act as
+ *      shortcuts. Top 6 of each + "View all →".
+ *
+ *   2. Configure card grid — entry points for team-scoped settings
+ *      that used to all live inline on this page (back when it had
+ *      seven stacked sections and was unreadable). Each card is its
+ *      own sub-route now: /general, /members, /relationships, /email.
+ *      Mirrors the /settings hub-of-cards pattern so users get a
+ *      consistent navigation model across configuration surfaces.
+ *
+ * Ownership / role visibility:
+ *   - Owner/admin can act on every card; members see them but the
+ *     destination pages render in read-only mode where appropriate.
+ *   - The role chip next to the team name is the at-a-glance signal
+ *     for what level of access the current user has.
+ */
 export default async function TeamDetailPage({
   params,
 }: {
@@ -37,7 +59,7 @@ export default async function TeamDetailPage({
 }): Promise<React.JSX.Element> {
   const { id } = await params;
   const supabase = await createClient();
-  const { userId, role } = await validateTeamAccess(id);
+  const { role } = await validateTeamAccess(id);
 
   const { data: org } = await supabase
     .from("teams")
@@ -47,72 +69,54 @@ export default async function TeamDetailPage({
 
   if (!org) notFound();
 
-  const { data: teamSettings } = await supabase
-    .from("team_settings_v")
-    .select("*")
-    .eq("team_id", id)
-    .single();
-
-  // Fetch all members, then sort client-side: owner first, then admins,
-  // then plain members, with joined_at breaking ties. This guarantees
-  // the owner is always at the top of the list — important both for
-  // visibility now and as a prerequisite for any future transfer-
-  // ownership action (which would pick from this same list).
-  // Two-step fetch: team_members has no FK to user_profiles (both go
-  // through auth.users), so PostgREST can't embed the profile join.
+  // Members preview — top five active members, sorted owner → admin
+  // → member. Owners/admins can jump to /members for the full
+  // management surface.
   const { data: rawMembers } = await supabase
     .from("team_members")
     .select("id, user_id, role, joined_at")
     .eq("team_id", id);
   const memberUserIds = (rawMembers ?? []).map((m) => m.user_id as string);
-  const { data: profileRows } = memberUserIds.length > 0
-    ? await supabase
-        .from("user_profiles")
-        .select("user_id, display_name, is_shell")
-        .in("user_id", memberUserIds)
-    : { data: [] };
-  const displayNameByUserId = new Map<string, string | null>(
+  const { data: profileRows } =
+    memberUserIds.length > 0
+      ? await supabase
+          .from("user_profiles")
+          .select("user_id, display_name, is_shell")
+          .in("user_id", memberUserIds)
+      : { data: [] };
+  const profileByUserId = new Map<
+    string,
+    { display_name: string | null; is_shell: boolean }
+  >(
     (profileRows ?? []).map((p) => [
       p.user_id as string,
-      (p.display_name as string | null) ?? null,
-    ]),
-  );
-  // Shell accounts are imported anchors for historical time entries
-  // — real auth.users rows but flagged so UIs can render them
-  // distinctly (no invite, no rename, no can-log-in implication).
-  // See src/lib/import-shell-author.ts for provenance.
-  const isShellByUserId = new Map<string, boolean>(
-    (profileRows ?? []).map((p) => [
-      p.user_id as string,
-      ((p as { is_shell?: boolean | null }).is_shell ?? false) === true,
+      {
+        display_name: (p.display_name as string | null) ?? null,
+        is_shell:
+          ((p as { is_shell?: boolean | null }).is_shell ?? false) === true,
+      },
     ]),
   );
   const ROLE_RANK: Record<string, number> = { owner: 0, admin: 1, member: 2 };
-  const members = (rawMembers ?? [])
-    .map((m) => ({
-      ...m,
-      is_shell: isShellByUserId.get(m.user_id as string) ?? false,
-      user_profiles: {
-        display_name: displayNameByUserId.get(m.user_id as string) ?? null,
-      },
-    }))
+  const memberPreview = (rawMembers ?? [])
+    .map((m) => {
+      const prof = profileByUserId.get(m.user_id as string);
+      return {
+        id: m.id as string,
+        userId: m.user_id as string,
+        role: m.role as string,
+        displayName: prof?.display_name ?? null,
+        isShell: prof?.is_shell ?? false,
+      };
+    })
     .sort((a, b) => {
-      // Shell accounts sort to the bottom — they're anchors, not
-      // active members; the eye should land on real teammates first.
-      if (a.is_shell !== b.is_shell) return a.is_shell ? 1 : -1;
-      const rankDiff = (ROLE_RANK[a.role] ?? 99) - (ROLE_RANK[b.role] ?? 99);
-      if (rankDiff !== 0) return rankDiff;
-      return (a.joined_at ?? "").localeCompare(b.joined_at ?? "");
-    });
+      if (a.isShell !== b.isShell) return a.isShell ? 1 : -1;
+      return (ROLE_RANK[a.role] ?? 99) - (ROLE_RANK[b.role] ?? 99);
+    })
+    .slice(0, 6);
+  const memberCount = (rawMembers ?? []).length;
 
-  const { data: invites } = await supabase
-    .from("team_invites")
-    .select("id, email, role, created_at, expires_at")
-    .eq("team_id", id)
-    .is("accepted_at", null)
-    .order("created_at", { ascending: false });
-
-  // Org's customers
+  // Org's customers — top 6 active.
   const { data: customers } = await supabase
     .from("customers_v")
     .select("id, name, email, default_rate")
@@ -120,7 +124,7 @@ export default async function TeamDetailPage({
     .eq("archived", false)
     .order("name");
 
-  // Org's projects
+  // Org's projects — top 6 non-archived.
   const { data: projects } = await supabase
     .from("projects_v")
     .select("id, name, status, hourly_rate, customer_id, customers(name)")
@@ -128,66 +132,60 @@ export default async function TeamDetailPage({
     .neq("status", "archived")
     .order("created_at", { ascending: false });
 
-  // Org parent/child shares
-  interface TeamShareRow {
-    id: string;
-    parent_team_id: string;
-    child_team_id: string;
-    sharing_level: string;
-    accepted_at: string | null;
-    teams: { name: string } | { name: string }[] | null;
-  }
-  const { data: parentSharesData } = await supabase
-    .from("team_shares")
-    .select(
-      "id, parent_team_id, child_team_id, sharing_level, accepted_at, teams:parent_team_id(name)",
-    )
-    .eq("child_team_id", id);
-  const { data: childSharesData } = await supabase
-    .from("team_shares")
-    .select(
-      "id, parent_team_id, child_team_id, sharing_level, accepted_at, teams:child_team_id(name)",
-    )
-    .eq("parent_team_id", id);
-
-  const parentShares = (parentSharesData ?? []) as unknown as TeamShareRow[];
-  const childShares = (childSharesData ?? []) as unknown as TeamShareRow[];
-
-  const userOrgs = await getUserTeams();
-  const linkedTeamIds = new Set<string>([
-    ...parentShares.map((s) => s.parent_team_id),
-    ...childShares.map((s) => s.child_team_id),
-  ]);
-  const availableOrgsForRelationship = userOrgs
-    .filter((o) => o.id !== id && !linkedTeamIds.has(o.id))
-    .map((o) => ({ id: o.id, name: o.name }));
-
   const tc = await getTranslations("common");
   const tp = await getTranslations("projects");
-  const tm = await getTranslations("messaging");
-  const isOwnerOrAdmin = role === "owner" || role === "admin";
+  const th = await getTranslations("common.teamHub");
+
+  interface ConfigCard {
+    id: string;
+    title: string;
+    description: string;
+    href: string;
+    icon: LucideIcon;
+  }
+  const configCards: ConfigCard[] = [
+    {
+      id: "general",
+      title: th("general.title"),
+      description: th("general.description"),
+      href: `/teams/${id}/general`,
+      icon: Building2,
+    },
+    {
+      id: "members",
+      title: th("members.title"),
+      description: th("members.description"),
+      href: `/teams/${id}/members`,
+      icon: Users,
+    },
+    {
+      id: "relationships",
+      title: th("relationships.title"),
+      description: th("relationships.description"),
+      href: `/teams/${id}/relationships`,
+      icon: Network,
+    },
+    {
+      id: "email",
+      title: th("emailSetup.title"),
+      description: th("emailSetup.description"),
+      href: `/teams/${id}/email`,
+      icon: Mail,
+    },
+  ];
 
   return (
-    <div>
-      <div className="flex items-center gap-3 flex-wrap">
+    <div className="space-y-8">
+      <div className="flex items-center gap-3">
         <Building2 size={24} className="text-accent" />
         <h1 className="text-2xl font-bold text-content">{org.name}</h1>
         <span className="inline-flex items-center gap-1.5 rounded-full bg-surface-inset px-2.5 py-0.5 text-xs font-medium text-content-muted">
           {role}
         </span>
-        {isOwnerOrAdmin && (
-          <Link
-            href={`/teams/${id}/email`}
-            className="ml-auto inline-flex items-center gap-1.5 rounded-md border border-edge bg-surface-raised px-2.5 py-1 text-xs font-medium text-content-secondary hover:bg-hover transition-colors"
-          >
-            <Mail size={12} />
-            {tm("page.title")}
-          </Link>
-        )}
       </div>
 
-      {/* Clients */}
-      <div className="mt-6">
+      {/* Customers */}
+      <section>
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-2">
             <Users size={18} className="text-accent" />
@@ -199,7 +197,8 @@ export default async function TeamDetailPage({
             href={`/customers?team=${id}`}
             className="flex items-center gap-1 text-xs text-accent hover:underline"
           >
-            View all <ArrowRight size={12} />
+            <LinkPendingSpinner />
+            {tc("viewAll")} <ArrowRight size={12} />
           </Link>
         </div>
         {customers && customers.length > 0 ? (
@@ -220,12 +219,14 @@ export default async function TeamDetailPage({
             ))}
           </div>
         ) : (
-          <p className="mt-2 text-sm text-content-muted">No customers yet.</p>
+          <p className="mt-2 text-sm text-content-muted">
+            {th("empty.customers")}
+          </p>
         )}
-      </div>
+      </section>
 
       {/* Projects */}
-      <div className="mt-6">
+      <section>
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-2">
             <FolderKanban size={18} className="text-accent" />
@@ -237,7 +238,8 @@ export default async function TeamDetailPage({
             href={`/projects?team=${id}`}
             className="flex items-center gap-1 text-xs text-accent hover:underline"
           >
-            View all <ArrowRight size={12} />
+            <LinkPendingSpinner />
+            {tc("viewAll")} <ArrowRight size={12} />
           </Link>
         </div>
         {projects && projects.length > 0 ? (
@@ -266,33 +268,95 @@ export default async function TeamDetailPage({
             })}
           </div>
         ) : (
-          <p className="mt-2 text-sm text-content-muted">No projects yet.</p>
+          <p className="mt-2 text-sm text-content-muted">
+            {th("empty.projects")}
+          </p>
         )}
-      </div>
+      </section>
 
-      <TeamSettingsForm
-        teamSettings={teamSettings}
-        teamId={id}
-        role={role}
-      />
+      {/* Members preview */}
+      <section>
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-2">
+            <Users size={18} className="text-accent" />
+            <h2 className="text-sm font-semibold uppercase tracking-wider text-content-muted">
+              {th("members.title")}
+              {memberCount > 0 && (
+                <span className="ml-2 normal-case font-normal text-content-muted">
+                  ({memberCount})
+                </span>
+              )}
+            </h2>
+          </div>
+          <Link
+            href={`/teams/${id}/members`}
+            className="flex items-center gap-1 text-xs text-accent hover:underline"
+          >
+            <LinkPendingSpinner />
+            {tc("viewAll")} <ArrowRight size={12} />
+          </Link>
+        </div>
+        {memberPreview.length > 0 ? (
+          <div className="mt-2 grid gap-2 sm:grid-cols-2">
+            {memberPreview.map((m) => (
+              <div
+                key={m.id}
+                className="flex items-center justify-between rounded-lg border border-edge bg-surface-raised px-3 py-2 text-sm"
+              >
+                <span className="font-medium text-content truncate">
+                  {m.displayName ?? th("members.unnamed")}
+                  {m.isShell && (
+                    <span className="ml-1.5 text-xs text-content-muted italic">
+                      ({th("members.shell")})
+                    </span>
+                  )}
+                </span>
+                <span className="ml-2 inline-flex items-center gap-1.5 rounded-full bg-surface-inset px-2 py-0.5 text-xs text-content-muted">
+                  {m.role}
+                </span>
+              </div>
+            ))}
+          </div>
+        ) : (
+          <p className="mt-2 text-sm text-content-muted">
+            {th("empty.members")}
+          </p>
+        )}
+      </section>
 
-      <TeamSection
-        teamName={org.name}
-        teamId={id}
-        isPersonalOrg={false}
-        currentRole={role}
-        currentUserId={userId}
-        members={members}
-        invites={invites ?? []}
-      />
-
-      <RelationshipsSection
-        teamId={id}
-        role={role}
-        parentTeams={parentShares}
-        childTeams={childShares}
-        availableTeams={availableOrgsForRelationship}
-      />
+      {/* Configure */}
+      <section>
+        <div className="flex items-center gap-2 mb-3">
+          <h2 className="text-sm font-semibold uppercase tracking-wider text-content-muted">
+            {th("configureHeading")}
+          </h2>
+        </div>
+        <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-2">
+          {configCards.map((card) => {
+            const Icon = card.icon;
+            return (
+              <Link
+                key={card.id}
+                href={card.href}
+                className="group flex items-start gap-3 rounded-lg border border-edge bg-surface-raised p-4 transition-colors hover:border-accent/40 hover:bg-hover"
+              >
+                <Icon size={20} className="mt-0.5 text-accent shrink-0" />
+                <div className="flex-1 min-w-0">
+                  <div className="flex items-center gap-2">
+                    <span className="text-body-lg font-semibold text-content">
+                      {card.title}
+                    </span>
+                    <LinkPendingSpinner />
+                  </div>
+                  <p className="text-caption text-content-muted mt-1">
+                    {card.description}
+                  </p>
+                </div>
+              </Link>
+            );
+          })}
+        </div>
+      </section>
     </div>
   );
 }
