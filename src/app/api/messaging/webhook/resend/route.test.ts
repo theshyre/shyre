@@ -206,7 +206,9 @@ describe("Resend webhook — signature verification", () => {
       related_id: "inv-1",
       related_kind: "invoice",
     });
-    recordEventMock.mockResolvedValue(undefined);
+    // Returning true means "newly recorded" — proceed with side
+    // effects (PR2.8 contract).
+    recordEventMock.mockResolvedValue(true);
     const body = JSON.stringify({
       type: "email.delivered",
       created_at: new Date().toISOString(),
@@ -219,6 +221,8 @@ describe("Resend webhook — signature verification", () => {
       "outbox-1",
       "email.delivered",
       expect.objectContaining({ type: "email.delivered" }),
+      // svix-id passed through for idempotency dedup (PR2.8).
+      expect.any(String),
     );
   });
 
@@ -236,7 +240,7 @@ describe("Resend webhook — signature verification", () => {
       related_id: "inv-1",
       related_kind: "invoice",
     });
-    recordEventMock.mockResolvedValue(undefined);
+    recordEventMock.mockResolvedValue(true);
     const id = "msg_rotation";
     const ts = String(Math.floor(Date.now() / 1000));
     const realKey = SECRET.startsWith("whsec_")
@@ -261,6 +265,35 @@ describe("Resend webhook — signature verification", () => {
     const res = await POST(req);
     expect(res.status).toBe(200);
     expect(recordEventMock).toHaveBeenCalled();
+  });
+
+  it("returns 200 ignored when the same svix-id is replayed (dedup)", async () => {
+    // PR2.8: recordEvent returns false to signal "this svix-id
+    // was already ingested." The route must short-circuit + skip
+    // the customer-flag side effects so a Resend retry doesn't
+    // slide the bounced_at timestamp forward.
+    adminClient = buildAdmin({
+      id: "outbox-1",
+      team_id: "team-1",
+      related_id: "inv-1",
+      related_kind: "invoice",
+    });
+    recordEventMock.mockResolvedValue(false);
+    const body = JSON.stringify({
+      type: "email.bounced",
+      data: {
+        email_id: "msg-from-resend",
+        bounce: { message: "Mailbox full" },
+      },
+    });
+    const req = signedRequest(body);
+    const res = await POST(req);
+    expect(res.status).toBe(200);
+    const j = (await res.json()) as { ignored?: string };
+    expect(j.ignored).toBe("duplicate svix-id");
+    // Side effect (admin update on customers row) should NOT
+    // have run — assert no UPDATE was issued after the dedup.
+    expect(adminUpdateMock).not.toHaveBeenCalled();
   });
 
   it("returns 200 ignored when the email_id is missing", async () => {

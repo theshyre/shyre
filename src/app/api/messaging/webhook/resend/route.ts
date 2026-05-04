@@ -113,7 +113,20 @@ export async function POST(request: Request): Promise<Response> {
   }
 
   try {
-    await recordEvent(row.id as string, payload.type, payload);
+    // recordEvent returns false when this svix-id was already
+    // ingested — a Resend retry of the same logical delivery.
+    // Skip the downstream side effects in that case so the
+    // customer's bounced_at timestamp doesn't slide forward and
+    // the activity log doesn't pick up a duplicate event row.
+    const fresh = await recordEvent(
+      row.id as string,
+      payload.type,
+      payload,
+      sigId,
+    );
+    if (!fresh) {
+      return NextResponse.json({ ok: true, ignored: "duplicate svix-id" });
+    }
 
     // Side effects on hard bounce / complaint: flag the customer
     // so future sends skip them by default. Solo-consultant view:

@@ -237,16 +237,35 @@ export async function recordEvent(
   outboxId: string,
   eventType: string,
   payload: unknown,
-): Promise<void> {
+  /** Optional svix-id for idempotent retry handling. When present
+   *  the row is upserted on (svix_id) so a duplicate webhook
+   *  delivery doesn't double-insert. Returns true when the event
+   *  was newly recorded, false when the svix_id was already
+   *  present (the caller should skip downstream side effects in
+   *  that case). */
+  svixId?: string | null,
+): Promise<boolean> {
   const supabase = createAdminClient();
-  await supabase.from("message_outbox_events").insert({
+  const { error } = await supabase.from("message_outbox_events").insert({
     outbox_id: outboxId,
     event_type: eventType,
     payload,
+    svix_id: svixId ?? null,
   });
 
+  // 23505 = unique-constraint violation. With the partial unique
+  // index on svix_id, a retry of the same webhook delivery lands
+  // here. That's the dedupe — return false so the caller skips
+  // the downstream status flip + customer-flag side effects.
+  if (error?.code === "23505") {
+    return false;
+  }
+  if (error) {
+    throw error;
+  }
+
   const next = mapEventToStatus(eventType);
-  if (!next) return;
+  if (!next) return true;
 
   const updates: Record<string, unknown> = {
     status: next.status,
@@ -263,6 +282,7 @@ export async function recordEvent(
     .from("message_outbox")
     .update(updates)
     .eq("id", outboxId);
+  return true;
 }
 
 /** Map provider event types to our internal status enum. Returns
@@ -336,11 +356,18 @@ export async function assertFromDomainAllowed(
   const at = fromEmail.lastIndexOf("@");
   if (at < 0) throw new Error("From address has no domain.");
   const domain = fromEmail.slice(at + 1).toLowerCase();
+  // .eq instead of .ilike — the domain string is user-derived
+  // (from `from_email`), and PostgREST's .ilike treats `%` and
+  // `_` as wildcards. A from_email of `x@%.com` would match any
+  // `.com`-ending verified domain, which is small (the team's
+  // own verified domains only) but a string-injection smell.
+  // The verification flow stores domains in lowercase already;
+  // we lowercased the slice above. SAL-022.
   const { data } = await supabase
     .from("verified_email_domains")
     .select("id, status")
     .eq("team_id", teamId)
-    .ilike("domain", domain)
+    .eq("domain", domain)
     .maybeSingle();
   if (!data || data.status !== "verified") {
     throw new Error(

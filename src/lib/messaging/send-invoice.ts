@@ -86,8 +86,18 @@ export async function sendInvoice(
     throw new Error("Email API key could not be decrypted.");
   }
 
-  const fromEmail =
+  // sanitizeHeaderValue strips CR/LF + control chars before any
+  // value reaches the provider envelope. Today the JSON transport
+  // to Resend prevents header-injection in practice, but pinning
+  // the value at our perimeter is defense in depth (SAL-020) — a
+  // future provider that takes raw SMTP wouldn't have the same
+  // safety net. Apply to from / from-name / reply-to symmetrically;
+  // recipients (To / Cc / Bcc) go through validateRecipient below
+  // which rejects any address with newline characters via the
+  // EMAIL_RE regex, closing the same vector for them.
+  const fromEmailRaw =
     input.fromEmailOverride?.trim() || cfg.fromEmail || "";
+  const fromEmail = sanitizeHeaderValue(fromEmailRaw);
   if (!fromEmail) {
     throw new Error("From address is not set. Visit /settings/email.");
   }
@@ -129,8 +139,18 @@ export async function sendInvoice(
   //    enforces, but we don't trust the provider alone).
   await assertFromDomainAllowed(supabase, input.teamId, fromEmail);
 
-  // 4. Daily cap
-  const quota = await consumeDailyQuota(supabase, input.teamId);
+  // 4. Daily cap. Count envelopes (unique To + Cc + Bcc), not
+  // sends, so a 5-recipient invoice burns 5 cap slots — the same
+  // grain Resend bills on. SAL-021.
+  const recipientCount =
+    input.toEmails.length +
+    (input.ccEmails?.length ?? 0) +
+    (input.bccEmails?.length ?? 0);
+  const quota = await consumeDailyQuota(
+    supabase,
+    input.teamId,
+    recipientCount,
+  );
   if (!quota.allowed) {
     if (quota.reason === "no_config") {
       throw new Error("Email is not configured for this team.");
