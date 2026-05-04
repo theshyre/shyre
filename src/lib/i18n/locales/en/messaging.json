@@ -10,8 +10,9 @@
     "kek": {
       "title": "Master encryption key configured",
       "detailOk": "EMAIL_KEY_ENCRYPTION_KEY is set in this deployment.",
-      "detailTodo": "Add a 32-byte hex key (openssl rand -hex 32) to Vercel as EMAIL_KEY_ENCRYPTION_KEY, then redeploy.",
-      "cta": "How to set the master key →"
+      "detailTodo": "Open /system/deploy → Provision encryption key. Shyre generates a fresh 32-byte hex key, writes it to Vercel for every environment, and triggers a redeploy.",
+      "detailSystem": "Set up by your Shyre administrator. Until this is configured, API keys can't be saved on this team. (Owner / admin of the Shyre instance — check the System sidebar entry.)",
+      "cta": "Provision encryption key →"
     },
     "apiKey": {
       "title": "Resend API key saved",
@@ -38,7 +39,8 @@
       "title": "Resend webhook secret configured",
       "detailOk": "RESEND_WEBHOOK_SECRET is set; delivered/bounced events will update invoice status.",
       "detailTodo": "Create a webhook in Resend dashboard, copy the whsec_… signing secret, then paste it into /system/deploy → Resend webhook secret. Shyre writes it to Vercel and redeploys for you.",
-      "cta": "How to set the webhook secret →"
+      "detailSystem": "Set up by your Shyre administrator. Without it, invoices still send but Shyre can't display delivered / bounced status from Resend webhooks.",
+      "cta": "Set webhook secret →"
     },
     "test": {
       "title": "Test send confirmed",

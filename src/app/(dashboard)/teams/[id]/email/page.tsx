@@ -4,6 +4,7 @@ import { getTranslations } from "next-intl/server";
 import { notFound } from "next/navigation";
 import { Mail } from "lucide-react";
 import { validateTeamAccess } from "@/lib/team-context";
+import { isSystemAdmin } from "@/lib/system-admin";
 import { EmailConfigForm } from "./email-config-form";
 import { DomainVerification } from "./domain-verification";
 import { TemplateEditor } from "./template-editor";
@@ -124,6 +125,7 @@ export default async function TeamEmailSettingsPage({
         apiKeySaved={hasApiKey}
         fromAddressSet={fromAddressSet}
         domainVerified={domainVerified}
+        viewerIsSystemAdmin={await isSystemAdmin()}
       />
 
       <div id="config" />

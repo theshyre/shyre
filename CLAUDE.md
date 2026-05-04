@@ -135,6 +135,7 @@ Runs `lint && typecheck && test:coverage`. Run before every commit that adds pro
 - **Validate at system boundaries** — server actions validate with Zod or equivalent.
 - **CORS / auth defaults restrictive** — fail closed.
 - **GitHub tokens** (`user_settings.github_token`) are secrets — never log, never return in list queries.
+- **Roles & permissions** → `docs/reference/roles-and-permissions.md` — the canonical capability matrix for system admin × team owner / admin / member, including the `isTeamAdmin(role)` predicate (use it instead of inline literal checks) and the four enforcement layers (UI, server action, RLS, DB constraint).
 
 ### Error logging — MANDATORY
 

@@ -10,8 +10,9 @@
     "kek": {
       "title": "Clave maestra de cifrado configurada",
       "detailOk": "EMAIL_KEY_ENCRYPTION_KEY está configurada en este despliegue.",
-      "detailTodo": "Añade una clave de 32 bytes en hex (openssl rand -hex 32) a Vercel como EMAIL_KEY_ENCRYPTION_KEY y vuelve a desplegar.",
-      "cta": "Cómo configurar la clave maestra →"
+      "detailTodo": "Abre /system/deploy → Provisionar clave de cifrado. Shyre genera una clave de 32 bytes en hex, la escribe en Vercel para todos los entornos y dispara un redeploy.",
+      "detailSystem": "Lo configura el administrador de tu instancia de Shyre. Hasta entonces, no se pueden guardar claves de API en este equipo.",
+      "cta": "Provisionar clave de cifrado →"
     },
     "apiKey": {
       "title": "Clave de API de Resend guardada",
@@ -38,7 +39,8 @@
       "title": "Secreto de webhook de Resend configurado",
       "detailOk": "RESEND_WEBHOOK_SECRET está configurado; los eventos delivered/bounced actualizarán el estado de la factura.",
       "detailTodo": "Crea un webhook en el panel de Resend, copia el secreto whsec_… y pégalo en /system/deploy → Secreto del webhook de Resend. Shyre lo escribe en Vercel y redespliega por ti.",
-      "cta": "Cómo configurar el secreto del webhook →"
+      "detailSystem": "Lo configura el administrador de tu instancia de Shyre. Sin él, los correos se siguen enviando pero Shyre no puede mostrar el estado entregado / rebotado de los webhooks de Resend.",
+      "cta": "Configurar secreto del webhook →"
     },
     "test": {
       "title": "Envío de prueba confirmado",
