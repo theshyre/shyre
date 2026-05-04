@@ -44,6 +44,11 @@ import {
   ALLOWED_COMPENSATION_SCHEDULES,
 } from "@/app/(dashboard)/business/people-allow-lists";
 import { ALLOWED_INVOICE_GROUPING_MODES } from "@/app/(dashboard)/invoices/allow-lists";
+import {
+  ALLOWED_OUTBOX_STATUS,
+  ALLOWED_RELATED_KINDS,
+  ALLOWED_DOMAIN_STATUS,
+} from "@/lib/messaging/allow-lists";
 
 const MIGRATIONS_DIR = join(process.cwd(), "supabase", "migrations");
 
@@ -65,21 +70,54 @@ function readMigrationsInOrder(): string {
  *   CHECK (col IN ('a','b'))
  *   CHECK (col IS NULL OR col IN ('a','b'))
  *   col TEXT CHECK (col IN (...))   (inline in CREATE TABLE)
+ *
+ * `table`, when given, scopes the search to the body of that CREATE
+ * TABLE statement — necessary when multiple tables share a column
+ * name (`status` lives on projects, invoices, import_runs,
+ * verified_email_domains, AND message_outbox; without scoping the
+ * test would compare every status-bearing app set against the
+ * latest-defined CHECK only).
  */
-function extractCheckValues(sql: string, column: string): Set<string> | null {
-  // Match CHECK( ... col IN ( 'a', 'b', ... ) ... ) where the col name
-  // appears before the IN (...) literal list. Non-greedy so nested parens
-  // don't eat too much.
+function extractCheckValues(
+  sql: string,
+  column: string,
+  table?: string,
+): Set<string> | null {
+  // Narrow to the table's CREATE TABLE body when a table is given.
+  // The body runs from `CREATE TABLE [IF NOT EXISTS] [schema.]table (`
+  // to the matching closing `);`. Matching a balanced paren in regex
+  // is gnarly, so we walk the string after the open paren counting
+  // depth and stop at the close — same algorithm Postgres' own
+  // tokenizer uses, just simpler.
+  let scoped = sql;
+  if (table) {
+    const headerRe = new RegExp(
+      String.raw`CREATE\s+TABLE\s+(?:IF\s+NOT\s+EXISTS\s+)?(?:public\.)?` +
+        table +
+        String.raw`\s*\(`,
+      "i",
+    );
+    const headerMatch = headerRe.exec(sql);
+    if (!headerMatch) return null;
+    let depth = 1;
+    let i = headerMatch.index + headerMatch[0].length;
+    const start = i;
+    while (i < sql.length && depth > 0) {
+      const ch = sql[i];
+      if (ch === "(") depth++;
+      else if (ch === ")") depth--;
+      i++;
+    }
+    scoped = sql.slice(start, i - 1);
+  }
   const pattern = new RegExp(
-    // Literal \b word boundary around the column name; allow optional schema
-    // prefix like `table.col` or just `col`.
     String.raw`CHECK\s*\(\s*(?:[^()]*?\b)` +
       column +
       String.raw`\b[^()]*?\bIN\s*\(\s*((?:'[^']*'\s*,?\s*)+)\s*\)\s*\)`,
     "gi",
   );
   let lastMatch: RegExpExecArray | null = null;
-  for (const m of sql.matchAll(pattern)) lastMatch = m as RegExpExecArray;
+  for (const m of scoped.matchAll(pattern)) lastMatch = m as RegExpExecArray;
   if (!lastMatch) return null;
   const values = lastMatch[1]!.match(/'([^']*)'/g)!.map((s) =>
     s.slice(1, -1),
@@ -91,6 +129,10 @@ interface Pair {
   name: string;
   appSet: Set<string>;
   column: string;
+  /** Optional CREATE TABLE name to disambiguate when multiple
+   *  tables share a column name (`status` is the canonical
+   *  example — see `extractCheckValues`). */
+  table?: string;
 }
 
 const PAIRS: Pair[] = [
@@ -157,6 +199,29 @@ const PAIRS: Pair[] = [
     appSet: ALLOWED_INVOICE_GROUPING_MODES,
     column: "grouping_mode",
   },
+  // Messaging allow-list ↔ CHECK parity: catches drift between the
+  // TS unions used by callers (OutboxStatus, RelatedKind) and the
+  // CHECK constraints on message_outbox / verified_email_domains.
+  // `status` is shared across multiple tables; table scoping is
+  // required to compare each app set against the right CHECK.
+  {
+    name: "outboxStatus",
+    appSet: new Set(ALLOWED_OUTBOX_STATUS),
+    column: "status",
+    table: "message_outbox",
+  },
+  {
+    name: "relatedKinds",
+    appSet: new Set(ALLOWED_RELATED_KINDS),
+    column: "related_kind",
+    table: "message_outbox",
+  },
+  {
+    name: "domainStatus",
+    appSet: new Set(ALLOWED_DOMAIN_STATUS),
+    column: "status",
+    table: "verified_email_domains",
+  },
 ];
 
 describe("DB parity", () => {
@@ -164,10 +229,12 @@ describe("DB parity", () => {
 
   for (const pair of PAIRS) {
     it(`${pair.name}: ALLOWED_* matches the CHECK constraint on ${pair.column}`, () => {
-      const dbSet = extractCheckValues(sql, pair.column);
+      const dbSet = extractCheckValues(sql, pair.column, pair.table);
       expect(
         dbSet,
-        `No CHECK ... ${pair.column} IN (...) found in migrations`,
+        `No CHECK ... ${pair.column} IN (...) found in migrations${
+          pair.table ? ` for table ${pair.table}` : ""
+        }`,
       ).not.toBeNull();
       // Compare set contents — order-independent, duplicates collapsed.
       expect(

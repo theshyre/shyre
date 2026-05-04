@@ -375,3 +375,42 @@ export async function assertFromDomainAllowed(
     );
   }
 }
+
+/**
+ * Sweep rows stuck in `status='sending'` past the cutoff and flip
+ * them to `failed_retryable` so they can be picked up by a future
+ * drainer or a manual re-send.
+ *
+ * Use case: the drain path flips status='sending' BEFORE calling
+ * the provider, then flips to 'sent' / 'failed_*' on the result.
+ * If the process dies between those two writes (Vercel timeout,
+ * redeploy mid-flight, hard crash) the row sits in 'sending'
+ * forever with no retry path. Cron this every minute or so to
+ * keep the queue clean.
+ *
+ * Default cutoff is 5 minutes — short enough to catch hangs
+ * quickly, long enough that a slow-but-healthy 30s send isn't
+ * preempted. Adjust per environment.
+ *
+ * Returns the number of rows reaped. Logs each non-zero sweep
+ * so the system admin has a record of why the queue moved.
+ */
+export async function reapStuckOutboxSends(
+  cutoffMinutes: number = 5,
+): Promise<number> {
+  const supabase = createAdminClient();
+  const { data, error } = await supabase.rpc("reap_stuck_outbox_sends", {
+    p_cutoff_minutes: cutoffMinutes,
+  });
+  if (error) {
+    logError(error, { action: "messaging.reap_stuck_outbox_sends" });
+    throw new Error(`Failed to reap stuck outbox sends: ${error.message}`);
+  }
+  const count = Number(data ?? 0);
+  if (count > 0) {
+    logError(new Error(`Reaped ${count} stuck outbox row(s)`), {
+      action: "messaging.reap_stuck_outbox_sends",
+    });
+  }
+  return count;
+}
