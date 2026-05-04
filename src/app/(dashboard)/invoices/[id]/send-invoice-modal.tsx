@@ -275,12 +275,25 @@ export function SendInvoiceModal(props: Props): React.JSX.Element | null {
                   </label>
                   <input
                     id="to_email"
-                    type="email"
+                    // Plain text — `type="email"` rejects comma-separated
+                    // addresses (only accepts a single mailbox), but a
+                    // customer with two co-owners legitimately wants
+                    // both on the To: line. Server-side validation
+                    // splits and per-address-validates.
+                    type="text"
                     required
                     value={to}
                     onChange={(e) => setTo(e.target.value)}
                     className={inputClass}
+                    placeholder="customer@example.com"
+                    aria-describedby="to_email_hint"
                   />
+                  <p
+                    id="to_email_hint"
+                    className="mt-1 text-caption text-content-muted"
+                  >
+                    {t("toHint")}
+                  </p>
                 </div>
                 <div>
                   <label className={labelClass} htmlFor="cc_emails">

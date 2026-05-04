@@ -176,6 +176,7 @@
     "tabCompose": "Compose",
     "tabPreview": "Preview",
     "to": "To",
+    "toHint": "Comma-separate to send to multiple people on the same message.",
     "cc": "Cc",
     "replyTo": "Reply-To",
     "subject": "Subject",

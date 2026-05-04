@@ -176,6 +176,7 @@
     "tabCompose": "Redactar",
     "tabPreview": "Vista previa",
     "to": "Para",
+    "toHint": "Separa con comas para enviar a varias personas en el mismo correo.",
     "cc": "Cc",
     "replyTo": "Responder a",
     "subject": "Asunto",
