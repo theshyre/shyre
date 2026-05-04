@@ -26,6 +26,10 @@ export async function generateMetadata({
 import { CustomerEditForm } from "./customer-edit-form";
 import { SharingSection } from "./sharing-section";
 import { PermissionsSection } from "./permissions-section";
+import {
+  ContactsSection,
+  type ContactRow,
+} from "./contacts-section";
 
 interface ShareRow {
   id: string;
@@ -102,6 +106,23 @@ export default async function ClientDetailPage({
     p_customer_id: id,
   });
   const userCanAdmin = permLevel === "admin";
+
+  // Customer contacts. Read is open to any team member; the
+  // canManage gate (owner/admin of the customer's team) decides
+  // whether the affordances render.
+  const { data: contactsData } = await supabase
+    .from("customer_contacts")
+    .select("id, name, email, role_label, is_invoice_recipient")
+    .eq("customer_id", id)
+    .order("is_invoice_recipient", { ascending: false })
+    .order("created_at", { ascending: true });
+  const contacts: ContactRow[] = (contactsData ?? []).map((c) => ({
+    id: c.id as string,
+    name: c.name as string,
+    email: c.email as string,
+    role_label: (c.role_label as string | null) ?? null,
+    is_invoice_recipient: Boolean(c.is_invoice_recipient),
+  }));
 
   // User's teams (for available teams & primary change)
   const userOrgs = await getUserTeams();
@@ -285,6 +306,12 @@ export default async function ClientDetailPage({
       <div className="mt-6">
         <CustomerEditForm client={client} />
       </div>
+
+      <ContactsSection
+        customerId={id}
+        contacts={contacts}
+        canManage={userCanAdmin}
+      />
 
       <div className="mt-8">
         <div className="flex items-center gap-3">

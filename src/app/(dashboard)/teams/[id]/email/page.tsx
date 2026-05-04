@@ -26,8 +26,6 @@ Customer: %customer_name%
 Amount: %invoice_amount%
 Due: %invoice_due_date% (%invoice_payment_terms%)
 
-You can also view the invoice online: %invoice_url%
-
 Thanks,
 %company_name%`,
 };

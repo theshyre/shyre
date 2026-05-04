@@ -61,12 +61,12 @@ export const TEMPLATE_VARIABLES: ReadonlyArray<VariableSpec> = [
     description: "Frozen label like \"Net 30\" or \"Due on receipt\"",
     kinds: ALL_KINDS,
   },
-  {
-    key: "invoice_url",
-    label: "Invoice link",
-    description: "Hosted page link the customer can open in any browser",
-    kinds: ALL_KINDS,
-  },
+  // `invoice_url` is reserved for Phase 1.5 (hosted invoice page).
+  // The variable is intentionally omitted from the catalog until
+  // the page exists — listing it here would let users compose a
+  // template with a token that renders as the literal string
+  // "%invoice_url%" in the customer's inbox. See
+  // docs/reference/roadmap.md → Messaging Phase 1.5.
   {
     key: "customer_name",
     label: "Customer name",

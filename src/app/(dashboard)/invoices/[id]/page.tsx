@@ -75,12 +75,34 @@ export default async function InvoiceDetailPage({
   const { data: invoice } = await supabase
     .from("invoices")
     .select(
-      "*, customers(name, email, address, show_country_on_invoice)",
+      "*, customers(id, name, email, address, show_country_on_invoice)",
     )
     .eq("id", id)
     .single();
 
   if (!invoice) notFound();
+
+  // Recipient resolution: prefer the customer's flagged invoice-
+  // recipient contact, fall back to customers.email (Phase-1
+  // behavior). The send modal's `defaultTo` consumes this — the
+  // user can still edit the To: field if they want to send to a
+  // different person on the fly. customer_contacts RLS scopes to
+  // the team; member viewers see [] which is fine, the fallback
+  // covers them.
+  const customerIdForContacts =
+    invoice.customers &&
+    typeof invoice.customers === "object" &&
+    "id" in invoice.customers
+      ? ((invoice.customers as { id: string }).id ?? null)
+      : null;
+  const { data: recipientContact } = customerIdForContacts
+    ? await supabase
+        .from("customer_contacts")
+        .select("name, email")
+        .eq("customer_id", customerIdForContacts)
+        .eq("is_invoice_recipient", true)
+        .maybeSingle()
+    : { data: null };
 
   // Line items, history, payments, and entry-authors-on-this-invoice
   // are independent reads — fire them in parallel rather than
@@ -323,8 +345,6 @@ Customer: %customer_name%
 Amount: %invoice_amount%
 Due: %invoice_due_date% (%invoice_payment_terms%)
 
-You can also view the invoice online: %invoice_url%
-
 Thanks,
 %company_name%`;
 
@@ -407,7 +427,11 @@ Thanks,
           <SendInvoiceButton
             teamId={invoice.team_id as string}
             invoiceId={invoice.id as string}
-            defaultTo={client?.email ?? ""}
+            defaultTo={
+              (recipientContact?.email as string | null) ??
+              client?.email ??
+              ""
+            }
             defaultFromEmail={fromEmail}
             defaultFromName={
               (emailConfig?.from_name as string | null) ?? null
