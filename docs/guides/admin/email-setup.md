@@ -23,23 +23,17 @@ Bring-your-own API key is intentional. The `From:` address is *your* domain; you
 
 ### 1. Master encryption key (one time, per Shyre instance)
 
-Shyre encrypts every team's stored Resend API key using AES-256-GCM. The master key (KEK) lives in your deployment's environment variables. Generate one:
+Shyre encrypts every team's stored Resend API key using AES-256-GCM. The master key (KEK) lives in your deployment's environment variables. **Shyre generates and pushes this for you** — no manual `openssl` + Vercel-dashboard hop.
 
-```sh
-openssl rand -hex 32
-```
+In Shyre:
 
-Add it to Vercel:
+- Sidebar → System → **Deployment** (`/system/deploy`) — connect Vercel first if you haven't (paste API token + project ID; see [Deployment automation](deployment.md))
+- Under "Master encryption key" → click **Provision encryption key**
+- Shyre generates a fresh 32-byte hex key, writes it to Vercel as `EMAIL_KEY_ENCRYPTION_KEY` for Production / Preview / Development, and triggers a redeploy
 
-- Vercel dashboard → your project → Settings → Environment Variables
-- Name: `EMAIL_KEY_ENCRYPTION_KEY`
-- Value: the hex string from `openssl`
-- Apply to: **Production** + **Preview** + **Development**
-- Save → trigger a redeploy
-
-> ⚠️ **Lose this key and every stored API key becomes unrecoverable garbage.** Users have to re-paste their keys. Store the value somewhere durable (your password manager) before pasting it into Vercel.
+> ⚠️ **Lose this key and every stored API key becomes unrecoverable garbage.** Users have to re-paste their keys. Once provisioned, the key lives only in Vercel — Shyre never stores it. Rotating it (the same panel after first provision) wipes out every existing API key, so don't rotate casually.
 >
-> **Do NOT share the key between dev and prod.** Use different keys for `Development` / `Preview` / `Production` so dev data and prod data are mutually unreadable.
+> **Manual fallback (rarely needed)**: if you'd rather generate the key yourself, `openssl rand -hex 32` produces the right value; paste it as `EMAIL_KEY_ENCRYPTION_KEY` in Vercel for all three environments and redeploy. Use *different* keys for Development / Preview / Production so dev data and prod data stay mutually unreadable.
 
 ### 2. Resend API key (one time, per business)
 
@@ -111,17 +105,21 @@ That way invoice email and human email come from visibly different senders, but 
 
 Resend sends Shyre webhooks when an invoice email is delivered, bounces, or gets a complaint. Shyre verifies the signature so an attacker can't forge "delivered" events.
 
+In Resend:
+
 - Resend dashboard → Webhooks → Add endpoint
 - URL: `https://<your-shyre-domain>/api/messaging/webhook/resend`
 - Events: `email.delivered`, `email.bounced`, `email.complained`
 - Save → copy the signing secret (`whsec_…`)
 
-Add to Vercel:
+In Shyre — **let Shyre push it to Vercel for you** (you don't need to open the Vercel dashboard):
 
-- Name: `RESEND_WEBHOOK_SECRET`
-- Value: the `whsec_…` string
-- Apply to: Production (+ Preview if you test there)
-- Save → redeploy
+- Sidebar → System → **Deployment** (`/system/deploy`)
+- Confirm "Vercel connection saved" is ✓ (you set this up earlier)
+- Under "Resend webhook secret" → paste the `whsec_…` string → **Save & deploy**
+- Shyre writes `RESEND_WEBHOOK_SECRET` to Vercel for Production / Preview / Development and triggers a redeploy via the Deploy Hook
+
+Pasting a new value later replaces the previous one — same flow, no Vercel UI required. If you'd rather set the env var manually, the variable is `RESEND_WEBHOOK_SECRET` and the value is the `whsec_…` string; redeploy after.
 
 ### 5. Save email config in Shyre (one time, per team)
 

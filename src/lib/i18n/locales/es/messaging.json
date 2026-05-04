@@ -37,7 +37,7 @@
     "webhook": {
       "title": "Secreto de webhook de Resend configurado",
       "detailOk": "RESEND_WEBHOOK_SECRET está configurado; los eventos delivered/bounced actualizarán el estado de la factura.",
-      "detailTodo": "Crea un webhook en el panel de Resend, copia el secreto whsec_… a RESEND_WEBHOOK_SECRET en Vercel y redespliega.",
+      "detailTodo": "Crea un webhook en el panel de Resend, copia el secreto whsec_… y pégalo en /system/deploy → Secreto del webhook de Resend. Shyre lo escribe en Vercel y redespliega por ti.",
       "cta": "Cómo configurar el secreto del webhook →"
     },
     "test": {

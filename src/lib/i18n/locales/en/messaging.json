@@ -37,7 +37,7 @@
     "webhook": {
       "title": "Resend webhook secret configured",
       "detailOk": "RESEND_WEBHOOK_SECRET is set; delivered/bounced events will update invoice status.",
-      "detailTodo": "Create a webhook in Resend dashboard, copy the whsec_… signing secret to RESEND_WEBHOOK_SECRET in Vercel, redeploy.",
+      "detailTodo": "Create a webhook in Resend dashboard, copy the whsec_… signing secret, then paste it into /system/deploy → Resend webhook secret. Shyre writes it to Vercel and redeploys for you.",
       "cta": "How to set the webhook secret →"
     },
     "test": {
