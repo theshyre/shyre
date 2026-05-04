@@ -19,6 +19,7 @@ import {
   Play,
 } from "lucide-react";
 import { buttonPrimaryClass } from "@/lib/form-styles";
+import { ExpiringCredentialsBanner } from "@/components/ExpiringCredentialsBanner";
 
 export default async function DashboardPage(): Promise<React.JSX.Element> {
   const supabase = await createClient();
@@ -163,6 +164,13 @@ export default async function DashboardPage(): Promise<React.JSX.Element> {
             {tc("nav.time")}
           </Link>
         </div>
+      </div>
+
+      {/* Credential expiry warnings — hides itself when nothing
+          is expiring within 30 days. RLS scopes which credentials
+          each viewer can see. */}
+      <div className="mt-6">
+        <ExpiringCredentialsBanner />
       </div>
 
       {/* Stat cards */}

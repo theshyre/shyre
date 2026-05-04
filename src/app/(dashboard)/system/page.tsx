@@ -8,6 +8,7 @@ import {
   ListTree,
   Database,
   Cloud,
+  KeyRound,
 } from "lucide-react";
 import { createClient } from "@/lib/supabase/server";
 import { LinkPendingSpinner } from "@/components/LinkPendingSpinner";
@@ -78,6 +79,12 @@ export default async function SystemHubPage(): Promise<React.JSX.Element> {
       description: t("cards.deploy.description"),
       href: "/system/deploy",
       icon: Cloud,
+    },
+    {
+      title: t("cards.credentials.title"),
+      description: t("cards.credentials.description"),
+      href: "/system/credentials",
+      icon: KeyRound,
     },
   ];
 

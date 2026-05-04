@@ -48,6 +48,10 @@
       "deploy": {
         "title": "Despliegue",
         "description": "Conecta Vercel y provisiona los secretos de la instancia (clave de cifrado, secreto del webhook) sin salir de Shyre."
+      },
+      "credentials": {
+        "title": "Credenciales",
+        "description": "Cada token y clave de API que Shyre rastrea, con estado de rotación. El banner del dashboard resalta lo que está por expirar."
       }
     }
   }

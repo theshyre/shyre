@@ -25,6 +25,7 @@ interface Initial {
   signature: string;
   dailyCap: number;
   hasApiKey: boolean;
+  apiKeyExpiresAt: string;
 }
 
 interface Usage {
@@ -98,6 +99,22 @@ export function EmailConfigForm({
           />
           <p className="mt-1 text-caption text-content-muted">
             {t("config.apiKeyHint")}
+          </p>
+        </div>
+
+        <div>
+          <label className={labelClass} htmlFor="api_key_expires_at">
+            {t("config.apiKeyExpiresAt")}
+          </label>
+          <input
+            id="api_key_expires_at"
+            name="api_key_expires_at"
+            type="date"
+            defaultValue={initial.apiKeyExpiresAt}
+            className={`${inputClass} max-w-xs`}
+          />
+          <p className="mt-1 text-caption text-content-muted">
+            {t("config.apiKeyExpiresAtHint")}
           </p>
         </div>
 

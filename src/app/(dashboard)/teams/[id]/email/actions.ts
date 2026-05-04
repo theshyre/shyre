@@ -10,6 +10,7 @@ import {
 } from "@/lib/messaging/encryption";
 import { senderFor } from "@/lib/messaging/providers";
 import { sanitizeHeaderValue, validateRecipient } from "@/lib/messaging/render";
+import { defaultExpiryYear } from "@/lib/credentials/expiry";
 
 /**
  * Owner / admin only — RLS enforces too, but we add an early role
@@ -52,6 +53,12 @@ export async function updateEmailConfigAction(
     const dailyCap = dailyCapRaw
       ? Math.max(0, Math.min(1000, parseInt(dailyCapRaw, 10) || 0))
       : 50;
+    // Optional rotate-by date for the API key. Same autofill
+    // semantics as the Vercel token: when the user pastes a new
+    // key without picking a date, default to today + 365d so the
+    // credential scanner has a reminder to surface in 11 months.
+    const apiKeyExpiresInput =
+      ((formData.get("api_key_expires_at") as string) ?? "").trim() || null;
 
     if (fromEmail && validateRecipient(fromEmail) !== null) {
       throw new Error(`From address ${fromEmail} is not a valid email.`);
@@ -82,6 +89,13 @@ export async function updateEmailConfigAction(
     if (apiKeyRaw) {
       const cipher = await encryptForTeam(supabase, teamId, apiKeyRaw);
       patch.api_key_encrypted = cipher;
+      // Pasting a new key resets the rotate-by clock. If the user
+      // also picked a date, that wins; otherwise default to +1y.
+      patch.api_key_expires_at = apiKeyExpiresInput ?? defaultExpiryYear();
+    } else if (apiKeyExpiresInput !== null) {
+      // No new key, but the user picked a different rotate-by
+      // date — save just that.
+      patch.api_key_expires_at = apiKeyExpiresInput;
     }
 
     assertSupabaseOk(

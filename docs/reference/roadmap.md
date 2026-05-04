@@ -179,6 +179,41 @@ status updates) shipped 2026-05-03. Follow-up phases:
 - **Provider abstraction realized.** Postmark / SES / SendGrid each
   drop into `src/lib/messaging/providers/`. Today only Resend.
 
+## Credential expiration — Phase 2 (proactive reminders)
+
+Phase 1 (in-app surfaces) shipped 2026-05-01: every credential
+Shyre stores (Vercel API token, Resend API key, GitHub PAT, Jira
+API token) carries a rotate-by date, every form autofills today
++ 365 days when a fresh secret is saved without a date, the
+dashboard renders an `<ExpiringCredentialsBanner />` at T-30 / T-7
+/ T-0 / overdue, and `/system/credentials` lists the full set in
+one place. Source of truth for the scan lives in
+`src/lib/credentials/scan.ts`.
+
+Phase 2 layers on out-of-app reminders so the user is warned even
+when they aren't logged in:
+
+- **pg_cron daily sweep** that calls `scanCredentials()` and
+  emits an admin email per item entering the `warning` /
+  `critical` / `expired` band. Same Resend send path the invoice
+  reminders will use, with deduping so the same credential sends
+  at most once per band-transition.
+- **Per-credential snooze.** "Got it, remind me in 30 days"
+  button that bumps `expires_at` forward without confirming the
+  rotation actually happened. Captured separately from
+  `last_rotated_at` so the audit log doesn't lie.
+- **Calendar feed (`/system/credentials.ics`)** the admin can
+  subscribe to from Google Calendar / iCal so the rotate-by date
+  shows in their normal weekly planning.
+- **Slack / webhook notifier (optional).** Same scan hooked into
+  a generic outbound webhook for teams that prefer Slack to
+  email; mirrors the existing receipt-ingestion webhook surface.
+
+Defers because Phase 1 already removes the "Marcus has no idea
+his Vercel token expires Friday" failure mode, and the cron path
+piggybacks cleanly on the Phase 2 invoice-reminder cron once
+that lands.
+
 ## Other deferred work
 
 Smaller items surfaced by persona reviews but not yet promoted to their

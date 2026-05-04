@@ -33,21 +33,32 @@ Click **Create**. Vercel shows the token value **once** — copy it now into a p
 
 ### 2. Project ID
 
-Open your Shyre project in Vercel → **Settings** → **General** → scroll to **Project ID**. Copy the value — it starts with `prj_…`.
+1. Go to **vercel.com → Dashboard** (the main page after login).
+2. Click your **Shyre project** in the project list.
+3. Click the **Settings** tab in the project's top nav (between *Deployments* and *Logs*).
+4. The **General** sub-page is the default landing — scroll to **Project ID** in the right column. Copy the value — it starts with `prj_…`.
 
 ### 3. Vercel Team ID *(team / organization accounts only)*
 
 Personal Vercel accounts skip this — leave it blank in Shyre.
 
-For team accounts: Vercel team page → **Settings** → **General** → **Team ID** (starts with `team_…`). Without it, Shyre's Vercel API calls 404 because team-owned projects aren't reachable from the personal-account scope.
+For team accounts:
+
+1. **vercel.com → top-left team-switcher** → click the team name.
+2. Click **Settings** in the team's top nav.
+3. **General** sub-page → **Team ID** (starts with `team_…`).
+
+Without it, Shyre's Vercel API calls 404 because team-owned projects aren't reachable from the personal-account scope.
 
 ### 4. Deploy hook URL
 
-Vercel project → **Settings** → **Git** → scroll to **Deploy Hooks** → **Create Hook**.
-
-- **Name** — e.g. `Shyre env push`.
-- **Branch** — your production branch (usually `main`).
-- Click **Create Hook**, then **copy the resulting URL**. It looks like `https://api.vercel.com/v1/integrations/deploy/prj_…/…`.
+1. Same Vercel project as step 2 → **Settings** tab.
+2. In the Settings left sidebar, click **Git** (under "Project").
+3. Scroll to the **Deploy Hooks** section near the bottom.
+4. Click **Create Hook**.
+   - **Name** — e.g. `Shyre env push`.
+   - **Git Branch Name** — your production branch (usually `main`).
+5. Click **Create Hook**, then **copy the resulting URL**. It looks like `https://api.vercel.com/v1/integrations/deploy/prj_…/…`.
 
 ⚠️ **The URL itself is the secret.** Anyone who has it can trigger a redeploy of your project. Treat it like a password — don't paste it in Slack or commit it. If it ever leaks, delete the hook from this same page and create a new one.
 

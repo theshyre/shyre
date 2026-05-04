@@ -6,6 +6,7 @@ import { revalidatePath } from "next/cache";
 import { randomBytes } from "node:crypto";
 import { isSystemAdmin } from "@/lib/system-admin";
 import { deployProviderFor } from "@/lib/deploy";
+import { defaultExpiryYear } from "@/lib/credentials/expiry";
 
 /**
  * Save the deployment-provider connection (Vercel API token,
@@ -28,6 +29,15 @@ export async function updateDeployConfigAction(
       ((formData.get("vercel_team_id") as string) ?? "").trim() || null;
     const deployHookUrl =
       ((formData.get("deploy_hook_url") as string) ?? "").trim() || null;
+    // Optional rotate-by date for the API token. When the user
+    // pastes a new token and leaves the date blank, default to
+    // today + 365d so the credential scanner has *something* to
+    // surface 11 months from now ("plan rotation"). Existing
+    // rows whose date is set are preserved through the upsert.
+    const apiTokenExpiresInput =
+      ((formData.get("api_token_expires_at") as string) ?? "").trim() ||
+      null;
+    const apiTokenExpiresAt = apiTokenExpiresInput ?? defaultExpiryYear();
 
     if (!apiToken) throw new Error("Vercel API token is required.");
     if (!projectId) throw new Error("Vercel project ID is required.");
@@ -64,6 +74,7 @@ export async function updateDeployConfigAction(
           project_id: projectId,
           vercel_team_id: vercelTeamId,
           deploy_hook_url: deployHookUrl,
+          api_token_expires_at: apiTokenExpiresAt,
           last_synced_at: new Date().toISOString(),
         },
         { onConflict: "id" },

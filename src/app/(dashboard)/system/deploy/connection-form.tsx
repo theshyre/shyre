@@ -14,6 +14,7 @@ interface Props {
     projectId: string;
     vercelTeamId: string;
     deployHookUrl: string;
+    apiTokenExpiresAt: string;
   };
 }
 
@@ -57,6 +58,22 @@ export function DeployConnectionForm({ initial }: Props): React.JSX.Element {
           />
           <p className="mt-1 text-caption text-content-muted">
             {t("connection.apiTokenHint")}
+          </p>
+        </div>
+
+        <div>
+          <label className={labelClass} htmlFor="api_token_expires_at">
+            {t("connection.apiTokenExpiresAt")}
+          </label>
+          <input
+            id="api_token_expires_at"
+            name="api_token_expires_at"
+            type="date"
+            defaultValue={initial.apiTokenExpiresAt}
+            className={`${inputClass} max-w-xs`}
+          />
+          <p className="mt-1 text-caption text-content-muted">
+            {t("connection.apiTokenExpiresAtHint")}
           </p>
         </div>
 

@@ -30,7 +30,7 @@ export default async function SystemDeployPage(): Promise<React.JSX.Element> {
   const { data: cfg } = await supabase
     .from("instance_deploy_config")
     .select(
-      "provider, api_token, project_id, vercel_team_id, deploy_hook_url, last_synced_at",
+      "provider, api_token, project_id, vercel_team_id, deploy_hook_url, api_token_expires_at, last_synced_at",
     )
     .eq("id", 1)
     .maybeSingle();
@@ -89,6 +89,8 @@ export default async function SystemDeployPage(): Promise<React.JSX.Element> {
         initial={{
           apiTokenSet: Boolean(cfg?.api_token),
           projectId: (cfg?.project_id as string | null) ?? "",
+          apiTokenExpiresAt:
+            (cfg?.api_token_expires_at as string | null) ?? "",
           vercelTeamId: (cfg?.vercel_team_id as string | null) ?? "",
           deployHookUrl: (cfg?.deploy_hook_url as string | null) ?? "",
         }}

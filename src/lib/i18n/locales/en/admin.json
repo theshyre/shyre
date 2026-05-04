@@ -48,6 +48,10 @@
       "deploy": {
         "title": "Deployment",
         "description": "Connect Vercel and provision instance secrets (encryption key, webhook secret) without leaving Shyre."
+      },
+      "credentials": {
+        "title": "Credentials",
+        "description": "Every API token + key Shyre tracks, with rotate-by status. Banner on the dashboard surfaces anything expiring soon."
       }
     }
   }

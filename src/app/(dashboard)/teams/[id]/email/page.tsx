@@ -51,7 +51,7 @@ export default async function TeamEmailSettingsPage({
       supabase
         .from("team_email_config")
         .select(
-          "from_email, from_name, reply_to_email, signature, daily_cap, daily_sent_count, daily_window_starts_at, api_key_encrypted",
+          "from_email, from_name, reply_to_email, signature, daily_cap, daily_sent_count, daily_window_starts_at, api_key_encrypted, api_key_expires_at",
         )
         .eq("team_id", teamId)
         .maybeSingle(),
@@ -138,6 +138,7 @@ export default async function TeamEmailSettingsPage({
           signature: (config?.signature as string | null) ?? "",
           dailyCap: Number(config?.daily_cap ?? 50),
           hasApiKey,
+          apiKeyExpiresAt: (config?.api_key_expires_at as string | null) ?? "",
         }}
         usage={{
           dailySent: Number(config?.daily_sent_count ?? 0),
