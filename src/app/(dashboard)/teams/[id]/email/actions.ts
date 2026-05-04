@@ -248,6 +248,13 @@ export async function verifyEmailDomainAction(
         .eq("id", domainId),
     );
 
+    // ALWAYS revalidate before branching — every path here mutated
+    // the row, so the client must re-render against fresh server
+    // data. Putting revalidate inside individual branches misses
+    // the throw paths and the user sees stale state until they
+    // reload (which they should never have to do).
+    revalidatePath(`/teams/${teamId}/email`);
+
     // Branch on the post-refresh state so the UI can show
     // something more useful than the generic "Status refreshed."
     // toast. A still-pending result after a manual verify click
@@ -276,8 +283,6 @@ export async function verifyEmailDomainAction(
     throw AppError.refusal(
       "Still pending. Resend's verifier runs asynchronously, and DNS can take 5–30 minutes to propagate to their side. If you've already confirmed the records via `dig` from a public resolver (1.1.1.1 / 8.8.8.8), this is just a timing gap — wait 30–60 seconds and click Verify again. You don't need to re-add anything.",
     );
-
-    revalidatePath(`/teams/${teamId}/email`);
   }, "verifyEmailDomainAction") as unknown as void;
 }
 
