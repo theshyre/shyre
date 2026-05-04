@@ -22,8 +22,18 @@ If `SUPABASE_SERVICE_ROLE_KEY` is missing at runtime, `/admin/users` and `/admin
 
 These aren't set in Vercel — only on your local machine.
 
+## Required for email-invoice sending
+
+| Variable | Used by | Notes |
+|---|---|---|
+| `EMAIL_KEY_ENCRYPTION_KEY` | `src/lib/messaging/encryption.ts` | **Secret.** 32-byte hex (generate with `openssl rand -hex 32`). Master key for envelope encryption — wraps every team's per-team data key. **Never lose** — losing it makes every stored Resend API key unrecoverable. Set per-tier; do NOT share the same value across dev / preview / prod. |
+| `RESEND_WEBHOOK_SECRET` | `src/app/api/messaging/webhook/resend/route.ts` | **Secret.** `whsec_…` from Resend dashboard → Webhooks. HMAC-SHA256 verifies every incoming webhook payload. Without it, the endpoint returns 500 and delivered/bounced status never updates. |
+
+Both can be provisioned automatically from `/system/deploy` if you've connected Vercel — Shyre generates the master key, posts both env vars to your project, and triggers a redeploy. See [Email setup](email-setup.md) and [Deployment automation](deployment.md).
+
 ## Optional
 
+- `NEXT_PUBLIC_APP_URL` — base URL of this Shyre deployment (e.g. `https://shyre.malcom.io`). Used by the messaging renderer to build the `%invoice_url%` link in invoice email bodies. When unset, the placeholder renders as empty.
 - `GITHUB_TOKEN` — at the user level (stored in `user_settings.github_token`). Not a process env var.
 
 ## Where to set them
