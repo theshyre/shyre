@@ -5,14 +5,19 @@ import { useRouter, usePathname, useSearchParams } from "next/navigation";
 import { useTranslations } from "next-intl";
 import { kbdClass } from "@/lib/form-styles";
 
-export type TimeView = "day" | "week";
+export type TimeView = "day" | "week" | "log";
 
 interface Props {
   view: TimeView;
 }
 
 /**
- * Segmented control: Day | Week. Updates `?view=` in URL.
+ * Segmented control: Log | Day | Week. Updates `?view=` in URL.
+ *
+ * Log is the new running-log preview (date-banded vertical scroll).
+ * Day and Week stay in place — Log doesn't replace either yet, per
+ * the unified-time.md phasing (Phase 3 retires Day; we're in Phase 2
+ * preview-quality territory).
  */
 export function ViewToggle({ view }: Props): React.JSX.Element {
   const router = useRouter();
@@ -30,6 +35,12 @@ export function ViewToggle({ view }: Props): React.JSX.Element {
       }
       // Also clear interval-related params that wouldn't make sense after switch
       params.delete("interval");
+      // windowDays is Log-only; clear it when leaving so a Day/Week
+      // view doesn't carry stale state, and clear it on entering Log
+      // too so we always start at the default 14-day window.
+      if (next !== "log") {
+        params.delete("windowDays");
+      }
       router.push(`${pathname}?${params.toString()}`);
     },
     [router, pathname, searchParams],
@@ -58,6 +69,9 @@ export function ViewToggle({ view }: Props): React.JSX.Element {
       } else if (k === "w") {
         e.preventDefault();
         setView("week");
+      } else if (k === "l") {
+        e.preventDefault();
+        setView("log");
       }
     }
     window.addEventListener("keydown", handleKey);
@@ -73,6 +87,15 @@ export function ViewToggle({ view }: Props): React.JSX.Element {
 
   return (
     <div className="inline-flex rounded-md border border-edge overflow-hidden">
+      <button
+        type="button"
+        onClick={() => setView("log")}
+        className={btnClass(view === "log")}
+        aria-pressed={view === "log"}
+      >
+        {t("log")}
+        <kbd className={kbdClass}>L</kbd>
+      </button>
       <button
         type="button"
         onClick={() => setView("day")}

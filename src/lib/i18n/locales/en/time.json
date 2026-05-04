@@ -149,8 +149,17 @@
     "noCategory": "No category"
   },
   "viewToggle": {
+    "log": "Log",
     "day": "Day",
     "week": "Week"
+  },
+  "log": {
+    "preview": "Log view is in preview — bounded to the last 14 days by default. Day and Week stay in place; nothing about your data has changed.",
+    "todayMarker": "Today",
+    "emptyDay": "No entries.",
+    "loadEarlier": "Load earlier 7 days",
+    "loadEarlierCeiling": "Reached the preview window cap (90 days). Use Day or Week for older ranges.",
+    "reset": "Reset to {days, number} days"
   },
   "timesheet": {
     "project": "Project",

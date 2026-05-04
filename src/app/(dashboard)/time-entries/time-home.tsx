@@ -20,6 +20,7 @@ import { ExportButton } from "./export-button";
 import { ViewToggle, type TimeView } from "./view-toggle";
 import { WeekTimesheet } from "./week-timesheet";
 import { DayView } from "./day-view";
+import { LogView } from "./log-view";
 import { NewTimeEntryForm } from "./new-time-entry-form";
 import type { CategoryOption, ProjectOption, TimeEntry } from "./types";
 
@@ -32,12 +33,25 @@ interface TimeHomeProps {
   dayStr: string;
   /** Local date of the Monday of the visible week (YYYY-MM-DD in user's TZ) */
   weekStartStr: string;
+  /** Newest day visible in the Log view (YYYY-MM-DD, user's TZ).
+   *  Defaults to today when `?anchor=` isn't set. */
+  anchorStr: string;
+  /** Today (YYYY-MM-DD, user's TZ). Drives the Log view's Today
+   *  marker — separated from `anchorStr` so jumping back doesn't
+   *  also un-mark today. */
+  todayStr: string;
   /** User's TZ offset in minutes west of UTC */
   tzOffsetMin: number;
   /** Viewer's own user_id — used by week-timesheet to separate own vs. other-member rows */
   currentUserId: string;
   weekEntries: TimeEntry[];
   dayEntries: TimeEntry[];
+  /** Time entries inside the Log view's bounded window. Empty when
+   *  the active view isn't `log` (page.tsx skips the fetch). */
+  logEntries: TimeEntry[];
+  logWindowDays: number;
+  logDefaultWindowDays: number;
+  logMaxWindowDays: number;
   running: TimeEntry | null;
   projects: ProjectOption[];
   recentProjects: ProjectOption[];
@@ -60,10 +74,16 @@ export function TimeHome({
   billableOnly,
   dayStr,
   weekStartStr,
+  anchorStr,
+  todayStr,
   tzOffsetMin,
   currentUserId,
   weekEntries,
   dayEntries,
+  logEntries,
+  logWindowDays,
+  logDefaultWindowDays,
+  logMaxWindowDays,
   running,
   projects,
   recentProjects,
@@ -76,8 +96,17 @@ export function TimeHome({
 }: TimeHomeProps): React.JSX.Element {
   const t = useTranslations("time");
 
-  // Totals for the currently-visible data (week for week view, day for day view)
-  const visibleEntries = view === "day" ? dayEntries : weekEntries;
+  // Totals for the currently-visible data. Log view sums across the
+  // bounded window so the masthead reflects "what you're looking at"
+  // (the design doc calls for this-ISO-week always; we'll narrow to
+  // that once the Log defaults stabilize and the masthead gets a
+  // dedicated "range total" caption — preview keeps it simple).
+  const visibleEntries =
+    view === "day"
+      ? dayEntries
+      : view === "log"
+        ? logEntries
+        : weekEntries;
   const totalMin = sumDurationMin(visibleEntries);
   const billableMin = sumBillableMin(visibleEntries);
   const nonBillableMin = totalMin - billableMin;
@@ -188,7 +217,20 @@ export function TimeHome({
         </div>
       )}
 
-      {view === "day" ? (
+      {view === "log" ? (
+        <LogView
+          anchorStr={anchorStr}
+          todayStr={todayStr}
+          windowDays={logWindowDays}
+          defaultWindowDays={logDefaultWindowDays}
+          maxWindowDays={logMaxWindowDays}
+          tzOffsetMin={tzOffsetMin}
+          entries={logEntries}
+          projects={projects}
+          categories={categories}
+          viewerUserId={currentUserId}
+        />
+      ) : view === "day" ? (
         <DayView
           dayStr={dayStr}
           weekStartStr={weekStartStr}

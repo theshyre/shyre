@@ -104,11 +104,26 @@ interface PageProps {
     anchor?: string;
     billable?: string;
     members?: string;
+    /** Log view only — how many days back from anchor to render.
+     *  Default 14, max 90. Clamped server-side. */
+    windowDays?: string;
   }>;
 }
 
 function asView(v: string | undefined): TimeView {
-  return v === "day" ? "day" : "week";
+  if (v === "day") return "day";
+  if (v === "log") return "log";
+  return "week";
+}
+
+const LOG_DEFAULT_WINDOW_DAYS = 14;
+const LOG_MAX_WINDOW_DAYS = 90;
+
+function parseWindowDays(raw: string | undefined): number {
+  if (!raw) return LOG_DEFAULT_WINDOW_DAYS;
+  const n = parseInt(raw, 10);
+  if (!Number.isFinite(n) || n <= 0) return LOG_DEFAULT_WINDOW_DAYS;
+  return Math.min(n, LOG_MAX_WINDOW_DAYS);
 }
 
 /** URL-param serialization for the members filter. */
@@ -258,6 +273,65 @@ export default async function TimeEntriesPage({
     supabase,
     (rawDayEntries ?? []).map(normalizeEntry),
   );
+
+  // Log entries — fetched only when the Log view is active so day /
+  // week views don't pay for a 14-day scan they won't render. The
+  // window is bounded at LOG_MAX_WINDOW_DAYS days (clamped above) so
+  // a `?windowDays=999` doesn't unleash a full-history scan.
+  // Cursor pagination would be Phase 2; for the preview the bounded
+  // range is enough.
+  const logWindowDays = parseWindowDays(sp.windowDays);
+  const logRangeStart =
+    view === "log"
+      ? addLocalDays(anchor, -(logWindowDays - 1))
+      : null;
+  const logStartUtc = logRangeStart
+    ? localDateMidnightUtc(logRangeStart, tzOffsetMin)
+    : null;
+  const logEndUtc = logRangeStart
+    ? localDateMidnightUtc(addLocalDays(anchor, 1), tzOffsetMin)
+    : null;
+  const logFloorUtc =
+    view === "log" && logStartUtc
+      ? await selfScopedFloor(
+          supabase,
+          callerId,
+          selectedTeamId ?? null,
+          memberFilter,
+          logStartUtc,
+        )
+      : null;
+  // Type comes from `attachAuthors` inferring against the Supabase
+  // select shape; matches dayEntries / weekEntries above.
+  let logEntries: typeof dayEntries = [];
+  if (view === "log" && logFloorUtc && logEndUtc) {
+    let logQuery = supabase
+      .from("time_entries")
+      .select(
+        "*, projects(id, name, github_repo, category_set_id, require_timestamps, customers(id, name)), invoices(invoice_number)",
+      )
+      .is("deleted_at", null)
+      .gte("start_time", logFloorUtc.toISOString())
+      .lt("start_time", logEndUtc.toISOString())
+      .order("start_time", { ascending: true });
+    if (selectedTeamId) logQuery = logQuery.eq("team_id", selectedTeamId);
+    if (billableOnly) logQuery = logQuery.eq("billable", true);
+    if (memberFilter !== null) {
+      if (memberFilter.length === 0) {
+        logQuery = logQuery.eq(
+          "user_id",
+          "00000000-0000-0000-0000-000000000000",
+        );
+      } else {
+        logQuery = logQuery.in("user_id", memberFilter);
+      }
+    }
+    const { data: rawLogEntries } = await logQuery;
+    logEntries = await attachAuthors(
+      supabase,
+      (rawLogEntries ?? []).map(normalizeEntry),
+    );
+  }
 
   // Running timer
   let runningQuery = supabase
@@ -487,10 +561,16 @@ export default async function TimeEntriesPage({
       billableOnly={billableOnly}
       dayStr={day}
       weekStartStr={weekStart}
+      anchorStr={anchor}
+      todayStr={today}
       tzOffsetMin={tzOffsetMin}
       currentUserId={callerId}
       weekEntries={weekEntries}
       dayEntries={dayEntries}
+      logEntries={logEntries}
+      logWindowDays={logWindowDays}
+      logDefaultWindowDays={LOG_DEFAULT_WINDOW_DAYS}
+      logMaxWindowDays={LOG_MAX_WINDOW_DAYS}
       running={running}
       projects={projects}
       recentProjects={recentProjects}

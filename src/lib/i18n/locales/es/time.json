@@ -149,8 +149,17 @@
     "noCategory": "Sin categoría"
   },
   "viewToggle": {
+    "log": "Registro",
     "day": "Día",
     "week": "Semana"
+  },
+  "log": {
+    "preview": "La vista Registro está en vista previa — limitada a los últimos 14 días por defecto. Día y Semana siguen disponibles; tus datos no cambian.",
+    "todayMarker": "Hoy",
+    "emptyDay": "Sin registros.",
+    "loadEarlier": "Cargar 7 días anteriores",
+    "loadEarlierCeiling": "Has alcanzado el límite de la vista previa (90 días). Usa Día o Semana para rangos más antiguos.",
+    "reset": "Restablecer a {days, number} días"
   },
   "timesheet": {
     "project": "Proyecto",
