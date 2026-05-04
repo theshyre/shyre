@@ -153,6 +153,25 @@
     "day": "Day",
     "week": "Week"
   },
+  "jumpToDate": {
+    "popoverTitle": "Jump to date",
+    "triggerTooltip": "Jump to date",
+    "textLabel": "Date",
+    "textPlaceholder": "2026-Q1, 2026-03, or 2018-06-15",
+    "calendarLabel": "Or pick a date",
+    "chipsLabel": "Quick ranges",
+    "today": "Today",
+    "prev": "Previous",
+    "next": "Next",
+    "thisWeek": "This week",
+    "chips": {
+      "today": "Today",
+      "yesterday": "Yesterday",
+      "lastWeek": "Last week",
+      "lastMonth": "Last month",
+      "lastQuarter": "Last quarter"
+    }
+  },
   "log": {
     "preview": "Log view is in preview — bounded to the last 14 days by default. Day and Week stay in place; nothing about your data has changed.",
     "todayMarker": "Today",

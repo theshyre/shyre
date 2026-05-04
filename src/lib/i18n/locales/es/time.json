@@ -153,6 +153,25 @@
     "day": "Día",
     "week": "Semana"
   },
+  "jumpToDate": {
+    "popoverTitle": "Saltar a fecha",
+    "triggerTooltip": "Saltar a fecha",
+    "textLabel": "Fecha",
+    "textPlaceholder": "2026-Q1, 2026-03, o 2018-06-15",
+    "calendarLabel": "O elige una fecha",
+    "chipsLabel": "Rangos rápidos",
+    "today": "Hoy",
+    "prev": "Anterior",
+    "next": "Siguiente",
+    "thisWeek": "Esta semana",
+    "chips": {
+      "today": "Hoy",
+      "yesterday": "Ayer",
+      "lastWeek": "Semana pasada",
+      "lastMonth": "Mes pasado",
+      "lastQuarter": "Trimestre pasado"
+    }
+  },
   "log": {
     "preview": "La vista Registro está en vista previa — limitada a los últimos 14 días por defecto. Día y Semana siguen disponibles; tus datos no cambian.",
     "todayMarker": "Hoy",

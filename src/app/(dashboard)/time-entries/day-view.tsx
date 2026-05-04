@@ -3,15 +3,11 @@
 import { useCallback, useMemo, useState, useTransition } from "react";
 import { useRouter, usePathname, useSearchParams } from "next/navigation";
 import { useTranslations } from "next-intl";
-import { ChevronLeft, ChevronRight } from "lucide-react";
 import { formatDurationHMZero } from "@/lib/time/week";
 import { addLocalDays, utcToLocalDateStr } from "@/lib/time/tz";
-import {
-  buttonSecondaryClass,
-  kbdClass,
-} from "@/lib/form-styles";
 import { Spinner, useKeyboardShortcut } from "@theshyre/ui";
 import { EntryTable } from "./entry-table";
+import { JumpToDate } from "./jump-to-date";
 import type { CategoryOption, ProjectOption, TimeEntry } from "./types";
 import type { EntryGroup } from "@/lib/time/grouping";
 
@@ -158,41 +154,22 @@ export function DayView({
 
   return (
     <div className="space-y-4">
-      {/* Header: prev / title / next */}
+      {/* Header: jump-to-date with prev / next arrows. The shared
+          control supplies the trigger label, the popover, and the
+          Today pill — Day-view passes its goPrev/goNext handlers
+          so the arrows still page one day at a time. */}
       <div className="flex items-center gap-3">
-        <button
-          type="button"
-          onClick={goPrev}
-          className={buttonSecondaryClass}
-          aria-label={t("prevDay")}
-        >
-          <ChevronLeft size={16} />
-          <kbd className={kbdClass}>←</kbd>
-        </button>
-        <h2 className="text-lg font-semibold text-content inline-flex items-center gap-2">
-          {titleLabel}
-          {isPending && (
-            <Spinner color="border-t-content-muted" />
-          )}
-        </h2>
-        <button
-          type="button"
-          onClick={goNext}
-          className={buttonSecondaryClass}
-          aria-label={t("nextDay")}
-        >
-          <kbd className={kbdClass}>→</kbd>
-          <ChevronRight size={16} />
-        </button>
-        {visibleDay !== todayStr && (
-          <button
-            type="button"
-            onClick={() => navigateToDay(todayStr)}
-            className={buttonSecondaryClass}
-          >
-            {t("jumpToToday")}
-          </button>
-        )}
+        <JumpToDate
+          view="day"
+          anchorStr={visibleDay}
+          todayStr={todayStr}
+          tzOffsetMin={tzOffsetMin}
+          onPrev={goPrev}
+          onNext={goNext}
+          prevLabel={t("prevDay")}
+          nextLabel={t("nextDay")}
+        />
+        {isPending && <Spinner color="border-t-content-muted" />}
       </div>
 
       {/* 7-day strip with daily totals */}

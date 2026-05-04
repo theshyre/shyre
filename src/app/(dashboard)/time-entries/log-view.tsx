@@ -13,6 +13,7 @@ import {
 import { addLocalDays } from "@/lib/time/tz";
 import { buttonSecondaryClass } from "@/lib/form-styles";
 import { EntryTable } from "./entry-table";
+import { JumpToDate } from "./jump-to-date";
 import type { EntryGroup } from "@/lib/time/grouping";
 import type { CategoryOption, ProjectOption, TimeEntry } from "./types";
 
@@ -138,9 +139,17 @@ export function LogView({
 
   return (
     <div className="space-y-2">
-      <p className="text-caption text-content-muted italic">
-        {t("preview")}
-      </p>
+      <div className="flex items-center justify-between gap-2 flex-wrap">
+        <JumpToDate
+          view="log"
+          anchorStr={anchorStr}
+          todayStr={todayStr}
+          tzOffsetMin={tzOffsetMin}
+        />
+        <p className="text-caption text-content-muted italic ml-auto">
+          {t("preview")}
+        </p>
+      </div>
       {bands.map((band) => (
         <BandSection
           key={band.key}

@@ -14,7 +14,6 @@ import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { useTranslations } from "next-intl";
 import {
   ChevronDown,
-  ChevronLeft,
   ChevronRight,
   Loader2,
   ChevronsDown,
@@ -50,6 +49,7 @@ import { Tooltip } from "@/components/Tooltip";
 import { useAutosaveStatus } from "@/hooks/useAutosaveStatus";
 import { useToast } from "@/components/Toast";
 import { EntryAuthor } from "@/components/EntryAuthor";
+import { JumpToDate } from "./jump-to-date";
 import type { AuthorInfo, CategoryOption, ProjectOption, TimeEntry } from "./types";
 
 interface Props {
@@ -201,9 +201,10 @@ export function WeekTimesheet({
   const nextWeek = useCallback(() => {
     navigateToWeek(addLocalDays(weekStartStr, 7));
   }, [navigateToWeek, weekStartStr]);
-  const thisWeek = useCallback(() => {
-    navigateToWeek(utcToLocalDateStr(new Date(), tzOffsetMin));
-  }, [navigateToWeek, tzOffsetMin]);
+  // `thisWeek` was a separate "Jump to this week" button before
+  // the JumpToDate control absorbed that role via the Today
+  // pill it renders adjacent to the trigger. Kept here would be
+  // dead code; removed entirely.
 
   // Precompute local-date strings for each column (Mon..Sun)
   const weekDays = useMemo(
@@ -681,29 +682,10 @@ export function WeekTimesheet({
     return () => window.removeEventListener("keydown", handleKey);
   }, [expandAll, collapseAll]);
 
-  // Human-readable label for the currently-visible week:
-  // "Apr 20 – 26" when same month, "Apr 27 – May 3" when it straddles.
-  const weekRangeLabel = (() => {
-    const [sy, sm, sd] = weekStartStr.split("-").map(Number);
-    const startDate = new Date(sy!, sm! - 1, sd!);
-    const endDate = new Date(startDate);
-    endDate.setDate(endDate.getDate() + 6);
-    const startLabel = startDate.toLocaleDateString(undefined, {
-      month: "short",
-      day: "numeric",
-    });
-    const endLabel =
-      startDate.getMonth() === endDate.getMonth()
-        ? endDate.toLocaleDateString(undefined, { day: "numeric" })
-        : endDate.toLocaleDateString(undefined, {
-            month: "short",
-            day: "numeric",
-          });
-    return `${startLabel} – ${endLabel}`;
-  })();
-  const todayStrForNav = utcToLocalDateStr(new Date(), tzOffsetMin);
-  const viewingThisWeek = todayStrForNav >= weekStartStr &&
-    todayStrForNav <= addLocalDays(weekStartStr, 6);
+  // Week range label + viewingThisWeek flag used to be computed here
+  // for the inline header. The JumpToDate control now owns the label
+  // formatting + the Today-pill behavior, so both are no longer
+  // needed locally.
 
   // Arrow-key shortcuts to match the DayView's navigation feel (← prev
   // week, → next week). Bailing inside input/textarea/select is handled
@@ -720,58 +702,22 @@ export function WeekTimesheet({
           page header already make the surface self-evident. */}
       <div className="flex items-center justify-between gap-2 px-3 py-2 border-b border-edge bg-surface-inset">
         <div className="flex items-center gap-2">
-          <Tooltip label={tWeek("prev")} shortcut="←">
-            <button
-              type="button"
-              onClick={prevWeek}
-              disabled={isNavigating}
-              className={buttonSecondaryClass}
-              aria-label={tWeek("prev")}
-              aria-busy={isNavigating || undefined}
-            >
-              {isNavigating ? (
-                <Loader2 size={16} className="animate-spin text-content-muted" />
-              ) : (
-                <ChevronLeft size={16} />
-              )}
-            </button>
-          </Tooltip>
-          <span className="text-body font-semibold text-content inline-flex items-center gap-2 whitespace-nowrap">
-            {viewingThisWeek ? tWeek("thisWeek") : tWeek("weekOf")}
-            <span className="font-mono tabular-nums">{weekRangeLabel}</span>
-            {isNavigating ? (
-              <span className="text-caption text-content-muted font-normal inline-flex items-center gap-1">
-                <Loader2 size={12} className="animate-spin" />
-                {tWeek("loading")}
-              </span>
-            ) : null}
-          </span>
-          <Tooltip label={tWeek("next")} shortcut="→">
-            <button
-              type="button"
-              onClick={nextWeek}
-              disabled={isNavigating}
-              className={buttonSecondaryClass}
-              aria-label={tWeek("next")}
-              aria-busy={isNavigating || undefined}
-            >
-              {isNavigating ? (
-                <Loader2 size={16} className="animate-spin text-content-muted" />
-              ) : (
-                <ChevronRight size={16} />
-              )}
-            </button>
-          </Tooltip>
-          {!viewingThisWeek && (
-            <button
-              type="button"
-              onClick={thisWeek}
-              disabled={isNavigating}
-              className={buttonSecondaryClass}
-            >
-              {tWeek("jumpToThisWeek")}
-            </button>
-          )}
+          <JumpToDate
+            view="week"
+            anchorStr={weekStartStr}
+            todayStr={utcToLocalDateStr(new Date(), tzOffsetMin)}
+            tzOffsetMin={tzOffsetMin}
+            onPrev={prevWeek}
+            onNext={nextWeek}
+            prevLabel={tWeek("prev")}
+            nextLabel={tWeek("next")}
+          />
+          {isNavigating ? (
+            <span className="text-caption text-content-muted inline-flex items-center gap-1">
+              <Loader2 size={12} className="animate-spin" />
+              {tWeek("loading")}
+            </span>
+          ) : null}
         </div>
         <div className="flex items-center gap-3">
           <label className="flex items-center gap-2 text-caption text-content-muted whitespace-nowrap">
