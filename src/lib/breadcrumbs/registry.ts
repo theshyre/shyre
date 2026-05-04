@@ -149,6 +149,20 @@ export const BREADCRUMB_ROUTES: BreadcrumbRouteSpec[] = [
     ],
   },
   {
+    pattern: "/invoices/[invoiceId]/send",
+    trail: [
+      { id: "work", labelKey: "work", href: null },
+      { id: "invoices", labelKey: "invoices", href: "/invoices" },
+      {
+        id: "invoiceNumber",
+        resolver: "invoiceNumber",
+        resolverParam: "invoiceId",
+        href: "/invoices/[invoiceId]",
+      },
+      { id: "invoiceSend", labelKey: "invoiceSend", href: "/invoices/[invoiceId]/send" },
+    ],
+  },
+  {
     pattern: "/reports",
     trail: [
       { id: "work", labelKey: "work", href: null },

@@ -38,8 +38,6 @@ import { InvoiceActions } from "./invoice-actions";
 import { InvoicePdfButton } from "./invoice-pdf-button";
 import { SendInvoiceButton } from "./send-invoice-button";
 import { InvoiceStatusBadge } from "../invoice-status-badge";
-import { renderTemplate, type VariableBag } from "@/lib/messaging/render";
-
 /**
  * Drop the country line from a multi-line formatted address unless
  * the caller wants to show it. `formatAddressMultiLine` returns
@@ -82,37 +80,20 @@ export default async function InvoiceDetailPage({
 
   if (!invoice) notFound();
 
-  // Recipient resolution: pull every contact flagged
-  // `is_invoice_recipient = true` for this customer (multiple
-  // allowed — co-owners, AP+CFO pair, etc.) and join their emails
-  // for the To: pre-fill. Falls back to customers.email when no
-  // contacts are flagged. The send modal's `defaultTo` consumes
-  // the joined string; the user can still edit on the fly. RLS
-  // scopes to the team; member viewers see [] which is fine — the
-  // fallback covers them.
-  const customerIdForContacts =
-    invoice.customers &&
-    typeof invoice.customers === "object" &&
-    "id" in invoice.customers
-      ? ((invoice.customers as { id: string }).id ?? null)
-      : null;
-  const { data: recipientContacts } = customerIdForContacts
-    ? await supabase
-        .from("customer_contacts")
-        .select("email")
-        .eq("customer_id", customerIdForContacts)
-        .eq("is_invoice_recipient", true)
-        .order("created_at", { ascending: true })
-    : { data: [] };
-  const recipientEmails = (recipientContacts ?? [])
-    .map((c) => (c.email as string | null) ?? "")
-    .filter((e) => e.length > 0);
-
   // Line items, history, payments, and entry-authors-on-this-invoice
   // are independent reads — fire them in parallel rather than
   // waterfall. RLS scopes each one separately so a viewer who can't
   // see history (non-owner/admin) gets [] from that query and the
   // activity section just hides.
+  //
+  // Send-related data (recipient contacts, email config, domain
+  // verification, template) used to be fetched here too; that work
+  // moved to /invoices/[id]/send via loadInvoiceSendBundle when the
+  // modal was promoted to its own route. The button on this page
+  // is now just a Link → /send, demoted via `disabled={status ===
+  // "void"}`. The user can find out about missing email config
+  // from the route itself, with a proper warning banner instead of
+  // a silent disabled state.
   const [
     { data: lineItems },
     { data: settings },
@@ -164,33 +145,6 @@ export default async function InvoiceDetailPage({
         "id, user_id, duration_min, description, start_time, projects(name, invoice_code, hourly_rate, customers(default_rate)), categories(name)",
       )
       .eq("invoice_id", id),
-  ]);
-
-  // Email-send dependencies. Loading these here (rather than in the
-  // button) so the page renders the demoted/disabled state when
-  // email isn't configured yet without a client-side round-trip.
-  const [
-    { data: emailConfig },
-    { data: emailDomains },
-    { data: emailTemplate },
-  ] = await Promise.all([
-    supabase
-      .from("team_email_config")
-      .select(
-        "from_email, from_name, reply_to_email, signature, api_key_encrypted",
-      )
-      .eq("team_id", invoice.team_id)
-      .maybeSingle(),
-    supabase
-      .from("verified_email_domains")
-      .select("domain, status")
-      .eq("team_id", invoice.team_id),
-    supabase
-      .from("message_templates")
-      .select("subject, body")
-      .eq("team_id", invoice.team_id)
-      .eq("kind", "invoice_send")
-      .maybeSingle(),
   ]);
 
   // Distinct authors of time entries linked to this invoice. If exactly
@@ -334,77 +288,10 @@ export default async function InvoiceDetailPage({
     }));
   })();
 
-  // Build the variable bag + render the default subject/body so the
-  // Send modal opens with already-resolved text rather than raw
-  // %placeholders%. Falls back to the hardcoded defaults when the
-  // team hasn't customized; same shape /teams/[id]/email shows.
-  const DEFAULT_SUBJECT = "Invoice %invoice_id% from %company_name%";
-  const DEFAULT_BODY = `Hello,
-
-Please find invoice %invoice_id% attached.
-
-Invoice ID: %invoice_id%
-Issue date: %invoice_issue_date%
-Customer: %customer_name%
-Amount: %invoice_amount%
-Due: %invoice_due_date% (%invoice_payment_terms%)
-
-Thanks,
-%company_name%`;
-
   const paymentsTotal = (payments ?? []).reduce(
     (sum, p) => sum + Number(p.amount ?? 0),
     0,
   );
-  const totalNum = Number(invoice.total ?? 0);
-  const fmtCurrency = (n: number): string =>
-    new Intl.NumberFormat("en-US", {
-      style: "currency",
-      currency: (invoice.currency as string | null) ?? "USD",
-      minimumFractionDigits: 2,
-      maximumFractionDigits: 2,
-    }).format(n);
-  const fmtDate = (iso: string | null): string => {
-    if (!iso) return "—";
-    const m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(iso);
-    return m ? `${m[2]}/${m[3]}/${m[1]}` : iso;
-  };
-
-  const baseUrl = process.env.NEXT_PUBLIC_APP_URL ?? "";
-  const variableBag: VariableBag = {
-    invoiceId: (invoice.invoice_number as string | null) ?? null,
-    invoiceUrl: baseUrl ? `${baseUrl}/invoices/${invoice.id}` : null,
-    invoiceAmount: fmtCurrency(totalNum),
-    invoicePaymentTotal: fmtCurrency(paymentsTotal),
-    invoiceIssueDate: fmtDate(invoice.issued_date as string | null),
-    invoiceDueDate: fmtDate(invoice.due_date as string | null),
-    invoicePaymentTermsLabel:
-      (invoice.payment_terms_label as string | null) ?? null,
-    customerName: client?.name ?? null,
-    customerPoNumber: null,
-    companyName: (settings?.business_name as string | null) ?? null,
-    daysPastDue: null,
-    daysUntilDue: null,
-  };
-  const tplSubject =
-    (emailTemplate?.subject as string | null) ?? DEFAULT_SUBJECT;
-  const tplBody = (emailTemplate?.body as string | null) ?? DEFAULT_BODY;
-  const renderedSubject = renderTemplate(tplSubject, variableBag);
-  const renderedBody = renderTemplate(tplBody, variableBag);
-
-  const fromEmail = (emailConfig?.from_email as string | null) ?? null;
-  const fromDomain = fromEmail
-    ? fromEmail.slice(fromEmail.lastIndexOf("@") + 1).toLowerCase()
-    : null;
-  const domainVerified = Boolean(
-    fromDomain &&
-      (emailDomains ?? []).some(
-        (d) =>
-          (d.domain as string).toLowerCase() === fromDomain &&
-          d.status === "verified",
-      ),
-  );
-  const emailConfigured = Boolean(emailConfig?.api_key_encrypted && fromEmail);
 
   const status = (invoice.status as string | null) ?? "draft";
   // Terminal states (void / paid) get a prominent badge on its own
@@ -429,35 +316,8 @@ Thanks,
         </div>
         <div className="flex items-center gap-2 flex-wrap">
           <SendInvoiceButton
-            teamId={invoice.team_id as string}
             invoiceId={invoice.id as string}
-            defaultTo={
-              recipientEmails.length > 0
-                ? recipientEmails.join(", ")
-                : (client?.email ?? "")
-            }
-            defaultFromEmail={fromEmail}
-            defaultFromName={
-              (emailConfig?.from_name as string | null) ?? null
-            }
-            defaultReplyTo={
-              (emailConfig?.reply_to_email as string | null) ?? null
-            }
-            defaultSubject={renderedSubject}
-            defaultBody={renderedBody}
-            signature={(emailConfig?.signature as string | null) ?? ""}
-            configMissing={!emailConfigured}
-            domainNotVerified={emailConfigured && !domainVerified}
-            pdfBundle={{
-              invoice: invoice as Record<string, unknown>,
-              lineItems: resolvedLineItems,
-              client,
-              business: settings,
-              paymentsTotal,
-              invoiceNumber: invoice.invoice_number as string,
-              paymentTermsLabel:
-                (invoice.payment_terms_label as string | null) ?? null,
-            }}
+            disabled={status === "void"}
           />
           <InvoicePdfButton
             invoice={invoice}
