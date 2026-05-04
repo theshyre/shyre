@@ -41,7 +41,13 @@ export interface OutboxRow {
   from_email: string;
   from_name: string | null;
   reply_to_email: string | null;
+  /** Joined string ("a@x.com, b@x.com") — kept for legacy readers
+   *  while the column is phased out. New code reads `to_emails`. */
   to_email: string;
+  /** Structured recipient list. The bookkeeper-grade audit-trail
+   *  source after the 2026-05-04 migration. Always populated by the
+   *  send path; backfilled on existing rows from the joined string. */
+  to_emails: string[];
   cc_emails: string[] | null;
   bcc_emails: string[] | null;
   subject: string;
@@ -71,7 +77,10 @@ export interface EnqueueInput {
   fromEmail: string;
   fromName: string | null;
   replyToEmail: string | null;
-  toEmail: string;
+  /** Structured To: list — one element per recipient. Caller must
+   *  pass the array even for single-recipient sends. The joined
+   *  string lands in `to_email` for legacy readers automatically. */
+  toEmails: string[];
   ccEmails?: string[];
   bccEmails?: string[];
   subject: string;
@@ -108,7 +117,12 @@ export async function enqueue(input: EnqueueInput): Promise<OutboxRow> {
       from_email: input.fromEmail,
       from_name: input.fromName,
       reply_to_email: input.replyToEmail,
-      to_email: input.toEmail,
+      // Write both shapes: structured array (the canonical column
+      // bookkeeper queries hit going forward) AND the legacy
+      // joined string (the column the existing readers still use,
+      // queued for removal once every surface migrates).
+      to_emails: input.toEmails,
+      to_email: input.toEmails.join(", "),
       cc_emails: input.ccEmails ?? null,
       bcc_emails: input.bccEmails ?? null,
       subject: input.subject,

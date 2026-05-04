@@ -168,7 +168,8 @@
     "paid": "Marked as paid.",
     "voided": "Voided.",
     "paymentReceived": "Payment received on {date}.",
-    "updated": "Invoice updated."
+    "updated": "Invoice updated.",
+    "pdfSha": "PDF: {sha}…"
   },
   "pdf": {
     "invoice": "INVOICE",

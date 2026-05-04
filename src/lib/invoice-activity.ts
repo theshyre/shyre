@@ -50,12 +50,21 @@ export interface InvoiceActivityEvent {
     reference: string | null;
     paidOn: string;
   };
-  /** Populated only for `sent` events when we know the recipient
-   *  (Harvest imports populate this; manual sends will when the
-   *  in-app send action lands). */
+  /** Populated for every `sent` event. The summary fields
+   *  (name + email) drive the headline; the structured `recipients`
+   *  array surfaces multi-recipient sends without lossy joining.
+   *  Legacy invoices with only `invoices.sent_at` set (Harvest
+   *  imports) fall back to the singular email/name pair without
+   *  recipients populated. */
   sentTo?: {
     email: string;
     name: string | null;
+    recipients?: string[];
+    /** SHA-256 of the PDF attachment dispatched on this send.
+     *  Stored on every outbox row; surfaced in the activity log
+     *  so a bookkeeper can prove which version of the PDF a
+     *  customer received. */
+    attachmentSha256?: string | null;
   };
 }
 
@@ -71,12 +80,24 @@ export interface InvoiceActivityInput {
     imported_at: string | null;
     imported_from: string | null;
     currency: string | null;
-    /** Most-recent send recipient — populated by importers and (in
-     *  the future) the in-app Send action. Null until the invoice
-     *  has been sent. */
+    /** Most-recent send recipient — populated by importers and the
+     *  in-app Send action. Null until the invoice has been sent. */
     sent_to_email: string | null;
     sent_to_name: string | null;
   };
+  /** One row per actual send through the messaging outbox. Each
+   *  becomes a distinct `sent` event in the activity log so re-sends
+   *  show as their own entries with timestamps + recipients +
+   *  attachment SHA. Legacy invoices (Harvest imports) have no
+   *  outbox rows; they fall back to the single sent event built
+   *  from `invoices.sent_at`. */
+  outboxSends?: Array<{
+    id: string;
+    sent_at: string | null;
+    user_id: string | null;
+    to_emails: string[];
+    attachment_pdf_sha256: string | null;
+  }>;
   history: Array<{
     id: string;
     changed_at: string;
@@ -173,7 +194,7 @@ function looksLikeContentEdit(
 export function buildInvoiceActivity(
   input: InvoiceActivityInput,
 ): InvoiceActivityEvent[] {
-  const { invoice, history, payments } = input;
+  const { invoice, history, payments, outboxSends } = input;
   const events: InvoiceActivityEvent[] = [];
 
   // Imported / created — mutually exclusive in practice. An imported
@@ -205,7 +226,52 @@ export function buildInvoiceActivity(
   // they ran the import.
   const fallbackActor = invoice.created_by_user_id;
 
-  if (invoice.sent_at) {
+  // Sent events. Two sources:
+  //
+  //   1. Outbox rows — one per actual send through the messaging
+  //      module. Each becomes its own activity event so re-sends
+  //      (deliberate or panic re-sends after a customer claims
+  //      non-receipt) all show with their own timestamp, recipients,
+  //      and PDF SHA-256. Bookkeeper-grade audit trail.
+  //
+  //   2. Legacy `invoices.sent_at` — Harvest imports never wrote
+  //      outbox rows; that timestamp is the only signal. Used only
+  //      when no outbox rows exist for the invoice.
+  //
+  // The two paths are mutually exclusive: outbox rows always win
+  // when present, so an invoice that was Harvest-imported and then
+  // re-sent through Shyre's send action shows the Shyre sends
+  // (which carry richer detail) and treats the imported sent_at as
+  // the import event, not a separate "sent" entry.
+  const outboxSendsWithTime = (outboxSends ?? []).filter(
+    (s): s is typeof s & { sent_at: string } => Boolean(s.sent_at),
+  );
+  if (outboxSendsWithTime.length > 0) {
+    for (const send of outboxSendsWithTime) {
+      events.push({
+        id: `sent-${send.id}`,
+        type: "sent",
+        occurredAt: send.sent_at,
+        actorUserId:
+          send.user_id ??
+          findActorAt(send.sent_at, history) ??
+          fallbackActor,
+        sentTo: {
+          email:
+            send.to_emails.length > 0
+              ? send.to_emails.join(", ")
+              : (invoice.sent_to_email ?? ""),
+          // First-send pairs with the invoice-level name; later
+          // sends don't have a per-row name on the outbox row, so
+          // fall through to the invoice-level snapshot.
+          name: invoice.sent_to_name,
+          recipients:
+            send.to_emails.length > 0 ? send.to_emails : undefined,
+          attachmentSha256: send.attachment_pdf_sha256,
+        },
+      });
+    }
+  } else if (invoice.sent_at) {
     events.push({
       id: `sent-${invoice.id}`,
       type: "sent",

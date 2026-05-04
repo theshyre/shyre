@@ -11,6 +11,7 @@ import {
 } from "lucide-react";
 import { formatCurrency } from "@/lib/invoice-utils";
 import { LocalDateTime } from "@/components/LocalDateTime";
+import { Tooltip } from "@/components/Tooltip";
 import {
   buildInvoiceActivity,
   type InvoiceActivityEvent,
@@ -177,6 +178,15 @@ export async function InvoiceActivity({
                       .filter((s): s is string => Boolean(s))
                       .join(" · ")}
                   </p>
+                ) : null}
+                {event.type === "sent" && event.sentTo?.attachmentSha256 ? (
+                  <Tooltip label={event.sentTo.attachmentSha256}>
+                    <p className="mt-1 text-caption text-content-muted font-mono">
+                      {t("pdfSha", {
+                        sha: event.sentTo.attachmentSha256.slice(0, 12),
+                      })}
+                    </p>
+                  </Tooltip>
                 ) : null}
               </div>
               {event.type === "payment" && event.payment ? (

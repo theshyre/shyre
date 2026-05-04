@@ -99,6 +99,7 @@ export default async function InvoiceDetailPage({
     { data: settings },
     { data: history },
     { data: payments },
+    { data: outboxSends },
     { data: invoicedEntries },
   ] = await Promise.all([
     supabase
@@ -125,6 +126,22 @@ export default async function InvoiceDetailPage({
       )
       .eq("invoice_id", id)
       .order("paid_on", { ascending: true }),
+    // Per-send rows from the messaging outbox. Drives the activity
+    // log's "Sent" events so re-sends each render distinctly with
+    // their own timestamp + recipients + PDF SHA-256 — the
+    // bookkeeper-grade audit trail. Filter to only rows the user
+    // could have actually delivered (sent_at IS NOT NULL); queued
+    // rows that errored before dispatch are excluded so the activity
+    // log doesn't claim a send happened when it didn't.
+    supabase
+      .from("message_outbox")
+      .select(
+        "id, sent_at, user_id, to_emails, attachment_pdf_sha256",
+      )
+      .eq("related_kind", "invoice")
+      .eq("related_id", id)
+      .not("sent_at", "is", null)
+      .order("sent_at", { ascending: true }),
     // Harvest's invoice payload doesn't expose a line-item ↔ time-entry
     // mapping, so imported invoice_line_items.time_entry_id is NULL and
     // the line-item-level avatar lookup misses. But the time entries
@@ -179,6 +196,11 @@ export default async function InvoiceDetailPage({
     ),
     ...(payments ?? []).map(
       (p) => p.created_by_user_id as string | null,
+    ),
+    // Outbox-send authors so each "Sent by X" row in the activity
+    // log resolves an avatar instead of falling back to "Unknown".
+    ...(outboxSends ?? []).map(
+      (s) => s.user_id as string | null,
     ),
   ].filter((id): id is string => id !== null && id !== undefined);
   const userIds = Array.from(
@@ -661,6 +683,14 @@ export default async function InvoiceDetailPage({
             created_at: p.created_at as string,
             created_by_user_id:
               (p.created_by_user_id as string | null) ?? null,
+          })),
+          outboxSends: (outboxSends ?? []).map((s) => ({
+            id: s.id as string,
+            sent_at: (s.sent_at as string | null) ?? null,
+            user_id: (s.user_id as string | null) ?? null,
+            to_emails: (s.to_emails as string[] | null) ?? [],
+            attachment_pdf_sha256:
+              (s.attachment_pdf_sha256 as string | null) ?? null,
           })),
         }}
         profileById={profileById}

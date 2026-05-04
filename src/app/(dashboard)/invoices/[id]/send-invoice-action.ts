@@ -56,7 +56,9 @@ export async function sendInvoiceMessageAction(
     // is a billable-record-touching action.
     const { data: invoice } = await supabase
       .from("invoices")
-      .select("id, team_id, customer_id, invoice_number, status")
+      .select(
+        "id, team_id, customer_id, invoice_number, status, customers(name)",
+      )
       .eq("id", invoiceId)
       .maybeSingle();
     if (!invoice) {
@@ -129,18 +131,33 @@ export async function sendInvoiceMessageAction(
       throw err;
     }
 
-    // Mark invoice as sent, but only when transitioning from
-    // draft. Sent → sent re-sends are legal (re-deliver to same
-    // customer), but we don't want to overwrite an existing
-    // sent_at — that's the audit-trail anchor.
-    const updates: Record<string, unknown> = {};
+    // Mark invoice as sent on the first send only (status flip +
+    // sent_at). Re-sends are legal (re-deliver to same customer)
+    // but must not overwrite sent_at — that's the audit-trail
+    // anchor for the first delivery and downstream period-close
+    // queries depend on it being stable.
+    //
+    // Always update sent_to_email / sent_to_name so the activity
+    // log surface (which reads these columns directly) shows the
+    // most-recent recipient on every send. The full per-send
+    // history lives in `message_outbox` and is rendered as
+    // distinct activity events; these summary columns are the
+    // top-level signal for "who got this last."
+    const customerName =
+      invoice.customers &&
+      typeof invoice.customers === "object" &&
+      "name" in invoice.customers
+        ? ((invoice.customers as { name: string | null }).name ?? null)
+        : null;
+    const updates: Record<string, unknown> = {
+      sent_to_email: toEmails.join(", "),
+      sent_to_name: customerName,
+    };
     if (invoice.status === "draft") {
       updates.status = "sent";
       updates.sent_at = new Date().toISOString();
     }
-    if (Object.keys(updates).length > 0) {
-      await supabase.from("invoices").update(updates).eq("id", invoiceId);
-    }
+    await supabase.from("invoices").update(updates).eq("id", invoiceId);
 
     // Audit-trail signal — the existing invoices_history trigger
     // captures the status flip; the outbox row + provider_message_id

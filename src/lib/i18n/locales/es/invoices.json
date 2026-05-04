@@ -168,7 +168,8 @@
     "paid": "Marcada como pagada.",
     "voided": "Anulada.",
     "paymentReceived": "Pago recibido el {date}.",
-    "updated": "Factura actualizada."
+    "updated": "Factura actualizada.",
+    "pdfSha": "PDF: {sha}…"
   },
   "pdf": {
     "invoice": "FACTURA",

@@ -157,12 +157,10 @@ export async function sendInvoice(
     fromEmail,
     fromName: sanitizedFromName,
     replyToEmail: sanitizedReplyTo,
-    // outbox.to_email is a single TEXT column. Join the recipients
-    // with ", " for storage; the canonical structured shape stays
-    // in the message dispatched to Resend below. Adding a separate
-    // multi-row recipients table is the future-clean design but
-    // not worth the schema churn for this preview.
-    toEmail: input.toEmails.join(", "),
+    // After 2026-05-04 the outbox row carries both the structured
+    // array (canonical for audit) and a joined string (legacy
+    // readers); enqueue takes the array and writes both columns.
+    toEmails: input.toEmails,
     ccEmails: input.ccEmails,
     bccEmails: input.bccEmails,
     subject,
