@@ -75,6 +75,7 @@
   "domain": {
     "heading": "Dominios verificados",
     "intro": "Añade tu dominio para que los correos vengan de tu dirección (info@malcom.io) en vez de un remitente genérico. Añade los registros DNS abajo a tu registrador y luego pulsa Verificar.",
+    "propagationNote": "Los cambios de DNS son lentos — típicamente entre 5 y 30 minutos para propagarse, a veces más. Si Verificar dice que aún no detecta los registros, es normal; espera unos minutos y vuelve a intentarlo.",
     "addLabel": "Añadir un dominio",
     "addButton": "Añadir dominio",
     "adding": "Añadiendo…",

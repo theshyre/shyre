@@ -122,6 +122,9 @@ export function DomainVerification({
       <p className="text-caption text-content-muted">
         {t("domain.intro")}
       </p>
+      <p className="text-caption text-content-muted italic">
+        {t("domain.propagationNote")}
+      </p>
 
       {actionError && (
         <AlertBanner tone="error">{actionError}</AlertBanner>

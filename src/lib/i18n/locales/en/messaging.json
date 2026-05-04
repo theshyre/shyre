@@ -75,6 +75,7 @@
   "domain": {
     "heading": "Verified domains",
     "intro": "Add your domain so emails come from your address (info@malcom.io) instead of a generic sender. Add the DNS records below to your domain registrar, then click Verify.",
+    "propagationNote": "DNS changes are slow — typically 5–30 minutes to propagate, sometimes longer. If Verify says the records aren't detected yet, that's normal; wait a few minutes and try again.",
     "addLabel": "Add a domain",
     "addButton": "Add domain",
     "adding": "Adding…",

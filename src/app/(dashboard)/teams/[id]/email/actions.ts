@@ -248,6 +248,30 @@ export async function verifyEmailDomainAction(
         .eq("id", domainId),
     );
 
+    // Branch on the post-refresh state so the UI can show
+    // something more useful than the generic "Status refreshed."
+    // toast. A still-pending result after a manual verify click
+    // is *expected* most of the time — DNS propagation is slow —
+    // and saying nothing makes the user wonder if they did
+    // something wrong. Treat it as an info-severity refusal
+    // (refusal doesn't get logged as an error in error_logs).
+    if (status.status === "verified") {
+      // Success path — caller's success toast covers it.
+      return;
+    }
+    if (status.status === "failed") {
+      throw AppError.refusal(
+        status.failureReason
+          ? `Verification failed: ${status.failureReason}. Double-check the DNS records exactly match the table below — names, values, and (for the MX row) priority.`
+          : "Verification failed. Double-check the DNS records exactly match the table below.",
+      );
+    }
+    // status.status === "pending" — DNS not yet showing the
+    // expected records to Resend.
+    throw AppError.refusal(
+      "DNS records not detected yet. Changes typically propagate in 5–30 minutes (sometimes longer for older registrars). Try again in a few minutes; you don't need to re-add anything.",
+    );
+
     revalidatePath(`/teams/${teamId}/email`);
   }, "verifyEmailDomainAction") as unknown as void;
 }
