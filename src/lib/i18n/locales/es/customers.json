@@ -23,5 +23,12 @@
     "title": "Proyectos",
     "noProjects": "Aún no hay proyectos para este cliente."
   },
-  "sharedWith": "{count, plural, one {Compartido con # organización} other {Compartido con # organizaciones}}"
+  "sharedWith": "{count, plural, one {Compartido con # organización} other {Compartido con # organizaciones}}",
+  "bouncedBanner": "{count, plural, one {# cliente ha rebotado o marcado una factura como spam} other {# clientes han rebotado o marcado una factura como spam}}. Actualiza su correo antes de enviar de nuevo.",
+  "bouncedShowOnly": "Mostrar solo los marcados →",
+  "bouncedShowAll": "Mostrar todos los clientes",
+  "bouncedChip": "Rebotó",
+  "complainedChip": "Spam",
+  "bouncedRowTooltip": "Resend reportó un rebote duro el {when}. Actualiza el correo del cliente antes de enviar de nuevo.",
+  "complainedRowTooltip": "El destinatario marcó el correo como spam el {when}."
 }

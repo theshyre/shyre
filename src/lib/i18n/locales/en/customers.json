@@ -23,5 +23,12 @@
     "title": "Projects",
     "noProjects": "No projects yet for this customer."
   },
-  "sharedWith": "{count, plural, one {Shared with # organization} other {Shared with # organizations}}"
+  "sharedWith": "{count, plural, one {Shared with # organization} other {Shared with # organizations}}",
+  "bouncedBanner": "{count, plural, one {# customer has bounced or marked an invoice as spam} other {# customers have bounced or marked an invoice as spam}}. Update their email before sending again.",
+  "bouncedShowOnly": "Show only flagged →",
+  "bouncedShowAll": "Show all customers",
+  "bouncedChip": "Bounced",
+  "complainedChip": "Spam",
+  "bouncedRowTooltip": "Resend reported a hard bounce on {when}. Update the customer's email before sending again.",
+  "complainedRowTooltip": "Recipient marked the invoice email as spam on {when}."
 }

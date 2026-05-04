@@ -31,6 +31,9 @@ export type InvoiceActivityEventType =
   | "imported"
   | "created"
   | "sent"
+  | "delivered"
+  | "bounced"
+  | "complained"
   | "paid"
   | "voided"
   | "payment"
@@ -66,6 +69,12 @@ export interface InvoiceActivityEvent {
      *  customer received. */
     attachmentSha256?: string | null;
   };
+  /** Populated for `delivered` / `bounced` / `complained` events.
+   *  `detail` carries the bounce reason or complaint subType when
+   *  Resend's payload includes one. */
+  webhook?: {
+    detail: string | null;
+  };
 }
 
 export interface InvoiceActivityInput {
@@ -97,6 +106,19 @@ export interface InvoiceActivityInput {
     user_id: string | null;
     to_emails: string[];
     attachment_pdf_sha256: string | null;
+  }>;
+  /** Webhook events Resend has delivered for any of this invoice's
+   *  outbox rows. Surface delivered / bounced / complained as their
+   *  own activity events so the bookkeeper has in-app evidence
+   *  matching what Resend's dashboard would show. */
+  webhookEvents?: Array<{
+    id: string;
+    outbox_id: string;
+    event_type: string;
+    received_at: string;
+    /** Bounce-reason or complaint detail extracted from the payload
+     *  for surfacing under the row. Null when not present. */
+    detail: string | null;
   }>;
   history: Array<{
     id: string;
@@ -194,7 +216,7 @@ function looksLikeContentEdit(
 export function buildInvoiceActivity(
   input: InvoiceActivityInput,
 ): InvoiceActivityEvent[] {
-  const { invoice, history, payments, outboxSends } = input;
+  const { invoice, history, payments, outboxSends, webhookEvents } = input;
   const events: InvoiceActivityEvent[] = [];
 
   // Imported / created — mutually exclusive in practice. An imported
@@ -302,6 +324,33 @@ export function buildInvoiceActivity(
       type: "voided",
       occurredAt: invoice.voided_at,
       actorUserId: findActorAt(invoice.voided_at, history) ?? fallbackActor,
+    });
+  }
+
+  // Webhook events (delivered / bounced / complained). Each gets
+  // its own activity row pointing at when Resend's worker reported
+  // back. Only the three event types we surface as user-meaningful
+  // are emitted; engagement events (opened / clicked) reach this
+  // table for Phase 2 use but aren't rendered yet.
+  for (const w of webhookEvents ?? []) {
+    const type: InvoiceActivityEventType | null =
+      w.event_type === "email.delivered"
+        ? "delivered"
+        : w.event_type === "email.bounced"
+          ? "bounced"
+          : w.event_type === "email.complained"
+            ? "complained"
+            : null;
+    if (!type) continue;
+    events.push({
+      id: `webhook-${w.id}`,
+      type,
+      occurredAt: w.received_at,
+      // Webhook events have no human actor — Resend wrote them.
+      // The activity log row renders the icon directly when no
+      // profile resolves, which is the right shape here.
+      actorUserId: null,
+      webhook: { detail: w.detail },
     });
   }
 

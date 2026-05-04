@@ -8,6 +8,9 @@ import {
   Download,
   FilePlus2,
   Pencil,
+  MailCheck,
+  MailWarning,
+  ShieldAlert,
 } from "lucide-react";
 import { formatCurrency } from "@/lib/invoice-utils";
 import { LocalDateTime } from "@/components/LocalDateTime";
@@ -65,6 +68,9 @@ const ICON_BY_TYPE: Record<
   imported: Download,
   created: FilePlus2,
   sent: Send,
+  delivered: MailCheck,
+  bounced: MailWarning,
+  complained: ShieldAlert,
   paid: CheckCircle2,
   voided: XCircle,
   payment: CircleDollarSign,
@@ -99,6 +105,14 @@ export async function InvoiceActivity({
             : `${t("sentTo", { email })}`;
         }
         return t("sent");
+      case "delivered":
+        return t("delivered");
+      case "bounced":
+        return event.webhook?.detail
+          ? t("bouncedWithDetail", { detail: event.webhook.detail })
+          : t("bounced");
+      case "complained":
+        return t("complained");
       case "paid":
         return t("paid");
       case "voided":
@@ -169,8 +183,15 @@ export async function InvoiceActivity({
                   <span className="font-semibold">{titleFor(event)}</span>
                 </div>
                 <p className="mt-0.5 text-caption text-content-muted">
-                  {actorName} {t("on")}{" "}
-                  <LocalDateTime value={event.occurredAt} />
+                  {/* Webhook-emitted events have no human actor —
+                      Resend wrote them. Show "via Resend" instead
+                      of "Unknown user." Same shape, less confusing. */}
+                  {event.type === "delivered" ||
+                  event.type === "bounced" ||
+                  event.type === "complained"
+                    ? t("viaResend")
+                    : actorName}{" "}
+                  {t("on")} <LocalDateTime value={event.occurredAt} />
                 </p>
                 {event.payment?.method || event.payment?.reference ? (
                   <p className="mt-1 text-caption text-content-secondary">

@@ -5,6 +5,7 @@ import { AppError } from "@/lib/errors";
 import { validateTeamAccess } from "@/lib/team-context";
 import { revalidatePath } from "next/cache";
 import { sendInvoice } from "@/lib/messaging/send-invoice";
+import { validateRecipient } from "@/lib/messaging/render";
 import { logError } from "@/lib/logger";
 
 /**
@@ -35,15 +36,28 @@ export async function sendInvoiceMessageAction(
     // contacts per customer can be flagged invoice recipients —
     // co-owners, AP + CFO pair, etc.). Cc: same shape, separate
     // field. Empty addresses (trailing comma, double comma) are
-    // dropped.
+    // dropped, AND duplicates are removed — `a@x.com, a@x.com`
+    // would otherwise send the same person two copies.
+    //
+    // dedupeAddresses is case-insensitive (Gmail treats
+    // FOO@BAR.COM and foo@bar.com as the same mailbox; we follow
+    // suit) but preserves the original casing of the first
+    // occurrence so the user sees what they typed in the audit
+    // trail.
     const toRaw = (formData.get("to_email") as string)?.trim() ?? "";
-    const toEmails = toRaw
-      ? toRaw.split(",").map((s) => s.trim()).filter(Boolean)
-      : [];
+    const toEmails = dedupeAddresses(
+      toRaw ? toRaw.split(",").map((s) => s.trim()).filter(Boolean) : [],
+    );
     const ccRaw = (formData.get("cc_emails") as string)?.trim() ?? "";
-    const ccEmails = ccRaw
+    const ccRawList = ccRaw
       ? ccRaw.split(",").map((s) => s.trim()).filter(Boolean)
       : [];
+    // Cc: drop any address that's already in To: — sending the
+    // same person to To and Cc on the same envelope is the kind
+    // of doubled-delivery the audit trail needs to NOT lie about.
+    const ccEmails = dedupeAddresses(ccRawList).filter(
+      (cc) => !addressIn(cc, toEmails),
+    );
     const sendCopyToMe = formData.get("send_copy_to_me") === "on";
     const fromOverride = (formData.get("from_email") as string)?.trim() || null;
     const fromNameOverride =
@@ -86,6 +100,14 @@ export async function sendInvoiceMessageAction(
 
     // Optional CC of the sender themselves. Solo-consultant review:
     // "I want the paper trail in my own inbox."
+    //
+    // Validate the sender's email through the same gate every
+    // user-supplied recipient passes — `validateRecipient`
+    // returns null on success, "invalid" on bad shape, "role" on
+    // generic addresses (info@, billing@). A team admin whose
+    // own email somehow lands in either bucket should NOT have
+    // it silently pushed onto the wire; skip the auto-CC and
+    // trust the explicit CC list.
     const finalCc = [...ccEmails];
     if (sendCopyToMe) {
       const { createAdminClient } = await import("@/lib/supabase/admin");
@@ -94,8 +116,9 @@ export async function sendInvoiceMessageAction(
       const myEmail = u?.user?.email;
       if (
         myEmail &&
-        !finalCc.includes(myEmail) &&
-        !toEmails.includes(myEmail)
+        validateRecipient(myEmail) === null &&
+        !addressIn(myEmail, finalCc) &&
+        !addressIn(myEmail, toEmails)
       ) {
         finalCc.push(myEmail);
       }
@@ -169,4 +192,34 @@ export async function sendInvoiceMessageAction(
     revalidatePath(`/invoices/${invoiceId}`);
     revalidatePath("/invoices");
   }, "sendInvoiceMessageAction") as unknown as void;
+}
+
+/**
+ * Drop duplicate email addresses, case-insensitive. Preserves the
+ * original casing of the first occurrence so the audit trail
+ * carries what the user typed, not a normalized form. Gmail treats
+ * `FOO@BAR.COM` and `foo@bar.com` as the same mailbox; we follow
+ * suit so the recipient list count matches the bill-of-mail.
+ */
+function dedupeAddresses(addresses: string[]): string[] {
+  const seen = new Set<string>();
+  const out: string[] = [];
+  for (const addr of addresses) {
+    const k = addr.toLowerCase();
+    if (seen.has(k)) continue;
+    seen.add(k);
+    out.push(addr);
+  }
+  return out;
+}
+
+/**
+ * Case-insensitive "is this address already in this list?" check.
+ * The list is assumed pre-deduped; this is the cross-list
+ * filter used to drop To∩Cc collisions and to gate the auto-CC
+ * push.
+ */
+function addressIn(needle: string, haystack: string[]): boolean {
+  const k = needle.toLowerCase();
+  return haystack.some((a) => a.toLowerCase() === k);
 }

@@ -9,7 +9,7 @@ export async function generateMetadata(): Promise<Metadata> {
   const t = await getTranslations("customers");
   return { title: t("title") };
 }
-import { Users, Share2 } from "lucide-react";
+import { Users, Share2, MailWarning, ShieldAlert } from "lucide-react";
 import { TeamFilter } from "@/components/TeamFilter";
 import { Tooltip } from "@/components/Tooltip";
 import { NewCustomerForm } from "./new-customer-form";
@@ -21,18 +21,30 @@ interface CustomerRow {
   name: string;
   email: string | null;
   default_rate: number | null;
+  /** Timestamp Resend's webhook flagged the customer's email as a
+   *  hard bounce. When set, future sends should skip them by
+   *  default (Phase 2) and the row gets a warning chip on the list. */
+  bounced_at: string | null;
+  /** Timestamp Resend's webhook flagged the customer as complained
+   *  (marked as spam). Same treatment as bounced — separate column
+   *  so the icon + reason can differ. */
+  complained_at: string | null;
 }
 
 export default async function ClientsPage({
   searchParams,
 }: {
-  searchParams: Promise<{ org?: string }>;
+  searchParams: Promise<{ org?: string; bounced?: string }>;
 }): Promise<React.JSX.Element> {
   const supabase = await createClient();
   const teams = await getUserTeams();
-  const { org: selectedTeamId } = await searchParams;
+  const { org: selectedTeamId, bounced: bouncedFilter } = await searchParams;
   const t = await getTranslations("customers");
   const tc = await getTranslations("common");
+  // ?bounced=1 narrows the list to customers Resend has flagged
+  // (hard bounce or spam complaint). Surfaces who needs a fresh
+  // contact email before any future send.
+  const onlyBounced = bouncedFilter === "1";
 
   let customers: CustomerRow[] = [];
 
@@ -41,12 +53,16 @@ export default async function ClientsPage({
     const [ownedRes, sharedRes] = await Promise.all([
       supabase
         .from("customers_v")
-        .select("id, team_id, name, email, default_rate")
+        .select(
+          "id, team_id, name, email, default_rate, bounced_at, complained_at",
+        )
         .eq("archived", false)
         .eq("team_id", selectedTeamId),
       supabase
         .from("customer_shares")
-        .select("customer_id, customers_v(id, team_id, name, email, default_rate, archived)")
+        .select(
+          "customer_id, customers_v(id, team_id, name, email, default_rate, bounced_at, complained_at, archived)",
+        )
         .eq("team_id", selectedTeamId),
     ]);
 
@@ -72,6 +88,8 @@ export default async function ClientsPage({
           name: c.name,
           email: c.email,
           default_rate: c.default_rate,
+          bounced_at: c.bounced_at,
+          complained_at: c.complained_at,
         });
     }
     customers = Array.from(byId.values()).sort((a, b) =>
@@ -80,10 +98,24 @@ export default async function ClientsPage({
   } else {
     const { data } = await supabase
       .from("customers_v")
-      .select("id, team_id, name, email, default_rate")
+      .select(
+        "id, team_id, name, email, default_rate, bounced_at, complained_at",
+      )
       .eq("archived", false)
       .order("name");
     customers = (data ?? []) as unknown as CustomerRow[];
+  }
+
+  // Bounced banner + ?bounced=1 filter. Compute the count BEFORE
+  // applying the filter so the banner always shows the universe of
+  // affected customers, not just the ones currently visible.
+  const bouncedCount = customers.filter(
+    (c) => c.bounced_at || c.complained_at,
+  ).length;
+  if (onlyBounced) {
+    customers = customers.filter(
+      (c) => c.bounced_at || c.complained_at,
+    );
   }
 
   // Share counts for all visible customers
@@ -111,6 +143,30 @@ export default async function ClientsPage({
       </div>
 
       <NewCustomerForm teams={teams} defaultTeamId={selectedTeamId} />
+
+      {bouncedCount > 0 && (
+        <div className="mt-4 rounded-md border border-warning/40 bg-warning-soft/30 px-4 py-3 text-body text-content flex items-center gap-2">
+          <MailWarning size={16} className="text-warning shrink-0" />
+          <span className="flex-1">
+            {t("bouncedBanner", { count: bouncedCount })}
+          </span>
+          {onlyBounced ? (
+            <Link
+              href={`/customers${selectedTeamId ? `?org=${selectedTeamId}` : ""}`}
+              className="text-caption text-accent hover:underline"
+            >
+              {t("bouncedShowAll")}
+            </Link>
+          ) : (
+            <Link
+              href={`/customers?bounced=1${selectedTeamId ? `&org=${selectedTeamId}` : ""}`}
+              className="text-caption text-accent hover:underline"
+            >
+              {t("bouncedShowOnly")}
+            </Link>
+          )}
+        </div>
+      )}
 
       {customers && customers.length > 0 ? (
         <div className="mt-6 overflow-hidden rounded-lg border border-edge bg-surface-raised">
@@ -157,6 +213,30 @@ export default async function ClientsPage({
                             >
                               <Share2 size={10} />
                               {shareCount}
+                            </span>
+                          </Tooltip>
+                        )}
+                        {client.bounced_at && (
+                          <Tooltip
+                            label={t("bouncedRowTooltip", {
+                              when: client.bounced_at,
+                            })}
+                          >
+                            <span className="inline-flex items-center gap-1 rounded-full bg-warning-soft px-2 py-0.5 text-[10px] font-medium text-warning">
+                              <MailWarning size={10} />
+                              {t("bouncedChip")}
+                            </span>
+                          </Tooltip>
+                        )}
+                        {client.complained_at && (
+                          <Tooltip
+                            label={t("complainedRowTooltip", {
+                              when: client.complained_at,
+                            })}
+                          >
+                            <span className="inline-flex items-center gap-1 rounded-full bg-error-soft px-2 py-0.5 text-[10px] font-medium text-error">
+                              <ShieldAlert size={10} />
+                              {t("complainedChip")}
                             </span>
                           </Tooltip>
                         )}

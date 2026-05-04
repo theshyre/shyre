@@ -164,6 +164,29 @@ export default async function InvoiceDetailPage({
       .eq("invoice_id", id),
   ]);
 
+  // Webhook events for this invoice's sends — delivered / bounced /
+  // complained. Filter by outbox_id IN (this invoice's outbox rows)
+  // since the events table has no direct invoice_id. Two-step
+  // because PostgREST doesn't support correlated sub-selects, but
+  // bounded — most invoices have 0–3 sends.
+  const outboxIdsForEvents = (outboxSends ?? []).map(
+    (s) => s.id as string,
+  );
+  const { data: webhookEventRows } =
+    outboxIdsForEvents.length > 0
+      ? await supabase
+          .from("message_outbox_events")
+          .select("id, outbox_id, event_type, payload, received_at")
+          .in("outbox_id", outboxIdsForEvents)
+          .order("received_at", { ascending: true })
+      : { data: [] as Array<{
+          id: string;
+          outbox_id: string;
+          event_type: string;
+          payload: unknown;
+          received_at: string;
+        }> };
+
   // Distinct authors of time entries linked to this invoice. If exactly
   // one, use them as the implicit author for any line item that didn't
   // resolve through its own time_entry_id. Multi-author invoices fall
@@ -692,6 +715,29 @@ export default async function InvoiceDetailPage({
             attachment_pdf_sha256:
               (s.attachment_pdf_sha256 as string | null) ?? null,
           })),
+          webhookEvents: (webhookEventRows ?? []).map((w) => {
+            // Pull a human-readable bounce reason or complaint
+            // detail from Resend's payload. Field names follow
+            // Resend's webhook schema (data.bounce.message /
+            // data.bounce.subType for bounced events; complaints
+            // don't carry a structured detail field today).
+            const payload = (w.payload ?? {}) as Record<string, unknown>;
+            const data = (payload.data ?? {}) as Record<string, unknown>;
+            const bounce = (data.bounce ?? null) as
+              | { message?: string; subType?: string }
+              | null;
+            const detail =
+              bounce?.message ??
+              bounce?.subType ??
+              null;
+            return {
+              id: w.id as string,
+              outbox_id: w.outbox_id as string,
+              event_type: w.event_type as string,
+              received_at: w.received_at as string,
+              detail,
+            };
+          }),
         }}
         profileById={profileById}
         unknownUserLabel={(await getTranslations("common.authorship"))(
