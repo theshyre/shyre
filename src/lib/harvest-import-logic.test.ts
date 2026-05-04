@@ -636,16 +636,55 @@ describe("buildCustomerRow", () => {
       created_at: "2024-01-01",
       updated_at: "2024-01-01",
     };
-    expect(buildCustomerRow(hc, ctx)).toEqual({
+    const row = buildCustomerRow(hc, ctx);
+    expect(row).toMatchObject({
       team_id: "team-1",
       user_id: "u-me",
       name: "Acme Corp",
-      address: "1 Main St",
       imported_from: "harvest",
       imported_at: "2026-04-23T12:00:00.000Z",
       import_run_id: "run-abc",
       import_source_id: "42",
     });
+    // Address gets parsed into structured JSON. A single-line input
+    // with no recognizable city pattern lands in `street`.
+    expect(typeof row.address).toBe("string");
+    const addr = JSON.parse(row.address as string);
+    expect(addr.street).toBe("1 Main St");
+    expect(addr.city).toBe("");
+  });
+
+  it("parses a 2-line Harvest address into structured JSON (regression)", () => {
+    // The bug that prompted this: the entire string was landing
+    // in `street`, with `city`/`state`/`postalCode` empty.
+    const hc: HarvestClient = {
+      id: 99,
+      name: "EyeReg Consulting",
+      currency: "USD",
+      address: "6119 Canter Ln\nWest Linn, OR 97068",
+      is_active: true,
+      created_at: "2024-01-01",
+      updated_at: "2024-01-01",
+    };
+    const row = buildCustomerRow(hc, ctx);
+    const addr = JSON.parse(row.address as string);
+    expect(addr.street).toBe("6119 Canter Ln");
+    expect(addr.city).toBe("West Linn");
+    expect(addr.state).toBe("OR");
+    expect(addr.postalCode).toBe("97068");
+  });
+
+  it("preserves null Harvest address as null", () => {
+    const hc: HarvestClient = {
+      id: 0,
+      name: "Empty",
+      currency: "USD",
+      address: null,
+      is_active: true,
+      created_at: "2024-01-01",
+      updated_at: "2024-01-01",
+    };
+    expect(buildCustomerRow(hc, ctx).address).toBeNull();
   });
 });
 

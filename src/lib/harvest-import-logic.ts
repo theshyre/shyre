@@ -21,6 +21,7 @@ import type {
   HarvestInvoiceLineItem,
   HarvestUser,
 } from "./harvest";
+import { parseHarvestAddressForStorage } from "./harvest-address";
 import { resolveTicketReference, ticketUrl } from "./tickets/detect";
 
 // ────────────────────────────────────────────────────────────────
@@ -424,11 +425,21 @@ export function buildCustomerRow(
   import_run_id: string;
   import_source_id: string;
 } {
+  // Harvest stores client addresses as a single multi-line string
+  // (its UI is a freeform textarea). Shyre's address column is a
+  // structured JSON blob (street / street2 / city / state /
+  // postalCode / country). Without parsing we'd fall through to
+  // deserializeAddress's plain-text fallback — every byte landing
+  // in `street`, line breaks collapsed in the input, city/state/zip
+  // empty. That's exactly what bookkeeper-flagged after the first
+  // import. parseHarvestAddressForStorage converts to the
+  // structured shape so the customer detail form renders fields
+  // populated and the invoice From/To blocks line-break correctly.
   return {
     team_id: ctx.teamId,
     user_id: ctx.importerUserId,
     name: hc.name,
-    address: hc.address,
+    address: parseHarvestAddressForStorage(hc.address),
     imported_from: "harvest",
     imported_at: ctx.importedAt,
     import_run_id: ctx.importRunId,
