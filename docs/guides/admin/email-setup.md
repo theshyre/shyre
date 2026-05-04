@@ -53,7 +53,7 @@ You'll paste this in step 5.
 
 Resend needs to publish DKIM + SPF records on your domain so receiving mail servers can authenticate the messages. You'll do this once per domain.
 
-- In Shyre, go to `/teams/<your-team>/email`
+- In Shyre, open your team page (sidebar → Teams → click the team) and click the **Email** button in the top-right of the header. (Owner/admin only — the button is hidden for plain members. The URL is `/teams/<your-team>/email` if you'd rather paste it.)
 - Save the API key first (paste + Save)
 - Under "Verified domains" → Add domain → enter `malcom.io` (your domain)
 - Shyre returns a list of DNS records (TXT + CNAMEs)

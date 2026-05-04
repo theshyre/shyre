@@ -24,6 +24,7 @@ import {
   Users,
   FolderKanban,
   ArrowRight,
+  Mail,
 } from "lucide-react";
 import { TeamSettingsForm } from "./team-settings-form";
 import { TeamSection } from "./team-section";
@@ -163,15 +164,26 @@ export default async function TeamDetailPage({
 
   const tc = await getTranslations("common");
   const tp = await getTranslations("projects");
+  const tm = await getTranslations("messaging");
+  const isOwnerOrAdmin = role === "owner" || role === "admin";
 
   return (
     <div>
-      <div className="flex items-center gap-3">
+      <div className="flex items-center gap-3 flex-wrap">
         <Building2 size={24} className="text-accent" />
         <h1 className="text-2xl font-bold text-content">{org.name}</h1>
         <span className="inline-flex items-center gap-1.5 rounded-full bg-surface-inset px-2.5 py-0.5 text-xs font-medium text-content-muted">
           {role}
         </span>
+        {isOwnerOrAdmin && (
+          <Link
+            href={`/teams/${id}/email`}
+            className="ml-auto inline-flex items-center gap-1.5 rounded-md border border-edge bg-surface-raised px-2.5 py-1 text-xs font-medium text-content-secondary hover:bg-hover transition-colors"
+          >
+            <Mail size={12} />
+            {tm("page.title")}
+          </Link>
+        )}
       </div>
 
       {/* Clients */}
