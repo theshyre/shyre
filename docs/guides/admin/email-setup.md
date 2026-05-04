@@ -65,9 +65,44 @@ Resend needs to publish DKIM + SPF records on your domain so receiving mail serv
 - Click "Verify" — Shyre re-asks Resend if the records check out
 - Status flips to ✓ Verified
 
-> **If you use Google Workspace / Gmail for incoming mail**: this setup *does not affect inbound delivery*. MX records control where mail TO `@malcom.io` goes (Google). DKIM + SPF control authentication of mail FROM `@malcom.io`. Different concerns.
->
-> ⚠️ **SPF is a single TXT record per domain.** If you already have `v=spf1 include:_spf.google.com ~all`, MERGE Resend's include into that line — don't add a second SPF record. Two SPF records breaks both.
+#### Coexistence with Google Workspace / Gmail
+
+**Short version**: nothing about your normal Google Workspace mail changes. Gmail keeps receiving mail addressed TO `@malcom.io` and keeps sending FROM Gmail/Workspace exactly as before. Shyre/Resend sends invoice mail FROM `@malcom.io` *in addition to* Google — both are legitimate senders for the same domain.
+
+**Why nothing breaks** — DNS has separate slots for separate concerns:
+
+| DNS record | Controls | Who sets it | Touched by this setup? |
+|---|---|---|---|
+| `MX` | Where mail TO `@malcom.io` is *delivered* (your inbox) | Google Workspace | **No** — untouched |
+| `TXT resend._domainkey` | Resend's DKIM signing key (FROM auth, Resend only) | Resend (this setup) | **Added** (new record, dedicated selector) |
+| `TXT google._domainkey` | Google's DKIM signing key (FROM auth, Google only) | Google Workspace | **No** — untouched |
+| `TXT @` (SPF) | Which servers are allowed to send AS `@malcom.io` | Both — must list both | **Merged**, see below |
+| `TXT _dmarc` | Policy for what receivers do on auth failure | You (optional) | Untouched (passes either signer) |
+
+DKIM uses *selectors* (the `resend._` / `google._` prefixes) so Google and Resend can both sign mail from the same domain without conflict — receivers check whichever selector actually signed the message in front of them.
+
+⚠️ **SPF is the one record you have to merge.** A domain may have **only one** `v=spf1` TXT record. If you already have:
+
+```
+v=spf1 include:_spf.google.com ~all
+```
+
+…and Resend's "Add domain" tells you to add an SPF include too, *don't add a second SPF record*. Edit the existing one to include both senders. The merged record looks like:
+
+```
+v=spf1 include:_spf.google.com include:amazonses.com ~all
+```
+
+(Resend currently delegates to Amazon SES, hence `amazonses.com` — Shyre's "Add domain" panel shows the exact include string Resend wants. Use whatever it shows there; the example here is illustrative.)
+
+Two SPF records breaks **both** — Gmail outbound starts failing SPF too. So this is the one place to be careful. Adding the DKIM TXT record (`resend._domainkey`) is purely additive and does not touch Google's records.
+
+**About the From address.** You can technically send from any `@malcom.io` address via Resend, but the cleanest pattern is:
+
+- **From**: `info@malcom.io` (or `invoices@malcom.io`) — Shyre sends as this via Resend
+- **Reply-To**: `marcus@malcom.io` — your real Google Workspace mailbox; customer replies thread there
+
+That way invoice email and human email come from visibly different senders, but customers can still hit Reply and reach you. You *can* set both to `marcus@malcom.io`, but mixing two distinct sending paths under one address tends to be confusing later.
 
 ### 4. Webhook secret (one time, per Shyre instance)
 
