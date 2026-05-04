@@ -67,4 +67,4 @@ None today. Locking is a deliberate action — no shortcut keeps it hard to do b
 
 - [Expenses](expenses.md)
 - [Invoicing](invoicing.md)
-- [Audit trails](../../reference/database-schema.md#audit-trails)
+- [Database schema](../../reference/database-schema.md) — append-only `*_history` tables capture every period-lock change.

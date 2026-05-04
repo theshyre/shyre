@@ -52,7 +52,7 @@ The partial unique index `bsr_one_formation_per_business` enforces exactly one f
 
 ## Permissions
 
-Owner or admin of any team owned by this business can read, create, update, and delete registrations. Regular members can read but not modify. Role is derived via `user_business_role(business_id)` — see [Modules](../../reference/modules.md#authorization) for the exact helper.
+Owner or admin of any team owned by this business can read, create, update, and delete registrations. Regular members can read but not modify. Role is derived via `user_business_role(business_id)` — see [Modules](../../reference/modules.md) for the platform-API surface modules can call.
 
 ## Limits of v1
 

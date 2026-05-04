@@ -1,11 +1,12 @@
 import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 import Link from "next/link";
-import { BookOpen, ArrowLeft } from "lucide-react";
+import { BookOpen } from "lucide-react";
 import fs from "fs/promises";
 import path from "path";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
+import rehypeSlug from "rehype-slug";
 import { tableClass } from "@/lib/table-styles";
 
 export async function generateMetadata({
@@ -14,7 +15,6 @@ export async function generateMetadata({
   params: Promise<{ slug: string[] }>;
 }): Promise<Metadata> {
   const { slug } = await params;
-  // Last segment, prettified — "time-tracking" → "Time tracking".
   const last = slug[slug.length - 1] ?? "";
   if (!last) return { title: "Docs" };
   const pretty = last
@@ -23,25 +23,21 @@ export async function generateMetadata({
   return { title: `${pretty} · Docs` };
 }
 
-/**
- * Resolve a URL slug to a file under docs/. Supports:
- *   /docs/guides/features/time-tracking        → docs/guides/features/time-tracking.md
- *   /docs/reference/architecture           → docs/reference/architecture.md
- *   /docs/security/SECURITY_AUDIT_LOG      → docs/security/SECURITY_AUDIT_LOG.md
- *   /docs/guides/features                      → docs/guides/features/README.md
- *
- * Back-compat for the previous flat slug scheme:
- *   /docs/architecture          → docs/reference/architecture.md
- *   /docs/database-schema       → docs/reference/database-schema.md
- *   /docs/security-audit-log    → docs/security/SECURITY_AUDIT_LOG.md
- */
 const LEGACY_SLUG_TO_PATH: Record<string, string> = {
   architecture: "reference/architecture.md",
   "database-schema": "reference/database-schema.md",
   "security-audit-log": "security/SECURITY_AUDIT_LOG.md",
 };
 
-async function readDoc(slugParts: string[]): Promise<string | null> {
+interface DocResult {
+  content: string;
+  /** Path under docs/, e.g. "guides/admin/email-setup.md" or
+   *  "guides/admin/README.md". Used by the link rewriter to
+   *  resolve relative hrefs against the current doc's location. */
+  relativePath: string;
+}
+
+async function readDoc(slugParts: string[]): Promise<DocResult | null> {
   // Reject non-alphanumeric path components to prevent traversal.
   for (const part of slugParts) {
     if (!/^[A-Za-z0-9_-]+$/.test(part)) return null;
@@ -50,34 +46,33 @@ async function readDoc(slugParts: string[]): Promise<string | null> {
   const cwd = process.cwd();
   const docsRoot = path.resolve(path.join(cwd, "docs")) + path.sep;
 
-  const tryRead = async (relative: string): Promise<string | null> => {
+  const tryRead = async (
+    relative: string,
+  ): Promise<DocResult | null> => {
     try {
       const resolved = path.resolve(path.join(cwd, "docs", relative));
-      // Safety: resolved path must be inside the docs/ dir.
       if (!resolved.startsWith(docsRoot)) return null;
-      return await fs.readFile(resolved, "utf-8");
+      const content = await fs.readFile(resolved, "utf-8");
+      return { content, relativePath: relative };
     } catch {
       return null;
     }
   };
 
-  // Legacy flat slugs.
   if (slugParts.length === 1) {
     const legacy = LEGACY_SLUG_TO_PATH[slugParts[0]!];
     if (legacy) {
-      const content = await tryRead(legacy);
-      if (content !== null) return content;
+      const result = await tryRead(legacy);
+      if (result) return result;
     }
   }
 
   // Try a/b/c.md
-  const direct = slugParts.join("/") + ".md";
-  const directContent = await tryRead(direct);
-  if (directContent !== null) return directContent;
+  const direct = await tryRead(slugParts.join("/") + ".md");
+  if (direct) return direct;
 
   // Try a/b/c/README.md
-  const asDir = slugParts.join("/") + "/README.md";
-  return tryRead(asDir);
+  return tryRead(slugParts.join("/") + "/README.md");
 }
 
 export default async function DocPage({
@@ -86,28 +81,51 @@ export default async function DocPage({
   params: Promise<{ slug: string[] }>;
 }): Promise<React.JSX.Element> {
   const { slug } = await params;
-  const content = await readDoc(slug);
-  if (content === null) notFound();
+  const result = await readDoc(slug);
+  if (result === null) notFound();
+
+  // Directory the current doc lives in, with trailing slash. Used
+  // as the base for resolving relative links inside the markdown.
+  // For "guides/admin/README.md" → "guides/admin/".
+  // For "guides/admin/email-setup.md" → "guides/admin/".
+  const lastSlash = result.relativePath.lastIndexOf("/");
+  const docDir =
+    lastSlash >= 0 ? result.relativePath.slice(0, lastSlash + 1) : "";
+
+  const breadcrumbs = buildBreadcrumbs(slug);
 
   return (
     <div>
-      <div className="mb-6 flex items-center justify-between gap-3">
-        <div className="flex items-center gap-3">
-          <BookOpen size={20} className="text-accent" />
-          <span className="text-sm text-content-muted">Documentation</span>
-        </div>
-        <Link
-          href="/docs"
-          className="inline-flex items-center gap-1 text-sm text-content-muted hover:text-content"
-        >
-          <ArrowLeft size={14} />
-          All docs
-        </Link>
-      </div>
+      <nav
+        aria-label="Breadcrumbs"
+        className="mb-6 flex items-center gap-2 text-caption text-content-muted flex-wrap"
+      >
+        <BookOpen size={14} className="text-accent shrink-0" aria-hidden />
+        {breadcrumbs.map((crumb, i) => {
+          const isLast = i === breadcrumbs.length - 1;
+          return (
+            <span key={crumb.href} className="inline-flex items-center gap-2">
+              {isLast ? (
+                <span className="text-content font-medium">{crumb.label}</span>
+              ) : (
+                <Link href={crumb.href} className="hover:text-content">
+                  {crumb.label}
+                </Link>
+              )}
+              {!isLast && (
+                <span className="text-content-muted/60" aria-hidden>
+                  /
+                </span>
+              )}
+            </span>
+          );
+        })}
+      </nav>
 
       <article className="shyre-doc">
         <ReactMarkdown
           remarkPlugins={[remarkGfm]}
+          rehypePlugins={[rehypeSlug]}
           components={{
             h1: (props) => (
               <h1 {...props} className="text-3xl font-bold text-content mt-2 mb-4" />
@@ -125,9 +143,18 @@ export default async function DocPage({
               <p {...props} className="text-sm text-content-secondary leading-relaxed my-3" />
             ),
             a: ({ href, children }) => {
-              const rewritten = rewriteDocLink((href ?? "") as string);
+              const rewritten = rewriteDocLink((href ?? "") as string, docDir);
+              const isExternal =
+                rewritten.startsWith("http://") ||
+                rewritten.startsWith("https://");
               return (
-                <Link href={rewritten} className="text-accent hover:underline break-words">
+                <Link
+                  href={rewritten}
+                  className="text-accent hover:underline break-words"
+                  {...(isExternal
+                    ? { target: "_blank", rel: "noopener noreferrer" }
+                    : {})}
+                >
                   {children}
                 </Link>
               );
@@ -195,23 +222,60 @@ export default async function DocPage({
             em: (props) => <em {...props} className="italic" />,
           }}
         >
-          {content}
+          {result.content}
         </ReactMarkdown>
       </article>
     </div>
   );
 }
 
+interface Crumb {
+  label: string;
+  href: string;
+}
+
+/** Build breadcrumbs from a slug. `Docs` always leads. Each
+ *  intermediate segment links to its directory README; the last
+ *  segment is the current page (rendered non-link). */
+function buildBreadcrumbs(slugParts: string[]): Crumb[] {
+  const crumbs: Crumb[] = [{ label: "Docs", href: "/docs" }];
+  let acc = "";
+  for (let i = 0; i < slugParts.length; i++) {
+    const part = slugParts[i]!;
+    acc = acc ? `${acc}/${part}` : part;
+    crumbs.push({
+      label: prettifySegment(part),
+      href: `/docs/${acc}`,
+    });
+  }
+  return crumbs;
+}
+
+function prettifySegment(segment: string): string {
+  // Acronym-friendly: keep all-caps tokens uppercase
+  // (SECURITY_AUDIT_LOG → "Security audit log" not "S e c u r i t y").
+  if (/^[A-Z][A-Z_]+$/.test(segment)) {
+    return segment
+      .toLowerCase()
+      .replace(/_/g, " ")
+      .replace(/^\w/, (c) => c.toUpperCase());
+  }
+  return segment
+    .replace(/[-_]+/g, " ")
+    .replace(/\b\w/g, (c) => c.toUpperCase());
+}
+
 /**
- * Rewrite relative markdown links (./customers.md,
- * ../agency/teams-and-roles.md) so they work inside /docs.
+ * Rewrite markdown links so they work inside /docs.
  *
- * Limitations: without knowing the current doc's path in scope, relative
- * links work only when the link is already within the same subtree the
- * browser can resolve naturally. Absolute URLs, anchors, and mailto: are
- * passed through untouched.
+ * Strategy: resolve any relative href against the current doc's
+ * directory (e.g. "guides/admin/"), strip the `.md` extension if
+ * present, prefix with "/docs/", preserve fragment identifiers.
+ *
+ * Absolute URLs, app-internal absolute paths, anchors, and mailto:
+ * links are passed through.
  */
-function rewriteDocLink(href: string): string {
+function rewriteDocLink(href: string, docDir: string): string {
   if (!href) return "#";
   if (
     href.startsWith("http://") ||
@@ -222,5 +286,28 @@ function rewriteDocLink(href: string): string {
   ) {
     return href;
   }
-  return href.replace(/\.md$/, "");
+
+  // Split off a fragment (#anchor) so we can re-add after path
+  // normalization. Markdown inside-page links (`#section`) are
+  // handled above.
+  let fragment = "";
+  let pathPart = href;
+  const hashIdx = href.indexOf("#");
+  if (hashIdx >= 0) {
+    fragment = href.slice(hashIdx);
+    pathPart = href.slice(0, hashIdx);
+  }
+
+  // Resolve relative path against docDir using POSIX semantics.
+  // path.posix.join collapses ../ and ./ correctly. docDir always
+  // ends with "/" (or is empty for top-level docs).
+  const joined = path.posix.join(docDir, pathPart);
+
+  // Strip trailing /README.md or .md so URLs are clean.
+  const cleaned = joined
+    .replace(/\/README\.md$/, "")
+    .replace(/\.md$/, "");
+
+  // Prepend the route prefix.
+  return `/docs/${cleaned}${fragment}`;
 }

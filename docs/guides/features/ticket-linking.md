@@ -94,5 +94,4 @@ Tickets get renamed. Click the ↻ button on the chip and Shyre re-fetches the l
 
 ## Related
 
-- [Time entries](time-entries.md)
 - [Imports](imports.md) — Harvest entries with attached Jira/GitHub keys carry through during import (when the description contains the key).
