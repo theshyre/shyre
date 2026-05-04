@@ -158,6 +158,7 @@ export default async function TeamEmailSettingsPage({
             name: string;
             value: string;
             purpose: string;
+            priority?: number;
           }> | null) ?? [],
           verifiedAt: (d.verified_at as string | null) ?? null,
           lastCheckedAt: (d.last_checked_at as string | null) ?? null,

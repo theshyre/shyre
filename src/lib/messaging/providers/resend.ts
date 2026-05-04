@@ -37,6 +37,10 @@ interface ResendDomainResponse {
     type: string;
     value: string;
     status?: string;
+    /** Resend includes this for MX records (return-path is MX 10).
+     *  Absent for TXT / CNAME. */
+    priority?: number;
+    ttl?: string | number;
   }>;
 }
 
@@ -165,12 +169,25 @@ function mapDomainResponse(d: ResendDomainResponse): DomainStatus {
     domain: d.name,
     providerDomainId: d.id,
     status,
-    dnsRecords: (d.records ?? []).map((r) => ({
-      type: (r.type.toUpperCase() as "TXT" | "CNAME" | "MX") ?? "TXT",
-      name: r.name,
-      value: r.value,
-      purpose: classifyPurpose(r.record),
-    })),
+    dnsRecords: (d.records ?? []).map((r) => {
+      const type =
+        (r.type.toUpperCase() as "TXT" | "CNAME" | "MX") ?? "TXT";
+      // MX requires a priority. Resend always returns it for MX
+      // rows. If a future Resend response ever drops the field,
+      // fall back to 10 — that's their documented default for
+      // the return-path MX so the user is never left guessing.
+      const priority =
+        type === "MX"
+          ? (typeof r.priority === "number" ? r.priority : 10)
+          : undefined;
+      return {
+        type,
+        name: r.name,
+        value: r.value,
+        purpose: classifyPurpose(r.record),
+        ...(priority !== undefined ? { priority } : {}),
+      };
+    }),
     failureReason: status === "failed" ? d.status : undefined,
   };
 }

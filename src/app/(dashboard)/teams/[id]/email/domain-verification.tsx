@@ -30,6 +30,9 @@ interface DomainRow {
     name: string;
     value: string;
     purpose: string;
+    /** MX records require a priority. Resend returns 10 for its
+     *  return-path MX. TXT / CNAME rows have it undefined. */
+    priority?: number;
   }>;
   verifiedAt: string | null;
   lastCheckedAt: string | null;
@@ -206,6 +209,9 @@ export function DomainVerification({
                             {t("domain.colName")}
                           </th>
                           <th className="text-left py-1 pr-3">
+                            {t("domain.colPriority")}
+                          </th>
+                          <th className="text-left py-1 pr-3">
                             {t("domain.colValue")}
                           </th>
                           <th className="py-1" />
@@ -217,6 +223,13 @@ export function DomainVerification({
                             <td className="py-1 pr-3 font-mono">{r.type}</td>
                             <td className="py-1 pr-3 font-mono break-all">
                               {r.name}
+                            </td>
+                            <td className="py-1 pr-3 font-mono">
+                              {r.priority != null ? (
+                                r.priority
+                              ) : (
+                                <span className="text-content-muted">—</span>
+                              )}
                             </td>
                             <td className="py-1 pr-3 font-mono break-all">
                               {r.value}
@@ -238,6 +251,9 @@ export function DomainVerification({
                       </tbody>
                     </table>
                   </div>
+                  <p className="text-caption text-content-muted italic">
+                    {t("domain.priorityHint")}
+                  </p>
                 </div>
               )}
             </div>

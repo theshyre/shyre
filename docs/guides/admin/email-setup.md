@@ -59,8 +59,11 @@ Resend needs to publish DKIM + SPF records on your domain so receiving mail serv
 - In Shyre, open your team page (sidebar → Teams → click the team) and click the **Email** button in the top-right of the header. (Owner/admin only — the button is hidden for plain members. The URL is `/teams/<your-team>/email` if you'd rather paste it.)
 - Save the API key first (paste + Save)
 - Under "Verified domains" → Add domain → enter `malcom.io` (your domain)
-- Shyre returns a list of DNS records (TXT + CNAMEs)
-- In your DNS registrar, add each record exactly as shown
+- Shyre returns a list of DNS records (TXT + one MX). Each row shows Type, Name, Priority, and Value.
+- In your DNS registrar, add each record exactly as shown:
+  - **TXT** rows — copy `Name` and `Value`. Priority shows `—` and the registrar's TTL default is fine.
+  - **MX** row — copy `Name`, `Value`, **and** the `Priority` (Resend uses `10`). The MX is for return-path / bounces; without it Resend can't track delivery failures.
+- Don't leave the MX priority at the registrar default unless the default happens to be `10` — wrong priority breaks bounce handling silently.
 - Wait 1–5 minutes for DNS to propagate
 - Click "Verify" — Shyre re-asks Resend if the records check out
 - Status flips to ✓ Verified

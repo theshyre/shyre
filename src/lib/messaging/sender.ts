@@ -68,6 +68,9 @@ export interface DomainStatus {
     name: string;
     value: string;
     purpose: "spf" | "dkim" | "dmarc" | "return_path";
+    /** MX records require a priority. Resend returns 10 for its
+     *  return-path MX. Always undefined for TXT / CNAME. */
+    priority?: number;
   }>;
   failureReason?: string;
 }
