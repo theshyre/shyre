@@ -55,12 +55,23 @@ export async function sendTestEmailAction(formData: FormData): Promise<void> {
       );
     }
 
-    const apiKey = await decryptForTeam(
-      supabase,
-      teamId,
-      cfg.api_key_encrypted as Buffer | string,
-    );
-    if (!apiKey) throw new Error("Could not decrypt the saved API key.");
+    let apiKey: string | null;
+    try {
+      apiKey = await decryptForTeam(
+        supabase,
+        teamId,
+        cfg.api_key_encrypted as Buffer | string,
+      );
+    } catch {
+      throw AppError.refusal(
+        "The saved Resend API key can't be decrypted with the current encryption key. Re-paste your Resend API key, Save, then try the test send again.",
+      );
+    }
+    if (!apiKey) {
+      throw AppError.refusal(
+        "Re-paste your Resend API key, Save, then try the test send again.",
+      );
+    }
 
     // From-domain allow-list — defense in depth.
     const at = (cfg.from_email as string).lastIndexOf("@");

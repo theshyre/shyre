@@ -5,6 +5,7 @@ import { assertSupabaseOk, AppError } from "@/lib/errors";
 import { validateTeamAccess } from "@/lib/team-context";
 import { revalidatePath } from "next/cache";
 import {
+  bytesForPg,
   decryptForTeam,
   encryptForTeam,
 } from "@/lib/messaging/encryption";
@@ -88,7 +89,7 @@ export async function updateEmailConfigAction(
     const apiKeyRaw = (formData.get("api_key") as string)?.trim();
     if (apiKeyRaw) {
       const cipher = await encryptForTeam(supabase, teamId, apiKeyRaw);
-      patch.api_key_encrypted = cipher;
+      patch.api_key_encrypted = bytesForPg(cipher);
       // Pasting a new key resets the rotate-by clock. If the user
       // also picked a date, that wins; otherwise default to +1y.
       patch.api_key_expires_at = apiKeyExpiresInput ?? defaultExpiryYear();
@@ -134,12 +135,29 @@ export async function addEmailDomainAction(formData: FormData): Promise<void> {
         "Save an API key first — Resend domain verification needs it.",
       );
     }
-    const apiKey = await decryptForTeam(
-      supabase,
-      teamId,
-      cfg.api_key_encrypted as Buffer | string,
-    );
-    if (!apiKey) throw new Error("Could not decrypt the saved API key.");
+    let apiKey: string | null;
+    try {
+      apiKey = await decryptForTeam(
+        supabase,
+        teamId,
+        cfg.api_key_encrypted as Buffer | string,
+      );
+    } catch {
+      // Auth-tag mismatch — the cipher in the DB cannot be
+      // decrypted with the current keys. Common causes:
+      // EMAIL_KEY_ENCRYPTION_KEY rotated since the key was
+      // saved; the cipher was stored before the BYTEA-write
+      // fix landed; or the row was tampered with. The user
+      // can recover by re-pasting their API key.
+      throw AppError.refusal(
+        "The saved Resend API key can't be decrypted with the current encryption key. Re-paste your Resend API key in the form above and Save, then try again.",
+      );
+    }
+    if (!apiKey) {
+      throw AppError.refusal(
+        "Re-paste your Resend API key in the form above and Save, then try again.",
+      );
+    }
 
     const sender = senderFor("resend", apiKey);
     const status = await sender.ensureDomain(domain);
@@ -195,12 +213,23 @@ export async function verifyEmailDomainAction(
     if (!cfg?.api_key_encrypted) {
       throw new Error("API key missing.");
     }
-    const apiKey = await decryptForTeam(
-      supabase,
-      teamId,
-      cfg.api_key_encrypted as Buffer | string,
-    );
-    if (!apiKey) throw new Error("Could not decrypt the saved API key.");
+    let apiKey: string | null;
+    try {
+      apiKey = await decryptForTeam(
+        supabase,
+        teamId,
+        cfg.api_key_encrypted as Buffer | string,
+      );
+    } catch {
+      throw AppError.refusal(
+        "The saved Resend API key can't be decrypted with the current encryption key. Re-paste your Resend API key, Save, then try again.",
+      );
+    }
+    if (!apiKey) {
+      throw AppError.refusal(
+        "Re-paste your Resend API key, Save, then try again.",
+      );
+    }
 
     const sender = senderFor("resend", apiKey);
     const status = await sender.refreshDomain(row.provider_domain_id as string);

@@ -10,6 +10,7 @@ import {
   Copy,
   RefreshCw,
 } from "lucide-react";
+import { AlertBanner } from "@theshyre/ui";
 import {
   inputClass,
   labelClass,
@@ -50,6 +51,11 @@ export function DomainVerification({
   const [adding, setAdding] = useState(false);
   const [pendingVerifyId, setPendingVerifyId] = useState<string | null>(null);
   const [, startTransition] = useTransition();
+  // Persistent error banner. Toasts auto-dismiss; this stays put
+  // until the user clears it or the next try succeeds — important
+  // for cipher-decryption failures where the user has to go re-
+  // paste their API key in another section of the page.
+  const [actionError, setActionError] = useState<string | null>(null);
 
   async function onAdd(): Promise<void> {
     if (!hasApiKey) {
@@ -58,6 +64,7 @@ export function DomainVerification({
     }
     if (!domainInput.trim()) return;
     setAdding(true);
+    setActionError(null);
     try {
       const fd = new FormData();
       fd.set("team_id", teamId);
@@ -66,11 +73,10 @@ export function DomainVerification({
       setDomainInput("");
       toast.push({ kind: "success", message: t("domain.added") });
     } catch (err) {
-      toast.push({
-        kind: "error",
-        message:
-          err instanceof Error ? err.message : t("domain.addFailed"),
-      });
+      const message =
+        err instanceof Error ? err.message : t("domain.addFailed");
+      setActionError(message);
+      toast.push({ kind: "error", message });
     } finally {
       setAdding(false);
     }
@@ -78,6 +84,7 @@ export function DomainVerification({
 
   function onVerify(domainId: string): void {
     setPendingVerifyId(domainId);
+    setActionError(null);
     startTransition(async () => {
       try {
         const fd = new FormData();
@@ -86,11 +93,10 @@ export function DomainVerification({
         await assertActionResult(verifyEmailDomainAction(fd));
         toast.push({ kind: "success", message: t("domain.rechecked") });
       } catch (err) {
-        toast.push({
-          kind: "error",
-          message:
-            err instanceof Error ? err.message : t("domain.recheckFailed"),
-        });
+        const message =
+          err instanceof Error ? err.message : t("domain.recheckFailed");
+        setActionError(message);
+        toast.push({ kind: "error", message });
       } finally {
         setPendingVerifyId(null);
       }
@@ -113,6 +119,10 @@ export function DomainVerification({
       <p className="text-caption text-content-muted">
         {t("domain.intro")}
       </p>
+
+      {actionError && (
+        <AlertBanner tone="error">{actionError}</AlertBanner>
+      )}
 
       <div className="grid gap-2 sm:grid-cols-[1fr_auto] items-end">
         <div>

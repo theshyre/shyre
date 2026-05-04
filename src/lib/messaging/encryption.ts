@@ -131,6 +131,28 @@ function toBuffer(input: Buffer | Uint8Array | string): Buffer {
   return Buffer.from(input);
 }
 
+/**
+ * Serialize a Buffer for a PostgREST BYTEA column WRITE.
+ *
+ * supabase-js / postgrest-js uses `JSON.stringify` on the request
+ * body. Node's `Buffer.toJSON()` returns `{type: "Buffer",
+ * data: [...]}` — PostgREST receives that object instead of a
+ * scalar value, can't coerce it to bytea, and silently stores the
+ * JSON text. The cipher round-trip then fails on the auth tag.
+ *
+ * The fix: pre-format the Buffer as Postgres's hex literal
+ * (`\x<hex>`), which PostgREST happily parses as bytea on the way
+ * in. Read path is unaffected — `toBuffer()` already handles the
+ * hex-string shape.
+ *
+ * EVERY place that writes a Buffer into a BYTEA column via
+ * supabase-js MUST go through this helper. Adding a new BYTEA
+ * column? Wrap the cipher with `bytesForPg(...)` at the call site.
+ */
+export function bytesForPg(buf: Buffer): string {
+  return `\\x${buf.toString("hex")}`;
+}
+
 // ────────────────────────────────────────────────────────────────
 // Envelope encryption (per-team DEKs)
 // ────────────────────────────────────────────────────────────────
@@ -255,7 +277,7 @@ export async function getOrCreateTeamDek(
   const { error } = await admin
     .from("team_email_config")
     .upsert(
-      { team_id: teamId, dek_encrypted: dekCipher },
+      { team_id: teamId, dek_encrypted: bytesForPg(dekCipher) },
       { onConflict: "team_id" },
     );
   if (error) {

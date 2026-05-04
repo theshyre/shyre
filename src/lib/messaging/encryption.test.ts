@@ -7,6 +7,7 @@ import {
   unwrapDek,
   encryptWithDek,
   decryptWithDek,
+  bytesForPg,
 } from "./encryption";
 
 beforeAll(() => {
@@ -122,5 +123,42 @@ describe("envelope encryption (per-team DEKs)", () => {
     expect(() =>
       encryptWithDek("plaintext", Buffer.alloc(16)),
     ).toThrow(/Invalid DEK/);
+  });
+});
+
+describe("bytesForPg — BYTEA write serialization", () => {
+  // Regression for the production bug where Buffers were passed
+  // straight to supabase-js.upsert(). JSON.stringify(Buffer) emits
+  // {type:"Buffer",data:[...]} which PostgREST stores as garbage,
+  // and the next decrypt fails with "Unsupported state or unable
+  // to authenticate data" because the auth tag won't match the
+  // mangled cipher.
+
+  it("produces the Postgres hex literal shape PostgREST accepts", () => {
+    const buf = Buffer.from([0x12, 0x34, 0xab, 0xcd]);
+    expect(bytesForPg(buf)).toBe("\\x1234abcd");
+  });
+
+  it("survives a JSON round-trip without losing bytes", () => {
+    const cipher = encryptSecret("re_team_a_key_PLACEHOLDER");
+    expect(cipher).not.toBeNull();
+    const wireValue = bytesForPg(cipher!);
+    const wire = JSON.stringify({ api_key_encrypted: wireValue });
+    const parsed = JSON.parse(wire) as { api_key_encrypted: string };
+    expect(parsed.api_key_encrypted).toBe(wireValue);
+    expect(decryptSecret(parsed.api_key_encrypted)).toBe(
+      "re_team_a_key_PLACEHOLDER",
+    );
+  });
+
+  it("contrasts with the broken raw-Buffer path (regression guard)", () => {
+    // Document the bug: a raw Buffer JSON-stringifies to an object,
+    // not a string. Anyone who replaces bytesForPg with a raw
+    // Buffer will trip this.
+    const buf = encryptSecret("anything")!;
+    const wire = JSON.stringify({ api_key_encrypted: buf });
+    const parsed = JSON.parse(wire) as { api_key_encrypted: unknown };
+    expect(typeof parsed.api_key_encrypted).toBe("object");
+    expect(typeof bytesForPg(buf)).toBe("string");
   });
 });
