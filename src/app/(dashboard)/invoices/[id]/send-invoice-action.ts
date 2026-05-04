@@ -31,7 +31,15 @@ export async function sendInvoiceMessageAction(
     const subject = (formData.get("subject") as string) ?? "";
     const bodyText = (formData.get("body_text") as string) ?? "";
     const bodyHtml = (formData.get("body_html") as string) ?? "";
-    const toEmail = (formData.get("to_email") as string)?.trim() ?? "";
+    // To: accepts a single email or comma-separated list (multiple
+    // contacts per customer can be flagged invoice recipients —
+    // co-owners, AP + CFO pair, etc.). Cc: same shape, separate
+    // field. Empty addresses (trailing comma, double comma) are
+    // dropped.
+    const toRaw = (formData.get("to_email") as string)?.trim() ?? "";
+    const toEmails = toRaw
+      ? toRaw.split(",").map((s) => s.trim()).filter(Boolean)
+      : [];
     const ccRaw = (formData.get("cc_emails") as string)?.trim() ?? "";
     const ccEmails = ccRaw
       ? ccRaw.split(",").map((s) => s.trim()).filter(Boolean)
@@ -82,7 +90,11 @@ export async function sendInvoiceMessageAction(
       const admin = createAdminClient();
       const { data: u } = await admin.auth.admin.getUserById(userId);
       const myEmail = u?.user?.email;
-      if (myEmail && !finalCc.includes(myEmail) && myEmail !== toEmail) {
+      if (
+        myEmail &&
+        !finalCc.includes(myEmail) &&
+        !toEmails.includes(myEmail)
+      ) {
         finalCc.push(myEmail);
       }
     }
@@ -97,7 +109,7 @@ export async function sendInvoiceMessageAction(
         subject,
         bodyHtml,
         bodyText,
-        toEmail,
+        toEmails,
         ccEmails: finalCc.length > 0 ? finalCc : undefined,
         fromEmailOverride: fromOverride,
         fromNameOverride,

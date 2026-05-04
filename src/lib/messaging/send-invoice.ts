@@ -45,8 +45,11 @@ export interface SendInvoiceInput {
   subject: string;
   bodyHtml: string;
   bodyText: string;
-  /** Recipient(s). `to` is required; cc/bcc optional. */
-  toEmail: string;
+  /** Recipient(s). `toEmails` is required and must contain at
+   *  least one address; cc/bcc optional. Multi-recipient is the
+   *  default shape so co-owners / paired AP + CFO contacts can
+   *  receive the invoice on the same To: line. */
+  toEmails: string[];
   ccEmails?: string[];
   bccEmails?: string[];
   /** Override the team's configured From / Reply-To when the user
@@ -93,14 +96,19 @@ export async function sendInvoice(
     input.replyToEmailOverride?.trim() || cfg.replyToEmail || null;
 
   // 2. Validate recipients + sanitize headers
-  const recipientCheck = validateRecipient(input.toEmail);
-  if (recipientCheck === "invalid") {
-    throw new Error(`Recipient ${input.toEmail} is not a valid email.`);
+  if (input.toEmails.length === 0) {
+    throw new Error("At least one To: recipient is required.");
   }
-  if (recipientCheck === "role") {
-    throw new Error(
-      `Cannot send to role address ${input.toEmail} — use a person's mailbox instead.`,
-    );
+  for (const to of input.toEmails) {
+    const recipientCheck = validateRecipient(to);
+    if (recipientCheck === "invalid") {
+      throw new Error(`Recipient ${to} is not a valid email.`);
+    }
+    if (recipientCheck === "role") {
+      throw new Error(
+        `Cannot send to role address ${to} — use a person's mailbox instead.`,
+      );
+    }
   }
   for (const cc of input.ccEmails ?? []) {
     if (validateRecipient(cc) !== null) {
@@ -149,7 +157,12 @@ export async function sendInvoice(
     fromEmail,
     fromName: sanitizedFromName,
     replyToEmail: sanitizedReplyTo,
-    toEmail: input.toEmail,
+    // outbox.to_email is a single TEXT column. Join the recipients
+    // with ", " for storage; the canonical structured shape stays
+    // in the message dispatched to Resend below. Adding a separate
+    // multi-row recipients table is the future-clean design but
+    // not worth the schema churn for this preview.
+    toEmail: input.toEmails.join(", "),
     ccEmails: input.ccEmails,
     bccEmails: input.bccEmails,
     subject,
@@ -170,7 +183,7 @@ export async function sendInvoice(
   const sender = senderFor("resend", apiKey);
   const message: OutboundMessage = {
     from: { email: fromEmail, name: sanitizedFromName ?? undefined },
-    to: [{ email: input.toEmail }],
+    to: input.toEmails.map((email) => ({ email })),
     cc: input.ccEmails?.map((e) => ({ email: e })),
     bcc: input.bccEmails?.map((e) => ({ email: e })),
     replyTo: sanitizedReplyTo ?? undefined,

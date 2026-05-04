@@ -112,12 +112,13 @@ export function ContactsSection({
         )}
       </div>
       <p className="mt-1 text-caption text-content-muted">
-        People at this customer. The one flagged{" "}
+        People at this customer. Every contact flagged{" "}
         <span className="inline-flex items-center gap-1 align-middle">
           <Send size={11} className="text-accent" />
           Send invoices to
         </span>{" "}
-        gets pre-filled as the To: address when you email an invoice.
+        is added to the To: line when you email an invoice — flag two
+        co-owners and they both receive it.
       </p>
 
       {actionError && (
@@ -203,8 +204,8 @@ export function ContactsSection({
                         <Tooltip
                           label={
                             c.is_invoice_recipient
-                              ? "Clear invoice recipient"
-                              : "Send invoices to this contact"
+                              ? "Stop sending invoices to this contact"
+                              : "Also send invoices to this contact"
                           }
                         >
                           <button
@@ -213,8 +214,8 @@ export function ContactsSection({
                             className={buttonGhostClass}
                             aria-label={
                               c.is_invoice_recipient
-                                ? "Clear invoice recipient"
-                                : "Send invoices to this contact"
+                                ? "Stop sending invoices to this contact"
+                                : "Also send invoices to this contact"
                             }
                             aria-pressed={c.is_invoice_recipient}
                           >

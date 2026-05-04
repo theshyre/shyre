@@ -71,19 +71,10 @@ export async function createCustomerContactAction(
         throw new Error(`"${email}" is not a valid email address.`);
       }
 
-      // If this contact is being marked as the invoice recipient,
-      // clear the previous one to avoid violating the partial
-      // unique index.
-      if (isInvoiceRecipient) {
-        assertSupabaseOk(
-          await supabase
-            .from("customer_contacts")
-            .update({ is_invoice_recipient: false })
-            .eq("customer_id", customerId)
-            .eq("is_invoice_recipient", true),
-        );
-      }
-
+      // Multiple recipients allowed per customer (a customer with
+      // two co-owners who both want the invoice) — the send-invoice
+      // path joins every flagged email. No per-customer cardinality
+      // gate; the partial unique index was dropped 2026-05-04.
       assertSupabaseOk(
         await supabase.from("customer_contacts").insert({
           team_id,
@@ -138,19 +129,9 @@ export async function updateCustomerContactAction(
         throw new Error(`"${email}" is not a valid email address.`);
       }
 
-      if (isInvoiceRecipient) {
-        // Clear any other recipient on the same customer — the
-        // partial unique index would reject the update otherwise.
-        assertSupabaseOk(
-          await supabase
-            .from("customer_contacts")
-            .update({ is_invoice_recipient: false })
-            .eq("customer_id", existing.customer_id as string)
-            .eq("is_invoice_recipient", true)
-            .neq("id", contactId),
-        );
-      }
-
+      // Multi-recipient model: no need to clear sibling rows when
+      // the user flags this one. The send-invoice path simply
+      // unions every flagged email into the To: list.
       assertSupabaseOk(
         await supabase
           .from("customer_contacts")
@@ -201,10 +182,9 @@ export async function deleteCustomerContactAction(
   ) as unknown as void;
 }
 
-/** Toggle a contact's recipient flag. The partial unique index
- *  enforces "at most one per customer" — this action clears the
- *  previous recipient (if any) before setting the new one, so a
- *  team admin's click never trips the index. */
+/** Flip a contact's recipient flag. Each contact's flag is
+ *  independent — toggling one doesn't touch siblings. The Star
+ *  icon on the customer detail page is the only caller. */
 export async function setInvoiceRecipientAction(
   formData: FormData,
 ): Promise<void> {
@@ -227,27 +207,12 @@ export async function setInvoiceRecipientAction(
         existing.customer_id as string,
       );
 
-      // Clear the existing recipient(s) for this customer first.
       assertSupabaseOk(
         await supabase
           .from("customer_contacts")
-          .update({ is_invoice_recipient: false })
-          .eq("customer_id", existing.customer_id as string)
-          .eq("is_invoice_recipient", true),
+          .update({ is_invoice_recipient: !existing.is_invoice_recipient })
+          .eq("id", contactId),
       );
-
-      // Then set the chosen contact. If the user clicks the
-      // already-recipient contact, this leaves it cleared (toggle
-      // off semantics). If they click a different contact, this
-      // sets the new one.
-      if (!existing.is_invoice_recipient) {
-        assertSupabaseOk(
-          await supabase
-            .from("customer_contacts")
-            .update({ is_invoice_recipient: true })
-            .eq("id", contactId),
-        );
-      }
 
       revalidatePath(`/customers/${existing.customer_id as string}`);
     },

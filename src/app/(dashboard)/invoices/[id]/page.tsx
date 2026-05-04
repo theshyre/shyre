@@ -82,27 +82,31 @@ export default async function InvoiceDetailPage({
 
   if (!invoice) notFound();
 
-  // Recipient resolution: prefer the customer's flagged invoice-
-  // recipient contact, fall back to customers.email (Phase-1
-  // behavior). The send modal's `defaultTo` consumes this — the
-  // user can still edit the To: field if they want to send to a
-  // different person on the fly. customer_contacts RLS scopes to
-  // the team; member viewers see [] which is fine, the fallback
-  // covers them.
+  // Recipient resolution: pull every contact flagged
+  // `is_invoice_recipient = true` for this customer (multiple
+  // allowed — co-owners, AP+CFO pair, etc.) and join their emails
+  // for the To: pre-fill. Falls back to customers.email when no
+  // contacts are flagged. The send modal's `defaultTo` consumes
+  // the joined string; the user can still edit on the fly. RLS
+  // scopes to the team; member viewers see [] which is fine — the
+  // fallback covers them.
   const customerIdForContacts =
     invoice.customers &&
     typeof invoice.customers === "object" &&
     "id" in invoice.customers
       ? ((invoice.customers as { id: string }).id ?? null)
       : null;
-  const { data: recipientContact } = customerIdForContacts
+  const { data: recipientContacts } = customerIdForContacts
     ? await supabase
         .from("customer_contacts")
-        .select("name, email")
+        .select("email")
         .eq("customer_id", customerIdForContacts)
         .eq("is_invoice_recipient", true)
-        .maybeSingle()
-    : { data: null };
+        .order("created_at", { ascending: true })
+    : { data: [] };
+  const recipientEmails = (recipientContacts ?? [])
+    .map((c) => (c.email as string | null) ?? "")
+    .filter((e) => e.length > 0);
 
   // Line items, history, payments, and entry-authors-on-this-invoice
   // are independent reads — fire them in parallel rather than
@@ -428,9 +432,9 @@ Thanks,
             teamId={invoice.team_id as string}
             invoiceId={invoice.id as string}
             defaultTo={
-              (recipientContact?.email as string | null) ??
-              client?.email ??
-              ""
+              recipientEmails.length > 0
+                ? recipientEmails.join(", ")
+                : (client?.email ?? "")
             }
             defaultFromEmail={fromEmail}
             defaultFromName={
