@@ -52,7 +52,7 @@
     "apiKey": "Resend API key",
     "apiKeyPlaceholder": "re_…",
     "apiKeyHasValuePlaceholder": "(saved — paste a new key to replace)",
-    "apiKeyHint": "Sign up at resend.com (free tier covers 3,000 emails/month) and create an API key. The key is encrypted at rest with AES-256-GCM; only the messaging module can decrypt.",
+    "apiKeyHint": "Sign up at resend.com (free tier covers 3,000 emails/month) and create an API key with Permission: Full access — sending-only keys are rejected by domain verification. The key is encrypted at rest with AES-256-GCM; only the messaging module can decrypt.",
     "apiKeyExpiresAt": "Rotate by",
     "apiKeyExpiresAtHint": "Optional reminder date. Leave blank when saving a new key and Shyre fills in today + 1 year so the dashboard banner can warn you 30, 7, and 0 days out.",
     "fromEmail": "From address",

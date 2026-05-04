@@ -44,10 +44,13 @@ Add it to Vercel:
 ### 2. Resend API key (one time, per business)
 
 - Sign up at [resend.com](https://resend.com) (free tier: 3,000 emails/month — covers any solo invoice volume)
-- Resend dashboard → API Keys → Create API key → "Sending access"
+- Resend dashboard → API Keys → Create API key
+- **Permission: Full access** (not "Sending access" — Shyre also reads + writes domains for verification, and Resend rejects domain calls from a sending-only key with `401 restricted_api_key`)
 - Copy the key (it starts with `re_…`)
 
 You'll paste this in step 5.
+
+> If you already created a "Sending access" key, you can't upgrade it — Resend keys are scope-locked at creation. Delete it and create a Full-access one.
 
 ### 3. Verify your domain at Resend (one time, per domain)
 
@@ -113,6 +116,7 @@ The email arrives from `info@malcom.io`, replies thread to `marcus@malcom.io`, a
 | Symptom | Cause | Fix |
 |---|---|---|
 | "Email is not configured for this team" | Team has no `team_email_config` row | Save API key + From in `/teams/<id>/email` |
+| `Resend /domains returned 401: ...restricted_api_key` | API key was created with "Sending access" only | Create a new **Full access** key in Resend, paste it in `/teams/<id>/email`, Save, retry |
 | "Domain ${x} is not verified" | Step 3 not complete or DNS hasn't propagated | Wait, then click Verify |
 | "Email API key could not be decrypted" | `EMAIL_KEY_ENCRYPTION_KEY` env var changed since the key was saved | Restore the original master key, OR re-paste the API key (re-encrypts with the new master) |
 | "Daily send cap reached" | Hit the per-team cap | Wait until midnight UTC, or raise the cap |

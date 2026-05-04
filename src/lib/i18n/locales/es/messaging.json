@@ -52,7 +52,7 @@
     "apiKey": "Clave de API de Resend",
     "apiKeyPlaceholder": "re_…",
     "apiKeyHasValuePlaceholder": "(guardada — pega una nueva clave para reemplazarla)",
-    "apiKeyHint": "Regístrate en resend.com (la capa gratuita cubre 3.000 correos/mes) y crea una clave de API. La clave se cifra en reposo con AES-256-GCM; solo el módulo de mensajería puede descifrarla.",
+    "apiKeyHint": "Regístrate en resend.com (la capa gratuita cubre 3.000 correos/mes) y crea una clave de API con Permission: Full access — las claves \"Sending only\" son rechazadas al verificar dominios. La clave se cifra en reposo con AES-256-GCM; solo el módulo de mensajería puede descifrarla.",
     "apiKeyExpiresAt": "Rotar antes de",
     "apiKeyExpiresAtHint": "Fecha de recordatorio opcional. Déjalo en blanco al guardar una clave nueva y Shyre rellenará hoy + 1 año para que el banner del dashboard te avise a 30, 7 y 0 días.",
     "fromEmail": "Dirección remitente",
