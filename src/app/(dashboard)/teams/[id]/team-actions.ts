@@ -2,7 +2,7 @@
 
 import { runSafeAction } from "@/lib/safe-action";
 import { assertSupabaseOk } from "@/lib/errors";
-import { validateTeamAccess } from "@/lib/team-context";
+import { isTeamAdmin, validateTeamAccess } from "@/lib/team-context";
 import { revalidatePath } from "next/cache";
 
 export async function inviteMemberAction(formData: FormData): Promise<void> {
@@ -10,7 +10,7 @@ export async function inviteMemberAction(formData: FormData): Promise<void> {
     const teamId = formData.get("team_id") as string;
     const { userId, role } = await validateTeamAccess(teamId);
 
-    if (role !== "owner" && role !== "admin") {
+    if (!isTeamAdmin(role)) {
       throw new Error("Only owners and admins can invite members.");
     }
 
@@ -39,7 +39,7 @@ export async function removeMemberAction(formData: FormData): Promise<void> {
     const teamId = formData.get("team_id") as string;
     const { userId, role } = await validateTeamAccess(teamId);
 
-    if (role !== "owner" && role !== "admin") {
+    if (!isTeamAdmin(role)) {
       throw new Error("Only owners and admins can remove members.");
     }
 
@@ -76,7 +76,7 @@ export async function revokeInviteAction(formData: FormData): Promise<void> {
     const teamId = formData.get("team_id") as string;
     const { role } = await validateTeamAccess(teamId);
 
-    if (role !== "owner" && role !== "admin") {
+    if (!isTeamAdmin(role)) {
       throw new Error("Only owners and admins can revoke invites.");
     }
 
@@ -98,8 +98,14 @@ export async function updateTeamNameAction(formData: FormData): Promise<void> {
     const teamId = formData.get("team_id") as string;
     const { role } = await validateTeamAccess(teamId);
 
-    if (role !== "owner") {
-      throw new Error("Only the owner can rename the team.");
+    // Admins can rename — matches the rest of the team-config write
+    // surface (invite, remove, revoke, settings, email, templates).
+    // Owner-only would be an asymmetry with no documented rationale,
+    // and a delegated team admin should be able to rebrand the team
+    // without escalating to the owner. Owner-only operations remain:
+    // ownership transfer + team deletion.
+    if (!isTeamAdmin(role)) {
+      throw new Error("Only the team owner or admin can rename the team.");
     }
 
     const name = formData.get("team_name") as string;

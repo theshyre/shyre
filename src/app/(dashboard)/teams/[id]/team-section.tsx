@@ -25,6 +25,7 @@ import {
   buttonSecondaryClass,
   buttonDangerClass,
 } from "@/lib/form-styles";
+import { isTeamAdmin, type TeamRole } from "@/lib/team-roles";
 import { useFormAction } from "@/hooks/use-form-action";
 import { SubmitButton } from "@/components/SubmitButton";
 import {
@@ -60,7 +61,7 @@ interface TeamSectionProps {
   teamName: string;
   teamId: string;
   isPersonalOrg: boolean;
-  currentRole: string;
+  currentRole: TeamRole;
   currentUserId: string;
   members: Member[];
   invites: Invite[];
@@ -89,7 +90,7 @@ export function TeamSection({
 }: TeamSectionProps): React.JSX.Element {
   const [inviteOpen, setInviteOpen] = useState(false);
   const tc = useTranslations("common");
-  const isAdmin = currentRole === "owner" || currentRole === "admin";
+  const isAdmin = isTeamAdmin(currentRole);
 
   // A team without an owner is a data-integrity issue — every team
   // should have exactly one. Surface it so ownership-transfer flows

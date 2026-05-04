@@ -13,6 +13,7 @@ import {
   selectClass,
   labelClass,
 } from "@/lib/form-styles";
+import { isTeamAdmin, type TeamRole } from "@/lib/team-roles";
 import {
   proposeTeamShareAction,
   acceptTeamShareAction,
@@ -48,7 +49,7 @@ export function RelationshipsSection({
   availableTeams,
 }: {
   teamId: string;
-  role: string;
+  role: TeamRole;
   parentTeams: TeamShare[];
   childTeams: TeamShare[];
   availableTeams: TeamOption[];
@@ -57,7 +58,7 @@ export function RelationshipsSection({
   const t = useTranslations("sharing.teamRelationships");
   const tc = useTranslations("common");
 
-  const canManage = role === "owner" || role === "admin";
+  const canManage = isTeamAdmin(role);
 
   const {
     pending: proposePending,

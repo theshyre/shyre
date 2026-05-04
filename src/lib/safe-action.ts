@@ -20,18 +20,42 @@ export interface ActionContext {
  * Run a server action with auth, error handling, and logging.
  * Call this INSIDE each exported async function (not as a wrapper).
  *
- * Usage:
+ * Usage (no team context):
  *   export async function myAction(formData: FormData) {
  *     return runSafeAction(formData, async (fd, { supabase, userId }) => {
  *       // ... action logic
  *     }, "myAction");
  *   }
+ *
+ * Usage (team-scoped — recommended for any action that mutates a
+ * team's data, so error_logs.team_id captures which team the
+ * failure belonged to):
+ *   export async function myAction(formData: FormData) {
+ *     return runSafeAction(formData, async (fd, { supabase, userId }) => {
+ *       // ... action logic
+ *     }, { actionName: "myAction", teamIdFrom: (fd) => fd.get("team_id") as string });
+ *   }
+ *
+ * The teamIdFrom callback runs *after* the actionFn settles so an
+ * action that mutates `team_id` mid-flight can't leak a stale value
+ * into the error log. If the callback throws or returns null/empty,
+ * the team_id is just omitted — no second-order failure.
  */
+export interface RunSafeActionOptions {
+  actionName: string;
+  teamIdFrom?: (formData: FormData) => string | null | undefined;
+}
+
 export async function runSafeAction(
   formData: FormData,
   actionFn: (formData: FormData, ctx: ActionContext) => Promise<void>,
-  actionName: string
+  actionNameOrOpts: string | RunSafeActionOptions
 ): Promise<ActionResult> {
+  const opts: RunSafeActionOptions =
+    typeof actionNameOrOpts === "string"
+      ? { actionName: actionNameOrOpts }
+      : actionNameOrOpts;
+
   const supabase = await createClient();
   const {
     data: { user },
@@ -52,9 +76,20 @@ export async function runSafeAction(
 
     const appError = toAppError(err);
 
+    let teamId: string | undefined;
+    if (opts.teamIdFrom) {
+      try {
+        const v = opts.teamIdFrom(formData);
+        if (typeof v === "string" && v.length > 0) teamId = v;
+      } catch {
+        // Resolver-side failure shouldn't abort error logging.
+      }
+    }
+
     logError(appError, {
       userId: user.id,
-      action: actionName,
+      action: opts.actionName,
+      ...(teamId ? { teamId } : {}),
     });
 
     return { success: false, error: appError.toUserSafe() };

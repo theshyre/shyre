@@ -1,5 +1,13 @@
 import { createClient } from "@/lib/supabase/server";
 import { redirect } from "next/navigation";
+import { isTeamAdmin, type TeamAdminRole } from "@/lib/team-roles";
+
+// Re-export the pure predicates so server-side call sites can keep
+// the canonical `@/lib/team-context` import path. Client components
+// import directly from `@/lib/team-roles` to avoid the server-only
+// Supabase client this module pulls in.
+export { isTeamAdmin };
+export type { TeamAdminRole };
 
 export interface UserContext {
   userId: string;
@@ -37,6 +45,26 @@ export async function getUserContext(): Promise<UserContext> {
     userEmail: user.email ?? "",
     displayName: profile?.display_name ?? user.email?.split("@")[0] ?? "User",
   };
+}
+
+/**
+ * Validate that the current user has team-admin access to the given
+ * team. Throws if not — same surface as `validateTeamAccess` but
+ * with the owner/admin gate baked in. Use this in server actions
+ * that mutate team-scoped data.
+ *
+ * Returns the user's actual role (owner or admin) so callers that
+ * differentiate between the two — e.g. transfer-ownership — don't
+ * have to re-fetch.
+ */
+export async function requireTeamAdmin(
+  teamId: string,
+): Promise<{ userId: string; role: TeamAdminRole }> {
+  const { userId, role } = await validateTeamAccess(teamId);
+  if (!isTeamAdmin(role)) {
+    throw new Error("Only team owners and admins can perform this action.");
+  }
+  return { userId, role };
 }
 
 /** Get all teams the current user belongs to. */

@@ -2,7 +2,7 @@
 
 import { runSafeAction } from "@/lib/safe-action";
 import { assertSupabaseOk, AppError } from "@/lib/errors";
-import { validateTeamAccess } from "@/lib/team-context";
+import { isTeamAdmin, validateTeamAccess } from "@/lib/team-context";
 import { revalidatePath } from "next/cache";
 import {
   bytesForPg,
@@ -20,7 +20,7 @@ import { defaultExpiryYear } from "@/lib/credentials/expiry";
  */
 async function ensureOwnerAdmin(teamId: string): Promise<{ userId: string }> {
   const { role, userId } = await validateTeamAccess(teamId);
-  if (role !== "owner" && role !== "admin") {
+  if (!isTeamAdmin(role)) {
     throw AppError.refusal(
       "Only team owners and admins can configure email.",
     );

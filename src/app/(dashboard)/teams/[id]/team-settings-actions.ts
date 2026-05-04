@@ -2,7 +2,7 @@
 
 import { runSafeAction } from "@/lib/safe-action";
 import { assertSupabaseOk } from "@/lib/errors";
-import { validateTeamAccess } from "@/lib/team-context";
+import { isTeamAdmin, validateTeamAccess } from "@/lib/team-context";
 import { revalidatePath } from "next/cache";
 import { serializeAddress } from "@/lib/schemas/address";
 
@@ -35,7 +35,7 @@ export async function updateTeamSettingsAction(formData: FormData): Promise<void
     const teamId = formData.get("team_id") as string;
     const { role } = await validateTeamAccess(teamId);
 
-    if (role !== "owner" && role !== "admin") {
+    if (!isTeamAdmin(role)) {
       throw new Error("Only owners and admins can update team settings.");
     }
 
@@ -199,7 +199,7 @@ export async function setTeamTimeEntriesVisibilityAction(
     if (!teamId) throw new Error("Team id is required.");
 
     const { role } = await validateTeamAccess(teamId);
-    if (role !== "owner" && role !== "admin") {
+    if (!isTeamAdmin(role)) {
       throw new Error(
         "Only owners and admins can change time-entry visibility.",
       );
