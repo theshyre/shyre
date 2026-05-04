@@ -1219,6 +1219,46 @@ describe("buildReconciliation", () => {
     expect(r.match).toBe(true);
   });
 
+  it("matches when Harvest reports 2-decimal hours but Shyre stored minute-precision (regression for the 0.09h drift bug)", () => {
+    // Reconstruction of the bug Marcus hit on his first real
+    // import: 21 entries on EyeReg with Harvest's 2-decimal
+    // hours field summing to 27.36h, but Shyre's stored
+    // duration_min (computed from start+end timestamps with
+    // second-level precision then rounded to int minutes)
+    // summing to 27.45h. Pre-fix: report flagged a 0.09h
+    // mismatch. Post-fix: same grain on both sides, drift = 0.
+    //
+    // Construct entries where:
+    //   - Harvest's `hours` is the 2-decimal display value
+    //     (what the API returns).
+    //   - Shyre's `duration_min` is what `round(hours * 60)`
+    //     would produce — i.e. exactly what the importer +
+    //     DB land on.
+    // Per-entry the two sides drift sub-minute, but summed
+    // they are identical because both use the same rounding.
+    const harvestEntries = [
+      { id: 1, hours: 1.53, client: { id: 1, name: "EyeReg" } },
+      { id: 2, hours: 0.78, client: { id: 1, name: "EyeReg" } },
+      { id: 3, hours: 0.42, client: { id: 1, name: "EyeReg" } },
+      { id: 4, hours: 2.17, client: { id: 1, name: "EyeReg" } },
+      { id: 5, hours: 0.05, client: { id: 1, name: "EyeReg" } },
+    ];
+    const shyreRows = harvestEntries.map((e) => ({
+      import_source_id: String(e.id),
+      duration_min: Math.round(e.hours * 60),
+    }));
+    const r = buildReconciliation({
+      harvestEntries,
+      shyreRows,
+      skipReasons: {},
+    });
+    expect(r.match).toBe(true);
+    expect(r.harvest.hours).toBe(r.shyre.hours);
+    const eyereg = r.perCustomer.find((c) => c.name === "EyeReg")!;
+    expect(eyereg.match).toBe(true);
+    expect(eyereg.harvestHours).toBe(eyereg.shyreHours);
+  });
+
   it("handles null duration_min as zero hours on the Shyre side", () => {
     const r = buildReconciliation({
       harvestEntries: [

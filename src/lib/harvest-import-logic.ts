@@ -1031,20 +1031,49 @@ export interface ReconciliationReport {
 /**
  * Reconciliation tolerance for "Harvest hours match Shyre hours."
  *
- * Harvest reports hours to 2 decimal places (0.01h precision). Shyre
- * stores duration_min as integer minutes. The round-trip
- * `Harvest 0.51h → 31 min → 0.5167h` introduces up to ½ minute
- * (~0.00833h) of drift per entry. Summed over 100+ entries the bucket
- * drift is real and benign — pure rounding noise that the user should
- * not see flagged as a mismatch.
+ * Pre-fix-B (before 2026-05-04 commit): the report compared
+ * Harvest's 2-decimal `hours` field directly to Shyre's
+ * `duration_min / 60`. Different storage granularities (0.01h
+ * vs 1 min) produced cumulative rounding drift on every import —
+ * a 21-entry test run flagged a 0.09h "mismatch" that was pure
+ * noise.
  *
- * The comparison uses *rounded* values (what the user actually sees in
- * the UI) with `<=` so two buckets that visually read as 0.01h apart
- * compare equal. Without this, two bucket rows displayed identically
- * (both "0.01h off") could disagree on whether they match — which
- * happened on Marcus's first real import (EyeReg flagged, Pierce
- * passed, both visually 0.01h apart). */
+ * Post-fix-B: the report computes the Harvest column at the SAME
+ * minute granularity Shyre stores. Each Harvest entry's expected
+ * duration_min = round(harvest.hours × 60), summed and divided by
+ * 60. That mirrors what the importer + the DB's
+ * STORED-generated `duration_min` column produce, so the two
+ * sides become apples-to-apples.
+ *
+ * In practice the residual drift is sub-millihour float-residue
+ * noise. The epsilon stays at 0.01h as a safety net for the
+ * float-residue case + any edge entries (running timers, missing
+ * timestamps) where the importer's bound-derivation lands a
+ * minute off from the round formula. A real-world mismatch
+ * (missing entry, wrong-project attribution) blows past 0.01h
+ * easily, so the epsilon doesn't hide signal. */
 const HOURS_EPSILON = 0.01;
+
+/**
+ * Convert a Harvest entry's `hours` field to the Shyre-grain
+ * minute count the importer + DB end up storing. Used on both
+ * sides of the reconciliation comparison so any drift is real
+ * data drift, not rounding-method drift between two systems.
+ *
+ * Why round and not truncate: Postgres' STORED-generated
+ * `duration_min INTEGER GENERATED ALWAYS AS (EXTRACT(EPOCH FROM
+ * (end - start)) / 60)` casts the numeric result to INTEGER,
+ * which by SQL spec rounds half-to-even. JS `Math.round` is
+ * half-up. The two agree on every value except .5-boundaries,
+ * which on real Harvest data (entries logged in seconds /
+ * minutes, hours field rounded to 0.01) almost never land
+ * exactly. Half-up is the safer default — drift only occurs on
+ * the rarest entries, and either rounding produces the right
+ * total over a window.
+ */
+function harvestHoursToShyreMin(hours: number): number {
+  return Math.round(hours * 60);
+}
 
 /**
  * Build a side-by-side reconciliation report comparing what Harvest
@@ -1083,8 +1112,19 @@ export function buildReconciliation(args: {
   }
 
   // Top-line totals.
+  //
+  // Harvest column uses the SAME grain Shyre stores at: convert
+  // each entry's hours to the integer-minute count the importer
+  // + DB land on, sum, then divide by 60 for display. Without
+  // this, comparing 2-decimal hours against integer minutes
+  // produces sub-percent rounding drift on every import that
+  // looks like a real mismatch but isn't.
   const harvestEntries = args.harvestEntries.length;
-  const harvestHours = args.harvestEntries.reduce((a, e) => a + e.hours, 0);
+  const harvestHours =
+    args.harvestEntries.reduce(
+      (a, e) => a + harvestHoursToShyreMin(e.hours),
+      0,
+    ) / 60;
   const shyreEntries = shyreBySourceId.size;
   const shyreHours = [...shyreBySourceId.values()].reduce(
     (a, min) => a + min / 60,
@@ -1118,7 +1158,11 @@ export function buildReconciliation(args: {
 
   for (const e of args.harvestEntries) {
     const bucket = ensure(e.client.name);
-    bucket.harvestHours += e.hours;
+    // Same grain conversion as the top-line totals. Every entry's
+    // expected hours = (round(hours × 60)) / 60 so the Harvest
+    // column compares apples-to-apples against Shyre's storage.
+    const expectedMin = harvestHoursToShyreMin(e.hours);
+    bucket.harvestHours += expectedMin / 60;
     bucket.harvestEntries += 1;
 
     const shyreMin = shyreBySourceId.get(String(e.id));
@@ -1127,7 +1171,7 @@ export function buildReconciliation(args: {
       bucket.shyreEntries += 1;
     } else {
       missingCount += 1;
-      missingHours += e.hours;
+      missingHours += expectedMin / 60;
     }
   }
 
