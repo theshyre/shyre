@@ -88,6 +88,7 @@
     "colName": "Nombre",
     "colPriority": "Prioridad",
     "colValue": "Valor",
+    "colStatus": "Estado",
     "priorityHint": "La prioridad solo aplica a registros MX — copia el valor exacto en el campo Prioridad de tu registrador. Las filas TXT y CNAME muestran — y no necesitan prioridad.",
     "copy": "Copiar",
     "copied": "Copiado al portapapeles.",

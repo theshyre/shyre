@@ -88,6 +88,7 @@
     "colName": "Name",
     "colPriority": "Priority",
     "colValue": "Value",
+    "colStatus": "Status",
     "priorityHint": "Priority applies to MX records only — copy the exact value into your registrar's Priority field. TXT and CNAME rows show — and don't need a priority.",
     "copy": "Copy",
     "copied": "Copied to clipboard.",

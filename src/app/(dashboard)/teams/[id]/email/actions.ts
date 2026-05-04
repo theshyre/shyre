@@ -266,10 +266,15 @@ export async function verifyEmailDomainAction(
           : "Verification failed. Double-check the DNS records exactly match the table below.",
       );
     }
-    // status.status === "pending" — DNS not yet showing the
-    // expected records to Resend.
+    // status.status === "pending" — could mean either:
+    //   (a) DNS not yet propagated to Resend's resolver, OR
+    //   (b) Resend's verification worker hasn't finished the
+    //       re-check it scheduled.
+    //
+    // The user's own dig probably already shows the records, so
+    // (b) is common. Either way the fix is "wait, retry."
     throw AppError.refusal(
-      "DNS records not detected yet. Changes typically propagate in 5–30 minutes (sometimes longer for older registrars). Try again in a few minutes; you don't need to re-add anything.",
+      "Still pending. Resend's verifier runs asynchronously, and DNS can take 5–30 minutes to propagate to their side. If you've already confirmed the records via `dig` from a public resolver (1.1.1.1 / 8.8.8.8), this is just a timing gap — wait 30–60 seconds and click Verify again. You don't need to re-add anything.",
     );
 
     revalidatePath(`/teams/${teamId}/email`);

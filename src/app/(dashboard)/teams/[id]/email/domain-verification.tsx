@@ -33,6 +33,10 @@ interface DomainRow {
     /** MX records require a priority. Resend returns 10 for its
      *  return-path MX. TXT / CNAME rows have it undefined. */
     priority?: number;
+    /** Per-record verification status from the provider. Lets the
+     *  user see which specific record is the holdout when the
+     *  overall domain is still pending. */
+    recordStatus?: "pending" | "verified" | "failed" | "not_started";
   }>;
   verifiedAt: string | null;
   lastCheckedAt: string | null;
@@ -217,6 +221,9 @@ export function DomainVerification({
                           <th className="text-left py-1 pr-3">
                             {t("domain.colValue")}
                           </th>
+                          <th className="text-left py-1 pr-3">
+                            {t("domain.colStatus")}
+                          </th>
                           <th className="py-1" />
                         </tr>
                       </thead>
@@ -236,6 +243,9 @@ export function DomainVerification({
                             </td>
                             <td className="py-1 pr-3 font-mono break-all">
                               {r.value}
+                            </td>
+                            <td className="py-1 pr-3">
+                              <RecordStatusBadge status={r.recordStatus} />
                             </td>
                             <td className="py-1">
                               <Tooltip label={t("domain.copy")}>
@@ -275,6 +285,30 @@ function DomainStatusIcon({
   if (status === "verified") return <Check size={14} className="text-success" />;
   if (status === "failed") return <AlertCircle size={14} className="text-error" />;
   return <Clock size={14} className="text-warning" />;
+}
+
+function RecordStatusBadge({
+  status,
+}: {
+  status?: "pending" | "verified" | "failed" | "not_started";
+}): React.JSX.Element {
+  if (!status) {
+    return <span className="text-content-muted">—</span>;
+  }
+  const tone =
+    status === "verified"
+      ? "bg-success-soft text-success"
+      : status === "failed"
+        ? "bg-error-soft text-error"
+        : "bg-warning-soft text-warning";
+  return (
+    <span
+      className={`inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-caption font-medium ${tone}`}
+    >
+      <span className="h-1.5 w-1.5 rounded-full bg-current" />
+      {status === "not_started" ? "not started" : status}
+    </span>
+  );
 }
 
 function DomainStatusBadge({

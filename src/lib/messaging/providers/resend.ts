@@ -142,9 +142,21 @@ export function resendSender(apiKey: string): MessageSender {
     },
 
     async refreshDomain(providerDomainId: string): Promise<DomainStatus> {
-      // Resend's verify endpoint kicks a fresh DNS lookup; the
-      // detail endpoint returns the latest status.
+      // Resend's /verify is *asynchronous* — POSTing schedules a
+      // re-check on their side, but the detail endpoint reflects
+      // the cached state until the worker finishes. Without the
+      // wait below, this function would routinely return
+      // status="pending" right after a successful DNS update,
+      // which made users think Verify was broken (it wasn't —
+      // we were just sampling too early).
+      //
+      // 5s strikes a balance: long enough to catch the typical
+      // verification pass, short enough that the action doesn't
+      // feel hung. If Resend's worker is slower than that on a
+      // given attempt, the action returns pending and the user
+      // retries — same as today, just less often.
       await call(`/domains/${providerDomainId}/verify`, { method: "POST" });
+      await new Promise((resolve) => setTimeout(resolve, 5000));
       const detail = await call<ResendDomainResponse>(
         `/domains/${providerDomainId}`,
         { method: "GET" },
@@ -180,12 +192,14 @@ function mapDomainResponse(d: ResendDomainResponse): DomainStatus {
         type === "MX"
           ? (typeof r.priority === "number" ? r.priority : 10)
           : undefined;
+      const recordStatus = normalizeRecordStatus(r.status);
       return {
         type,
         name: r.name,
         value: r.value,
         purpose: classifyPurpose(r.record),
         ...(priority !== undefined ? { priority } : {}),
+        ...(recordStatus !== undefined ? { recordStatus } : {}),
       };
     }),
     failureReason: status === "failed" ? d.status : undefined,
@@ -200,6 +214,21 @@ function classifyPurpose(
   if (r.includes("dmarc")) return "dmarc";
   if (r.includes("return") || r.includes("mx")) return "return_path";
   return "dkim";
+}
+
+/** Map the per-record status string Resend returns into the four
+ *  values the contract uses. Unknown / missing → undefined so the
+ *  UI can render a neutral dash instead of inventing a state. */
+function normalizeRecordStatus(
+  raw: string | undefined,
+): "pending" | "verified" | "failed" | "not_started" | undefined {
+  if (!raw) return undefined;
+  const lower = raw.toLowerCase();
+  if (lower === "verified") return "verified";
+  if (lower === "failed") return "failed";
+  if (lower === "pending") return "pending";
+  if (lower === "not_started") return "not_started";
+  return undefined;
 }
 
 export class ResendError extends Error {

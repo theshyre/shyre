@@ -71,6 +71,10 @@ export interface DomainStatus {
     /** MX records require a priority. Resend returns 10 for its
      *  return-path MX. Always undefined for TXT / CNAME. */
     priority?: number;
+    /** Per-record verification status from the provider. Lets the
+     *  UI badge a specific row when overall status is pending /
+     *  failed — "the MX is fine, the TXT is what's missing." */
+    recordStatus?: "pending" | "verified" | "failed" | "not_started";
   }>;
   failureReason?: string;
 }
