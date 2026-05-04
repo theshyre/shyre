@@ -263,13 +263,29 @@ export async function getOrCreateTeamDek(
     .maybeSingle();
 
   if (data?.dek_encrypted) {
-    return unwrapDek(data.dek_encrypted as Buffer | string);
+    try {
+      return unwrapDek(data.dek_encrypted as Buffer | string);
+    } catch {
+      // Self-heal a corrupt DEK row. Falls through to the
+      // regenerate path below, which also wipes
+      // api_key_encrypted — that ciphertext was wrapped by the
+      // unrecoverable DEK so it's already garbage. The user's
+      // next API-key save lands cleanly under the new DEK.
+      //
+      // Original cause: the BYTEA write path serialized Buffer
+      // through JSON.stringify before bytesForPg landed,
+      // leaving wrong-length / unauthenticatable ciphertext in
+      // the DB. Self-healing here lets affected rows recover
+      // without DB surgery.
+    }
   }
 
   // Generate + persist via upsert. The upsert handles the case
   // where team_email_config has no row at all (first email setup
-  // for the team) and the case where the row exists but
-  // dek_encrypted is NULL (legacy row, pre-envelope upgrade).
+  // for the team), the case where the row exists but
+  // dek_encrypted is NULL (legacy row, pre-envelope upgrade),
+  // and the self-heal case where the existing dek_encrypted is
+  // unrecoverable (clear it and api_key_encrypted together).
   const dek = generateDek();
   const dekCipher = wrapDek(dek);
   const { createAdminClient } = await import("@/lib/supabase/admin");
@@ -277,7 +293,14 @@ export async function getOrCreateTeamDek(
   const { error } = await admin
     .from("team_email_config")
     .upsert(
-      { team_id: teamId, dek_encrypted: bytesForPg(dekCipher) },
+      {
+        team_id: teamId,
+        dek_encrypted: bytesForPg(dekCipher),
+        // Wipe api_key_encrypted — under the old DEK it's
+        // unreadable. Leaving it would mislead callers like
+        // setup-checklist into thinking a key is configured.
+        api_key_encrypted: null,
+      },
       { onConflict: "team_id" },
     );
   if (error) {
