@@ -1,5 +1,5 @@
 import { describe, it, expect, beforeEach, afterEach } from "vitest";
-import { isOwnSupabaseAvatarUrl } from "./actions";
+import { isOwnSupabaseAvatarUrl } from "./avatar-url-validator";
 
 const BASE = "https://demo.supabase.co";
 
