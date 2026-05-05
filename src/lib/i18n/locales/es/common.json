@@ -125,6 +125,7 @@
     "edit": "Editar",
     "create": "Crear",
     "signOut": "Cerrar sesión",
+    "undo": "Deshacer",
     "confirmDelete": "Confirmar eliminación",
     "deleteCount": "{count, plural, one {# entrada} other {# entradas}}"
   },

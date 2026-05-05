@@ -17,8 +17,18 @@
     "showCountryOnInvoiceHint": "Cuando está activo, la línea de país de la dirección de este cliente se muestra bajo el bloque \"Facturar a\". Desactivado por defecto — la mayoría de las facturas domésticas se leen mejor sin él."
   },
   "table": {
-    "defaultRate": "Tarifa por defecto"
+    "defaultRate": "Tarifa por defecto",
+    "org": "Equipo"
   },
+  "bulkToolbarAriaLabel": "Acciones masivas de clientes",
+  "bulkSelectAllAria": "Seleccionar todos los clientes",
+  "bulkDeselectAllAria": "Deseleccionar todos los clientes",
+  "bulkRowAria": "Seleccionar {name}",
+  "bulkSelectHint": "Selecciona filas para archivar en lote",
+  "bulkSelectedLabel": "{count} de {total} seleccionados",
+  "bulkArchive": "{count, plural, one {Archivar 1} other {Archivar #}}",
+  "bulkArchivedToast": "{count, plural, one {1 cliente archivado} other {# clientes archivados}}",
+  "bulkRestoredToast": "{count, plural, one {1 cliente restaurado} other {# clientes restaurados}}",
   "projects": {
     "title": "Proyectos",
     "noProjects": "Aún no hay proyectos para este cliente."

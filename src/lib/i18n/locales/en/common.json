@@ -126,7 +126,8 @@
     "create": "Create",
     "signOut": "Sign Out",
     "confirmDelete": "Confirm delete",
-    "deleteCount": "{count, plural, one {# entry} other {# entries}}"
+    "deleteCount": "{count, plural, one {# entry} other {# entries}}",
+    "undo": "Undo"
   },
   "status": {
     "active": "Active",

@@ -3,17 +3,15 @@ import { createClient } from "@/lib/supabase/server";
 import { getUserTeams } from "@/lib/team-context";
 import { getTranslations } from "next-intl/server";
 import Link from "next/link";
-import { tableClass } from "@/lib/table-styles";
 
 export async function generateMetadata(): Promise<Metadata> {
   const t = await getTranslations("customers");
   return { title: t("title") };
 }
-import { Users, Share2, MailWarning, ShieldAlert, Download } from "lucide-react";
+import { Users, MailWarning, Download } from "lucide-react";
 import { TeamFilter } from "@/components/TeamFilter";
-import { Tooltip } from "@/components/Tooltip";
 import { NewCustomerForm } from "./new-customer-form";
-import { ArchiveButton } from "./archive-button";
+import { CustomersTable } from "./customers-table";
 import { buttonSecondaryClass } from "@/lib/form-styles";
 
 async function CustomersExportLink({
@@ -58,7 +56,6 @@ export default async function ClientsPage({
   const teams = await getUserTeams();
   const { org: selectedTeamId, bounced: bouncedFilter } = await searchParams;
   const t = await getTranslations("customers");
-  const tc = await getTranslations("common");
   // ?bounced=1 narrows the list to customers Resend has flagged
   // (hard bounce or spam complaint). Surfaces who needs a fresh
   // contact email before any future send.
@@ -149,9 +146,6 @@ export default async function ClientsPage({
     }
   }
 
-  const teamName = (teamId: string) =>
-    teams.find((o) => o.id === teamId)?.name ?? "\u2014";
-
   return (
     <div>
       <div className="flex items-center gap-3">
@@ -189,106 +183,15 @@ export default async function ClientsPage({
         </div>
       )}
 
-      {customers && customers.length > 0 ? (
-        <div className="mt-6 overflow-hidden rounded-lg border border-edge bg-surface-raised">
-          <table className={tableClass}>
-            <thead>
-              <tr className="border-b border-edge bg-surface-inset">
-                <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider text-content-muted">
-                  {tc("table.name")}
-                </th>
-                <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider text-content-muted">
-                  Org
-                </th>
-                <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider text-content-muted">
-                  {tc("table.email")}
-                </th>
-                <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider text-content-muted">
-                  {t("table.defaultRate")}
-                </th>
-                <th className="px-4 py-3 text-right text-xs font-semibold uppercase tracking-wider text-content-muted">
-                  {tc("table.actions")}
-                </th>
-              </tr>
-            </thead>
-            <tbody>
-              {customers.map((client) => {
-                const shareCount = shareCounts.get(client.id) ?? 0;
-                return (
-                  <tr
-                    key={client.id}
-                    className="border-b border-edge last:border-0 hover:bg-hover transition-colors"
-                  >
-                    <td className="px-4 py-3">
-                      <div className="flex items-center gap-2">
-                        <Link
-                          href={`/customers/${client.id}`}
-                          className="text-accent hover:underline font-medium"
-                        >
-                          {client.name}
-                        </Link>
-                        {shareCount > 0 && (
-                          <Tooltip label={t("sharedWith", { count: shareCount })}>
-                            <span
-                              className="inline-flex items-center gap-1 rounded-full bg-accent-soft px-2 py-0.5 text-[10px] font-medium text-accent"
-                            >
-                              <Share2 size={10} />
-                              {shareCount}
-                            </span>
-                          </Tooltip>
-                        )}
-                        {client.bounced_at && (
-                          <Tooltip
-                            label={t("bouncedRowTooltip", {
-                              when: client.bounced_at,
-                            })}
-                          >
-                            <span className="inline-flex items-center gap-1 rounded-full bg-warning-soft px-2 py-0.5 text-[10px] font-medium text-warning">
-                              <MailWarning size={10} />
-                              {t("bouncedChip")}
-                            </span>
-                          </Tooltip>
-                        )}
-                        {client.complained_at && (
-                          <Tooltip
-                            label={t("complainedRowTooltip", {
-                              when: client.complained_at,
-                            })}
-                          >
-                            <span className="inline-flex items-center gap-1 rounded-full bg-error-soft px-2 py-0.5 text-[10px] font-medium text-error">
-                              <ShieldAlert size={10} />
-                              {t("complainedChip")}
-                            </span>
-                          </Tooltip>
-                        )}
-                      </div>
-                    </td>
-                    <td className="px-4 py-3 text-content-secondary text-xs">
-                      {teamName(client.team_id)}
-                    </td>
-                    <td className="px-4 py-3 text-content-secondary">
-                      {client.email || "—"}
-                    </td>
-                    <td className="px-4 py-3 text-content-secondary font-mono">
-                      {client.default_rate
-                        ? `$${Number(client.default_rate).toFixed(2)}/hr`
-                        : "—"}
-                    </td>
-                    <td className="px-4 py-3 text-right">
-                      <ArchiveButton
-                        customerId={client.id}
-                        customerName={client.name ?? ""}
-                      />
-                    </td>
-                  </tr>
-                );
-              })}
-            </tbody>
-          </table>
-        </div>
-      ) : (
-        <p className="mt-6 text-sm text-content-muted">{t("noCustomers")}</p>
-      )}
+      <CustomersTable
+        customers={customers ?? []}
+        shareCounts={shareCounts}
+        teamNameById={
+          new Map(
+            teams.map((o) => [o.id as string, (o.name as string) ?? "—"]),
+          )
+        }
+      />
     </div>
   );
 }

@@ -140,3 +140,55 @@ export async function archiveCustomerAction(formData: FormData): Promise<void> {
     revalidatePath("/customers");
   }, "archiveCustomerAction") as unknown as void;
 }
+
+/**
+ * Bulk archive — used by Pattern B's selection toolbar on the
+ * customers list. Reads the multi-valued `id` field from the form
+ * (HTML pattern: <input type="hidden" name="id" value="..."> per
+ * selected row), and flips `archived = true` on every row at once.
+ *
+ * RLS gates the actual write per row (customer_permissions admin OR
+ * team owner/admin); rows the caller can't archive are silently
+ * skipped — same shape as `archiveCustomerAction` for the single
+ * row, just batched.
+ */
+export async function bulkArchiveCustomersAction(
+  formData: FormData,
+): Promise<void> {
+  return runSafeAction(formData, async (formData, { supabase }) => {
+    const ids = formData.getAll("id").map(String).filter(Boolean);
+    if (ids.length === 0) return;
+
+    assertSupabaseOk(
+      await supabase
+        .from("customers")
+        .update({ archived: true })
+        .in("id", ids),
+    );
+
+    revalidatePath("/customers");
+  }, "bulkArchiveCustomersAction") as unknown as void;
+}
+
+/**
+ * Bulk restore — Undo from the bulk-archive toast. Flips
+ * `archived = false` on the given ids. Same RLS gating as the
+ * archive path; rows the caller can't write to are skipped.
+ */
+export async function bulkRestoreCustomersAction(
+  formData: FormData,
+): Promise<void> {
+  return runSafeAction(formData, async (formData, { supabase }) => {
+    const ids = formData.getAll("id").map(String).filter(Boolean);
+    if (ids.length === 0) return;
+
+    assertSupabaseOk(
+      await supabase
+        .from("customers")
+        .update({ archived: false })
+        .in("id", ids),
+    );
+
+    revalidatePath("/customers");
+  }, "bulkRestoreCustomersAction") as unknown as void;
+}

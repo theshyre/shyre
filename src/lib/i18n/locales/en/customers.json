@@ -17,8 +17,18 @@
     "showCountryOnInvoiceHint": "When on, the country line of this customer's address renders under the Invoice For block. Off by default — most domestic invoices read cleaner without it."
   },
   "table": {
-    "defaultRate": "Default Rate"
+    "defaultRate": "Default Rate",
+    "org": "Team"
   },
+  "bulkToolbarAriaLabel": "Customer bulk actions",
+  "bulkSelectAllAria": "Select all customers",
+  "bulkDeselectAllAria": "Deselect all customers",
+  "bulkRowAria": "Select {name}",
+  "bulkSelectHint": "Select rows to archive in bulk",
+  "bulkSelectedLabel": "{count} of {total} selected",
+  "bulkArchive": "{count, plural, one {Archive 1} other {Archive #}}",
+  "bulkArchivedToast": "{count, plural, one {1 customer archived} other {# customers archived}}",
+  "bulkRestoredToast": "{count, plural, one {1 customer restored} other {# customers restored}}",
   "projects": {
     "title": "Projects",
     "noProjects": "No projects yet for this customer."
