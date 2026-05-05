@@ -9,6 +9,7 @@
     "undoing": "Deshaciendo…",
     "undoneAt": "Deshecho el {date}",
     "undoneBy": "por {name}",
+    "coversDates": "Cubre {earliest} – {latest}",
     "forceUndoExplain": "Puedes deshacer de todos modos — los datos manuales listados arriba se eliminarán en cascada junto con los registros importados. Vuelve a crearlos después si los necesitas.",
     "forceUndoPrompt": "Escribe \"delete\" para confirmar:",
     "forceUndoInputLabel": "Escribe \"delete\" para confirmar deshacer forzado",

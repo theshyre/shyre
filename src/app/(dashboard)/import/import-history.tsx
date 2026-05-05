@@ -50,6 +50,13 @@ export interface ImportRunRow {
   undone_at: string | null;
   triggered_by_display_name: string | null;
   undone_by_display_name: string | null;
+  /** Date range covered by the imported time entries (start_time
+   *  min / max). Computed in the page fetch from time_entries
+   *  filtered to this import_run_id, so old runs benefit too — no
+   *  schema migration needed. NULL when the run had no time
+   *  entries OR when the run was undone (the entries are gone). */
+  entries_earliest_start: string | null;
+  entries_latest_start: string | null;
 }
 
 interface Props {
@@ -216,6 +223,20 @@ function RunRow({
           {counts.length > 0 ? (
             <div className="text-caption text-content-secondary">
               {counts.join(" · ")}
+            </div>
+          ) : null}
+
+          {run.entries_earliest_start && run.entries_latest_start ? (
+            // Date range covered by the imported time entries —
+            // helps the user identify which historical period each
+            // Harvest pull picked up. Hidden when there are no
+            // entries (e.g. a customers-only import) or when the
+            // run has been undone (the entries are gone).
+            <div className="text-caption text-content-secondary">
+              {t("coversDates", {
+                earliest: formatDateOnly(run.entries_earliest_start),
+                latest: formatDateOnly(run.entries_latest_start),
+              })}
             </div>
           ) : null}
 
@@ -496,5 +517,18 @@ function formatDateTime(iso: string): string {
     day: "numeric",
     hour: "numeric",
     minute: "2-digit",
+  });
+}
+
+/** Date-only locale format for the import-period range (no clock,
+ *  since the user thinks in calendar days when scoping a Harvest
+ *  pull). Year omitted only when it matches the current year. */
+function formatDateOnly(iso: string): string {
+  const d = new Date(iso);
+  const sameYear = d.getFullYear() === new Date().getFullYear();
+  return d.toLocaleDateString(undefined, {
+    year: sameYear ? undefined : "numeric",
+    month: "short",
+    day: "numeric",
   });
 }

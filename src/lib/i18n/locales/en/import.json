@@ -9,6 +9,7 @@
     "undoing": "Undoing…",
     "undoneAt": "Undone on {date}",
     "undoneBy": "by {name}",
+    "coversDates": "Covers {earliest} – {latest}",
     "forceUndoExplain": "You can undo anyway — the manual data listed above will be cascade-deleted along with the imported records. Re-create those entries afterwards if you still need them.",
     "forceUndoPrompt": "Type \"delete\" to confirm:",
     "forceUndoInputLabel": "Type \"delete\" to confirm force undo",
