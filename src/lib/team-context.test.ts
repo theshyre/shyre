@@ -77,14 +77,29 @@ describe("getUserContext", () => {
       data: { user: { id: "u1", email: "jane@doe.test" } },
     });
     mockProfileSingle.mockResolvedValue({
-      data: { display_name: "Jane Doe" },
+      data: { display_name: "Jane Doe", avatar_url: null },
     });
     const ctx = await getUserContext();
     expect(ctx).toEqual({
       userId: "u1",
       userEmail: "jane@doe.test",
       displayName: "Jane Doe",
+      avatarUrl: null,
     });
+  });
+
+  it("returns the avatar_url alongside display_name", async () => {
+    mockGetUser.mockResolvedValue({
+      data: { user: { id: "u1", email: "jane@doe.test" } },
+    });
+    mockProfileSingle.mockResolvedValue({
+      data: {
+        display_name: "Jane Doe",
+        avatar_url: "https://cdn/avatars/u1.png",
+      },
+    });
+    const ctx = await getUserContext();
+    expect(ctx.avatarUrl).toBe("https://cdn/avatars/u1.png");
   });
 
   it("falls back to the email-prefix when the profile has no display_name", async () => {

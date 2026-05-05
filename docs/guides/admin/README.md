@@ -13,3 +13,4 @@ The tools behind the System Admin section of the sidebar.
 - [Users (all)](users.md)
 - [All teams](teams.md)
 - [Sample data tool](sample-data.md)
+- [Backups](backups.md) — manual `npm run db:backup` workflow today, Supabase Pro / off-site / key-escrow upgrade path tomorrow.

@@ -1,5 +1,6 @@
 import { createClient } from "@/lib/supabase/server";
 import { redirect } from "next/navigation";
+import { cache } from "react";
 import { isTeamAdmin, type TeamAdminRole } from "@/lib/team-roles";
 
 // Re-export the pure predicates so server-side call sites can keep
@@ -13,6 +14,7 @@ export interface UserContext {
   userId: string;
   userEmail: string;
   displayName: string;
+  avatarUrl: string | null;
 }
 
 export interface TeamListItem {
@@ -25,8 +27,14 @@ export interface TeamListItem {
 /**
  * Get the authenticated user's context (identity, not team-scoped).
  * Redirects to /login if not authenticated.
+ *
+ * Wrapped in React `cache()` so the layout and the page can both
+ * call this in the same request without paying the auth.getUser +
+ * user_profiles round-trips twice (free-tier wall-clock savings:
+ * ~250ms per duplicate call). Selects display_name AND avatar_url
+ * in one read so the layout's avatar fetch is no longer separate.
  */
-export async function getUserContext(): Promise<UserContext> {
+export const getUserContext = cache(async (): Promise<UserContext> => {
   const supabase = await createClient();
   const {
     data: { user },
@@ -36,7 +44,7 @@ export async function getUserContext(): Promise<UserContext> {
 
   const { data: profile } = await supabase
     .from("user_profiles")
-    .select("display_name")
+    .select("display_name, avatar_url")
     .eq("user_id", user.id)
     .single();
 
@@ -44,8 +52,9 @@ export async function getUserContext(): Promise<UserContext> {
     userId: user.id,
     userEmail: user.email ?? "",
     displayName: profile?.display_name ?? user.email?.split("@")[0] ?? "User",
+    avatarUrl: (profile?.avatar_url as string | null) ?? null,
   };
-}
+});
 
 /**
  * Validate that the current user has team-admin access to the given
@@ -67,8 +76,15 @@ export async function requireTeamAdmin(
   return { userId, role };
 }
 
-/** Get all teams the current user belongs to. */
-export async function getUserTeams(): Promise<TeamListItem[]> {
+/** Get all teams the current user belongs to.
+ *
+ * Wrapped in React `cache()` — the dashboard layout and the page
+ * underneath both call this in the same request, and the layout's
+ * pre-2026-05-04 inline `team_members` queries (one for the
+ * owner/admin gate, one for the team-count chip) collapse into this
+ * single fetch since both can be derived from the result.
+ */
+export const getUserTeams = cache(async (): Promise<TeamListItem[]> => {
   const supabase = await createClient();
   const {
     data: { user },
@@ -99,7 +115,7 @@ export async function getUserTeams(): Promise<TeamListItem[]> {
       };
     })
     .filter((x): x is NonNullable<typeof x> => x !== null);
-}
+});
 
 /** Get all team IDs the current user belongs to. */
 export async function getUserTeamIds(): Promise<string[]> {

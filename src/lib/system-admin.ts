@@ -1,10 +1,16 @@
 import { createClient } from "@/lib/supabase/server";
 import { redirect } from "next/navigation";
+import { cache } from "react";
 
 /**
  * Check if the current user is a system admin.
+ *
+ * Wrapped in React `cache()` — layout, GlobalCommandPalette, and
+ * admin pages all call this within a single request; without the
+ * cache each path was paying its own auth + system_admins
+ * round-trip.
  */
-export async function isSystemAdmin(): Promise<boolean> {
+export const isSystemAdmin = cache(async (): Promise<boolean> => {
   const supabase = await createClient();
   const {
     data: { user },
@@ -19,7 +25,7 @@ export async function isSystemAdmin(): Promise<boolean> {
     .single();
 
   return data !== null;
-}
+});
 
 /**
  * Require the current user to be a system admin.

@@ -10,10 +10,9 @@ import { GlobalCommandPalette } from "@/components/GlobalCommandPalette";
 import { RunningTimerHeaderPill } from "@/components/RunningTimerHeaderPill";
 import { SkipLink } from "@/components/SkipLink";
 import { Breadcrumbs } from "@/components/Breadcrumbs";
-import type { TextSize } from "@/components/text-size-provider";
-import type { TableDensity } from "@/components/table-density-provider";
-import { getUserContext } from "@/lib/team-context";
+import { getUserContext, getUserTeams, isTeamAdmin } from "@/lib/team-context";
 import { isSystemAdmin } from "@/lib/system-admin";
+import { getUserSettings } from "@/lib/user-settings";
 import { createClient } from "@/lib/supabase/server";
 
 export default async function DashboardLayout({
@@ -21,42 +20,34 @@ export default async function DashboardLayout({
 }: {
   children: React.ReactNode;
 }): Promise<React.JSX.Element> {
-  const user = await getUserContext();
-  const admin = await isSystemAdmin();
-  const supabase = await createClient();
+  // Pre-2026-05-04 this layout had ~7 serial round-trips that ran on
+  // every dashboard route — getUserContext, isSystemAdmin, two
+  // user_settings/user_profiles fetches, and two team_members
+  // fetches — adding ~600ms of fixed tax to every TTFB. Restructure
+  // into a single Promise.all on cached helpers. The cached
+  // helpers (getUserContext, getUserTeams, isSystemAdmin,
+  // getUserSettings, createClient) all wrap React `cache()` so the
+  // child page's repeat calls are free; only one auth.getUser
+  // round-trip fires per request even though four helpers each
+  // appear to do their own.
+  const [user, teams, admin, settings] = await Promise.all([
+    getUserContext(),
+    getUserTeams(),
+    isSystemAdmin(),
+    getUserSettings(),
+  ]);
 
-  // User's persisted theme + text size + table density (null if never
-  // set — client falls back to localStorage / built-in default)
-  const { data: userPrefs } = await supabase
-    .from("user_settings")
-    .select("preferred_theme, text_size, table_density")
-    .eq("user_id", user.userId)
-    .maybeSingle();
-  const preferredTheme =
-    (userPrefs?.preferred_theme as
-      | "system"
-      | "light"
-      | "dark"
-      | "high-contrast"
-      | "warm"
-      | null
-      | undefined) ?? null;
-  const preferredTextSize =
-    (userPrefs?.text_size as TextSize | null | undefined) ?? null;
-  const preferredDensity =
-    (userPrefs?.table_density as TableDensity | null | undefined) ?? null;
+  const preferredTheme = settings.preferredTheme;
+  const preferredTextSize = settings.preferredTextSize;
+  const preferredDensity = settings.preferredDensity;
+  const avatarUrl = user.avatarUrl;
 
-  // Avatar for the sidebar user-identity block
-  const { data: profileRow } = await supabase
-    .from("user_profiles")
-    .select("avatar_url")
-    .eq("user_id", user.userId)
-    .maybeSingle();
-  const avatarUrl = profileRow?.avatar_url ?? null;
-
-  // Fetch unresolved error count for admin badge
+  // Fetch unresolved error count for admin badge. Conditional on
+  // admin so non-admins don't pay the round-trip; admins eat one
+  // sequential trip after the parallel block resolves.
   let unresolvedErrorCount = 0;
   if (admin) {
+    const supabase = await createClient();
     const { count } = await supabase
       .from("error_logs")
       .select("id", { count: "exact", head: true })
@@ -65,37 +56,19 @@ export default async function DashboardLayout({
   }
 
   // Whether to render the Business sidebar item. Owner|admin role on
-  // a team in any business → can manage that business. Members and
-  // contributors don't see the entry, matching the tightened
-  // bp_select RLS policy on business_people (HR data).
-  const { data: ownerAdminTeams } = await supabase
-    .from("team_members")
-    .select("role")
-    .eq("user_id", user.userId)
-    .in("role", ["owner", "admin"])
-    .limit(1);
-  const canManageBusiness = (ownerAdminTeams ?? []).length > 0;
+  // a team in any business → can manage that business. Derived from
+  // the cached `teams` list (no extra round-trip) — the previous
+  // separate `team_members.in("role", ["owner", "admin"]).limit(1)`
+  // query is gone.
+  const canManageBusiness = teams.some((t) => isTeamAdmin(t.role));
 
   // Ambient team-context chip in the sidebar bottom block. Shows
   // the user's single team name when teams.length === 1, the team
   // count otherwise. Both link to /teams; without a global
   // active-team concept (every page reads ?org= individually),
-  // this is informational rather than a switcher — the chip
-  // confirms scope; the user toggles via TeamFilter on each list
-  // page when they need to.
-  const { data: teamMemberships } = await supabase
-    .from("team_members")
-    .select("teams(id, name)")
-    .eq("user_id", user.userId);
-  const memberTeams = (teamMemberships ?? [])
-    .map((row) => {
-      const t = row.teams as { id: string; name: string } | { id: string; name: string }[] | null;
-      return Array.isArray(t) ? (t[0] ?? null) : t;
-    })
-    .filter((t): t is { id: string; name: string } => t !== null);
-  const teamCount = memberTeams.length;
-  const primaryTeamName =
-    teamCount === 1 ? (memberTeams[0]?.name ?? null) : null;
+  // this is informational rather than a switcher.
+  const teamCount = teams.length;
+  const primaryTeamName = teamCount === 1 ? (teams[0]?.name ?? null) : null;
 
   return (
     <ToastProvider>

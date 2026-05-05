@@ -19,7 +19,8 @@ import {
   getOffsetForZone,
 } from "@/lib/time/tz";
 import { getMyTemplates } from "@/lib/templates/queries";
-import { selfScopedFloor } from "@/lib/time/membership";
+import { getMembershipJoinedAt } from "@/lib/time/membership";
+import { getUserSettings } from "@/lib/user-settings";
 import { TimeHome } from "./time-home";
 import { NoTeamEmptyState } from "./no-team-empty-state";
 import type { TimeView } from "./view-toggle";
@@ -176,16 +177,45 @@ export default async function TimeEntriesPage({
 
   const userTeamIds = teams.map((tm) => tm.id);
 
-  // User's effective tz: prefer the explicit IANA setting from user_settings,
-  // falling back to the browser-detected offset cookie, falling back to UTC.
+  // ────────────────────────────────────────────────────────────
+  // Phase 0 — settings + (single) self-scoped floor lookup, in parallel.
+  //
+  // Pre-2026-05-04 this section ran 3 separate awaits: one
+  // `user_settings.timezone` query (now folded into the cached
+  // getUserSettings shared with the layout) and TWO
+  // selfScopedFloor calls — one for week, one for day — each
+  // re-fetching the same `team_members.joined_at` row. A third
+  // call sat inside Phase 1 for log view. Now: one
+  // joined_at lookup feeds all three floors as pure max math.
+  //
+  // Cookie-derived tz offset is sync-ish; we resolve cookies()
+  // before the Promise.all so the Phase 0 wall-clock cost is
+  // just the slowest of the two fetches (typically the joined_at
+  // lookup when self-scoped, ~150ms; both are skippable in
+  // common cases).
+  // ────────────────────────────────────────────────────────────
   const cookieStore = await cookies();
   const cookieOffset = parseTzOffset(cookieStore.get(TZ_COOKIE_NAME)?.value);
-  const { data: userPrefs } = await supabase
-    .from("user_settings")
-    .select("timezone")
-    .maybeSingle();
-  const tzOffsetMin = userPrefs?.timezone
-    ? getOffsetForZone(userPrefs.timezone, new Date())
+
+  // joined_at is needed only when the caller is viewing their own
+  // entries on a single specific team. In any other shape (all
+  // teams, or members ≠ self) the membership floor doesn't apply
+  // and we skip the round-trip.
+  const needsMembershipFloor =
+    selectedTeamId !== undefined &&
+    memberFilter !== null &&
+    memberFilter.length === 1 &&
+    memberFilter[0] === callerId;
+
+  const [userSettings, joinedAt] = await Promise.all([
+    getUserSettings(),
+    needsMembershipFloor && selectedTeamId
+      ? getMembershipJoinedAt(supabase, callerId, selectedTeamId)
+      : Promise.resolve(null),
+  ]);
+
+  const tzOffsetMin = userSettings.timezone
+    ? getOffsetForZone(userSettings.timezone, new Date())
     : cookieOffset;
 
   const view = asView(sp.view);
@@ -208,21 +238,13 @@ export default async function TimeEntriesPage({
   // Defense-in-depth: when self-scoped (members=me) on a single team,
   // clamp the lower bound to team_members.joined_at. See
   // `docs/reference/unified-time.md` §Authorization & cross-team safety.
-  // No-op when team is "all" or when memberFilter isn't strictly self.
-  const weekFloorUtc = await selfScopedFloor(
-    supabase,
-    callerId,
-    selectedTeamId ?? null,
-    memberFilter,
-    weekStartUtc,
-  );
-  const dayFloorUtc = await selfScopedFloor(
-    supabase,
-    callerId,
-    selectedTeamId ?? null,
-    memberFilter,
-    dayStartUtc,
-  );
+  // Pure derivation now — joined_at was fetched once in Phase 0.
+  function applyMembershipFloor(windowStart: Date): Date {
+    if (!joinedAt) return windowStart;
+    return joinedAt > windowStart ? joinedAt : windowStart;
+  }
+  const weekFloorUtc = applyMembershipFloor(weekStartUtc);
+  const dayFloorUtc = applyMembershipFloor(dayStartUtc);
 
   // ────────────────────────────────────────────────────────────
   // Phase 1 — fire every independent query in parallel.
@@ -249,18 +271,10 @@ export default async function TimeEntriesPage({
   const logEndUtc = logRangeStart
     ? localDateMidnightUtc(addLocalDays(anchor, 1), tzOffsetMin)
     : null;
-  // self-scoped floor for log range. Same selfScopedFloor shape
-  // the other two views use; gated identically.
-  const logFloorUtcPromise =
-    view === "log" && logStartUtc
-      ? selfScopedFloor(
-          supabase,
-          callerId,
-          selectedTeamId ?? null,
-          memberFilter,
-          logStartUtc,
-        )
-      : Promise.resolve(null);
+  // log floor — pure derivation from the Phase-0 joined_at, same
+  // contract selfScopedFloor enforces. No round-trip.
+  const logFloorUtc =
+    view === "log" && logStartUtc ? applyMembershipFloor(logStartUtc) : null;
 
   function applyMemberFilter<T extends { in: (col: string, vals: string[]) => T; eq: (col: string, val: string) => T }>(
     query: T,
@@ -401,7 +415,6 @@ export default async function TimeEntriesPage({
     { count: trashCount },
     { data: lockRows },
     allTemplates,
-    logFloorUtc,
   ] = await Promise.all([
     weekPromise,
     dayPromise,
@@ -412,7 +425,6 @@ export default async function TimeEntriesPage({
     trashPromise,
     lockRowsPromise,
     templatesPromise,
-    logFloorUtcPromise,
   ]);
 
   // ────────────────────────────────────────────────────────────
@@ -430,11 +442,9 @@ export default async function TimeEntriesPage({
     new Set((memberRows ?? []).map((m) => m.user_id as string)),
   );
 
-  // Log query depends on logFloorUtc resolved in phase 1. Goes in
-  // phase 2 (its own minimal phase) so we don't block the bigger
-  // phase-1 reads on the floor lookup. The type annotation is
-  // wrapped in `Promise.resolve(...)` for the not-on-log path so
-  // both branches resolve to the same `{ data }` shape.
+  // logFloorUtc resolved synchronously in Phase 0 from the shared
+  // joined_at. Whether to issue the log query is gated identically
+  // to the prior contract.
   const logEntriesPromise =
     view === "log" && logFloorUtc && logEndUtc
       ? (() => {

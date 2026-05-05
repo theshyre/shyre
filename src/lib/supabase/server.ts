@@ -1,7 +1,13 @@
 import { createServerClient } from "@supabase/ssr";
 import { cookies } from "next/headers";
+import { cache } from "react";
 
-export async function createClient() {
+// Wrapped in React `cache()` so a single request shares one Supabase
+// client across layout + page + helpers. Two reasons: (1) avoids
+// re-creating the client (cheap but wasteful), (2) lets cached
+// downstream helpers — getUserContext, getUserTeams, isSystemAdmin —
+// share a single auth.getUser round-trip when called concurrently.
+export const createClient = cache(async () => {
   const cookieStore = await cookies();
 
   return createServerClient(
@@ -25,4 +31,4 @@ export async function createClient() {
       },
     }
   );
-}
+});
