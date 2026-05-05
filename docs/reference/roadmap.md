@@ -214,6 +214,176 @@ his Vercel token expires Friday" failure mode, and the cron path
 piggybacks cleanly on the Phase 2 invoice-reminder cron once
 that lands.
 
+## Recurring invoices
+
+Solo-persona top quality-of-life ask after the 2026-05-04 audit:
+"on a monthly retainer this is repeated copy-paste pain every
+month." Today the schema has no `recurrence_rule` or parent-template
+column and the new-invoice form has no "repeat monthly" affordance.
+Design needs to decide: is recurrence a per-customer setting, a
+per-project setting, or a per-invoice template? Affects which entity
+owns the cadence + skip-this-month + amount-override semantics. Tax
+implications: stored amounts vs computed-from-time-entries — the
+latter still needs a running-period anchor. Expected scope:
+
+- New `invoice_recurrence_rules` table with `customer_id` /
+  `project_id` / `cadence` (`monthly|quarterly|annual`) /
+  `next_run_on` / `template_invoice_id` / `paused_at`.
+- pg_cron daily sweep generates draft invoices on the run date,
+  pulling unbilled entries from the period or copying static
+  amounts from the template.
+- UI: "Make recurring" toggle on the invoice composer; recurrence
+  hub at `/invoices/recurring`; per-customer indicator on the
+  customer page.
+- Pairs naturally with Messaging Phase 2 (auto-reminders) because
+  both want a pg_cron job and both touch the same drafts.
+
+Defers because Phase 1 of recurring is a multi-week design + data
+model + UX surface, and the manual "duplicate last month's
+invoice" flow gets the user 80% of the way without the cron tax.
+
+## Multi-jurisdiction tax + per-line tax
+
+Bookkeeper-flagged in the 2026-05-04 audit (#9) and partially
+overlapping with the 2026-05-01 invoice review's "Tax pre/post-
+discount toggle." Today `invoices.tax_rate NUMERIC(5,2)` is one
+number on the invoice header; `invoice_line_items` has no tax
+columns. That works for a single-state SaaS consultant with one
+rate; it breaks for:
+
+- Multi-jurisdiction US sales tax where different lines (product
+  vs service) carry different rates.
+- Tax-exempt customers (no per-customer flag today).
+- Reverse-charge VAT for cross-border EU contracting.
+- EU VAT MOSS where the rate depends on customer country.
+- Mixed-rate states where a single invoice straddles two rates.
+
+Schema additions needed: `invoices.tax_jurisdiction` (enum or
+text), `invoice_line_items.tax_rate` + `tax_amount` (per-line
+override), `customers.tax_exempt` (boolean) + `customers.tax_id`
+(VAT/EIN), `team_settings.tax_collected_report` aggregator.
+Reports: tax-collected-by-jurisdiction surface for sales-tax
+filing; today there's no report at all.
+
+Pairs with the year-end 1099 + W-9 capture work that the persona
+review keeps surfacing.
+
+## FX rate capture for multi-currency invoices
+
+Bookkeeper finding #10. The `expenses` and `invoices` schemas
+already carry `currency`, and the page/CSV layers are
+currency-aware after batch 3 (SAL-payment-currency-safety). What's
+missing: when a Canadian customer pays a USD invoice in CAD, or a
+USD-based business pays a EUR vendor, **the books need the FX rate
+that was effective at the transaction date** so historical reports
+stay correct. Today the foreign amount can be stored but its
+USD-equivalent at posting time is not.
+
+Schema: `invoice_payments.fx_to_invoice_rate` + `fx_captured_at`,
+`expenses.fx_to_team_currency_rate` + `fx_captured_at`. Source:
+fxratesapi.com / openexchangerates.org daily snapshot stored in a
+new `fx_rates` table; lookup at write time. Reports: `/reports`
+revenue / expense aggregations need to translate per-row to the
+team's reporting currency.
+
+Defers because USD-only solo consultants don't feel the pain and
+the architecture decision (which FX provider, who pays for the
+data, how to backfill historical rows) is non-trivial.
+
+## Schedule C category alignment
+
+Bookkeeper finding #8. Current expense categories
+(`software | hardware | subscriptions | travel | meals | office |
+professional_services | fees | other`) read like a SaaS-consultant
+mental model, not a Schedule C / IRS one. Bookkeeper hits "other"
+for ~30% of every monthly expense set, then hand-recategorizes
+during reconciliation. Missing buckets: advertising, contract
+labor, insurance (not health), legal/professional services
+(distinct from generic professional_services), rent, repairs,
+supplies, taxes/licenses, utilities, depreciation, vehicle.
+
+Trade-off: rebuilding the taxonomy mid-year breaks every saved
+filter / pivot in QuickBooks. Approach: add the missing
+categories alongside (don't rename existing ones), default new
+expenses to a Schedule-C-aligned set, leave a one-time bulk
+recategorize tool for the bookkeeper to migrate. Pairs with the
+"Item Type column on CSV / QuickBooks export" follow-up so the
+QB import recognizes the GL bucket per row.
+
+Defers because solo users with their own CPA workflow don't feel
+the pain and the migration design is bookkeeper-led.
+
+## Mobile timer + on-the-go time entry
+
+Solo-persona finding from the 2026-05-04 audit. The mobile sidebar
+ships (batch 2 — slide-in drawer below `md`), but the timer + new-
+entry surfaces aren't optimized for thumb input. Specifically:
+
+- The week-grid timesheet doesn't have a usable mobile mode — it
+  collapses to a long horizontal scroll instead of a stacked
+  per-day card view.
+- The running-timer pill is tiny on a small screen; tapping the
+  Stop affordance is fiddly.
+- The new-entry form's project / category / duration row uses a
+  12-column grid that wraps awkwardly under 360px.
+- No service worker / IndexedDB queue for offline timer state. A
+  user starting a timer on a plane sees a server error mid-session.
+
+Each is incremental. The biggest single win is a per-day stacked
+mobile view of `/time-entries` with one big "running now" CTA at
+the top. Service worker / offline queue is a bigger bet.
+
+Defers because the desktop daily-loop user (the primary persona)
+doesn't feel the pain.
+
+## Audit follow-ups (from the 2026-05-04 multi-persona audit)
+
+Smaller items pulled out of the audit campaign that closed on
+2026-05-05 across 16 commits. All non-blocking but worth tracking:
+
+- **`[id]` route smoke-test seeds.** The Playwright route-smoke
+  spec (`e2e/route-smoke.spec.ts`) covers 18 static dashboard
+  routes. The dynamic `[id]` routes (`/customers/[id]`,
+  `/projects/[id]`, `/invoices/[id]`, `/invoices/[id]/send`,
+  `/teams/[id]`, `/business/[businessId]/**`) need fixture data
+  the global-setup doesn't seed today. Add a `seed-fixture-data`
+  helper that creates one each of customer / project / invoice /
+  business under the e2e fixture user, then extend the smoke
+  spec to cover those routes too.
+
+- **Form-label `htmlFor` sweep — long tail.** Batches 9 / 12 / 14
+  wired ~80 forms / ~400 fields. ~22 residual occurrences across
+  13 files use non-conforming patterns the perl pass couldn't
+  match: conditional row-zero labels in multi-row tables (split-
+  expense-modal, line-item composers), labels using a different
+  i18n shape (`tf(...)` in running-timer-card), labels with
+  `<Icon />` children. Each needs hand-handling — either an
+  htmlFor that points to one of N inputs (wrong) or a switch to
+  `<fieldset>/<legend>`. Pick a per-case fix when touching the
+  surrounding code.
+
+- **Promote status-text tokens to `@theshyre/design-tokens`.**
+  Batch 15 added `--success-text` / `--warning-text` /
+  `--error-text` / `--info-text` locally in `globals.css` to
+  unblock WCAG AA contrast. Promote them upstream so Liv +
+  future consumers inherit the same fix without copying CSS.
+  See `docs/reference/promotion-candidates.md`.
+
+- **Configure CI staging Supabase secrets.** The `integration`
+  and `e2e` jobs in `.github/workflows/ci.yml` auto-skip when
+  `STAGING_SUPABASE_URL` / `STAGING_SUPABASE_ANON_KEY` /
+  `STAGING_SUPABASE_SERVICE_ROLE_KEY` /
+  `STAGING_EMAIL_KEY_ENCRYPTION_KEY` aren't set. Once
+  configured in GitHub repo settings, the existing 13-file RLS
+  suite + 8-file Playwright suite + the new invoices / outbox
+  RLS specs (batch 16) all run on every PR. No code change
+  needed; just provision.
+
+- **Drop residual unwired-label files.** See "Form-label sweep —
+  long tail" above; once those land, add the matching ESLint
+  rule that flags `<label className={labelClass}>` without
+  `htmlFor` so future regressions catch at lint time.
+
 ## Other deferred work
 
 Smaller items surfaced by persona reviews but not yet promoted to their

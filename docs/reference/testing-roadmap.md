@@ -1,19 +1,71 @@
 # Testing roadmap
 
-## Current state (as of 2026-05-04)
+## Current state (as of 2026-05-05)
 
 ```
-Coverage:  ~36.6% statements · ~30% branches · ~34.5% functions · ~36.5% lines
+Tests:     1810 passing · 1 skipped (was ~1530 pre-audit)
+Coverage:  ~38% across statements / branches / functions / lines
 Target:    90% across the board (CLAUDE.md mandate)
 Gate:      CI runs `npm run test:coverage` with a ratcheted floor
            (see vitest.config.ts thresholds). PRs that drop below
            the floor fail CI. Every PR that raises coverage must
-           also raise the floor — this is how we get from 36% to 90%
+           also raise the floor — this is how we get from 38% to 90%
            without a week-long push.
+Build:     `npm run ci:local` now also runs `next build` to catch
+           Next.js-only checks (`"use server"` async-export, server-
+           closure-passed-across-boundary in build trace) that
+           lint/typecheck/vitest miss.
 ```
 
-**Recent progress (2026-05-04):** items 2, 3, 4 of the priority list
-landed in one push — `customers/actions.ts`, `customers/[id]/sharing-actions.ts`,
+**2026-05-04 → 2026-05-05 audit campaign (16 batches).** ~280 new
+tests across the priority surfaces:
+
+- ✅ Item 1 — `invoices/actions.ts`: extended with `deleteInvoiceAction`
+  (9 cases) + discount-path wiring (7 cases) on top of the existing
+  create / status-update coverage.
+- ✅ Items 2/3/4 (customers + sharing + permissions) — the 2026-05-04
+  push, plus role-gate refusal cases added in batch 2.
+- ✅ Item 5 — `teams/[id]/team-actions.ts`: 13 cases covering
+  inviteMember + removeMember + revokeInvite + transferOwnership +
+  updateMemberRole (the new role-transition RPCs added in batch 3).
+- ✅ Item 14 — `business/[id]/expenses/actions.ts`: 35 cases
+  covering create / update / delete / restore + splitExpense
+  (12 cases for split alone — happy path, role gate, validation
+  propagation, JSON parse, 2dp rounding).
+- ✅ Item 15 — `time-entries/actions.ts`: 16 cases covering trash
+  invariants (delete / restore / permanently-delete with
+  user_id-defense filters) + createTimeEntryAction (8 cases on the
+  internal-billable enforcement, project lookup, duration/timestamp
+  modes, tz_offset clamping). Heavyweight paths (`startTimerAction`,
+  `duplicateTimeEntryAction`) deliberately left for a later push —
+  they need project + ticket fixtures.
+- ✅ `auth/accept-invite/route.ts`: 10 cases (audit H6) for the
+  three independent gates + email-case-insensitivity + memberError
+  logging context.
+- ✅ `lib/messaging/send-invoice` orchestrator + `send-invoice-action`:
+  14 cases for the To/Cc dedup + sent_at stability across resends +
+  void rejection + role gate + failure-leaves-status-unchanged path.
+- ✅ MFA URI rewrite extracted + 8 unit tests for the security-
+  relevant logic (preserved crypto params, URL-encoding, plus-
+  addressing, missing-param defaults).
+- ✅ Modal wrapper with focus trap / return-focus / accessible name
+  — 9 component tests.
+- ✅ `summarizePayments` (currency-aware payment aggregation):
+  7 cases.
+- ✅ `reports-period` (date-range resolver): 11 cases.
+- ✅ Playwright route-smoke spec (`e2e/route-smoke.spec.ts`) covers
+  18 static dashboard routes — defense against the runtime crash
+  class (server-closure-across-client-boundary) that bit `/projects`
+  in batch 7.
+- ✅ Two new RLS integration suites (batch 16): `invoices-rls`
+  (10 cases) covers `invoices` + `invoice_line_items` + `invoice_
+  payments`; `message-outbox-rls` (11 cases) covers the tighter
+  owner/admin-only model + the no-INSERT-policy rule for
+  `message_outbox` + `message_outbox_events`. Both auto-pick up
+  in CI when staging Supabase secrets are configured.
+
+**Pre-audit progress (2026-05-04):** items 2, 3, 4 of the priority
+list landed — `customers/actions.ts`, `customers/[id]/sharing-actions.ts`,
 and `customers/[id]/permissions-actions.ts`. 55 new tests across the
 three files. The customers surface — shared resource, cross-team
 grants, principal permission grants — is now defended against
@@ -31,11 +83,11 @@ Server actions are the highest-risk untested surface because they write to the D
 
 | # | File | ~Lines | Risk | Why |
 |---|---|---|---|---|
-| 1 | ~~`invoices/actions.ts`~~ | 173 | ✅ **DONE** (`f42d2cf`) | Money-touching |
+| 1 | ~~`invoices/actions.ts`~~ | 173 | ✅ **DONE** (`f42d2cf` + audit batch 4 / 8) | Money-touching |
 | 2 | ~~`customers/actions.ts`~~ | 143 | ✅ **DONE** (2026-05-04) | Shared resource, team-scoped CRUD, archive |
-| 3 | ~~`customers/[id]/sharing-actions.ts`~~ | 73 | ✅ **DONE** (2026-05-04) | Cross-team grants — any bug here is a data leak |
-| 4 | ~~`customers/[id]/permissions-actions.ts`~~ | 75 | ✅ **DONE** (2026-05-04) | Role + permission mutation |
-| 5 | `teams/[id]/team-actions.ts` | ~100 | HIGH | Team destructive ops + cascades |
+| 3 | ~~`customers/[id]/sharing-actions.ts`~~ | 73 | ✅ **DONE** (2026-05-04) + audit batch 2 role-gate cases | Cross-team grants — any bug here is a data leak |
+| 4 | ~~`customers/[id]/permissions-actions.ts`~~ | 75 | ✅ **DONE** (2026-05-04) + audit batch 2 role-gate cases | Role + permission mutation |
+| 5 | ~~`teams/[id]/team-actions.ts`~~ | ~160 | ✅ **DONE** (audit batch 4) | Team destructive ops + transfer ownership + role change |
 | 6 | `security-groups/actions.ts` | ? | HIGH | ACL group membership |
 | 7 | `admin/sample-data/actions.ts` | ~200 | HIGH | Bulk system mutation (seed/wipe) |
 | 8 | `admin/errors/actions.ts` | ~100 | MED | Error-resolution admin |
@@ -44,12 +96,16 @@ Server actions are the highest-risk untested surface because they write to the D
 | 11 | `teams/[id]/team-settings-actions.ts` | ? | MED | Per-team config |
 | 12 | `customers/[id]/change-primary-actions.ts` | ? | MED | Primary-team transfer |
 | 13 | `business/actions.ts` | ? | MED | Business profile CRUD |
-| 14 | `business/[id]/expenses/actions.ts` | 80 | MED | Financial records |
-| 15 | `time-entries/actions.ts` | ? | MED | Core domain — may be covered indirectly by integration tests |
+| 14 | ~~`business/[id]/expenses/actions.ts`~~ | 850 | ✅ **DONE** (audit batches 5 + 8 — create / update / delete / restore + splitExpense) | Financial records |
+| 15 | ~~`time-entries/actions.ts`~~ | 850 | ✅ **PARTIAL** (audit batches 5 + 8 — trash invariants + createTimeEntryAction). startTimerAction / duplicateTimeEntryAction still need fixtures. | Core domain |
 | 16 | `projects/actions.ts` | ? | MED | Project CRUD |
 | 17 | `categories/actions.ts` | 50 | LOW | Categories |
 | 18 | `templates/actions.ts` | 50 | LOW | Templates |
 | 19 | `profile/actions.ts` | 30 | LOW | User preferences |
+| 20 | ~~`auth/accept-invite/route.ts`~~ | 90 | ✅ **DONE** (audit batch 4) | Three independent invite gates |
+| 21 | ~~`messaging/send-invoice` + `send-invoice-action`~~ | 470 | ✅ **DONE** (audit batch 8) | sent_at stability across resends; To/Cc dedup; status flip semantics |
+| 22 | RLS suites — `invoices` + `message_outbox` | — | ✅ **DONE** (audit batch 16) | Auto-skip in CI until staging secrets configured |
+| 23 | `lib/credentials/scan.ts` | 178 | LOW (after has_*_token columns) | Generated boolean columns mean tests don't need plaintext fixtures |
 
 ## Pattern for new action tests
 
