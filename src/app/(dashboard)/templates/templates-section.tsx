@@ -250,8 +250,14 @@ function TemplateForm({
 
       <div className="grid gap-3 sm:grid-cols-2">
         <div>
-          <label className={labelClass}>{t("fields.name")} *</label>
+          <label
+            htmlFor={`tpl-name-${template?.id ?? "new"}`}
+            className={labelClass}
+          >
+            {t("fields.name")} *
+          </label>
           <input
+            id={`tpl-name-${template?.id ?? "new"}`}
             name="name"
             required
             autoFocus={!template}
@@ -261,8 +267,14 @@ function TemplateForm({
           />
         </div>
         <div>
-          <label className={labelClass}>{t("fields.project")} *</label>
+          <label
+            htmlFor={`tpl-project-${template?.id ?? "new"}`}
+            className={labelClass}
+          >
+            {t("fields.project")} *
+          </label>
           <select
+            id={`tpl-project-${template?.id ?? "new"}`}
             name="project_id"
             required
             value={selectedProjectId}
@@ -278,8 +290,14 @@ function TemplateForm({
           </select>
         </div>
         <div className="sm:col-span-2">
-          <label className={labelClass}>{t("fields.description")}</label>
+          <label
+            htmlFor={`tpl-description-${template?.id ?? "new"}`}
+            className={labelClass}
+          >
+            {t("fields.description")}
+          </label>
           <input
+            id={`tpl-description-${template?.id ?? "new"}`}
             name="description"
             defaultValue={template?.description ?? ""}
             placeholder={t("fields.descriptionPlaceholder")}
@@ -288,8 +306,14 @@ function TemplateForm({
         </div>
         {filteredCategories.length > 0 && (
           <div>
-            <label className={labelClass}>{t("fields.category")}</label>
+            <label
+              htmlFor={`tpl-category-${template?.id ?? "new"}`}
+              className={labelClass}
+            >
+              {t("fields.category")}
+            </label>
             <select
+              id={`tpl-category-${template?.id ?? "new"}`}
               name="category_id"
               defaultValue={template?.category_id ?? ""}
               className={selectClass}

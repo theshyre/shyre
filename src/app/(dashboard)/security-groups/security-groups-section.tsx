@@ -114,8 +114,11 @@ export function SecurityGroupsSection({
           )}
           <div className="grid gap-3 sm:grid-cols-2">
             <div>
-              <label className={labelClass}>{t("fields.name")} *</label>
+              <label htmlFor="sg-new-name" className={labelClass}>
+                {t("fields.name")} *
+              </label>
               <input
+                id="sg-new-name"
                 name="name"
                 required
                 autoFocus
@@ -124,8 +127,11 @@ export function SecurityGroupsSection({
               />
             </div>
             <div>
-              <label className={labelClass}>{t("fields.team")} *</label>
+              <label htmlFor="sg-new-team" className={labelClass}>
+                {t("fields.team")} *
+              </label>
               <select
+                id="sg-new-team"
                 name="team_id"
                 required
                 className={selectClass}
@@ -141,8 +147,11 @@ export function SecurityGroupsSection({
             </div>
           </div>
           <div>
-            <label className={labelClass}>{t("fields.description")}</label>
+            <label htmlFor="sg-new-description" className={labelClass}>
+              {t("fields.description")}
+            </label>
             <textarea
+              id="sg-new-description"
               name="description"
               rows={2}
               className={textareaClass}
@@ -309,8 +318,14 @@ function GroupCard({
           <form action={handleAdd} className="mt-3 flex gap-2 items-end">
             <input type="hidden" name="group_id" value={group.id} />
             <div className="flex-1">
-              <label className={labelClass}>{t("addMember")}</label>
+              <label
+                htmlFor={`sg-add-member-${group.id}`}
+                className={labelClass}
+              >
+                {t("addMember")}
+              </label>
               <select
+                id={`sg-add-member-${group.id}`}
                 name="user_id"
                 required
                 autoFocus

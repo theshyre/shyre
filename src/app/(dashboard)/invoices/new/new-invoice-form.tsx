@@ -536,10 +536,11 @@ export function NewInvoiceForm({
               </summary>
               <div className={`${formGridClass} mt-3`}>
                 <div className={formSpanQuarter}>
-                  <label className={labelClass}>
+                  <label htmlFor="invoice-discount-rate" className={labelClass}>
                     {t("fields.discountRate")}
                   </label>
                   <input
+                    id="invoice-discount-rate"
                     name="discount_rate"
                     type="number"
                     step="0.01"
@@ -552,10 +553,14 @@ export function NewInvoiceForm({
                   />
                 </div>
                 <div className={formSpanQuarter}>
-                  <label className={labelClass}>
+                  <label
+                    htmlFor="invoice-discount-amount"
+                    className={labelClass}
+                  >
                     {t("fields.discountAmount")}
                   </label>
                   <input
+                    id="invoice-discount-amount"
                     name="discount_amount"
                     type="number"
                     step="0.01"
@@ -567,10 +572,14 @@ export function NewInvoiceForm({
                   />
                 </div>
                 <div className={formSpanHalf}>
-                  <label className={labelClass}>
+                  <label
+                    htmlFor="invoice-discount-reason"
+                    className={labelClass}
+                  >
                     {t("fields.discountReason")}
                   </label>
                   <input
+                    id="invoice-discount-reason"
                     name="discount_reason"
                     type="text"
                     maxLength={200}
@@ -714,8 +723,11 @@ export function NewInvoiceForm({
           <section className="rounded-lg border border-edge bg-surface-raised p-4">
             <div className={formGridClass}>
               <div className={formSpanFull}>
-                <label className={labelClass}>{t("fields.notes")}</label>
+                <label htmlFor="invoice-notes" className={labelClass}>
+                  {t("fields.notes")}
+                </label>
                 <textarea
+                  id="invoice-notes"
                   name="notes"
                   rows={3}
                   value={notes}

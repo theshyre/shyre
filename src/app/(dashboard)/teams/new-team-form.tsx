@@ -52,8 +52,11 @@ export function NewTeamForm(): React.JSX.Element {
         <AlertBanner tone="error">{serverError}</AlertBanner>
       )}
       <div>
-        <label className={labelClass}>{tc("team.namePlaceholder")} *</label>
+        <label htmlFor="new-team-name" className={labelClass}>
+          {tc("team.namePlaceholder")} *
+        </label>
         <input
+          id="new-team-name"
           name="team_name"
           required
           autoFocus

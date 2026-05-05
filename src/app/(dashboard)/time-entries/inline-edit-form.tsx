@@ -127,8 +127,11 @@ export function InlineEditForm({
         {/* Row 1: Project + Category — paired because the project's
             category-set ids drive what the picker offers. */}
         <div className={formSpanHalf}>
-          <label className={labelClass}>{t("fields.project")}</label>
+          <label htmlFor={`ie-project-${entry.id}`} className={labelClass}>
+            {t("fields.project")}
+          </label>
           <select
+            id={`ie-project-${entry.id}`}
             defaultValue={entry.project_id}
             disabled
             className={selectClass}
@@ -157,8 +160,11 @@ export function InlineEditForm({
             line input truncated. 3 rows fits a typical paragraph
             without auto-grow CLS in the multi-select-table parent. */}
         <div className={formSpanFull}>
-          <label className={labelClass}>{t("fields.description")}</label>
+          <label htmlFor={`ie-description-${entry.id}`} className={labelClass}>
+            {t("fields.description")}
+          </label>
           <textarea
+            id={`ie-description-${entry.id}`}
             ref={descRef}
             name="description"
             defaultValue={entry.description ?? ""}
@@ -173,19 +179,36 @@ export function InlineEditForm({
         {requiresTimestamps ? (
           <>
             <div className={formSpanThird}>
-              <label className={labelClass}>{t("fields.startTime")} *</label>
+              <label
+                htmlFor={`ie-start-${entry.id}`}
+                className={labelClass}
+              >
+                {t("fields.startTime")} *
+              </label>
               <input
+                id={`ie-start-${entry.id}`}
                 name="start_time"
                 type="datetime-local"
                 required
                 defaultValue={toLocalDatetime(entry.start_time)}
                 className={inputClass}
+                aria-describedby={
+                  fieldErrors.start_time
+                    ? `ie-start-${entry.id}-error`
+                    : undefined
+                }
               />
-              <FieldError error={fieldErrors.start_time} />
+              <FieldError
+                error={fieldErrors.start_time}
+                id={`ie-start-${entry.id}-error`}
+              />
             </div>
             <div className={formSpanThird}>
-              <label className={labelClass}>{t("fields.endTime")}</label>
+              <label htmlFor={`ie-end-${entry.id}`} className={labelClass}>
+                {t("fields.endTime")}
+              </label>
               <input
+                id={`ie-end-${entry.id}`}
                 name="end_time"
                 type="datetime-local"
                 defaultValue={entry.end_time ? toLocalDatetime(entry.end_time) : ""}
@@ -196,8 +219,11 @@ export function InlineEditForm({
         ) : (
           <>
             <div className={formSpanThird}>
-              <label className={labelClass}>{t("fields.date")} *</label>
+              <label htmlFor={`ie-date-${entry.id}`} className={labelClass}>
+                {t("fields.date")} *
+              </label>
               <input
+                id={`ie-date-${entry.id}`}
                 name="entry_date"
                 type="date"
                 required
@@ -206,7 +232,12 @@ export function InlineEditForm({
               />
             </div>
             <div className={formSpanQuarter}>
-              <label className={labelClass}>{t("fields.duration")} *</label>
+              <label
+                htmlFor={`ie-duration-${entry.id}`}
+                className={labelClass}
+              >
+                {t("fields.duration")} *
+              </label>
               <DurationInput
                 name="duration_min"
                 defaultMinutes={entry.duration_min ?? 0}
@@ -220,8 +251,11 @@ export function InlineEditForm({
             metadata shouldn't be as visually loud as Project /
             Description. */}
         <div className={formSpanQuarter}>
-          <label className={labelClass}>{t("fields.githubIssue")}</label>
+          <label htmlFor={`ie-github-issue-${entry.id}`} className={labelClass}>
+            {t("fields.githubIssue")}
+          </label>
           <input
+            id={`ie-github-issue-${entry.id}`}
             name="github_issue"
             type="number"
             min="1"

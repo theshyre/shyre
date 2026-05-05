@@ -103,8 +103,11 @@ export function TeamSettingsForm({
         </div>
         <div className="grid gap-3 sm:grid-cols-2">
           <div>
-            <label className={labelClass}>{t("fields.businessName")}</label>
+            <label htmlFor="ts-business-name" className={labelClass}>
+              {t("fields.businessName")}
+            </label>
             <input
+              id="ts-business-name"
               name="business_name"
               defaultValue={org.business_name ?? ""}
               disabled={!isAdmin}
@@ -113,8 +116,11 @@ export function TeamSettingsForm({
             <FieldError error={fieldErrors.business_name} />
           </div>
           <div>
-            <label className={labelClass}>{t("fields.businessEmail")}</label>
+            <label htmlFor="ts-business-email" className={labelClass}>
+              {t("fields.businessEmail")}
+            </label>
             <input
+              id="ts-business-email"
               name="business_email"
               type="email"
               defaultValue={org.business_email ?? ""}
@@ -124,8 +130,11 @@ export function TeamSettingsForm({
             <FieldError error={fieldErrors.business_email} />
           </div>
           <div>
-            <label className={labelClass}>{t("fields.businessPhone")}</label>
+            <label htmlFor="ts-business-phone" className={labelClass}>
+              {t("fields.businessPhone")}
+            </label>
             <input
+              id="ts-business-phone"
               name="business_phone"
               defaultValue={org.business_phone ?? ""}
               disabled={!isAdmin}
@@ -164,8 +173,11 @@ export function TeamSettingsForm({
         </h2>
         <div className="grid gap-3 sm:grid-cols-3">
           <div>
-            <label className={labelClass}>{t("fields.defaultRate")}</label>
+            <label htmlFor="ts-default-rate" className={labelClass}>
+              {t("fields.defaultRate")}
+            </label>
             <input
+              id="ts-default-rate"
               name="default_rate"
               type="number"
               step="0.01"
@@ -176,8 +188,11 @@ export function TeamSettingsForm({
             />
           </div>
           <div>
-            <label className={labelClass}>{t("fields.invoicePrefix")}</label>
+            <label htmlFor="ts-invoice-prefix" className={labelClass}>
+              {t("fields.invoicePrefix")}
+            </label>
             <input
+              id="ts-invoice-prefix"
               name="invoice_prefix"
               defaultValue={org.invoice_prefix ?? "INV"}
               disabled={!isAdmin}
@@ -185,8 +200,11 @@ export function TeamSettingsForm({
             />
           </div>
           <div>
-            <label className={labelClass}>{t("fields.invoiceNextNum")}</label>
+            <label htmlFor="ts-invoice-next-num" className={labelClass}>
+              {t("fields.invoiceNextNum")}
+            </label>
             <input
+              id="ts-invoice-next-num"
               name="invoice_next_num"
               type="number"
               min="1"
@@ -196,8 +214,11 @@ export function TeamSettingsForm({
             />
           </div>
           <div>
-            <label className={labelClass}>{t("fields.taxRate")}</label>
+            <label htmlFor="ts-tax-rate" className={labelClass}>
+              {t("fields.taxRate")}
+            </label>
             <input
+              id="ts-tax-rate"
               name="tax_rate"
               type="number"
               step="0.01"
@@ -233,10 +254,11 @@ export function TeamSettingsForm({
         </p>
         <div className="grid gap-3 sm:grid-cols-3">
           <div>
-            <label className={labelClass}>
+            <label htmlFor="ts-wordmark-primary" className={labelClass}>
               {t("fields.wordmarkPrimary")}
             </label>
             <input
+              id="ts-wordmark-primary"
               name="wordmark_primary"
               defaultValue={org.wordmark_primary ?? ""}
               maxLength={50}
@@ -247,10 +269,11 @@ export function TeamSettingsForm({
             <FieldError error={fieldErrors?.wordmark_primary} />
           </div>
           <div>
-            <label className={labelClass}>
+            <label htmlFor="ts-wordmark-secondary" className={labelClass}>
               {t("fields.wordmarkSecondary")}
             </label>
             <input
+              id="ts-wordmark-secondary"
               name="wordmark_secondary"
               defaultValue={org.wordmark_secondary ?? ""}
               maxLength={50}
@@ -261,9 +284,12 @@ export function TeamSettingsForm({
             <FieldError error={fieldErrors?.wordmark_secondary} />
           </div>
           <div>
-            <label className={labelClass}>{t("fields.brandColor")}</label>
+            <label htmlFor="ts-brand-color" className={labelClass}>
+              {t("fields.brandColor")}
+            </label>
             <div className="flex gap-2 items-stretch">
               <input
+                id="ts-brand-color"
                 name="brand_color"
                 type="text"
                 defaultValue={org.brand_color ?? ""}
@@ -294,10 +320,11 @@ export function TeamSettingsForm({
         </div>
         <div className="grid gap-3 sm:grid-cols-2">
           <div>
-            <label className={labelClass}>
+            <label htmlFor="ts-rate-visibility" className={labelClass}>
               {t("fields.rateVisibility")}
             </label>
             <select
+              id="ts-rate-visibility"
               name="rate_visibility"
               defaultValue={org.rate_visibility ?? "owner"}
               disabled={!canSetRatePerms}
@@ -311,10 +338,11 @@ export function TeamSettingsForm({
             </select>
           </div>
           <div>
-            <label className={labelClass}>
+            <label htmlFor="ts-rate-editability" className={labelClass}>
               {t("fields.rateEditability")}
             </label>
             <select
+              id="ts-rate-editability"
               name="rate_editability"
               defaultValue={org.rate_editability ?? "owner"}
               disabled={!canSetRatePerms}
@@ -328,10 +356,11 @@ export function TeamSettingsForm({
             </select>
           </div>
           <div className="sm:col-span-2">
-            <label className={labelClass}>
+            <label htmlFor="ts-time-entries-visibility" className={labelClass}>
               {t("fields.timeEntriesVisibility")}
             </label>
             <select
+              id="ts-time-entries-visibility"
               name="time_entries_visibility"
               defaultValue={org.time_entries_visibility ?? "own_only"}
               disabled={!isAdmin}

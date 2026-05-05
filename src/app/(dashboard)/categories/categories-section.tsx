@@ -164,8 +164,11 @@ function SystemSetRow({
           <input type="hidden" name="source_id" value={set.id} />
           <TeamSelector teams={teams} label={t("cloneToTeam")} />
           <div>
-            <label className={labelClass}>{t("nameOptional")}</label>
+            <label htmlFor={`cs-clone-name-${set.id}`} className={labelClass}>
+              {t("nameOptional")}
+            </label>
             <input
+              id={`cs-clone-name-${set.id}`}
               name="name"
               placeholder={set.name}
               className={inputClass}
@@ -290,8 +293,11 @@ function NewSetForm({
       )}
       <TeamSelector teams={teams} />
       <div>
-        <label className={labelClass}>{t("name")} *</label>
+        <label htmlFor="cs-new-name" className={labelClass}>
+          {t("name")} *
+        </label>
         <input
+          id="cs-new-name"
           autoFocus
           required
           name="name"
@@ -300,8 +306,11 @@ function NewSetForm({
         />
       </div>
       <div>
-        <label className={labelClass}>{t("descriptionLabel")}</label>
+        <label htmlFor="cs-new-description" className={labelClass}>
+          {t("descriptionLabel")}
+        </label>
         <input
+          id="cs-new-description"
           name="description"
           placeholder={t("descriptionPlaceholder")}
           className={inputClass}

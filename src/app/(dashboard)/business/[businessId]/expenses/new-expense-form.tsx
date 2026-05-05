@@ -116,8 +116,11 @@ export function NewExpenseForm({
       <div className={formGridClass}>
         {/* Row 1: Compact essentials — Date, Amount, Category. */}
         <div className={formSpanThird}>
-          <label className={labelClass}>{t("fields.incurredOn")} *</label>
+          <label htmlFor="ne-incurred-on" className={labelClass}>
+            {t("fields.incurredOn")} *
+          </label>
           <input
+            id="ne-incurred-on"
             name="incurred_on"
             type="date"
             defaultValue={todayStr()}
@@ -127,8 +130,11 @@ export function NewExpenseForm({
           />
         </div>
         <div className={formSpanQuarter}>
-          <label className={labelClass}>{t("fields.amount")} *</label>
+          <label htmlFor="ne-amount" className={labelClass}>
+            {t("fields.amount")} *
+          </label>
           <input
+            id="ne-amount"
             name="amount"
             type="number"
             step="0.01"
@@ -138,10 +144,13 @@ export function NewExpenseForm({
           />
         </div>
         <div className={formSpanThird}>
-          <label className={labelClass}>{t("fields.category")} *</label>
+          <label htmlFor="ne-category" className={labelClass}>
+            {t("fields.category")} *
+          </label>
           {/* selectClass not inputClass — the select needs the
               chevron padding-right. */}
           <select
+            id="ne-category"
             name="category"
             required
             value={selectedCategory}
@@ -162,12 +171,22 @@ export function NewExpenseForm({
 
         {/* Row 2: Vendor + Project + (optional) Team. */}
         <div className={formSpanThird}>
-          <label className={labelClass}>{t("fields.vendor")}</label>
-          <input name="vendor" type="text" className={inputClass} />
+          <label htmlFor="ne-vendor" className={labelClass}>
+            {t("fields.vendor")}
+          </label>
+          <input
+            id="ne-vendor"
+            name="vendor"
+            type="text"
+            className={inputClass}
+          />
         </div>
         <div className={formSpanThird}>
-          <label className={labelClass}>{t("fields.project")}</label>
+          <label htmlFor="ne-project" className={labelClass}>
+            {t("fields.project")}
+          </label>
           <select
+            id="ne-project"
             name="project_id"
             defaultValue="none"
             className={selectClass}
@@ -182,8 +201,11 @@ export function NewExpenseForm({
         </div>
         {showTeamPicker && (
           <div className={formSpanThird}>
-            <label className={labelClass}>{t("fields.team")} *</label>
+            <label htmlFor="ne-team" className={labelClass}>
+              {t("fields.team")} *
+            </label>
             <select
+              id="ne-team"
               value={selectedTeamId}
               onChange={(e) => setSelectedTeamId(e.target.value)}
               required
@@ -200,20 +222,34 @@ export function NewExpenseForm({
 
         {/* Row 3: Description (full-width). */}
         <div className={formSpanFull}>
-          <label className={labelClass}>{t("fields.description")}</label>
-          <textarea name="description" rows={2} className={textareaClass} />
+          <label htmlFor="ne-description" className={labelClass}>
+            {t("fields.description")}
+          </label>
+          <textarea
+            id="ne-description"
+            name="description"
+            rows={2}
+            className={textareaClass}
+          />
         </div>
 
         {/* Row 4: Notes (full-width). */}
         <div className={formSpanFull}>
-          <label className={labelClass}>{t("fields.notes")}</label>
+          <label htmlFor="ne-notes" className={labelClass}>
+            {t("fields.notes")}
+          </label>
           <textarea
+            id="ne-notes"
             name="notes"
             rows={2}
             placeholder={t("fields.notesPlaceholder")}
             className={textareaClass}
+            aria-describedby="ne-notes-hint"
           />
-          <p className="mt-1 text-caption text-content-muted">
+          <p
+            id="ne-notes-hint"
+            className="mt-1 text-caption text-content-muted"
+          >
             {t("fields.notesHint")}
           </p>
         </div>

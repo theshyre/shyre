@@ -171,9 +171,12 @@ export function ProfileForm({
       <section className="rounded-lg border border-edge bg-surface-raised p-4 space-y-5">
         <SectionHeader icon={User} label={t("sections.profile")} />
 
-        {/* Avatar — self-contained, saves on pick/upload */}
+        {/* Avatar — self-contained, saves on pick/upload. Uses a
+            spanned wrapper rather than `htmlFor` because AvatarPicker
+            renders its own focusable controls (preset tiles, upload
+            input). The visual label is informational. */}
         <div>
-          <label className={labelClass}>{t("profile.avatar")}</label>
+          <span className={labelClass}>{t("profile.avatar")}</span>
           <AvatarPicker
             userId={userId}
             displayName={displayName}
@@ -188,21 +191,31 @@ export function ProfileForm({
           )}
           <div className="grid gap-3 sm:grid-cols-2">
             <div>
-              <label className={labelClass}>{t("profile.displayName")}</label>
+              <label htmlFor="profile-display-name" className={labelClass}>
+                {t("profile.displayName")}
+              </label>
               <input
+                id="profile-display-name"
                 name="display_name"
                 defaultValue={displayName}
                 className={inputClass}
               />
             </div>
             <div>
-              <label className={labelClass}>{t("profile.email")}</label>
+              <label htmlFor="profile-email" className={labelClass}>
+                {t("profile.email")}
+              </label>
               <input
+                id="profile-email"
                 value={email}
                 readOnly
                 className={`${inputClass} text-content-muted`}
+                aria-describedby="profile-email-help"
               />
-              <p className="mt-1 text-caption text-content-muted">
+              <p
+                id="profile-email-help"
+                className="mt-1 text-caption text-content-muted"
+              >
                 {t("profile.emailReadOnlyHelp")}
               </p>
             </div>
@@ -223,9 +236,13 @@ export function ProfileForm({
           <SectionHeader icon={Palette} label={t("sections.preferences")} />
           {prefsForm.serverError && <ErrorBanner text={prefsForm.serverError} />}
 
-          {/* Theme */}
-          <div>
-            <label className={labelClass}>{t("theme.title")}</label>
+          {/* Theme — radio group of buttons. The wrapping
+              `<fieldset>` + `<legend>` is the canonical a11y
+              pattern for "label that names a set of inputs."
+              `htmlFor` on a single label can't address a button
+              group. */}
+          <fieldset>
+            <legend className={labelClass}>{t("theme.title")}</legend>
             <div className="flex gap-2 flex-wrap">
               {THEME_OPTIONS.map((opt) => {
                 const Icon = opt.icon;
@@ -249,11 +266,11 @@ export function ProfileForm({
             </div>
             {/* Hidden field so the Save button submits current theme too */}
             <input type="hidden" name="preferred_theme" value={theme} />
-          </div>
+          </fieldset>
 
-          {/* Text size */}
-          <div>
-            <label className={labelClass}>{t("textSize.title")}</label>
+          {/* Text size — same fieldset/legend treatment as Theme. */}
+          <fieldset>
+            <legend className={labelClass}>{t("textSize.title")}</legend>
             <div className="flex items-center gap-1 flex-wrap">
               <ALargeSmall
                 size={16}
@@ -292,18 +309,20 @@ export function ProfileForm({
               </span>
             </div>
             <input type="hidden" name="text_size" value={textSize} />
-          </div>
+          </fieldset>
 
           {/* Timezone */}
           <div>
-            <label className={labelClass}>
+            <label htmlFor="profile-timezone" className={labelClass}>
               <Globe size={12} className="inline mr-1" />
               {t("preferences.timezone")}
             </label>
             <select
+              id="profile-timezone"
               name="timezone"
               defaultValue={timezone ?? ""}
               className={selectClass}
+              aria-describedby="profile-timezone-help"
             >
               <option value="">
                 {detectedTz
@@ -320,7 +339,10 @@ export function ProfileForm({
                 </optgroup>
               ))}
             </select>
-            <p className="mt-1 text-caption text-content-muted">
+            <p
+              id="profile-timezone-help"
+              className="mt-1 text-caption text-content-muted"
+            >
               {t("preferences.timezoneHelp")}
             </p>
           </div>
@@ -328,11 +350,12 @@ export function ProfileForm({
           {/* Locale + Week + Time format */}
           <div className="grid gap-3 sm:grid-cols-3">
             <div>
-              <label className={labelClass}>
+              <label htmlFor="profile-locale" className={labelClass}>
                 <Languages size={12} className="inline mr-1" />
                 {t("preferences.locale")}
               </label>
               <select
+                id="profile-locale"
                 name="locale"
                 defaultValue={locale ?? ""}
                 className={selectClass}
@@ -343,11 +366,12 @@ export function ProfileForm({
               </select>
             </div>
             <div>
-              <label className={labelClass}>
+              <label htmlFor="profile-week-start" className={labelClass}>
                 <Calendar size={12} className="inline mr-1" />
                 {t("preferences.weekStart")}
               </label>
               <select
+                id="profile-week-start"
                 name="week_start"
                 defaultValue={weekStart ?? ""}
                 className={selectClass}
@@ -362,11 +386,12 @@ export function ProfileForm({
               </select>
             </div>
             <div>
-              <label className={labelClass}>
+              <label htmlFor="profile-time-format" className={labelClass}>
                 <Clock size={12} className="inline mr-1" />
                 {t("preferences.timeFormat")}
               </label>
               <select
+                id="profile-time-format"
                 name="time_format"
                 defaultValue={timeFormat ?? ""}
                 className={selectClass}
@@ -597,7 +622,9 @@ function IntegrationsSection({
         {/* GitHub */}
         <div>
           <div className="flex items-center justify-between gap-3 flex-wrap">
-            <label className={labelClass}>{t("fields.githubToken")}</label>
+            <label htmlFor="profile-github-token" className={labelClass}>
+              {t("fields.githubToken")}
+            </label>
             <a
               href={t("fields.githubTokenLinkHref")}
               target="_blank"
@@ -608,29 +635,42 @@ function IntegrationsSection({
             </a>
           </div>
           <input
+            id="profile-github-token"
             name="github_token"
             type="password"
             placeholder={t("fields.githubTokenPlaceholder")}
             defaultValue={githubToken ?? ""}
             className={inputClass}
             onChange={() => setGhState({ status: "idle" })}
+            aria-describedby="profile-github-token-help"
           />
-          <p className="mt-1 text-caption text-content-muted">
+          <p
+            id="profile-github-token-help"
+            className="mt-1 text-caption text-content-muted"
+          >
             {t("fields.githubTokenHelp")}
           </p>
 
           <div className="mt-3 grid gap-3 sm:grid-cols-2">
             <div>
-              <label className={labelClass}>
+              <label
+                htmlFor="profile-github-token-expires"
+                className={labelClass}
+              >
                 {t("fields.tokenExpiresOn")}
               </label>
               <input
+                id="profile-github-token-expires"
                 name="github_token_expires_at"
                 type="date"
                 defaultValue={githubTokenExpiresAt ?? ""}
                 className={inputClass}
+                aria-describedby="profile-github-token-expires-help"
               />
-              <p className="mt-1 text-caption text-content-muted">
+              <p
+                id="profile-github-token-expires-help"
+                className="mt-1 text-caption text-content-muted"
+              >
                 {t("fields.tokenExpiresOnHelp")}
               </p>
             </div>
@@ -669,8 +709,11 @@ function IntegrationsSection({
           </div>
 
           <div>
-            <label className={labelClass}>{t("fields.jiraBaseUrl")}</label>
+            <label htmlFor="profile-jira-base-url" className={labelClass}>
+              {t("fields.jiraBaseUrl")}
+            </label>
             <input
+              id="profile-jira-base-url"
               name="jira_base_url"
               type="url"
               placeholder={t("fields.jiraBaseUrlPlaceholder")}
@@ -681,8 +724,11 @@ function IntegrationsSection({
           </div>
 
           <div>
-            <label className={labelClass}>{t("fields.jiraEmail")}</label>
+            <label htmlFor="profile-jira-email" className={labelClass}>
+              {t("fields.jiraEmail")}
+            </label>
             <input
+              id="profile-jira-email"
               name="jira_email"
               type="email"
               defaultValue={jiraEmail ?? ""}
@@ -693,7 +739,7 @@ function IntegrationsSection({
 
           <div>
             <div className="flex items-center justify-between gap-3 flex-wrap">
-              <label className={labelClass}>
+              <label htmlFor="profile-jira-api-token" className={labelClass}>
                 {t("fields.jiraApiToken")}
               </label>
               <a
@@ -706,30 +752,43 @@ function IntegrationsSection({
               </a>
             </div>
             <input
+              id="profile-jira-api-token"
               name="jira_api_token"
               type="password"
               placeholder={t("fields.jiraApiTokenPlaceholder")}
               defaultValue={jiraApiToken ?? ""}
               className={inputClass}
               onChange={() => setJiraState({ status: "idle" })}
+              aria-describedby="profile-jira-api-token-help"
             />
-            <p className="mt-1 text-caption text-content-muted">
+            <p
+              id="profile-jira-api-token-help"
+              className="mt-1 text-caption text-content-muted"
+            >
               {t("fields.jiraApiTokenHelp")}
             </p>
           </div>
 
           <div className="grid gap-3 sm:grid-cols-2">
             <div>
-              <label className={labelClass}>
+              <label
+                htmlFor="profile-jira-token-expires"
+                className={labelClass}
+              >
                 {t("fields.tokenExpiresOn")}
               </label>
               <input
+                id="profile-jira-token-expires"
                 name="jira_api_token_expires_at"
                 type="date"
                 defaultValue={jiraApiTokenExpiresAt ?? ""}
                 className={inputClass}
+                aria-describedby="profile-jira-token-expires-help"
               />
-              <p className="mt-1 text-caption text-content-muted">
+              <p
+                id="profile-jira-token-expires-help"
+                className="mt-1 text-caption text-content-muted"
+              >
                 {t("fields.tokenExpiresOnHelp")}
               </p>
             </div>
