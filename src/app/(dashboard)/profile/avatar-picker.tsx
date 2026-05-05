@@ -133,7 +133,7 @@ export function AvatarPicker({
 
       {/* Presets */}
       <div>
-        <p className="text-xs text-content-muted mb-2">{t("orPickPreset")}</p>
+        <p className="text-caption text-content-muted mb-2">{t("orPickPreset")}</p>
         <div className="flex flex-wrap gap-2">
           {AVATAR_PRESETS.map((preset) => {
             const key = `preset:${preset.key}`;
@@ -156,14 +156,14 @@ export function AvatarPicker({
                   color: preset.fg,
                 }}
               >
-                <span className="text-sm font-semibold">{initial}</span>
+                <span className="text-body-lg font-semibold">{initial}</span>
               </button>
             );
           })}
         </div>
       </div>
 
-      <p className="text-xs text-content-muted">{t("helpText")}</p>
+      <p className="text-caption text-content-muted">{t("helpText")}</p>
     </div>
   );
 }

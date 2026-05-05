@@ -33,9 +33,9 @@ export default async function ProfilePage(): Promise<React.JSX.Element> {
     <div>
       <div className="flex items-center gap-3">
         <UserIcon size={24} className="text-accent" />
-        <h1 className="text-2xl font-bold text-content">{t("title")}</h1>
+        <h1 className="text-page-title font-bold text-content">{t("title")}</h1>
       </div>
-      <p className="mt-1 text-sm text-content-secondary">{t("subtitle")}</p>
+      <p className="mt-1 text-body-lg text-content-secondary">{t("subtitle")}</p>
 
       <ProfileForm
         userId={user.userId}

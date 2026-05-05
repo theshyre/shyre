@@ -309,27 +309,27 @@ export function TrashList({ entries, formatDuration }: Props): React.JSX.Element
                       className="h-2 w-2 rounded-full shrink-0"
                       style={{ backgroundColor: e.category.color }}
                     />
-                    <span className="text-sm text-content">{e.category.name}</span>
+                    <span className="text-body-lg text-content">{e.category.name}</span>
                   </span>
                 ) : (
-                  <span className="text-sm text-content-muted italic">—</span>
+                  <span className="text-body-lg text-content-muted italic">—</span>
                 )}
               </td>
-              <td className="px-4 py-2 text-sm text-content">
+              <td className="px-4 py-2 text-body-lg text-content">
                 {e.project_name}
                 {e.customer_name && (
                   <span className="text-content-muted"> · {e.customer_name}</span>
                 )}
                 {e.description && (
-                  <div className="text-xs text-content-muted truncate max-w-xs">
+                  <div className="text-caption text-content-muted truncate max-w-xs">
                     {e.description}
                   </div>
                 )}
               </td>
-              <td className="px-4 py-2 text-xs text-content-secondary whitespace-nowrap">
+              <td className="px-4 py-2 text-caption text-content-secondary whitespace-nowrap">
                 {new Date(e.start_time).toLocaleDateString()}
               </td>
-              <td className="px-4 py-2 text-right font-mono text-xs tabular-nums text-content">
+              <td className="px-4 py-2 text-right font-mono text-caption tabular-nums text-content">
                 {formatDuration(e.duration_min)}
               </td>
               <td className="px-4 py-2 text-right">
@@ -338,7 +338,7 @@ export function TrashList({ entries, formatDuration }: Props): React.JSX.Element
                     type="button"
                     onClick={() => restore(e.id)}
                     disabled={pending}
-                    className="inline-flex items-center gap-1 rounded bg-accent-soft px-2 py-1 text-xs font-medium text-accent-text hover:opacity-90 disabled:opacity-50 transition-opacity"
+                    className="inline-flex items-center gap-1 rounded bg-accent-soft px-2 py-1 text-caption font-medium text-accent-text hover:opacity-90 disabled:opacity-50 transition-opacity"
                   >
                     <RotateCcw size={12} />
                     {t("restore")}

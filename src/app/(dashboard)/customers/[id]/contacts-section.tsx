@@ -96,7 +96,7 @@ export function ContactsSection({
       <div className="flex items-center justify-between gap-3 flex-wrap">
         <div className="flex items-center gap-3">
           <Mail size={20} className="text-accent" />
-          <h2 className="text-lg font-semibold text-content">Contacts</h2>
+          <h2 className="text-title font-semibold text-content">Contacts</h2>
         </div>
         {canManage && !adding && (
           <button
@@ -145,7 +145,7 @@ export function ContactsSection({
       )}
 
       {contacts.length === 0 && !adding ? (
-        <p className="mt-3 text-sm text-content-muted italic">
+        <p className="mt-3 text-body-lg text-content-muted italic">
           No contacts yet. {canManage ? "Add one to start sending invoices to a real person." : ""}
         </p>
       ) : (
@@ -183,13 +183,13 @@ export function ContactsSection({
                           {c.name}
                         </span>
                         {c.is_invoice_recipient && (
-                          <span className="inline-flex items-center gap-1 rounded-full bg-accent-soft px-2 py-0.5 text-xs font-medium text-accent">
+                          <span className="inline-flex items-center gap-1 rounded-full bg-accent-soft px-2 py-0.5 text-caption font-medium text-accent">
                             <Send size={10} />
                             Invoice recipient
                           </span>
                         )}
                         {c.role_label && (
-                          <span className="text-xs text-content-muted">
+                          <span className="text-caption text-content-muted">
                             {c.role_label}
                           </span>
                         )}
@@ -362,7 +362,7 @@ function ContactForm({
           onChange={(e) => setIsRecipient(e.target.checked)}
           className="mt-0.5"
         />
-        <span className="text-sm text-content">
+        <span className="text-body-lg text-content">
           Send invoices to this contact
           <span className="block text-caption text-content-muted">
             Pre-fills the To: address when you email an invoice. Replaces any

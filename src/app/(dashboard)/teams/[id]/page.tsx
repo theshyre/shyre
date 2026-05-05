@@ -178,8 +178,8 @@ export default async function TeamDetailPage({
     <div className="space-y-8">
       <div className="flex items-center gap-3">
         <Building2 size={24} className="text-accent" />
-        <h1 className="text-2xl font-bold text-content">{org.name}</h1>
-        <span className="inline-flex items-center gap-1.5 rounded-full bg-surface-inset px-2.5 py-0.5 text-xs font-medium text-content-muted">
+        <h1 className="text-page-title font-bold text-content">{org.name}</h1>
+        <span className="inline-flex items-center gap-1.5 rounded-full bg-surface-inset px-2.5 py-0.5 text-caption font-medium text-content-muted">
           {role}
         </span>
       </div>
@@ -189,13 +189,13 @@ export default async function TeamDetailPage({
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-2">
             <Users size={18} className="text-accent" />
-            <h2 className="text-sm font-semibold uppercase tracking-wider text-content-muted">
+            <h2 className="text-body-lg font-semibold uppercase tracking-wider text-content-muted">
               {tc("nav.customers")}
             </h2>
           </div>
           <Link
             href={`/customers?team=${id}`}
-            className="flex items-center gap-1 text-xs text-accent hover:underline"
+            className="flex items-center gap-1 text-caption text-accent hover:underline"
           >
             <LinkPendingSpinner />
             {tc("viewAll")} <ArrowRight size={12} />
@@ -207,11 +207,11 @@ export default async function TeamDetailPage({
               <Link
                 key={client.id}
                 href={`/customers/${client.id}`}
-                className="rounded-lg border border-edge bg-surface-raised px-3 py-2 text-sm hover:bg-hover transition-colors"
+                className="rounded-lg border border-edge bg-surface-raised px-3 py-2 text-body-lg hover:bg-hover transition-colors"
               >
                 <span className="font-medium text-content">{client.name}</span>
                 {client.default_rate && (
-                  <span className="ml-2 text-xs text-content-muted font-mono">
+                  <span className="ml-2 text-caption text-content-muted font-mono">
                     ${Number(client.default_rate).toFixed(0)}/hr
                   </span>
                 )}
@@ -219,7 +219,7 @@ export default async function TeamDetailPage({
             ))}
           </div>
         ) : (
-          <p className="mt-2 text-sm text-content-muted">
+          <p className="mt-2 text-body-lg text-content-muted">
             {th("empty.customers")}
           </p>
         )}
@@ -230,13 +230,13 @@ export default async function TeamDetailPage({
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-2">
             <FolderKanban size={18} className="text-accent" />
-            <h2 className="text-sm font-semibold uppercase tracking-wider text-content-muted">
+            <h2 className="text-body-lg font-semibold uppercase tracking-wider text-content-muted">
               {tc("nav.projects")}
             </h2>
           </div>
           <Link
             href={`/projects?team=${id}`}
-            className="flex items-center gap-1 text-xs text-accent hover:underline"
+            className="flex items-center gap-1 text-caption text-accent hover:underline"
           >
             <LinkPendingSpinner />
             {tc("viewAll")} <ArrowRight size={12} />
@@ -255,12 +255,12 @@ export default async function TeamDetailPage({
                 <Link
                   key={project.id}
                   href={`/projects/${project.id}`}
-                  className="rounded-lg border border-edge bg-surface-raised px-3 py-2 text-sm hover:bg-hover transition-colors"
+                  className="rounded-lg border border-edge bg-surface-raised px-3 py-2 text-body-lg hover:bg-hover transition-colors"
                 >
                   <span className="font-medium text-content">
                     {project.name}
                   </span>
-                  <span className="ml-2 text-xs text-content-muted">
+                  <span className="ml-2 text-caption text-content-muted">
                     {customerName ?? tp("internal")}
                   </span>
                 </Link>
@@ -268,7 +268,7 @@ export default async function TeamDetailPage({
             })}
           </div>
         ) : (
-          <p className="mt-2 text-sm text-content-muted">
+          <p className="mt-2 text-body-lg text-content-muted">
             {th("empty.projects")}
           </p>
         )}
@@ -279,7 +279,7 @@ export default async function TeamDetailPage({
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-2">
             <Users size={18} className="text-accent" />
-            <h2 className="text-sm font-semibold uppercase tracking-wider text-content-muted">
+            <h2 className="text-body-lg font-semibold uppercase tracking-wider text-content-muted">
               {th("members.title")}
               {memberCount > 0 && (
                 <span className="ml-2 normal-case font-normal text-content-muted">
@@ -290,7 +290,7 @@ export default async function TeamDetailPage({
           </div>
           <Link
             href={`/teams/${id}/members`}
-            className="flex items-center gap-1 text-xs text-accent hover:underline"
+            className="flex items-center gap-1 text-caption text-accent hover:underline"
           >
             <LinkPendingSpinner />
             {tc("viewAll")} <ArrowRight size={12} />
@@ -301,24 +301,24 @@ export default async function TeamDetailPage({
             {memberPreview.map((m) => (
               <div
                 key={m.id}
-                className="flex items-center justify-between rounded-lg border border-edge bg-surface-raised px-3 py-2 text-sm"
+                className="flex items-center justify-between rounded-lg border border-edge bg-surface-raised px-3 py-2 text-body-lg"
               >
                 <span className="font-medium text-content truncate">
                   {m.displayName ?? th("members.unnamed")}
                   {m.isShell && (
-                    <span className="ml-1.5 text-xs text-content-muted italic">
+                    <span className="ml-1.5 text-caption text-content-muted italic">
                       ({th("members.shell")})
                     </span>
                   )}
                 </span>
-                <span className="ml-2 inline-flex items-center gap-1.5 rounded-full bg-surface-inset px-2 py-0.5 text-xs text-content-muted">
+                <span className="ml-2 inline-flex items-center gap-1.5 rounded-full bg-surface-inset px-2 py-0.5 text-caption text-content-muted">
                   {m.role}
                 </span>
               </div>
             ))}
           </div>
         ) : (
-          <p className="mt-2 text-sm text-content-muted">
+          <p className="mt-2 text-body-lg text-content-muted">
             {th("empty.members")}
           </p>
         )}
@@ -327,7 +327,7 @@ export default async function TeamDetailPage({
       {/* Configure */}
       <section>
         <div className="flex items-center gap-2 mb-3">
-          <h2 className="text-sm font-semibold uppercase tracking-wider text-content-muted">
+          <h2 className="text-body-lg font-semibold uppercase tracking-wider text-content-muted">
             {th("configureHeading")}
           </h2>
         </div>

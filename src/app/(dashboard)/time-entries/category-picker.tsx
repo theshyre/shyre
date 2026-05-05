@@ -52,7 +52,7 @@ export function CategoryPicker({
     return (
       <div>
         <label className={labelClass}>{t("label")}</label>
-        <p className="text-xs text-content-muted italic">{t("notConfigured")}</p>
+        <p className="text-caption text-content-muted italic">{t("notConfigured")}</p>
       </div>
     );
   }
@@ -65,7 +65,7 @@ export function CategoryPicker({
     return (
       <div>
         <label className={labelClass}>{t("label")}</label>
-        <p className="text-xs text-content-muted italic">{t("notConfigured")}</p>
+        <p className="text-caption text-content-muted italic">{t("notConfigured")}</p>
       </div>
     );
   }

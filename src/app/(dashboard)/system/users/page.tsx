@@ -42,8 +42,8 @@ export default async function AdminUsersPage(): Promise<React.JSX.Element> {
     <div>
       <div className="flex items-center gap-3">
         <Users size={24} className="text-accent" />
-        <h1 className="text-2xl font-bold text-content">All Users</h1>
-        <span className="inline-flex items-center gap-1.5 rounded-full bg-surface-inset px-2.5 py-0.5 text-xs font-medium text-content-muted">
+        <h1 className="text-page-title font-bold text-content">All Users</h1>
+        <span className="inline-flex items-center gap-1.5 rounded-full bg-surface-inset px-2.5 py-0.5 text-caption font-medium text-content-muted">
           {users.length} total
         </span>
       </div>
@@ -52,22 +52,22 @@ export default async function AdminUsersPage(): Promise<React.JSX.Element> {
         <table className={tableClass}>
           <thead>
             <tr className="border-b border-edge bg-surface-inset">
-              <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider text-content-muted">
+              <th className="px-4 py-3 text-left text-caption font-semibold uppercase tracking-wider text-content-muted">
                 User
               </th>
-              <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider text-content-muted">
+              <th className="px-4 py-3 text-left text-caption font-semibold uppercase tracking-wider text-content-muted">
                 Email
               </th>
-              <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider text-content-muted">
+              <th className="px-4 py-3 text-left text-caption font-semibold uppercase tracking-wider text-content-muted">
                 Role
               </th>
-              <th className="px-4 py-3 text-right text-xs font-semibold uppercase tracking-wider text-content-muted">
+              <th className="px-4 py-3 text-right text-caption font-semibold uppercase tracking-wider text-content-muted">
                 Orgs
               </th>
-              <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider text-content-muted">
+              <th className="px-4 py-3 text-left text-caption font-semibold uppercase tracking-wider text-content-muted">
                 Joined
               </th>
-              <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider text-content-muted">
+              <th className="px-4 py-3 text-left text-caption font-semibold uppercase tracking-wider text-content-muted">
                 Last Sign In
               </th>
             </tr>
@@ -85,7 +85,7 @@ export default async function AdminUsersPage(): Promise<React.JSX.Element> {
                 >
                   <td className="px-4 py-3">
                     <div className="flex items-center gap-2">
-                      <div className="flex h-7 w-7 items-center justify-center rounded-full bg-accent-soft text-accent-text text-xs font-semibold">
+                      <div className="flex h-7 w-7 items-center justify-center rounded-full bg-accent-soft text-accent-text text-caption font-semibold">
                         {displayName.charAt(0).toUpperCase()}
                       </div>
                       <span className="font-medium text-content">
@@ -93,17 +93,17 @@ export default async function AdminUsersPage(): Promise<React.JSX.Element> {
                       </span>
                     </div>
                   </td>
-                  <td className="px-4 py-3 text-content-secondary font-mono text-xs">
+                  <td className="px-4 py-3 text-content-secondary font-mono text-caption">
                     {u.email}
                   </td>
                   <td className="px-4 py-3">
                     {isSystemAdmin ? (
-                      <span className="inline-flex items-center gap-1.5 rounded-full bg-warning-soft px-2 py-0.5 text-xs font-medium text-warning">
+                      <span className="inline-flex items-center gap-1.5 rounded-full bg-warning-soft px-2 py-0.5 text-caption font-medium text-warning">
                         <Crown size={10} />
                         System Admin
                       </span>
                     ) : (
-                      <span className="inline-flex items-center gap-1.5 rounded-full bg-surface-inset px-2 py-0.5 text-xs text-content-muted">
+                      <span className="inline-flex items-center gap-1.5 rounded-full bg-surface-inset px-2 py-0.5 text-caption text-content-muted">
                         User
                       </span>
                     )}
@@ -111,10 +111,10 @@ export default async function AdminUsersPage(): Promise<React.JSX.Element> {
                   <td className="px-4 py-3 text-right font-mono text-content-secondary">
                     {teamCount}
                   </td>
-                  <td className="px-4 py-3 text-content-muted text-xs">
+                  <td className="px-4 py-3 text-content-muted text-caption">
                     {formatDate(u.created_at)}
                   </td>
-                  <td className="px-4 py-3 text-content-muted text-xs">
+                  <td className="px-4 py-3 text-content-muted text-caption">
                     {u.last_sign_in_at
                       ? new Date(u.last_sign_in_at).toLocaleString()
                       : "Never"}

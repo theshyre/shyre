@@ -181,8 +181,8 @@ export default async function DashboardPage(): Promise<React.JSX.Element> {
         <div className="flex items-center gap-3">
           <LayoutDashboard size={24} className="text-accent" />
           <div>
-            <h1 className="text-2xl font-bold text-content">{t("title")}</h1>
-            <p className="text-sm text-content-secondary">
+            <h1 className="text-page-title font-bold text-content">{t("title")}</h1>
+            <p className="text-body-lg text-content-secondary">
               {t("welcomeBack", { email: userEmail })}
             </p>
           </div>
@@ -218,10 +218,10 @@ export default async function DashboardPage(): Promise<React.JSX.Element> {
                   <Icon size={20} className={stat.color} />
                 </div>
                 <div>
-                  <p className="text-xs font-semibold uppercase tracking-wider text-content-muted">
+                  <p className="text-caption font-semibold uppercase tracking-wider text-content-muted">
                     {stat.label}
                   </p>
-                  <p className="text-xl font-bold font-mono text-content">
+                  <p className="text-title font-bold font-mono text-content">
                     {stat.value}
                   </p>
                 </div>
@@ -234,12 +234,12 @@ export default async function DashboardPage(): Promise<React.JSX.Element> {
       {/* Recent Activity */}
       <div className="mt-8">
         <div className="flex items-center justify-between">
-          <h2 className="text-lg font-semibold text-content">
+          <h2 className="text-title font-semibold text-content">
             {t("recentActivity")}
           </h2>
           <Link
             href="/time-entries"
-            className="flex items-center gap-1 text-sm text-accent hover:underline"
+            className="flex items-center gap-1 text-body-lg text-accent hover:underline"
           >
             {t("viewAll")}
             <ArrowRight size={14} />
@@ -313,7 +313,7 @@ export default async function DashboardPage(): Promise<React.JSX.Element> {
             })}
           </ul>
         ) : (
-          <p className="mt-3 text-sm text-content-muted">
+          <p className="mt-3 text-body-lg text-content-muted">
             {clientCount === 0 ? t("getStarted") : t("noRecentActivity")}
           </p>
         )}

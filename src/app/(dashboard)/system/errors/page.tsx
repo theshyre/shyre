@@ -69,9 +69,9 @@ export default async function ErrorDashboardPage({
     <div>
       <div className="flex items-center gap-3">
         <Shield size={24} className="text-accent" />
-        <h1 className="text-2xl font-bold text-content">Error Log</h1>
+        <h1 className="text-page-title font-bold text-content">Error Log</h1>
         {(unresolvedCount ?? 0) > 0 && (
-          <span className="inline-flex items-center gap-1.5 rounded-full bg-error-soft px-2.5 py-0.5 text-xs font-medium text-error">
+          <span className="inline-flex items-center gap-1.5 rounded-full bg-error-soft px-2.5 py-0.5 text-caption font-medium text-error">
             <AlertTriangle size={12} />
             {unresolvedCount} unresolved
           </span>
@@ -126,7 +126,7 @@ export default async function ErrorDashboardPage({
                   </div>
                   <div className="flex-1 min-w-0">
                     <div className="flex items-center gap-2">
-                      <span className="text-xs font-mono text-accent">
+                      <span className="text-caption font-mono text-accent">
                         {err.error_code}
                       </span>
                       {isResolved && (
@@ -136,12 +136,12 @@ export default async function ErrorDashboardPage({
                         </span>
                       )}
                     </div>
-                    <p className="text-sm text-content truncate">
+                    <p className="text-body-lg text-content truncate">
                       {err.message}
                     </p>
                   </div>
                   <div className="text-right shrink-0">
-                    <p className="text-xs text-content-muted flex items-center gap-1">
+                    <p className="text-caption text-content-muted flex items-center gap-1">
                       <Clock size={10} />
                       <LocalDateTime value={err.created_at} />
                     </p>
@@ -154,7 +154,7 @@ export default async function ErrorDashboardPage({
                 </summary>
 
                 <div className="border-t border-edge px-4 py-3 space-y-3 bg-surface-inset">
-                  <div className="grid gap-2 sm:grid-cols-2 text-xs">
+                  <div className="grid gap-2 sm:grid-cols-2 text-caption">
                     <div>
                       <span className="text-content-muted">Error Code:</span>{" "}
                       <span className="font-mono text-content">{err.error_code}</span>
@@ -180,14 +180,14 @@ export default async function ErrorDashboardPage({
                   </div>
 
                   <div>
-                    <p className="text-xs text-content-muted mb-1">Message:</p>
-                    <p className="text-sm text-content">{err.message}</p>
+                    <p className="text-caption text-content-muted mb-1">Message:</p>
+                    <p className="text-body-lg text-content">{err.message}</p>
                   </div>
 
                   {err.details && Object.keys(err.details as object).length > 0 && (
                     <div>
-                      <p className="text-xs text-content-muted mb-1">Details:</p>
-                      <pre className="text-xs text-content font-mono bg-surface rounded-lg p-2 overflow-x-auto">
+                      <p className="text-caption text-content-muted mb-1">Details:</p>
+                      <pre className="text-caption text-content font-mono bg-surface rounded-lg p-2 overflow-x-auto">
                         {JSON.stringify(err.details, null, 2)}
                       </pre>
                     </div>
@@ -195,8 +195,8 @@ export default async function ErrorDashboardPage({
 
                   {err.stack_trace && (
                     <div>
-                      <p className="text-xs text-content-muted mb-1">Stack Trace:</p>
-                      <pre className="text-xs text-content-muted font-mono bg-surface rounded-lg p-2 overflow-x-auto max-h-[192px]">
+                      <p className="text-caption text-content-muted mb-1">Stack Trace:</p>
+                      <pre className="text-caption text-content-muted font-mono bg-surface rounded-lg p-2 overflow-x-auto max-h-[192px]">
                         {err.stack_trace}
                       </pre>
                     </div>
@@ -211,7 +211,7 @@ export default async function ErrorDashboardPage({
           })}
         </div>
       ) : (
-        <p className="mt-6 text-sm text-content-muted">No errors found.</p>
+        <p className="mt-6 text-body-lg text-content-muted">No errors found.</p>
       )}
 
       {/* Pagination */}
@@ -221,7 +221,7 @@ export default async function ErrorDashboardPage({
             <a
               key={i}
               href={`/system/errors?page=${i + 1}${params.severity ? `&severity=${params.severity}` : ""}${params.resolved ? `&resolved=${params.resolved}` : ""}`}
-              className={`px-3 py-1 rounded text-sm ${
+              className={`px-3 py-1 rounded text-body-lg ${
                 page === i + 1
                   ? "bg-accent text-content-inverse"
                   : "bg-surface-inset text-content-secondary hover:bg-hover"
@@ -248,7 +248,7 @@ function FilterLink({
   return (
     <a
       href={href}
-      className={`rounded-full px-3 py-1 text-xs font-medium transition-colors ${
+      className={`rounded-full px-3 py-1 text-caption font-medium transition-colors ${
         active
           ? "bg-accent-soft text-accent-text"
           : "bg-surface-inset text-content-secondary hover:bg-hover"

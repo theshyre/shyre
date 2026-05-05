@@ -17,7 +17,7 @@ export function RecentProjectsChips({
   const th = useTranslations("time.home");
   return (
     <div>
-      <p className="mb-2 text-xs font-semibold uppercase tracking-wider text-content-muted">
+      <p className="mb-2 text-caption font-semibold uppercase tracking-wider text-content-muted">
         {th("recentProjects")}
       </p>
       <div className="flex flex-wrap gap-2">
@@ -28,7 +28,7 @@ export function RecentProjectsChips({
               key={p.id}
               type="button"
               onClick={() => onPick(p.id)}
-              className={`rounded-full px-3 py-1 text-xs font-medium transition-colors ${
+              className={`rounded-full px-3 py-1 text-caption font-medium transition-colors ${
                 active
                   ? "bg-accent-soft text-accent-text"
                   : "bg-surface-inset text-content-secondary hover:bg-hover"

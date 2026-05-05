@@ -289,13 +289,13 @@ export function HarvestImport({
           </div>
           <div>
             <h2 className="font-semibold text-content">Harvest</h2>
-            <p className="text-xs text-content-muted">
+            <p className="text-caption text-content-muted">
               Import customers, projects, tasks, and time entries from Harvest
             </p>
           </div>
         </div>
 
-        <div className="flex items-center gap-2 mb-6 text-xs text-content-muted">
+        <div className="flex items-center gap-2 mb-6 text-caption text-content-muted">
           <StepIndicator
             label="Connect"
             active={step === "credentials"}
@@ -371,10 +371,10 @@ export function HarvestImport({
               aria-label="Loading"
               role="status"
             />
-            <p className="text-sm text-content-secondary">
+            <p className="text-body-lg text-content-secondary">
               Importing data from Harvest...
             </p>
-            <p className="text-xs text-content-muted">
+            <p className="text-caption text-content-muted">
               This may take a minute for large accounts. Shyre retries
               automatically when Harvest rate-limits us.
             </p>
@@ -433,7 +433,7 @@ function CredentialsStep({
 }): React.JSX.Element {
   return (
     <div className="space-y-4">
-      <p className="text-sm text-content-secondary">
+      <p className="text-body-lg text-content-secondary">
         Create a Personal Access Token at{" "}
         <a
           href="https://id.getharvest.com/developers"
@@ -567,11 +567,11 @@ function PreviewStep({
   return (
     <div className="space-y-5">
       {preview.companyName && (
-        <p className="text-sm text-content-secondary">
+        <p className="text-body-lg text-content-secondary">
           Connected to{" "}
           <strong className="text-content">{preview.companyName}</strong>
           {" · "}
-          <span className="text-content-muted font-mono text-xs">
+          <span className="text-content-muted font-mono text-caption">
             {preview.timeZone}
           </span>
         </p>
@@ -1068,7 +1068,7 @@ function StepIndicator({
 }): React.JSX.Element {
   return (
     <span
-      className={`inline-flex items-center gap-1 rounded-full px-2.5 py-0.5 text-xs font-medium ${
+      className={`inline-flex items-center gap-1 rounded-full px-2.5 py-0.5 text-caption font-medium ${
         done
           ? "bg-success-soft text-success"
           : active
@@ -1097,13 +1097,13 @@ function PreviewCard({
     <div className="rounded-lg border border-edge bg-surface p-3">
       <div className="flex items-center gap-2">
         <Icon size={16} className="text-accent" />
-        <span className="text-xs font-semibold uppercase tracking-wider text-content-muted">
+        <span className="text-caption font-semibold uppercase tracking-wider text-content-muted">
           {label}
         </span>
       </div>
-      <p className="mt-1 text-xl font-bold font-mono text-content">{count}</p>
+      <p className="mt-1 text-title font-bold font-mono text-content">{count}</p>
       {names.length > 0 && (
-        <p className="mt-1 text-xs text-content-muted truncate">
+        <p className="mt-1 text-caption text-content-muted truncate">
           {names.join(", ")}
           {count > names.length && ` +${count - names.length} more`}
         </p>
@@ -1125,11 +1125,11 @@ function ResultCard({
     <div className="rounded-lg border border-success/30 bg-success-soft p-3">
       <div className="flex items-center gap-2">
         <Icon size={16} className="text-success" />
-        <span className="text-xs font-semibold uppercase tracking-wider text-success">
+        <span className="text-caption font-semibold uppercase tracking-wider text-success">
           {label}
         </span>
       </div>
-      <p className="mt-1 text-xl font-bold font-mono text-content">{count}</p>
+      <p className="mt-1 text-title font-bold font-mono text-content">{count}</p>
     </div>
   );
 }

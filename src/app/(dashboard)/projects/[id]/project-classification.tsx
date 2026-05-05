@@ -68,7 +68,7 @@ export function ProjectClassification({
 
   return (
     <div className="rounded-lg border border-edge bg-surface-raised p-4">
-      <h2 className="text-sm font-semibold text-content">
+      <h2 className="text-body-lg font-semibold text-content">
         {t("classification.heading")}
       </h2>
       <p className="mt-1 text-caption text-content-muted">
@@ -128,7 +128,7 @@ export function ProjectClassification({
           {flipForm.serverError && (
             <AlertBanner tone="error">{flipForm.serverError}</AlertBanner>
           )}
-          <p className="text-sm text-content">
+          <p className="text-body-lg text-content">
             {t("classification.confirmMakeInternal")}
           </p>
           <ul className="ml-4 list-disc text-caption text-content-muted">
@@ -165,7 +165,7 @@ export function ProjectClassification({
           {flipForm.serverError && (
             <AlertBanner tone="error">{flipForm.serverError}</AlertBanner>
           )}
-          <p className="text-sm text-content">
+          <p className="text-body-lg text-content">
             {t("classification.confirmMakeClient")}
           </p>
           <div>
@@ -212,7 +212,7 @@ export function ProjectClassification({
           {billableForm.serverError && (
             <AlertBanner tone="error">{billableForm.serverError}</AlertBanner>
           )}
-          <p className="text-sm text-content">
+          <p className="text-body-lg text-content">
             {defaultBillable
               ? t("classification.confirmApplyBillableTrue")
               : t("classification.confirmApplyBillableFalse")}

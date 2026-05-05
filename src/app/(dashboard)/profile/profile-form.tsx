@@ -202,7 +202,7 @@ export function ProfileForm({
                 readOnly
                 className={`${inputClass} text-content-muted`}
               />
-              <p className="mt-1 text-xs text-content-muted">
+              <p className="mt-1 text-caption text-content-muted">
                 {t("profile.emailReadOnlyHelp")}
               </p>
             </div>
@@ -235,7 +235,7 @@ export function ProfileForm({
                     key={opt.key}
                     type="button"
                     onClick={() => handleThemeChange(opt.key)}
-                    className={`flex items-center gap-2 rounded-lg px-3 py-2 text-sm font-medium transition-colors ${
+                    className={`flex items-center gap-2 rounded-lg px-3 py-2 text-body-lg font-medium transition-colors ${
                       isActive
                         ? "bg-accent-soft text-accent-text border border-accent/40"
                         : "border border-edge text-content-secondary hover:bg-hover"
@@ -320,7 +320,7 @@ export function ProfileForm({
                 </optgroup>
               ))}
             </select>
-            <p className="mt-1 text-xs text-content-muted">
+            <p className="mt-1 text-caption text-content-muted">
               {t("preferences.timezoneHelp")}
             </p>
           </div>
@@ -392,7 +392,7 @@ export function ProfileForm({
       <section className="rounded-lg border border-edge bg-surface-raised p-4 space-y-3">
         <SectionHeader icon={Shield} label={t("sections.security")} />
         <div>
-          <h3 className="text-sm font-medium text-content">{t("mfa.title")}</h3>
+          <h3 className="text-body-lg font-medium text-content">{t("mfa.title")}</h3>
           <MfaSetup />
         </div>
       </section>
@@ -422,7 +422,7 @@ function SectionHeader({
   return (
     <div className="flex items-center gap-2 mb-1">
       <Icon size={18} className="text-accent" />
-      <h2 className="text-sm font-semibold uppercase tracking-wider text-content-muted">
+      <h2 className="text-body-lg font-semibold uppercase tracking-wider text-content-muted">
         {label}
       </h2>
     </div>

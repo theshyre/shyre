@@ -86,7 +86,7 @@ export function TeamFilter({
         <div className="absolute left-0 top-full z-30 mt-1 w-[192px] rounded-lg border border-edge bg-surface-raised shadow-lg overflow-hidden">
           <button
             onClick={() => selectTeam(null)}
-            className={`flex items-center gap-2 w-full px-3 py-2 text-sm text-left transition-colors ${
+            className={`flex items-center gap-2 w-full px-3 py-2 text-body-lg text-left transition-colors ${
               !selectedTeamId
                 ? "bg-accent-soft text-accent-text"
                 : "text-content-secondary hover:bg-hover"
@@ -98,7 +98,7 @@ export function TeamFilter({
             <button
               key={org.id}
               onClick={() => selectTeam(org.id)}
-              className={`flex items-center gap-2 w-full px-3 py-2 text-sm text-left transition-colors ${
+              className={`flex items-center gap-2 w-full px-3 py-2 text-body-lg text-left transition-colors ${
                 org.id === selectedTeamId
                   ? "bg-accent-soft text-accent-text"
                   : "text-content-secondary hover:bg-hover"

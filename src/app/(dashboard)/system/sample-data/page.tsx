@@ -125,13 +125,13 @@ export default async function SampleDataPage({
     <div className="space-y-6">
       <div className="flex items-center gap-3">
         <Database size={24} className="text-accent" />
-        <h1 className="text-2xl font-bold text-content">{t("title")}</h1>
+        <h1 className="text-page-title font-bold text-content">{t("title")}</h1>
       </div>
 
-      <p className="text-sm text-content-secondary max-w-3xl">{t("subtitle")}</p>
+      <p className="text-body-lg text-content-secondary max-w-3xl">{t("subtitle")}</p>
 
       {!selectedTeamId || !selectedTeam || !counts ? (
-        <div className="rounded-lg border border-edge bg-surface-raised p-6 text-sm text-content-muted">
+        <div className="rounded-lg border border-edge bg-surface-raised p-6 text-body-lg text-content-muted">
           {t("noTeam")}
         </div>
       ) : (
@@ -146,11 +146,11 @@ export default async function SampleDataPage({
               <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-accent">
                 {t("operatingOn")}
               </p>
-              <h2 className="mt-0.5 text-3xl font-bold text-content break-words">
+              <h2 className="mt-0.5 text-page-title font-bold text-content break-words">
                 {selectedTeam.name}
               </h2>
               {!multipleOrgs && (
-                <p className="mt-0.5 text-xs text-content-muted">
+                <p className="mt-0.5 text-caption text-content-muted">
                   {t("onlyTeam")}
                 </p>
               )}
@@ -167,10 +167,10 @@ export default async function SampleDataPage({
 
           {/* Counts for the selected org. */}
           <section className="rounded-lg border border-edge bg-surface-raised p-5 space-y-3">
-            <h2 className="text-sm font-semibold text-content">
+            <h2 className="text-body-lg font-semibold text-content">
               {t("currentData")}
             </h2>
-            <dl className="grid grid-cols-2 sm:grid-cols-3 gap-3 text-sm">
+            <dl className="grid grid-cols-2 sm:grid-cols-3 gap-3 text-body-lg">
               <CountBlock
                 label={tc("nav.customers")}
                 total={counts.customersTotal}
@@ -196,7 +196,7 @@ export default async function SampleDataPage({
                 tSample={t("sampleLabel")}
               />
             </dl>
-            <div className="text-xs text-content-muted pt-1">
+            <div className="text-caption text-content-muted pt-1">
               {t("entryRange", {
                 first: formatDate(counts.firstEntryAt),
                 last: formatDate(counts.lastEntryAt),
@@ -237,9 +237,9 @@ function CountBlock({
         {label}
       </dt>
       <dd className="mt-1">
-        <span className="text-2xl font-bold text-content tabular-nums">{total}</span>
+        <span className="text-page-title font-bold text-content tabular-nums">{total}</span>
         {sample > 0 && (
-          <span className="ml-2 text-xs text-content-muted">
+          <span className="ml-2 text-caption text-content-muted">
             · {sample} {tSample}
           </span>
         )}

@@ -138,7 +138,7 @@ export function CustomerEditForm({
           errors={fieldErrors}
         />
 
-        <label className="flex items-start gap-2 text-sm font-medium text-content cursor-pointer">
+        <label className="flex items-start gap-2 text-body-lg font-medium text-content cursor-pointer">
           <input
             name="show_country_on_invoice"
             type="checkbox"

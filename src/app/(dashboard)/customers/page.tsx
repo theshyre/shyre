@@ -150,7 +150,7 @@ export default async function ClientsPage({
     <div>
       <div className="flex items-center gap-3">
         <Users size={24} className="text-accent" />
-        <h1 className="text-2xl font-bold text-content">{t("title")}</h1>
+        <h1 className="text-page-title font-bold text-content">{t("title")}</h1>
         <TeamFilter teams={teams} selectedTeamId={selectedTeamId ?? null} />
         <div className="ml-auto">
           <CustomersExportLink selectedTeamId={selectedTeamId} />

@@ -81,7 +81,7 @@ export function CategorySetEditor({ set, onDone }: Props): React.JSX.Element {
 
       {/* Categories list */}
       <div className="border-t border-edge pt-4">
-        <h3 className="text-xs font-semibold uppercase tracking-wider text-content-muted mb-2">
+        <h3 className="text-caption font-semibold uppercase tracking-wider text-content-muted mb-2">
           {t("categoriesHeading")}
         </h3>
         <div className="space-y-2">
@@ -156,7 +156,7 @@ function CategoryRow({ category }: { category: Category }): React.JSX.Element {
         className="h-4 w-4 rounded-full shrink-0"
         style={{ backgroundColor: category.color }}
       />
-      <span className="flex-1 text-sm text-content">{category.name}</span>
+      <span className="flex-1 text-body-lg text-content">{category.name}</span>
       <span className="text-[11px] font-mono text-content-muted">
         #{category.sort_order}
       </span>
@@ -215,7 +215,7 @@ function NewCategoryForm({
       />
       <SubmitButton label={t("addCategory")} pending={pending} icon={Plus} />
       {serverError && (
-        <span className="text-xs text-error">{serverError}</span>
+        <span className="text-caption text-error">{serverError}</span>
       )}
     </form>
   );

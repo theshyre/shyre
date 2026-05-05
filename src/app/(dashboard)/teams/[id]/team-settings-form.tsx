@@ -97,7 +97,7 @@ export function TeamSettingsForm({
       <section className="rounded-lg border border-edge bg-surface-raised p-4 space-y-3">
         <div className="flex items-center gap-2 mb-2">
           <Building2 size={18} className="text-accent" />
-          <h2 className="text-sm font-semibold uppercase tracking-wider text-content-muted">
+          <h2 className="text-body-lg font-semibold uppercase tracking-wider text-content-muted">
             {t("sections.business")}
           </h2>
         </div>
@@ -141,7 +141,7 @@ export function TeamSettingsForm({
           disabled={!isAdmin}
           errors={fieldErrors}
         />
-        <label className="flex items-start gap-2 text-sm font-medium text-content cursor-pointer">
+        <label className="flex items-start gap-2 text-body-lg font-medium text-content cursor-pointer">
           <input
             name="show_country_on_invoice"
             type="checkbox"
@@ -159,7 +159,7 @@ export function TeamSettingsForm({
       </section>
 
       <section className="rounded-lg border border-edge bg-surface-raised p-4 space-y-3">
-        <h2 className="text-sm font-semibold uppercase tracking-wider text-content-muted mb-2">
+        <h2 className="text-body-lg font-semibold uppercase tracking-wider text-content-muted mb-2">
           {t("sections.defaults")}
         </h2>
         <div className="grid gap-3 sm:grid-cols-3">
@@ -224,7 +224,7 @@ export function TeamSettingsForm({
       <section className="rounded-lg border border-edge bg-surface-raised p-4 space-y-3">
         <div className="flex items-center gap-2 mb-1">
           <Palette size={18} className="text-accent" />
-          <h2 className="text-sm font-semibold uppercase tracking-wider text-content-muted">
+          <h2 className="text-body-lg font-semibold uppercase tracking-wider text-content-muted">
             {t("sections.branding")}
           </h2>
         </div>
@@ -288,7 +288,7 @@ export function TeamSettingsForm({
       <section className="rounded-lg border border-edge bg-surface-raised p-4 space-y-3">
         <div className="flex items-center gap-2 mb-2">
           <Lock size={18} className="text-accent" />
-          <h2 className="text-sm font-semibold uppercase tracking-wider text-content-muted">
+          <h2 className="text-body-lg font-semibold uppercase tracking-wider text-content-muted">
             {t("sections.rateAccess")}
           </h2>
         </div>
@@ -417,7 +417,7 @@ function BrandingPreview({
       <p className="text-caption text-content-muted uppercase tracking-wider mb-1.5">
         {previewLabel}
       </p>
-      <div className="text-2xl font-bold tracking-tight">
+      <div className="text-page-title font-bold tracking-tight">
         <span style={accent ? { color: accent } : undefined}>
           {primaryText}
         </span>

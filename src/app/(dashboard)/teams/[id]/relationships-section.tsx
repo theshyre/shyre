@@ -75,15 +75,15 @@ export function RelationshipsSection({
     <div className="mt-8 space-y-4">
       <div className="flex items-center gap-3">
         <Network size={20} className="text-accent" />
-        <h2 className="text-lg font-semibold text-content">{t("title")}</h2>
+        <h2 className="text-title font-semibold text-content">{t("title")}</h2>
       </div>
 
-      {!hasAny && <p className="text-sm text-content-muted">{t("noRelationships")}</p>}
+      {!hasAny && <p className="text-body-lg text-content-muted">{t("noRelationships")}</p>}
 
       {/* Parent teams (this org is a child of these) */}
       {parentTeams.length > 0 && (
         <div>
-          <p className="text-xs uppercase tracking-wider text-content-muted mb-2">
+          <p className="text-caption uppercase tracking-wider text-content-muted mb-2">
             {t("parentTeams")}
           </p>
           <ul className="space-y-2">
@@ -102,7 +102,7 @@ export function RelationshipsSection({
       {/* Child teams (this org is a parent to these) */}
       {childTeams.length > 0 && (
         <div>
-          <p className="text-xs uppercase tracking-wider text-content-muted mb-2">
+          <p className="text-caption uppercase tracking-wider text-content-muted mb-2">
             {t("childTeams")}
           </p>
           <ul className="space-y-2">
@@ -229,15 +229,15 @@ function ParentTeamRow({
         <div className="flex items-center gap-3">
           <Building2 size={16} className="text-content-muted" />
           <div>
-            <p className="text-sm font-medium text-content">{teamName}</p>
-            <p className="text-xs text-content-muted">
+            <p className="text-body-lg font-medium text-content">{teamName}</p>
+            <p className="text-caption text-content-muted">
               {t(
                 `levels.${share.sharing_level as "clients_read" | "clients_participate"}`,
               )}
             </p>
           </div>
           {pending_ && (
-            <span className="inline-flex items-center rounded-full bg-warning-soft px-2 py-0.5 text-xs font-medium text-warning">
+            <span className="inline-flex items-center rounded-full bg-warning-soft px-2 py-0.5 text-caption font-medium text-warning">
               {t("pending")}
             </span>
           )}
@@ -271,10 +271,10 @@ function ParentTeamRow({
         </div>
       </div>
       {pending_ && (
-        <p className="mt-1 text-xs text-content-muted">{t("pendingParent")}</p>
+        <p className="mt-1 text-caption text-content-muted">{t("pendingParent")}</p>
       )}
       {(acceptError || removeError) && (
-        <p className="mt-2 text-xs text-error">{acceptError || removeError}</p>
+        <p className="mt-2 text-caption text-error">{acceptError || removeError}</p>
       )}
     </li>
   );
@@ -306,15 +306,15 @@ function ChildTeamRow({
         <div className="flex items-center gap-3">
           <Building2 size={16} className="text-content-muted" />
           <div>
-            <p className="text-sm font-medium text-content">{teamName}</p>
-            <p className="text-xs text-content-muted">
+            <p className="text-body-lg font-medium text-content">{teamName}</p>
+            <p className="text-caption text-content-muted">
               {t(
                 `levels.${share.sharing_level as "clients_read" | "clients_participate"}`,
               )}
             </p>
           </div>
           {pending_ && (
-            <span className="inline-flex items-center rounded-full bg-warning-soft px-2 py-0.5 text-xs font-medium text-warning">
+            <span className="inline-flex items-center rounded-full bg-warning-soft px-2 py-0.5 text-caption font-medium text-warning">
               {t("pending")}
             </span>
           )}
@@ -334,9 +334,9 @@ function ChildTeamRow({
         )}
       </div>
       {pending_ && (
-        <p className="mt-1 text-xs text-content-muted">{t("pendingChild")}</p>
+        <p className="mt-1 text-caption text-content-muted">{t("pendingChild")}</p>
       )}
-      {removeError && <p className="mt-2 text-xs text-error">{removeError}</p>}
+      {removeError && <p className="mt-2 text-caption text-error">{removeError}</p>}
     </li>
   );
 }

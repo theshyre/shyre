@@ -64,10 +64,10 @@ export function ProjectEditForm({
         // through setProjectInternalAction, not the regular update
         // path. Surfacing the badge inline keeps the user oriented
         // when they're editing other fields.
-        <div className="flex items-center gap-2 rounded-md border border-edge bg-surface-inset px-3 py-2 text-sm text-content-secondary">
+        <div className="flex items-center gap-2 rounded-md border border-edge bg-surface-inset px-3 py-2 text-body-lg text-content-secondary">
           <Building2 size={14} className="text-content-muted" />
           {t("fields.isInternalBadge")}
-          <span className="text-xs text-content-muted">
+          <span className="text-caption text-content-muted">
             {t("fields.isInternalBadgeHint")}
           </span>
         </div>
@@ -187,7 +187,7 @@ export function ProjectEditForm({
           </div>
           {!project.is_internal && (
             <div className="sm:col-span-2">
-              <label className="flex items-start gap-2 text-sm font-medium text-content cursor-pointer">
+              <label className="flex items-start gap-2 text-body-lg font-medium text-content cursor-pointer">
                 <input
                   name="default_billable"
                   type="checkbox"
@@ -196,7 +196,7 @@ export function ProjectEditForm({
                 />
                 <span>
                   {t("fields.defaultBillable")}
-                  <span className="ml-1 block text-xs font-normal text-content-muted">
+                  <span className="ml-1 block text-caption font-normal text-content-muted">
                     {t("fields.defaultBillableHint")}
                   </span>
                 </span>
@@ -204,7 +204,7 @@ export function ProjectEditForm({
             </div>
           )}
           <div className="sm:col-span-2">
-            <label className="flex items-start gap-2 text-sm font-medium text-content cursor-pointer">
+            <label className="flex items-start gap-2 text-body-lg font-medium text-content cursor-pointer">
               <input
                 name="require_timestamps"
                 type="checkbox"
@@ -213,7 +213,7 @@ export function ProjectEditForm({
               />
               <span>
                 {t("fields.requireTimestamps")}
-                <span className="ml-1 block text-xs font-normal text-content-muted">
+                <span className="ml-1 block text-caption font-normal text-content-muted">
                   {t("fields.requireTimestampsHint")}
                 </span>
               </span>

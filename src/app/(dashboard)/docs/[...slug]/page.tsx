@@ -128,19 +128,19 @@ export default async function DocPage({
           rehypePlugins={[rehypeSlug]}
           components={{
             h1: (props) => (
-              <h1 {...props} className="text-3xl font-bold text-content mt-2 mb-4" />
+              <h1 {...props} className="text-page-title font-bold text-content mt-2 mb-4" />
             ),
             h2: (props) => (
               <h2
                 {...props}
-                className="text-xl font-semibold text-content mt-8 mb-3 pb-2 border-b border-edge-muted"
+                className="text-title font-semibold text-content mt-8 mb-3 pb-2 border-b border-edge-muted"
               />
             ),
             h3: (props) => (
-              <h3 {...props} className="text-lg font-semibold text-content mt-6 mb-2" />
+              <h3 {...props} className="text-title font-semibold text-content mt-6 mb-2" />
             ),
             p: (props) => (
-              <p {...props} className="text-sm text-content-secondary leading-relaxed my-3" />
+              <p {...props} className="text-body-lg text-content-secondary leading-relaxed my-3" />
             ),
             a: ({ href, children }) => {
               const rewritten = rewriteDocLink((href ?? "") as string, docDir);
@@ -162,27 +162,27 @@ export default async function DocPage({
             ul: (props) => (
               <ul
                 {...props}
-                className="list-disc pl-6 my-3 space-y-1 text-sm text-content-secondary"
+                className="list-disc pl-6 my-3 space-y-1 text-body-lg text-content-secondary"
               />
             ),
             ol: (props) => (
               <ol
                 {...props}
-                className="list-decimal pl-6 my-3 space-y-1 text-sm text-content-secondary"
+                className="list-decimal pl-6 my-3 space-y-1 text-body-lg text-content-secondary"
               />
             ),
             li: (props) => <li {...props} className="leading-relaxed" />,
             blockquote: (props) => (
               <blockquote
                 {...props}
-                className="border-l-4 border-accent bg-accent-soft/30 pl-4 py-2 my-3 text-sm text-content-secondary italic"
+                className="border-l-4 border-accent bg-accent-soft/30 pl-4 py-2 my-3 text-body-lg text-content-secondary italic"
               />
             ),
             code: ({ className, children, ...rest }) => {
               const isBlock = typeof className === "string" && className.startsWith("language-");
               if (isBlock) {
                 return (
-                  <code {...rest} className={`${className ?? ""} text-sm text-content font-mono`}>
+                  <code {...rest} className={`${className ?? ""} text-body-lg text-content font-mono`}>
                     {children}
                   </code>
                 );
@@ -196,7 +196,7 @@ export default async function DocPage({
             pre: (props) => (
               <pre
                 {...props}
-                className="my-3 overflow-x-auto rounded-lg border border-edge bg-surface-inset p-4 text-xs"
+                className="my-3 overflow-x-auto rounded-lg border border-edge bg-surface-inset p-4 text-caption"
               />
             ),
             table: (props) => (
@@ -208,13 +208,13 @@ export default async function DocPage({
             th: (props) => (
               <th
                 {...props}
-                className="px-3 py-2 text-left text-xs font-semibold uppercase tracking-wider text-content-muted border-b border-edge"
+                className="px-3 py-2 text-left text-caption font-semibold uppercase tracking-wider text-content-muted border-b border-edge"
               />
             ),
             td: (props) => (
               <td
                 {...props}
-                className="px-3 py-2 text-sm text-content-secondary border-b border-edge-muted last:border-0"
+                className="px-3 py-2 text-body-lg text-content-secondary border-b border-edge-muted last:border-0"
               />
             ),
             hr: () => <hr className="my-6 border-edge" />,

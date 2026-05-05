@@ -177,7 +177,7 @@ export function SecurityGroupsSection({
       )}
 
       {groups.length === 0 && !creating ? (
-        <p className="text-sm text-content-muted">{t("noGroups")}</p>
+        <p className="text-body-lg text-content-muted">{t("noGroups")}</p>
       ) : (
         <div className="space-y-3">
           {groups.map((group) => {
@@ -245,11 +245,11 @@ function GroupCard({
           </div>
           <div>
             <p className="font-semibold text-content">{group.name}</p>
-            <p className="text-xs text-content-muted">
+            <p className="text-caption text-content-muted">
               {teamName} · {t("memberCount", { count: members.length })}
             </p>
             {group.description && (
-              <p className="text-sm text-content-secondary mt-1">
+              <p className="text-body-lg text-content-secondary mt-1">
                 {group.description}
               </p>
             )}
@@ -285,7 +285,7 @@ function GroupCard({
             {members.map((m) => (
               <li
                 key={m.user_id}
-                className="flex items-center justify-between rounded px-2 py-1 text-sm"
+                className="flex items-center justify-between rounded px-2 py-1 text-body-lg"
               >
                 <span className="flex items-center gap-2">
                   <Users size={14} className="text-content-muted" />
@@ -302,7 +302,7 @@ function GroupCard({
             ))}
           </ul>
         ) : (
-          <p className="text-xs text-content-muted">{t("noMembers")}</p>
+          <p className="text-caption text-content-muted">{t("noMembers")}</p>
         )}
 
         {addingMember ? (
@@ -345,7 +345,7 @@ function GroupCard({
           addableMembers.length > 0 && (
             <button
               onClick={() => setAddingMember(true)}
-              className={`${buttonGhostClass} mt-2 text-xs`}
+              className={`${buttonGhostClass} mt-2 text-caption`}
             >
               <UserPlus size={12} />
               {t("addMember")}
@@ -354,7 +354,7 @@ function GroupCard({
         )}
 
         {addError && (
-          <p className="mt-2 text-xs text-error">{addError}</p>
+          <p className="mt-2 text-caption text-error">{addError}</p>
         )}
       </div>
     </div>

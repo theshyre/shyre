@@ -3,8 +3,8 @@
  *
  * MANDATORY: Use these constants for `<table>` chrome instead of
  * inlining classNames. The CLAUDE.md typography rule bans
- * `text-sm` / `text-base` / raw `text-[Npx]` in favor of the
- * semantic scale; tables had drifted into `text-sm` territory.
+ * `text-body-lg` / `text-title` / raw `text-[Npx]` in favor of the
+ * semantic scale; tables had drifted into `text-body-lg` territory.
  *
  * Why no `<DataTable>` primitive: per the platform-architect
  * review, the two multi-select patterns (overlay strip vs sibling

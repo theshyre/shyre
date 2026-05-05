@@ -31,10 +31,10 @@ export default async function TestErrorPage({
     <div>
       <div className="flex items-center gap-3">
         <AlertTriangle size={24} className="text-warning" />
-        <h1 className="text-2xl font-bold text-content">Test Error Logger</h1>
+        <h1 className="text-page-title font-bold text-content">Test Error Logger</h1>
       </div>
 
-      <p className="mt-4 text-sm text-content-secondary max-w-2xl">
+      <p className="mt-4 text-body-lg text-content-secondary max-w-2xl">
         Click the button to log a test error. If the logger is working correctly
         (including SUPABASE_SERVICE_ROLE_KEY being set on the server), you should
         see the error appear in{" "}
@@ -47,7 +47,7 @@ export default async function TestErrorPage({
       <div className="mt-6">
         <a
           href="/system/test-error?log=1"
-          className="inline-flex items-center gap-2 rounded-lg bg-warning px-4 py-2 text-sm font-medium text-content-inverse hover:opacity-90 transition-colors"
+          className="inline-flex items-center gap-2 rounded-lg bg-warning px-4 py-2 text-body-lg font-medium text-content-inverse hover:opacity-90 transition-colors"
         >
           <AlertTriangle size={16} />
           Log Test Error
@@ -55,7 +55,7 @@ export default async function TestErrorPage({
       </div>
 
       {logged && (
-        <div className="mt-4 rounded-lg border border-success/30 bg-success-soft p-3 text-sm text-success">
+        <div className="mt-4 rounded-lg border border-success/30 bg-success-soft p-3 text-body-lg text-success">
           ✓ Test error sent to logger. Check{" "}
           <a href="/system/errors" className="underline">
             /system/errors

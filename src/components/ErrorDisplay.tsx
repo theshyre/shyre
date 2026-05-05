@@ -82,12 +82,12 @@ export function ErrorDisplay({
       </div>
 
       {/* Title + message (redundant encoding: icon + text) */}
-      <h1 className="text-2xl font-bold text-content mb-2">{displayTitle}</h1>
+      <h1 className="text-page-title font-bold text-content mb-2">{displayTitle}</h1>
       <p className="text-content-secondary max-w-md mb-6">{displayMessage}</p>
 
       {/* Reference ID */}
       {digest && (
-        <p className="text-xs text-content-muted font-mono mb-6">
+        <p className="text-caption text-content-muted font-mono mb-6">
           Reference: {digest}
         </p>
       )}
@@ -110,7 +110,7 @@ export function ErrorDisplay({
 
         <button
           onClick={copyDetails}
-          className={`${buttonSecondaryClass} text-xs`}
+          className={`${buttonSecondaryClass} text-caption`}
         >
           {copied ? (
             <>

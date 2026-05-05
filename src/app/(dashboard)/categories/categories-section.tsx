@@ -47,10 +47,10 @@ export function CategoriesSection({ teams, sets }: Props): React.JSX.Element {
     <div className="mt-6 space-y-8">
       {/* System sets */}
       <section>
-        <h2 className="text-sm font-semibold uppercase tracking-wider text-content-muted mb-2">
+        <h2 className="text-body-lg font-semibold uppercase tracking-wider text-content-muted mb-2">
           {t("systemSets")}
         </h2>
-        <p className="text-xs text-content-muted mb-3">{t("systemSetsHelp")}</p>
+        <p className="text-caption text-content-muted mb-3">{t("systemSetsHelp")}</p>
         <div className="space-y-2">
           {systemSets.map((set) => (
             <SystemSetRow key={set.id} set={set} teams={teams} />
@@ -61,7 +61,7 @@ export function CategoriesSection({ teams, sets }: Props): React.JSX.Element {
       {/* Org sets */}
       <section>
         <div className="flex items-center justify-between mb-2">
-          <h2 className="text-sm font-semibold uppercase tracking-wider text-content-muted">
+          <h2 className="text-body-lg font-semibold uppercase tracking-wider text-content-muted">
             {t("yourSets")}
           </h2>
           {!showCreate && (
@@ -87,7 +87,7 @@ export function CategoriesSection({ teams, sets }: Props): React.JSX.Element {
 
         <div className="mt-3 space-y-2">
           {teamSets.length === 0 && !showCreate && (
-            <p className="text-sm text-content-muted">{t("noSetsYet")}</p>
+            <p className="text-body-lg text-content-muted">{t("noSetsYet")}</p>
           )}
           {teamSets.map((set) =>
             editingSetId === set.id ? (
@@ -128,9 +128,9 @@ function SystemSetRow({
     <div className="rounded-lg border border-edge bg-surface-raised p-3">
       <div className="flex items-start justify-between gap-3">
         <div className="flex-1">
-          <p className="text-sm font-medium text-content">{set.name}</p>
+          <p className="text-body-lg font-medium text-content">{set.name}</p>
           {set.description && (
-            <p className="text-xs text-content-secondary">{set.description}</p>
+            <p className="text-caption text-content-secondary">{set.description}</p>
           )}
           <div className="mt-2 flex flex-wrap gap-1">
             {set.categories.map((c) => (
@@ -205,9 +205,9 @@ function TeamSetRow({
     <div className="rounded-lg border border-edge bg-surface-raised p-3">
       <div className="flex items-start justify-between gap-3">
         <div className="flex-1">
-          <p className="text-sm font-medium text-content">{set.name}</p>
+          <p className="text-body-lg font-medium text-content">{set.name}</p>
           {set.description && (
-            <p className="text-xs text-content-secondary">{set.description}</p>
+            <p className="text-caption text-content-secondary">{set.description}</p>
           )}
           <div className="mt-2 flex flex-wrap gap-1">
             {set.categories.map((c) => (
@@ -246,7 +246,7 @@ function TeamSetRow({
                 label={t("confirmDelete")}
                 pending={pending}
                 icon={Trash2}
-                className="inline-flex items-center gap-2 rounded-lg bg-error px-3 py-2 text-sm font-medium text-content-inverse hover:opacity-90 transition-colors disabled:opacity-50"
+                className="inline-flex items-center gap-2 rounded-lg bg-error px-3 py-2 text-body-lg font-medium text-content-inverse hover:opacity-90 transition-colors disabled:opacity-50"
               />
             </form>
           ) : (

@@ -65,8 +65,8 @@ export default async function AdminOrganizationsPage({
     <div>
       <div className="flex items-center gap-3">
         <Building2 size={24} className="text-accent" />
-        <h1 className="text-2xl font-bold text-content">All Teams</h1>
-        <span className="inline-flex items-center gap-1.5 rounded-full bg-surface-inset px-2.5 py-0.5 text-xs font-medium text-content-muted">
+        <h1 className="text-page-title font-bold text-content">All Teams</h1>
+        <span className="inline-flex items-center gap-1.5 rounded-full bg-surface-inset px-2.5 py-0.5 text-caption font-medium text-content-muted">
           {total} total
         </span>
       </div>
@@ -84,20 +84,20 @@ export default async function AdminOrganizationsPage({
                 </div>
                 <div>
                   <p className="font-semibold text-content">{org.name}</p>
-                  <p className="text-xs text-content-muted font-mono">
+                  <p className="text-caption text-content-muted font-mono">
                     {org.slug}
                   </p>
                 </div>
               </div>
               <div className="text-right">
-                <p className="text-xs text-content-muted">Created</p>
-                <p className="text-xs text-content-secondary">
+                <p className="text-caption text-content-muted">Created</p>
+                <p className="text-caption text-content-secondary">
                   {formatDate(org.created_at)}
                 </p>
               </div>
             </div>
 
-            <div className="grid grid-cols-5 gap-3 text-xs">
+            <div className="grid grid-cols-5 gap-3 text-caption">
               <StatCell
                 icon={Users}
                 label="Members"
@@ -128,13 +128,13 @@ export default async function AdminOrganizationsPage({
         ))}
 
         {(!teams || teams.length === 0) && (
-          <p className="text-sm text-content-muted">No teams on this page.</p>
+          <p className="text-body-lg text-content-muted">No teams on this page.</p>
         )}
       </div>
 
       {totalPages > 1 && (
         <nav
-          className="mt-6 flex items-center justify-between gap-3 text-sm"
+          className="mt-6 flex items-center justify-between gap-3 text-body-lg"
           aria-label="Pagination"
         >
           <PageLink page={page - 1} enabled={hasPrev} label="Previous">
@@ -237,7 +237,7 @@ function StatCell({
         <Icon size={10} />
         <span className="text-[10px] uppercase tracking-wider">{label}</span>
       </div>
-      <p className="text-lg font-bold font-mono text-content">{count}</p>
+      <p className="text-title font-bold font-mono text-content">{count}</p>
     </div>
   );
 }

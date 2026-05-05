@@ -193,9 +193,9 @@ export default async function DocsIndexPage(): Promise<React.JSX.Element> {
       <header className="space-y-3">
         <div className="flex items-center gap-3">
           <BookOpen size={24} className="text-accent" />
-          <h1 className="text-2xl font-bold text-content">Documentation</h1>
+          <h1 className="text-page-title font-bold text-content">Documentation</h1>
         </div>
-        <p className="max-w-3xl text-sm text-content-secondary leading-relaxed">
+        <p className="max-w-3xl text-body-lg text-content-secondary leading-relaxed">
           <strong className="text-content">Shyre</strong> is a platform for running a consulting
           business. Time tracking, customers, invoicing, and business identity live under one roof.
           The platform is composed of <strong className="text-content">modules</strong> — Stint
@@ -215,7 +215,7 @@ export default async function DocsIndexPage(): Promise<React.JSX.Element> {
       <section>
         <div className="flex items-center gap-2 mb-3">
           <Compass size={16} className="text-content-muted" />
-          <h2 className="text-sm font-semibold uppercase tracking-wider text-content-muted">
+          <h2 className="text-body-lg font-semibold uppercase tracking-wider text-content-muted">
             Modules
           </h2>
         </div>
@@ -229,12 +229,12 @@ export default async function DocsIndexPage(): Promise<React.JSX.Element> {
                 <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-accent-soft">
                   <mod.icon size={18} className="text-accent" />
                 </div>
-                <h3 className="text-base font-semibold text-content">{mod.name}</h3>
+                <h3 className="text-title font-semibold text-content">{mod.name}</h3>
               </div>
-              <p className="text-sm text-content-secondary">{mod.blurb}</p>
+              <p className="text-body-lg text-content-secondary">{mod.blurb}</p>
               <Link
                 href={mod.primary.href}
-                className="inline-flex items-center gap-1 text-sm font-medium text-accent hover:underline"
+                className="inline-flex items-center gap-1 text-body-lg font-medium text-accent hover:underline"
               >
                 {mod.primary.title}
                 <ArrowRight size={14} />
@@ -245,7 +245,7 @@ export default async function DocsIndexPage(): Promise<React.JSX.Element> {
                     <li key={m.href}>
                       <Link
                         href={m.href}
-                        className="text-xs text-content-muted hover:text-accent hover:underline"
+                        className="text-caption text-content-muted hover:text-accent hover:underline"
                       >
                         · {m.title}
                       </Link>
@@ -262,11 +262,11 @@ export default async function DocsIndexPage(): Promise<React.JSX.Element> {
       <section>
         <div className="flex items-center gap-2 mb-3">
           <Sparkles size={16} className="text-accent" />
-          <h2 className="text-sm font-semibold uppercase tracking-wider text-content-muted">
+          <h2 className="text-body-lg font-semibold uppercase tracking-wider text-content-muted">
             For you
           </h2>
           {roleSummary && (
-            <span className="text-xs text-content-muted">· {roleSummary}</span>
+            <span className="text-caption text-content-muted">· {roleSummary}</span>
           )}
         </div>
         <ul className="grid gap-2 md:grid-cols-2">
@@ -276,8 +276,8 @@ export default async function DocsIndexPage(): Promise<React.JSX.Element> {
                 href={link.href}
                 className="block rounded-md border border-edge bg-surface-raised p-3 hover:bg-hover transition-colors"
               >
-                <div className="text-sm font-medium text-accent">{link.title}</div>
-                <div className="mt-0.5 text-xs text-content-muted">{link.blurb}</div>
+                <div className="text-body-lg font-medium text-accent">{link.title}</div>
+                <div className="mt-0.5 text-caption text-content-muted">{link.blurb}</div>
               </Link>
             </li>
           ))}
@@ -288,7 +288,7 @@ export default async function DocsIndexPage(): Promise<React.JSX.Element> {
       <section>
         <div className="flex items-center gap-2 mb-3">
           <Building2 size={16} className="text-content-muted" />
-          <h2 className="text-sm font-semibold uppercase tracking-wider text-content-muted">
+          <h2 className="text-body-lg font-semibold uppercase tracking-wider text-content-muted">
             Role-specific guides
           </h2>
         </div>
@@ -301,8 +301,8 @@ export default async function DocsIndexPage(): Promise<React.JSX.Element> {
             >
               <row.icon size={18} className="text-accent shrink-0 mt-0.5" />
               <div>
-                <div className="text-sm font-medium text-content">{row.label}</div>
-                <div className="mt-0.5 text-xs text-content-muted">{row.blurb}</div>
+                <div className="text-body-lg font-medium text-content">{row.label}</div>
+                <div className="mt-0.5 text-caption text-content-muted">{row.blurb}</div>
               </div>
             </Link>
           ))}
@@ -313,7 +313,7 @@ export default async function DocsIndexPage(): Promise<React.JSX.Element> {
       <section>
         <div className="flex items-center gap-2 mb-3">
           <BookOpen size={16} className="text-content-muted" />
-          <h2 className="text-sm font-semibold uppercase tracking-wider text-content-muted">
+          <h2 className="text-body-lg font-semibold uppercase tracking-wider text-content-muted">
             Reference
           </h2>
         </div>
@@ -322,7 +322,7 @@ export default async function DocsIndexPage(): Promise<React.JSX.Element> {
             <li key={ref.href}>
               <Link
                 href={ref.href}
-                className="block rounded-md border border-edge bg-surface-raised p-3 text-sm text-accent hover:bg-hover transition-colors"
+                className="block rounded-md border border-edge bg-surface-raised p-3 text-body-lg text-accent hover:bg-hover transition-colors"
               >
                 {ref.title}
               </Link>

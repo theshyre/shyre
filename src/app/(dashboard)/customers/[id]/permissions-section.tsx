@@ -39,11 +39,11 @@ interface PrincipalOption {
 
 const LEVEL_BADGE: Record<PermissionLevel, string> = {
   admin:
-    "inline-flex items-center rounded-full bg-warning-soft px-2 py-0.5 text-xs font-medium text-warning",
+    "inline-flex items-center rounded-full bg-warning-soft px-2 py-0.5 text-caption font-medium text-warning",
   contributor:
-    "inline-flex items-center rounded-full bg-accent-soft px-2 py-0.5 text-xs font-medium text-accent",
+    "inline-flex items-center rounded-full bg-accent-soft px-2 py-0.5 text-caption font-medium text-accent",
   viewer:
-    "inline-flex items-center rounded-full bg-surface-inset px-2 py-0.5 text-xs font-medium text-content-muted",
+    "inline-flex items-center rounded-full bg-surface-inset px-2 py-0.5 text-caption font-medium text-content-muted",
 };
 
 export function PermissionsSection({
@@ -90,13 +90,13 @@ export function PermissionsSection({
     <div className="mt-8 space-y-4">
       <div className="flex items-center gap-3">
         <KeyRound size={20} className="text-accent" />
-        <h2 className="text-lg font-semibold text-content">
+        <h2 className="text-title font-semibold text-content">
           {t("permissions")}
         </h2>
       </div>
 
       {permissions.length === 0 ? (
-        <p className="text-sm text-content-muted">{t("noPermissions")}</p>
+        <p className="text-body-lg text-content-muted">{t("noPermissions")}</p>
       ) : (
         <ul className="space-y-2">
           {permissions.map((perm) => (
@@ -242,10 +242,10 @@ function PermissionRow({
         <div className="flex items-center gap-3">
           <Icon size={16} className="text-content-muted" />
           <div>
-            <p className="text-sm font-medium text-content">
+            <p className="text-body-lg font-medium text-content">
               {perm.principal_name}
             </p>
-            <p className="text-xs text-content-muted">
+            <p className="text-caption text-content-muted">
               {perm.principal_type === "group" ? "Group" : "User"}
             </p>
           </div>
@@ -262,7 +262,7 @@ function PermissionRow({
         )}
       </div>
       {serverError && (
-        <p className="mt-2 text-xs text-error">{serverError}</p>
+        <p className="mt-2 text-caption text-error">{serverError}</p>
       )}
     </li>
   );

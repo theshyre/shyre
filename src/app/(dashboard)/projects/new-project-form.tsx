@@ -87,7 +87,7 @@ export function NewProjectForm({
           subsequent fields (customer picker, default billable) make
           sense in the chosen context. */}
       <div className="rounded-md border border-edge bg-surface-inset p-3">
-        <label className="flex items-start gap-2 text-sm font-medium text-content cursor-pointer">
+        <label className="flex items-start gap-2 text-body-lg font-medium text-content cursor-pointer">
           <input
             name="is_internal"
             type="checkbox"
@@ -100,7 +100,7 @@ export function NewProjectForm({
               <Building2 size={14} className="text-content-muted" />
               {t("fields.isInternal")}
             </span>
-            <span className="ml-1 mt-0.5 block text-xs font-normal text-content-muted">
+            <span className="ml-1 mt-0.5 block text-caption font-normal text-content-muted">
               {t("fields.isInternalHint")}
             </span>
           </span>
@@ -221,7 +221,7 @@ export function NewProjectForm({
         </div>
         {!isInternal && (
           <div className="sm:col-span-2">
-            <label className="flex items-start gap-2 text-sm font-medium text-content cursor-pointer">
+            <label className="flex items-start gap-2 text-body-lg font-medium text-content cursor-pointer">
               <input
                 name="default_billable"
                 type="checkbox"
@@ -230,7 +230,7 @@ export function NewProjectForm({
               />
               <span>
                 {t("fields.defaultBillable")}
-                <span className="ml-1 block text-xs font-normal text-content-muted">
+                <span className="ml-1 block text-caption font-normal text-content-muted">
                   {t("fields.defaultBillableHint")}
                 </span>
               </span>
@@ -238,7 +238,7 @@ export function NewProjectForm({
           </div>
         )}
         <div className="sm:col-span-2">
-          <label className="flex items-start gap-2 text-sm font-medium text-content cursor-pointer">
+          <label className="flex items-start gap-2 text-body-lg font-medium text-content cursor-pointer">
             <input
               name="require_timestamps"
               type="checkbox"
@@ -247,7 +247,7 @@ export function NewProjectForm({
             />
             <span>
               {t("fields.requireTimestamps")}
-              <span className="ml-1 block text-xs font-normal text-content-muted">
+              <span className="ml-1 block text-caption font-normal text-content-muted">
                 {t("fields.requireTimestampsHint")}
               </span>
             </span>

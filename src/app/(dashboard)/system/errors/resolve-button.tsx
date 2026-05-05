@@ -17,7 +17,7 @@ export function ResolveButton({
 
   if (success) {
     return (
-      <span className="flex items-center gap-1.5 text-sm text-success">
+      <span className="flex items-center gap-1.5 text-body-lg text-success">
         <CheckCircle size={14} />
         Resolved
       </span>

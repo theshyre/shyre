@@ -316,7 +316,7 @@ export default async function ClientDetailPage({
       <div className="mt-8">
         <div className="flex items-center gap-3">
           <FolderKanban size={20} className="text-accent" />
-          <h2 className="text-lg font-semibold text-content">
+          <h2 className="text-title font-semibold text-content">
             {t("projects.title")}
           </h2>
         </div>
@@ -330,12 +330,12 @@ export default async function ClientDetailPage({
                 <div>
                   <span className="font-medium text-content">{p.name}</span>
                   {p.status !== "active" && (
-                    <span className="ml-2 inline-flex items-center rounded-full bg-surface-inset px-2 py-0.5 text-xs text-content-muted">
+                    <span className="ml-2 inline-flex items-center rounded-full bg-surface-inset px-2 py-0.5 text-caption text-content-muted">
                       {p.status}
                     </span>
                   )}
                 </div>
-                <span className="text-sm text-content-secondary font-mono">
+                <span className="text-body-lg text-content-secondary font-mono">
                   {p.hourly_rate
                     ? `$${Number(p.hourly_rate).toFixed(2)}/hr`
                     : "—"}
@@ -344,7 +344,7 @@ export default async function ClientDetailPage({
             ))}
           </ul>
         ) : (
-          <p className="mt-3 text-sm text-content-muted">
+          <p className="mt-3 text-body-lg text-content-muted">
             {t("projects.noProjects")}
           </p>
         )}

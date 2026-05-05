@@ -79,7 +79,7 @@ export function SharingSection({
     <div className="mt-8 space-y-4">
       <div className="flex items-center gap-3">
         <Share2 size={20} className="text-accent" />
-        <h2 className="text-lg font-semibold text-content">{t("title")}</h2>
+        <h2 className="text-title font-semibold text-content">{t("title")}</h2>
       </div>
 
       {/* Primary Org card */}
@@ -90,7 +90,7 @@ export function SharingSection({
               <Building2 size={18} className="text-accent" />
             </div>
             <div>
-              <p className="text-xs uppercase tracking-wider text-content-muted">
+              <p className="text-caption uppercase tracking-wider text-content-muted">
                 {t("primaryTeam")}
               </p>
               <p className="font-semibold text-content">{primaryTeamName}</p>
@@ -107,12 +107,12 @@ export function SharingSection({
 
       {/* Participating teams */}
       <div>
-        <p className="text-xs uppercase tracking-wider text-content-muted mb-2">
+        <p className="text-caption uppercase tracking-wider text-content-muted mb-2">
           {t("participatingTeams")}
         </p>
 
         {shares.length === 0 ? (
-          <p className="text-sm text-content-muted">{t("noParticipants")}</p>
+          <p className="text-body-lg text-content-muted">{t("noParticipants")}</p>
         ) : (
           <ul className="space-y-2">
             {shares.map((share) => (
@@ -157,7 +157,7 @@ export function SharingSection({
                   ))}
                 </select>
               </div>
-              <label className="flex items-center gap-2 text-sm text-content">
+              <label className="flex items-center gap-2 text-body-lg text-content">
                 <input
                   type="checkbox"
                   name="can_see_others"
@@ -246,7 +246,7 @@ function ShareRow({
         <div className="flex items-center gap-3">
           <Building2 size={16} className="text-content-muted" />
           <div>
-            <p className="text-sm font-medium text-content">{teamName}</p>
+            <p className="text-body-lg font-medium text-content">{teamName}</p>
           </div>
         </div>
         {userCanAdmin && (
@@ -259,7 +259,7 @@ function ShareRow({
       </div>
 
       {removeError && (
-        <p className="mt-2 text-xs text-error">{removeError}</p>
+        <p className="mt-2 text-caption text-error">{removeError}</p>
       )}
 
       {userCanAdmin && (
@@ -269,7 +269,7 @@ function ShareRow({
         >
           <input type="hidden" name="share_id" value={share.id} />
           <input type="hidden" name="customer_id" value={customerId} />
-          <label className="flex items-center gap-2 text-xs text-content-secondary">
+          <label className="flex items-center gap-2 text-caption text-content-secondary">
             <input
               type="checkbox"
               name="can_see_others"

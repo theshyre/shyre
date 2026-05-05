@@ -31,7 +31,7 @@ export default async function OrganizationsPage(): Promise<React.JSX.Element> {
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-3">
           <Building2 size={24} className="text-accent" />
-          <h1 className="text-2xl font-bold text-content">
+          <h1 className="text-page-title font-bold text-content">
             {tc("nav.teams")}
           </h1>
         </div>
@@ -55,11 +55,11 @@ export default async function OrganizationsPage(): Promise<React.JSX.Element> {
                 </div>
                 <div>
                   <p className="font-medium text-content">{org.name}</p>
-                  <p className="text-xs text-content-muted">{org.slug}</p>
+                  <p className="text-caption text-content-muted">{org.slug}</p>
                 </div>
               </div>
               <span
-                className={`inline-flex items-center gap-1.5 rounded-full px-2.5 py-0.5 text-xs font-medium ${roleColor}`}
+                className={`inline-flex items-center gap-1.5 rounded-full px-2.5 py-0.5 text-caption font-medium ${roleColor}`}
               >
                 <RoleIcon size={12} />
                 {org.role}
@@ -69,7 +69,7 @@ export default async function OrganizationsPage(): Promise<React.JSX.Element> {
         })}
 
         {teams.length === 0 && (
-          <p className="text-sm text-content-muted">
+          <p className="text-body-lg text-content-muted">
             No teams yet. Create one to get started.
           </p>
         )}

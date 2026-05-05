@@ -21,7 +21,7 @@ export function TemplateChips({ templates }: Props): React.JSX.Element | null {
 
   return (
     <div>
-      <p className="mb-2 flex items-center gap-1.5 text-xs font-semibold uppercase tracking-wider text-content-muted">
+      <p className="mb-2 flex items-center gap-1.5 text-caption font-semibold uppercase tracking-wider text-content-muted">
         <Bookmark size={12} />
         {t("startFrom")}
       </p>
@@ -31,7 +31,7 @@ export function TemplateChips({ templates }: Props): React.JSX.Element | null {
             <button
               type="submit"
               disabled={pending}
-              className="inline-flex items-center gap-1.5 rounded-full bg-accent-soft px-3 py-1 text-xs font-medium text-accent-text hover:bg-accent/20 transition-colors disabled:opacity-50"
+              className="inline-flex items-center gap-1.5 rounded-full bg-accent-soft px-3 py-1 text-caption font-medium text-accent-text hover:bg-accent/20 transition-colors disabled:opacity-50"
             >
               <Play size={10} />
               {tpl.name}

@@ -49,7 +49,7 @@ export default function LoginPage(): React.JSX.Element {
       <div className="w-full max-w-[384px] space-y-8">
         <div className="flex flex-col items-center gap-3 text-center">
           <Logo size={64} className="text-accent" />
-          <h1 className="text-3xl font-bold tracking-tight text-content">
+          <h1 className="text-page-title font-bold tracking-tight text-content">
             {tc("appName")}
           </h1>
           <p className="text-content-secondary">{tc("appTagline")}</p>
@@ -92,7 +92,7 @@ export default function LoginPage(): React.JSX.Element {
             <p
               role="alert"
               aria-live="assertive"
-              className="text-sm text-error"
+              className="text-body-lg text-error"
             >
               {error}
             </p>
@@ -117,7 +117,7 @@ export default function LoginPage(): React.JSX.Element {
           </button>
         </form>
 
-        <p className="text-center text-sm text-content-secondary">
+        <p className="text-center text-body-lg text-content-secondary">
           {isSignUp ? t("alreadyHaveAccount") : t("dontHaveAccount")}{" "}
           <button
             onClick={() => {

@@ -50,7 +50,7 @@ export function ChangePrimaryFlow({
       <button
         type="button"
         onClick={() => setConfirming(true)}
-        className={`${buttonGhostClass} text-xs`}
+        className={`${buttonGhostClass} text-caption`}
       >
         <ArrowRightLeft size={12} />
         {t("title")}
@@ -66,9 +66,9 @@ export function ChangePrimaryFlow({
       <input type="hidden" name="customer_id" value={customerId} />
 
       <div>
-        <p className="text-sm font-semibold text-content">{t("title")}</p>
-        <p className="mt-1 text-sm text-content-secondary">{t("warning")}</p>
-        <p className="mt-2 text-xs text-content-muted">{t("consequence")}</p>
+        <p className="text-body-lg font-semibold text-content">{t("title")}</p>
+        <p className="mt-1 text-body-lg text-content-secondary">{t("warning")}</p>
+        <p className="mt-2 text-caption text-content-muted">{t("consequence")}</p>
       </div>
 
       {serverError && (

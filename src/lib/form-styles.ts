@@ -44,11 +44,18 @@ export const selectClass = `${baseSelectClass} shyre-select`;
  */
 export const buttonPrimaryClass = `${baseButtonPrimaryClass} gap-2`;
 
-export const labelClass = "block text-sm font-medium text-content mb-1";
+// All form classes use the semantic typography scale (text-label /
+// text-caption / text-body / text-body-lg / ...) instead of raw
+// Tailwind text-caption / text-body-lg / text-[Npx] — the semantic tokens
+// scale with the user's text-size preference (root font-size),
+// while the raw classes are absolute px values that don't.
+// See `docs/reference/design-system.md` for the canonical scale.
+
+export const labelClass = "block text-body-lg font-medium text-content mb-1";
 
 export const buttonSecondaryClass = [
   "inline-flex items-center gap-2 rounded-lg px-4 py-2",
-  "text-sm font-medium border border-edge bg-surface-raised text-content",
+  "text-body-lg font-medium border border-edge bg-surface-raised text-content",
   "hover:bg-hover transition-colors",
   "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus-ring focus-visible:ring-offset-2",
   "disabled:opacity-50 disabled:cursor-not-allowed",
@@ -56,20 +63,20 @@ export const buttonSecondaryClass = [
 
 export const buttonDangerClass = [
   "inline-flex items-center gap-2 rounded-lg px-4 py-2",
-  "text-sm font-medium text-error",
+  "text-body-lg font-medium text-error",
   "hover:bg-error-soft transition-colors",
   "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus-ring focus-visible:ring-offset-2",
 ].join(" ");
 
 export const buttonGhostClass = [
   "inline-flex items-center gap-2 rounded-lg px-3 py-2",
-  "text-sm font-medium text-content-secondary",
+  "text-body-lg font-medium text-content-secondary",
   "hover:bg-hover hover:text-content transition-colors",
   "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus-ring focus-visible:ring-offset-2",
 ].join(" ");
 
 export const kbdClass =
-  "rounded border border-edge bg-surface-inset px-1.5 py-0.5 text-[10px] text-content-muted font-mono";
+  "rounded border border-edge bg-surface-inset px-1.5 py-0.5 text-label text-content-muted font-mono";
 
 /**
  * 12-column form grid + span helpers.

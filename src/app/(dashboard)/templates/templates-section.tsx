@@ -85,7 +85,7 @@ export function TemplatesSection({
       )}
 
       {templates.length === 0 && !showNew && (
-        <p className="text-sm text-content-muted">{t("empty")}</p>
+        <p className="text-body-lg text-content-muted">{t("empty")}</p>
       )}
 
       <div className="space-y-2">
@@ -140,11 +140,11 @@ function TemplateRow({
         <div className="flex-1 min-w-0">
           <div className="flex items-center gap-2">
             <Bookmark size={14} className="text-accent shrink-0" />
-            <p className="text-sm font-medium text-content truncate">
+            <p className="text-body-lg font-medium text-content truncate">
               {template.name}
             </p>
           </div>
-          <div className="mt-1 flex flex-wrap gap-2 text-xs text-content-secondary">
+          <div className="mt-1 flex flex-wrap gap-2 text-caption text-content-secondary">
             <span>{project?.name ?? "—"}</span>
             {template.description && (
               <>
@@ -180,7 +180,7 @@ function TemplateRow({
                 label={t("confirmDelete")}
                 pending={deleteForm.pending}
                 icon={Trash2}
-                className="inline-flex items-center gap-2 rounded-lg bg-error px-3 py-2 text-sm font-medium text-content-inverse hover:opacity-90 disabled:opacity-50"
+                className="inline-flex items-center gap-2 rounded-lg bg-error px-3 py-2 text-body-lg font-medium text-content-inverse hover:opacity-90 disabled:opacity-50"
               />
             </form>
           ) : (
@@ -304,7 +304,7 @@ function TemplateForm({
           </div>
         )}
         <div className="flex items-end pb-1">
-          <label className="flex items-center gap-2 text-sm font-medium text-content cursor-pointer">
+          <label className="flex items-center gap-2 text-body-lg font-medium text-content cursor-pointer">
             <input
               name="billable"
               type="checkbox"

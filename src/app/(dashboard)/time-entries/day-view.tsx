@@ -198,7 +198,7 @@ export function DayView({
                 <span className="text-[10px] font-semibold uppercase">
                   {dateObj.toLocaleDateString(undefined, { weekday: "short" })}
                 </span>
-                <span className="text-sm font-semibold mt-0.5">
+                <span className="text-body-lg font-semibold mt-0.5">
                   {d}
                 </span>
                 <span
@@ -215,7 +215,7 @@ export function DayView({
             <span className="text-[10px] font-semibold uppercase text-content-muted">
               {t("weekTotal")}
             </span>
-            <span className="font-mono text-sm font-semibold tabular-nums text-content mt-0.5">
+            <span className="font-mono text-body-lg font-semibold tabular-nums text-content mt-0.5">
               {formatDurationHMZero(weekTotal)}
             </span>
           </div>

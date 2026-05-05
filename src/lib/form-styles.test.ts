@@ -66,9 +66,11 @@ describe("form-styles", () => {
   });
 
   describe("labelClass", () => {
-    it("has text-sm and font-medium", () => {
-      expect(labelClass).toContain("text-sm");
+    it("uses the design-system text-body-lg utility (was the raw Tailwind class)", () => {
+      expect(labelClass).toContain("text-body-lg");
       expect(labelClass).toContain("font-medium");
+      // Guards against regression to raw Tailwind sizes.
+      expect(labelClass).not.toMatch(/\btext-(xs|sm|base|lg|xl|2xl)\b/);
     });
   });
 
@@ -109,10 +111,14 @@ describe("form-styles", () => {
   });
 
   describe("kbdClass", () => {
-    it("uses inset background and monospace font", () => {
+    it("uses inset background, monospace font, and the design-system text-label utility", () => {
       expect(kbdClass).toContain("bg-surface-inset");
       expect(kbdClass).toContain("font-mono");
-      expect(kbdClass).toContain("text-[10px]");
+      expect(kbdClass).toContain("text-label");
+      // Was previously text-[10px] — replaced by text-label which
+      // also resolves to ~10px but scales with the user's text-size
+      // preference.
+      expect(kbdClass).not.toContain("text-[10px]");
     });
   });
 });

@@ -266,7 +266,7 @@ export function MfaSetup(): React.JSX.Element {
 
   if (checkingStatus) {
     return (
-      <div className="flex items-center gap-2 text-sm text-content-muted">
+      <div className="flex items-center gap-2 text-body-lg text-content-muted">
         <Spinner size="h-3.5 w-3.5" />
         Loading...
       </div>
@@ -278,7 +278,7 @@ export function MfaSetup(): React.JSX.Element {
     return (
       <div className="space-y-4">
         <div className="flex items-center gap-2">
-          <span className="inline-flex items-center gap-1.5 rounded-full bg-success-soft px-2.5 py-0.5 text-xs font-medium text-success">
+          <span className="inline-flex items-center gap-1.5 rounded-full bg-success-soft px-2.5 py-0.5 text-caption font-medium text-success">
             <CheckCircle size={12} />
             {t("enabled")}
           </span>
@@ -287,16 +287,16 @@ export function MfaSetup(): React.JSX.Element {
         <div className="rounded-lg border border-warning/30 bg-warning-soft p-4">
           <div className="flex items-center gap-2 mb-2">
             <KeyRound size={16} className="text-warning" />
-            <h3 className="text-sm font-semibold text-warning">
+            <h3 className="text-body-lg font-semibold text-warning">
               Save your backup codes
             </h3>
           </div>
-          <p className="text-sm text-content-secondary mb-3">
+          <p className="text-body-lg text-content-secondary mb-3">
             Store these codes somewhere safe. Each code can only be used once.
             If you lose access to your authenticator app, use a backup code to
             sign in.
           </p>
-          <div className="grid grid-cols-2 gap-2 rounded-lg border border-edge bg-surface p-3 font-mono text-sm">
+          <div className="grid grid-cols-2 gap-2 rounded-lg border border-edge bg-surface p-3 font-mono text-body-lg">
             {backupCodes.map((c, i) => (
               <div key={i} className="text-content">
                 {c}
@@ -338,12 +338,12 @@ export function MfaSetup(): React.JSX.Element {
     return (
       <div className="space-y-4">
         <div className="flex items-center gap-2">
-          <span className="inline-flex items-center gap-1.5 rounded-full bg-success-soft px-2.5 py-0.5 text-xs font-medium text-success">
+          <span className="inline-flex items-center gap-1.5 rounded-full bg-success-soft px-2.5 py-0.5 text-caption font-medium text-success">
             <CheckCircle size={12} />
             {t("enabled")}
           </span>
           {backupCodesRemaining > 0 && (
-            <span className="text-xs text-content-muted">
+            <span className="text-caption text-content-muted">
               {backupCodesRemaining} backup codes remaining
             </span>
           )}
@@ -366,7 +366,7 @@ export function MfaSetup(): React.JSX.Element {
             {loading ? "..." : t("disable")}
           </button>
         </div>
-        {error && <p className="mt-2 text-sm text-error">{error}</p>}
+        {error && <p className="mt-2 text-body-lg text-error">{error}</p>}
       </div>
     );
   }
@@ -375,10 +375,10 @@ export function MfaSetup(): React.JSX.Element {
   if (step === "verifying" && qrUri) {
     return (
       <div className="space-y-4">
-        <h3 className="text-sm font-medium text-content">{t("setupTitle")}</h3>
+        <h3 className="text-body-lg font-medium text-content">{t("setupTitle")}</h3>
 
         <div className="flex flex-col items-center gap-4 rounded-lg border border-edge bg-surface p-6">
-          <p className="text-sm text-content-secondary text-center">
+          <p className="text-body-lg text-content-secondary text-center">
             {t("scanQR")}
           </p>
           <div className="rounded-lg bg-white p-3">
@@ -396,12 +396,12 @@ export function MfaSetup(): React.JSX.Element {
             value={code}
             onChange={(e) => setCode(e.target.value.replace(/\D/g, ""))}
             placeholder={t("codePlaceholder")}
-            className={`${inputClass} max-w-[200px] text-center font-mono text-lg tracking-widest`}
+            className={`${inputClass} max-w-[200px] text-center font-mono text-title tracking-widest`}
             autoFocus
           />
         </div>
 
-        {error && <p className="text-sm text-error">{error}</p>}
+        {error && <p className="text-body-lg text-error">{error}</p>}
 
         <div className="flex gap-2">
           <button
@@ -435,11 +435,11 @@ export function MfaSetup(): React.JSX.Element {
   // Idle — show enable button
   return (
     <div>
-      <p className="text-sm text-content-secondary mb-3">
+      <p className="text-body-lg text-content-secondary mb-3">
         {t("description")}
       </p>
       <div className="flex items-center gap-3 mb-3">
-        <span className="inline-flex items-center gap-1.5 rounded-full bg-warning-soft px-2.5 py-0.5 text-xs font-medium text-warning">
+        <span className="inline-flex items-center gap-1.5 rounded-full bg-warning-soft px-2.5 py-0.5 text-caption font-medium text-warning">
           <span className="h-1.5 w-1.5 rounded-full bg-current" />
           {t("disabled")}
         </span>
@@ -452,7 +452,7 @@ export function MfaSetup(): React.JSX.Element {
         <Shield size={16} />
         {loading ? "..." : t("enable")}
       </button>
-      {error && <p className="mt-2 text-sm text-error">{error}</p>}
+      {error && <p className="mt-2 text-body-lg text-error">{error}</p>}
     </div>
   );
 }

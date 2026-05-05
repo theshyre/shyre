@@ -110,14 +110,14 @@ export function GitHubIssuePicker({
       {/* Display current selection or open picker */}
       {value && selectedTitle ? (
         <div className="flex items-center gap-2">
-          <span className="flex items-center gap-1.5 rounded-lg border border-edge bg-surface-raised px-3 py-2 text-sm flex-1">
+          <span className="flex items-center gap-1.5 rounded-lg border border-edge bg-surface-raised px-3 py-2 text-body-lg flex-1">
             <Hash size={14} className="text-accent" />
             <span className="truncate text-content">{selectedTitle}</span>
           </span>
           <button
             type="button"
             onClick={clearSelection}
-            className="text-sm text-content-muted hover:text-error transition-colors"
+            className="text-body-lg text-content-muted hover:text-error transition-colors"
           >
             ×
           </button>
@@ -154,7 +154,7 @@ export function GitHubIssuePicker({
                 onChange={(e) => setQuery(e.target.value)}
                 placeholder="Search issues..."
                 autoFocus
-                className="w-full rounded-md border border-edge bg-surface px-3 py-1.5 pl-8 text-sm outline-none focus:ring-2 focus:ring-focus-ring/30"
+                className="w-full rounded-md border border-edge bg-surface px-3 py-1.5 pl-8 text-body-lg outline-none focus:ring-2 focus:ring-focus-ring/30"
               />
             </div>
           </div>
@@ -162,24 +162,24 @@ export function GitHubIssuePicker({
           {/* Results */}
           <div className="max-h-[240px] overflow-y-auto">
             {loading && (
-              <div className="flex items-center gap-2 px-3 py-4 text-sm text-content-muted">
+              <div className="flex items-center gap-2 px-3 py-4 text-body-lg text-content-muted">
                 <Spinner size="h-3.5 w-3.5" />
                 Searching...
               </div>
             )}
 
             {error && (
-              <div className="px-3 py-4 text-sm text-error">{error}</div>
+              <div className="px-3 py-4 text-body-lg text-error">{error}</div>
             )}
 
             {!loading && !error && issues.length === 0 && query.length >= 2 && (
-              <div className="px-3 py-4 text-sm text-content-muted">
+              <div className="px-3 py-4 text-body-lg text-content-muted">
                 No issues found for &quot;{query}&quot;
               </div>
             )}
 
             {!loading && !error && issues.length === 0 && query.length < 2 && query.length > 0 && (
-              <div className="px-3 py-4 text-sm text-content-muted">
+              <div className="px-3 py-4 text-body-lg text-content-muted">
                 Type at least 2 characters
               </div>
             )}
@@ -191,11 +191,11 @@ export function GitHubIssuePicker({
                 onClick={() => selectIssue(issue)}
                 className="flex items-start gap-3 w-full px-3 py-2 text-left hover:bg-hover transition-colors"
               >
-                <span className="text-xs font-mono text-accent mt-0.5">
+                <span className="text-caption font-mono text-accent mt-0.5">
                   #{issue.number}
                 </span>
                 <div className="flex-1 min-w-0">
-                  <p className="text-sm text-content truncate">
+                  <p className="text-body-lg text-content truncate">
                     {issue.title}
                   </p>
                   {issue.labels.length > 0 && (

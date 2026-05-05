@@ -231,7 +231,7 @@ export default async function ProjectDetailPage({
         <div className="mt-8">
           <div className="flex items-center gap-3">
             <Hash size={20} className="text-accent" />
-            <h2 className="text-lg font-semibold text-content">
+            <h2 className="text-title font-semibold text-content">
               Time by Issue
             </h2>
           </div>
@@ -239,13 +239,13 @@ export default async function ProjectDetailPage({
             <table className={tableClass}>
               <thead>
                 <tr className="border-b border-edge bg-surface-inset">
-                  <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider text-content-muted">
+                  <th className="px-4 py-3 text-left text-caption font-semibold uppercase tracking-wider text-content-muted">
                     Issue
                   </th>
-                  <th className="px-4 py-3 text-right text-xs font-semibold uppercase tracking-wider text-content-muted">
+                  <th className="px-4 py-3 text-right text-caption font-semibold uppercase tracking-wider text-content-muted">
                     Entries
                   </th>
-                  <th className="px-4 py-3 text-right text-xs font-semibold uppercase tracking-wider text-content-muted">
+                  <th className="px-4 py-3 text-right text-caption font-semibold uppercase tracking-wider text-content-muted">
                     Total Time
                   </th>
                 </tr>
@@ -290,12 +290,12 @@ export default async function ProjectDetailPage({
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-3">
             <Clock size={20} className="text-accent" />
-            <h2 className="text-lg font-semibold text-content">
+            <h2 className="text-title font-semibold text-content">
               {t("timeEntries.title")}
             </h2>
           </div>
           {totalMinutes > 0 && (
-            <span className="text-sm font-mono text-content-secondary">
+            <span className="text-body-lg font-mono text-content-secondary">
               {t("timeEntries.totalHours", { hours: totalHours })}
             </span>
           )}
@@ -318,15 +318,15 @@ export default async function ProjectDetailPage({
                       {entry.description || "—"}
                     </span>
                     {entry.github_issue && (
-                      <span className="text-xs font-mono text-accent">
+                      <span className="text-caption font-mono text-accent">
                         #{entry.github_issue}
                       </span>
                     )}
-                    <span className="text-xs text-content-muted">
+                    <span className="text-caption text-content-muted">
                       {formatDate(entry.start_time)}
                     </span>
                   </div>
-                  <span className="text-sm font-mono text-content-secondary">
+                  <span className="text-body-lg font-mono text-content-secondary">
                     {entry.duration_min ? `${hours}h ${mins}m` : "—"}
                   </span>
                 </li>
@@ -334,7 +334,7 @@ export default async function ProjectDetailPage({
             })}
           </ul>
         ) : (
-          <p className="mt-3 text-sm text-content-muted">
+          <p className="mt-3 text-body-lg text-content-muted">
             {t("timeEntries.noEntries")}
           </p>
         )}

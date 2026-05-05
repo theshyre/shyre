@@ -57,20 +57,20 @@ export default async function TimeEntriesTrashPage({
     <div className="space-y-6">
       <div className="flex items-center gap-3 flex-wrap">
         <Trash2 size={24} className="text-error" />
-        <h1 className="text-2xl font-bold text-content">{t("title")}</h1>
+        <h1 className="text-page-title font-bold text-content">{t("title")}</h1>
         <Link
           href="/time-entries"
-          className="ml-auto inline-flex items-center gap-1 text-sm text-content-secondary hover:text-content"
+          className="ml-auto inline-flex items-center gap-1 text-body-lg text-content-secondary hover:text-content"
         >
           <ArrowLeft size={14} />
           {t("back")}
         </Link>
       </div>
 
-      <p className="text-sm text-content-muted">{t("description")}</p>
+      <p className="text-body-lg text-content-muted">{t("description")}</p>
 
       {entries.length === 0 ? (
-        <div className="rounded-lg border border-edge bg-surface-raised px-6 py-12 text-center text-sm text-content-muted">
+        <div className="rounded-lg border border-edge bg-surface-raised px-6 py-12 text-center text-body-lg text-content-muted">
           {t("empty")}
         </div>
       ) : (

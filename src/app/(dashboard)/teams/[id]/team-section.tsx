@@ -155,7 +155,7 @@ export function TeamSection({
         <section className="rounded-lg border border-edge bg-surface-raised p-4 space-y-3">
           <div className="flex items-center gap-2 mb-2">
             <Building2 size={18} className="text-accent" />
-            <h2 className="text-sm font-semibold uppercase tracking-wider text-content-muted">
+            <h2 className="text-body-lg font-semibold uppercase tracking-wider text-content-muted">
               Team
             </h2>
           </div>
@@ -182,7 +182,7 @@ export function TeamSection({
         <div className="flex items-center justify-between mb-2">
           <div className="flex items-center gap-2">
             <Users size={18} className="text-accent" />
-            <h2 className="text-sm font-semibold uppercase tracking-wider text-content-muted">
+            <h2 className="text-body-lg font-semibold uppercase tracking-wider text-content-muted">
               Team Members
             </h2>
           </div>
@@ -277,10 +277,10 @@ export function TeamSection({
                     <RoleIcon size={14} />
                   </div>
                   <div>
-                    <p className="text-sm font-medium text-content">
+                    <p className="text-body-lg font-medium text-content">
                       {displayName ?? member.user_id.slice(0, 8) + "..."}
                       {isSelf && (
-                        <span className="ml-2 text-xs text-content-muted">
+                        <span className="ml-2 text-caption text-content-muted">
                           (you)
                         </span>
                       )}
@@ -357,7 +357,7 @@ export function TeamSection({
         {/* Pending invites */}
         {invites.length > 0 && (
           <div className="mt-4 pt-4 border-t border-edge">
-            <h3 className="text-xs font-semibold uppercase tracking-wider text-content-muted mb-2">
+            <h3 className="text-caption font-semibold uppercase tracking-wider text-content-muted mb-2">
               Pending Invites
             </h3>
             <ul className="space-y-2">
@@ -371,8 +371,8 @@ export function TeamSection({
                       <Clock size={14} className="text-content-muted" />
                     </div>
                     <div>
-                      <p className="text-sm text-content">{invite.email}</p>
-                      <p className="text-xs text-content-muted">
+                      <p className="text-body-lg text-content">{invite.email}</p>
+                      <p className="text-caption text-content-muted">
                         {invite.role} · expires{" "}
                         {formatDate(invite.expires_at)}
                       </p>
@@ -404,7 +404,7 @@ export function TeamSection({
         <section className="rounded-lg border border-error/30 bg-surface-raised p-4 space-y-4">
           <div className="flex items-center gap-2 mb-2">
             <AlertTriangle size={18} className="text-error" />
-            <h2 className="text-sm font-semibold uppercase tracking-wider text-error">
+            <h2 className="text-body-lg font-semibold uppercase tracking-wider text-error">
               {tc("team.dangerZone")}
             </h2>
           </div>
@@ -455,8 +455,8 @@ function LeaveTeamFlow({
     return (
       <div className="flex items-center justify-between">
         <div>
-          <p className="text-sm font-medium text-content">{tc("team.leave")}</p>
-          <p className="text-xs text-content-muted">
+          <p className="text-body-lg font-medium text-content">{tc("team.leave")}</p>
+          <p className="text-caption text-content-muted">
             You will lose access to all data in this team.
           </p>
         </div>
@@ -480,7 +480,7 @@ function LeaveTeamFlow({
       {serverError && (
         <AlertBanner tone="error">{serverError}</AlertBanner>
       )}
-      <p className="text-sm text-content">
+      <p className="text-body-lg text-content">
         {tc("team.leaveConfirm", { name: teamName })}
       </p>
       <div className="flex gap-2">
@@ -488,7 +488,7 @@ function LeaveTeamFlow({
           label={tc("team.leave")}
           pending={pending}
           icon={LogOut}
-          className="inline-flex items-center gap-2 rounded-lg bg-error px-4 py-2 text-sm font-medium text-content-inverse hover:opacity-90 disabled:opacity-50 transition-colors"
+          className="inline-flex items-center gap-2 rounded-lg bg-error px-4 py-2 text-body-lg font-medium text-content-inverse hover:opacity-90 disabled:opacity-50 transition-colors"
         />
         <button
           type="button"
@@ -577,8 +577,8 @@ function TransferOwnershipFlow({
     return (
       <div className="flex items-center justify-between gap-3">
         <div>
-          <p className="text-sm font-medium text-content">Transfer ownership</p>
-          <p className="text-xs text-content-muted">
+          <p className="text-body-lg font-medium text-content">Transfer ownership</p>
+          <p className="text-caption text-content-muted">
             Hand the team off to another member. You become an admin.
           </p>
         </div>
@@ -598,7 +598,7 @@ function TransferOwnershipFlow({
   return (
     <div className="rounded-lg border border-warning/30 bg-warning-soft/30 p-4 space-y-3">
       {serverError && <AlertBanner tone="error">{serverError}</AlertBanner>}
-      <p className="text-sm text-content">
+      <p className="text-body-lg text-content">
         Pick the member who will become the new owner, then type their
         name to confirm. You will be demoted to admin in the same step.
       </p>
@@ -688,10 +688,10 @@ function DeleteTeamFlow({
     return (
       <div className="flex items-center justify-between">
         <div>
-          <p className="text-sm font-medium text-content">
+          <p className="text-body-lg font-medium text-content">
             {tc("team.delete")}
           </p>
-          <p className="text-xs text-content-muted">
+          <p className="text-caption text-content-muted">
             This will permanently delete all data, members, and settings.
           </p>
         </div>
@@ -717,7 +717,7 @@ function DeleteTeamFlow({
       {serverError && (
         <AlertBanner tone="error">{serverError}</AlertBanner>
       )}
-      <p className="text-sm text-content">
+      <p className="text-body-lg text-content">
         {tc("team.deleteConfirm", { name: teamName })}
       </p>
       <input
@@ -735,7 +735,7 @@ function DeleteTeamFlow({
           pending={pending}
           icon={Trash2}
           disabled={!canDelete}
-          className="inline-flex items-center gap-2 rounded-lg bg-error px-4 py-2 text-sm font-medium text-content-inverse hover:opacity-90 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
+          className="inline-flex items-center gap-2 rounded-lg bg-error px-4 py-2 text-body-lg font-medium text-content-inverse hover:opacity-90 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
         />
         <button
           type="button"
