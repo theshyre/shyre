@@ -16,6 +16,7 @@ import {
   kbdClass,
 } from "@/lib/form-styles";
 import { TeamSelector } from "@/components/TeamSelector";
+import { TicketField, ticketFieldVisible } from "@/components/TicketField";
 import type { TeamListItem } from "@/lib/team-context";
 import { startTimerAction } from "./actions";
 import { notifyTimerChanged } from "@/lib/timer-events";
@@ -92,6 +93,23 @@ export function RunningTimerCard({
         fd.set("team_id", defaultTeamId ?? teams[0]?.id ?? "");
         fd.set("project_id", selectedProjectId);
         fd.set("description", description);
+        // Same intent flag as the form's hidden input — keeps the
+        // Space-shortcut submission path in sync with form-button
+        // submission. Without this, Space-to-start would still hit
+        // the resume-same-day path.
+        fd.set("force_new", "1");
+        // Mirror the form's TicketField input so a Space-triggered
+        // submit also carries the ticket reference. Without this,
+        // pressing Space to start would silently drop whatever the
+        // user typed in "Jira issue" / "GitHub issue".
+        if (typeof document !== "undefined") {
+          const ticketInput = document.querySelector<HTMLInputElement>(
+            "input[name='ticket_ref']",
+          );
+          if (ticketInput?.value) {
+            fd.set("ticket_ref", ticketInput.value);
+          }
+        }
         const [dayStart, dayEnd] = localDayBoundsIso();
         fd.set("day_start_iso", dayStart);
         fd.set("day_end_iso", dayEnd);
@@ -175,6 +193,14 @@ export function RunningTimerCard({
           </>
         );
       })()}
+      {/* This form's intent is always "create a new entry" — the
+          header button differentiates from row-Play (resume same-day
+          work) and per-template chips (resume). Without this, the
+          user clicking "New timer" on the SAME (project, category) as
+          a morning's work hijacked the existing entry and backdated
+          start_time, instead of spawning the sibling entry the user
+          actually wanted (e.g. same project but different ticket). */}
+      <input type="hidden" name="force_new" value="1" />
 
       {/* Quick-path chip strip — the fastest route to start is "click a
           recent or saved template", so these live at the top above the
@@ -246,6 +272,24 @@ export function RunningTimerCard({
           </select>
         </div>
       )}
+
+      {/* Ticket field — only rendered when the chosen project has at
+          least one provider configured (Jira key or GitHub repo). The
+          server reads `ticket_ref` and, when description is empty,
+          back-fills it with "{key} {title}" so the running timer's
+          chip + the day-view row both read naturally without the
+          user typing anything in Description. */}
+      {selectedProject &&
+        ticketFieldVisible(
+          selectedProject.github_repo,
+          selectedProject.jira_project_key,
+        ) && (
+          <TicketField
+            idPrefix="new-timer"
+            githubRepo={selectedProject.github_repo}
+            jiraProjectKey={selectedProject.jira_project_key}
+          />
+        )}
 
       <div>
         <label className={labelClass}>{tf("description")}</label>

@@ -352,11 +352,29 @@ export async function startTimerAction(formData: FormData): Promise<void> {
   return runSafeAction(formData, async (formData, { supabase }) => {
     const project_id = formData.get("project_id") as string;
     const rawDescription = formData.get("description");
-    const description =
+    let description =
       typeof rawDescription === "string" && rawDescription.length > 0
         ? rawDescription
         : null;
+    // Optional explicit ticket reference from the new <TicketField>
+    // in the New-timer form. When set, takes precedence over
+    // description-based detection — and when the description is
+    // empty, the resolved "{key} {title}" becomes the description.
+    const ticketRefRaw = formData.get("ticket_ref");
+    const ticketRef =
+      typeof ticketRefRaw === "string" && ticketRefRaw.trim().length > 0
+        ? ticketRefRaw.trim()
+        : null;
     const category_id = (formData.get("category_id") as string) || null;
+    // The header "New timer" form sets `force_new=1` because its intent
+    // is "create a fresh entry" — even on (project, category) combos
+    // that already have a completed same-day entry. Without this,
+    // clicking "New timer" with the same project + category as a
+    // morning's work resumed that entry and back-dated start_time, so
+    // a user trying to capture a SIBLING entry on a different ticket
+    // got their original entry hijacked. The row-Play and timer-chip
+    // entry points still want resume behaviour and don't set this.
+    const forceNew = formData.get("force_new") === "1";
     // Viewer's local-day bounds — used to decide whether an existing
     // completed entry on (user, project, category) should be resumed
     // instead of creating a new one. When omitted, falls back to
@@ -429,36 +447,60 @@ export async function startTimerAction(formData: FormData): Promise<void> {
         return d.toISOString();
       })();
 
-    let existingQuery = supabase
-      .from("time_entries")
-      .select("id, duration_min, description")
-      .eq("user_id", userId)
-      .eq("project_id", project_id)
-      .not("end_time", "is", null)
-      .is("deleted_at", null)
-      .gte("start_time", dayStart)
-      .lt("start_time", dayEnd)
-      .order("start_time", { ascending: false })
-      .limit(1);
-    if (category_id) existingQuery = existingQuery.eq("category_id", category_id);
-    else existingQuery = existingQuery.is("category_id", null);
-    const { data: existingRows } = await existingQuery;
-    const existing = existingRows?.[0];
+    // Resume-same-day-entry lookup. Skipped entirely when `force_new`
+    // is set: the header New-timer button explicitly wants a fresh
+    // entry even when a same-day same-(project, category) entry
+    // exists.
+    let existing: { id: string; duration_min: number | null; description: string | null } | undefined;
+    if (!forceNew) {
+      let existingQuery = supabase
+        .from("time_entries")
+        .select("id, duration_min, description")
+        .eq("user_id", userId)
+        .eq("project_id", project_id)
+        .not("end_time", "is", null)
+        .is("deleted_at", null)
+        .gte("start_time", dayStart)
+        .lt("start_time", dayEnd)
+        .order("start_time", { ascending: false })
+        .limit(1);
+      if (category_id) existingQuery = existingQuery.eq("category_id", category_id);
+      else existingQuery = existingQuery.is("category_id", null);
+      const { data: existingRows } = await existingQuery;
+      existing = existingRows?.[0] as
+        | { id: string; duration_min: number | null; description: string | null }
+        | undefined;
+    }
 
-    // When the caller supplied a description, run ticket detection
-    // + lookup so the running timer's chip shows up immediately.
-    // For the resume-existing-entry path we only re-run detection
-    // when the description was overwritten — otherwise the
-    // existing attachment stays.
+    // When the caller supplied a description OR an explicit ticket
+    // reference, run ticket detection + lookup so the running timer's
+    // chip shows up immediately. For the resume-existing-entry path
+    // we only re-run detection when one of those fields was supplied
+    // — otherwise the existing attachment stays.
     const ticket =
-      description !== null
+      description !== null || ticketRef !== null
         ? await buildTicketAttachment(
             supabase,
             userId,
             description,
             project_id,
+            ticketRef,
           )
         : null;
+
+    // When the user typed only a ticket key (no description), let
+    // the resolved "{key} {title}" become the description so the
+    // running-timer chip + the day-view row both read naturally.
+    // Falls back to just the key when the lookup couldn't fetch a
+    // title (no creds / 404 / network).
+    if (
+      description === null &&
+      ticket?.linked_ticket_key
+    ) {
+      description = ticket.linked_ticket_title
+        ? `${ticket.linked_ticket_key} ${ticket.linked_ticket_title}`
+        : ticket.linked_ticket_key;
+    }
 
     if (existing) {
       const accumulatedMin = (existing.duration_min as number | null) ?? 0;
