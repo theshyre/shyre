@@ -264,8 +264,20 @@
       "category": "Category",
       "project": "Project · Customer",
       "entryDate": "Entry date",
-      "duration": "Duration"
-    }
+      "duration": "Duration",
+      "actions": "Actions"
+    },
+    "bulkToolbarAriaLabel": "Trash bulk actions",
+    "bulkSelectAllAria": "Select all trashed entries",
+    "bulkDeselectAllAria": "Deselect all trashed entries",
+    "bulkRowAria": "Select trashed entry: {project}",
+    "bulkSelectHint": "Select rows to restore or permanently delete",
+    "bulkSelectedLabel": "{count} of {total} selected",
+    "bulkRestore": "{count, plural, one {Restore 1} other {Restore #}}",
+    "bulkPermanentlyDelete": "{count, plural, one {Permanently delete 1} other {Permanently delete #}}",
+    "bulkPermanentlyDeleteSummary": "{count, plural, one {1 entry} other {# entries}}",
+    "bulkRestoredToast": "{count, plural, one {1 entry restored} other {# entries restored}}",
+    "bulkPermanentlyDeletedToast": "{count, plural, one {1 entry permanently deleted} other {# entries permanently deleted}}"
   },
   "trashLink": "{count, plural, one {Trash (#)} other {Trash (#)}}",
   "dayView": {

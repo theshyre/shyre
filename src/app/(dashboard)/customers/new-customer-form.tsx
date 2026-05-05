@@ -91,25 +91,57 @@ export function NewCustomerForm({
 
       <div className="grid gap-3 sm:grid-cols-2">
         <div>
-          <label className={labelClass}>{t("fields.name")} *</label>
-          <input name="name" required className={inputClass} />
-          <FieldError error={fieldErrors.name} />
-        </div>
-        <div>
-          <label className={labelClass}>{t("fields.email")}</label>
-          <input name="email" type="email" className={inputClass} />
-          <FieldError error={fieldErrors.email} />
-        </div>
-        <div>
-          <label className={labelClass}>{t("fields.defaultRate")}</label>
+          <label htmlFor="new-customer-name" className={labelClass}>
+            {t("fields.name")} *
+          </label>
           <input
+            id="new-customer-name"
+            name="name"
+            required
+            autoFocus
+            className={inputClass}
+            aria-describedby={
+              fieldErrors.name ? "new-customer-name-error" : undefined
+            }
+          />
+          <FieldError error={fieldErrors.name} id="new-customer-name-error" />
+        </div>
+        <div>
+          <label htmlFor="new-customer-email" className={labelClass}>
+            {t("fields.email")}
+          </label>
+          <input
+            id="new-customer-email"
+            name="email"
+            type="email"
+            className={inputClass}
+            aria-describedby={
+              fieldErrors.email ? "new-customer-email-error" : undefined
+            }
+          />
+          <FieldError error={fieldErrors.email} id="new-customer-email-error" />
+        </div>
+        <div>
+          <label htmlFor="new-customer-default-rate" className={labelClass}>
+            {t("fields.defaultRate")}
+          </label>
+          <input
+            id="new-customer-default-rate"
             name="default_rate"
             type="number"
             step="0.01"
             min="0"
             className={inputClass}
+            aria-describedby={
+              fieldErrors.default_rate
+                ? "new-customer-default-rate-error"
+                : undefined
+            }
           />
-          <FieldError error={fieldErrors.default_rate} />
+          <FieldError
+            error={fieldErrors.default_rate}
+            id="new-customer-default-rate-error"
+          />
         </div>
       </div>
 
@@ -121,8 +153,15 @@ export function NewCustomerForm({
       />
 
       <div>
-        <label className={labelClass}>{t("fields.notes")}</label>
-        <textarea name="notes" rows={2} className={textareaClass} />
+        <label htmlFor="new-customer-notes" className={labelClass}>
+          {t("fields.notes")}
+        </label>
+        <textarea
+          id="new-customer-notes"
+          name="notes"
+          rows={2}
+          className={textareaClass}
+        />
       </div>
 
       <div className="flex gap-2">

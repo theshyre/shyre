@@ -116,16 +116,25 @@ export function NewTimeEntryForm({
         {/* Row 1: Project + Category — paired (Project's category-
             set ids drive what the picker offers). */}
         <div className={formSpanHalf}>
-          <label className={labelClass}>{t("fields.project")} *</label>
+          <label htmlFor="new-time-entry-project" className={labelClass}>
+            {t("fields.project")} *
+          </label>
           <select
+            id="new-time-entry-project"
             name="project_id"
             required
+            autoFocus
             className={selectClass}
             value={selectedProjectId}
             onChange={(e) => {
               setSelectedProjectId(e.target.value);
               setIssueNumber(null);
             }}
+            aria-describedby={
+              fieldErrors.project_id
+                ? "new-time-entry-project-error"
+                : undefined
+            }
           >
             <option value="">{t("fields.project")}</option>
             {projects.map((p) => (
@@ -134,7 +143,10 @@ export function NewTimeEntryForm({
               </option>
             ))}
           </select>
-          <FieldError error={fieldErrors.project_id} />
+          <FieldError
+            error={fieldErrors.project_id}
+            id="new-time-entry-project-error"
+          />
         </div>
         <div className={formSpanHalf}>
           <CategoryPicker
@@ -150,8 +162,14 @@ export function NewTimeEntryForm({
             inline-edit-form). Was a single-line input that
             truncated long Harvest-imported text. */}
         <div className={formSpanFull}>
-          <label className={labelClass}>{t("fields.description")}</label>
+          <label
+            htmlFor="new-time-entry-description"
+            className={labelClass}
+          >
+            {t("fields.description")}
+          </label>
           <textarea
+            id="new-time-entry-description"
             name="description"
             placeholder={t("fields.descriptionPlaceholder")}
             rows={3}
@@ -163,24 +181,55 @@ export function NewTimeEntryForm({
         {selectedProject?.require_timestamps ?? true ? (
           <>
             <div className={formSpanThird}>
-              <label className={labelClass}>{t("fields.startTime")} *</label>
+              <label
+                htmlFor="new-time-entry-start"
+                className={labelClass}
+              >
+                {t("fields.startTime")} *
+              </label>
               <input
+                id="new-time-entry-start"
                 name="start_time"
                 type="datetime-local"
                 required
                 className={inputClass}
+                aria-describedby={
+                  fieldErrors.start_time
+                    ? "new-time-entry-start-error"
+                    : undefined
+                }
+              />
+              <FieldError
+                error={fieldErrors.start_time}
+                id="new-time-entry-start-error"
               />
             </div>
             <div className={formSpanThird}>
-              <label className={labelClass}>{t("fields.endTime")}</label>
-              <input name="end_time" type="datetime-local" className={inputClass} />
+              <label
+                htmlFor="new-time-entry-end"
+                className={labelClass}
+              >
+                {t("fields.endTime")}
+              </label>
+              <input
+                id="new-time-entry-end"
+                name="end_time"
+                type="datetime-local"
+                className={inputClass}
+              />
             </div>
           </>
         ) : (
           <>
             <div className={formSpanThird}>
-              <label className={labelClass}>{t("fields.date")} *</label>
+              <label
+                htmlFor="new-time-entry-date"
+                className={labelClass}
+              >
+                {t("fields.date")} *
+              </label>
               <input
+                id="new-time-entry-date"
                 name="entry_date"
                 type="date"
                 required
@@ -189,7 +238,12 @@ export function NewTimeEntryForm({
               />
             </div>
             <div className={formSpanQuarter}>
-              <label className={labelClass}>{t("fields.duration")} *</label>
+              <label
+                htmlFor="new-time-entry-duration"
+                className={labelClass}
+              >
+                {t("fields.duration")} *
+              </label>
               <DurationInput
                 name="duration_min"
                 defaultMinutes={0}

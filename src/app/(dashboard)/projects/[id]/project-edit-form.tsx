@@ -76,18 +76,30 @@ export function ProjectEditForm({
       <div className="rounded-lg border border-edge bg-surface-raised p-4 space-y-3">
         <div className="grid gap-3 sm:grid-cols-2">
           <div>
-            <label className={labelClass}>{t("fields.name")} *</label>
+            <label htmlFor="project-edit-name" className={labelClass}>
+              {t("fields.name")} *
+            </label>
             <input
+              id="project-edit-name"
               name="name"
               required
               defaultValue={project.name}
               className={inputClass}
+              aria-describedby={
+                fieldErrors.name ? "project-edit-name-error" : undefined
+              }
             />
-            <FieldError error={fieldErrors.name} />
+            <FieldError
+              error={fieldErrors.name}
+              id="project-edit-name-error"
+            />
           </div>
           <div>
-            <label className={labelClass}>{t("fields.status")}</label>
+            <label htmlFor="project-edit-status" className={labelClass}>
+              {t("fields.status")}
+            </label>
             <select
+              id="project-edit-status"
               name="status"
               defaultValue={project.status ?? "active"}
               className={selectClass}
@@ -100,8 +112,11 @@ export function ProjectEditForm({
             </select>
           </div>
           <div>
-            <label className={labelClass}>{t("fields.hourlyRate")}</label>
+            <label htmlFor="project-edit-hourly-rate" className={labelClass}>
+              {t("fields.hourlyRate")}
+            </label>
             <input
+              id="project-edit-hourly-rate"
               name="hourly_rate"
               type="number"
               step="0.01"
@@ -111,8 +126,11 @@ export function ProjectEditForm({
             />
           </div>
           <div>
-            <label className={labelClass}>{t("fields.budgetHours")}</label>
+            <label htmlFor="project-edit-budget-hours" className={labelClass}>
+              {t("fields.budgetHours")}
+            </label>
             <input
+              id="project-edit-budget-hours"
               name="budget_hours"
               type="number"
               step="0.5"
@@ -122,8 +140,11 @@ export function ProjectEditForm({
             />
           </div>
           <div>
-            <label className={labelClass}>{t("fields.githubRepo")}</label>
+            <label htmlFor="project-edit-github-repo" className={labelClass}>
+              {t("fields.githubRepo")}
+            </label>
             <input
+              id="project-edit-github-repo"
               name="github_repo"
               placeholder={t("fields.githubRepoPlaceholder")}
               defaultValue={project.github_repo ?? ""}
@@ -134,8 +155,11 @@ export function ProjectEditForm({
             </p>
           </div>
           <div>
-            <label className={labelClass}>{t("fields.jiraProjectKey")}</label>
+            <label htmlFor="project-edit-jira-key" className={labelClass}>
+              {t("fields.jiraProjectKey")}
+            </label>
             <input
+              id="project-edit-jira-key"
               name="jira_project_key"
               placeholder={t("fields.jiraProjectKeyPlaceholder")}
               defaultValue={project.jira_project_key ?? ""}
@@ -146,8 +170,11 @@ export function ProjectEditForm({
             </p>
           </div>
           <div>
-            <label className={labelClass}>{t("fields.invoiceCode")}</label>
+            <label htmlFor="project-edit-invoice-code" className={labelClass}>
+              {t("fields.invoiceCode")}
+            </label>
             <input
+              id="project-edit-invoice-code"
               name="invoice_code"
               placeholder={t("fields.invoiceCodePlaceholder")}
               defaultValue={project.invoice_code ?? ""}

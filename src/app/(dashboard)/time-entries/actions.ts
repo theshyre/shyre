@@ -315,6 +315,34 @@ export async function restoreTimeEntriesAction(
   }, "restoreTimeEntriesAction") as unknown as void;
 }
 
+/**
+ * Bulk hard-delete from the trash. Same trash-only guard as the
+ * single-row permanent-delete: only rows with deleted_at IS NOT
+ * NULL can be hard-deleted, so a stray bulk call on active rows
+ * is a no-op rather than a data-loss event. Scoped to the
+ * caller's own rows via user_id.
+ */
+export async function permanentlyDeleteTimeEntriesAction(
+  formData: FormData,
+): Promise<void> {
+  return runSafeAction(formData, async (formData, { supabase, userId }) => {
+    const ids = formData.getAll("id").map((v) => String(v));
+    if (ids.length === 0) return;
+
+    assertSupabaseOk(
+      await supabase
+        .from("time_entries")
+        .delete()
+        .in("id", ids)
+        .eq("user_id", userId)
+        .not("deleted_at", "is", null),
+    );
+
+    revalidatePath("/time-entries");
+    revalidatePath("/time-entries/trash");
+  }, "permanentlyDeleteTimeEntriesAction") as unknown as void;
+}
+
 export async function startTimerAction(formData: FormData): Promise<void> {
   return runSafeAction(formData, async (formData, { supabase }) => {
     const project_id = formData.get("project_id") as string;

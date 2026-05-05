@@ -109,9 +109,20 @@ export function NewProjectForm({
 
       <div className="grid gap-3 sm:grid-cols-2">
         <div>
-          <label className={labelClass}>{t("fields.name")} *</label>
-          <input name="name" required className={inputClass} />
-          <FieldError error={fieldErrors.name} />
+          <label htmlFor="new-project-name" className={labelClass}>
+            {t("fields.name")} *
+          </label>
+          <input
+            id="new-project-name"
+            name="name"
+            required
+            autoFocus
+            className={inputClass}
+            aria-describedby={
+              fieldErrors.name ? "new-project-name-error" : undefined
+            }
+          />
+          <FieldError error={fieldErrors.name} id="new-project-name-error" />
         </div>
         {isInternal ? (
           // Customer picker is hidden for internal projects; the
@@ -124,8 +135,20 @@ export function NewProjectForm({
           </div>
         ) : (
           <div>
-            <label className={labelClass}>{t("fields.customer")} *</label>
-            <select name="customer_id" required className={selectClass}>
+            <label htmlFor="new-project-customer" className={labelClass}>
+              {t("fields.customer")} *
+            </label>
+            <select
+              id="new-project-customer"
+              name="customer_id"
+              required
+              className={selectClass}
+              aria-describedby={
+                fieldErrors.customer_id
+                  ? "new-project-customer-error"
+                  : undefined
+              }
+            >
               <option value="">{t("fields.pickCustomer")}</option>
               {customers.map((c) => (
                 <option key={c.id} value={c.id}>
@@ -133,12 +156,18 @@ export function NewProjectForm({
                 </option>
               ))}
             </select>
-            <FieldError error={fieldErrors.customer_id} />
+            <FieldError
+              error={fieldErrors.customer_id}
+              id="new-project-customer-error"
+            />
           </div>
         )}
         <div>
-          <label className={labelClass}>{t("fields.hourlyRate")}</label>
+          <label htmlFor="new-project-hourly-rate" className={labelClass}>
+            {t("fields.hourlyRate")}
+          </label>
           <input
+            id="new-project-hourly-rate"
             name="hourly_rate"
             type="number"
             step="0.01"
@@ -147,8 +176,11 @@ export function NewProjectForm({
           />
         </div>
         <div>
-          <label className={labelClass}>{t("fields.budgetHours")}</label>
+          <label htmlFor="new-project-budget-hours" className={labelClass}>
+            {t("fields.budgetHours")}
+          </label>
           <input
+            id="new-project-budget-hours"
             name="budget_hours"
             type="number"
             step="0.5"

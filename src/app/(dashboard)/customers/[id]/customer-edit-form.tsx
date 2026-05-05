@@ -57,36 +57,65 @@ export function CustomerEditForm({
       <div className="rounded-lg border border-edge bg-surface-raised p-4 space-y-3">
         <div className="grid gap-3 sm:grid-cols-2">
           <div>
-            <label className={labelClass}>{t("fields.name")} *</label>
+            <label htmlFor="customer-edit-name" className={labelClass}>
+              {t("fields.name")} *
+            </label>
             <input
+              id="customer-edit-name"
               name="name"
               required
               defaultValue={client.name}
               className={inputClass}
+              aria-describedby={
+                fieldErrors.name ? "customer-edit-name-error" : undefined
+              }
             />
-            <FieldError error={fieldErrors.name} />
+            <FieldError
+              error={fieldErrors.name}
+              id="customer-edit-name-error"
+            />
           </div>
           <div>
-            <label className={labelClass}>{t("fields.email")}</label>
+            <label htmlFor="customer-edit-email" className={labelClass}>
+              {t("fields.email")}
+            </label>
             <input
+              id="customer-edit-email"
               name="email"
               type="email"
               defaultValue={client.email ?? ""}
               className={inputClass}
+              aria-describedby={
+                fieldErrors.email ? "customer-edit-email-error" : undefined
+              }
             />
-            <FieldError error={fieldErrors.email} />
+            <FieldError
+              error={fieldErrors.email}
+              id="customer-edit-email-error"
+            />
           </div>
           <div>
-            <label className={labelClass}>{t("fields.defaultRate")}</label>
+            <label htmlFor="customer-edit-default-rate" className={labelClass}>
+              {t("fields.defaultRate")}
+            </label>
             <input
+              id="customer-edit-default-rate"
               name="default_rate"
               type="number"
               step="0.01"
               min="0"
               defaultValue={client.default_rate ?? ""}
               className={inputClass}
+              aria-describedby={
+                fieldErrors.default_rate
+                  ? "customer-edit-default-rate-error"
+                  : undefined
+              }
             />
-            <FieldError error={fieldErrors.default_rate} />
+            <FieldError
+              error={fieldErrors.default_rate}
+              id="customer-edit-default-rate-error"
+            />
           </div>
         </div>
 

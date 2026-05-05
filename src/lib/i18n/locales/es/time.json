@@ -264,8 +264,20 @@
       "category": "Categoría",
       "project": "Proyecto · Cliente",
       "entryDate": "Fecha",
-      "duration": "Duración"
-    }
+      "duration": "Duración",
+      "actions": "Acciones"
+    },
+    "bulkToolbarAriaLabel": "Acciones masivas de la papelera",
+    "bulkSelectAllAria": "Seleccionar todas las entradas eliminadas",
+    "bulkDeselectAllAria": "Deseleccionar todas las entradas eliminadas",
+    "bulkRowAria": "Seleccionar entrada eliminada: {project}",
+    "bulkSelectHint": "Selecciona filas para restaurar o eliminar definitivamente",
+    "bulkSelectedLabel": "{count} de {total} seleccionadas",
+    "bulkRestore": "{count, plural, one {Restaurar 1} other {Restaurar #}}",
+    "bulkPermanentlyDelete": "{count, plural, one {Eliminar 1 definitivamente} other {Eliminar # definitivamente}}",
+    "bulkPermanentlyDeleteSummary": "{count, plural, one {1 entrada} other {# entradas}}",
+    "bulkRestoredToast": "{count, plural, one {1 entrada restaurada} other {# entradas restauradas}}",
+    "bulkPermanentlyDeletedToast": "{count, plural, one {1 entrada eliminada definitivamente} other {# entradas eliminadas definitivamente}}"
   },
   "trashLink": "{count, plural, one {Papelera (#)} other {Papelera (#)}}",
   "dayView": {

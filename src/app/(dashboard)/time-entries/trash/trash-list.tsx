@@ -1,13 +1,16 @@
 "use client";
 
-import { useTransition } from "react";
+import { useCallback, useEffect, useState, useTransition } from "react";
 import { useTranslations } from "next-intl";
 import { RotateCcw } from "lucide-react";
 import {
+  permanentlyDeleteTimeEntriesAction,
   permanentlyDeleteTimeEntryAction,
+  restoreTimeEntriesAction,
   restoreTimeEntryAction,
 } from "../actions";
 import { InlineDeleteButton } from "@/components/InlineDeleteButton";
+import { InlineDeleteRowConfirm } from "@/components/InlineDeleteRowConfirm";
 import { useToast } from "@/components/Toast";
 import { assertActionResult } from "@/lib/action-result";
 import { tableClass } from "@/lib/table-styles";
@@ -34,6 +37,99 @@ export function TrashList({ entries, formatDuration }: Props): React.JSX.Element
   const t = useTranslations("time.trash");
   const toast = useToast();
   const [pending, startTransition] = useTransition();
+  const [selected, setSelected] = useState<Set<string>>(new Set());
+
+  const selectedCount = selected.size;
+  const allSelected = entries.length > 0 && selectedCount === entries.length;
+  const someSelected = selectedCount > 0 && !allSelected;
+
+  useEffect(() => {
+    if (selectedCount === 0) return;
+    const onKey = (e: KeyboardEvent): void => {
+      if (e.key !== "Escape") return;
+      const target = e.target as HTMLElement | null;
+      const tag = target?.tagName ?? "";
+      if (tag === "INPUT" || tag === "TEXTAREA" || tag === "SELECT") return;
+      setSelected(new Set());
+    };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [selectedCount]);
+
+  const toggleAll = useCallback(() => {
+    setSelected((prev) =>
+      prev.size === entries.length && entries.length > 0
+        ? new Set()
+        : new Set(entries.map((e) => e.id)),
+    );
+  }, [entries]);
+
+  const toggleOne = useCallback((id: string) => {
+    setSelected((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    });
+  }, []);
+
+  const masterRef = useCallback(
+    (node: HTMLInputElement | null) => {
+      if (node) node.indeterminate = someSelected;
+    },
+    [someSelected],
+  );
+  const stripMasterRef = useCallback(
+    (node: HTMLInputElement | null) => {
+      if (node) node.indeterminate = someSelected;
+    },
+    [someSelected],
+  );
+
+  const onBulkRestore = useCallback((): void => {
+    const ids = Array.from(selected);
+    if (ids.length === 0) return;
+    startTransition(async () => {
+      const fd = new FormData();
+      for (const id of ids) fd.append("id", id);
+      try {
+        await restoreTimeEntriesAction(fd);
+        setSelected(new Set());
+        toast.push({
+          kind: "success",
+          message: t("bulkRestoredToast", { count: ids.length }),
+        });
+      } catch (err) {
+        toast.push({
+          kind: "error",
+          message: err instanceof Error ? err.message : t("restoreFailed"),
+        });
+      }
+    });
+  }, [selected, startTransition, toast, t]);
+
+  const onBulkPermanentlyDelete = useCallback((): void => {
+    const ids = Array.from(selected);
+    if (ids.length === 0) return;
+    startTransition(async () => {
+      const fd = new FormData();
+      for (const id of ids) fd.append("id", id);
+      try {
+        await permanentlyDeleteTimeEntriesAction(fd);
+        setSelected(new Set());
+        toast.push({
+          kind: "success",
+          message: t("bulkPermanentlyDeletedToast", { count: ids.length }),
+        });
+      } catch (err) {
+        toast.push({
+          kind: "error",
+          message:
+            err instanceof Error ? err.message : t("permanentlyDeleteFailed"),
+        });
+      }
+    });
+  }, [selected, startTransition, toast, t]);
 
   function restore(id: string): void {
     const fd = new FormData();
@@ -67,31 +163,143 @@ export function TrashList({ entries, formatDuration }: Props): React.JSX.Element
 
   return (
     <div className="rounded-lg border border-edge bg-surface-raised overflow-hidden">
+      <div
+        role="toolbar"
+        aria-label={t("bulkToolbarAriaLabel")}
+        className="flex items-center gap-3 px-4 py-2 bg-surface-inset border-b border-edge"
+      >
+        <input
+          type="checkbox"
+          checked={allSelected}
+          ref={stripMasterRef}
+          onChange={toggleAll}
+          aria-label={
+            allSelected
+              ? t("bulkDeselectAllAria")
+              : t("bulkSelectAllAria")
+          }
+        />
+        {selectedCount > 0 ? (
+          <>
+            <span className="text-caption text-content-secondary">
+              {t("bulkSelectedLabel", {
+                count: selectedCount,
+                total: entries.length,
+              })}
+            </span>
+            <div className="ml-auto flex items-center gap-2">
+              <button
+                type="button"
+                onClick={onBulkRestore}
+                disabled={pending}
+                className="inline-flex items-center gap-1.5 rounded-md border border-accent/40 bg-accent-soft px-3 py-1.5 text-caption font-semibold text-accent hover:bg-accent/10 disabled:opacity-50"
+              >
+                <RotateCcw size={14} />
+                {t("bulkRestore", { count: selectedCount })}
+              </button>
+              <InlineDeleteRowConfirm
+                ariaLabel={t("bulkPermanentlyDelete", {
+                  count: selectedCount,
+                })}
+                onConfirm={onBulkPermanentlyDelete}
+                summary={t("bulkPermanentlyDeleteSummary", {
+                  count: selectedCount,
+                })}
+              />
+            </div>
+          </>
+        ) : (
+          <span className="text-caption text-content-muted">
+            {t("bulkSelectHint")}
+          </span>
+        )}
+      </div>
       <table className={tableClass}>
+        <colgroup>
+          <col style={{ width: "40px" }} />
+          <col />
+          <col />
+          <col />
+          <col />
+          <col style={{ width: "90px" }} />
+          <col style={{ width: "180px" }} />
+        </colgroup>
         <thead>
           <tr className="border-b border-edge bg-surface-inset">
-            <th className="px-4 py-2 text-left text-[10px] font-semibold uppercase tracking-wider text-content-muted">
+            <th
+              scope="col"
+              className="px-4 py-2 text-left text-label font-semibold uppercase tracking-wider text-content-muted"
+            >
+              <input
+                type="checkbox"
+                checked={allSelected}
+                ref={masterRef}
+                onChange={toggleAll}
+                aria-label={
+                  allSelected
+                    ? t("bulkDeselectAllAria")
+                    : t("bulkSelectAllAria")
+                }
+              />
+            </th>
+            <th
+              scope="col"
+              className="px-4 py-2 text-left text-label font-semibold uppercase tracking-wider text-content-muted"
+            >
               {t("columns.deletedAt")}
             </th>
-            <th className="px-4 py-2 text-left text-[10px] font-semibold uppercase tracking-wider text-content-muted">
+            <th
+              scope="col"
+              className="px-4 py-2 text-left text-label font-semibold uppercase tracking-wider text-content-muted"
+            >
               {t("columns.category")}
             </th>
-            <th className="px-4 py-2 text-left text-[10px] font-semibold uppercase tracking-wider text-content-muted">
+            <th
+              scope="col"
+              className="px-4 py-2 text-left text-label font-semibold uppercase tracking-wider text-content-muted"
+            >
               {t("columns.project")}
             </th>
-            <th className="px-4 py-2 text-left text-[10px] font-semibold uppercase tracking-wider text-content-muted">
+            <th
+              scope="col"
+              className="px-4 py-2 text-left text-label font-semibold uppercase tracking-wider text-content-muted"
+            >
               {t("columns.entryDate")}
             </th>
-            <th className="px-4 py-2 text-right text-[10px] font-semibold uppercase tracking-wider text-content-muted">
+            <th
+              scope="col"
+              className="px-4 py-2 text-right text-label font-semibold uppercase tracking-wider text-content-muted"
+            >
               {t("columns.duration")}
             </th>
-            <th className="px-4 py-2" aria-label="actions" />
+            <th scope="col" className="px-4 py-2">
+              <span className="sr-only">{t("columns.actions")}</span>
+            </th>
           </tr>
         </thead>
         <tbody>
-          {entries.map((e) => (
-            <tr key={e.id} className="border-b border-edge last:border-0 hover:bg-hover">
-              <td className="px-4 py-2 text-xs text-content-muted whitespace-nowrap">
+          {entries.map((e) => {
+            const isSelected = selected.has(e.id);
+            return (
+            <tr
+              key={e.id}
+              className={
+                isSelected
+                  ? "border-b border-edge last:border-0 bg-accent-soft/30"
+                  : "border-b border-edge last:border-0 hover:bg-hover"
+              }
+            >
+              <td className="px-4 py-2">
+                <input
+                  type="checkbox"
+                  checked={isSelected}
+                  onChange={() => toggleOne(e.id)}
+                  aria-label={t("bulkRowAria", {
+                    project: e.project_name,
+                  })}
+                />
+              </td>
+              <td className="px-4 py-2 text-caption text-content-muted whitespace-nowrap">
                 {e.deleted_at ? new Date(e.deleted_at).toLocaleString() : "—"}
               </td>
               <td className="px-4 py-2">
@@ -143,7 +351,8 @@ export function TrashList({ entries, formatDuration }: Props): React.JSX.Element
                 </div>
               </td>
             </tr>
-          ))}
+            );
+          })}
         </tbody>
       </table>
     </div>
