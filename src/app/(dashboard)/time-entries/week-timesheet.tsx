@@ -1282,12 +1282,81 @@ function TimesheetRow({
               // same color as the dot collapses the two-channel
               // signal back into one and visually competes with the
               // editable cell's neutral typography.
-              <div
-                className="flex items-center justify-end gap-1.5 w-full py-1 font-mono text-title tabular-nums text-content"
-              >
-                <span className="h-1.5 w-1.5 rounded-full bg-success animate-pulse" />
-                {formatDurationHMZero(min + liveElapsedMin)}
-              </div>
+              //
+              // When the cell aggregates multiple entries, surface
+              // the RUNNING entry's ticket key + count below the
+              // duration so the user can tell which entry the live
+              // tick belongs to. Without this, a cell summing
+              // AE-640 (1:19, completed) + AE-641 (running) read as
+              // a single "1:27" with no clue which ticket owned the
+              // tick — pressing Stop and Start again would resume
+              // the most-recent completed entry, which is rarely
+              // what the user expects.
+              (() => {
+                const cellEntries = row.entriesByDay[i] ?? [];
+                const runningEntry =
+                  cellEntries.find((e) => e.end_time === null) ?? null;
+                const cellCount = cellEntries.length;
+                const runningKey = runningEntry?.linked_ticket_key ?? null;
+                const runningDesc = runningEntry?.description ?? null;
+                return (
+                  <div className="flex flex-col items-end gap-0.5 w-full py-1">
+                    <div className="flex items-center justify-end gap-1 w-full">
+                      {cellCount > 0 && (
+                        <Tooltip
+                          label={
+                            expandedDayIndex === i
+                              ? tCell("collapseTooltip")
+                              : tCell("expandTooltip")
+                          }
+                        >
+                          <button
+                            type="button"
+                            onClick={() =>
+                              setExpandedDayIndex((cur) =>
+                                cur === i ? null : i,
+                              )
+                            }
+                            aria-expanded={expandedDayIndex === i}
+                            aria-controls={`cell-expansion-${rowIndex}-${i}`}
+                            aria-label={tCell("expandAria", {
+                              count: cellCount,
+                              date: cellWeekdayLong,
+                            })}
+                            className="inline-flex items-center gap-0.5 rounded p-0.5 text-content-muted hover:bg-hover hover:text-accent transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent"
+                          >
+                            <ChevronDown
+                              size={12}
+                              className={`transition-transform ${
+                                expandedDayIndex === i ? "rotate-180" : ""
+                              }`}
+                            />
+                            {cellCount > 1 && (
+                              <span className="text-caption font-mono tabular-nums">
+                                {cellCount}
+                              </span>
+                            )}
+                          </button>
+                        </Tooltip>
+                      )}
+                      <span
+                        className="h-1.5 w-1.5 rounded-full bg-success animate-pulse"
+                        aria-hidden="true"
+                      />
+                      <span className="font-mono text-title tabular-nums text-content">
+                        {formatDurationHMZero(min + liveElapsedMin)}
+                      </span>
+                    </div>
+                    {runningKey && (
+                      <Tooltip label={runningDesc ?? runningKey}>
+                        <span className="font-mono text-caption text-success-text truncate max-w-full">
+                          {runningKey}
+                        </span>
+                      </Tooltip>
+                    )}
+                  </div>
+                );
+              })()
             ) : row.invoicedByDay[i] ? (
               // Locked cell — entry is invoiced and the DB trigger
               // refuses UPDATE/DELETE. Render as static read-only

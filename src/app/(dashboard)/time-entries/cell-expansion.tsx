@@ -171,6 +171,10 @@ function CellEntryRow({
   // expansion can't unlock them, so we render a read-only summary
   // and link out to the invoice. Mirrors the inline-edit-form gate.
   const locked = entry.invoiced && entry.invoice_id != null;
+  // Running entries (no end_time) get a "Running" badge so the user
+  // can identify which entry the live tick belongs to when there
+  // are several entries in the same (project, category, day) cell.
+  const running = entry.end_time === null;
 
   const update = useFormAction({ action: updateTimeEntryAction });
   const del = useFormAction({ action: deleteTimeEntryAction });
@@ -206,11 +210,27 @@ function CellEntryRow({
   return (
     <form
       action={update.handleSubmit}
-      className="rounded-md border border-edge bg-surface p-3 space-y-2"
+      className={`rounded-md p-3 space-y-2 ${
+        running
+          ? "border-2 border-success/40 bg-success-soft/30"
+          : "border border-edge bg-surface"
+      }`}
     >
       <input type="hidden" name="id" value={entry.id} />
       {tzOffsetMin !== undefined && (
         <input type="hidden" name="tz_offset_min" value={String(tzOffsetMin)} />
+      )}
+      {running && (
+        // Redundant-encoding (icon + text + color) running indicator
+        // so AT users + non-color users can tell which entry is the
+        // live one. Pairs with the green border/background above.
+        <div className="flex items-center gap-1.5 text-caption font-semibold uppercase text-success">
+          <span
+            className="h-1.5 w-1.5 rounded-full bg-success animate-pulse"
+            aria-hidden="true"
+          />
+          {t("runningBadge")}
+        </div>
       )}
       {/* The cell expansion never edits start_time / end_time /
           duration — those are owned by the parent cell's aggregate

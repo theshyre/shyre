@@ -23,7 +23,8 @@
     },
     "expandTooltip": "Show entries on this day",
     "expandAria": "Show {count, plural, one {# entry} other {# entries}} on {date}",
-    "collapseTooltip": "Hide entries"
+    "collapseTooltip": "Hide entries",
+    "runningBadge": "Running"
   },
   "ticket": {
     "open": "Open ticket",

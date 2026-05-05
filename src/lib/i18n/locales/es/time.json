@@ -23,7 +23,8 @@
     },
     "expandTooltip": "Mostrar entradas de este día",
     "expandAria": "Mostrar {count, plural, one {# entrada} other {# entradas}} el {date}",
-    "collapseTooltip": "Ocultar entradas"
+    "collapseTooltip": "Ocultar entradas",
+    "runningBadge": "En ejecución"
   },
   "ticket": {
     "open": "Abrir ticket",
