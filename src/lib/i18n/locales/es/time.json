@@ -32,6 +32,8 @@
     "editEntry": "Editar entrada",
     "collapseEdit": "Cerrar editor",
     "deleteEntry": "Eliminar entrada",
+    "startEntry": "Reanudar cronómetro en {entry}",
+    "stopEntry": "Detener cronómetro en {entry}",
     "addEntry": "Añadir entrada",
     "addEntryHeader": "Nueva entrada",
     "addEntryNoProject": "Esta fila no tiene proyecto — selecciona uno para añadir una entrada.",

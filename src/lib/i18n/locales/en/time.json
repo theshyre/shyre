@@ -32,6 +32,8 @@
     "editEntry": "Edit entry",
     "collapseEdit": "Close editor",
     "deleteEntry": "Delete entry",
+    "startEntry": "Resume timer on {entry}",
+    "stopEntry": "Stop timer on {entry}",
     "addEntry": "Add entry",
     "addEntryHeader": "New entry",
     "addEntryNoProject": "This row has no project — pick a project to add an entry.",

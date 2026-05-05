@@ -375,6 +375,23 @@ export async function startTimerAction(formData: FormData): Promise<void> {
     // got their original entry hijacked. The row-Play and timer-chip
     // entry points still want resume behaviour and don't set this.
     const forceNew = formData.get("force_new") === "1";
+    // Per-entry resume — when set, the action targets THIS specific
+    // entry instead of doing the same-day-same-bucket auto-resume
+    // lookup. Used by the per-entry Play button on the week
+    // timesheet's sub-rows: "I want THAT entry to be the running
+    // timer", not "the most-recently-completed entry on this
+    // (project, category) row." Behaviour:
+    //   - if the entry is on today's local day → backdate start_time
+    //     by its accumulated duration on the same row
+    //   - if the entry is on a different day → insert a NEW entry
+    //     copying description + category + billable + linked_ticket_*
+    //     (timing always lives on today; you can't track time
+    //     retroactively via a timer)
+    const resumeEntryIdRaw = formData.get("resume_entry_id");
+    const resumeEntryId =
+      typeof resumeEntryIdRaw === "string" && resumeEntryIdRaw.length > 0
+        ? resumeEntryIdRaw
+        : null;
     // Viewer's local-day bounds — used to decide whether an existing
     // completed entry on (user, project, category) should be resumed
     // instead of creating a new one. When omitted, falls back to
@@ -382,7 +399,119 @@ export async function startTimerAction(formData: FormData): Promise<void> {
     const dayStartIso = formData.get("day_start_iso") as string | null;
     const dayEndIso = formData.get("day_end_iso") as string | null;
 
-    if (!project_id) throw new Error("project_id is required");
+    if (!project_id && !resumeEntryId) {
+      throw new Error("project_id is required");
+    }
+
+    // Per-entry resume path — invoked from the per-entry Play button
+    // on the week timesheet's sub-rows. Targets the specific source
+    // entry instead of the same-(project, category, today) lookup.
+    if (resumeEntryId) {
+      const { data: source, error: srcErr } = await supabase
+        .from("time_entries")
+        .select(
+          "user_id, team_id, project_id, category_id, description, billable, duration_min, start_time, linked_ticket_provider, linked_ticket_key, linked_ticket_url, linked_ticket_title, linked_ticket_refreshed_at, projects(is_internal)",
+        )
+        .eq("id", resumeEntryId)
+        .is("deleted_at", null)
+        .maybeSingle();
+      if (srcErr || !source) {
+        throw new Error("Entry not found or not accessible");
+      }
+      const sourceTeamId = source.team_id as string;
+      const { userId: resumeUserId } = await validateTeamAccess(sourceTeamId);
+      // Defense in depth — the same RLS policy enforces this, but
+      // a friendly userMessage beats a "permission denied" surface.
+      if ((source.user_id as string) !== resumeUserId) {
+        throw new Error("Only the entry's author can resume it.");
+      }
+
+      const nowDate = new Date();
+      const now = nowDate.toISOString();
+
+      // Stop any running timer the user already has before resuming.
+      assertSupabaseOk(
+        await supabase
+          .from("time_entries")
+          .update({ end_time: now })
+          .eq("user_id", resumeUserId)
+          .is("end_time", null)
+          .is("deleted_at", null),
+      );
+
+      // Compute today's bounds (caller-supplied where possible —
+      // their tz is more accurate than the server's UTC day).
+      const dayStartLocal =
+        dayStartIso ??
+        (() => {
+          const d = new Date(nowDate);
+          d.setUTCHours(0, 0, 0, 0);
+          return d.toISOString();
+        })();
+      const dayEndLocal =
+        dayEndIso ??
+        (() => {
+          const d = new Date(nowDate);
+          d.setUTCHours(0, 0, 0, 0);
+          d.setUTCDate(d.getUTCDate() + 1);
+          return d.toISOString();
+        })();
+      const sourceStart = source.start_time as string;
+      const isOnToday =
+        sourceStart >= dayStartLocal && sourceStart < dayEndLocal;
+
+      if (isOnToday) {
+        // Resume in place — backdate start_time so the running
+        // timer ticks forward from where it left off, and clear
+        // end_time so the row is "running" again.
+        const accumulatedMin = (source.duration_min as number | null) ?? 0;
+        const backdated = new Date(
+          nowDate.getTime() - accumulatedMin * 60_000,
+        ).toISOString();
+        assertSupabaseOk(
+          await supabase
+            .from("time_entries")
+            .update({ start_time: backdated, end_time: null })
+            .eq("id", resumeEntryId)
+            .eq("user_id", resumeUserId),
+        );
+      } else {
+        // Source entry is on a different day — timing always lives
+        // on today, so insert a NEW entry copying the source's
+        // identifying fields (project, category, description, ticket
+        // attachment, billable subject to internal-project pin).
+        const sourceProject = source.projects as
+          | { is_internal?: boolean }
+          | { is_internal?: boolean }[]
+          | null;
+        const sourceProjArr = Array.isArray(sourceProject)
+          ? sourceProject[0] ?? null
+          : sourceProject;
+        const sourceProjectIsInternal = sourceProjArr?.is_internal === true;
+        assertSupabaseOk(
+          await supabase.from("time_entries").insert({
+            team_id: sourceTeamId,
+            user_id: resumeUserId,
+            project_id: source.project_id,
+            category_id: source.category_id,
+            description: source.description,
+            billable: sourceProjectIsInternal
+              ? false
+              : (source.billable as boolean),
+            start_time: now,
+            end_time: null,
+            linked_ticket_provider: source.linked_ticket_provider,
+            linked_ticket_key: source.linked_ticket_key,
+            linked_ticket_url: source.linked_ticket_url,
+            linked_ticket_title: source.linked_ticket_title,
+            linked_ticket_refreshed_at: source.linked_ticket_refreshed_at,
+          }),
+        );
+      }
+
+      revalidatePath("/time-entries");
+      return;
+    }
 
     // Derive team_id from the project — NEVER trust the form's team_id
     // field. When a user clicks a "recent project" chip the Team dropdown

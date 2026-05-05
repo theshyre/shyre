@@ -2,16 +2,20 @@ import { describe, it, expect, vi, beforeEach } from "vitest";
 import { screen, fireEvent } from "@testing-library/react";
 import { renderWithIntl } from "@/test/intl";
 
-const { updateMock, createMock, deleteMock } = vi.hoisted(() => ({
+const { updateMock, createMock, deleteMock, startMock, stopMock } = vi.hoisted(() => ({
   updateMock: vi.fn(async () => undefined),
   createMock: vi.fn(async () => undefined),
   deleteMock: vi.fn(async () => undefined),
+  startMock: vi.fn(async () => undefined),
+  stopMock: vi.fn(async () => undefined),
 }));
 
 vi.mock("./actions", () => ({
   updateTimeEntryAction: updateMock,
   createTimeEntryAction: createMock,
   deleteTimeEntryAction: deleteMock,
+  startTimerAction: startMock,
+  stopTimerAction: stopMock,
 }));
 
 vi.mock("@/components/TicketField", () => ({
@@ -183,6 +187,51 @@ describe("EntrySummaryRow", () => {
     );
     fireEvent.click(screen.getByRole("button", { name: /edit entry/i }));
     expect(onEditToggle).toHaveBeenCalled();
+  });
+
+  it("Play button calls startTimerAction with the entry's id", async () => {
+    startMock.mockClear();
+    renderWithIntl(
+      wrapInTable(
+        <EntrySummaryRow
+          entry={makeEntry("e1", { linked_ticket_key: "AE-640" })}
+          dayIndex={1}
+          editing={false}
+          onEditToggle={() => {}}
+          dayDateLong="Tuesday, May 5"
+          isRunning={false}
+          liveElapsedMin={0}
+        />,
+      ),
+    );
+    fireEvent.click(screen.getByRole("button", { name: /resume timer/i }));
+    // Let the void async wrapper around handleSubmit settle.
+    await new Promise((r) => setTimeout(r, 0));
+    expect(startMock).toHaveBeenCalled();
+    const fd = (startMock.mock.calls as unknown as Array<[FormData]>)[0]?.[0];
+    expect(fd?.get("resume_entry_id")).toBe("e1");
+  });
+
+  it("running entries show Stop instead of Play", () => {
+    renderWithIntl(
+      wrapInTable(
+        <EntrySummaryRow
+          entry={makeEntry("e1", { end_time: null })}
+          dayIndex={1}
+          editing={false}
+          onEditToggle={() => {}}
+          dayDateLong="Tuesday, May 5"
+          isRunning
+          liveElapsedMin={0}
+        />,
+      ),
+    );
+    expect(
+      screen.getByRole("button", { name: /stop timer/i }),
+    ).toBeInTheDocument();
+    expect(
+      screen.queryByRole("button", { name: /resume timer/i }),
+    ).not.toBeInTheDocument();
   });
 
   it("renders a lock affordance for invoiced entries instead of edit/delete", () => {

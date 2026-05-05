@@ -31,7 +31,9 @@
 import { useEffect, useRef } from "react";
 import { useTranslations } from "next-intl";
 import {
+  Play,
   Plus,
+  Square,
   Trash2,
   Pencil,
   Save,
@@ -52,9 +54,13 @@ import {
   labelClass,
 } from "@/lib/form-styles";
 import { formatDurationHMZero } from "@/lib/time/week";
+import { localDayBoundsIso } from "@/lib/local-day-bounds";
+import { notifyTimerChanged } from "@/lib/timer-events";
 import {
   createTimeEntryAction,
   deleteTimeEntryAction,
+  startTimerAction,
+  stopTimerAction,
   updateTimeEntryAction,
 } from "./actions";
 import { DurationInput } from "./duration-input";
@@ -96,6 +102,8 @@ export function EntrySummaryRow({
   const t = useTranslations("time.entryRow");
   const tLock = useTranslations("time.lock");
   const del = useFormAction({ action: deleteTimeEntryAction });
+  const start = useFormAction({ action: startTimerAction });
+  const stop = useFormAction({ action: stopTimerAction });
 
   const locked = entry.invoiced && entry.invoice_id != null;
   const ticketKey = entry.linked_ticket_key;
@@ -106,6 +114,35 @@ export function EntrySummaryRow({
       ? (entry.duration_min ?? 0) + liveElapsedMin
       : entry.duration_min ?? 0,
   );
+
+  // Identifying label for the entry — used in tooltip + aria-label
+  // on the per-entry play / stop button so screen-reader users hear
+  // which entry the action targets.
+  const entryLabel =
+    ticketKey && description
+      ? `${ticketKey} ${description}`
+      : ticketKey ?? description ?? t("untitled");
+
+  const handleStart = (): void => {
+    const fd = new FormData();
+    fd.set("resume_entry_id", entry.id);
+    const [dayStart, dayEnd] = localDayBoundsIso();
+    fd.set("day_start_iso", dayStart);
+    fd.set("day_end_iso", dayEnd);
+    void (async () => {
+      await start.handleSubmit(fd);
+      notifyTimerChanged();
+    })();
+  };
+
+  const handleStop = (): void => {
+    const fd = new FormData();
+    fd.set("id", entry.id);
+    void (async () => {
+      await stop.handleSubmit(fd);
+      notifyTimerChanged();
+    })();
+  };
 
   return (
     <tr
@@ -210,6 +247,39 @@ export function EntrySummaryRow({
             </Tooltip>
           ) : (
             <>
+              {/* Per-entry Play / Stop. Targets THIS specific entry
+                  (resume_entry_id) instead of the row-level Play
+                  which picks the most-recently-completed entry on
+                  (project, category) for today. Running entries
+                  show a red Stop button; completed entries show a
+                  ghost Play button — clicking on a completed entry
+                  resumes it (backdates start_time when it's on
+                  today; clones forward to today otherwise). */}
+              {isRunning ? (
+                <Tooltip label={t("stopEntry", { entry: entryLabel })}>
+                  <button
+                    type="button"
+                    onClick={handleStop}
+                    disabled={stop.pending}
+                    aria-label={t("stopEntry", { entry: entryLabel })}
+                    className="rounded p-1 text-error-text hover:bg-error-soft transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-error disabled:opacity-50"
+                  >
+                    <Square size={14} className="fill-current" />
+                  </button>
+                </Tooltip>
+              ) : (
+                <Tooltip label={t("startEntry", { entry: entryLabel })}>
+                  <button
+                    type="button"
+                    onClick={handleStart}
+                    disabled={start.pending}
+                    aria-label={t("startEntry", { entry: entryLabel })}
+                    className="rounded p-1 text-content-muted hover:bg-hover hover:text-accent transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent disabled:opacity-50"
+                  >
+                    <Play size={14} />
+                  </button>
+                </Tooltip>
+              )}
               <Tooltip
                 label={editing ? t("collapseEdit") : t("editEntry")}
               >
