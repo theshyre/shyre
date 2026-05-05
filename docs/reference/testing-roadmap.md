@@ -1,16 +1,23 @@
 # Testing roadmap
 
-## Current state (as of 2026-04-16)
+## Current state (as of 2026-05-04)
 
 ```
-Coverage:  29.27% statements · 21.07% branches · 31.01% functions · 29.15% lines
+Coverage:  ~36.6% statements · ~30% branches · ~34.5% functions · ~36.5% lines
 Target:    90% across the board (CLAUDE.md mandate)
 Gate:      CI runs `npm run test:coverage` with a ratcheted floor
            (see vitest.config.ts thresholds). PRs that drop below
            the floor fail CI. Every PR that raises coverage must
-           also raise the floor — this is how we get from 29% to 90%
+           also raise the floor — this is how we get from 36% to 90%
            without a week-long push.
 ```
+
+**Recent progress (2026-05-04):** items 2, 3, 4 of the priority list
+landed in one push — `customers/actions.ts`, `customers/[id]/sharing-actions.ts`,
+and `customers/[id]/permissions-actions.ts`. 55 new tests across the
+three files. The customers surface — shared resource, cross-team
+grants, principal permission grants — is now defended against
+mutation regressions.
 
 ## Why this exists
 
@@ -25,9 +32,9 @@ Server actions are the highest-risk untested surface because they write to the D
 | # | File | ~Lines | Risk | Why |
 |---|---|---|---|---|
 | 1 | ~~`invoices/actions.ts`~~ | 173 | ✅ **DONE** (`f42d2cf`) | Money-touching |
-| 2 | `customers/actions.ts` | 150 | HIGH | Shared resource, team-scoped CRUD, archive |
-| 3 | `customers/[id]/sharing-actions.ts` | 73 | HIGH | Cross-team grants — any bug here is a data leak |
-| 4 | `customers/[id]/permissions-actions.ts` | 75 | HIGH | Role + permission mutation |
+| 2 | ~~`customers/actions.ts`~~ | 143 | ✅ **DONE** (2026-05-04) | Shared resource, team-scoped CRUD, archive |
+| 3 | ~~`customers/[id]/sharing-actions.ts`~~ | 73 | ✅ **DONE** (2026-05-04) | Cross-team grants — any bug here is a data leak |
+| 4 | ~~`customers/[id]/permissions-actions.ts`~~ | 75 | ✅ **DONE** (2026-05-04) | Role + permission mutation |
 | 5 | `teams/[id]/team-actions.ts` | ~100 | HIGH | Team destructive ops + cascades |
 | 6 | `security-groups/actions.ts` | ? | HIGH | ACL group membership |
 | 7 | `admin/sample-data/actions.ts` | ~200 | HIGH | Bulk system mutation (seed/wipe) |
