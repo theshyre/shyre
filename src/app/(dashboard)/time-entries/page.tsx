@@ -23,6 +23,7 @@ import { selfScopedFloor } from "@/lib/time/membership";
 import { TimeHome } from "./time-home";
 import { NoTeamEmptyState } from "./no-team-empty-state";
 import type { TimeView } from "./view-toggle";
+import type { CategoryOption, TimeEntry } from "./types";
 
 // Supabase returns `projects(..., customers(...))` with `customers` as a
 // 1-element array even though it's a single FK row. Unwrap so downstream
@@ -223,165 +224,268 @@ export default async function TimeEntriesPage({
     dayStartUtc,
   );
 
-  // Week entries — used by both views (week grid + day view's daily-total strip)
-  let weekQuery = supabase
-    .from("time_entries")
-    .select(
-      "*, projects(id, name, github_repo, category_set_id, require_timestamps, customers(id, name)), invoices(invoice_number)",
-    )
-    .is("deleted_at", null)
-    .gte("start_time", weekFloorUtc.toISOString())
-    .lt("start_time", weekEndUtc.toISOString())
-    .order("start_time", { ascending: true });
-  if (selectedTeamId) weekQuery = weekQuery.eq("team_id", selectedTeamId);
-  if (billableOnly) weekQuery = weekQuery.eq("billable", true);
-  if (memberFilter !== null) {
-    if (memberFilter.length === 0) {
-      // "none" — return no rows by filtering on an impossible user_id.
-      weekQuery = weekQuery.eq("user_id", "00000000-0000-0000-0000-000000000000");
-    } else {
-      weekQuery = weekQuery.in("user_id", memberFilter);
-    }
-  }
-  const { data: rawWeekEntries } = await weekQuery;
-  const weekEntries = await attachAuthors(
-    supabase,
-    (rawWeekEntries ?? []).map(normalizeEntry),
-  );
+  // ────────────────────────────────────────────────────────────
+  // Phase 1 — fire every independent query in parallel.
+  //
+  // Pre-2026-05-04 this section was 13+ serial awaits that
+  // accumulated ~1.4s of round-trip latency on the free Supabase
+  // tier (each round-trip ~50-200ms on shared compute). Restructure
+  // into one Promise.all so the wall-clock time is the slowest
+  // single query, not the sum.
+  //
+  // View-aware gates: dayEntries only fetches when view===day;
+  // weekEntries skips when view===log; logEntries was already
+  // gated. Saves one full round-trip on Week + Log loads.
+  // ────────────────────────────────────────────────────────────
 
-  // Day entries — used by day view's entry list
-  let dayQuery = supabase
-    .from("time_entries")
-    .select(
-      "*, projects(id, name, github_repo, category_set_id, require_timestamps, customers(id, name)), invoices(invoice_number)",
-    )
-    .is("deleted_at", null)
-    .gte("start_time", dayFloorUtc.toISOString())
-    .lt("start_time", dayEndUtc.toISOString())
-    .order("start_time", { ascending: true });
-  if (selectedTeamId) dayQuery = dayQuery.eq("team_id", selectedTeamId);
-  if (billableOnly) dayQuery = dayQuery.eq("billable", true);
-  if (memberFilter !== null) {
-    if (memberFilter.length === 0) {
-      dayQuery = dayQuery.eq("user_id", "00000000-0000-0000-0000-000000000000");
-    } else {
-      dayQuery = dayQuery.in("user_id", memberFilter);
-    }
-  }
-  const { data: rawDayEntries } = await dayQuery;
-  const dayEntries = await attachAuthors(
-    supabase,
-    (rawDayEntries ?? []).map(normalizeEntry),
-  );
-
-  // Log entries — fetched only when the Log view is active so day /
-  // week views don't pay for a 14-day scan they won't render. The
-  // window is bounded at LOG_MAX_WINDOW_DAYS days (clamped above) so
-  // a `?windowDays=999` doesn't unleash a full-history scan.
-  // Cursor pagination would be Phase 2; for the preview the bounded
-  // range is enough.
+  // Log range — same math as before, hoisted up so the gated
+  // logQuery can reference it inside Phase 1.
   const logWindowDays = parseWindowDays(sp.windowDays);
   const logRangeStart =
-    view === "log"
-      ? addLocalDays(anchor, -(logWindowDays - 1))
-      : null;
+    view === "log" ? addLocalDays(anchor, -(logWindowDays - 1)) : null;
   const logStartUtc = logRangeStart
     ? localDateMidnightUtc(logRangeStart, tzOffsetMin)
     : null;
   const logEndUtc = logRangeStart
     ? localDateMidnightUtc(addLocalDays(anchor, 1), tzOffsetMin)
     : null;
-  const logFloorUtc =
+  // self-scoped floor for log range. Same selfScopedFloor shape
+  // the other two views use; gated identically.
+  const logFloorUtcPromise =
     view === "log" && logStartUtc
-      ? await selfScopedFloor(
+      ? selfScopedFloor(
           supabase,
           callerId,
           selectedTeamId ?? null,
           memberFilter,
           logStartUtc,
         )
-      : null;
-  // Type comes from `attachAuthors` inferring against the Supabase
-  // select shape; matches dayEntries / weekEntries above.
-  let logEntries: typeof dayEntries = [];
-  if (view === "log" && logFloorUtc && logEndUtc) {
-    let logQuery = supabase
-      .from("time_entries")
-      .select(
-        "*, projects(id, name, github_repo, category_set_id, require_timestamps, customers(id, name)), invoices(invoice_number)",
-      )
-      .is("deleted_at", null)
-      .gte("start_time", logFloorUtc.toISOString())
-      .lt("start_time", logEndUtc.toISOString())
-      .order("start_time", { ascending: true });
-    if (selectedTeamId) logQuery = logQuery.eq("team_id", selectedTeamId);
-    if (billableOnly) logQuery = logQuery.eq("billable", true);
-    if (memberFilter !== null) {
-      if (memberFilter.length === 0) {
-        logQuery = logQuery.eq(
-          "user_id",
-          "00000000-0000-0000-0000-000000000000",
-        );
-      } else {
-        logQuery = logQuery.in("user_id", memberFilter);
-      }
+      : Promise.resolve(null);
+
+  function applyMemberFilter<T extends { in: (col: string, vals: string[]) => T; eq: (col: string, val: string) => T }>(
+    query: T,
+  ): T {
+    if (memberFilter === null) return query;
+    if (memberFilter.length === 0) {
+      // "none" — return no rows by filtering on an impossible user_id.
+      return query.eq("user_id", "00000000-0000-0000-0000-000000000000");
     }
-    const { data: rawLogEntries } = await logQuery;
-    logEntries = await attachAuthors(
-      supabase,
-      (rawLogEntries ?? []).map(normalizeEntry),
-    );
+    return query.in("user_id", memberFilter);
   }
 
-  // Running timer
-  let runningQuery = supabase
-    .from("time_entries")
-    .select(
-      "*, projects(id, name, github_repo, category_set_id, require_timestamps, customers(id, name)), invoices(invoice_number)",
-    )
-    .is("end_time", null)
-    .is("deleted_at", null)
-    .order("start_time", { ascending: false })
-    .limit(1);
-  if (selectedTeamId) runningQuery = runningQuery.eq("team_id", selectedTeamId);
-  const { data: runningEntries } = await runningQuery;
-  const runningAttached = runningEntries?.[0]
-    ? (
-        await attachAuthors(supabase, [normalizeEntry(runningEntries[0])])
-      )[0] ?? null
-    : null;
-  const running = runningAttached;
+  const recentSinceIso = new Date(
+    new Date().getTime() - 30 * 24 * 3600 * 1000,
+  ).toISOString();
 
-  // Active projects — scoped to teams the user is an actual member of.
-  // RLS would also let through customer-shared projects from other teams,
-  // but our "you can only log time to teams you're a member of" rule means
-  // those projects can't be targets of a new entry. Hide them here so
-  // Recent-projects chips and the Start form never show a project that
-  // would be rejected on submit.
-  let projectsQuery = supabase
-    .from("projects")
-    .select(
-      "id, name, github_repo, team_id, category_set_id, require_timestamps, customers(id, name)",
-    )
-    .eq("status", "active")
-    .in("team_id", userTeamIds)
-    .order("name");
-  if (selectedTeamId) projectsQuery = projectsQuery.eq("team_id", selectedTeamId);
-  const { data: rawProjects } = await projectsQuery;
+  const ENTRY_SELECT =
+    "*, projects(id, name, github_repo, category_set_id, require_timestamps, customers(id, name)), invoices(invoice_number)";
+
+  // Build week query — fetched on Day (for the weekly-totals strip) and
+  // Week (for the grid). Skipped on Log to avoid a 7-day scan that view
+  // doesn't render.
+  const weekPromise = (() => {
+    if (view === "log") return Promise.resolve({ data: [] });
+    let q = supabase
+      .from("time_entries")
+      .select(ENTRY_SELECT)
+      .is("deleted_at", null)
+      .gte("start_time", weekFloorUtc.toISOString())
+      .lt("start_time", weekEndUtc.toISOString())
+      .order("start_time", { ascending: true });
+    if (selectedTeamId) q = q.eq("team_id", selectedTeamId);
+    if (billableOnly) q = q.eq("billable", true);
+    return applyMemberFilter(q);
+  })();
+
+  // Day query — only the Day view consumes the result. Week and Log
+  // both skip; their masthead totals come from weekEntries / logEntries.
+  const dayPromise = (() => {
+    if (view !== "day") return Promise.resolve({ data: [] });
+    let q = supabase
+      .from("time_entries")
+      .select(ENTRY_SELECT)
+      .is("deleted_at", null)
+      .gte("start_time", dayFloorUtc.toISOString())
+      .lt("start_time", dayEndUtc.toISOString())
+      .order("start_time", { ascending: true });
+    if (selectedTeamId) q = q.eq("team_id", selectedTeamId);
+    if (billableOnly) q = q.eq("billable", true);
+    return applyMemberFilter(q);
+  })();
+
+  // Active projects — fetched always; new-entry form + Recent chips
+  // need them on every view.
+  const projectsPromise = (() => {
+    let q = supabase
+      .from("projects")
+      .select(
+        "id, name, github_repo, team_id, category_set_id, require_timestamps, customers(id, name)",
+      )
+      .eq("status", "active")
+      .in("team_id", userTeamIds)
+      .order("name");
+    if (selectedTeamId) q = q.eq("team_id", selectedTeamId);
+    return q;
+  })();
+
+  // Recent projects — last 30 days of project_ids; doesn't depend on
+  // the projects fetch (we resolve project IDs against the project
+  // list afterwards, not via PostgREST embedding).
+  const recentPromise = (() => {
+    let q = supabase
+      .from("time_entries")
+      .select("project_id, start_time")
+      .is("deleted_at", null)
+      .gte("start_time", recentSinceIso)
+      .order("start_time", { ascending: false })
+      .limit(50);
+    if (selectedTeamId) q = q.eq("team_id", selectedTeamId);
+    return q;
+  })();
+
+  // Running timer.
+  const runningPromise = (() => {
+    let q = supabase
+      .from("time_entries")
+      .select(ENTRY_SELECT)
+      .is("end_time", null)
+      .is("deleted_at", null)
+      .order("start_time", { ascending: false })
+      .limit(1);
+    if (selectedTeamId) q = q.eq("team_id", selectedTeamId);
+    return q;
+  })();
+
+  // Member list (memberships + the subsequent profile lookup) — phase 1
+  // gets memberships; phase 2 fetches profiles. Always needed; the
+  // member filter dropdown shows on every view.
+  const memberTeamIds = selectedTeamId ? [selectedTeamId] : userTeamIds;
+  const memberRowsPromise =
+    memberTeamIds.length > 0
+      ? supabase
+          .from("team_members")
+          .select("user_id, role, joined_at")
+          .in("team_id", memberTeamIds)
+          .order("joined_at", { ascending: true })
+      : Promise.resolve({ data: [] as Array<{ user_id: string; role: string; joined_at: string }> });
+
+  // Trash count.
+  const trashPromise = (() => {
+    let q = supabase
+      .from("time_entries")
+      .select("id", { count: "exact", head: true })
+      .not("deleted_at", "is", null);
+    if (selectedTeamId) q = q.eq("team_id", selectedTeamId);
+    return q;
+  })();
+
+  // Period locks.
+  const lockTeamIds = selectedTeamId ? [selectedTeamId] : userTeamIds;
+  const lockRowsPromise =
+    lockTeamIds.length > 0
+      ? supabase
+          .from("team_period_locks")
+          .select("team_id, period_end")
+          .in("team_id", lockTeamIds)
+      : Promise.resolve({ data: [] as Array<{ team_id: string; period_end: string }> });
+
+  const templatesPromise = getMyTemplates(selectedTeamId);
+
+  const [
+    { data: rawWeekEntries },
+    { data: rawDayEntries },
+    { data: rawProjects },
+    { data: recentRows },
+    { data: runningEntries },
+    { data: memberRows },
+    { count: trashCount },
+    { data: lockRows },
+    allTemplates,
+    logFloorUtc,
+  ] = await Promise.all([
+    weekPromise,
+    dayPromise,
+    projectsPromise,
+    recentPromise,
+    runningPromise,
+    memberRowsPromise,
+    trashPromise,
+    lockRowsPromise,
+    templatesPromise,
+    logFloorUtcPromise,
+  ]);
+
+  // ────────────────────────────────────────────────────────────
+  // Phase 2 — dependent reads run in parallel with each other.
+  // ────────────────────────────────────────────────────────────
+
   const projectsRaw = (rawProjects ?? []).map((p) => ({
     ...p,
-    customers: Array.isArray(p.customers) ? (p.customers[0] ?? null) : (p.customers ?? null),
+    customers: Array.isArray(p.customers)
+      ? (p.customers[0] ?? null)
+      : (p.customers ?? null),
   }));
-
-  // Project-scoped extension category sets, if any. A project's picker
-  // shows categories from its base set UNION its extension set.
   const projectIds = projectsRaw.map((p) => p.id);
-  const { data: extensionSets } = projectIds.length
-    ? await supabase
+  const memberUserIds = Array.from(
+    new Set((memberRows ?? []).map((m) => m.user_id as string)),
+  );
+
+  // Log query depends on logFloorUtc resolved in phase 1. Goes in
+  // phase 2 (its own minimal phase) so we don't block the bigger
+  // phase-1 reads on the floor lookup. The type annotation is
+  // wrapped in `Promise.resolve(...)` for the not-on-log path so
+  // both branches resolve to the same `{ data }` shape.
+  const logEntriesPromise =
+    view === "log" && logFloorUtc && logEndUtc
+      ? (() => {
+          let q = supabase
+            .from("time_entries")
+            .select(ENTRY_SELECT)
+            .is("deleted_at", null)
+            .gte("start_time", logFloorUtc.toISOString())
+            .lt("start_time", logEndUtc.toISOString())
+            .order("start_time", { ascending: true });
+          if (selectedTeamId) q = q.eq("team_id", selectedTeamId);
+          if (billableOnly) q = q.eq("billable", true);
+          return applyMemberFilter(q);
+        })()
+      : Promise.resolve({ data: null });
+
+  const extensionSetsPromise = projectIds.length
+    ? supabase
         .from("category_sets")
         .select("id, project_id")
         .in("project_id", projectIds)
-    : { data: [] };
+    : Promise.resolve({
+        data: [] as Array<{ id: string; project_id: string }>,
+      });
+
+  const memberProfilesPromise =
+    memberUserIds.length > 0
+      ? supabase
+          .from("user_profiles")
+          .select("user_id, display_name, avatar_url")
+          .in("user_id", memberUserIds)
+      : Promise.resolve({
+          data: [] as Array<{
+            user_id: string;
+            display_name: string | null;
+            avatar_url: string | null;
+          }>,
+        });
+
+  const [
+    { data: rawLogEntries },
+    { data: extensionSets },
+    { data: memberProfilesRaw },
+  ] = await Promise.all([
+    logEntriesPromise,
+    extensionSetsPromise,
+    memberProfilesPromise,
+  ]);
+
+  // Stitch projects + extensions; resolve category_set ids needed
+  // for the categories fetch.
   const extensionByProject = new Map<string, string>();
   for (const row of extensionSets ?? []) {
     extensionByProject.set(row.project_id as string, row.id as string);
@@ -390,8 +494,6 @@ export default async function TimeEntriesPage({
     ...p,
     extension_category_set_id: extensionByProject.get(p.id) ?? null,
   }));
-
-  // Categories visible to any project's category set (base OR extension).
   const setIds = Array.from(
     new Set(
       projects
@@ -399,31 +501,72 @@ export default async function TimeEntriesPage({
         .filter((id): id is string => !!id),
     ),
   );
-  const { data: categoryRows } = setIds.length
-    ? await supabase
+
+  // ────────────────────────────────────────────────────────────
+  // Phase 3 — categories + entry-author profile attaches. Each
+  // depends on the previous phase. Run in parallel.
+  // ────────────────────────────────────────────────────────────
+
+  const categoriesPromise = setIds.length
+    ? supabase
         .from("categories")
         .select("id, category_set_id, name, color, sort_order")
         .in("category_set_id", setIds)
         .order("sort_order", { ascending: true })
-    : { data: [] };
+    : Promise.resolve({ data: [] as Array<unknown> });
+
+  // The Promise.all result types widened to Record<string, unknown>[]
+  // because Phase 1's promise pool unions the typed Supabase
+  // builders with the Promise.resolve fallbacks for gated queries.
+  // Cast the raw rows back to the shape they actually have at
+  // runtime — same shape the pre-refactor code relied on inference
+  // to produce.
+  type RawEntryRow = {
+    id: string;
+    user_id: string;
+    projects: unknown;
+    invoices?: unknown;
+    [key: string]: unknown;
+  };
+  const weekEntriesPromise = attachAuthors(
+    supabase,
+    ((rawWeekEntries ?? []) as RawEntryRow[]).map(normalizeEntry),
+  );
+  const dayEntriesPromise = attachAuthors(
+    supabase,
+    ((rawDayEntries ?? []) as RawEntryRow[]).map(normalizeEntry),
+  );
+  const logEntriesP = view === "log"
+    ? attachAuthors(
+        supabase,
+        ((rawLogEntries ?? []) as RawEntryRow[]).map(normalizeEntry),
+      )
+    : Promise.resolve([] as Awaited<ReturnType<typeof attachAuthors>>);
+  const runningP = runningEntries?.[0]
+    ? attachAuthors(supabase, [
+        normalizeEntry(runningEntries[0] as RawEntryRow),
+      ]).then((rows) => rows[0] ?? null)
+    : Promise.resolve(null);
+
+  const [
+    { data: categoryRows },
+    weekEntries,
+    dayEntries,
+    logEntries,
+    running,
+  ] = await Promise.all([
+    categoriesPromise,
+    weekEntriesPromise,
+    dayEntriesPromise,
+    logEntriesP,
+    runningP,
+  ]);
+
   const categories = categoryRows ?? [];
 
-  // Recent projects — distinct project_ids from the last 30 days.
-  // Compute against `new Date()` explicitly — calling it via `new Date()`
-  // is allowed, whereas `Date.now()` trips the impure-in-render rule even
-  // though this is a server component (the lint rule is context-unaware).
-  const recentSinceIso = new Date(
-    new Date().getTime() - 30 * 24 * 3600 * 1000,
-  ).toISOString();
-  let recentQuery = supabase
-    .from("time_entries")
-    .select("project_id, start_time")
-    .is("deleted_at", null)
-    .gte("start_time", recentSinceIso)
-    .order("start_time", { ascending: false })
-    .limit(50);
-  if (selectedTeamId) recentQuery = recentQuery.eq("team_id", selectedTeamId);
-  const { data: recentRows } = await recentQuery;
+  // Recent projects — distinct project_ids from the last 30 days,
+  // top 5, joined back against the active project list so an
+  // archived project's row doesn't sneak into the chips.
   const seen = new Set<string>();
   const recentProjectIds: string[] = [];
   for (const row of recentRows ?? []) {
@@ -437,102 +580,49 @@ export default async function TimeEntriesPage({
     .map((id) => projects.find((p) => p.id === id))
     .filter((p): p is NonNullable<typeof p> => !!p);
 
-  const allTemplates = await getMyTemplates(selectedTeamId);
   const templates = allTemplates.slice(0, 8);
 
-  // Team-member list for the member-filter dropdown.
-  //
-  // Scope depends on the team-filter state:
-  //   - A specific team is selected → members of that team.
-  //   - Team filter is "All" (no selection) → members across every team
-  //     the caller belongs to, deduplicated by user_id so someone who
-  //     belongs to multiple teams shows up once.
-  //
-  // The filter is useful in both modes. When viewing "All", the user
-  // still wants to say "show only me + Jordan + Riley" even if entries
-  // may come from multiple teams.
-  const memberTeamIds = selectedTeamId ? [selectedTeamId] : userTeamIds;
-  let memberOptions: Array<{
-    user_id: string;
-    display_name: string | null;
-    avatar_url: string | null;
-    isSelf: boolean;
-  }> = [];
-  if (memberTeamIds.length > 0) {
-    // Two-step: team_members has no FK to user_profiles (both go through
-    // auth.users), so PostgREST can't embed. Fetch memberships first,
-    // then batch-fetch profiles.
-    const { data: memberRows } = await supabase
-      .from("team_members")
-      .select("user_id, role, joined_at")
-      .in("team_id", memberTeamIds)
-      .order("joined_at", { ascending: true });
-    const memberUserIds = Array.from(
-      new Set((memberRows ?? []).map((m) => m.user_id as string)),
-    );
-    const { data: profiles } = memberUserIds.length > 0
-      ? await supabase
-          .from("user_profiles")
-          .select("user_id, display_name, avatar_url")
-          .in("user_id", memberUserIds)
-      : { data: [] };
-    const profileByUserId = new Map<
-      string,
-      { display_name: string | null; avatar_url: string | null }
-    >(
-      (profiles ?? []).map((p) => [
-        p.user_id as string,
-        {
-          display_name: (p.display_name as string | null) ?? null,
-          avatar_url: (p.avatar_url as string | null) ?? null,
-        },
-      ]),
-    );
-    const byUserId = new Map<
-      string,
+  // Member-filter dropdown — combine memberRows (from phase 1) with
+  // memberProfilesRaw (from phase 2). Self moves to the top.
+  const profileByUserId = new Map<
+    string,
+    { display_name: string | null; avatar_url: string | null }
+  >(
+    (memberProfilesRaw ?? []).map((p) => [
+      p.user_id as string,
       {
-        user_id: string;
-        display_name: string | null;
-        avatar_url: string | null;
-        isSelf: boolean;
-      }
-    >();
-    for (const userId of memberUserIds) {
-      if (byUserId.has(userId)) continue;
-      const profile = profileByUserId.get(userId);
-      byUserId.set(userId, {
-        user_id: userId,
-        display_name: profile?.display_name ?? null,
-        avatar_url: profile?.avatar_url ?? null,
-        isSelf: userId === callerId,
-      });
+        display_name: (p.display_name as string | null) ?? null,
+        avatar_url: (p.avatar_url as string | null) ?? null,
+      },
+    ]),
+  );
+  const byUserId = new Map<
+    string,
+    {
+      user_id: string;
+      display_name: string | null;
+      avatar_url: string | null;
+      isSelf: boolean;
     }
-    // Move self to the top for consistent ordering.
-    const self = [...byUserId.values()].find((m) => m.isSelf);
-    const others = [...byUserId.values()].filter((m) => !m.isSelf);
-    memberOptions = self ? [self, ...others] : others;
+  >();
+  for (const userId of memberUserIds) {
+    if (byUserId.has(userId)) continue;
+    const profile = profileByUserId.get(userId);
+    byUserId.set(userId, {
+      user_id: userId,
+      display_name: profile?.display_name ?? null,
+      avatar_url: profile?.avatar_url ?? null,
+      isSelf: userId === callerId,
+    });
   }
-
-  // Trash count — only surfaced in the UI if > 0
-  let trashQuery = supabase
-    .from("time_entries")
-    .select("id", { count: "exact", head: true })
-    .not("deleted_at", "is", null);
-  if (selectedTeamId) trashQuery = trashQuery.eq("team_id", selectedTeamId);
-  const { count: trashCount } = await trashQuery;
+  const self = [...byUserId.values()].find((m) => m.isSelf);
+  const others = [...byUserId.values()].filter((m) => !m.isSelf);
+  const memberOptions = self ? [self, ...others] : others;
 
   // Latest period lock per team in scope — drives the "Locked
   // through" banner so users editing a March entry on April 5 see
   // the lock state inline instead of getting an opaque DB error
   // from the trigger. Mirrors the expenses page's banner.
-  const lockTeamIds = selectedTeamId ? [selectedTeamId] : userTeamIds;
-  const { data: lockRows } =
-    lockTeamIds.length > 0
-      ? await supabase
-          .from("team_period_locks")
-          .select("team_id, period_end")
-          .in("team_id", lockTeamIds)
-      : { data: [] };
   const latestLockByTeam = new Map<string, string>();
   for (const r of lockRows ?? []) {
     const tid = r.team_id as string;
@@ -565,16 +655,16 @@ export default async function TimeEntriesPage({
       todayStr={today}
       tzOffsetMin={tzOffsetMin}
       currentUserId={callerId}
-      weekEntries={weekEntries}
-      dayEntries={dayEntries}
-      logEntries={logEntries}
+      weekEntries={weekEntries as unknown as TimeEntry[]}
+      dayEntries={dayEntries as unknown as TimeEntry[]}
+      logEntries={logEntries as unknown as TimeEntry[]}
       logWindowDays={logWindowDays}
       logDefaultWindowDays={LOG_DEFAULT_WINDOW_DAYS}
       logMaxWindowDays={LOG_MAX_WINDOW_DAYS}
-      running={running}
+      running={running as unknown as TimeEntry | null}
       projects={projects}
       recentProjects={recentProjects}
-      categories={categories}
+      categories={categories as unknown as CategoryOption[]}
       templates={templates}
       trashCount={trashCount ?? 0}
       memberOptions={memberOptions}
