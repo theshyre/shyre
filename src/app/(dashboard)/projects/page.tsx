@@ -88,24 +88,6 @@ export default async function ProjectsPage({
     }),
   );
 
-  // Preserve filter + pagination params across sort clicks. Sort
-  // clicks reset to page 1 implicitly because we don't carry a page
-  // number — limit is the only pagination control on this page.
-  const buildSortHref = ({
-    sort: nextSort,
-    dir: nextDir,
-  }: {
-    sort: string;
-    dir: "asc" | "desc";
-  }): string => {
-    const params = new URLSearchParams();
-    if (selectedTeamId) params.set("org", selectedTeamId);
-    if (sp.limit) params.set("limit", sp.limit);
-    params.set("sort", nextSort);
-    params.set("dir", nextDir);
-    return `/projects?${params.toString()}`;
-  };
-
   const teamNameById = new Map(
     teams.map((o) => [o.id as string, (o.name as string) ?? "—"]),
   );
@@ -131,7 +113,8 @@ export default async function ProjectsPage({
         teamNameById={teamNameById}
         sort={sort}
         dir={dir}
-        buildSortHref={buildSortHref}
+        selectedTeamId={selectedTeamId}
+        limitParam={sp.limit}
       />
     </div>
   );

@@ -70,7 +70,7 @@ Data lives in `public.business_people`. `business_id` is required; `user_id` is 
 
 Authorization is derived via `user_business_role(business_id)` — same as identity and state registrations. Linking a person to a user does NOT grant that user access to the business; access is strictly via `team_members`.
 
-See [Database schema](../../reference/database-schema.md#business_people) for the full column list.
+See [Database schema → Business identity](../../reference/database-schema.md#business-identity-a-teams-issuer-for-invoices) for the table summary, or run `pg_dump --schema-only -t public.business_people` for the live column list.
 
 ## Related
 

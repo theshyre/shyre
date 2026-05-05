@@ -40,10 +40,12 @@ interface Props {
    *  server-resolved sort key. */
   sort: string;
   dir: "asc" | "desc";
-  /** Closure that, given a (sort,dir) request, returns the URL to
-   *  navigate to. Resolved server-side so the page's filter +
-   *  pagination context survives sort clicks. */
-  buildSortHref: (input: { sort: string; dir: "asc" | "desc" }) => string;
+  /** Plain-string params to preserve across sort clicks. The server
+   *  page can't pass a closure across the server/client boundary
+   *  (Next.js refuses unmarked functions), so we accept the raw
+   *  inputs and build the URL inside the client component. */
+  selectedTeamId?: string;
+  limitParam?: string;
 }
 
 /**
@@ -63,13 +65,26 @@ export function ProjectsTable({
   teamNameById,
   sort,
   dir,
-  buildSortHref,
+  selectedTeamId,
+  limitParam,
 }: Props): React.JSX.Element {
   const t = useTranslations("projects");
   const tc = useTranslations("common");
   const toast = useToast();
   const [, startTransition] = useTransition();
   const [selected, setSelected] = useState<Set<string>>(new Set());
+
+  const buildSortHref = useCallback(
+    ({ sort: nextSort, dir: nextDir }: { sort: string; dir: "asc" | "desc" }) => {
+      const params = new URLSearchParams();
+      if (selectedTeamId) params.set("org", selectedTeamId);
+      if (limitParam) params.set("limit", limitParam);
+      params.set("sort", nextSort);
+      params.set("dir", nextDir);
+      return `/projects?${params.toString()}`;
+    },
+    [selectedTeamId, limitParam],
+  );
 
   const showTeamColumn = teamNameById.size > 1;
   const selectedCount = selected.size;
