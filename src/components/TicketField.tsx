@@ -116,7 +116,11 @@ export function TicketField({
         {labelText}
       </label>
       {attached && (
-        <div className="mb-1.5">
+        // `flex min-w-0` lets the chip's inline-flex inner pieces
+        // truncate properly inside narrow grid columns instead of
+        // pushing the chip onto two lines (was the cause of the
+        // "AE-640" line-wrap bug in the cramped col-span-3 layout).
+        <div className="mb-1.5 flex min-w-0">
           <TicketChip
             entryId={entryId}
             provider={attached.provider}

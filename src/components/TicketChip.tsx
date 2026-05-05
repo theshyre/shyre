@@ -120,19 +120,25 @@ export function TicketChip({
   // the tooltip is redundant.
   const keyBlock = (
     <>
-      <span aria-hidden="true" className="inline-flex items-center">
+      <span aria-hidden="true" className="inline-flex items-center shrink-0">
         {visual.icon}
       </span>
-      <span className="font-mono font-medium tabular-nums">{ticketKey}</span>
+      <span className="font-mono font-medium tabular-nums shrink-0">
+        {ticketKey}
+      </span>
       {showInlineTitle && (
-        <span className="truncate text-content-secondary">· {title}</span>
+        // min-w-0 cascades the parent flex's width constraint onto
+        // the truncate so the title ellipsizes before the chip wraps.
+        <span className="truncate text-content-secondary min-w-0">
+          · {title}
+        </span>
       )}
     </>
   );
 
-  const linkClasses = `inline-flex items-center gap-1.5 max-w-full rounded-sm hover:underline focus:outline-none focus-visible:ring-2 focus-visible:ring-accent focus-visible:ring-offset-1`;
+  const linkClasses = `inline-flex items-center gap-1.5 min-w-0 max-w-full rounded-sm hover:underline focus:outline-none focus-visible:ring-2 focus-visible:ring-accent focus-visible:ring-offset-1`;
   const staticBlock = (
-    <span className="inline-flex items-center gap-1.5 max-w-full">
+    <span className="inline-flex items-center gap-1.5 min-w-0 max-w-full">
       {keyBlock}
     </span>
   );
@@ -177,7 +183,7 @@ export function TicketChip({
 
   return (
     <span
-      className={`inline-flex items-center gap-1.5 rounded-md border ${visual.ringClass} ${padX} ${padY} ${textCls} max-w-full`}
+      className={`inline-flex items-center gap-1.5 min-w-0 max-w-full rounded-md border ${visual.ringClass} ${padX} ${padY} ${textCls}`}
     >
       {linkArea}
 
@@ -192,10 +198,10 @@ export function TicketChip({
             onClick={handleApplyAsTitle}
             disabled={applying}
             aria-label={t("applyTitle")}
-            className="inline-flex items-center text-content-muted hover:text-content disabled:opacity-50"
+            className={chipActionButtonClass}
           >
             <FileDown
-              size={12}
+              size={chipActionIconSize}
               aria-hidden="true"
               className={applying ? "animate-pulse" : ""}
             />
@@ -210,10 +216,10 @@ export function TicketChip({
             onClick={handleRefresh}
             disabled={refreshing}
             aria-label={t("refresh")}
-            className="inline-flex items-center text-content-muted hover:text-content disabled:opacity-50"
+            className={chipActionButtonClass}
           >
             <RefreshCw
-              size={12}
+              size={chipActionIconSize}
               aria-hidden="true"
               className={refreshing ? "animate-spin" : ""}
             />
@@ -223,3 +229,12 @@ export function TicketChip({
     </span>
   );
 }
+
+// Chip action buttons (refresh + use-as-title) need to read as
+// buttons in form contexts — at size=12 with no padding they were
+// invisible. Bumped to a 16px icon inside a padded, rounded hover
+// target so they hit ~28px square (still compact for the chip but
+// large enough to discover and click).
+const chipActionIconSize = 16;
+const chipActionButtonClass =
+  "inline-flex items-center justify-center rounded-md p-1 text-content-muted hover:bg-hover hover:text-content focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent focus-visible:ring-offset-1 disabled:opacity-50";

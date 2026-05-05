@@ -186,8 +186,17 @@ export function InlineEditForm({
           <label htmlFor={`ie-description-${entry.id}`} className={labelClass}>
             {t("fields.description")}
           </label>
+          {/* `key` is the entry.description so the textarea remounts
+              when the chip's "Use as description" action mutates
+              entry.description server-side and revalidates this form
+              with a fresh prop. Without the key, the uncontrolled
+              defaultValue freezes at first-render — the list row
+              updated but the open form's textarea kept the pre-edit
+              text. Local typing is preserved since the key only
+              changes on remote mutations of entry.description. */}
           <textarea
             id={`ie-description-${entry.id}`}
+            key={entry.description ?? ""}
             ref={descRef}
             name="description"
             defaultValue={entry.description ?? ""}
@@ -270,12 +279,14 @@ export function InlineEditForm({
           </>
         )}
 
-        {/* Row 4: Metadata — linked ticket + billable. Compact spans;
-            metadata shouldn't be as visually loud as Project /
-            Description. The ticket field hides itself entirely when
-            neither GitHub nor Jira is configured on the project. */}
+        {/* Row 4: Metadata — linked ticket + billable. The ticket
+            cell needs half-width so the attached chip can show
+            "{key} — {title}" + the refresh / use-as-description
+            buttons without wrapping. When the project has neither
+            provider configured, the field collapses entirely and
+            billable absorbs the row. */}
         {showTicket && (
-          <div className={formSpanQuarter}>
+          <div className={`${formSpanHalf} min-w-0`}>
             <TicketField
               idPrefix={`ie-${entry.id}`}
               githubRepo={githubRepo}

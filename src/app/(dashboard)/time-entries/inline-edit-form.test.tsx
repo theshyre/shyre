@@ -95,4 +95,37 @@ describe("InlineEditForm", () => {
     fireEvent.keyDown(form, { key: "Escape" });
     expect(onDone).toHaveBeenCalled();
   });
+
+  it("syncs the description textarea when entry.description changes (apply-title path)", () => {
+    // The chip's "Use as description" action mutates entry.description
+    // server-side and revalidates the page; the open form re-renders
+    // with a fresh prop. With the textarea uncontrolled (defaultValue)
+    // the open form kept the stale text — the visible bug. With it
+    // controlled + useEffect, the textarea reflects the new value.
+    const { rerender, container } = renderWithIntl(
+      <InlineEditForm
+        entry={entry}
+        projects={[project]}
+        categories={[]}
+        onDone={() => {}}
+      />,
+    );
+    const desc = container.querySelector<HTMLTextAreaElement>(
+      'textarea[name="description"]',
+    );
+    expect(desc?.value).toBe("original");
+
+    rerender(
+      <InlineEditForm
+        entry={{ ...entry, description: "AE-640 Fix login bug" }}
+        projects={[project]}
+        categories={[]}
+        onDone={() => {}}
+      />,
+    );
+    const descAfter = container.querySelector<HTMLTextAreaElement>(
+      'textarea[name="description"]',
+    );
+    expect(descAfter?.value).toBe("AE-640 Fix login bug");
+  });
 });
