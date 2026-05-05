@@ -24,6 +24,7 @@ import {
   Square,
 } from "lucide-react";
 import { Avatar, resolveAvatarUrl } from "@theshyre/ui";
+import { CellExpansion } from "./cell-expansion";
 import { formatDurationHMZero } from "@/lib/time/week";
 import { notifyTimerChanged } from "@/lib/timer-events";
 import { localDayBoundsIso } from "@/lib/local-day-bounds";
@@ -90,6 +91,11 @@ interface Row {
    *  target. Same length / index as byDay; null when the day is
    *  not locked. */
   invoiceIdByDay: (string | null)[];
+  /** Per-day list of underlying entries — drives the cell-expansion
+   *  editor (Phase 2). Aggregating entries into byDay loses the
+   *  per-entry description / ticket attribution; this preserves it
+   *  so the expansion can render real editable entry rows. */
+  entriesByDay: TimeEntry[][];
 }
 
 /** Dimension the grid collapses rows under. Changes the visual hierarchy
@@ -250,6 +256,10 @@ export function WeekTimesheet({
             { length: DAYS_IN_WEEK },
             () => null as string | null,
           ),
+          entriesByDay: Array.from(
+            { length: DAYS_IN_WEEK },
+            () => [] as TimeEntry[],
+          ),
         };
         byKey.set(key, row);
       }
@@ -257,6 +267,7 @@ export function WeekTimesheet({
       const dayIndex = dayIndexOf(localDate);
       if (dayIndex >= 0 && dayIndex < DAYS_IN_WEEK) {
         row.byDay[dayIndex] = (row.byDay[dayIndex] ?? 0) + (e.duration_min ?? 0);
+        row.entriesByDay[dayIndex]!.push(e);
         if (e.invoiced && e.invoice_id) {
           row.invoicedByDay[dayIndex] = true;
           // First invoice id wins — typical cell has at most one
@@ -287,6 +298,10 @@ export function WeekTimesheet({
           invoiceIdByDay: Array.from(
             { length: DAYS_IN_WEEK },
             () => null as string | null,
+          ),
+          entriesByDay: Array.from(
+            { length: DAYS_IN_WEEK },
+            () => [] as TimeEntry[],
           ),
         });
       }
@@ -769,7 +784,23 @@ export function WeekTimesheet({
           widened to compensate, visibly "shifting" the whole table.
           Fixed layout keeps MON through SUN anchored at 72px each
           regardless of expand/collapse state. */}
-      <table className="w-full table-fixed text-body border-separate border-spacing-0">
+      <table
+        className="w-full table-fixed text-body border-separate border-spacing-0"
+        aria-label={tWeek("ariaWeekTable", {
+          start: weekDays[0] ?? weekStartStr,
+          end: weekDays[6] ?? weekStartStr,
+        })}
+      >
+        {/* Visually-hidden caption gives screen-reader users the week
+            range up front — without it AT users had no way to know
+            which week they're in without scrolling to find the
+            jump-to-date trigger. */}
+        <caption className="sr-only">
+          {tWeek("ariaWeekTable", {
+            start: weekDays[0] ?? weekStartStr,
+            end: weekDays[6] ?? weekStartStr,
+          })}
+        </caption>
         <colgroup>
           <col className="w-[220px]" />
           {weekDays.map((d) => (
@@ -844,10 +875,21 @@ export function WeekTimesheet({
                 >
                   <Link
                     href={dayHref}
-                    aria-label={t("dayJumpAria", { day: fullLabel })}
+                    aria-label={
+                      isToday
+                        ? t("dayJumpAriaToday", { day: fullLabel })
+                        : t("dayJumpAria", { day: fullLabel })
+                    }
                     className="block px-2 py-2 hover:bg-hover transition-colors cursor-pointer"
                   >
-                    <div>{weekday}</div>
+                    <div>
+                      {weekday}
+                      {/* Visually-hidden marker so users without
+                          color perception still know which column is
+                          today — the bg-accent-soft tint is the only
+                          other current-day signal otherwise. */}
+                      {isToday && <span className="sr-only"> (today)</span>}
+                    </div>
                     <div
                       className={`text-body mt-0.5 ${
                         isToday ? "font-bold text-content" : "font-normal"
@@ -898,6 +940,7 @@ export function WeekTimesheet({
               categories={categories}
               weekDays={weekDays}
               todayStr={todayStr}
+              tzOffsetMin={tzOffsetMin}
               setCellRef={setCellRef}
               focusCell={focusCell}
               onCellCommit={submitCell}
@@ -988,6 +1031,7 @@ function TimesheetRow({
   onStopTimer,
   weekDays,
   todayStr,
+  tzOffsetMin,
   setCellRef,
   onArrowNav,
 }: {
@@ -1015,6 +1059,10 @@ function TimesheetRow({
   onStopTimer: (() => void) | undefined;
   weekDays: string[];
   todayStr: string;
+  /** TZ offset (minutes) so the cell-expansion editor can pass it
+   *  through to the create / update server actions for the cell's
+   *  date math. */
+  tzOffsetMin: number | undefined;
   setCellRef: (row: number, day: number, el: HTMLInputElement | null) => void;
   onArrowNav: (dir: "up" | "down" | "left" | "right", dayIndex: number) => void;
 }): React.JSX.Element {
@@ -1022,16 +1070,40 @@ function TimesheetRow({
   const tc = useTranslations("common.actions");
   const tEntry = useTranslations("time.entry");
   const tLock = useTranslations("time.lock");
+  const tCell = useTranslations("time.cellExpansion");
   const project = projects.find((p) => p.id === row.projectId);
   const category = row.categoryId
     ? categories.find((c) => c.id === row.categoryId)
     : null;
+  // Pre-formatted long-form "today" string for screen-reader-friendly
+  // aria-labels on the row Play / Stop buttons. Formatted from
+  // todayStr (YYYY-MM-DD) using the user's locale so e.g. "Tuesday,
+  // May 5, 2026". Falls back to the raw string when parsing fails
+  // (defensive — shouldn't happen given week-list construction).
+  const todayLong = (() => {
+    const parts = todayStr.split("-").map(Number);
+    if (parts.length !== 3 || parts.some((n) => Number.isNaN(n))) {
+      return todayStr;
+    }
+    const [y, m, d] = parts;
+    return new Date(y!, m! - 1, d!).toLocaleDateString(undefined, {
+      weekday: "long",
+      month: "short",
+      day: "numeric",
+    });
+  })();
   const rowTotalActual = row.byDay.reduce((s, n) => s + n, 0);
   const entryCount = row.byDay.filter((m) => m > 0).length;
   const hasSavedData = rowTotalActual > 0 || entryCount > 0;
   // Other members' rows are read-only: the upsert action only touches
   // auth.uid()'s entries, so showing an editable input would be misleading.
   const editable = row.isOwn;
+
+  // Phase-2 cell expansion — index of the day column whose entries
+  // are currently expanded inline, or null when none. Closes on
+  // Escape (handled at the page level via useUnsavedChanges patterns)
+  // and on a successful entry save.
+  const [expandedDayIndex, setExpandedDayIndex] = useState<number | null>(null);
 
   const hideCategory = groupBy === "category";
   const hideProject = groupBy === "project";
@@ -1059,6 +1131,7 @@ function TimesheetRow({
     : 0;
 
   return (
+    <>
     <tr
       className={`bg-surface hover:bg-hover border-b border-edge-muted last:border-b-0 transition-colors ${
         isRunningRow ? "ring-2 ring-inset ring-success/40" : ""
@@ -1159,6 +1232,30 @@ function TimesheetRow({
         const dayStr = weekDays[i];
         const isToday = dayStr === todayStr;
         const isWeekend = i >= 5;
+        // Per-cell aria-label: "{Weekday Mon 4} — {Project} · {Category}".
+        // Without this the DurationInput announced as "edit, 1:18" with
+        // no day or project context — useless to a screen-reader user
+        // arrow-keying through the grid.
+        const cellWeekdayLong = (() => {
+          if (!dayStr) return "";
+          const parts = dayStr.split("-").map(Number);
+          if (parts.length !== 3 || parts.some((n) => Number.isNaN(n))) {
+            return dayStr;
+          }
+          const [y, m, d] = parts;
+          return new Date(y!, m! - 1, d!).toLocaleDateString(undefined, {
+            weekday: "long",
+            month: "short",
+            day: "numeric",
+          });
+        })();
+        const cellAriaLabel = t("cellAria", {
+          weekday: cellWeekdayLong,
+          project: project?.name ?? "—",
+          categoryPart: category?.name
+            ? t("cellAriaCategoryPart", { category: category.name })
+            : "",
+        });
         return (
           <td
             key={dayStr ?? i}
@@ -1195,16 +1292,21 @@ function TimesheetRow({
               // Locked cell — entry is invoiced and the DB trigger
               // refuses UPDATE/DELETE. Render as static read-only
               // with a Lock affordance so the user doesn't try to
-              // edit and hit a server error. Tooltip + clickable
-              // link via the lock icon's parent <a>.
-              <Link
-                href={`/invoices/${row.invoiceIdByDay[i]}`}
-                title={tLock("locked")}
-                className="flex w-full items-center justify-end gap-1.5 py-1 font-mono text-title tabular-nums text-content-muted hover:text-content"
-              >
-                <Lock size={12} aria-hidden="true" className="text-warning" />
-                {formatDurationHMZero(min)}
-              </Link>
+              // edit and hit a server error. <Tooltip> wraps the
+              // link so screen readers reliably announce the locked
+              // state (native title= is unreliable across AT and
+              // never exposed on touch — also banned by the project
+              // ESLint rule for new TSX).
+              <Tooltip label={tLock("locked")}>
+                <Link
+                  href={`/invoices/${row.invoiceIdByDay[i]}`}
+                  aria-label={tLock("locked")}
+                  className="flex w-full items-center justify-end gap-1.5 py-1 font-mono text-title tabular-nums text-content-muted hover:text-content"
+                >
+                  <Lock size={12} aria-hidden="true" className="text-warning" />
+                  {formatDurationHMZero(min)}
+                </Link>
+              </Tooltip>
             ) : editable ? (
               // Input is sized to its content (5-char "12:30" max),
               // not the cell. Wrapping <label> keeps the entire cell
@@ -1213,27 +1315,79 @@ function TimesheetRow({
               // focus ring sprawling across the full 72px column,
               // which made every focused cell visually larger than
               // the data it contained.
-              <label className="flex justify-end cursor-text">
-                {/* `-mr-1.5` shifts the input right by exactly its
-                    own internal pr-1.5, so the digits land on the
-                    same `td_right - 8px` rail as group-header and
-                    footer cells (which use text-right + td px-2,
-                    no internal input). Without this, the input's
-                    visual padding offsets its digits 6px left of
-                    every other row's digits in the same column. */}
-                <DurationInput
-                  ref={(el) => setCellRef(rowIndex, i, el)}
-                  name={`cell-${row.projectId}-${row.categoryId ?? ""}-${i}`}
-                  defaultMinutes={min}
-                  onCommit={(committed) => {
-                    if (committed !== null && committed !== min) {
-                      void onCellCommit(i, committed);
+              <div className="flex items-center justify-end gap-1">
+                {/* Cell-expansion chevron. Visible only when the cell
+                    has at least one underlying entry — empty cells
+                    have nothing to expand. The chevron is positioned
+                    LEFT of the duration input so the right-edge digit
+                    rail (the `td_right − 8px` alignment described
+                    below) is preserved. Click toggles the per-cell
+                    expansion sub-row that lets the user edit /
+                    delete entries and add a sibling without leaving
+                    Week view. */}
+                {(row.entriesByDay[i]?.length ?? 0) > 0 && (
+                  <Tooltip
+                    label={
+                      expandedDayIndex === i
+                        ? tCell("collapseTooltip")
+                        : tCell("expandTooltip")
                     }
-                  }}
-                  onArrowNav={(dir) => onArrowNav(dir, i)}
-                  className="w-20 -mr-1.5 rounded-md border border-transparent bg-transparent px-1.5 py-1 text-title outline-none transition-colors hover:border-edge-muted focus:border-focus-ring focus:bg-surface-raised focus:ring-2 focus:ring-focus-ring/30"
-                />
-              </label>
+                  >
+                    <button
+                      type="button"
+                      onClick={() =>
+                        setExpandedDayIndex((cur) => (cur === i ? null : i))
+                      }
+                      aria-expanded={expandedDayIndex === i}
+                      aria-controls={`cell-expansion-${rowIndex}-${i}`}
+                      aria-label={tCell("expandAria", {
+                        count: row.entriesByDay[i]?.length ?? 0,
+                        date: cellWeekdayLong,
+                      })}
+                      className="inline-flex items-center gap-0.5 rounded p-0.5 text-content-muted hover:bg-hover hover:text-accent transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent"
+                    >
+                      <ChevronDown
+                        size={12}
+                        className={`transition-transform ${
+                          expandedDayIndex === i ? "rotate-180" : ""
+                        }`}
+                      />
+                      {(row.entriesByDay[i]?.length ?? 0) > 1 && (
+                        // Multi-entry count badge — tells the user a
+                        // "1:18" cell is actually 3 entries summed.
+                        // Without this the aggregation was invisible
+                        // and per-entry attribution was lost on the
+                        // grid.
+                        <span className="text-caption font-mono tabular-nums">
+                          {row.entriesByDay[i]?.length}
+                        </span>
+                      )}
+                    </button>
+                  </Tooltip>
+                )}
+                <label className="flex justify-end cursor-text">
+                  {/* `-mr-1.5` shifts the input right by exactly its
+                      own internal pr-1.5, so the digits land on the
+                      same `td_right - 8px` rail as group-header and
+                      footer cells (which use text-right + td px-2,
+                      no internal input). Without this, the input's
+                      visual padding offsets its digits 6px left of
+                      every other row's digits in the same column. */}
+                  <DurationInput
+                    ref={(el) => setCellRef(rowIndex, i, el)}
+                    name={`cell-${row.projectId}-${row.categoryId ?? ""}-${i}`}
+                    defaultMinutes={min}
+                    ariaLabel={cellAriaLabel}
+                    onCommit={(committed) => {
+                      if (committed !== null && committed !== min) {
+                        void onCellCommit(i, committed);
+                      }
+                    }}
+                    onArrowNav={(dir) => onArrowNav(dir, i)}
+                    className="w-20 -mr-1.5 rounded-md border border-transparent bg-transparent px-1.5 py-1 text-title outline-none transition-colors hover:border-edge-muted focus:border-focus-ring focus:bg-surface-raised focus:ring-2 focus:ring-focus-ring/30"
+                  />
+                </label>
+              </div>
             ) : (
               <div className="w-full py-1 text-right font-mono text-title tabular-nums text-content-muted">
                 {min > 0 ? formatDurationHMZero(min) : <span className="text-content-muted/50">·</span>}
@@ -1256,28 +1410,39 @@ function TimesheetRow({
               // This exact row has a running timer — swap in a red Stop
               // button. The live-ticking cell in the running day column
               // carries the "timer is running" signal on its own, so no
-              // pulsing dot needed on the button itself.
-              <Tooltip label={tEntry("stopTimerFromRow")} shortcut="Space">
+              // pulsing dot needed on the button itself. Aria-label
+              // names the project + category so screen-reader users
+              // hear what they're stopping.
+              <Tooltip label={tEntry("stopTimerFromRow")}>
                 <button
                   type="button"
                   onClick={onStopTimer}
-                  aria-label={tEntry("stopTimerFromRow")}
+                  aria-label={tEntry("stopTimerFromRowAria", {
+                    project: project?.name ?? "—",
+                    category: category?.name ?? "—",
+                  })}
                   className="rounded p-1 text-error-text hover:bg-error-soft transition-colors"
                 >
                   <Square size={16} className="fill-current" />
                 </button>
               </Tooltip>
             ) : (
-              // "Start timer" seeded from this row. Visible on every row
-              // the viewer owns — not only rows with saved data, since
-              // the user may want to kick off a timer on a just-added
-              // blank row too. Server-side auto-stops any other running
-              // timer, so a second click never doubles up.
-              <Tooltip label={tEntry("startTimerFromRow")} shortcut="Space">
+              // "Start timer" seeded from this row's project + category
+              // for TODAY. Despite sitting in the row's actions column,
+              // it never starts a timer for any other day — the tooltip
+              // says so. Used to share a Space shortcut with the
+              // running-timer-card; that was misleading because Space
+              // is owned globally by the card and never reached this
+              // button. Drop the kbd hint here.
+              <Tooltip label={tEntry("startTimerForToday", { date: todayLong })}>
                 <button
                   type="button"
                   onClick={onStartTimer}
-                  aria-label={tEntry("startTimerFromRow")}
+                  aria-label={tEntry("startTimerFromRowAria", {
+                    project: project?.name ?? "—",
+                    category: category?.name ?? "—",
+                    date: todayLong,
+                  })}
                   className="rounded p-1 text-content-muted hover:bg-hover hover:text-accent transition-colors"
                 >
                   <Play size={16} />
@@ -1301,6 +1466,45 @@ function TimesheetRow({
         </div>
       </td>
     </tr>
+    {expandedDayIndex !== null &&
+      (() => {
+        const expandedDayStr = weekDays[expandedDayIndex];
+        if (!expandedDayStr) return null;
+        const cellEntries = row.entriesByDay[expandedDayIndex] ?? [];
+        // Pre-format the long-form date for the expansion header
+        // and aria-label. Mirrors `cellWeekdayLong` higher up but
+        // for the specific day we're expanding rather than the day
+        // we're currently mapping over.
+        const dayLong = (() => {
+          const parts = expandedDayStr.split("-").map(Number);
+          if (parts.length !== 3 || parts.some((n) => Number.isNaN(n))) {
+            return expandedDayStr;
+          }
+          const [y, m, d] = parts;
+          return new Date(y!, m! - 1, d!).toLocaleDateString(undefined, {
+            weekday: "long",
+            month: "short",
+            day: "numeric",
+          });
+        })();
+        return (
+          <tr id={`cell-expansion-${rowIndex}-${expandedDayIndex}`}>
+            <td colSpan={DAYS_IN_WEEK + 3} className="px-3 py-2">
+              <CellExpansion
+                entries={cellEntries}
+                project={project}
+                categoryId={row.categoryId}
+                dayDateStr={expandedDayStr}
+                dayDateLong={dayLong}
+                tzOffsetMin={tzOffsetMin}
+                totalMinutes={row.byDay[expandedDayIndex] ?? 0}
+                onClose={() => setExpandedDayIndex(null)}
+              />
+            </td>
+          </tr>
+        );
+      })()}
+    </>
   );
 }
 
@@ -1319,6 +1523,7 @@ function GroupBlock({
   categories,
   weekDays,
   todayStr,
+  tzOffsetMin,
   setCellRef,
   focusCell,
   onCellCommit,
@@ -1340,6 +1545,7 @@ function GroupBlock({
   categories: CategoryOption[];
   weekDays: string[];
   todayStr: string;
+  tzOffsetMin: number | undefined;
   setCellRef: (row: number, day: number, el: HTMLInputElement | null) => void;
   focusCell: (
     rowIdx: number,
@@ -1482,6 +1688,7 @@ function GroupBlock({
               }
               weekDays={weekDays}
               todayStr={todayStr}
+              tzOffsetMin={tzOffsetMin}
               setCellRef={setCellRef}
               onArrowNav={(dir, dayIdx) => {
                 if (dir === "up") focusCell(rowIdx - 1, dayIdx, "up");

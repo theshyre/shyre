@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { useTranslations } from "next-intl";
-import { Play, X } from "lucide-react";
+import { Play, Plus, X } from "lucide-react";
 import { AlertBanner } from "@theshyre/ui";
 import { useFormAction } from "@/hooks/use-form-action";
 import { SubmitButton } from "@/components/SubmitButton";
@@ -106,7 +106,13 @@ export function RunningTimerCard({
   // renders nothing in that state so we don't duplicate the surface.
   if (running) return <></>;
 
-  // --- Collapsed state: just the Start button (Harvest-style)
+  // --- Collapsed state: just the Start button. Uses Plus icon (not
+  // just Play) to visually differentiate from the per-row Play
+  // button on the week timesheet — both used to share an icon and
+  // confused users about which intent they were triggering. This
+  // header button always opens the project picker (i.e. creates a
+  // NEW entry); the row Play button operates on an existing row's
+  // project + category for today's date.
   if (!expanded) {
     return (
       <div className="flex items-center gap-3 flex-wrap">
@@ -114,8 +120,9 @@ export function RunningTimerCard({
           type="button"
           onClick={() => setExpanded(true)}
           className={buttonPrimaryClass}
+          aria-label={th("startNewTimerAria")}
         >
-          <Play size={14} />
+          <Plus size={14} />
           {th("startNewTimer")}
           <kbd className={kbdClass}>Space</kbd>
         </button>

@@ -2,6 +2,29 @@
   "title": "Time",
   "lockedThrough": "Locked through:",
   "addEntry": "Add past entry",
+  "cellExpansion": {
+    "regionLabel": "Entries for {project} on {date}",
+    "entriesCount": "{count, plural, one {# entry} other {# entries}}",
+    "close": "Close",
+    "addEntry": "Add another entry",
+    "addEntryNoProject": "This row has no project — pick a project to add an entry.",
+    "addEntryHeader": "New entry on {date}",
+    "createEntry": "Add",
+    "save": "Save",
+    "delete": "Delete",
+    "deleteEntry": "Delete this entry",
+    "openDayView": "Open in Day view",
+    "editDayView": "Editing this entry requires the Day view.",
+    "fields": {
+      "description": "Description",
+      "descriptionPlaceholder": "What did you work on?",
+      "billable": "Billable",
+      "duration": "Duration"
+    },
+    "expandTooltip": "Show entries on this day",
+    "expandAria": "Show {count, plural, one {# entry} other {# entries}} on {date}",
+    "collapseTooltip": "Hide entries"
+  },
   "ticket": {
     "open": "Open ticket",
     "refresh": "Refresh title",
@@ -83,6 +106,7 @@
     "minutes": "{m}m"
   },
   "week": {
+    "ariaWeekTable": "Weekly timesheet — {start} to {end}",
     "prev": "Previous week",
     "next": "Next week",
     "thisWeek": "This week:",
@@ -126,7 +150,8 @@
   "home": {
     "runningHeader": "Running",
     "startPrompt": "Start a new timer",
-    "startNewTimer": "Start timer",
+    "startNewTimer": "New timer",
+    "startNewTimerAria": "Start a new timer (choose project)",
     "recentProjects": "Recent",
     "todayTitle": "Today",
     "noToday": "No entries today.",
@@ -145,7 +170,10 @@
     "startTimer": "Start timer",
     "stopTimer": "Stop timer",
     "stopTimerFromRow": "Stop running timer",
-    "startTimerFromRow": "Start timer for this project",
+    "stopTimerFromRowAria": "Stop running timer on {project} · {category}",
+    "startTimerFromRow": "Start timer",
+    "startTimerForToday": "Start timer for today ({date})",
+    "startTimerFromRowAria": "Start timer for {project} · {category} on {date}",
     "duplicate": "Duplicate",
     "delete": "Delete",
     "confirmDelete": "Confirm delete",
@@ -209,6 +237,9 @@
     "expandAll": "Expand all",
     "collapseAll": "Collapse all",
     "dayJumpAria": "Jump to {day}",
+    "dayJumpAriaToday": "Jump to {day} (today)",
+    "cellAria": "{weekday} — {project}{categoryPart}",
+    "cellAriaCategoryPart": " · {category}",
     "groupBy": {
       "label": "Group by",
       "member": "Member",

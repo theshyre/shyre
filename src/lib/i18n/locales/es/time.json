@@ -2,6 +2,29 @@
   "title": "Tiempo",
   "lockedThrough": "Bloqueado hasta:",
   "addEntry": "Agregar registro pasado",
+  "cellExpansion": {
+    "regionLabel": "Entradas para {project} el {date}",
+    "entriesCount": "{count, plural, one {# entrada} other {# entradas}}",
+    "close": "Cerrar",
+    "addEntry": "Añadir otra entrada",
+    "addEntryNoProject": "Esta fila no tiene proyecto — selecciona uno para añadir una entrada.",
+    "addEntryHeader": "Nueva entrada el {date}",
+    "createEntry": "Añadir",
+    "save": "Guardar",
+    "delete": "Eliminar",
+    "deleteEntry": "Eliminar esta entrada",
+    "openDayView": "Abrir en vista de día",
+    "editDayView": "Editar esta entrada requiere la vista de día.",
+    "fields": {
+      "description": "Descripción",
+      "descriptionPlaceholder": "¿En qué trabajaste?",
+      "billable": "Facturable",
+      "duration": "Duración"
+    },
+    "expandTooltip": "Mostrar entradas de este día",
+    "expandAria": "Mostrar {count, plural, one {# entrada} other {# entradas}} el {date}",
+    "collapseTooltip": "Ocultar entradas"
+  },
   "ticket": {
     "open": "Abrir ticket",
     "refresh": "Actualizar título",
@@ -83,6 +106,7 @@
     "minutes": "{m}m"
   },
   "week": {
+    "ariaWeekTable": "Hoja de horas semanal — del {start} al {end}",
     "prev": "Semana anterior",
     "next": "Semana siguiente",
     "thisWeek": "Esta semana:",
@@ -126,7 +150,8 @@
   "home": {
     "runningHeader": "En curso",
     "startPrompt": "Iniciar un nuevo cronómetro",
-    "startNewTimer": "Iniciar",
+    "startNewTimer": "Nuevo cronómetro",
+    "startNewTimerAria": "Iniciar un nuevo cronómetro (elegir proyecto)",
     "recentProjects": "Recientes",
     "todayTitle": "Hoy",
     "noToday": "No hay registros hoy.",
@@ -145,7 +170,10 @@
     "startTimer": "Iniciar cronómetro",
     "stopTimer": "Detener cronómetro",
     "stopTimerFromRow": "Detener cronómetro en ejecución",
-    "startTimerFromRow": "Iniciar cronómetro para este proyecto",
+    "stopTimerFromRowAria": "Detener cronómetro en ejecución para {project} · {category}",
+    "startTimerFromRow": "Iniciar cronómetro",
+    "startTimerForToday": "Iniciar cronómetro para hoy ({date})",
+    "startTimerFromRowAria": "Iniciar cronómetro para {project} · {category} el {date}",
     "duplicate": "Duplicar",
     "delete": "Eliminar",
     "confirmDelete": "Confirmar eliminación",
@@ -209,6 +237,9 @@
     "expandAll": "Expandir todo",
     "collapseAll": "Contraer todo",
     "dayJumpAria": "Ir a {day}",
+    "dayJumpAriaToday": "Ir a {day} (hoy)",
+    "cellAria": "{weekday} — {project}{categoryPart}",
+    "cellAriaCategoryPart": " · {category}",
     "groupBy": {
       "label": "Agrupar por",
       "member": "Miembro",
