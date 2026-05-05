@@ -24,7 +24,16 @@ export interface CsvEntryRow {
   category: string;
   description: string;
   billable: boolean;
+  /** Legacy GitHub-only column. Populated for both old data
+   *  (github_issue integer) and new data when the linked ticket is a
+   *  GitHub issue. Kept for backward compat with bookkeeper CSV
+   *  templates that already key off this column. */
   githubIssue: number | null;
+  /** Full ticket key — e.g. "AE-640" (Jira) or "owner/repo#42"
+   *  (GitHub). NULL when no ticket is linked. */
+  ticketKey: string;
+  /** Provider — "jira", "github", or "" when no ticket is linked. */
+  ticketProvider: string;
   startIso: string;
   endIso: string;
   entryId: string;
@@ -63,6 +72,8 @@ const HEADERS: Array<keyof CsvEntryRow> = [
   "description",
   "billable",
   "githubIssue",
+  "ticketKey",
+  "ticketProvider",
   "startIso",
   "endIso",
   "entryId",
@@ -86,6 +97,8 @@ const HEADER_LABELS: Record<keyof CsvEntryRow, string> = {
   description: "Description",
   billable: "Billable",
   githubIssue: "GitHub Issue",
+  ticketKey: "Ticket Key",
+  ticketProvider: "Ticket Provider",
   startIso: "Start ISO 8601",
   endIso: "End ISO 8601",
   entryId: "Entry ID",

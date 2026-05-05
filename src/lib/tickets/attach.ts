@@ -1,8 +1,9 @@
 import "server-only";
 
 import type { SupabaseClient } from "@supabase/supabase-js";
-import { resolveTicketReference } from "./detect";
+import { resolveTicketReference, type DetectedTicket } from "./detect";
 import { lookupTicket } from "./lookup";
+import { parseTicketInput } from "./parse-input";
 
 /** Fields written onto `time_entries` when a ticket is detected
  *  in a description. All five are NULL when nothing matched. */
@@ -23,22 +24,29 @@ const EMPTY: TicketAttachment = {
 };
 
 /**
- * Given a description and a project, detect-and-resolve the first
- * ticket reference and return the columns to write onto the time
- * entry. Always succeeds — failure modes (no description, no
- * detection, no creds, lookup error) all collapse to EMPTY so the
- * caller never has to special-case them.
+ * Given a description (and optionally an explicit ticket reference
+ * the user typed into a dedicated field) plus a project, return the
+ * columns to write onto the time entry. Always succeeds — failure
+ * modes (no input, no detection, no creds, lookup error) all collapse
+ * to EMPTY so the caller never has to special-case them.
+ *
+ * Resolution order:
+ *   1. `ticketRef` (explicit user input from the form) wins.
+ *   2. Otherwise, scan the description for a Jira / GitHub reference.
  *
  * The project is loaded once for `github_repo` / `jira_project_key`
- * so short refs (`#123`) resolve against the project's defaults.
+ * so short refs (`#123`, bare numbers) resolve against the project's
+ * defaults.
  */
 export async function buildTicketAttachment(
   supabase: SupabaseClient,
   userId: string,
   description: string | null,
   projectId: string | null,
+  ticketRef?: string | null,
 ): Promise<TicketAttachment> {
-  if (!description) return EMPTY;
+  // Need at least one signal — explicit ref or description text.
+  if (!ticketRef && !description) return EMPTY;
 
   // Load the project's default repo / Jira key for short-ref
   // resolution. Cheap query — single row by primary key.
@@ -55,10 +63,19 @@ export async function buildTicketAttachment(
       (project?.jira_project_key as string | null) ?? null;
   }
 
-  const detected = resolveTicketReference(description, {
-    defaultGithubRepo,
-    defaultJiraProjectKey,
-  });
+  let detected: DetectedTicket | null = null;
+  if (ticketRef && ticketRef.trim()) {
+    detected = parseTicketInput(ticketRef, {
+      defaultGithubRepo,
+      defaultJiraProjectKey,
+    });
+  }
+  if (!detected && description) {
+    detected = resolveTicketReference(description, {
+      defaultGithubRepo,
+      defaultJiraProjectKey,
+    });
+  }
   if (!detected) return EMPTY;
 
   // Lookup may return null — no creds, 404, transient. We still

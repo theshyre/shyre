@@ -23,6 +23,7 @@ import { updateTimeEntryAction } from "./actions";
 import { CategoryPicker } from "./category-picker";
 import { DurationInput } from "./duration-input";
 import { Tooltip } from "@/components/Tooltip";
+import { TicketField, ticketFieldVisible } from "@/components/TicketField";
 import type { CategoryOption, ProjectOption, TimeEntry } from "./types";
 
 interface Props {
@@ -102,14 +103,27 @@ export function InlineEditForm({
   const requiresTimestamps = project?.require_timestamps ?? true;
   const projectIsInternal = project?.is_internal === true;
 
-  // Surface the project's auto-link config so the user knows what
-  // ticket reference to type into the description. Description-based
-  // detection on save handles `AE-640` (Jira key) and
-  // `owner/repo#42` (GitHub long form). Bare `#42` resolves against
-  // the project's GitHub repo when configured.
+  // The project's ticket-provider config drives the new <TicketField>
+  // (placeholder, label, and whether the row renders at all). Pulled
+  // from the projects list — falls back to null when the entry's
+  // project isn't in the visible list (rare; should not happen given
+  // the page query).
   const autolinkProject = projects.find((p) => p.id === entry.project_id);
   const githubRepo = autolinkProject?.github_repo ?? null;
   const jiraProjectKey = autolinkProject?.jira_project_key ?? null;
+  const showTicket = ticketFieldVisible(githubRepo, jiraProjectKey);
+
+  // Map the entry's linked_ticket_* columns into the chip's prop
+  // shape. NULL provider means nothing is attached today.
+  const attachedTicket =
+    entry.linked_ticket_provider && entry.linked_ticket_key
+      ? {
+          provider: entry.linked_ticket_provider,
+          key: entry.linked_ticket_key,
+          url: entry.linked_ticket_url,
+          title: entry.linked_ticket_title,
+        }
+      : null;
 
   return (
     <form
@@ -180,27 +194,7 @@ export function InlineEditForm({
             placeholder={t("fields.descriptionPlaceholder")}
             rows={3}
             className={textareaClass}
-            aria-describedby={
-              githubRepo || jiraProjectKey
-                ? `ie-description-${entry.id}-autolink`
-                : undefined
-            }
           />
-          {(githubRepo || jiraProjectKey) && (
-            <p
-              id={`ie-description-${entry.id}-autolink`}
-              className="mt-1 text-caption text-content-muted"
-            >
-              {t("fields.autolinkHint", {
-                jiraExample: jiraProjectKey
-                  ? `${jiraProjectKey}-123`
-                  : "PROJ-123",
-                githubExample: githubRepo
-                  ? `${githubRepo}#42`
-                  : "owner/repo#42",
-              })}
-            </p>
-          )}
         </div>
 
         {/* Row 3: Date/time fields — compact. Datetime-locals get
@@ -276,22 +270,23 @@ export function InlineEditForm({
           </>
         )}
 
-        {/* Row 4: Metadata — GitHub issue + billable. Compact spans;
+        {/* Row 4: Metadata — linked ticket + billable. Compact spans;
             metadata shouldn't be as visually loud as Project /
-            Description. */}
-        <div className={formSpanQuarter}>
-          <label htmlFor={`ie-github-issue-${entry.id}`} className={labelClass}>
-            {t("fields.githubIssue")}
-          </label>
-          <input
-            id={`ie-github-issue-${entry.id}`}
-            name="github_issue"
-            type="number"
-            min="1"
-            defaultValue={entry.github_issue ?? ""}
-            className={inputClass}
-          />
-        </div>
+            Description. The ticket field hides itself entirely when
+            neither GitHub nor Jira is configured on the project. */}
+        {showTicket && (
+          <div className={formSpanQuarter}>
+            <TicketField
+              idPrefix={`ie-${entry.id}`}
+              githubRepo={githubRepo}
+              jiraProjectKey={jiraProjectKey}
+              attached={attachedTicket}
+              entryId={entry.id}
+              canRefresh={!locked}
+              disabled={locked}
+            />
+          </div>
+        )}
         <div className={`${formSpanCompact} flex items-end pb-1`}>
           {(() => {
             const label = (

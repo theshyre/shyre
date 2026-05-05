@@ -51,7 +51,7 @@ export async function GET(request: Request): Promise<Response> {
   let q = supabase
     .from("time_entries")
     .select(
-      "id, user_id, team_id, project_id, invoice_id, start_time, end_time, duration_min, description, billable, github_issue, category_id, projects(name, customer_id, customers(name)), categories(name)",
+      "id, user_id, team_id, project_id, invoice_id, start_time, end_time, duration_min, description, billable, github_issue, linked_ticket_provider, linked_ticket_key, category_id, projects(name, customer_id, customers(name)), categories(name)",
     )
     .is("deleted_at", null)
     .gte("start_time", rangeStart.toISOString())
@@ -107,6 +107,21 @@ export async function GET(request: Request): Promise<Response> {
     const client = project ? unwrapOne<{ name: string }>(project.customers) : null;
     const category = unwrapOne<{ name: string }>(row.categories);
 
+    // Fold the unified linked_ticket_* columns into the legacy
+    // githubIssue column so existing bookkeeper templates keep
+    // working: when the linked ticket is a GitHub issue, derive its
+    // numeric id and surface it there. New entries don't write
+    // github_issue directly anymore — this is the only path that
+    // populates it for the CSV.
+    const provider =
+      (row.linked_ticket_provider as "jira" | "github" | null) ?? null;
+    const ticketKey = (row.linked_ticket_key as string | null) ?? null;
+    let derivedGithubIssue = row.github_issue as number | null;
+    if (provider === "github" && ticketKey) {
+      const m = ticketKey.match(/#(\d+)$/);
+      if (m) derivedGithubIssue = parseInt(m[1]!, 10);
+    }
+
     return {
       date: toUtcDateOnly(start),
       start: toUtcTimeOnly(start),
@@ -117,7 +132,9 @@ export async function GET(request: Request): Promise<Response> {
       category: category?.name ?? "",
       description: row.description ?? "",
       billable: row.billable,
-      githubIssue: row.github_issue,
+      githubIssue: derivedGithubIssue,
+      ticketKey: ticketKey ?? "",
+      ticketProvider: provider ?? "",
       startIso: start.toISOString(),
       endIso: end ? end.toISOString() : "",
       entryId: row.id as string,

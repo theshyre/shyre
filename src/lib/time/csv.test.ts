@@ -42,6 +42,8 @@ function row(overrides: Partial<CsvEntryRow> = {}): CsvEntryRow {
     description: "wrote tests",
     billable: true,
     githubIssue: 42,
+    ticketKey: "",
+    ticketProvider: "",
     startIso: "2026-04-13T09:00:00.000Z",
     endIso: "2026-04-13T10:30:00.000Z",
     entryId: "entry-1",
@@ -68,8 +70,10 @@ describe("toCsv", () => {
   it("renders the leading display columns first, followed by the reconciliation columns", () => {
     const csv = toCsv([row()]);
     const dataLine = csv.split("\r\n")[1] ?? "";
+    // Display columns + legacy githubIssue + new ticketKey/Provider
+    // columns + reconciliation tail.
     expect(dataLine.startsWith(
-      "2026-04-13,09:00,10:30,90,Alpha,Acme,Feature,wrote tests,true,42,",
+      "2026-04-13,09:00,10:30,90,Alpha,Acme,Feature,wrote tests,true,42,,,",
     )).toBe(true);
     expect(dataLine).toContain("entry-1");
     expect(dataLine).toContain("team-1");
@@ -77,6 +81,16 @@ describe("toCsv", () => {
     // invoiced=false comes through as a literal "false"; the
     // booleans-stringify rule from escapeCsvField applies here.
     expect(dataLine).toMatch(/false$/);
+  });
+
+  it("emits the new Ticket Key + Ticket Provider columns when populated", () => {
+    const csv = toCsv([
+      row({ ticketKey: "AE-640", ticketProvider: "jira", githubIssue: null }),
+    ]);
+    expect(csv).toContain("Ticket Key");
+    expect(csv).toContain("Ticket Provider");
+    expect(csv).toContain("AE-640");
+    expect(csv).toContain("jira");
   });
 
   it("properly escapes commas in descriptions", () => {

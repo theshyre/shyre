@@ -46,8 +46,11 @@ export async function createTimeEntryAction(formData: FormData): Promise<void> {
     const billableSubmitted = formData.has("billable")
       ? formData.get("billable") === "on"
       : null;
-    const issueStr = formData.get("github_issue") as string;
-    const github_issue = issueStr ? parseInt(issueStr, 10) : null;
+    // Legacy github_issue write path is gone — ticket linking now
+    // routes through linked_ticket_* via the unified ticket_ref input
+    // (or description-based detection). The github_issue COLUMN
+    // remains for old data; new entries leave it null.
+    const ticketRef = (formData.get("ticket_ref") as string) || null;
     const category_id = (formData.get("category_id") as string) || null;
 
     if (!project_id) throw new Error("project_id is required");
@@ -94,6 +97,7 @@ export async function createTimeEntryAction(formData: FormData): Promise<void> {
       userId,
       description,
       project_id,
+      ticketRef,
     );
 
     assertSupabaseOk(
@@ -105,7 +109,6 @@ export async function createTimeEntryAction(formData: FormData): Promise<void> {
         start_time,
         end_time,
         billable,
-        github_issue,
         category_id,
         ...ticket,
       })
@@ -123,8 +126,10 @@ export async function updateTimeEntryAction(formData: FormData): Promise<void> {
     const billableSubmitted = formData.has("billable")
       ? formData.get("billable") === "on"
       : null;
-    const issueStr = formData.get("github_issue") as string;
-    const github_issue = issueStr ? parseInt(issueStr, 10) : null;
+    // Same migration as create: ticket linking routes through
+    // ticket_ref → linked_ticket_*. The legacy github_issue column
+    // is no longer written.
+    const ticketRef = (formData.get("ticket_ref") as string) || null;
     const category_id = (formData.get("category_id") as string) || null;
 
     const durationMinStr = formData.get("duration_min") as string | null;
@@ -170,6 +175,7 @@ export async function updateTimeEntryAction(formData: FormData): Promise<void> {
       userId,
       description,
       (existing?.project_id as string | null) ?? null,
+      ticketRef,
     );
 
     assertSupabaseOk(
@@ -180,7 +186,6 @@ export async function updateTimeEntryAction(formData: FormData): Promise<void> {
           start_time,
           end_time,
           billable,
-          github_issue,
           category_id,
           ...ticket,
         })
@@ -518,7 +523,9 @@ export async function stopTimerAction(formData: FormData): Promise<void> {
 
 /**
  * Duplicate a time entry: start a new timer now with the same
- * project/description/billable/github_issue. Stops any running timer first.
+ * project/description/billable + linked_ticket_*. Stops any running
+ * timer first. Legacy github_issue (integer) carries through untouched
+ * for old data — new entries no longer write that column.
  */
 export async function duplicateTimeEntryAction(formData: FormData): Promise<void> {
   return runSafeAction(formData, async (formData, { supabase, userId }) => {
@@ -711,7 +718,10 @@ export async function applyTicketTitleAsDescriptionAction(
           assertSupabaseOk(
             await supabase
               .from("time_entries")
-              .update({ ...attachment, description: title })
+              .update({
+                ...attachment,
+                description: `${key} ${title}`,
+              })
               .eq("id", id)
               .eq("user_id", userId),
           );
@@ -721,10 +731,13 @@ export async function applyTicketTitleAsDescriptionAction(
         throw new Error("Could not resolve ticket title.");
       }
 
+      // Prefix the description with the ticket key so the reference
+      // round-trips through detection on subsequent saves and reads
+      // naturally on reports / invoices ("AE-640 Fix login bug").
       assertSupabaseOk(
         await supabase
           .from("time_entries")
-          .update({ description: title })
+          .update({ description: `${key} ${title}` })
           .eq("id", id)
           .eq("user_id", userId),
       );

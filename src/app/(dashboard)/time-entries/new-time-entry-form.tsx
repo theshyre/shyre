@@ -20,9 +20,9 @@ import {
   formSpanQuarter,
   formSpanCompact,
 } from "@/lib/form-styles";
-import { GitHubIssuePicker } from "@/components/GitHubIssuePicker";
 import { TeamSelector } from "@/components/TeamSelector";
 import { Tooltip } from "@/components/Tooltip";
+import { TicketField, ticketFieldVisible } from "@/components/TicketField";
 import type { TeamListItem } from "@/lib/team-context";
 import { createTimeEntryAction } from "./actions";
 import { CategoryPicker } from "./category-picker";
@@ -33,9 +33,10 @@ interface ProjectOption {
   id: string;
   name: string;
   github_repo: string | null;
-  /** Atlassian project key (e.g. "AE") for the description-based
-   *  ticket-link detector. When set, a description like "AE-640
-   *  fixed login bug" auto-attaches as a Jira ticket on save. */
+  /** Atlassian project key (e.g. "AE") for the unified ticket-link
+   *  field. Drives placeholder + bare-number resolution. When the
+   *  project has neither this nor github_repo, the ticket field is
+   *  hidden entirely. */
   jira_project_key: string | null;
   category_set_id?: string | null;
   extension_category_set_id?: string | null;
@@ -59,7 +60,6 @@ export function NewTimeEntryForm({
 }): React.JSX.Element {
   const [open, setOpen] = useState(false);
   const [selectedProjectId, setSelectedProjectId] = useState("");
-  const [issueNumber, setIssueNumber] = useState<number | null>(null);
   const t = useTranslations("time");
   const tc = useTranslations("common");
 
@@ -68,13 +68,13 @@ export function NewTimeEntryForm({
     onSuccess: () => {
       setOpen(false);
       setSelectedProjectId("");
-      setIssueNumber(null);
     },
   });
 
   const selectedProject = projects.find((p) => p.id === selectedProjectId);
   const linkedRepo = selectedProject?.github_repo ?? null;
   const linkedJiraKey = selectedProject?.jira_project_key ?? null;
+  const showTicket = ticketFieldVisible(linkedRepo, linkedJiraKey);
   // Internal projects pin billable to false (server enforces too).
   // Pre-pick + disable the toggle so the form's behavior matches the
   // server action; render a tooltip-style hint so the disabled state
@@ -133,7 +133,6 @@ export function NewTimeEntryForm({
             value={selectedProjectId}
             onChange={(e) => {
               setSelectedProjectId(e.target.value);
-              setIssueNumber(null);
             }}
             aria-describedby={
               fieldErrors.project_id
@@ -179,27 +178,7 @@ export function NewTimeEntryForm({
             placeholder={t("fields.descriptionPlaceholder")}
             rows={3}
             className={textareaClass}
-            aria-describedby={
-              linkedRepo || linkedJiraKey
-                ? "new-time-entry-description-autolink"
-                : undefined
-            }
           />
-          {(linkedRepo || linkedJiraKey) && (
-            <p
-              id="new-time-entry-description-autolink"
-              className="mt-1 text-caption text-content-muted"
-            >
-              {t("fields.autolinkHint", {
-                jiraExample: linkedJiraKey
-                  ? `${linkedJiraKey}-123`
-                  : "PROJ-123",
-                githubExample: linkedRepo
-                  ? `${linkedRepo}#42`
-                  : "owner/repo#42",
-              })}
-            </p>
-          )}
         </div>
 
         {/* Row 3: Date/time — compact. */}
@@ -278,24 +257,15 @@ export function NewTimeEntryForm({
           </>
         )}
 
-        {/* Row 4: Metadata — compact. */}
-        {linkedRepo ? (
+        {/* Row 4: Metadata — compact. The ticket field hides itself
+            entirely when neither GitHub nor Jira is configured on the
+            selected project. */}
+        {showTicket && (
           <div className={formSpanQuarter}>
-            <label className={labelClass}>{t("fields.githubIssue")}</label>
-            <GitHubIssuePicker
-              repo={linkedRepo}
-              value={issueNumber}
-              onChange={setIssueNumber}
-            />
-          </div>
-        ) : (
-          <div className={formSpanQuarter}>
-            <label htmlFor="time-entries-new-time-entry-form-githubIssue" className={labelClass}>{t("fields.githubIssue")}</label>
-            <input id="time-entries-new-time-entry-form-githubIssue"
-              name="github_issue"
-              type="number"
-              min="1"
-              className={inputClass}
+            <TicketField
+              idPrefix="new-time-entry"
+              githubRepo={linkedRepo}
+              jiraProjectKey={linkedJiraKey}
             />
           </div>
         )}

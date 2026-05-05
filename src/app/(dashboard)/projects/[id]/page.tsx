@@ -30,7 +30,18 @@ import { ProjectClassification } from "./project-classification";
 import { ProjectCategoriesEditor } from "./project-categories-editor";
 
 interface IssueTimeSummary {
-  issueNumber: number;
+  /** Display key. For new entries this is the unified
+   *  linked_ticket_key (e.g. "AE-640" or "owner/repo#42"); for legacy
+   *  data it's the bare github_issue number rendered as "#NNN". */
+  displayKey: string;
+  /** Click-out URL when known (Jira browse / GitHub issues). NULL
+   *  when the lookup hasn't run yet — the row still totals correctly,
+   *  it just doesn't link. */
+  url: string | null;
+  /** Sortable bucket id — collapse legacy github_issue and
+   *  linked_ticket_key into the same row when they describe the same
+   *  GitHub issue under the project's repo. */
+  bucketId: string;
   totalMinutes: number;
   entryCount: number;
 }
@@ -143,21 +154,50 @@ export default async function ProjectDetailPage({
   );
   const totalHours = (totalMinutes / 60).toFixed(1);
 
-  // Group time by GitHub issue
-  const issueMap = new Map<number, IssueTimeSummary>();
+  // Group time by linked ticket. Prefer the unified linked_ticket_*
+  // columns; fall back to legacy github_issue (integer) so old data
+  // imported pre-linked_ticket_* still aggregates. Both shapes
+  // collapse into the same bucket when they reference the same
+  // GitHub issue under the project's repo.
+  const issueMap = new Map<string, IssueTimeSummary>();
+  const projectRepo = project.github_repo as string | null;
   for (const entry of allEntries) {
-    if (entry.github_issue) {
-      const existing = issueMap.get(entry.github_issue);
-      if (existing) {
-        existing.totalMinutes += entry.duration_min ?? 0;
-        existing.entryCount += 1;
-      } else {
-        issueMap.set(entry.github_issue, {
-          issueNumber: entry.github_issue,
-          totalMinutes: entry.duration_min ?? 0,
-          entryCount: 1,
-        });
-      }
+    let bucketId: string | null = null;
+    let displayKey: string | null = null;
+    let url: string | null = null;
+
+    if (entry.linked_ticket_provider && entry.linked_ticket_key) {
+      bucketId = `${entry.linked_ticket_provider}:${entry.linked_ticket_key}`;
+      displayKey = entry.linked_ticket_key as string;
+      url = (entry.linked_ticket_url as string | null) ?? null;
+    } else if (entry.github_issue && projectRepo) {
+      bucketId = `github:${projectRepo}#${entry.github_issue}`;
+      displayKey = `${projectRepo}#${entry.github_issue}`;
+      url = `https://github.com/${projectRepo}/issues/${entry.github_issue}`;
+    } else if (entry.github_issue) {
+      // No project repo — render the bare number, no URL.
+      bucketId = `github_issue:${entry.github_issue}`;
+      displayKey = `#${entry.github_issue}`;
+      url = null;
+    }
+
+    if (!bucketId || !displayKey) continue;
+
+    const existing = issueMap.get(bucketId);
+    if (existing) {
+      existing.totalMinutes += entry.duration_min ?? 0;
+      existing.entryCount += 1;
+      // Keep the first non-null URL we see — newer entries' resolved
+      // URL is preferred over a synthesized fallback.
+      if (!existing.url && url) existing.url = url;
+    } else {
+      issueMap.set(bucketId, {
+        bucketId,
+        displayKey,
+        url,
+        totalMinutes: entry.duration_min ?? 0,
+        entryCount: 1,
+      });
     }
   }
   const issueSummaries = Array.from(issueMap.values()).sort(
@@ -226,13 +266,15 @@ export default async function ProjectDetailPage({
         />
       </div>
 
-      {/* Issue Time Summary */}
-      {issueSummaries.length > 0 && project.github_repo && (
+      {/* Time by linked ticket — provider-agnostic. Renders for any
+          project with at least one linked entry; shows whether the
+          source is GitHub or Jira. */}
+      {issueSummaries.length > 0 && (
         <div className="mt-8">
           <div className="flex items-center gap-3">
             <Hash size={20} className="text-accent" />
             <h2 className="text-title font-semibold text-content">
-              Time by Issue
+              Time by ticket
             </h2>
           </div>
           <div className="mt-3 overflow-hidden rounded-lg border border-edge bg-surface-raised">
@@ -240,7 +282,7 @@ export default async function ProjectDetailPage({
               <thead>
                 <tr className="border-b border-edge bg-surface-inset">
                   <th className="px-4 py-3 text-left text-caption font-semibold uppercase tracking-wider text-content-muted">
-                    Issue
+                    Ticket
                   </th>
                   <th className="px-4 py-3 text-right text-caption font-semibold uppercase tracking-wider text-content-muted">
                     Entries
@@ -254,21 +296,30 @@ export default async function ProjectDetailPage({
                 {issueSummaries.map((summary) => {
                   const h = Math.floor(summary.totalMinutes / 60);
                   const m = Math.round(summary.totalMinutes % 60);
+                  const linkBody = (
+                    <span className="inline-flex items-center gap-1.5 text-accent font-mono">
+                      {summary.displayKey}
+                      {summary.url && <ExternalLink size={12} />}
+                    </span>
+                  );
                   return (
                     <tr
-                      key={summary.issueNumber}
+                      key={summary.bucketId}
                       className="border-b border-edge last:border-0 hover:bg-hover transition-colors"
                     >
                       <td className="px-4 py-3">
-                        <a
-                          href={`https://github.com/${project.github_repo}/issues/${summary.issueNumber}`}
-                          target="_blank"
-                          rel="noopener noreferrer"
-                          className="inline-flex items-center gap-1.5 text-accent hover:underline font-mono"
-                        >
-                          #{summary.issueNumber}
-                          <ExternalLink size={12} />
-                        </a>
+                        {summary.url ? (
+                          <a
+                            href={summary.url}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="hover:underline"
+                          >
+                            {linkBody}
+                          </a>
+                        ) : (
+                          linkBody
+                        )}
                       </td>
                       <td className="px-4 py-3 text-right text-content-secondary">
                         {summary.entryCount}
@@ -317,10 +368,16 @@ export default async function ProjectDetailPage({
                     <span className="text-content">
                       {entry.description || "—"}
                     </span>
-                    {entry.github_issue && (
+                    {entry.linked_ticket_key ? (
                       <span className="text-caption font-mono text-accent">
-                        #{entry.github_issue}
+                        {entry.linked_ticket_key}
                       </span>
+                    ) : (
+                      entry.github_issue && (
+                        <span className="text-caption font-mono text-accent">
+                          #{entry.github_issue}
+                        </span>
+                      )
                     )}
                     <span className="text-caption text-content-muted">
                       {formatDate(entry.start_time)}

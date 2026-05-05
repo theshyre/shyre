@@ -146,4 +146,60 @@ describe("buildTicketAttachment", () => {
     );
     expect(r.linked_ticket_provider).toBe("jira");
   });
+
+  it("explicit ticketRef wins over description detection", async () => {
+    const supabase = makeSupabase({
+      github_repo: null,
+      jira_project_key: "AE",
+    });
+    lookupTicketMock.mockResolvedValueOnce({
+      provider: "jira",
+      key: "AE-640",
+      url: "https://example.atlassian.net/browse/AE-640",
+      title: "Fix login",
+    });
+    const r = await buildTicketAttachment(
+      supabase as never,
+      "u1",
+      "this description mentions PROJ-1 but the explicit field wins",
+      "p1",
+      "640",
+    );
+    expect(r.linked_ticket_provider).toBe("jira");
+    expect(r.linked_ticket_key).toBe("AE-640");
+    expect(r.linked_ticket_title).toBe("Fix login");
+  });
+
+  it("falls through to description detection when ticketRef is empty / unparseable", async () => {
+    const supabase = makeSupabase({
+      github_repo: null,
+      jira_project_key: "AE",
+    });
+    lookupTicketMock.mockResolvedValueOnce(null);
+    const r = await buildTicketAttachment(
+      supabase as never,
+      "u1",
+      "found AE-1 in the description",
+      "p1",
+      "   ",
+    );
+    expect(r.linked_ticket_provider).toBe("jira");
+    expect(r.linked_ticket_key).toBe("AE-1");
+  });
+
+  it("returns EMPTY when neither ticketRef nor description is present", async () => {
+    const supabase = makeSupabase({
+      github_repo: "x/y",
+      jira_project_key: "AE",
+    });
+    const r = await buildTicketAttachment(
+      supabase as never,
+      "u1",
+      null,
+      "p1",
+      "",
+    );
+    expect(r.linked_ticket_provider).toBeNull();
+    expect(lookupTicketMock).not.toHaveBeenCalled();
+  });
 });

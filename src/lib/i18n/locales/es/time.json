@@ -10,6 +10,14 @@
     "applyTitleFailed": "No se pudo aplicar el título — intenta actualizar primero.",
     "noCreds": "Sin token de {provider} configurado — guardado sin título."
   },
+  "ticketField": {
+    "labelJira": "Issue de Jira",
+    "labelGitHub": "Issue de GitHub",
+    "labelBoth": "Ticket vinculado",
+    "placeholderJira": "{jiraExample} o {shortExample}",
+    "placeholderGitHub": "{shortExample}",
+    "placeholderBoth": "{jiraExample} o {githubExample}"
+  },
   "lock": {
     "locked": "Facturado",
     "lockedOn": "Bloqueado — factura {invoice}",
@@ -23,14 +31,12 @@
     "project": "Proyecto",
     "description": "Descripción",
     "descriptionPlaceholder": "¿En qué trabajaste?",
-    "autolinkHint": "Consejo — incluye una referencia de ticket (por ejemplo {jiraExample} o {githubExample}) en cualquier parte de la descripción y Shyre la enlazará al guardar.",
     "startTime": "Hora de inicio",
     "endTime": "Hora de fin",
     "date": "Fecha",
     "duration": "Duración",
     "billable": "Facturable",
     "billableInternalLocked": "Los proyectos internos son no facturables por definición.",
-    "githubIssue": "Issue de GitHub #",
     "category": "Categoría",
     "categoryUnavailable": "Este proyecto no tiene un conjunto de categorías — configúralo en los ajustes del proyecto.",
     "categoryPickProjectFirst": "Selecciona un proyecto primero."
