@@ -62,6 +62,9 @@ export interface PreviewCandidate extends EntryCandidate {
   /** customer_id of the entry's project — used for the customer
    *  filter in the preview. NULL for internal projects. */
   customerId: string | null;
+  /** project_id of the entry — drives the optional project filter
+   *  ("invoice just the Spike sub-project, not all of EyeReg"). */
+  projectId: string;
   /** Team scope so the form can ignore entries from other teams when
    *  the user picks a specific team via the TeamSelector. */
   teamId: string;
@@ -206,6 +209,13 @@ export function NewInvoiceForm({
   useDirtyTitle(dirty);
 
   const [customerId, setCustomerId] = useState<string>("");
+  // Optional project scoping. Empty = "all projects under the
+  // chosen customer" (legacy behavior). When the customer has
+  // sub-projects (parent + N children all on the same customer),
+  // the multi-select lets the user invoice just one phase.
+  const [selectedProjectIds, setSelectedProjectIds] = useState<string[]>(
+    [],
+  );
   // Default to "sinceLastInvoice" — falls through to "all"
   // semantics when the customer has no prior invoice (the
   // preset's helper text explains this). Picked as default per the
@@ -330,13 +340,16 @@ export function NewInvoiceForm({
   // Filter candidates → group → totals. All client-side; same logic
   // the server runs at submit, so the preview total === posted total.
   const filtered = useMemo(() => {
+    const projectFilterSet =
+      selectedProjectIds.length > 0 ? new Set(selectedProjectIds) : null;
     return candidates.filter((c) => {
       if (customerId && c.customerId !== customerId) return false;
+      if (projectFilterSet && !projectFilterSet.has(c.projectId)) return false;
       if (range.start && c.date && c.date < range.start) return false;
       if (range.end && c.date && c.date > range.end) return false;
       return true;
     });
-  }, [candidates, customerId, range.start, range.end]);
+  }, [candidates, customerId, selectedProjectIds, range.start, range.end]);
 
   const lines = useMemo(
     () => groupEntriesIntoLineItems(filtered, grouping),
@@ -445,6 +458,10 @@ export function NewInvoiceForm({
                   onChange={(e) => {
                     const next = e.target.value;
                     setCustomerId(next);
+                    // Reset project scope on customer change — the
+                    // previous selection's project ids belong to a
+                    // different customer's project set.
+                    setSelectedProjectIds([]);
                     applyCustomerCascade(next);
                     if (!dirty) setDirty(true);
                   }}
@@ -457,6 +474,79 @@ export function NewInvoiceForm({
                     </option>
                   ))}
                 </select>
+                {/* Hidden inputs carry the selected project ids
+                    through to the server action. Empty selection =
+                    no inputs = "all projects under this customer". */}
+                {selectedProjectIds.map((id) => (
+                  <input
+                    key={id}
+                    type="hidden"
+                    name="project_ids[]"
+                    value={id}
+                  />
+                ))}
+                {/* Project filter — appears only when the chosen
+                    customer has more than one project under them
+                    (the typical case for sub-projects: parent + N
+                    children). When there's only one, no need to
+                    show the picker. */}
+                {(() => {
+                  if (!customerId) return null;
+                  const projectsUnderCustomer = Array.from(
+                    new Map(
+                      candidates
+                        .filter((c) => c.customerId === customerId)
+                        .map((c) => [c.projectId, c.projectName]),
+                    ),
+                  );
+                  if (projectsUnderCustomer.length <= 1) return null;
+                  return (
+                    <div className="mt-2">
+                      <p className="text-caption text-content-muted mb-1">
+                        {t("projectFilterLabel")}
+                      </p>
+                      <div className="flex flex-wrap gap-2">
+                        {projectsUnderCustomer.map(([pid, pname]) => {
+                          const checked = selectedProjectIds.includes(pid);
+                          return (
+                            <label
+                              key={pid}
+                              className={`inline-flex items-center gap-1.5 rounded-full border px-3 py-1 text-caption cursor-pointer transition-colors ${
+                                checked
+                                  ? "border-accent bg-accent-soft text-accent"
+                                  : "border-edge bg-surface text-content-secondary hover:bg-hover"
+                              }`}
+                            >
+                              <input
+                                type="checkbox"
+                                checked={checked}
+                                onChange={(e) => {
+                                  setSelectedProjectIds((cur) =>
+                                    e.target.checked
+                                      ? [...cur, pid]
+                                      : cur.filter((id) => id !== pid),
+                                  );
+                                  if (!dirty) setDirty(true);
+                                }}
+                                className="sr-only"
+                              />
+                              {pname}
+                            </label>
+                          );
+                        })}
+                        {selectedProjectIds.length > 0 && (
+                          <button
+                            type="button"
+                            onClick={() => setSelectedProjectIds([])}
+                            className="text-caption text-content-muted hover:text-content underline"
+                          >
+                            {t("projectFilterClear")}
+                          </button>
+                        )}
+                      </div>
+                    </div>
+                  );
+                })()}
               </div>
               <div className={formSpanHalf}>
                 <label className={labelClass} htmlFor="due_date">

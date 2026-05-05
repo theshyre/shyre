@@ -81,6 +81,8 @@
   "selectClient": "Selecciona un cliente",
   "allClients": "Todos los clientes (todo el equipo)",
   "selectClientDescription": "Elige un cliente para ver sus registros de tiempo no facturados.",
+  "projectFilterLabel": "Filtrar por proyecto(s) específico(s)",
+  "projectFilterClear": "Limpiar",
   "exportCsv": "Exportar CSV",
   "filters": {
     "heading": "Filtros",

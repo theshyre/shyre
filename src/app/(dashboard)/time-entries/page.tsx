@@ -328,12 +328,16 @@ export default async function TimeEntriesPage({
   })();
 
   // Active projects — fetched always; new-entry form + Recent chips
-  // need them on every view.
+  // need them on every view. Includes parent_project_id so we can
+  // filter to leaves below (a project that's a parent of any other
+  // project should NOT be picker-selectable, since logging time on
+  // the parent silently bypasses the per-phase budget the children
+  // exist to track).
   const projectsPromise = (() => {
     let q = supabase
       .from("projects")
       .select(
-        "id, name, github_repo, jira_project_key, team_id, category_set_id, require_timestamps, is_internal, default_billable, customers(id, name)",
+        "id, name, github_repo, jira_project_key, team_id, category_set_id, require_timestamps, is_internal, default_billable, parent_project_id, customers(id, name)",
       )
       .eq("status", "active")
       .in("team_id", userTeamIds)
@@ -500,10 +504,21 @@ export default async function TimeEntriesPage({
   for (const row of extensionSets ?? []) {
     extensionByProject.set(row.project_id as string, row.id as string);
   }
-  const projects = projectsRaw.map((p) => ({
-    ...p,
-    extension_category_set_id: extensionByProject.get(p.id) ?? null,
-  }));
+  // Leaf-only set: any project that's a parent of another project
+  // is non-pickable for time-entry. Logging onto the parent silently
+  // bypasses the per-phase budget the children exist to track.
+  // Children plus top-level (no children) projects all qualify.
+  const parentIds = new Set(
+    projectsRaw
+      .map((p) => p.parent_project_id as string | null)
+      .filter((v): v is string => v !== null),
+  );
+  const projects = projectsRaw
+    .filter((p) => !parentIds.has(p.id))
+    .map((p) => ({
+      ...p,
+      extension_category_set_id: extensionByProject.get(p.id) ?? null,
+    }));
   const setIds = Array.from(
     new Set(
       projects

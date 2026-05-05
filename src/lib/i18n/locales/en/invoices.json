@@ -81,6 +81,8 @@
   "selectClient": "Select a customer",
   "allClients": "All customers (team-wide)",
   "selectClientDescription": "Choose a customer to see their unbilled time entries.",
+  "projectFilterLabel": "Filter to specific project(s)",
+  "projectFilterClear": "Clear",
   "exportCsv": "Export CSV",
   "filters": {
     "heading": "Filters",

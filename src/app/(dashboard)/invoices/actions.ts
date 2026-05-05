@@ -37,6 +37,14 @@ export async function createInvoiceAction(formData: FormData): Promise<void> {
     }
 
     const customer_id = (formData.get("customer_id") as string) || null;
+    // Optional project scoping — when the user wants to invoice JUST
+    // one (or N) projects under a customer instead of all of them.
+    // Drives the per-phase invoice flow ("just the Spike phase, not
+    // BAU") that sub-projects opened up. Empty array = "all projects
+    // under the chosen customer", which preserves the legacy behavior.
+    const project_ids = formData.getAll("project_ids[]").filter(
+      (v): v is string => typeof v === "string" && v.length > 0,
+    );
     const notes = (formData.get("notes") as string) || null;
     const due_date = (formData.get("due_date") as string) || null;
     const taxRateStr = formData.get("tax_rate") as string;
@@ -195,9 +203,11 @@ export async function createInvoiceAction(formData: FormData): Promise<void> {
     // also filter is_internal=true at this boundary so a
     // pre-migration row with mismatched flags doesn't leak through).
     let filteredEntries;
+    const projectIdSet = project_ids.length > 0 ? new Set(project_ids) : null;
     if (customer_id) {
       // Client invoice: only entries from this client's projects, and
-      // only client (non-internal) projects.
+      // only client (non-internal) projects. When project_ids is
+      // supplied, narrow further to just those projects.
       filteredEntries = (entries ?? []).filter((e) => {
         const proj = e.projects;
         if (!proj || typeof proj !== "object" || !("customer_id" in proj)) return false;
@@ -206,7 +216,11 @@ export async function createInvoiceAction(formData: FormData): Promise<void> {
           is_internal?: boolean;
         };
         if (p.is_internal === true) return false;
-        return p.customer_id === customer_id;
+        if (p.customer_id !== customer_id) return false;
+        if (projectIdSet && !projectIdSet.has(e.project_id as string)) {
+          return false;
+        }
+        return true;
       });
     } else {
       // Org-wide invoice: all unbilled non-internal entries.
@@ -216,7 +230,11 @@ export async function createInvoiceAction(formData: FormData): Promise<void> {
           proj && typeof proj === "object"
             ? (proj as { is_internal?: boolean })
             : null;
-        return p?.is_internal !== true;
+        if (p?.is_internal === true) return false;
+        if (projectIdSet && !projectIdSet.has(e.project_id as string)) {
+          return false;
+        }
+        return true;
       });
     }
 

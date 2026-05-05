@@ -181,6 +181,7 @@ export default async function NewInvoicePage(): Promise<React.JSX.Element> {
       projectName: proj?.name ?? "Project",
       projectInvoiceCode: (proj?.invoice_code as string | null) ?? null,
       customerId: (proj?.customer_id as string | null) ?? null,
+      projectId: r.project_id,
       taskName: r.categories?.name ?? null,
       personName: displayNameByUserId.get(r.user_id) ?? "Unknown",
       teamId: r.team_id,
