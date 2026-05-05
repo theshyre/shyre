@@ -76,14 +76,30 @@ describe("InlineEditForm", () => {
 
   it("submits form and calls onDone on success", async () => {
     const onDone = vi.fn();
-    renderWithIntl(
+    const { container } = renderWithIntl(
       <InlineEditForm entry={entry} projects={[project]} categories={[]} onDone={onDone} />,
     );
+    // Save is now gated on form dirtiness — type something into
+    // description so the button enables.
+    const desc = container.querySelector<HTMLTextAreaElement>(
+      'textarea[name="description"]',
+    )!;
+    fireEvent.input(desc, { target: { value: "edited description" } });
     fireEvent.click(screen.getByRole("button", { name: /save changes/i }));
     await waitFor(() => expect(updateMock).toHaveBeenCalled());
     await waitFor(() => expect(onDone).toHaveBeenCalled());
     const fd = updateMock.mock.calls[0]?.[0];
     expect(fd?.get("id")).toBe("e1");
+  });
+
+  it("Save is disabled until the form is dirty", () => {
+    renderWithIntl(
+      <InlineEditForm entry={entry} projects={[project]} categories={[]} onDone={() => {}} />,
+    );
+    const save = screen.getByRole("button", {
+      name: /save changes/i,
+    }) as HTMLButtonElement;
+    expect(save.disabled).toBe(true);
   });
 
   it("Escape key calls onDone", () => {

@@ -26,6 +26,7 @@ import { Plus, Trash2, X, ExternalLink, Save } from "lucide-react";
 import Link from "next/link";
 import { AlertBanner } from "@theshyre/ui";
 import { useFormAction } from "@/hooks/use-form-action";
+import { useFormDirty } from "@/hooks/use-form-dirty";
 import { SubmitButton } from "@/components/SubmitButton";
 import { TicketField } from "@/components/TicketField";
 import {
@@ -84,11 +85,24 @@ export function CellExpansion({
     first?.focus();
   }, []);
 
+  // Escape closes the expansion. Bound at the container level
+  // (capture phase) so it wins over child <input>'s default Escape
+  // behaviour without needing a global listener that would
+  // interfere with other modals/popovers on the page.
+  const handleKeyDown = (e: React.KeyboardEvent<HTMLDivElement>): void => {
+    if (e.key === "Escape") {
+      e.preventDefault();
+      e.stopPropagation();
+      onClose();
+    }
+  };
+
   const [adding, setAdding] = useState(entries.length === 0);
 
   return (
     <div
       ref={containerRef}
+      onKeyDown={handleKeyDown}
       className="rounded-lg border border-accent bg-surface-raised p-4 space-y-3"
       role="region"
       aria-label={t("regionLabel", {
@@ -178,6 +192,12 @@ function CellEntryRow({
 
   const update = useFormAction({ action: updateTimeEntryAction });
   const del = useFormAction({ action: deleteTimeEntryAction });
+  // Save button stays disabled until the user actually changes
+  // something, so the action doesn't fire a no-op UPDATE on every
+  // click. Resnaps on successful save so the button goes back to
+  // disabled until the next change.
+  const formRef = useRef<HTMLFormElement>(null);
+  const dirty = useFormDirty(formRef, update.success);
 
   const linkedTicket =
     entry.linked_ticket_provider && entry.linked_ticket_key
@@ -209,6 +229,7 @@ function CellEntryRow({
 
   return (
     <form
+      ref={formRef}
       action={update.handleSubmit}
       className={`rounded-md p-3 space-y-2 ${
         running
@@ -241,7 +262,13 @@ function CellEntryRow({
         <AlertBanner tone="error">{update.serverError}</AlertBanner>
       )}
 
-      <div className="grid gap-2 sm:grid-cols-2">
+      {/* Description + Ticket each get their own row at full width.
+          The earlier 2-col grid pinched both into ~half the
+          expansion's width and truncated the resolved ticket title
+          in the chip preview, plus the long imported descriptions
+          were aggressively truncated. Stacking lets the user see
+          and edit the full text. */}
+      <div className="space-y-3">
         <div>
           <label
             htmlFor={`cell-desc-${entry.id}`}
@@ -285,6 +312,7 @@ function CellEntryRow({
             icon={Save}
             success={update.success}
             successMessage={tc("actions.saved")}
+            disabled={!dirty}
           />
           <button
             type="button"
@@ -371,8 +399,12 @@ function CellAddEntryRow({
         {t("addEntryHeader", { date: dayDateLong })}
       </p>
 
-      <div className="grid gap-2 sm:grid-cols-3">
-        <div className="sm:col-span-1">
+      {/* Description full-width on its own row, then Ticket +
+          Duration share a row below — duration is a 4-char input
+          and packs nicely next to the ticket field. Mirrors the
+          edit-row layout above. */}
+      <div className="space-y-3">
+        <div>
           <label htmlFor="cell-add-desc" className={labelClass}>
             {t("fields.description")}
           </label>
@@ -384,22 +416,22 @@ function CellAddEntryRow({
             className={inputClass}
           />
         </div>
-        <div className="sm:col-span-1">
+        <div className="grid gap-3 sm:grid-cols-[minmax(0,1fr)_auto]">
           <TicketField
             idPrefix="cell-add"
             githubRepo={project.github_repo}
             jiraProjectKey={project.jira_project_key}
           />
-        </div>
-        <div className="sm:col-span-1">
-          <label htmlFor="cell-add-duration" className={labelClass}>
-            {t("fields.duration")}
-          </label>
-          <DurationInput
-            name="duration_min"
-            defaultMinutes={defaultMinutes}
-            ariaLabel={t("fields.duration")}
-          />
+          <div className="min-w-[88px]">
+            <label htmlFor="cell-add-duration" className={labelClass}>
+              {t("fields.duration")}
+            </label>
+            <DurationInput
+              name="duration_min"
+              defaultMinutes={defaultMinutes}
+              ariaLabel={t("fields.duration")}
+            />
+          </div>
         </div>
       </div>
 

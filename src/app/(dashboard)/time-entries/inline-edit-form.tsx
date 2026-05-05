@@ -4,6 +4,7 @@ import { useCallback, useEffect, useRef } from "react";
 import { useTranslations } from "next-intl";
 import { AlertBanner } from "@theshyre/ui";
 import { useFormAction } from "@/hooks/use-form-action";
+import { useFormDirty } from "@/hooks/use-form-dirty";
 import { SubmitButton } from "@/components/SubmitButton";
 import { FieldError } from "@/components/FieldError";
 import {
@@ -71,6 +72,10 @@ export function InlineEditForm({
       action: updateTimeEntryAction,
       onSuccess: () => onDone(),
     });
+  // Save button stays disabled until something actually changes —
+  // every form submission costs a server roundtrip + an updated_at
+  // bump, even no-ops, and a no-op success toast feels broken.
+  const dirty = useFormDirty(formRef, success);
 
   useEffect(() => {
     descRef.current?.focus();
@@ -326,7 +331,7 @@ export function InlineEditForm({
         <SubmitButton
           label={t("saveChanges")}
           pending={pending}
-          disabled={locked}
+          disabled={locked || !dirty}
           success={success}
           successMessage={tc("actions.saved")}
         />
