@@ -25,6 +25,7 @@ import {
   generateBackupCodes,
   formatCodesForDownload,
 } from "@/lib/backup-codes";
+import { rewriteTotpUri } from "@/lib/mfa/totp-uri";
 
 type MfaStep = "idle" | "verifying" | "show-backup-codes" | "enabled";
 
@@ -98,22 +99,12 @@ export function MfaSetup(): React.JSX.Element {
     }
 
     if (data) {
-      const originalUri = data.totp.uri;
-      const url = new URL(originalUri);
-      const secret = url.searchParams.get("secret") ?? "";
-      const period = url.searchParams.get("period") ?? "30";
-      const digits = url.searchParams.get("digits") ?? "6";
-      const algorithm = url.searchParams.get("algorithm") ?? "SHA1";
-
       const { data: userData } = await supabase.auth.getUser();
       const email = userData.user?.email ?? "user";
-
-      const issuer = "malcom.io";
-      const rewrittenUri =
-        `otpauth://totp/${encodeURIComponent(issuer)}:${encodeURIComponent(email)}` +
-        `?secret=${secret}&issuer=${encodeURIComponent(issuer)}` +
-        `&period=${period}&digits=${digits}&algorithm=${algorithm}`;
-
+      const rewrittenUri = rewriteTotpUri(data.totp.uri, {
+        email,
+        issuer: "malcom.io",
+      });
       setQrUri(rewrittenUri);
       setFactorId(data.id);
       setStep("verifying");

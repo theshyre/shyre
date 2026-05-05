@@ -2,7 +2,8 @@
 
 import { useCallback, useEffect, useState } from "react";
 import { useTranslations } from "next-intl";
-import { Modal, Spinner } from "@theshyre/ui";
+import { Spinner } from "@theshyre/ui";
+import { Modal } from "@/components/Modal";
 import { Clock, History, Trash2, X } from "lucide-react";
 import { buttonGhostClass } from "@/lib/form-styles";
 import {
@@ -57,11 +58,19 @@ export function PersonHistoryDialog({
   }, [open, personId, fetchHistory]);
 
   return (
-    <Modal open={open} onClose={onClose} maxWidth="max-w-[640px]">
+    <Modal
+      open={open}
+      onClose={onClose}
+      maxWidth="max-w-[640px]"
+      titleId="person-history-dialog-title"
+    >
       <div className="flex items-center justify-between px-5 py-4 border-b border-edge">
         <div className="flex items-center gap-2 min-w-0">
           <History size={18} className="text-accent shrink-0" />
-          <h2 className="text-title font-semibold text-content truncate">
+          <h2
+            id="person-history-dialog-title"
+            className="text-title font-semibold text-content truncate"
+          >
             {t("title", { name: personDisplayName })}
           </h2>
         </div>
