@@ -28,6 +28,7 @@
     "date": "Date",
     "duration": "Duration",
     "billable": "Billable",
+    "billableInternalLocked": "Internal projects are non-billable by definition.",
     "githubIssue": "GitHub Issue #",
     "category": "Category",
     "categoryUnavailable": "This project has no category set — configure one in project settings.",

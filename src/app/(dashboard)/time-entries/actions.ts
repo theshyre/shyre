@@ -37,23 +37,38 @@ export async function createTimeEntryAction(formData: FormData): Promise<void> {
   return runSafeAction(formData, async (formData, { supabase }) => {
     const project_id = formData.get("project_id") as string;
     const description = (formData.get("description") as string) || null;
-    const billable = formData.get("billable") === "on";
+    // billable is decided server-side: internal projects are forced to
+    // false (defense in depth — the form hides the toggle, but a
+    // forged POST shouldn't slip through). Otherwise: respect the
+    // submitted value, OR fall back to the project's default_billable
+    // when no `billable` field is present at all (templates / legacy
+    // forms).
+    const billableSubmitted = formData.has("billable")
+      ? formData.get("billable") === "on"
+      : null;
     const issueStr = formData.get("github_issue") as string;
     const github_issue = issueStr ? parseInt(issueStr, 10) : null;
     const category_id = (formData.get("category_id") as string) || null;
 
     if (!project_id) throw new Error("project_id is required");
 
-    // Derive team_id from the project — see startTimerAction for rationale.
+    // Derive team_id + classification from the project. is_internal
+    // and default_billable feed the inheritance logic below.
     const { data: project, error: projErr } = await supabase
       .from("projects")
-      .select("team_id")
+      .select("team_id, is_internal, default_billable")
       .eq("id", project_id)
       .single();
     if (projErr || !project) {
       throw new Error("Project not found or not accessible");
     }
     const teamId = project.team_id as string;
+    const isInternal = (project as { is_internal?: boolean }).is_internal === true;
+    const projectDefaultBillable =
+      (project as { default_billable?: boolean }).default_billable !== false;
+    const billable = isInternal
+      ? false
+      : (billableSubmitted ?? projectDefaultBillable);
     const { userId } = await validateTeamAccess(teamId);
 
     // Duration-only mode: form submits `entry_date` (YYYY-MM-DD) + `duration_min`
@@ -105,7 +120,9 @@ export async function updateTimeEntryAction(formData: FormData): Promise<void> {
   return runSafeAction(formData, async (formData, { supabase, userId }) => {
     const id = formData.get("id") as string;
     const description = (formData.get("description") as string) || null;
-    const billable = formData.get("billable") === "on";
+    const billableSubmitted = formData.has("billable")
+      ? formData.get("billable") === "on"
+      : null;
     const issueStr = formData.get("github_issue") as string;
     const github_issue = issueStr ? parseInt(issueStr, 10) : null;
     const category_id = (formData.get("category_id") as string) || null;
@@ -129,12 +146,25 @@ export async function updateTimeEntryAction(formData: FormData): Promise<void> {
     // Re-resolve the ticket attachment from the (possibly edited)
     // description. Need the entry's project_id to drive short-ref
     // resolution; fetch it in the same round trip we'd already
-    // make.
+    // make. Same fetch also surfaces the project's classification so
+    // we can enforce billable=false on internal projects.
     const { data: existing } = await supabase
       .from("time_entries")
-      .select("project_id")
+      .select("project_id, projects(is_internal)")
       .eq("id", id)
       .maybeSingle();
+    const projectIsInternal = ((): boolean => {
+      const p = existing?.projects as
+        | { is_internal?: boolean }
+        | { is_internal?: boolean }[]
+        | null
+        | undefined;
+      const proj = Array.isArray(p) ? (p[0] ?? null) : (p ?? null);
+      return proj?.is_internal === true;
+    })();
+    const billable = projectIsInternal
+      ? false
+      : (billableSubmitted ?? false);
     const ticket = await buildTicketAttachment(
       supabase,
       userId,
@@ -307,16 +337,22 @@ export async function startTimerAction(formData: FormData): Promise<void> {
     // field. When a user clicks a "recent project" chip the Team dropdown
     // doesn't re-sync; inserting with mismatched team_id trips the RLS
     // policy `project.team_id = time_entries.team_id` and the user sees
-    // a generic "permission denied" error.
+    // a generic "permission denied" error. Same fetch surfaces the
+    // project's classification (is_internal + default_billable) so
+    // the new entry inherits the correct billable value.
     const { data: project, error: projErr } = await supabase
       .from("projects")
-      .select("team_id")
+      .select("team_id, is_internal, default_billable")
       .eq("id", project_id)
       .single();
     if (projErr || !project) {
       throw new Error("Project not found or not accessible");
     }
     const teamId = project.team_id as string;
+    const projectIsInternal =
+      (project as { is_internal?: boolean }).is_internal === true;
+    const projectDefaultBillable =
+      (project as { default_billable?: boolean }).default_billable !== false;
 
     // Still validate the caller has access to that team — defense in
     // depth. RLS would block it too, but we want a clean userMessage.
@@ -423,7 +459,9 @@ export async function startTimerAction(formData: FormData): Promise<void> {
           description,
           start_time: now,
           end_time: null,
-          billable: true,
+          // Inherit project classification: internal projects pin to
+          // false; otherwise honor the project's default_billable.
+          billable: projectIsInternal ? false : projectDefaultBillable,
           category_id,
           ...(ticket ?? {}),
         }),
@@ -486,6 +524,20 @@ export async function duplicateTimeEntryAction(formData: FormData): Promise<void
         .is("deleted_at", null)
     );
 
+    // Re-read the project's classification at duplicate time. If the
+    // source's project flipped to internal between the original entry
+    // and now, the duplicate must inherit the new policy
+    // (billable=false), not the source's stale value.
+    const { data: dupProject } = await supabase
+      .from("projects")
+      .select("is_internal")
+      .eq("id", source.project_id as string)
+      .maybeSingle();
+    const dupBillable =
+      (dupProject as { is_internal?: boolean } | null)?.is_internal === true
+        ? false
+        : (source.billable as boolean);
+
     // Insert the duplicate as a running timer
     assertSupabaseOk(
       await supabase.from("time_entries").insert({
@@ -495,7 +547,7 @@ export async function duplicateTimeEntryAction(formData: FormData): Promise<void
         description: source.description,
         start_time: now,
         end_time: null,
-        billable: source.billable,
+        billable: dupBillable,
         github_issue: source.github_issue,
         category_id: source.category_id,
         linked_ticket_provider: source.linked_ticket_provider,
@@ -734,7 +786,20 @@ export async function upsertTimesheetCellAction(
     const t = entryFromDuration(entry_date, durationMin, tzOffsetMin);
 
     if (!existing || existing.length === 0) {
-      // Insert new
+      // Insert new — inherit project's billable policy. Internal
+      // projects pin to false; external projects use the project's
+      // default_billable. The timesheet cell has no per-cell billable
+      // override (it's a duration-only quick-entry surface).
+      const { data: projectClass } = await supabase
+        .from("projects")
+        .select("is_internal, default_billable")
+        .eq("id", project_id)
+        .maybeSingle();
+      const cellInternal =
+        (projectClass as { is_internal?: boolean } | null)?.is_internal === true;
+      const cellDefault =
+        (projectClass as { default_billable?: boolean } | null)
+          ?.default_billable !== false;
       assertSupabaseOk(
         await supabase.from("time_entries").insert({
           team_id: teamId,
@@ -744,7 +809,7 @@ export async function upsertTimesheetCellAction(
           description: null,
           start_time: t.start_time,
           end_time: t.end_time,
-          billable: true,
+          billable: cellInternal ? false : cellDefault,
         }),
       );
     } else if (existing.length === 1) {

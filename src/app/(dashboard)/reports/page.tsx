@@ -56,7 +56,7 @@ export default async function ReportsPage({
   let entriesQuery = supabase
     .from("time_entries")
     .select(
-      "user_id, duration_min, billable, projects(name, hourly_rate, customers(name, default_rate))",
+      "user_id, duration_min, billable, projects(name, hourly_rate, is_internal, customers(name, default_rate))",
     )
     .not("end_time", "is", null)
     .not("duration_min", "is", null)
@@ -84,10 +84,20 @@ export default async function ReportsPage({
     const proj = entry.projects as unknown as {
       name: string;
       hourly_rate: number | null;
+      is_internal: boolean | null;
       customers: { name: string; default_rate: number | null } | null;
     } | null;
 
-    const customerName = proj?.customers?.name ?? "Internal";
+    // Distinguish "Internal" (is_internal=true, no customer by
+    // construction) from any other null-customer case (legacy
+    // pre-migration data, or RLS hiding the customer row from this
+    // viewer). The bucket label "Internal" should be reserved for
+    // formally-internal projects so the report doesn't conflate
+    // categorization with visibility.
+    const customerName =
+      proj?.is_internal === true
+        ? "Internal"
+        : (proj?.customers?.name ?? "—");
     const projectName = proj?.name ?? "Unknown";
     const userId = (entry.user_id as string | null) ?? null;
     const mins = entry.duration_min ?? 0;

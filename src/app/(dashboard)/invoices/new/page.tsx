@@ -95,11 +95,16 @@ export default async function NewInvoicePage(): Promise<React.JSX.Element> {
     ? await supabase
         .from("time_entries")
         .select(
-          "id, team_id, description, duration_min, start_time, user_id, project_id, projects(name, hourly_rate, invoice_code, customer_id, customers(default_rate)), categories(name)",
+          "id, team_id, description, duration_min, start_time, user_id, project_id, projects!inner(name, hourly_rate, invoice_code, customer_id, is_internal, customers(default_rate)), categories(name)",
         )
         .in("team_id", teamIds)
         .eq("invoiced", false)
         .eq("billable", true)
+        // Internal-project entries are never invoiceable — exclude
+        // them from the preview so they don't show as "candidates"
+        // on the new-invoice page. Server action enforces too, but
+        // suppressing them here keeps the preview honest.
+        .eq("projects.is_internal", false)
         .not("end_time", "is", null)
         .not("duration_min", "is", null)
         .is("deleted_at", null)

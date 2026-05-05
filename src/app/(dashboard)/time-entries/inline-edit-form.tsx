@@ -90,11 +90,16 @@ export function InlineEditForm({
   );
 
   // Resolve the project (from the entry's embedded projects field, or look up
-  // in the projects list). We need require_timestamps to decide the form shape.
+  // in the projects list). We need require_timestamps to decide the form shape
+  // and is_internal to gate the billable toggle.
   const project =
     projects.find((p) => p.id === entry.project_id) ??
-    (entry.projects as { require_timestamps?: boolean } | null);
+    (entry.projects as {
+      require_timestamps?: boolean;
+      is_internal?: boolean;
+    } | null);
   const requiresTimestamps = project?.require_timestamps ?? true;
+  const projectIsInternal = project?.is_internal === true;
 
   return (
     <form
@@ -224,12 +229,18 @@ export function InlineEditForm({
           />
         </div>
         <div className={`${formSpanCompact} flex items-end pb-1`}>
-          <label className="flex items-center gap-2 text-body-lg font-medium text-content cursor-pointer">
+          <label
+            className={`flex items-center gap-2 text-body-lg font-medium ${projectIsInternal ? "text-content-muted cursor-not-allowed" : "text-content cursor-pointer"}`}
+            title={
+              projectIsInternal ? t("fields.billableInternalLocked") : undefined
+            }
+          >
             <input
               name="billable"
               type="checkbox"
-              defaultChecked={entry.billable}
-              className="h-4 w-4 rounded border-edge text-accent focus:ring-focus-ring"
+              defaultChecked={entry.billable && !projectIsInternal}
+              disabled={projectIsInternal || locked}
+              className="h-4 w-4 rounded border-edge text-accent focus:ring-focus-ring disabled:opacity-50"
             />
             {t("fields.billable")}
           </label>

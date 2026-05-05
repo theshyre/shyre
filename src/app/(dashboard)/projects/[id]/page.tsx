@@ -26,6 +26,7 @@ export async function generateMetadata({
 import { formatDate } from "@theshyre/ui";
 import { getVisibleCategorySets } from "@/lib/categories/queries";
 import { ProjectEditForm } from "./project-edit-form";
+import { ProjectClassification } from "./project-classification";
 import { ProjectCategoriesEditor } from "./project-categories-editor";
 
 interface IssueTimeSummary {
@@ -50,6 +51,20 @@ export default async function ProjectDetailPage({
     .single();
 
   if (!project) notFound();
+
+  // Customers on the same team — drives the "Make client work" picker
+  // in ProjectClassification. Scoped to the project's team and to
+  // non-archived customers; RLS narrows further.
+  const { data: customerRows } = await supabase
+    .from("customers")
+    .select("id, name")
+    .eq("team_id", project.team_id)
+    .eq("archived", false)
+    .order("name");
+  const customerOptions = (customerRows ?? []).map((c) => ({
+    id: c.id as string,
+    name: c.name as string,
+  }));
 
   const categorySetsFull = await getVisibleCategorySets(project.team_id);
   const categorySets = categorySetsFull.map(
@@ -182,6 +197,16 @@ export default async function ProjectDetailPage({
 
       <div className="mt-6">
         <ProjectEditForm project={project} />
+      </div>
+
+      <div className="mt-6">
+        <ProjectClassification
+          projectId={project.id}
+          isInternal={project.is_internal === true}
+          defaultBillable={project.default_billable !== false}
+          currentCustomerId={(project.customer_id as string | null) ?? null}
+          customers={customerOptions}
+        />
       </div>
 
       <div className="mt-6">

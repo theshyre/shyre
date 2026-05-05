@@ -44,7 +44,24 @@ export async function createProjectAction(formData: FormData): Promise<void> {
     const { userId } = await validateTeamAccess(teamId);
 
     const name = formData.get("name") as string;
-    const customer_id = (formData.get("customer_id") as string) || null;
+    const is_internal = formData.get("is_internal") === "on";
+    const customer_id_raw = (formData.get("customer_id") as string) || null;
+    // Internal projects must have NULL customer; the CHECK constraint
+    // `projects_internal_xor_customer` would reject an inconsistent
+    // pair, but we normalize at the boundary so the user sees a clean
+    // form rather than a Postgres constraint error.
+    const customer_id = is_internal ? null : customer_id_raw;
+    if (!is_internal && !customer_id) {
+      throw new Error(
+        "Pick a customer for this project, or mark it as an internal project.",
+      );
+    }
+    // Internal projects are non-billable by definition (they never
+    // appear on an invoice). Force the default; a UI override on
+    // billable would be misleading.
+    const default_billable = is_internal
+      ? false
+      : formData.get("default_billable") !== "off";
     const description = (formData.get("description") as string) || null;
     const rateStr = formData.get("hourly_rate") as string;
     const hourly_rate = rateStr ? parseFloat(rateStr) : null;
@@ -61,6 +78,8 @@ export async function createProjectAction(formData: FormData): Promise<void> {
         team_id: teamId,
         user_id: userId,
         customer_id,
+        is_internal,
+        default_billable,
         name,
         description,
         hourly_rate,
@@ -103,6 +122,21 @@ export async function updateProjectAction(formData: FormData): Promise<void> {
       category_set_id,
       require_timestamps,
     };
+
+    // default_billable is editable on external projects only — internal
+    // projects are pinned to false by setProjectInternalAction. Skip
+    // the field for internal projects (the form hides it) so a stale
+    // checkbox can't flip the value.
+    if (formData.has("default_billable")) {
+      const { data: existing } = await supabase
+        .from("projects")
+        .select("is_internal")
+        .eq("id", id)
+        .maybeSingle();
+      if (existing && (existing as { is_internal?: boolean }).is_internal !== true) {
+        patch.default_billable = formData.get("default_billable") !== "off";
+      }
+    }
 
     // Guardrail: only include hourly_rate in the UPDATE if the caller is
     // authorized by rate_editability. Existing form submissions and
@@ -430,4 +464,181 @@ export async function deleteProjectCategoriesAction(
     revalidatePath(`/projects/${project_id}`);
     revalidatePath("/time-entries");
   }, "deleteProjectCategoriesAction") as unknown as void;
+}
+
+/**
+ * Flip a project between "internal" (no customer, never invoiced) and
+ * "client work" (has customer, invoiceable). The two states have
+ * mutually exclusive shapes — the DB CHECK constraint enforces that
+ * `is_internal` ⇔ `customer_id IS NULL` — so the operation has to be
+ * atomic: setting one without updating the other fails the constraint.
+ *
+ * Form contract:
+ *   id (required) — project id
+ *   target (required) — "internal" or "client_work"
+ *   customer_id — required when target = "client_work"
+ *
+ * Guards:
+ *   - flipping to internal is blocked if the project has any line
+ *     items on a non-void invoice (the project's hours are already
+ *     committed to a customer's bill; reclassifying it as internal
+ *     would mean the historical invoice references a project that
+ *     "shouldn't" be invoiceable). Resolve the invoice — void it or
+ *     remove the line items — first.
+ *   - flipping to client work requires a customer_id; the form picker
+ *     submits one, but a forged POST without it returns the same
+ *     error the form would show.
+ *
+ * Side effects when flipping to internal:
+ *   - default_billable is forced to false (a non-invoiceable project
+ *     can't have billable time by definition).
+ */
+export async function setProjectInternalAction(
+  formData: FormData,
+): Promise<void> {
+  return runSafeAction(formData, async (formData, { supabase }) => {
+    const id = formData.get("id") as string;
+    if (!id) throw new Error("Project id is required.");
+
+    const target = formData.get("target") as string;
+    if (target !== "internal" && target !== "client_work") {
+      throw new Error(
+        `Invalid target "${target}". Expected "internal" or "client_work".`,
+      );
+    }
+
+    const { data: project } = await supabase
+      .from("projects")
+      .select("id, team_id, customer_id, is_internal")
+      .eq("id", id)
+      .maybeSingle();
+    if (!project) throw new Error("Project not found.");
+    await validateTeamAccess(project.team_id as string);
+
+    if (target === "internal") {
+      // Block if any time entry on this project is locked to a
+      // non-void invoice. The locked entries pre-existed under a
+      // customer; reclassifying the project as internal silently
+      // would leave the historical invoice referencing a project
+      // that's no longer invoiceable. Force the user to confront
+      // the historical state first.
+      const { data: invoicedRows } = await supabase
+        .from("time_entries")
+        .select("invoice_id")
+        .eq("project_id", id)
+        .not("invoice_id", "is", null)
+        .limit(50);
+      const invoiceIds = Array.from(
+        new Set(
+          (invoicedRows ?? [])
+            .map((r) => r.invoice_id as string | null)
+            .filter((x): x is string => x !== null),
+        ),
+      );
+      if (invoiceIds.length > 0) {
+        const { data: blocking } = await supabase
+          .from("invoices")
+          .select("id, invoice_number, status")
+          .in("id", invoiceIds)
+          .neq("status", "void");
+        if ((blocking ?? []).length > 0) {
+          const numbers = (blocking ?? [])
+            .map((b) => b.invoice_number as string)
+            .join(", ");
+          throw new Error(
+            `Can't make this project internal — its time is on invoice ${numbers}. Void the invoice or remove the project's entries from it first.`,
+          );
+        }
+      }
+
+      assertSupabaseOk(
+        await supabase
+          .from("projects")
+          .update({
+            is_internal: true,
+            customer_id: null,
+            default_billable: false,
+          })
+          .eq("id", id),
+      );
+
+      const previousCustomer = project.customer_id as string | null;
+      revalidatePath(`/projects/${id}`);
+      revalidatePath("/projects");
+      if (previousCustomer) revalidatePath(`/customers/${previousCustomer}`);
+    } else {
+      const customer_id = (formData.get("customer_id") as string) || null;
+      if (!customer_id) {
+        throw new Error(
+          "Pick a customer to make this a client project.",
+        );
+      }
+      assertSupabaseOk(
+        await supabase
+          .from("projects")
+          .update({
+            is_internal: false,
+            customer_id,
+          })
+          .eq("id", id),
+      );
+      revalidatePath(`/projects/${id}`);
+      revalidatePath("/projects");
+      revalidatePath(`/customers/${customer_id}`);
+    }
+  }, "setProjectInternalAction") as unknown as void;
+}
+
+/**
+ * Bulk-apply the project's current `default_billable` to every
+ * already-existing, not-yet-invoiced, not-trashed time entry on the
+ * project. The "switch pathway" the user explicitly called out: when
+ * a project's default flips, this lets you propagate the change to
+ * historical entries in one click instead of touching them one at a
+ * time.
+ *
+ * Skipped rows:
+ *   - `invoice_id IS NOT NULL` — already locked to an invoice; the
+ *     invoice's totals depend on the row's billable flag. Editing
+ *     locked rows is the invoice-mutation path, not this one.
+ *   - `deleted_at IS NOT NULL` — trash. They'll inherit the new
+ *     default if restored later (or not, depending on workflow —
+ *     trash is out of scope for this action).
+ *
+ * Returns nothing on success; the page revalidates and the caller
+ * sees the count via toast (form action).
+ */
+export async function applyDefaultBillableAction(
+  formData: FormData,
+): Promise<void> {
+  return runSafeAction(formData, async (formData, { supabase }) => {
+    const id = formData.get("project_id") as string;
+    if (!id) throw new Error("Project id is required.");
+
+    const { data: project } = await supabase
+      .from("projects")
+      .select("id, team_id, default_billable, is_internal")
+      .eq("id", id)
+      .maybeSingle();
+    if (!project) throw new Error("Project not found.");
+    await validateTeamAccess(project.team_id as string);
+
+    // Internal projects always have default_billable=false (CHECK +
+    // server enforcement). Running this on them is a no-op but
+    // explicit — set unbilled entries to false to align with policy.
+    const target = (project as { default_billable: boolean }).default_billable;
+
+    assertSupabaseOk(
+      await supabase
+        .from("time_entries")
+        .update({ billable: target })
+        .eq("project_id", id)
+        .is("invoice_id", null)
+        .is("deleted_at", null),
+    );
+
+    revalidatePath(`/projects/${id}`);
+    revalidatePath("/time-entries");
+    revalidatePath("/reports");
+  }, "applyDefaultBillableAction") as unknown as void;
 }

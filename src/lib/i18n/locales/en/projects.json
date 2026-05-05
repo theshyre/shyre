@@ -14,6 +14,14 @@
     "description": "Description",
     "customer": "Customer",
     "internalProject": "None (internal project)",
+    "internalProjectNoCustomer": "Internal projects don't have a customer.",
+    "pickCustomer": "Pick a customer…",
+    "isInternal": "Internal project",
+    "isInternalHint": "Your own work — never appears on an invoice and has no customer. Examples: your own product, R&D, ops.",
+    "isInternalBadge": "Internal project",
+    "isInternalBadgeHint": "Manage in the Classification panel below.",
+    "defaultBillable": "Bill new entries by default",
+    "defaultBillableHint": "Drives the default for new time entries. Per-entry override still works for the one-off case.",
     "hourlyRate": "Hourly Rate ($/hr)",
     "budgetHours": "Budget Hours",
     "githubRepo": "GitHub Repo",
@@ -35,7 +43,26 @@
     "customer": "Customer",
     "hourlyRate": "Hourly Rate",
     "budgetHours": "Budget",
-    "status": "Status"
+    "status": "Status",
+    "noCustomerInternal": "— internal —"
+  },
+  "classification": {
+    "heading": "Classification",
+    "internalDescription": "This is an internal project — your own work. It has no customer and never appears on an invoice.",
+    "externalDescription": "This is client work. Time logged here can be invoiced to the customer.",
+    "makeInternal": "Make this an internal project",
+    "makeClientWork": "Make this client work",
+    "applyDefaultBillable": "Apply default to existing entries",
+    "confirmMakeInternal": "Convert this project to internal? Effects:",
+    "makeInternalEffect": {
+      "customer": "Customer link is removed.",
+      "billable": "Default billable flips to off.",
+      "invoices": "Future entries can't be added to invoices."
+    },
+    "confirmMakeClient": "Pick a customer to convert this to client work. Existing time entries are unaffected — bulk-flip them to billable separately if you want to invoice the back catalog.",
+    "confirmApplyBillableTrue": "Set every unbilled, non-trashed time entry on this project to billable=true. Already-invoiced entries are skipped (their billable flag is locked to the invoice).",
+    "confirmApplyBillableFalse": "Set every unbilled, non-trashed time entry on this project to billable=false. Already-invoiced entries are skipped (their billable flag is locked to the invoice).",
+    "applyBillableSkipsInvoiced": "Entries on a non-void invoice keep their existing billable flag — change them through the invoice itself."
   },
   "timeEntries": {
     "title": "Time Entries",

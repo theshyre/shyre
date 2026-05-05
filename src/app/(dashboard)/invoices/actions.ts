@@ -147,7 +147,7 @@ export async function createInvoiceAction(formData: FormData): Promise<void> {
     let query = supabase
       .from("time_entries")
       .select(
-        "id, description, duration_min, project_id, user_id, start_time, projects(name, hourly_rate, invoice_code, customer_id, customers(default_rate)), categories(name)",
+        "id, description, duration_min, project_id, user_id, start_time, projects(name, hourly_rate, invoice_code, customer_id, is_internal, customers(default_rate)), categories(name)",
       )
       .eq("team_id", teamId)
       .eq("invoiced", false)
@@ -189,18 +189,35 @@ export async function createInvoiceAction(formData: FormData): Promise<void> {
       }
     }
 
-    // Filter entries based on client selection
+    // Filter entries based on client selection. Internal projects
+    // never appear on an invoice (server-action enforcement pins
+    // their entries to billable=false, but defense in depth: we
+    // also filter is_internal=true at this boundary so a
+    // pre-migration row with mismatched flags doesn't leak through).
     let filteredEntries;
     if (customer_id) {
-      // Client invoice: only entries from this client's projects
+      // Client invoice: only entries from this client's projects, and
+      // only client (non-internal) projects.
       filteredEntries = (entries ?? []).filter((e) => {
         const proj = e.projects;
         if (!proj || typeof proj !== "object" || !("customer_id" in proj)) return false;
-        return (proj as { customer_id: string | null }).customer_id === customer_id;
+        const p = proj as {
+          customer_id: string | null;
+          is_internal?: boolean;
+        };
+        if (p.is_internal === true) return false;
+        return p.customer_id === customer_id;
       });
     } else {
-      // Org-wide invoice: all unbilled entries (including internal projects)
-      filteredEntries = entries ?? [];
+      // Org-wide invoice: all unbilled non-internal entries.
+      filteredEntries = (entries ?? []).filter((e) => {
+        const proj = e.projects;
+        const p =
+          proj && typeof proj === "object"
+            ? (proj as { is_internal?: boolean })
+            : null;
+        return p?.is_internal !== true;
+      });
     }
 
     if (filteredEntries.length === 0) {

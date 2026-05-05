@@ -3,7 +3,7 @@ import { createClient } from "@/lib/supabase/server";
 import { getUserTeams } from "@/lib/team-context";
 import { getTranslations } from "next-intl/server";
 import Link from "next/link";
-import { FolderKanban } from "lucide-react";
+import { FolderKanban, Building2 } from "lucide-react";
 
 export async function generateMetadata(): Promise<Metadata> {
   const t = await getTranslations("projects");
@@ -186,7 +186,8 @@ export default async function ProjectsPage({
                   typeof project.customers === "object" &&
                   "name" in project.customers
                     ? (project.customers as { name: string }).name
-                    : "—";
+                    : null;
+                const isInternal = project.is_internal === true;
                 return (
                   <tr key={project.id} className={tableBodyRowClass}>
                     <td className="px-4 py-3">
@@ -196,6 +197,15 @@ export default async function ProjectsPage({
                       >
                         {project.name}
                       </Link>
+                      {isInternal && (
+                        <span
+                          className="ml-2 inline-flex items-center gap-1 rounded-full bg-surface-inset px-2 py-0.5 text-caption font-medium text-content-secondary"
+                          title={t("classification.internalDescription")}
+                        >
+                          <Building2 size={10} />
+                          {t("internal")}
+                        </span>
+                      )}
                     </td>
                     {showTeamColumn && (
                       <td className="px-4 py-3">
@@ -204,7 +214,15 @@ export default async function ProjectsPage({
                         </span>
                       </td>
                     )}
-                    <td className={tableBodyCellClass}>{customerName}</td>
+                    <td className={tableBodyCellClass}>
+                      {isInternal ? (
+                        <span className="text-content-muted italic">
+                          {t("table.noCustomerInternal")}
+                        </span>
+                      ) : (
+                        (customerName ?? "—")
+                      )}
+                    </td>
                     <td className={`${tableBodyCellClass} font-mono`}>
                       {project.hourly_rate
                         ? `$${Number(project.hourly_rate).toFixed(2)}/hr`

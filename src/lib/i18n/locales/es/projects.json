@@ -14,6 +14,14 @@
     "description": "Descripción",
     "customer": "Cliente",
     "internalProject": "Ninguno (proyecto interno)",
+    "internalProjectNoCustomer": "Los proyectos internos no tienen cliente.",
+    "pickCustomer": "Elige un cliente…",
+    "isInternal": "Proyecto interno",
+    "isInternalHint": "Tu propio trabajo — nunca aparece en una factura y no tiene cliente. Ejemplos: tu producto, I+D, operaciones.",
+    "isInternalBadge": "Proyecto interno",
+    "isInternalBadgeHint": "Gestionar en el panel de Clasificación abajo.",
+    "defaultBillable": "Cobrar nuevas entradas por defecto",
+    "defaultBillableHint": "Define el valor por defecto para nuevas entradas. Aún puedes cambiar entrada por entrada.",
     "hourlyRate": "Tarifa por hora ($/hr)",
     "budgetHours": "Horas presupuestadas",
     "githubRepo": "Repositorio GitHub",
@@ -35,7 +43,26 @@
     "customer": "Cliente",
     "hourlyRate": "Tarifa por hora",
     "budgetHours": "Presupuesto",
-    "status": "Estado"
+    "status": "Estado",
+    "noCustomerInternal": "— interno —"
+  },
+  "classification": {
+    "heading": "Clasificación",
+    "internalDescription": "Proyecto interno — tu propio trabajo. Sin cliente y nunca aparece en una factura.",
+    "externalDescription": "Trabajo para cliente. El tiempo registrado puede facturarse al cliente.",
+    "makeInternal": "Convertir en proyecto interno",
+    "makeClientWork": "Convertir en trabajo de cliente",
+    "applyDefaultBillable": "Aplicar valor por defecto a entradas existentes",
+    "confirmMakeInternal": "¿Convertir este proyecto en interno? Efectos:",
+    "makeInternalEffect": {
+      "customer": "Se elimina el vínculo con el cliente.",
+      "billable": "El valor por defecto de facturable pasa a desactivado.",
+      "invoices": "Las entradas futuras no se podrán agregar a facturas."
+    },
+    "confirmMakeClient": "Elige un cliente para convertir esto en trabajo de cliente. Las entradas existentes no se modifican — usa la acción separada para marcarlas como facturables si quieres facturar lo histórico.",
+    "confirmApplyBillableTrue": "Marca como facturable=true cada entrada no facturada y no eliminada de este proyecto. Las entradas en facturas se omiten (su valor está bloqueado por la factura).",
+    "confirmApplyBillableFalse": "Marca como facturable=false cada entrada no facturada y no eliminada de este proyecto. Las entradas en facturas se omiten (su valor está bloqueado por la factura).",
+    "applyBillableSkipsInvoiced": "Las entradas en una factura no anulada conservan su valor — modifícalas a través de la propia factura."
   },
   "timeEntries": {
     "title": "Registros de tiempo",

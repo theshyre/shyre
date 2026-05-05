@@ -1,6 +1,7 @@
 "use client";
 
 import { useTranslations } from "next-intl";
+import { Building2 } from "lucide-react";
 import { AlertBanner } from "@theshyre/ui";
 import { useFormAction } from "@/hooks/use-form-action";
 import { SubmitButton } from "@/components/SubmitButton";
@@ -25,6 +26,8 @@ interface Project {
   status: string | null;
   category_set_id: string | null;
   require_timestamps: boolean;
+  is_internal: boolean;
+  default_billable: boolean;
 }
 
 const STATUSES = ["active", "paused", "completed", "archived"] as const;
@@ -55,6 +58,20 @@ export function ProjectEditForm({
         name="category_set_id"
         value={project.category_set_id ?? ""}
       />
+
+      {project.is_internal && (
+        // Read-only chip: this project's internal status is managed
+        // through setProjectInternalAction, not the regular update
+        // path. Surfacing the badge inline keeps the user oriented
+        // when they're editing other fields.
+        <div className="flex items-center gap-2 rounded-md border border-edge bg-surface-inset px-3 py-2 text-sm text-content-secondary">
+          <Building2 size={14} className="text-content-muted" />
+          {t("fields.isInternalBadge")}
+          <span className="text-xs text-content-muted">
+            {t("fields.isInternalBadgeHint")}
+          </span>
+        </div>
+      )}
 
       <div className="rounded-lg border border-edge bg-surface-raised p-4 space-y-3">
         <div className="grid gap-3 sm:grid-cols-2">
@@ -141,6 +158,24 @@ export function ProjectEditForm({
               {t("fields.invoiceCodeHint")}
             </p>
           </div>
+          {!project.is_internal && (
+            <div className="sm:col-span-2">
+              <label className="flex items-start gap-2 text-sm font-medium text-content cursor-pointer">
+                <input
+                  name="default_billable"
+                  type="checkbox"
+                  defaultChecked={project.default_billable}
+                  className="mt-0.5 h-4 w-4 rounded border-edge text-accent focus:ring-focus-ring"
+                />
+                <span>
+                  {t("fields.defaultBillable")}
+                  <span className="ml-1 block text-xs font-normal text-content-muted">
+                    {t("fields.defaultBillableHint")}
+                  </span>
+                </span>
+              </label>
+            </div>
+          )}
           <div className="sm:col-span-2">
             <label className="flex items-start gap-2 text-sm font-medium text-content cursor-pointer">
               <input

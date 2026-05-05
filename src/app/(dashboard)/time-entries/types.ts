@@ -13,6 +13,8 @@ export interface ProjectInfo {
   github_repo: string | null;
   category_set_id?: string | null;
   require_timestamps?: boolean;
+  is_internal?: boolean;
+  default_billable?: boolean;
   customers?: CustomerRef | null;
 }
 
@@ -68,6 +70,12 @@ export interface ProjectOption {
    *  built-in + project-specific categories together. */
   extension_category_set_id?: string | null;
   require_timestamps: boolean;
+  /** Internal projects are pinned to billable=false; the entry forms
+   *  disable the toggle when this is true. */
+  is_internal?: boolean;
+  /** Default for new entries on this project. Inherited at create time
+   *  by createTimeEntryAction / startTimerAction / upsertTimesheetCellAction. */
+  default_billable?: boolean;
   customers?: CustomerRef | null;
 }
 

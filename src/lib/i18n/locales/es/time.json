@@ -28,6 +28,7 @@
     "date": "Fecha",
     "duration": "Duración",
     "billable": "Facturable",
+    "billableInternalLocked": "Los proyectos internos son no facturables por definición.",
     "githubIssue": "Issue de GitHub #",
     "category": "Categoría",
     "categoryUnavailable": "Este proyecto no tiene un conjunto de categorías — configúralo en los ajustes del proyecto.",

@@ -35,6 +35,8 @@ interface ProjectOption {
   category_set_id?: string | null;
   extension_category_set_id?: string | null;
   require_timestamps?: boolean;
+  is_internal?: boolean;
+  default_billable?: boolean;
 }
 
 export function NewTimeEntryForm({
@@ -67,6 +69,17 @@ export function NewTimeEntryForm({
 
   const selectedProject = projects.find((p) => p.id === selectedProjectId);
   const linkedRepo = selectedProject?.github_repo ?? null;
+  // Internal projects pin billable to false (server enforces too).
+  // Pre-pick + disable the toggle so the form's behavior matches the
+  // server action; render a tooltip-style hint so the disabled state
+  // isn't confusing.
+  const projectIsInternal = selectedProject?.is_internal === true;
+  // External projects: pick up the project's default_billable as the
+  // checkbox default. When no project is selected yet, fall back to
+  // checked (the historical default).
+  const billableDefault = selectedProject
+    ? selectedProject.default_billable !== false
+    : true;
 
   // Note: no global `N` shortcut here. The week-timesheet's inline "Add
   // row" already owns `N`, and both surfaces are visible at once in Week
@@ -207,12 +220,22 @@ export function NewTimeEntryForm({
           </div>
         )}
         <div className={`${formSpanCompact} flex items-end pb-1`}>
-          <label className="flex items-center gap-2 text-body-lg font-medium text-content cursor-pointer">
+          <label
+            className={`flex items-center gap-2 text-body-lg font-medium ${projectIsInternal ? "text-content-muted cursor-not-allowed" : "text-content cursor-pointer"}`}
+            title={
+              projectIsInternal ? t("fields.billableInternalLocked") : undefined
+            }
+          >
             <input
+              // `key` resets the controlled-default when the user
+              // switches projects — otherwise React preserves the
+              // previous DOM checkbox state across project changes.
+              key={`${selectedProjectId}:${billableDefault}:${projectIsInternal}`}
               name="billable"
               type="checkbox"
-              defaultChecked
-              className="h-4 w-4 rounded border-edge text-accent focus:ring-focus-ring"
+              defaultChecked={!projectIsInternal && billableDefault}
+              disabled={projectIsInternal}
+              className="h-4 w-4 rounded border-edge text-accent focus:ring-focus-ring disabled:opacity-50"
             />
             {t("fields.billable")}
           </label>

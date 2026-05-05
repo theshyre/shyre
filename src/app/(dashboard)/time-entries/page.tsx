@@ -292,7 +292,7 @@ export default async function TimeEntriesPage({
   ).toISOString();
 
   const ENTRY_SELECT =
-    "*, projects(id, name, github_repo, category_set_id, require_timestamps, customers(id, name)), invoices(invoice_number)";
+    "*, projects(id, name, github_repo, category_set_id, require_timestamps, is_internal, default_billable, customers(id, name)), invoices(invoice_number)";
 
   // Build week query — fetched on Day (for the weekly-totals strip) and
   // Week (for the grid). Skipped on Log to avoid a 7-day scan that view
@@ -333,7 +333,7 @@ export default async function TimeEntriesPage({
     let q = supabase
       .from("projects")
       .select(
-        "id, name, github_repo, team_id, category_set_id, require_timestamps, customers(id, name)",
+        "id, name, github_repo, team_id, category_set_id, require_timestamps, is_internal, default_billable, customers(id, name)",
       )
       .eq("status", "active")
       .in("team_id", userTeamIds)
