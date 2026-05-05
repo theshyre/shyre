@@ -33,6 +33,10 @@ interface ProjectOption {
   id: string;
   name: string;
   github_repo: string | null;
+  /** Atlassian project key (e.g. "AE") for the description-based
+   *  ticket-link detector. When set, a description like "AE-640
+   *  fixed login bug" auto-attaches as a Jira ticket on save. */
+  jira_project_key: string | null;
   category_set_id?: string | null;
   extension_category_set_id?: string | null;
   require_timestamps?: boolean;
@@ -70,6 +74,7 @@ export function NewTimeEntryForm({
 
   const selectedProject = projects.find((p) => p.id === selectedProjectId);
   const linkedRepo = selectedProject?.github_repo ?? null;
+  const linkedJiraKey = selectedProject?.jira_project_key ?? null;
   // Internal projects pin billable to false (server enforces too).
   // Pre-pick + disable the toggle so the form's behavior matches the
   // server action; render a tooltip-style hint so the disabled state
@@ -174,7 +179,27 @@ export function NewTimeEntryForm({
             placeholder={t("fields.descriptionPlaceholder")}
             rows={3}
             className={textareaClass}
+            aria-describedby={
+              linkedRepo || linkedJiraKey
+                ? "new-time-entry-description-autolink"
+                : undefined
+            }
           />
+          {(linkedRepo || linkedJiraKey) && (
+            <p
+              id="new-time-entry-description-autolink"
+              className="mt-1 text-caption text-content-muted"
+            >
+              {t("fields.autolinkHint", {
+                jiraExample: linkedJiraKey
+                  ? `${linkedJiraKey}-123`
+                  : "PROJ-123",
+                githubExample: linkedRepo
+                  ? `${linkedRepo}#42`
+                  : "owner/repo#42",
+              })}
+            </p>
+          )}
         </div>
 
         {/* Row 3: Date/time — compact. */}

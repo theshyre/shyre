@@ -35,6 +35,7 @@ const project: ProjectOption = {
   id: "p1",
   name: "Alpha",
   github_repo: null,
+  jira_project_key: null,
   team_id: "o1",
   category_set_id: null,
   require_timestamps: false,

@@ -21,6 +21,7 @@ const project = {
   id: "p1",
   name: "Alpha",
   github_repo: null,
+  jira_project_key: null,
   team_id: "o1",
   category_set_id: null,
   require_timestamps: true,
@@ -121,8 +122,8 @@ describe("RunningTimerCard", () => {
 
   it("shows recent project chips after expanding", () => {
     const recent = [
-      { id: "p1", name: "Alpha", github_repo: null, team_id: "o1", category_set_id: null, require_timestamps: true },
-      { id: "p2", name: "Beta", github_repo: null, team_id: "o1", category_set_id: null, require_timestamps: true },
+      { id: "p1", name: "Alpha", github_repo: null, jira_project_key: null, team_id: "o1", category_set_id: null, require_timestamps: true },
+      { id: "p2", name: "Beta", github_repo: null, jira_project_key: null, team_id: "o1", category_set_id: null, require_timestamps: true },
     ];
     renderWithIntl(
       <RunningTimerCard

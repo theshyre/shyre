@@ -23,6 +23,7 @@
     "project": "Project",
     "description": "Description",
     "descriptionPlaceholder": "What did you work on?",
+    "autolinkHint": "Tip — include a ticket reference (e.g. {jiraExample} or {githubExample}) anywhere in the description and Shyre links it on save.",
     "startTime": "Start Time",
     "endTime": "End Time",
     "date": "Date",

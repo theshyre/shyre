@@ -23,6 +23,7 @@
     "project": "Proyecto",
     "description": "Descripción",
     "descriptionPlaceholder": "¿En qué trabajaste?",
+    "autolinkHint": "Consejo — incluye una referencia de ticket (por ejemplo {jiraExample} o {githubExample}) en cualquier parte de la descripción y Shyre la enlazará al guardar.",
     "startTime": "Hora de inicio",
     "endTime": "Hora de fin",
     "date": "Fecha",

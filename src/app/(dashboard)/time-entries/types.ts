@@ -62,6 +62,11 @@ export interface ProjectOption {
   id: string;
   name: string;
   github_repo: string | null;
+  /** Atlassian project key (e.g. "AE"). Drives the description-
+   *  based ticket-link detection: a key like `AE-640` in the entry
+   *  description auto-attaches as `linked_ticket_provider="jira"`
+   *  on save. Null when the project hasn't configured one. */
+  jira_project_key: string | null;
   team_id: string;
   /** The project's base category set (system or team). */
   category_set_id: string | null;

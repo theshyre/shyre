@@ -4,8 +4,8 @@ import { renderWithIntl } from "@/test/intl";
 import { RecentProjectsChips } from "./recent-projects-chips";
 
 const projects = [
-  { id: "p1", name: "Alpha", github_repo: null, team_id: "o1", category_set_id: null, require_timestamps: true },
-  { id: "p2", name: "Beta", github_repo: null, team_id: "o1", category_set_id: null, require_timestamps: true },
+  { id: "p1", name: "Alpha", github_repo: null, jira_project_key: null, team_id: "o1", category_set_id: null, require_timestamps: true },
+  { id: "p2", name: "Beta", github_repo: null, jira_project_key: null, team_id: "o1", category_set_id: null, require_timestamps: true },
 ];
 
 describe("RecentProjectsChips", () => {

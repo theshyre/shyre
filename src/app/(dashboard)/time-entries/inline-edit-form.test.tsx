@@ -15,7 +15,7 @@ vi.mock("./actions", () => ({
 import { InlineEditForm } from "./inline-edit-form";
 import type { TimeEntry } from "./types";
 
-const project = { id: "p1", name: "Alpha", github_repo: null, team_id: "o1", category_set_id: null, require_timestamps: true };
+const project = { id: "p1", name: "Alpha", github_repo: null, jira_project_key: null, team_id: "o1", category_set_id: null, require_timestamps: true };
 const entry: TimeEntry = {
   id: "e1",
   team_id: "o1",

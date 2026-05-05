@@ -102,6 +102,15 @@ export function InlineEditForm({
   const requiresTimestamps = project?.require_timestamps ?? true;
   const projectIsInternal = project?.is_internal === true;
 
+  // Surface the project's auto-link config so the user knows what
+  // ticket reference to type into the description. Description-based
+  // detection on save handles `AE-640` (Jira key) and
+  // `owner/repo#42` (GitHub long form). Bare `#42` resolves against
+  // the project's GitHub repo when configured.
+  const autolinkProject = projects.find((p) => p.id === entry.project_id);
+  const githubRepo = autolinkProject?.github_repo ?? null;
+  const jiraProjectKey = autolinkProject?.jira_project_key ?? null;
+
   return (
     <form
       ref={formRef}
@@ -171,7 +180,27 @@ export function InlineEditForm({
             placeholder={t("fields.descriptionPlaceholder")}
             rows={3}
             className={textareaClass}
+            aria-describedby={
+              githubRepo || jiraProjectKey
+                ? `ie-description-${entry.id}-autolink`
+                : undefined
+            }
           />
+          {(githubRepo || jiraProjectKey) && (
+            <p
+              id={`ie-description-${entry.id}-autolink`}
+              className="mt-1 text-caption text-content-muted"
+            >
+              {t("fields.autolinkHint", {
+                jiraExample: jiraProjectKey
+                  ? `${jiraProjectKey}-123`
+                  : "PROJ-123",
+                githubExample: githubRepo
+                  ? `${githubRepo}#42`
+                  : "owner/repo#42",
+              })}
+            </p>
+          )}
         </div>
 
         {/* Row 3: Date/time fields — compact. Datetime-locals get
