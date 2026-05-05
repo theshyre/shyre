@@ -25,9 +25,11 @@ export interface RunningEntrySummary {
 }
 
 /**
- * Shared fetch for "is there a running entry right now?". Used by both
- * surfaces that need to know — the sidebar `<Timer>` (full widget) and
- * the `<RunningTimerHeaderPill>` (sticky top-of-page amplifier).
+ * Shared fetch for "is there a running entry right now?". Drives the
+ * sidebar `<Timer>` widget — the single surface that exposes running
+ * state. (A redundant top-of-page pill existed previously and caused
+ * layout shift on every start / stop; removed in favor of the
+ * always-mounted sidebar.)
  *
  * Re-fetches on:
  *   - mount

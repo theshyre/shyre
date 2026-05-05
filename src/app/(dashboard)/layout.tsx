@@ -7,7 +7,6 @@ import { TableDensitySync } from "@/components/TableDensitySync";
 import { ToastProvider } from "@/components/Toast";
 import { GlobalKeyboardHelp } from "@/components/GlobalKeyboardHelp";
 import { GlobalCommandPalette } from "@/components/GlobalCommandPalette";
-import { RunningTimerHeaderPill } from "@/components/RunningTimerHeaderPill";
 import { SkipLink } from "@/components/SkipLink";
 import { Breadcrumbs } from "@/components/Breadcrumbs";
 import { getUserContext, getUserTeams, isTeamAdmin } from "@/lib/team-context";
@@ -98,7 +97,6 @@ export default async function DashboardLayout({
             tabIndex={-1}
             className="flex-1 overflow-y-auto focus:outline-none"
           >
-            <RunningTimerHeaderPill />
             <div className="mx-auto max-w-[1280px] px-[32px] py-8">
               <Breadcrumbs />
               {children}

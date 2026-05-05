@@ -27,11 +27,13 @@ interface Props {
 }
 
 /**
- * Sidebar running-timer widget. Source of truth for running state
- * (paired with `<RunningTimerHeaderPill>` at the top of the page for
- * amplification when running). Starts happen on /time-entries; stops
- * can happen from here, from the header pill, the entry kebab, or a
- * week-row. All mutations route through server actions.
+ * Sidebar running-timer widget — single source of truth for running
+ * state. Always-visible bottom-of-sidebar so it doesn't shift the
+ * main column when a timer starts / stops (the previous top-of-page
+ * pill caused layout jumps when toggling). Starts happen on
+ * /time-entries; stops can happen from here, from the entry kebab,
+ * or a week-row Stop button. All mutations route through server
+ * actions.
  */
 export default function Timer({
   displayName,
