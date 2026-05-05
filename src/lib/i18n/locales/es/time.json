@@ -6,7 +6,7 @@
     "regionLabel": "Entradas para {project} el {date}",
     "entriesCount": "{count, plural, one {# entrada} other {# entradas}}",
     "close": "Cerrar",
-    "addEntry": "Añadir otra entrada",
+    "addEntry": "Añadir entrada",
     "addEntryNoProject": "Esta fila no tiene proyecto — selecciona uno para añadir una entrada.",
     "addEntryHeader": "Nueva entrada el {date}",
     "createEntry": "Añadir",
@@ -21,10 +21,30 @@
       "billable": "Facturable",
       "duration": "Duración"
     },
-    "expandTooltip": "Mostrar entradas de este día",
+    "expandTooltip": "Mostrar entradas",
     "expandAria": "Mostrar {count, plural, one {# entrada} other {# entradas}} el {date}",
+    "expandAriaRow": "Mostrar {count, plural, one {# entrada} other {# entradas}} en esta fila",
     "collapseTooltip": "Ocultar entradas",
     "runningBadge": "En ejecución"
+  },
+  "entryRow": {
+    "untitled": "Sin título",
+    "editEntry": "Editar entrada",
+    "collapseEdit": "Cerrar editor",
+    "deleteEntry": "Eliminar entrada",
+    "addEntry": "Añadir entrada",
+    "addEntryHeader": "Nueva entrada",
+    "addEntryNoProject": "Esta fila no tiene proyecto — selecciona uno para añadir una entrada.",
+    "save": "Guardar",
+    "editingOn": "Editando — {date}",
+    "durationOnDay": "{date} — {duration}",
+    "fields": {
+      "description": "Descripción",
+      "descriptionPlaceholder": "¿En qué trabajaste?",
+      "billable": "Facturable",
+      "duration": "Duración",
+      "day": "Día"
+    }
   },
   "ticket": {
     "open": "Abrir ticket",

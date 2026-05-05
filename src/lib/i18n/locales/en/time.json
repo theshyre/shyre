@@ -6,7 +6,7 @@
     "regionLabel": "Entries for {project} on {date}",
     "entriesCount": "{count, plural, one {# entry} other {# entries}}",
     "close": "Close",
-    "addEntry": "Add another entry",
+    "addEntry": "Add entry",
     "addEntryNoProject": "This row has no project — pick a project to add an entry.",
     "addEntryHeader": "New entry on {date}",
     "createEntry": "Add",
@@ -21,10 +21,30 @@
       "billable": "Billable",
       "duration": "Duration"
     },
-    "expandTooltip": "Show entries on this day",
+    "expandTooltip": "Show entries",
     "expandAria": "Show {count, plural, one {# entry} other {# entries}} on {date}",
+    "expandAriaRow": "Show {count, plural, one {# entry} other {# entries}} on this row",
     "collapseTooltip": "Hide entries",
     "runningBadge": "Running"
+  },
+  "entryRow": {
+    "untitled": "Untitled",
+    "editEntry": "Edit entry",
+    "collapseEdit": "Close editor",
+    "deleteEntry": "Delete entry",
+    "addEntry": "Add entry",
+    "addEntryHeader": "New entry",
+    "addEntryNoProject": "This row has no project — pick a project to add an entry.",
+    "save": "Save",
+    "editingOn": "Editing — {date}",
+    "durationOnDay": "{date} — {duration}",
+    "fields": {
+      "description": "Description",
+      "descriptionPlaceholder": "What did you work on?",
+      "billable": "Billable",
+      "duration": "Duration",
+      "day": "Day"
+    }
   },
   "ticket": {
     "open": "Open ticket",
