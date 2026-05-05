@@ -91,7 +91,7 @@ export default async function BusinessDetailLayout({
             </span>
           )}
           {showUnconfiguredPill && (
-            <span className="inline-flex items-center rounded-full border border-warning/40 bg-warning-soft/30 px-2 py-0.5 text-caption font-medium text-warning">
+            <span className="inline-flex items-center rounded-full border border-warning/40 bg-warning-soft/30 px-2 py-0.5 text-caption font-medium text-warning-text">
               {t("notConfigured")}
             </span>
           )}

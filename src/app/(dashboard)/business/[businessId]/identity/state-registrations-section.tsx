@@ -66,10 +66,10 @@ function hasExistingFormation(
 
 const STATUS_TONE: Record<StateRegistrationRow["registration_status"], string> = {
   pending: "bg-surface-inset text-content-secondary",
-  active: "bg-success-soft text-success",
-  delinquent: "bg-warning-soft text-warning",
+  active: "bg-success-soft text-success-text",
+  delinquent: "bg-warning-soft text-warning-text",
   withdrawn: "bg-surface-inset text-content-muted",
-  revoked: "bg-error-soft text-error",
+  revoked: "bg-error-soft text-error-text",
 };
 
 export function StateRegistrationsSection({
@@ -231,7 +231,7 @@ function RegistrationRow({
           <button
             type="button"
             onClick={() => setDeleting(true)}
-            className={`${buttonGhostClass} inline-flex items-center gap-1 text-error hover:bg-error-soft`}
+            className={`${buttonGhostClass} inline-flex items-center gap-1 text-error-text hover:bg-error-soft`}
             aria-label={`Delete ${row.state} registration`}
           >
             <X size={14} />

@@ -174,7 +174,7 @@ function VoidButton({
           setError(null);
           setOpen(true);
         }}
-        className={`${buttonSecondaryClass} text-error border-error/40 hover:bg-error-soft`}
+        className={`${buttonSecondaryClass} text-error-text border-error/40 hover:bg-error-soft`}
       >
         <XCircle size={16} />
         {label}
@@ -310,7 +310,7 @@ function DeleteButton({
           setError(null);
           setOpen(true);
         }}
-        className={`${buttonSecondaryClass} text-error border-error/40 hover:bg-error-soft`}
+        className={`${buttonSecondaryClass} text-error-text border-error/40 hover:bg-error-soft`}
       >
         <Trash2 size={16} />
         {label}

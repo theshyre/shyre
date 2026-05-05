@@ -98,7 +98,7 @@ export default async function AdminUsersPage(): Promise<React.JSX.Element> {
                   </td>
                   <td className="px-4 py-3">
                     {isSystemAdmin ? (
-                      <span className="inline-flex items-center gap-1.5 rounded-full bg-warning-soft px-2 py-0.5 text-caption font-medium text-warning">
+                      <span className="inline-flex items-center gap-1.5 rounded-full bg-warning-soft px-2 py-0.5 text-caption font-medium text-warning-text">
                         <Crown size={10} />
                         System Admin
                       </span>

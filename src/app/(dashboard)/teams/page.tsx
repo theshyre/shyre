@@ -21,7 +21,7 @@ export default async function OrganizationsPage(): Promise<React.JSX.Element> {
   };
 
   const roleColors: Record<string, string> = {
-    owner: "text-warning bg-warning-soft",
+    owner: "text-warning-text bg-warning-soft",
     admin: "text-accent bg-accent-soft",
     member: "text-content-muted bg-surface-inset",
   };

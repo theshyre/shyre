@@ -473,7 +473,7 @@ function ExpiryPill({
 
   if (status === "expired") {
     return (
-      <span className="inline-flex items-center gap-1.5 rounded-md border border-error bg-error-soft px-2 py-1 text-caption text-error">
+      <span className="inline-flex items-center gap-1.5 rounded-md border border-error bg-error-soft px-2 py-1 text-caption text-error-text">
         <AlertTriangle size={12} aria-hidden="true" />
         {t("expiryExpired", { days: Math.abs(days) })}
       </span>
@@ -481,7 +481,7 @@ function ExpiryPill({
   }
   if (status === "critical") {
     return (
-      <span className="inline-flex items-center gap-1.5 rounded-md border border-error bg-error-soft px-2 py-1 text-caption text-error">
+      <span className="inline-flex items-center gap-1.5 rounded-md border border-error bg-error-soft px-2 py-1 text-caption text-error-text">
         <AlertTriangle size={12} aria-hidden="true" />
         {t("expiryCritical", { days })}
       </span>
@@ -489,7 +489,7 @@ function ExpiryPill({
   }
   if (status === "warning") {
     return (
-      <span className="inline-flex items-center gap-1.5 rounded-md border border-warning bg-warning-soft px-2 py-1 text-caption text-warning">
+      <span className="inline-flex items-center gap-1.5 rounded-md border border-warning bg-warning-soft px-2 py-1 text-caption text-warning-text">
         <AlertTriangle size={12} aria-hidden="true" />
         {t("expiryWarning", { days })}
       </span>

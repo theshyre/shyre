@@ -267,14 +267,14 @@ function StatusIcon({
 }): React.JSX.Element {
   if (status === "ok") {
     return (
-      <span className="inline-flex h-5 w-5 items-center justify-center rounded-full bg-success-soft text-success shrink-0">
+      <span className="inline-flex h-5 w-5 items-center justify-center rounded-full bg-success-soft text-success-text shrink-0">
         <Check size={12} aria-hidden />
       </span>
     );
   }
   if (status === "todo") {
     return (
-      <span className="inline-flex h-5 w-5 items-center justify-center rounded-full bg-warning-soft text-warning shrink-0">
+      <span className="inline-flex h-5 w-5 items-center justify-center rounded-full bg-warning-soft text-warning-text shrink-0">
         <AlertCircle size={12} aria-hidden />
       </span>
     );

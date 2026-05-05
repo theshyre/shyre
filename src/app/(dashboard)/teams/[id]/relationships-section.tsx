@@ -237,7 +237,7 @@ function ParentTeamRow({
             </p>
           </div>
           {pending_ && (
-            <span className="inline-flex items-center rounded-full bg-warning-soft px-2 py-0.5 text-caption font-medium text-warning">
+            <span className="inline-flex items-center rounded-full bg-warning-soft px-2 py-0.5 text-caption font-medium text-warning-text">
               {t("pending")}
             </span>
           )}
@@ -314,7 +314,7 @@ function ChildTeamRow({
             </p>
           </div>
           {pending_ && (
-            <span className="inline-flex items-center rounded-full bg-warning-soft px-2 py-0.5 text-caption font-medium text-warning">
+            <span className="inline-flex items-center rounded-full bg-warning-soft px-2 py-0.5 text-caption font-medium text-warning-text">
               {t("pending")}
             </span>
           )}

@@ -297,10 +297,10 @@ function RecordStatusBadge({
   }
   const tone =
     status === "verified"
-      ? "bg-success-soft text-success"
+      ? "bg-success-soft text-success-text"
       : status === "failed"
-        ? "bg-error-soft text-error"
-        : "bg-warning-soft text-warning";
+        ? "bg-error-soft text-error-text"
+        : "bg-warning-soft text-warning-text";
   return (
     <span
       className={`inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-caption font-medium ${tone}`}
@@ -317,9 +317,9 @@ function DomainStatusBadge({
   status: "pending" | "verified" | "failed";
 }): React.JSX.Element {
   const map = {
-    verified: "bg-success-soft text-success",
-    pending: "bg-warning-soft text-warning",
-    failed: "bg-error-soft text-error",
+    verified: "bg-success-soft text-success-text",
+    pending: "bg-warning-soft text-warning-text",
+    failed: "bg-error-soft text-error-text",
   } as const;
   return (
     <span

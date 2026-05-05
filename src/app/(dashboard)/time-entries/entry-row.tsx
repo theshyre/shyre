@@ -306,7 +306,7 @@ function InvoicedLockChip({
     <Tooltip label={label}>
       <Link
         href={`/invoices/${invoiceId}`}
-        className="inline-flex items-center gap-1.5 rounded-md border border-warning/40 bg-warning-soft/30 px-1.5 py-0.5 text-caption font-medium text-warning hover:border-warning/60 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-warning"
+        className="inline-flex items-center gap-1.5 rounded-md border border-warning/40 bg-warning-soft/30 px-1.5 py-0.5 text-caption font-medium text-warning-text hover:border-warning/60 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-warning"
       >
         <Lock size={12} aria-hidden="true" />
         <span className="font-mono tabular-nums">

@@ -18,9 +18,9 @@ const SEVERITY_CONFIG: Record<
   string,
   { icon: typeof AlertTriangle; color: string; bg: string }
 > = {
-  error: { icon: AlertTriangle, color: "text-error", bg: "bg-error-soft" },
-  warning: { icon: AlertCircle, color: "text-warning", bg: "bg-warning-soft" },
-  info: { icon: Info, color: "text-info", bg: "bg-info-soft" },
+  error: { icon: AlertTriangle, color: "text-error-text", bg: "bg-error-soft" },
+  warning: { icon: AlertCircle, color: "text-warning-text", bg: "bg-warning-soft" },
+  info: { icon: Info, color: "text-info-text", bg: "bg-info-soft" },
 };
 
 export default async function ErrorDashboardPage({
@@ -71,7 +71,7 @@ export default async function ErrorDashboardPage({
         <Shield size={24} className="text-accent" />
         <h1 className="text-page-title font-bold text-content">Error Log</h1>
         {(unresolvedCount ?? 0) > 0 && (
-          <span className="inline-flex items-center gap-1.5 rounded-full bg-error-soft px-2.5 py-0.5 text-caption font-medium text-error">
+          <span className="inline-flex items-center gap-1.5 rounded-full bg-error-soft px-2.5 py-0.5 text-caption font-medium text-error-text">
             <AlertTriangle size={12} />
             {unresolvedCount} unresolved
           </span>
@@ -130,7 +130,7 @@ export default async function ErrorDashboardPage({
                         {err.error_code}
                       </span>
                       {isResolved && (
-                        <span className="inline-flex items-center gap-1 rounded-full bg-success-soft px-2 py-0.5 text-[10px] text-success">
+                        <span className="inline-flex items-center gap-1 rounded-full bg-success-soft px-2 py-0.5 text-[10px] text-success-text">
                           <CheckCircle size={8} />
                           Resolved
                         </span>

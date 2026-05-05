@@ -1262,7 +1262,7 @@ function TimesheetRow({
                   type="button"
                   onClick={onStopTimer}
                   aria-label={tEntry("stopTimerFromRow")}
-                  className="rounded p-1 text-error hover:bg-error-soft transition-colors"
+                  className="rounded p-1 text-error-text hover:bg-error-soft transition-colors"
                 >
                   <Square size={16} className="fill-current" />
                 </button>

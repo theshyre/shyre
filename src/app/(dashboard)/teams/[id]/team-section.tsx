@@ -78,7 +78,7 @@ const ROLE_ICONS: Record<string, typeof Crown> = {
 };
 
 const ROLE_COLORS: Record<string, string> = {
-  owner: "text-warning bg-warning-soft",
+  owner: "text-warning-text bg-warning-soft",
   admin: "text-accent bg-accent-soft",
   member: "text-content-muted bg-surface-inset",
 };
@@ -241,7 +241,7 @@ export function TeamSection({
         {/* No-owner warning: should never happen in healthy data, but if
             the trigger failed or an owner was removed manually, surface it. */}
         {!hasOwner && (
-          <div className="flex items-start gap-2 rounded-lg border border-error/40 bg-error-soft px-3 py-2 text-body text-error">
+          <div className="flex items-start gap-2 rounded-lg border border-error/40 bg-error-soft px-3 py-2 text-body text-error-text">
             <AlertTriangle size={16} className="shrink-0 mt-0.5" />
             <span>
               This team has no owner. Contact support — transferring

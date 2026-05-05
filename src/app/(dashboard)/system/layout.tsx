@@ -35,7 +35,7 @@ export default async function SystemLayout({
   return (
     <>
       {missingEnv.length > 0 && (
-        <div className="mb-4 flex items-start gap-3 rounded-lg border border-error/40 bg-error-soft px-4 py-3 text-body text-error">
+        <div className="mb-4 flex items-start gap-3 rounded-lg border border-error/40 bg-error-soft px-4 py-3 text-body text-error-text">
           <AlertTriangle size={18} className="shrink-0 mt-0.5" />
           <div>
             <p className="font-semibold">

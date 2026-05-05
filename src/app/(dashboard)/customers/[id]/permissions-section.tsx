@@ -39,7 +39,7 @@ interface PrincipalOption {
 
 const LEVEL_BADGE: Record<PermissionLevel, string> = {
   admin:
-    "inline-flex items-center rounded-full bg-warning-soft px-2 py-0.5 text-caption font-medium text-warning",
+    "inline-flex items-center rounded-full bg-warning-soft px-2 py-0.5 text-caption font-medium text-warning-text",
   contributor:
     "inline-flex items-center rounded-full bg-accent-soft px-2 py-0.5 text-caption font-medium text-accent",
   viewer:

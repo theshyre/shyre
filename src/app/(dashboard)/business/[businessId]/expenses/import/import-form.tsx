@@ -352,7 +352,7 @@ Date,Amount,Item,Comments
       </div>
 
       {showHeaderError && (
-        <div className="rounded-lg border border-error/40 bg-error-soft p-3 text-caption text-error">
+        <div className="rounded-lg border border-error/40 bg-error-soft p-3 text-caption text-error-text">
           <AlertTriangle size={14} className="inline mr-1 align-text-bottom" />
           {parsePreview?.skipped[0]?.reason}
         </div>
@@ -421,7 +421,7 @@ Date,Amount,Item,Comments
       )}
 
       {error && (
-        <div className="rounded-lg border border-error/40 bg-error-soft p-3 text-caption text-error">
+        <div className="rounded-lg border border-error/40 bg-error-soft p-3 text-caption text-error-text">
           <AlertTriangle size={14} className="inline mr-1 align-text-bottom" />
           {error}
         </div>

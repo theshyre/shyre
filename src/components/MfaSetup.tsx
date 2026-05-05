@@ -278,7 +278,7 @@ export function MfaSetup(): React.JSX.Element {
     return (
       <div className="space-y-4">
         <div className="flex items-center gap-2">
-          <span className="inline-flex items-center gap-1.5 rounded-full bg-success-soft px-2.5 py-0.5 text-caption font-medium text-success">
+          <span className="inline-flex items-center gap-1.5 rounded-full bg-success-soft px-2.5 py-0.5 text-caption font-medium text-success-text">
             <CheckCircle size={12} />
             {t("enabled")}
           </span>
@@ -338,7 +338,7 @@ export function MfaSetup(): React.JSX.Element {
     return (
       <div className="space-y-4">
         <div className="flex items-center gap-2">
-          <span className="inline-flex items-center gap-1.5 rounded-full bg-success-soft px-2.5 py-0.5 text-caption font-medium text-success">
+          <span className="inline-flex items-center gap-1.5 rounded-full bg-success-soft px-2.5 py-0.5 text-caption font-medium text-success-text">
             <CheckCircle size={12} />
             {t("enabled")}
           </span>
@@ -439,7 +439,7 @@ export function MfaSetup(): React.JSX.Element {
         {t("description")}
       </p>
       <div className="flex items-center gap-3 mb-3">
-        <span className="inline-flex items-center gap-1.5 rounded-full bg-warning-soft px-2.5 py-0.5 text-caption font-medium text-warning">
+        <span className="inline-flex items-center gap-1.5 rounded-full bg-warning-soft px-2.5 py-0.5 text-caption font-medium text-warning-text">
           <span className="h-1.5 w-1.5 rounded-full bg-current" />
           {t("disabled")}
         </span>

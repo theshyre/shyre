@@ -191,7 +191,7 @@ export function EntryKebabMenu({ entry, onEdit }: Props): React.JSX.Element {
           type="button"
           disabled={pending}
           onClick={handleStopTimer}
-          className="flex items-center gap-2 w-full px-3 py-2 text-body-lg text-left text-success hover:bg-success-soft disabled:opacity-50"
+          className="flex items-center gap-2 w-full px-3 py-2 text-body-lg text-left text-success-text hover:bg-success-soft disabled:opacity-50"
         >
           <Square size={14} />
           {t("stopTimer")}
@@ -232,7 +232,7 @@ export function EntryKebabMenu({ entry, onEdit }: Props): React.JSX.Element {
           type="button"
           disabled={pending}
           onClick={handleDelete}
-          className="flex items-center gap-2 w-full px-3 py-2 text-body-lg text-left text-error hover:bg-error-soft disabled:opacity-50"
+          className="flex items-center gap-2 w-full px-3 py-2 text-body-lg text-left text-error-text hover:bg-error-soft disabled:opacity-50"
         >
           <Trash2 size={14} />
           {t("confirmDelete")}
@@ -241,7 +241,7 @@ export function EntryKebabMenu({ entry, onEdit }: Props): React.JSX.Element {
         <button
           type="button"
           onClick={() => setConfirmDelete(true)}
-          className="flex items-center gap-2 w-full px-3 py-2 text-body-lg text-left text-error hover:bg-error-soft"
+          className="flex items-center gap-2 w-full px-3 py-2 text-body-lg text-left text-error-text hover:bg-error-soft"
         >
           <Trash2 size={14} />
           {t("delete")}

@@ -246,7 +246,7 @@ function RunRow({
               setConfirming(true);
               setError(null);
             }}
-            className={`${buttonGhostClass} inline-flex items-center gap-1 text-error hover:bg-error-soft`}
+            className={`${buttonGhostClass} inline-flex items-center gap-1 text-error-text hover:bg-error-soft`}
             aria-label={t("undoButton")}
           >
             <Undo2 size={14} />
@@ -467,7 +467,7 @@ function StatusBadge({
   }
   if (kind === "completed") {
     return (
-      <span className="inline-flex items-center gap-1 rounded-full bg-success-soft px-2 py-0.5 text-caption font-medium text-success">
+      <span className="inline-flex items-center gap-1 rounded-full bg-success-soft px-2 py-0.5 text-caption font-medium text-success-text">
         <CheckCircle size={10} />
         {t("statuses.completed")}
       </span>
@@ -475,7 +475,7 @@ function StatusBadge({
   }
   if (kind === "failed") {
     return (
-      <span className="inline-flex items-center gap-1 rounded-full bg-error-soft px-2 py-0.5 text-caption font-medium text-error">
+      <span className="inline-flex items-center gap-1 rounded-full bg-error-soft px-2 py-0.5 text-caption font-medium text-error-text">
         <XCircle size={10} />
         {t("statuses.failed")}
       </span>

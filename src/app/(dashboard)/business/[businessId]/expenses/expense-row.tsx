@@ -208,7 +208,7 @@ export function ExpenseRow({
                   // recategorize work is visually obvious. Other
                   // categories use the muted surface-inset chip.
                   expense.category === "other"
-                    ? "bg-warning-soft text-warning"
+                    ? "bg-warning-soft text-warning-text"
                     : "bg-surface-inset text-content-secondary"
                 }`}
               >
@@ -332,7 +332,7 @@ export function ExpenseRow({
           />
           {expense.billable && (
             <Tooltip label={t("fields.billable")} labelMode="label">
-              <span className="inline-flex items-center rounded-full bg-success-soft px-1.5 py-0.5 text-label font-semibold uppercase tracking-wider text-success">
+              <span className="inline-flex items-center rounded-full bg-success-soft px-1.5 py-0.5 text-label font-semibold uppercase tracking-wider text-success-text">
                 {t("billableShort")}
               </span>
             </Tooltip>

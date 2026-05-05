@@ -15,6 +15,64 @@
   --font-mono: var(--font-geist-mono);
 }
 
+/* WCAG AA contrast tokens for text-on-soft-background pairings.
+ *
+ * Audit a11y #6 flagged that `text-warning` on `bg-warning-soft`,
+ * `text-success` on `bg-success-soft`, and friends fail the 4.5:1
+ * AA threshold for body text on light + warm themes (and the
+ * error pair fails on dark at small sizes). The fix is a separate
+ * `--*-text` token pinned to a darker shade for light/warm and a
+ * lighter shade for dark — used ONLY when the foreground sits on
+ * the matching soft background. The plain `text-*` tokens still
+ * exist for icon strokes, borders, and high-contrast themes
+ * where contrast is already correct.
+ *
+ * Promote upstream to @theshyre/design-tokens once stable; defining
+ * here unblocks Shyre without a theshyre-core release. */
+:root,
+[data-theme="light"] {
+  --success-text: #166534;
+  --warning-text: #92400e;
+  --error-text: #991b1b;
+  --info-text: #1e40af;
+}
+[data-theme="dark"] {
+  --success-text: #86efac;
+  --warning-text: #fcd34d;
+  --error-text: #fca5a5;
+  --info-text: #93c5fd;
+}
+[data-theme="warm"] {
+  --success-text: #166534;
+  --warning-text: #92400e;
+  --error-text: #991b1b;
+  --info-text: #1e40af;
+}
+[data-theme="high-contrast"] {
+  /* High-contrast theme already pairs its `text-*` tokens with
+   * very dark or very light surfaces and passes AA without help.
+   * Mirror the plain tokens here so call sites don't have to
+   * branch — `text-success-text` resolves to the same color as
+   * `text-success` in this theme. */
+  --success-text: var(--success);
+  --warning-text: var(--warning);
+  --error-text: var(--error);
+  --info-text: var(--info);
+}
+
+@utility text-success-text {
+  color: var(--success-text);
+}
+@utility text-warning-text {
+  color: var(--warning-text);
+}
+@utility text-error-text {
+  color: var(--error-text);
+}
+@utility text-info-text {
+  color: var(--info-text);
+}
+
 body {
   background: var(--surface);
   color: var(--content);

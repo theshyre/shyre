@@ -146,20 +146,20 @@ function SeverityIcon({
 }): React.JSX.Element {
   if (severity === "ok") {
     return (
-      <span className="inline-flex h-6 w-6 items-center justify-center rounded-full bg-success-soft text-success shrink-0">
+      <span className="inline-flex h-6 w-6 items-center justify-center rounded-full bg-success-soft text-success-text shrink-0">
         <Check size={12} aria-hidden />
       </span>
     );
   }
   if (severity === "warning") {
     return (
-      <span className="inline-flex h-6 w-6 items-center justify-center rounded-full bg-warning-soft text-warning shrink-0">
+      <span className="inline-flex h-6 w-6 items-center justify-center rounded-full bg-warning-soft text-warning-text shrink-0">
         <Clock size={12} aria-hidden />
       </span>
     );
   }
   return (
-    <span className="inline-flex h-6 w-6 items-center justify-center rounded-full bg-error-soft text-error shrink-0">
+    <span className="inline-flex h-6 w-6 items-center justify-center rounded-full bg-error-soft text-error-text shrink-0">
       <AlertCircle size={12} aria-hidden />
     </span>
   );

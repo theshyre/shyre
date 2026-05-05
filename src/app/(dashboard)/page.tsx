@@ -276,7 +276,7 @@ export default async function DashboardPage(): Promise<React.JSX.Element> {
                   <div className="flex min-w-0 items-center gap-3">
                     {isRunning ? (
                       <span
-                        className="inline-flex h-4 w-4 items-center justify-center rounded-full bg-success-soft text-success"
+                        className="inline-flex h-4 w-4 items-center justify-center rounded-full bg-success-soft text-success-text"
                         aria-label={tc("status.running")}
                       >
                         <Play size={10} />

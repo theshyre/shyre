@@ -201,7 +201,7 @@ export function ProjectsTable({
             <button
               type="button"
               onClick={onBulkArchive}
-              className="ml-auto inline-flex items-center gap-1.5 rounded-md border border-error/40 bg-error-soft px-3 py-1.5 text-caption font-semibold text-error hover:bg-error/10"
+              className="ml-auto inline-flex items-center gap-1.5 rounded-md border border-error/40 bg-error-soft px-3 py-1.5 text-caption font-semibold text-error-text hover:bg-error/10"
             >
               <Archive size={14} />
               {t("bulkArchive", { count: selectedCount })}
@@ -364,9 +364,9 @@ function StatusBadge({
   label: string;
 }): React.JSX.Element {
   const colorMap: Record<string, string> = {
-    active: "bg-success-soft text-success",
-    paused: "bg-warning-soft text-warning",
-    completed: "bg-info-soft text-info",
+    active: "bg-success-soft text-success-text",
+    paused: "bg-warning-soft text-warning-text",
+    completed: "bg-info-soft text-info-text",
     archived: "bg-surface-inset text-content-muted",
   };
   const classes = colorMap[status] ?? "bg-surface-inset text-content-muted";

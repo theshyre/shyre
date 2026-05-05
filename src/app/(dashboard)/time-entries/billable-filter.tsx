@@ -32,7 +32,7 @@ export function BillableFilter({ active }: Props): React.JSX.Element {
       aria-pressed={active}
       className={`inline-flex items-center gap-1.5 rounded-full px-3 py-1 text-caption font-medium transition-colors ${
         active
-          ? "bg-success-soft text-success border border-success/30"
+          ? "bg-success-soft text-success-text border border-success/30"
           : "bg-surface-inset text-content-secondary border border-edge hover:bg-hover"
       }`}
     >

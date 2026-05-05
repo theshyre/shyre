@@ -116,11 +116,11 @@ function StatusRow({
   return (
     <li className="flex items-center gap-2">
       {ok ? (
-        <span className="inline-flex h-5 w-5 items-center justify-center rounded-full bg-success-soft text-success">
+        <span className="inline-flex h-5 w-5 items-center justify-center rounded-full bg-success-soft text-success-text">
           <Check size={12} aria-hidden />
         </span>
       ) : (
-        <span className="inline-flex h-5 w-5 items-center justify-center rounded-full bg-warning-soft text-warning">
+        <span className="inline-flex h-5 w-5 items-center justify-center rounded-full bg-warning-soft text-warning-text">
           <AlertCircle size={12} aria-hidden />
         </span>
       )}

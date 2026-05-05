@@ -110,8 +110,8 @@ const SECTION_ORDER: SectionKey[] = [
 const EMPLOYMENT_BADGE: Record<PersonRow["employment_type"], string> = {
   w2_employee: "bg-accent-soft text-accent-text",
   "1099_contractor": "bg-surface-inset text-content-secondary",
-  partner: "bg-success-soft text-success",
-  owner: "bg-success-soft text-success",
+  partner: "bg-success-soft text-success-text",
+  owner: "bg-success-soft text-success-text",
   unpaid: "bg-surface-inset text-content-muted",
 };
 
@@ -319,7 +319,7 @@ function PersonRowView({
           <button
             type="button"
             onClick={() => setDeleting(true)}
-            className={`${buttonGhostClass} inline-flex items-center gap-1 text-error hover:bg-error-soft`}
+            className={`${buttonGhostClass} inline-flex items-center gap-1 text-error-text hover:bg-error-soft`}
             aria-label={`Delete ${displayName}`}
           >
             <X size={14} />

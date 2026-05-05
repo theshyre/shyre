@@ -205,7 +205,7 @@ export function InvoicesTable({
                 type="button"
                 onClick={onMarkPaid}
                 disabled={!canMarkPaid}
-                className="ml-auto inline-flex items-center gap-1.5 rounded-md border border-success/40 bg-success-soft px-3 py-1.5 text-caption font-semibold text-success hover:bg-success/10 disabled:opacity-50 disabled:cursor-not-allowed"
+                className="ml-auto inline-flex items-center gap-1.5 rounded-md border border-success/40 bg-success-soft px-3 py-1.5 text-caption font-semibold text-success-text hover:bg-success/10 disabled:opacity-50 disabled:cursor-not-allowed"
                 aria-disabled={!canMarkPaid}
               >
                 <CheckCircle size={14} />

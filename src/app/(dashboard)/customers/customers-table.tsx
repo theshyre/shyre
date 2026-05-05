@@ -200,7 +200,7 @@ export function CustomersTable({
             <button
               type="button"
               onClick={onBulkArchive}
-              className="ml-auto inline-flex items-center gap-1.5 rounded-md border border-error/40 bg-error-soft px-3 py-1.5 text-caption font-semibold text-error hover:bg-error/10"
+              className="ml-auto inline-flex items-center gap-1.5 rounded-md border border-error/40 bg-error-soft px-3 py-1.5 text-caption font-semibold text-error-text hover:bg-error/10"
             >
               <Archive size={14} />
               {t("bulkArchive", { count: selectedCount })}
@@ -322,7 +322,7 @@ export function CustomersTable({
                           when: client.bounced_at,
                         })}
                       >
-                        <span className="inline-flex items-center gap-1 rounded-full bg-warning-soft px-2 py-0.5 text-label font-medium text-warning">
+                        <span className="inline-flex items-center gap-1 rounded-full bg-warning-soft px-2 py-0.5 text-label font-medium text-warning-text">
                           <MailWarning size={10} />
                           {t("bouncedChip")}
                         </span>
@@ -334,7 +334,7 @@ export function CustomersTable({
                           when: client.complained_at,
                         })}
                       >
-                        <span className="inline-flex items-center gap-1 rounded-full bg-error-soft px-2 py-0.5 text-label font-medium text-error">
+                        <span className="inline-flex items-center gap-1 rounded-full bg-error-soft px-2 py-0.5 text-label font-medium text-error-text">
                           <ShieldAlert size={10} />
                           {t("complainedChip")}
                         </span>

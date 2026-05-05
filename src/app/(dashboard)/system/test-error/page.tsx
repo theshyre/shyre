@@ -55,7 +55,7 @@ export default async function TestErrorPage({
       </div>
 
       {logged && (
-        <div className="mt-4 rounded-lg border border-success/30 bg-success-soft p-3 text-body-lg text-success">
+        <div className="mt-4 rounded-lg border border-success/30 bg-success-soft p-3 text-body-lg text-success-text">
           ✓ Test error sent to logger. Check{" "}
           <a href="/system/errors" className="underline">
             /system/errors

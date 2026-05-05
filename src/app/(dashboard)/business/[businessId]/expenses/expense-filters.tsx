@@ -315,7 +315,7 @@ export function ExpenseFilters({
                     ? "border-warning bg-warning text-content-inverse"
                     : "border-accent bg-accent text-accent-text"
                   : isOtherWarning
-                    ? "border-warning/40 bg-warning-soft text-warning hover:bg-warning-soft/70"
+                    ? "border-warning/40 bg-warning-soft text-warning-text hover:bg-warning-soft/70"
                     : "border-edge bg-surface-raised text-content-secondary hover:bg-hover"
               }`}
             >

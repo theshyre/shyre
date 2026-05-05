@@ -1080,7 +1080,7 @@ function StepIndicator({
     <span
       className={`inline-flex items-center gap-1 rounded-full px-2.5 py-0.5 text-caption font-medium ${
         done
-          ? "bg-success-soft text-success"
+          ? "bg-success-soft text-success-text"
           : active
             ? "bg-accent-soft text-accent-text"
             : "bg-surface-inset text-content-muted"

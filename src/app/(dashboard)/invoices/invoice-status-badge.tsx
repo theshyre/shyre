@@ -116,15 +116,15 @@ const STATUS_META: Record<string, StatusMeta> = {
   },
   sent: {
     icon: Send,
-    classes: "bg-info-soft text-info",
+    classes: "bg-info-soft text-info-text",
   },
   paid: {
     icon: CheckCircle2,
-    classes: "bg-success-soft text-success",
+    classes: "bg-success-soft text-success-text",
   },
   overdue: {
     icon: AlertTriangle,
-    classes: "bg-error-soft text-error",
+    classes: "bg-error-soft text-error-text",
   },
   void: {
     // Warning tokens (amber) — distinguishable at a glance from
@@ -132,7 +132,7 @@ const STATUS_META: Record<string, StatusMeta> = {
     // UX review: void is "non-collectible / inert," not "error";
     // amber maps to that without screaming red.
     icon: Ban,
-    classes: "bg-warning-soft text-warning",
+    classes: "bg-warning-soft text-warning-text",
     strikeLabel: true,
   },
 };
