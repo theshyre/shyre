@@ -819,25 +819,28 @@ export async function POST(request: Request): Promise<NextResponse> {
       let timeEntriesImported = 0;
       let timeEntriesSkipped = 0;
 
-      // Bulk-load project ticket-defaults once so the per-row build
-      // can resolve short refs (#123 → octokit/rest.js#123) without
-      // a per-row DB query. First-time imports usually have these
-      // unset (the user configures them post-import); subsequent
-      // re-imports benefit when they're filled in.
+      // Bulk-load project ticket-defaults + classification once so the
+      // per-row build can resolve short refs (#123 → octokit/rest.js#123)
+      // and pin billable=false on internal projects without a per-row DB
+      // query. First-time imports usually have ticket fields unset (the
+      // user configures them post-import); subsequent re-imports benefit
+      // when they're filled in. is_internal is already set by
+      // buildProjectRow at insert time.
       const projectTicketDefaults = new Map<
         string,
-        { github: string | null; jira: string | null }
+        { github: string | null; jira: string | null; isInternal: boolean }
       >();
       const shyreProjectIds = [...projectMap.values()];
       if (shyreProjectIds.length > 0) {
         const { data: projectRows } = await supabase
           .from("projects")
-          .select("id, github_repo, jira_project_key")
+          .select("id, github_repo, jira_project_key, is_internal")
           .in("id", shyreProjectIds);
         for (const row of projectRows ?? []) {
           projectTicketDefaults.set(row.id as string, {
             github: (row.github_repo as string | null) ?? null,
             jira: (row.jira_project_key as string | null) ?? null,
+            isInternal: row.is_internal === true,
           });
         }
       }
@@ -861,6 +864,7 @@ export async function POST(request: Request): Promise<NextResponse> {
           projectHourlyRate: projectRateById.get(hte.project.id) ?? null,
           projectGithubRepo: ticketDefaults?.github ?? null,
           projectJiraProjectKey: ticketDefaults?.jira ?? null,
+          projectIsInternal: ticketDefaults?.isInternal ?? false,
           userMapping,
           categoryIdByTaskName,
           ctx,

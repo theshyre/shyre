@@ -464,6 +464,14 @@ export function buildProjectRow(
   team_id: string;
   user_id: string;
   customer_id: string | null;
+  /** Mirrors `customer_id IS NULL`. The DB CHECK constraint
+   *  `projects_internal_xor_customer` rejects any other combination,
+   *  so the importer normalizes here at the boundary instead of
+   *  letting the insert error-out per row. */
+  is_internal: boolean;
+  /** Internal projects pin to false (they're never invoiceable);
+   *  external projects default to true to match the rest of the app. */
+  default_billable: boolean;
   name: string;
   description: string | null;
   hourly_rate: number | null;
@@ -475,10 +483,20 @@ export function buildProjectRow(
   import_run_id: string;
   import_source_id: string;
 } {
+  // Harvest projects without a client are reclassified as Shyre
+  // internal projects on import. Pre-2026-05-04 the importer would
+  // happily insert customer_id=null without setting is_internal,
+  // which now violates the CHECK constraint added by migration
+  // 20260504190000. Set both atomically so the CHECK is satisfied
+  // at insert time.
+  const isInternal = customerId === null;
+
   return {
     team_id: ctx.teamId,
     user_id: ctx.importerUserId,
     customer_id: customerId,
+    is_internal: isInternal,
+    default_billable: !isInternal,
     name: hp.name,
     description: hp.notes,
     hourly_rate: hp.hourly_rate,
@@ -835,6 +853,13 @@ export function buildTimeEntryRow(args: {
   /** Project's `jira_project_key` (e.g. "PROJ"). Reserved for
    *  symmetry; today's resolver doesn't use it for short refs. */
   projectJiraProjectKey?: string | null;
+  /** Whether the destination Shyre project is internal. Internal
+   *  projects pin every entry to billable=false regardless of what
+   *  Harvest reports — the rest of the app's createTimeEntry /
+   *  startTimer / etc. server actions enforce the same invariant; the
+   *  importer applies it at the boundary so bulk inserts stay
+   *  consistent without a cross-table DB trigger. */
+  projectIsInternal?: boolean;
   userMapping: Record<number, UserMapChoice>;
   categoryIdByTaskName: Map<string, string>;
   ctx: ImportContext;
@@ -973,7 +998,10 @@ export function buildTimeEntryRow(args: {
     description,
     start_time: bounds.startUtcIso,
     end_time: bounds.endUtcIso,
-    billable: args.entry.billable,
+    // Internal projects pin to billable=false (no entry on a
+    // non-invoiceable project should claim "billable" — it'd
+    // distort billable-hour reports for no operational gain).
+    billable: args.projectIsInternal === true ? false : args.entry.billable,
     invoiced: linkedInvoiceId !== null,
     invoice_id: linkedInvoiceId,
     linked_ticket_provider: ticket?.provider ?? null,

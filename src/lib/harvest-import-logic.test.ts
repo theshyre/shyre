@@ -727,6 +727,19 @@ describe("buildProjectRow", () => {
     const row = buildProjectRow(hp, "cust-1", ctx, "set-xyz");
     expect(row.category_set_id).toBe("set-xyz");
   });
+
+  it("classifies an external project: is_internal=false, default_billable=true", () => {
+    const row = buildProjectRow(hp, "cust-1", ctx);
+    expect(row.is_internal).toBe(false);
+    expect(row.default_billable).toBe(true);
+  });
+
+  it("classifies a customer-less project as internal: is_internal=true, default_billable=false (CHECK constraint compliance)", () => {
+    const row = buildProjectRow(hp, null, ctx);
+    expect(row.is_internal).toBe(true);
+    expect(row.default_billable).toBe(false);
+    expect(row.customer_id).toBeNull();
+  });
 });
 
 // ────────────────────────────────────────────────────────────────
@@ -854,6 +867,57 @@ describe("buildTimeEntryRow", () => {
     expect("skipped" in out).toBe(false);
     if ("skipped" in out) throw new Error("unreachable");
     expect(out.description).toBe("Some notes");
+  });
+
+  it("preserves Harvest's billable=true on a non-internal project", () => {
+    const out = buildTimeEntryRow({
+      entry: { ...baseEntry, billable: true },
+      projectId: "proj-1",
+      projectHourlyRate: 150,
+      projectIsInternal: false,
+      userMapping,
+      categoryIdByTaskName,
+      ctx,
+      timeZone: "America/New_York",
+    });
+    expect("skipped" in out).toBe(false);
+    if ("skipped" in out) throw new Error("unreachable");
+    expect(out.billable).toBe(true);
+  });
+
+  it("forces billable=false on internal projects regardless of Harvest's value", () => {
+    // Harvest reported billable=true; the destination Shyre project
+    // is internal, so the importer must override. Same invariant the
+    // server actions enforce on day-to-day entry creation.
+    const out = buildTimeEntryRow({
+      entry: { ...baseEntry, billable: true },
+      projectId: "proj-1",
+      projectHourlyRate: 150,
+      projectIsInternal: true,
+      userMapping,
+      categoryIdByTaskName,
+      ctx,
+      timeZone: "America/New_York",
+    });
+    expect("skipped" in out).toBe(false);
+    if ("skipped" in out) throw new Error("unreachable");
+    expect(out.billable).toBe(false);
+  });
+
+  it("treats the absent projectIsInternal flag as not-internal (back-compat with existing callers)", () => {
+    const out = buildTimeEntryRow({
+      entry: { ...baseEntry, billable: true },
+      projectId: "proj-1",
+      projectHourlyRate: 150,
+      // projectIsInternal omitted
+      userMapping,
+      categoryIdByTaskName,
+      ctx,
+      timeZone: "America/New_York",
+    });
+    expect("skipped" in out).toBe(false);
+    if ("skipped" in out) throw new Error("unreachable");
+    expect(out.billable).toBe(true);
   });
 
   it("detects a Jira ticket key in the description and writes provider+key", () => {
