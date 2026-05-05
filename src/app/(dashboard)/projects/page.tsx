@@ -2,9 +2,7 @@ import type { Metadata } from "next";
 import { createClient } from "@/lib/supabase/server";
 import { getUserTeams } from "@/lib/team-context";
 import { getTranslations } from "next-intl/server";
-import Link from "next/link";
-import { FolderKanban, Building2 } from "lucide-react";
-import { Tooltip } from "@/components/Tooltip";
+import { FolderKanban } from "lucide-react";
 
 export async function generateMetadata(): Promise<Metadata> {
   const t = await getTranslations("projects");
@@ -14,16 +12,7 @@ import { TeamFilter } from "@/components/TeamFilter";
 import { getVisibleCategorySets } from "@/lib/categories/queries";
 import { NewProjectForm } from "./new-project-form";
 import { parseListPagination } from "@/lib/pagination/list-pagination";
-import { PaginationFooter } from "@/components/PaginationFooter";
-import { SortableTableHeader } from "@/components/SortableTableHeader";
-import {
-  tableClass,
-  tableHeaderCellClass,
-  tableHeaderRowClass,
-  tableBodyRowClass,
-  tableBodyCellClass,
-  tableWrapperClass,
-} from "@/lib/table-styles";
+import { ProjectsTable, type ProjectRow } from "./projects-table";
 
 // Whitelist for sort keys — gates URL input before it reaches the
 // query builder. Everything else falls back to the default.
@@ -58,7 +47,6 @@ export default async function ProjectsPage({
   const sp = await searchParams;
   const { org: selectedTeamId } = sp;
   const t = await getTranslations("projects");
-  const tc = await getTranslations("common");
   const { limit } = parseListPagination(sp);
 
   const sort = parseSort(sp.sort);
@@ -100,17 +88,6 @@ export default async function ProjectsPage({
     }),
   );
 
-  const teamName = (teamId: string) =>
-    teams.find((o) => o.id === teamId)?.name ?? "—";
-
-  // Team-scope column appears only for multi-team viewers. For solos
-  // the team is ambient (one team, never switched), and the column
-  // adds visual noise that distracts from project / customer / rate.
-  // For agencies, the column tells you which scope the project lives
-  // in at a glance — the symptom of "Teams and Projects feel close"
-  // dissolves into "Team is the chip on every Project."
-  const showTeamColumn = teams.length > 1;
-
   // Preserve filter + pagination params across sort clicks. Sort
   // clicks reset to page 1 implicitly because we don't carry a page
   // number — limit is the only pagination control on this page.
@@ -129,6 +106,10 @@ export default async function ProjectsPage({
     return `/projects?${params.toString()}`;
   };
 
+  const teamNameById = new Map(
+    teams.map((o) => [o.id as string, (o.name as string) ?? "—"]),
+  );
+
   return (
     <div>
       <div className="flex items-center gap-3">
@@ -144,137 +125,15 @@ export default async function ProjectsPage({
         categorySets={categorySets}
       />
 
-      {projects && projects.length > 0 ? (
-        <div className={`mt-6 ${tableWrapperClass}`}>
-          <table className={tableClass}>
-            <thead>
-              <tr className={tableHeaderRowClass}>
-                <SortableTableHeader
-                  label={tc("table.name")}
-                  sortKey="name"
-                  currentSort={sort}
-                  currentDir={dir}
-                  href={buildSortHref}
-                />
-                {showTeamColumn && (
-                  <th scope="col" className={`${tableHeaderCellClass} text-left`}>
-                    {tc("nav.teams")}
-                  </th>
-                )}
-                <th scope="col" className={`${tableHeaderCellClass} text-left`}>
-                  {t("table.customer")}
-                </th>
-                <SortableTableHeader
-                  label={t("table.hourlyRate")}
-                  sortKey="hourly_rate"
-                  currentSort={sort}
-                  currentDir={dir}
-                  href={buildSortHref}
-                />
-                <SortableTableHeader
-                  label={t("table.status")}
-                  sortKey="status"
-                  currentSort={sort}
-                  currentDir={dir}
-                  href={buildSortHref}
-                />
-              </tr>
-            </thead>
-            <tbody>
-              {projects.map((project) => {
-                const customerName =
-                  project.customers &&
-                  typeof project.customers === "object" &&
-                  "name" in project.customers
-                    ? (project.customers as { name: string }).name
-                    : null;
-                const isInternal = project.is_internal === true;
-                return (
-                  <tr key={project.id} className={tableBodyRowClass}>
-                    <td className="px-4 py-3">
-                      <Link
-                        href={`/projects/${project.id}`}
-                        className="text-accent hover:underline font-medium"
-                      >
-                        {project.name}
-                      </Link>
-                      {isInternal && (
-                        <Tooltip label={t("classification.internalDescription")}>
-                          <span className="ml-2 inline-flex items-center gap-1 rounded-full bg-surface-inset px-2 py-0.5 text-caption font-medium text-content-secondary">
-                            <Building2 size={10} />
-                            {t("internal")}
-                          </span>
-                        </Tooltip>
-                      )}
-                    </td>
-                    {showTeamColumn && (
-                      <td className="px-4 py-3">
-                        <span className="inline-flex items-center rounded-full bg-surface-inset px-2 py-0.5 text-caption font-medium text-content-secondary">
-                          {teamName(project.team_id)}
-                        </span>
-                      </td>
-                    )}
-                    <td className={tableBodyCellClass}>
-                      {isInternal ? (
-                        <span className="text-content-muted italic">
-                          {t("table.noCustomerInternal")}
-                        </span>
-                      ) : (
-                        (customerName ?? "—")
-                      )}
-                    </td>
-                    <td className={`${tableBodyCellClass} font-mono`}>
-                      {project.hourly_rate
-                        ? `$${Number(project.hourly_rate).toFixed(2)}/hr`
-                        : "—"}
-                    </td>
-                    <td className="px-4 py-3">
-                      <StatusBadge
-                        status={project.status ?? "active"}
-                        label={tc(`status.${project.status ?? "active"}`)}
-                      />
-                    </td>
-                  </tr>
-                );
-              })}
-            </tbody>
-          </table>
-          <PaginationFooter
-            loaded={projects.length}
-            total={projectsMatchingCount ?? projects.length}
-          />
-        </div>
-      ) : (
-        <p className="mt-6 text-body text-content-muted">
-          {t("noProjects")}
-        </p>
-      )}
+      <ProjectsTable
+        projects={(projects ?? []) as unknown as ProjectRow[]}
+        totalCount={projectsMatchingCount ?? projects?.length ?? 0}
+        teamNameById={teamNameById}
+        sort={sort}
+        dir={dir}
+        buildSortHref={buildSortHref}
+      />
     </div>
-  );
-}
-
-function StatusBadge({
-  status,
-  label,
-}: {
-  status: string;
-  label: string;
-}): React.JSX.Element {
-  const colorMap: Record<string, string> = {
-    active: "bg-success-soft text-success",
-    paused: "bg-warning-soft text-warning",
-    completed: "bg-info-soft text-info",
-    archived: "bg-surface-inset text-content-muted",
-  };
-  const classes = colorMap[status] ?? "bg-surface-inset text-content-muted";
-
-  return (
-    <span
-      className={`inline-flex items-center gap-1.5 rounded-full px-2.5 py-0.5 text-caption font-medium ${classes}`}
-    >
-      <span className="h-1.5 w-1.5 rounded-full bg-current" />
-      {label}
-    </span>
   );
 }
 

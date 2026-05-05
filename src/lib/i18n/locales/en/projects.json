@@ -89,5 +89,15 @@
     "deleteSet": "Delete project-specific categories",
     "deleteSummary": "project's extra categories",
     "duplicateWarning": "\"{name}\" already exists in the base set. Rename it to avoid confusion in the picker."
-  }
+  },
+  "bulkToolbarAriaLabel": "Project bulk actions",
+  "bulkSelectAllAria": "Select all projects",
+  "bulkDeselectAllAria": "Deselect all projects",
+  "bulkRowAria": "Select {name}",
+  "bulkSelectHint": "Select rows to archive in bulk",
+  "bulkSelectedLabel": "{count} of {total} selected",
+  "bulkArchive": "{count, plural, one {Archive 1} other {Archive #}}",
+  "bulkArchivedToast": "{count, plural, one {1 project archived} other {# projects archived}}",
+  "bulkRestoredToast": "{count, plural, one {1 project restored} other {# projects restored}}",
+  "archiveFailed": "Couldn't archive project."
 }

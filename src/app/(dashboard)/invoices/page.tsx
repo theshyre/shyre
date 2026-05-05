@@ -2,24 +2,18 @@ import type { Metadata } from "next";
 import { createClient } from "@/lib/supabase/server";
 import { getUserTeams } from "@/lib/team-context";
 import { getTranslations } from "next-intl/server";
-import Link from "next/link";
 import { FileText, Download } from "lucide-react";
 
 export async function generateMetadata(): Promise<Metadata> {
   const t = await getTranslations("invoices");
   return { title: t("title") };
 }
-import { formatDate } from "@theshyre/ui";
 import { buttonSecondaryClass } from "@/lib/form-styles";
-import { formatCurrency } from "@/lib/invoice-utils";
-import { effectiveInvoiceStatus } from "@/lib/invoice-status";
 import { TeamFilter } from "@/components/TeamFilter";
-import { Tooltip } from "@/components/Tooltip";
-import { InvoiceStatusBadge } from "./invoice-status-badge";
 import { NewInvoiceLink } from "./new-invoice-link";
 import { InvoiceFilters } from "./invoice-filters";
 import { parseListPagination } from "@/lib/pagination/list-pagination";
-import { PaginationFooter } from "@/components/PaginationFooter";
+import { InvoicesTable, type InvoiceRow } from "./invoices-table";
 
 interface SearchParams {
   [key: string]: string | string[] | undefined;
@@ -100,8 +94,9 @@ export default async function InvoicesPage({
     name: c.name as string,
   }));
 
-  const teamName = (teamId: string) =>
-    teams.find((o) => o.id === teamId)?.name ?? "—";
+  const teamNameById = new Map(
+    teams.map((o) => [o.id as string, (o.name as string) ?? "—"]),
+  );
 
   // Read-time auto-overdue. We don't mutate the DB here — bookkeepers
   // expect the AR aging report to reflect today's reality without us
@@ -152,104 +147,13 @@ export default async function InvoicesPage({
         />
       </div>
 
-      {invoices && invoices.length > 0 ? (
-        <div className="mt-4 overflow-hidden rounded-lg border border-edge bg-surface-raised">
-          <table className="w-full text-body">
-            <thead>
-              <tr className="border-b border-edge bg-surface-inset">
-                <th className="px-4 py-3 text-left text-label font-semibold uppercase tracking-wider text-content-muted">
-                  {t("table.invoiceNumber")}
-                </th>
-                <th className="px-4 py-3 text-left text-label font-semibold uppercase tracking-wider text-content-muted">
-                  {t("table.team")}
-                </th>
-                <th className="px-4 py-3 text-left text-label font-semibold uppercase tracking-wider text-content-muted">
-                  {t("table.customer")}
-                </th>
-                <th className="px-4 py-3 text-left text-label font-semibold uppercase tracking-wider text-content-muted">
-                  {t("table.issuedDate")}
-                </th>
-                <th className="px-4 py-3 text-right text-label font-semibold uppercase tracking-wider text-content-muted">
-                  {t("table.total")}
-                </th>
-                <th className="px-4 py-3 text-left text-label font-semibold uppercase tracking-wider text-content-muted">
-                  {t("table.status")}
-                </th>
-              </tr>
-            </thead>
-            <tbody>
-              {invoices.map((inv) => {
-                const customerName =
-                  inv.customers &&
-                  typeof inv.customers === "object" &&
-                  "name" in inv.customers
-                    ? (inv.customers as { name: string }).name
-                    : "—";
-                const isImported =
-                  (inv.imported_from as string | null) === "harvest";
-                const displayStatus = effectiveInvoiceStatus(
-                  (inv.status as string | null) ?? "draft",
-                  (inv.due_date as string | null) ?? null,
-                  today,
-                );
-                return (
-                  <tr
-                    key={inv.id}
-                    className="border-b border-edge last:border-0 hover:bg-hover transition-colors"
-                  >
-                    <td className="px-4 py-3">
-                      <span className="inline-flex items-center gap-1.5">
-                        <Link
-                          href={`/invoices/${inv.id}`}
-                          className="text-accent hover:underline font-medium font-mono"
-                        >
-                          {inv.invoice_number}
-                        </Link>
-                        {isImported && (
-                          <Tooltip label={t("table.importedFromHarvest")}>
-                            <span
-                              aria-label={t("table.importedFromHarvest")}
-                              className="inline-flex items-center text-content-muted"
-                            >
-                              <Download size={12} aria-hidden="true" />
-                            </span>
-                          </Tooltip>
-                        )}
-                      </span>
-                    </td>
-                    <td className="px-4 py-3 text-content-secondary text-caption">
-                      {teamName(inv.team_id)}
-                    </td>
-                    <td className="px-4 py-3 text-content-secondary">
-                      {customerName}
-                    </td>
-                    <td className="px-4 py-3 text-content-secondary text-caption">
-                      {inv.issued_date ? formatDate(inv.issued_date) : "—"}
-                    </td>
-                    <td className="px-4 py-3 text-right font-mono tabular-nums text-content">
-                      {inv.total
-                        ? formatCurrency(
-                            Number(inv.total),
-                            (inv.currency as string | null) ?? undefined,
-                          )
-                        : "—"}
-                    </td>
-                    <td className="px-4 py-3">
-                      <InvoiceStatusBadge status={displayStatus} />
-                    </td>
-                  </tr>
-                );
-              })}
-            </tbody>
-          </table>
-          <PaginationFooter
-            loaded={invoices.length}
-            total={matchingCount ?? invoices.length}
-          />
-        </div>
-      ) : (
-        <p className="mt-4 text-body text-content-muted">{t("noInvoices")}</p>
-      )}
+      <InvoicesTable
+        invoices={(invoices ?? []) as unknown as InvoiceRow[]}
+        totalCount={matchingCount ?? invoices?.length ?? 0}
+        teamNameById={teamNameById}
+        today={today}
+        importedTooltip={t("table.importedFromHarvest")}
+      />
     </div>
   );
 }

@@ -642,3 +642,54 @@ export async function applyDefaultBillableAction(
     revalidatePath("/reports");
   }, "applyDefaultBillableAction") as unknown as void;
 }
+
+/**
+ * Bulk archive — Pattern B selection toolbar on /projects. Flips
+ * `status = 'archived'` on every selected project at once. RLS
+ * gates the actual write per row; rows the caller can't archive
+ * are silently skipped. Pair with `bulkRestoreProjectsAction`
+ * for the Undo toast.
+ */
+export async function bulkArchiveProjectsAction(
+  formData: FormData,
+): Promise<void> {
+  return runSafeAction(formData, async (formData, { supabase }) => {
+    const ids = formData.getAll("id").map(String).filter(Boolean);
+    if (ids.length === 0) return;
+
+    assertSupabaseOk(
+      await supabase
+        .from("projects")
+        .update({ status: "archived" })
+        .in("id", ids),
+    );
+
+    revalidatePath("/projects");
+    revalidatePath("/time-entries");
+  }, "bulkArchiveProjectsAction") as unknown as void;
+}
+
+/**
+ * Bulk restore — Undo from the bulk-archive toast. Resets
+ * `status = 'active'` on the given ids. Uses 'active' rather than
+ * a captured pre-archive status because we don't track that —
+ * same trade-off as expense restore.
+ */
+export async function bulkRestoreProjectsAction(
+  formData: FormData,
+): Promise<void> {
+  return runSafeAction(formData, async (formData, { supabase }) => {
+    const ids = formData.getAll("id").map(String).filter(Boolean);
+    if (ids.length === 0) return;
+
+    assertSupabaseOk(
+      await supabase
+        .from("projects")
+        .update({ status: "active" })
+        .in("id", ids),
+    );
+
+    revalidatePath("/projects");
+    revalidatePath("/time-entries");
+  }, "bulkRestoreProjectsAction") as unknown as void;
+}

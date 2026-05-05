@@ -494,3 +494,73 @@ export async function deleteInvoiceAction(
     "deleteInvoiceAction",
   ) as unknown as void;
 }
+
+/**
+ * Bulk transition multiple invoices to a single target status —
+ * used by Pattern B's selection toolbar. The most common case is
+ * a bookkeeper marking 8 sent/overdue invoices as paid at month
+ * end after the bank deposit clears.
+ *
+ * Each row is validated independently against the transition graph
+ * AND its team's owner/admin role. Rows the caller can't transition
+ * (member role, illegal transition) are silently skipped — the
+ * action returns the count of successful changes via the toast,
+ * not via a thrown error, so a partial selection isn't a hard fail.
+ *
+ * Implementation note: we serialize per row rather than attempting
+ * one batch UPDATE because the role + transition checks are
+ * per-row and the existing audit triggers fire on each UPDATE.
+ * Bulk SQL would skip those triggers' previous_state captures.
+ */
+export async function bulkUpdateInvoiceStatusAction(
+  formData: FormData,
+): Promise<void> {
+  return runSafeAction(
+    formData,
+    async (formData, { supabase }) => {
+      const ids = formData.getAll("id").map(String).filter(Boolean);
+      const nextStatus = formData.get("status") as string;
+      if (ids.length === 0) return;
+      if (!nextStatus) throw new Error("Status is required.");
+
+      // Fetch every selected row in one query so we can role-check
+      // per team without a fanout.
+      const { data: rows, error } = await supabase
+        .from("invoices")
+        .select("id, team_id, status")
+        .in("id", ids);
+      if (error) throw error;
+      if (!rows || rows.length === 0) return;
+
+      // Cache role per team to avoid repeated validateTeamAccess
+      // calls when many invoices share a team.
+      const roleByTeam = new Map<string, string>();
+      const acceptable: string[] = [];
+      for (const row of rows) {
+        const teamId = row.team_id as string;
+        let role = roleByTeam.get(teamId);
+        if (!role) {
+          const { role: r } = await validateTeamAccess(teamId);
+          role = r;
+          roleByTeam.set(teamId, role);
+        }
+        if (role !== "owner" && role !== "admin") continue;
+        const current = (row.status as string | null) ?? "draft";
+        if (!isValidInvoiceStatusTransition(current, nextStatus)) continue;
+        acceptable.push(row.id as string);
+      }
+
+      if (acceptable.length === 0) return;
+
+      assertSupabaseOk(
+        await supabase
+          .from("invoices")
+          .update({ status: nextStatus })
+          .in("id", acceptable),
+      );
+
+      revalidatePath("/invoices");
+    },
+    "bulkUpdateInvoiceStatusAction",
+  ) as unknown as void;
+}

@@ -89,5 +89,15 @@
     "deleteSet": "Eliminar categorías específicas",
     "deleteSummary": "categorías extra del proyecto",
     "duplicateWarning": "\"{name}\" ya existe en el conjunto base. Renómbrala para evitar confusión."
-  }
+  },
+  "bulkToolbarAriaLabel": "Acciones masivas de proyectos",
+  "bulkSelectAllAria": "Seleccionar todos los proyectos",
+  "bulkDeselectAllAria": "Deseleccionar todos los proyectos",
+  "bulkRowAria": "Seleccionar {name}",
+  "bulkSelectHint": "Selecciona filas para archivar en lote",
+  "bulkSelectedLabel": "{count} de {total} seleccionados",
+  "bulkArchive": "{count, plural, one {Archivar 1} other {Archivar #}}",
+  "bulkArchivedToast": "{count, plural, one {1 proyecto archivado} other {# proyectos archivados}}",
+  "bulkRestoredToast": "{count, plural, one {1 proyecto restaurado} other {# proyectos restaurados}}",
+  "archiveFailed": "No se pudo archivar el proyecto."
 }

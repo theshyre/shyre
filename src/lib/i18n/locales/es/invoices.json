@@ -191,5 +191,15 @@
     "total": "Total",
     "notes": "Notas",
     "thankYou": "Gracias por su preferencia."
-  }
+  },
+  "bulkToolbarAriaLabel": "Acciones masivas de facturas",
+  "bulkSelectAllAria": "Seleccionar todas las facturas",
+  "bulkDeselectAllAria": "Deseleccionar todas las facturas",
+  "bulkRowAria": "Seleccionar factura {number}",
+  "bulkSelectHint": "Selecciona filas para marcar como pagadas en lote",
+  "bulkSelectedLabel": "{count} de {total} seleccionadas",
+  "bulkMarkPaid": "{count, plural, one {Marcar 1 pagada} other {Marcar # pagadas}}",
+  "bulkMarkPaidIneligibleHint": "Solo facturas enviadas o vencidas pueden marcarse pagadas en lote. Reduce la selección.",
+  "bulkPaidToast": "{count, plural, one {1 factura marcada como pagada} other {# facturas marcadas como pagadas}}",
+  "bulkPaidFailed": "No se pudieron marcar las facturas como pagadas."
 }

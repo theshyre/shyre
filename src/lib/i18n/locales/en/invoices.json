@@ -191,5 +191,15 @@
     "total": "Total",
     "notes": "Notes",
     "thankYou": "Thank you for your business."
-  }
+  },
+  "bulkToolbarAriaLabel": "Invoice bulk actions",
+  "bulkSelectAllAria": "Select all invoices",
+  "bulkDeselectAllAria": "Deselect all invoices",
+  "bulkRowAria": "Select invoice {number}",
+  "bulkSelectHint": "Select rows to mark paid in bulk",
+  "bulkSelectedLabel": "{count} of {total} selected",
+  "bulkMarkPaid": "{count, plural, one {Mark 1 paid} other {Mark # paid}}",
+  "bulkMarkPaidIneligibleHint": "Only sent or overdue invoices can be marked paid in bulk. Narrow the selection.",
+  "bulkPaidToast": "{count, plural, one {1 invoice marked paid} other {# invoices marked paid}}",
+  "bulkPaidFailed": "Couldn't mark invoices paid."
 }
