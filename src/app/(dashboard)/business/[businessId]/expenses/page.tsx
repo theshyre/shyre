@@ -1,7 +1,7 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { Upload } from "lucide-react";
+import { Upload, Download } from "lucide-react";
 import { createClient } from "@/lib/supabase/server";
 import { getTranslations } from "next-intl/server";
 import { getUserTeams } from "@/lib/team-context";
@@ -330,16 +330,26 @@ export default async function ExpensesPage({
         teamOptions={teamOptions}
         projects={projects}
         secondaryAction={
-          canImport ? (
-            <Link
-              href={`/business/${businessId}/expenses/import`}
+          <div className="flex items-center gap-2">
+            <a
+              href={buildExpensesCsvHref(businessId, filters)}
+              download
               className={buttonSecondaryClass}
             >
-              <Upload size={16} />
-              {t("importCsv")}
-              <LinkPendingSpinner size={10} className="" />
-            </Link>
-          ) : null
+              <Download size={16} />
+              {t("exportCsv")}
+            </a>
+            {canImport && (
+              <Link
+                href={`/business/${businessId}/expenses/import`}
+                className={buttonSecondaryClass}
+              >
+                <Upload size={16} />
+                {t("importCsv")}
+                <LinkPendingSpinner size={10} className="" />
+              </Link>
+            )}
+          </div>
         }
       />
 
@@ -376,4 +386,31 @@ export default async function ExpensesPage({
       <TableDensityDefault preferred="compact" />
     </div>
   );
+}
+
+/** Build a CSV-export href from the active filter set. The export
+ *  route honors the same params as the page, so passing the filters
+ *  through keeps "what you see is what you export." */
+function buildExpensesCsvHref(
+  businessId: string,
+  filters: {
+    from: string | null;
+    to: string | null;
+    categories: string[];
+    billable: boolean | null;
+  },
+): string {
+  const sp = new URLSearchParams();
+  if (filters.from) sp.set("from", filters.from);
+  if (filters.to) sp.set("to", filters.to);
+  // Single-category filter only — multi-category in the URL would
+  // need repeated `category=` params and the route reads only the
+  // first. The filter UX treats "no selection" as "all" anyway.
+  if (filters.categories.length === 1) {
+    sp.set("category", filters.categories[0]!);
+  }
+  if (filters.billable === true) sp.set("billable", "1");
+  if (filters.billable === false) sp.set("billable", "0");
+  const qs = sp.toString();
+  return `/api/business/${businessId}/expenses/csv${qs ? `?${qs}` : ""}`;
 }

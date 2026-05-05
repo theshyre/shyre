@@ -1,10 +1,20 @@
 name: CI
 
-# Hard gate for code changes. Runs lint (--max-warnings=0), typecheck, and
-# unit tests on every push to main and every pull request. If this workflow
-# is red, the change must not land — no exceptions for "warnings" or
-# "flaky tests". Integration + E2E tests run separately (they need secrets
-# and longer timeouts) and are not included here.
+# Hard gate for code changes.
+#
+#   `check`        — lint (--max-warnings=0), typecheck, unit tests +
+#                    coverage. Mandatory; runs on every push and PR.
+#   `integration`  — RLS regression suite under
+#                    src/__integration__/rls/**. Hits the staging
+#                    Supabase project; requires the STAGING_SUPABASE_*
+#                    secrets. Auto-skips when those aren't configured
+#                    (e.g. PRs from forks) so the workflow stays green.
+#   `e2e`          — Playwright critical-flow suite under e2e/**.
+#                    Same secret model as integration.
+#
+# A migration that drops a policy or a server action that loses its
+# auth.getUser() check shipped green before integration ran in CI —
+# that's the gap this workflow closes (audit C1+C2).
 
 on:
   push:
@@ -58,3 +68,95 @@ jobs:
         # Fails if coverage drops below the anti-regression floor in
         # vitest.config.ts. See the RATCHET RULE comment there.
         run: npm run test:coverage
+
+  integration:
+    name: Integration tests (RLS, server actions)
+    needs: check
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    env:
+      NEXT_PUBLIC_SUPABASE_URL: ${{ secrets.STAGING_SUPABASE_URL }}
+      NEXT_PUBLIC_SUPABASE_ANON_KEY: ${{ secrets.STAGING_SUPABASE_ANON_KEY }}
+      SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.STAGING_SUPABASE_SERVICE_ROLE_KEY }}
+      EMAIL_KEY_ENCRYPTION_KEY: ${{ secrets.STAGING_EMAIL_KEY_ENCRYPTION_KEY }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Detect secrets
+        id: secrets
+        run: |
+          if [ -n "${NEXT_PUBLIC_SUPABASE_URL:-}" ]; then
+            echo "have=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "have=false" >> "$GITHUB_OUTPUT"
+            echo "::warning::STAGING_SUPABASE_* secrets are not configured. Skipping integration tests. Add them in repo Settings → Secrets to enable."
+          fi
+
+      - uses: actions/setup-node@v4
+        if: steps.secrets.outputs.have == 'true'
+        with:
+          node-version: "22"
+          cache: "npm"
+          registry-url: "https://npm.pkg.github.com"
+
+      - name: Install dependencies
+        if: steps.secrets.outputs.have == 'true'
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: npm ci
+
+      - name: Run integration tests
+        if: steps.secrets.outputs.have == 'true'
+        run: npm run test:integration
+
+  e2e:
+    name: E2E (Playwright)
+    needs: check
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    env:
+      NEXT_PUBLIC_SUPABASE_URL: ${{ secrets.STAGING_SUPABASE_URL }}
+      NEXT_PUBLIC_SUPABASE_ANON_KEY: ${{ secrets.STAGING_SUPABASE_ANON_KEY }}
+      SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.STAGING_SUPABASE_SERVICE_ROLE_KEY }}
+      EMAIL_KEY_ENCRYPTION_KEY: ${{ secrets.STAGING_EMAIL_KEY_ENCRYPTION_KEY }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Detect secrets
+        id: secrets
+        run: |
+          if [ -n "${NEXT_PUBLIC_SUPABASE_URL:-}" ]; then
+            echo "have=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "have=false" >> "$GITHUB_OUTPUT"
+            echo "::warning::STAGING_SUPABASE_* secrets are not configured. Skipping E2E tests."
+          fi
+
+      - uses: actions/setup-node@v4
+        if: steps.secrets.outputs.have == 'true'
+        with:
+          node-version: "22"
+          cache: "npm"
+          registry-url: "https://npm.pkg.github.com"
+
+      - name: Install dependencies
+        if: steps.secrets.outputs.have == 'true'
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: npm ci
+
+      - name: Install Playwright browsers
+        if: steps.secrets.outputs.have == 'true'
+        run: npx playwright install --with-deps chromium
+
+      - name: Run Playwright
+        if: steps.secrets.outputs.have == 'true'
+        run: npm run test:e2e
+
+      - name: Upload Playwright report on failure
+        if: failure() && steps.secrets.outputs.have == 'true'
+        uses: actions/upload-artifact@v4
+        with:
+          name: playwright-report
+          path: playwright-report/
+          retention-days: 7

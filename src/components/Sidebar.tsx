@@ -3,11 +3,13 @@
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { useTranslations } from "next-intl";
+import { useEffect, useState } from "react";
 import { createClient } from "@/lib/supabase/client";
 import {
   LayoutDashboard,
   ShieldAlert,
   Building2,
+  Menu,
 } from "lucide-react";
 import type { ComponentType } from "react";
 import Timer from "./Timer";
@@ -132,6 +134,21 @@ export default function Sidebar({
   const t = useTranslations("common");
   const supabase = createClient();
 
+  // Mobile-only drawer state. The sidebar is hidden by default below
+  // the `md` breakpoint and slides in as a fixed overlay when the
+  // hamburger is tapped. We close it on link clicks (event delegation
+  // on the <aside> below) and on Escape so the user lands on their
+  // destination without the drawer covering it.
+  const [mobileOpen, setMobileOpen] = useState(false);
+  useEffect(() => {
+    if (!mobileOpen) return;
+    const onKey = (e: KeyboardEvent): void => {
+      if (e.key === "Escape") setMobileOpen(false);
+    };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [mobileOpen]);
+
   // "Work" section: shell-level Dashboard + every registered module
   // in the track + manage sections. Reports + Projects now flow
   // through the registry instead of being hardcoded here.
@@ -203,7 +220,51 @@ export default function Sidebar({
   const version = process.env.NEXT_PUBLIC_APP_VERSION;
 
   return (
-    <aside className="flex h-full w-[256px] flex-col border-r border-edge bg-surface-raised">
+    <>
+      {/* Mobile-only hamburger trigger. Hidden on `md+` where the
+          sidebar is always visible. Positioned `fixed` so it floats
+          above page content even when the user has scrolled. */}
+      <button
+        type="button"
+        onClick={() => setMobileOpen(true)}
+        aria-label={t("nav.openMenu")}
+        aria-expanded={mobileOpen}
+        aria-controls="primary-sidebar"
+        className="md:hidden fixed top-3 left-3 z-40 inline-flex h-10 w-10 items-center justify-center rounded-md border border-edge bg-surface-raised text-content shadow-sm hover:bg-hover"
+      >
+        <Menu size={18} />
+      </button>
+
+      {/* Backdrop. Click to close. Hidden on `md+`. */}
+      {mobileOpen && (
+        <button
+          type="button"
+          onClick={() => setMobileOpen(false)}
+          aria-label={t("nav.closeMenu")}
+          className="md:hidden fixed inset-0 z-40 bg-content/30"
+        />
+      )}
+
+      <aside
+        id="primary-sidebar"
+        aria-hidden={mobileOpen ? false : undefined}
+        onClick={(e) => {
+          // Close the mobile drawer when any link inside is clicked
+          // — the user is navigating away. md+ has no drawer state to
+          // close so this is a cheap no-op there. Event delegation
+          // beats wiring an onClick on every Link.
+          const target = e.target as HTMLElement | null;
+          if (target && target.closest("a[href]")) {
+            setMobileOpen(false);
+          }
+        }}
+        className={
+          // Mobile: fixed overlay, slides in from the left when open.
+          // md+: static, full-height column at 256px.
+          "fixed inset-y-0 left-0 z-50 flex h-full w-[256px] flex-col border-r border-edge bg-surface-raised transition-transform duration-200 md:static md:translate-x-0 " +
+          (mobileOpen ? "translate-x-0" : "-translate-x-full md:translate-x-0")
+        }
+      >
       {/* Platform brand. The previous version had a marketing tagline
           ("Run your consulting business") under the wordmark — useful
           on first impression, dead weight on every page after, and
@@ -342,6 +403,7 @@ export default function Sidebar({
           onSignOut={handleSignOut}
         />
       </div>
-    </aside>
+      </aside>
+    </>
   );
 }

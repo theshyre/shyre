@@ -64,6 +64,7 @@ export default function LoginPage(): React.JSX.Element {
               id="email"
               type="email"
               required
+              autoFocus
               value={email}
               onChange={(e) => setEmail(e.target.value)}
               className={inputClass}
@@ -88,7 +89,13 @@ export default function LoginPage(): React.JSX.Element {
           </div>
 
           {error && (
-            <p className="text-sm text-error">{error}</p>
+            <p
+              role="alert"
+              aria-live="assertive"
+              className="text-sm text-error"
+            >
+              {error}
+            </p>
           )}
 
           <button

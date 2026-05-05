@@ -13,6 +13,7 @@
   "billableTag": "billable",
   "lockedThrough": "Locked through:",
   "importCsv": "Import CSV",
+  "exportCsv": "Export CSV",
   "recategorizeBanner": {
     "title": "{count, plural, =1 {1 expense in 'Other' category} other {# expenses in 'Other' category}}.",
     "body": "Recategorize before running tax reports — imported expenses default to 'Other' until you classify them."

@@ -9,11 +9,29 @@ export async function generateMetadata(): Promise<Metadata> {
   const t = await getTranslations("customers");
   return { title: t("title") };
 }
-import { Users, Share2, MailWarning, ShieldAlert } from "lucide-react";
+import { Users, Share2, MailWarning, ShieldAlert, Download } from "lucide-react";
 import { TeamFilter } from "@/components/TeamFilter";
 import { Tooltip } from "@/components/Tooltip";
 import { NewCustomerForm } from "./new-customer-form";
 import { ArchiveButton } from "./archive-button";
+import { buttonSecondaryClass } from "@/lib/form-styles";
+
+async function CustomersExportLink({
+  selectedTeamId,
+}: {
+  selectedTeamId?: string;
+}): Promise<React.JSX.Element> {
+  const t = await getTranslations("customers");
+  const href = selectedTeamId
+    ? `/api/customers/csv?org=${encodeURIComponent(selectedTeamId)}`
+    : `/api/customers/csv`;
+  return (
+    <a href={href} download className={buttonSecondaryClass}>
+      <Download size={14} />
+      {t("exportCsv")}
+    </a>
+  );
+}
 
 interface CustomerRow {
   id: string;
@@ -140,6 +158,9 @@ export default async function ClientsPage({
         <Users size={24} className="text-accent" />
         <h1 className="text-2xl font-bold text-content">{t("title")}</h1>
         <TeamFilter teams={teams} selectedTeamId={selectedTeamId ?? null} />
+        <div className="ml-auto">
+          <CustomersExportLink selectedTeamId={selectedTeamId} />
+        </div>
       </div>
 
       <NewCustomerForm teams={teams} defaultTeamId={selectedTeamId} />

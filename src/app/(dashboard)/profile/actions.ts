@@ -85,16 +85,30 @@ export async function updateProfileAction(formData: FormData): Promise<void> {
 /**
  * Update just the avatar_url on user_profiles. Called by the AvatarPicker
  * when the user selects a preset or finishes uploading an image.
+ *
+ * Accepted shapes:
+ *  - `preset:<key>` tokens (built-in tile colors)
+ *  - URLs hosted on this project's Supabase Storage `avatars` bucket
+ *    AND nested under the caller's own userId folder
+ *
+ * External http(s) URLs are refused — the avatar tile is rendered as
+ * an `<img src>` everywhere a member's name appears, so an arbitrary
+ * URL would let one user track every other user's IP / User-Agent
+ * just by appearing on a shared team page.
  */
 export async function setAvatarAction(formData: FormData): Promise<void> {
   return runSafeAction(formData, async (formData, { supabase, userId }) => {
     const raw = (formData.get("avatar_url") as string) || "";
     const avatar_url = raw.trim() === "" ? null : raw.trim();
 
-    // Minimal validation: preset:* tokens or http(s) URLs only.
-    if (avatar_url && !avatar_url.startsWith("preset:")) {
-      if (!/^https?:\/\//.test(avatar_url)) {
-        throw new Error("Avatar URL must be http(s) or a preset.");
+    if (avatar_url) {
+      const ok =
+        avatar_url.startsWith("preset:") ||
+        isOwnSupabaseAvatarUrl(avatar_url, userId);
+      if (!ok) {
+        throw new Error(
+          "Avatar must be a preset or an upload to your own avatar folder.",
+        );
       }
     }
 
@@ -109,6 +123,40 @@ export async function setAvatarAction(formData: FormData): Promise<void> {
     revalidatePath("/profile");
     revalidatePath("/");
   }, "setAvatarAction") as unknown as void;
+}
+
+/** True when `url` is a same-origin Supabase Storage avatars-bucket URL
+ *  whose path includes `/avatars/<userId>/`. We compare against the
+ *  configured `NEXT_PUBLIC_SUPABASE_URL` so the check is environment-
+ *  agnostic. UUID is stable per user, so the check rejects anyone
+ *  stuffing another user's path in. */
+export function isOwnSupabaseAvatarUrl(
+  candidate: string,
+  userId: string,
+): boolean {
+  const base = process.env.NEXT_PUBLIC_SUPABASE_URL;
+  if (!base) return false;
+  let parsed: URL;
+  try {
+    parsed = new URL(candidate);
+  } catch {
+    return false;
+  }
+  let baseParsed: URL;
+  try {
+    baseParsed = new URL(base);
+  } catch {
+    return false;
+  }
+  if (parsed.origin !== baseParsed.origin) return false;
+  // Supabase public storage URL: /storage/v1/object/public/<bucket>/<path>
+  // We want bucket=avatars and the next segment to equal userId.
+  const segments = parsed.pathname.split("/").filter(Boolean);
+  const i = segments.indexOf("avatars");
+  if (i === -1) return false;
+  const userSegment = segments[i + 1];
+  if (!userSegment || userSegment !== userId) return false;
+  return true;
 }
 
 /**

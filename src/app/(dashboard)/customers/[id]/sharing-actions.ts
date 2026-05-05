@@ -2,6 +2,25 @@
 
 import { runSafeAction } from "@/lib/safe-action";
 import { revalidatePath } from "next/cache";
+import type { SupabaseClient } from "@supabase/supabase-js";
+
+/** Pre-flight: caller must be a customer-admin on this customer.
+ *  RLS gates the actual write, but a pre-check produces a friendly
+ *  error instead of a silent zero-rows-affected. */
+async function assertCustomerAdmin(
+  supabase: SupabaseClient,
+  customerId: string,
+): Promise<void> {
+  const { data, error } = await supabase.rpc("user_customer_permission", {
+    p_customer_id: customerId,
+  });
+  if (error) throw new Error(error.message);
+  if (data !== "admin") {
+    throw new Error(
+      "Only customer admins can manage sharing on this customer.",
+    );
+  }
+}
 
 export async function addCustomerShareAction(formData: FormData): Promise<void> {
   return runSafeAction(
@@ -36,6 +55,9 @@ export async function removeCustomerShareAction(
       const shareId = formData.get("share_id") as string;
       const customerId = formData.get("customer_id") as string;
       if (!shareId) throw new Error("Share ID is required.");
+      if (!customerId) throw new Error("Customer ID is required.");
+
+      await assertCustomerAdmin(supabase, customerId);
 
       const { error } = await supabase
         .from("customer_shares")
@@ -59,6 +81,9 @@ export async function updateShareVisibilityAction(
       const customerId = formData.get("customer_id") as string;
       const canSeeOthers = formData.get("can_see_others") === "on";
       if (!shareId) throw new Error("Share ID is required.");
+      if (!customerId) throw new Error("Customer ID is required.");
+
+      await assertCustomerAdmin(supabase, customerId);
 
       const { error } = await supabase
         .from("customer_shares")

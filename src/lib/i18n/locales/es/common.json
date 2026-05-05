@@ -25,7 +25,9 @@
     "systemHub": "Sistema",
     "teamCount": "{count, plural, =1 {1 equipo} other {# equipos}}",
     "docs": "Documentación",
-    "unresolvedBadge": "{count, plural, one {# ítem pendiente} other {# ítems pendientes}}"
+    "unresolvedBadge": "{count, plural, one {# ítem pendiente} other {# ítems pendientes}}",
+    "openMenu": "Abrir menú",
+    "closeMenu": "Cerrar menú"
   },
   "authorship": {
     "unknownUser": "Usuario desconocido"

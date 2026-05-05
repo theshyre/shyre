@@ -25,7 +25,9 @@
     "systemHub": "System",
     "teamCount": "{count, plural, =1 {1 team} other {# teams}}",
     "docs": "Documentation",
-    "unresolvedBadge": "{count, plural, one {# unresolved item} other {# unresolved items}}"
+    "unresolvedBadge": "{count, plural, one {# unresolved item} other {# unresolved items}}",
+    "openMenu": "Open menu",
+    "closeMenu": "Close menu"
   },
   "authorship": {
     "unknownUser": "Unknown user"

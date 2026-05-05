@@ -23,6 +23,10 @@ vi.mock("next/cache", () => ({
 const state: {
   rpcCalls: { name: string; args: unknown }[];
   rpcError: { message: string } | null;
+  /** Role returned by the user_customer_permission RPC pre-flight
+   *  check on the destructive paths (remove / update). Defaults to
+   *  "admin" so existing happy-path tests pass. */
+  userCustomerPermissionRole: "admin" | "contributor" | "viewer" | null;
   deletes: { table: string; where: Record<string, string> }[];
   deleteError: { message: string } | null;
   updates: {
@@ -34,6 +38,7 @@ const state: {
 } = {
   rpcCalls: [],
   rpcError: null,
+  userCustomerPermissionRole: "admin",
   deletes: [],
   deleteError: null,
   updates: [],
@@ -44,6 +49,12 @@ function mockSupabase() {
   return {
     rpc: (name: string, args: unknown) => {
       state.rpcCalls.push({ name, args });
+      if (name === "user_customer_permission") {
+        return Promise.resolve({
+          data: state.userCustomerPermissionRole,
+          error: state.rpcError,
+        });
+      }
       return Promise.resolve({
         data: null,
         error: state.rpcError,
@@ -79,6 +90,7 @@ import {
 function resetState(): void {
   state.rpcCalls = [];
   state.rpcError = null;
+  state.userCustomerPermissionRole = "admin";
   state.deletes = [];
   state.deleteError = null;
   state.updates = [];
@@ -158,7 +170,7 @@ describe("addCustomerShareAction", () => {
 describe("removeCustomerShareAction", () => {
   beforeEach(resetState);
 
-  it("deletes the share by id", async () => {
+  it("deletes the share by id when caller is a customer admin", async () => {
     await removeCustomerShareAction(
       fd({ share_id: "s1", customer_id: "c1" }),
     );
@@ -167,10 +179,40 @@ describe("removeCustomerShareAction", () => {
     ]);
   });
 
+  it("calls user_customer_permission as a pre-flight role check", async () => {
+    await removeCustomerShareAction(
+      fd({ share_id: "s1", customer_id: "c1" }),
+    );
+    expect(
+      state.rpcCalls.some(
+        (c) =>
+          c.name === "user_customer_permission" &&
+          (c.args as { p_customer_id: string }).p_customer_id === "c1",
+      ),
+    ).toBe(true);
+  });
+
+  it("refuses non-admin callers (no delete fires)", async () => {
+    state.userCustomerPermissionRole = "contributor";
+    await expect(
+      removeCustomerShareAction(
+        fd({ share_id: "s1", customer_id: "c1" }),
+      ),
+    ).rejects.toThrow(/customer admins/i);
+    expect(state.deletes).toHaveLength(0);
+  });
+
   it("rejects without a share_id (no delete)", async () => {
     await expect(
       removeCustomerShareAction(fd({ customer_id: "c1" })),
     ).rejects.toThrow(/Share ID is required/);
+    expect(state.deletes).toHaveLength(0);
+  });
+
+  it("rejects without a customer_id (no delete)", async () => {
+    await expect(
+      removeCustomerShareAction(fd({ share_id: "s1" })),
+    ).rejects.toThrow(/Customer ID is required/);
     expect(state.deletes).toHaveLength(0);
   });
 
@@ -211,10 +253,27 @@ describe("updateShareVisibilityAction", () => {
     expect(u?.patch).toEqual({ can_see_others_entries: false });
   });
 
+  it("refuses non-admin callers (no update fires)", async () => {
+    state.userCustomerPermissionRole = "contributor";
+    await expect(
+      updateShareVisibilityAction(
+        fd({ share_id: "s1", customer_id: "c1" }),
+      ),
+    ).rejects.toThrow(/customer admins/i);
+    expect(state.updates).toHaveLength(0);
+  });
+
   it("rejects without a share_id (no update)", async () => {
     await expect(
       updateShareVisibilityAction(fd({ customer_id: "c1" })),
     ).rejects.toThrow(/Share ID is required/);
+    expect(state.updates).toHaveLength(0);
+  });
+
+  it("rejects without a customer_id (no update)", async () => {
+    await expect(
+      updateShareVisibilityAction(fd({ share_id: "s1" })),
+    ).rejects.toThrow(/Customer ID is required/);
     expect(state.updates).toHaveLength(0);
   });
 

@@ -23,11 +23,17 @@ vi.mock("next/cache", () => ({
 const state: {
   rpcCalls: { name: string; args: unknown }[];
   rpcError: { message: string } | null;
+  /** Role returned by the user_customer_permission RPC.
+   *  Defaults to "admin" so existing happy-path tests keep working
+   *  after the SAL-pre-flight check landed; tests that exercise the
+   *  refusal flip this to a non-admin role. */
+  userCustomerPermissionRole: "admin" | "contributor" | "viewer" | null;
   deletes: { table: string; where: Record<string, string> }[];
   deleteError: { message: string } | null;
 } = {
   rpcCalls: [],
   rpcError: null,
+  userCustomerPermissionRole: "admin",
   deletes: [],
   deleteError: null,
 };
@@ -36,6 +42,12 @@ function mockSupabase() {
   return {
     rpc: (name: string, args: unknown) => {
       state.rpcCalls.push({ name, args });
+      if (name === "user_customer_permission") {
+        return Promise.resolve({
+          data: state.userCustomerPermissionRole,
+          error: state.rpcError,
+        });
+      }
       return Promise.resolve({ data: null, error: state.rpcError });
     },
     from: (table: string) => ({
@@ -61,6 +73,7 @@ import {
 function resetState(): void {
   state.rpcCalls = [];
   state.rpcError = null;
+  state.userCustomerPermissionRole = "admin";
   state.deletes = [];
   state.deleteError = null;
   mockRevalidatePath.mockReset();
@@ -223,7 +236,7 @@ describe("grantPermissionAction — validation guards", () => {
 describe("revokePermissionAction", () => {
   beforeEach(resetState);
 
-  it("deletes the permission by id", async () => {
+  it("deletes the permission by id when caller is a customer admin", async () => {
     await revokePermissionAction(
       fd({ permission_id: "perm1", customer_id: "c1" }),
     );
@@ -232,10 +245,40 @@ describe("revokePermissionAction", () => {
     ]);
   });
 
+  it("calls user_customer_permission as a pre-flight role check", async () => {
+    await revokePermissionAction(
+      fd({ permission_id: "perm1", customer_id: "c1" }),
+    );
+    expect(
+      state.rpcCalls.some(
+        (c) =>
+          c.name === "user_customer_permission" &&
+          (c.args as { p_customer_id: string }).p_customer_id === "c1",
+      ),
+    ).toBe(true);
+  });
+
+  it("refuses non-admin callers with a friendly error (no delete fires)", async () => {
+    state.userCustomerPermissionRole = "contributor";
+    await expect(
+      revokePermissionAction(
+        fd({ permission_id: "perm1", customer_id: "c1" }),
+      ),
+    ).rejects.toThrow(/customer admins/i);
+    expect(state.deletes).toHaveLength(0);
+  });
+
   it("rejects without permission_id (no delete)", async () => {
     await expect(
       revokePermissionAction(fd({ customer_id: "c1" })),
     ).rejects.toThrow(/Permission ID is required/);
+    expect(state.deletes).toHaveLength(0);
+  });
+
+  it("rejects without customer_id (no delete)", async () => {
+    await expect(
+      revokePermissionAction(fd({ permission_id: "perm1" })),
+    ).rejects.toThrow(/Customer ID is required/);
     expect(state.deletes).toHaveLength(0);
   });
 

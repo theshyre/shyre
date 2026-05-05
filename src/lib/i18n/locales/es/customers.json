@@ -34,5 +34,6 @@
   "archiveAria": "Archivar {name}",
   "archiveFailed": "No se pudo archivar el cliente.",
   "contactDeleteFailed": "No se pudo eliminar el contacto.",
-  "contactDeleteAria": "Eliminar contacto {name}"
+  "contactDeleteAria": "Eliminar contacto {name}",
+  "exportCsv": "Exportar CSV"
 }

@@ -61,6 +61,23 @@ export async function revokePermissionAction(
       const permissionId = formData.get("permission_id") as string;
       const customerId = formData.get("customer_id") as string;
       if (!permissionId) throw new Error("Permission ID is required.");
+      if (!customerId) throw new Error("Customer ID is required.");
+
+      // Defense-in-depth role check at the action boundary. RLS would
+      // also block a non-admin (zero rows affected, silent), but a
+      // pre-flight check produces a friendly error and keeps the
+      // forms-and-buttons promise of "look like the state you're in"
+      // (see SAL-013 lineage).
+      const { data: roleRow, error: roleErr } = await supabase.rpc(
+        "user_customer_permission",
+        { p_customer_id: customerId },
+      );
+      if (roleErr) throw new Error(roleErr.message);
+      if (roleRow !== "admin") {
+        throw new Error(
+          "Only customer admins can revoke permissions on this customer.",
+        );
+      }
 
       const { error } = await supabase
         .from("customer_permissions")

@@ -50,6 +50,16 @@ export async function undoImportRunAction(
       throw new Error("run_id and team_id are required.");
     }
 
+    // run_id and team_id flow into PostgREST `.or()` filter strings
+    // and `.eq()` predicates downstream; reject anything that isn't a
+    // canonical UUID before it can introduce filter-parser ambiguity
+    // (e.g. a value containing `,` or `)` would split or terminate
+    // the filter). The DB column is UUID and would reject the value
+    // anyway — this is defense-in-depth at the action boundary.
+    if (!isUuid(runId) || !isUuid(teamId)) {
+      throw new Error("run_id and team_id must be UUIDs.");
+    }
+
     const { role } = await validateTeamAccess(teamId);
     if (role !== "owner" && role !== "admin") {
       throw new Error("Only team owners and admins can undo import runs.");
@@ -339,4 +349,11 @@ export async function undoImportRunAction(
     revalidatePath("/invoices");
     revalidatePath("/business");
   }, "undoImportRunAction") as unknown as void;
+}
+
+const UUID_RE =
+  /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+
+function isUuid(value: string): boolean {
+  return UUID_RE.test(value);
 }

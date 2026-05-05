@@ -27,6 +27,23 @@ body {
   main { padding: 0; margin: 0; max-width: 100%; }
 }
 
+/* WCAG 2.3.3 — respect the user's reduced-motion preference. The
+   running-timer dot, sticky strip pulse, and any future framer-motion
+   transition all collapse to instant. We don't disable animations
+   that carry essential information — there isn't any in Shyre today,
+   so the blanket override is safe. Opt back in by setting an explicit
+   `animation-duration` on the element if a future case appears. */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+}
+
 /* ──────────────────────────────────────────────────────────────
  * Table density — three-tier compactness for data tables.
  *
