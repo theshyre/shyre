@@ -22,6 +22,7 @@ import {
 } from "@/lib/form-styles";
 import { GitHubIssuePicker } from "@/components/GitHubIssuePicker";
 import { TeamSelector } from "@/components/TeamSelector";
+import { Tooltip } from "@/components/Tooltip";
 import type { TeamListItem } from "@/lib/team-context";
 import { createTimeEntryAction } from "./actions";
 import { CategoryPicker } from "./category-picker";
@@ -220,25 +221,31 @@ export function NewTimeEntryForm({
           </div>
         )}
         <div className={`${formSpanCompact} flex items-end pb-1`}>
-          <label
-            className={`flex items-center gap-2 text-body-lg font-medium ${projectIsInternal ? "text-content-muted cursor-not-allowed" : "text-content cursor-pointer"}`}
-            title={
-              projectIsInternal ? t("fields.billableInternalLocked") : undefined
-            }
-          >
-            <input
-              // `key` resets the controlled-default when the user
-              // switches projects — otherwise React preserves the
-              // previous DOM checkbox state across project changes.
-              key={`${selectedProjectId}:${billableDefault}:${projectIsInternal}`}
-              name="billable"
-              type="checkbox"
-              defaultChecked={!projectIsInternal && billableDefault}
-              disabled={projectIsInternal}
-              className="h-4 w-4 rounded border-edge text-accent focus:ring-focus-ring disabled:opacity-50"
-            />
-            {t("fields.billable")}
-          </label>
+          {(() => {
+            const label = (
+              <label
+                className={`flex items-center gap-2 text-body-lg font-medium ${projectIsInternal ? "text-content-muted cursor-not-allowed" : "text-content cursor-pointer"}`}
+              >
+                <input
+                  // `key` resets the controlled-default when the user
+                  // switches projects — otherwise React preserves the
+                  // previous DOM checkbox state across project changes.
+                  key={`${selectedProjectId}:${billableDefault}:${projectIsInternal}`}
+                  name="billable"
+                  type="checkbox"
+                  defaultChecked={!projectIsInternal && billableDefault}
+                  disabled={projectIsInternal}
+                  className="h-4 w-4 rounded border-edge text-accent focus:ring-focus-ring disabled:opacity-50"
+                />
+                {t("fields.billable")}
+              </label>
+            );
+            return projectIsInternal ? (
+              <Tooltip label={t("fields.billableInternalLocked")}>{label}</Tooltip>
+            ) : (
+              label
+            );
+          })()}
         </div>
       </div>
       <div className="flex gap-2">

@@ -4,6 +4,7 @@ import { getUserTeams } from "@/lib/team-context";
 import { getTranslations } from "next-intl/server";
 import Link from "next/link";
 import { FolderKanban, Building2 } from "lucide-react";
+import { Tooltip } from "@/components/Tooltip";
 
 export async function generateMetadata(): Promise<Metadata> {
   const t = await getTranslations("projects");
@@ -198,13 +199,12 @@ export default async function ProjectsPage({
                         {project.name}
                       </Link>
                       {isInternal && (
-                        <span
-                          className="ml-2 inline-flex items-center gap-1 rounded-full bg-surface-inset px-2 py-0.5 text-caption font-medium text-content-secondary"
-                          title={t("classification.internalDescription")}
-                        >
-                          <Building2 size={10} />
-                          {t("internal")}
-                        </span>
+                        <Tooltip label={t("classification.internalDescription")}>
+                          <span className="ml-2 inline-flex items-center gap-1 rounded-full bg-surface-inset px-2 py-0.5 text-caption font-medium text-content-secondary">
+                            <Building2 size={10} />
+                            {t("internal")}
+                          </span>
+                        </Tooltip>
                       )}
                     </td>
                     {showTeamColumn && (

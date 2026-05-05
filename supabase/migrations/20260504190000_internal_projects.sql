@@ -67,12 +67,21 @@ CREATE INDEX IF NOT EXISTS idx_projects_team_internal
 -- and `time_entries_visibility` here — these were added to the
 -- underlying `projects` table in later migrations but never
 -- back-patched into the view, so the edit form was silently
--- defaulting them to empty on every render. CREATE OR REPLACE VIEW
--- requires re-stating the full select, so we do it once here.
+-- defaulting them to empty on every render.
+--
+-- IMPORTANT: Postgres' CREATE OR REPLACE VIEW requires the new
+-- column list to extend the existing one — same names in the same
+-- positions, with new columns appended at the end. Reordering or
+-- renaming any existing column raises 'cannot change name of view
+-- column ... to ...' (SQLSTATE 42P16). The original column order
+-- below (id ... rate_editability) MUST stay byte-identical to
+-- 20260417000519_phase2a_rate_views.sql; new columns are added
+-- strictly at the tail.
 CREATE OR REPLACE VIEW public.projects_v
   WITH (security_invoker = true, security_barrier = true)
 AS
 SELECT
+  -- Original 16 columns, in the original order. Do not touch.
   p.id,
   p.customer_id,
   p.user_id,
@@ -81,17 +90,19 @@ SELECT
   CASE WHEN public.can_view_project_rate(p.id) THEN p.hourly_rate ELSE NULL END AS hourly_rate,
   p.budget_hours,
   p.github_repo,
-  p.jira_project_key,
-  p.invoice_code,
   p.status,
   p.created_at,
   p.team_id,
   p.category_set_id,
   p.require_timestamps,
-  p.time_entries_visibility,
   p.is_sample,
   p.rate_visibility,
   p.rate_editability,
+  -- Appended columns. Order here can evolve; previous columns
+  -- cannot.
+  p.jira_project_key,
+  p.invoice_code,
+  p.time_entries_visibility,
   p.is_internal,
   p.default_billable
 FROM public.projects p;

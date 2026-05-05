@@ -102,7 +102,8 @@ function mockSupabase() {
                   data: state.invoices.filter(
                     (inv) =>
                       vals.includes(inv.id) &&
-                      (inv as Record<string, unknown>)[statusCol] !== voidVal,
+                      (inv as unknown as Record<string, unknown>)[statusCol] !==
+                        voidVal,
                   ),
                   error: null,
                 }),

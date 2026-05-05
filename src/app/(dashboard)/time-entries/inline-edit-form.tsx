@@ -22,6 +22,7 @@ import {
 import { updateTimeEntryAction } from "./actions";
 import { CategoryPicker } from "./category-picker";
 import { DurationInput } from "./duration-input";
+import { Tooltip } from "@/components/Tooltip";
 import type { CategoryOption, ProjectOption, TimeEntry } from "./types";
 
 interface Props {
@@ -229,21 +230,27 @@ export function InlineEditForm({
           />
         </div>
         <div className={`${formSpanCompact} flex items-end pb-1`}>
-          <label
-            className={`flex items-center gap-2 text-body-lg font-medium ${projectIsInternal ? "text-content-muted cursor-not-allowed" : "text-content cursor-pointer"}`}
-            title={
-              projectIsInternal ? t("fields.billableInternalLocked") : undefined
-            }
-          >
-            <input
-              name="billable"
-              type="checkbox"
-              defaultChecked={entry.billable && !projectIsInternal}
-              disabled={projectIsInternal || locked}
-              className="h-4 w-4 rounded border-edge text-accent focus:ring-focus-ring disabled:opacity-50"
-            />
-            {t("fields.billable")}
-          </label>
+          {(() => {
+            const label = (
+              <label
+                className={`flex items-center gap-2 text-body-lg font-medium ${projectIsInternal ? "text-content-muted cursor-not-allowed" : "text-content cursor-pointer"}`}
+              >
+                <input
+                  name="billable"
+                  type="checkbox"
+                  defaultChecked={entry.billable && !projectIsInternal}
+                  disabled={projectIsInternal || locked}
+                  className="h-4 w-4 rounded border-edge text-accent focus:ring-focus-ring disabled:opacity-50"
+                />
+                {t("fields.billable")}
+              </label>
+            );
+            return projectIsInternal ? (
+              <Tooltip label={t("fields.billableInternalLocked")}>{label}</Tooltip>
+            ) : (
+              label
+            );
+          })()}
         </div>
       </div>
       <div className="flex gap-2">
