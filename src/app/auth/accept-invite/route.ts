@@ -1,11 +1,18 @@
 import { createClient } from "@/lib/supabase/server";
+import { logError } from "@/lib/logger";
 import { NextResponse } from "next/server";
+
+// Invite token shape: 32+ url-safe characters generated server-side.
+// Reject anything that doesn't look like one before letting it round-
+// trip through the login redirect — keeps the URL log surface clean
+// and prevents query-string smuggling.
+const TOKEN_REGEX = /^[A-Za-z0-9_-]{16,128}$/;
 
 export async function GET(request: Request): Promise<NextResponse> {
   const { searchParams, origin } = new URL(request.url);
   const token = searchParams.get("token");
 
-  if (!token) {
+  if (!token || !TOKEN_REGEX.test(token)) {
     return NextResponse.redirect(`${origin}/login?error=missing_token`);
   }
 
@@ -66,6 +73,12 @@ export async function GET(request: Request): Promise<NextResponse> {
     });
 
   if (memberError) {
+    logError(memberError, {
+      userId: user.id,
+      teamId: invite.team_id,
+      url: "/auth/accept-invite",
+      action: "acceptInvite",
+    });
     return NextResponse.redirect(`${origin}/?error=join_failed`);
   }
 

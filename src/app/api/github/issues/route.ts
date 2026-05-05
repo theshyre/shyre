@@ -15,6 +15,16 @@ export async function GET(request: Request): Promise<NextResponse> {
     );
   }
 
+  // Repo must be owner/name with GitHub-allowed chars only. Anything
+  // else lets the caller re-target the GitHub API path with their PAT
+  // (e.g., `repo=foo/bar/issues/1?` smuggles a sub-path).
+  if (!/^[A-Za-z0-9._-]+\/[A-Za-z0-9._-]+$/.test(repo)) {
+    return NextResponse.json(
+      { error: "Invalid repo format. Expected owner/name." },
+      { status: 400 }
+    );
+  }
+
   const supabase = await createClient();
   const {
     data: { user },

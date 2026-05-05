@@ -6,19 +6,28 @@ import {
 } from "./invoice-csv";
 
 const baseInput: InvoiceCsvRowInput = {
+  id: "inv-1",
   invoice_number: "INV-0042",
   status: "sent",
   issued_date: "2026-04-01",
   due_date: "2026-04-15",
+  sent_at: "2026-04-01T15:00:00Z",
+  paid_at: null,
+  voided_at: null,
   subtotal: 1000,
   tax_rate: 8.25,
   tax_amount: 82.5,
+  discount_rate: null,
+  discount_amount: 0,
   total: 1082.5,
+  payments_total: 0,
   currency: "USD",
   notes: "Net 15",
   imported_from: null,
   team_id: "team-a",
+  customer_id: "cust-1",
   customer_name: "Acme",
+  customer_email: "ap@acme.test",
 };
 
 const teamNames = new Map([["team-a", "Acme Consulting"]]);
@@ -26,16 +35,27 @@ const teamNames = new Map([["team-a", "Acme Consulting"]]);
 describe("buildInvoiceCsvRow", () => {
   it("maps every column from the input row", () => {
     const row = buildInvoiceCsvRow(baseInput, teamNames, "2026-04-10");
+    expect(row.invoice_id).toBe("inv-1");
     expect(row.invoice_number).toBe("INV-0042");
     expect(row.team).toBe("Acme Consulting");
     expect(row.customer).toBe("Acme");
+    expect(row.customer_email).toBe("ap@acme.test");
+    expect(row.customer_id).toBe("cust-1");
+    expect(row.team_id).toBe("team-a");
     expect(row.status).toBe("sent");
     expect(row.issued_date).toBe("2026-04-01");
     expect(row.due_date).toBe("2026-04-15");
+    expect(row.sent_at).toBe("2026-04-01T15:00:00Z");
+    expect(row.paid_at).toBe("");
+    expect(row.voided_at).toBe("");
     expect(row.subtotal).toBe("1000");
     expect(row.tax_rate).toBe("8.25");
     expect(row.tax_amount).toBe("82.5");
+    expect(row.discount_amount).toBe("0");
+    expect(row.discount_rate).toBe("");
     expect(row.total).toBe("1082.5");
+    expect(row.payments_total).toBe("0.00");
+    expect(row.amount_due).toBe("1082.50");
     expect(row.imported_from).toBe("");
     expect(row.notes).toBe("Net 15");
     expect(row.currency).toBe("USD");
@@ -88,6 +108,8 @@ describe("buildInvoiceCsvRow", () => {
         tax_rate: null,
         tax_amount: null,
         total: null,
+        discount_rate: null,
+        discount_amount: null,
       },
       teamNames,
       "2026-04-10",
@@ -96,6 +118,7 @@ describe("buildInvoiceCsvRow", () => {
     expect(row.tax_rate).toBe("");
     expect(row.tax_amount).toBe("");
     expect(row.total).toBe("");
+    expect(row.discount_amount).toBe("");
   });
 
   it("falls back to empty team name when the lookup misses", () => {
@@ -144,6 +167,42 @@ describe("buildInvoiceCsvRow", () => {
     expect(row.subtotal).toBe("1000.00");
     expect(row.tax_amount).toBe("82.50");
     expect(row.total).toBe("1082.50");
+  });
+
+  it("computes amount_due as total minus payments_total", () => {
+    const row = buildInvoiceCsvRow(
+      { ...baseInput, total: 1000, payments_total: 250 },
+      teamNames,
+      "2026-04-10",
+    );
+    expect(row.payments_total).toBe("250.00");
+    expect(row.amount_due).toBe("750.00");
+  });
+
+  it("emits 0.00 amount_due when fully paid", () => {
+    const row = buildInvoiceCsvRow(
+      {
+        ...baseInput,
+        total: 1082.5,
+        payments_total: 1082.5,
+        status: "paid",
+        paid_at: "2026-04-12T10:00:00Z",
+      },
+      teamNames,
+      "2026-04-20",
+    );
+    expect(row.amount_due).toBe("0.00");
+    expect(row.paid_at).toBe("2026-04-12T10:00:00Z");
+    expect(row.status).toBe("paid");
+  });
+
+  it("renders an empty customer_email when null", () => {
+    const row = buildInvoiceCsvRow(
+      { ...baseInput, customer_email: null },
+      teamNames,
+      "2026-04-10",
+    );
+    expect(row.customer_email).toBe("");
   });
 });
 

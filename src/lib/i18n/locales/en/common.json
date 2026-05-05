@@ -135,7 +135,8 @@
     "sent": "Sent",
     "paid": "Paid",
     "overdue": "Overdue",
-    "void": "Void"
+    "void": "Void",
+    "running": "Running"
   },
   "table": {
     "name": "Name",

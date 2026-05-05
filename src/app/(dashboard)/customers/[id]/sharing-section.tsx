@@ -1,15 +1,16 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useTransition } from "react";
 import { useTranslations } from "next-intl";
-import { Share2, Plus, X, Building2 } from "lucide-react";
+import { Share2, Plus, Building2 } from "lucide-react";
 import { AlertBanner } from "@theshyre/ui";
 import { useFormAction } from "@/hooks/use-form-action";
 import { SubmitButton } from "@/components/SubmitButton";
+import { InlineDeleteRowConfirm } from "@/components/InlineDeleteRowConfirm";
+import { useToast } from "@/components/Toast";
 import {
   buttonPrimaryClass,
   buttonSecondaryClass,
-  buttonGhostClass,
   selectClass,
   labelClass,
 } from "@/lib/form-styles";
@@ -213,13 +214,31 @@ function ShareRow({
     handleSubmit: handleVisibility,
   } = useFormAction({ action: updateShareVisibilityAction });
 
-  const {
-    pending: removePending,
-    serverError: removeError,
-    handleSubmit: handleRemove,
-  } = useFormAction({ action: removeCustomerShareAction });
+  const toast = useToast();
+  const [removeError, setRemoveError] = useState<string | null>(null);
+  const [, startTransition] = useTransition();
 
   const teamName = getTeamName(share.teams);
+
+  const onRemove = (): void => {
+    setRemoveError(null);
+    startTransition(async () => {
+      const fd = new FormData();
+      fd.set("share_id", share.id);
+      fd.set("customer_id", customerId);
+      try {
+        await removeCustomerShareAction(fd);
+      } catch (err) {
+        const isRedirect =
+          err instanceof Error && err.message.includes("NEXT_REDIRECT");
+        if (isRedirect) throw err;
+        const msg =
+          err instanceof Error ? err.message : t("removeFailed");
+        setRemoveError(msg);
+        toast.push({ kind: "error", message: msg });
+      }
+    });
+  };
 
   return (
     <li className="rounded-lg border border-edge bg-surface-raised p-3">
@@ -231,21 +250,11 @@ function ShareRow({
           </div>
         </div>
         {userCanAdmin && (
-          <form action={handleRemove}>
-            <input type="hidden" name="share_id" value={share.id} />
-            <input type="hidden" name="customer_id" value={customerId} />
-            <button
-              type="submit"
-              disabled={removePending}
-              className={buttonGhostClass}
-              onClick={(e) => {
-                if (!confirm(t("confirmRemove"))) e.preventDefault();
-              }}
-            >
-              <X size={14} />
-              <span className="sr-only">{t("removeOrg")}</span>
-            </button>
-          </form>
+          <InlineDeleteRowConfirm
+            ariaLabel={t("removeOrg")}
+            onConfirm={onRemove}
+            summary={teamName}
+          />
         )}
       </div>
 

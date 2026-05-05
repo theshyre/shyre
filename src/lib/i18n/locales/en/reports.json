@@ -4,7 +4,8 @@
     "thisWeek": "This Week",
     "thisMonth": "This Month",
     "lastMonth": "Last Month",
-    "thisYear": "This Year"
+    "thisYear": "This Year",
+    "label": "Showing {from} to {to}"
   },
   "sections": {
     "byClient": "Hours by Client",

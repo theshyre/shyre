@@ -20,6 +20,7 @@ import {
 } from "lucide-react";
 import { buttonPrimaryClass } from "@/lib/form-styles";
 import { ExpiringCredentialsBanner } from "@/components/ExpiringCredentialsBanner";
+import { EntryAuthor, type EntryAuthorInfo } from "@/components/EntryAuthor";
 
 export default async function DashboardPage(): Promise<React.JSX.Element> {
   const supabase = await createClient();
@@ -75,12 +76,40 @@ export default async function DashboardPage(): Promise<React.JSX.Element> {
         .eq("status", "active"),
       supabase
         .from("time_entries")
-        .select("id, description, start_time, end_time, duration_min, projects(name)")
+        .select(
+          "id, description, start_time, end_time, duration_min, user_id, projects(name)",
+        )
 
         .is("deleted_at", null)
         .order("start_time", { ascending: false })
         .limit(5),
     ]);
+
+  // Resolve author profiles in one round-trip so the recent-activity
+  // list can show who logged each entry — required by the mandatory
+  // time-entry authorship rule (CLAUDE.md).
+  const recentRows = recentEntries.data ?? [];
+  const authorIds = Array.from(
+    new Set(
+      recentRows
+        .map((r) => (r.user_id as string | null) ?? null)
+        .filter((id): id is string => id !== null),
+    ),
+  );
+  const authorById = new Map<string, EntryAuthorInfo>();
+  if (authorIds.length > 0) {
+    const { data: profiles } = await supabase
+      .from("user_profiles")
+      .select("user_id, display_name, avatar_url")
+      .in("user_id", authorIds);
+    for (const p of profiles ?? []) {
+      authorById.set(p.user_id as string, {
+        user_id: p.user_id as string,
+        display_name: (p.display_name as string | null) ?? null,
+        avatar_url: (p.avatar_url as string | null) ?? null,
+      });
+    }
+  }
 
   const todayMinutes = (todayEntries.data ?? []).reduce(
     (sum, e) => sum + (e.duration_min ?? 0), 0
@@ -234,33 +263,51 @@ export default async function DashboardPage(): Promise<React.JSX.Element> {
                 ? Math.round(entry.duration_min % 60)
                 : 0;
 
+              const author =
+                (entry.user_id &&
+                  authorById.get(entry.user_id as string)) ||
+                null;
+
               return (
                 <li
                   key={entry.id}
                   className="flex items-center justify-between rounded-lg border border-edge bg-surface-raised px-4 py-3"
                 >
-                  <div className="flex items-center gap-3">
+                  <div className="flex min-w-0 items-center gap-3">
                     {isRunning ? (
-                      <span className="h-2 w-2 rounded-full bg-success animate-pulse" />
+                      <span
+                        className="inline-flex h-4 w-4 items-center justify-center rounded-full bg-success-soft text-success"
+                        aria-label={tc("status.running")}
+                      >
+                        <Play size={10} />
+                      </span>
                     ) : (
-                      <span className="h-2 w-2 rounded-full bg-content-muted" />
+                      <span
+                        className="h-2 w-2 rounded-full bg-content-muted"
+                        aria-hidden="true"
+                      />
                     )}
-                    <div>
-                      <span className="text-sm text-content">
+                    <div className="min-w-0">
+                      <span className="text-body text-content">
                         {entry.description || "—"}
                       </span>
-                      <span className="ml-2 text-xs text-content-muted">
+                      <span className="ml-2 text-caption text-content-muted">
                         {projectName}
                       </span>
                     </div>
                   </div>
-                  <span className="text-sm font-mono text-content-secondary">
-                    {isRunning ? (
-                      <span className="text-success">Running</span>
-                    ) : (
-                      `${hours}h ${mins}m`
-                    )}
-                  </span>
+                  <div className="flex items-center gap-3">
+                    <EntryAuthor author={author} compact />
+                    <span className="text-body font-mono text-content-secondary">
+                      {isRunning ? (
+                        <span className="text-success">
+                          {tc("status.running")}
+                        </span>
+                      ) : (
+                        `${hours}h ${mins}m`
+                      )}
+                    </span>
+                  </div>
                 </li>
               );
             })}

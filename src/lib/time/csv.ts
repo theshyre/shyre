@@ -1,5 +1,17 @@
 /**
  * Tiny, dependency-free CSV helpers for exporting time entries.
+ *
+ * All clock-times are UTC. The `Date`, `Start`, and `End` columns
+ * use UTC accessors so the export is identical no matter what
+ * region the deploy runs in (Vercel can change regions mid-month
+ * and silently shift dates if we used local-clock formatting).
+ * The `Start (UTC)` and `End (UTC)` columns carry the full
+ * ISO 8601 timestamp for unambiguous reconciliation.
+ *
+ * The trailing identifier columns (entry_id, user_id, team_id,
+ * project_id, customer_id, invoice_id, invoiced) let bookkeepers
+ * tie each row back to a database record — without them, an
+ * exported CSV is opaque at audit time.
  */
 
 export interface CsvEntryRow {
@@ -13,6 +25,16 @@ export interface CsvEntryRow {
   description: string;
   billable: boolean;
   githubIssue: number | null;
+  startIso: string;
+  endIso: string;
+  entryId: string;
+  userId: string;
+  userName: string;
+  teamId: string;
+  projectId: string;
+  customerId: string;
+  invoiceId: string;
+  invoiced: boolean;
 }
 
 /**
@@ -41,12 +63,22 @@ const HEADERS: Array<keyof CsvEntryRow> = [
   "description",
   "billable",
   "githubIssue",
+  "startIso",
+  "endIso",
+  "entryId",
+  "userId",
+  "userName",
+  "teamId",
+  "projectId",
+  "customerId",
+  "invoiceId",
+  "invoiced",
 ];
 
 const HEADER_LABELS: Record<keyof CsvEntryRow, string> = {
-  date: "Date",
-  start: "Start",
-  end: "End",
+  date: "Date (UTC)",
+  start: "Start (UTC)",
+  end: "End (UTC)",
   durationMin: "Duration (min)",
   project: "Project",
   client: "Client",
@@ -54,6 +86,16 @@ const HEADER_LABELS: Record<keyof CsvEntryRow, string> = {
   description: "Description",
   billable: "Billable",
   githubIssue: "GitHub Issue",
+  startIso: "Start ISO 8601",
+  endIso: "End ISO 8601",
+  entryId: "Entry ID",
+  userId: "User ID",
+  userName: "User",
+  teamId: "Team ID",
+  projectId: "Project ID",
+  customerId: "Customer ID",
+  invoiceId: "Invoice ID",
+  invoiced: "Invoiced",
 };
 
 /**

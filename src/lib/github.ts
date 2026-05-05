@@ -5,6 +5,30 @@
 
 const GITHUB_API = "https://api.github.com";
 
+const REPO_REGEX = /^[A-Za-z0-9._-]+\/[A-Za-z0-9._-]+$/;
+
+/** Returns true if `repo` is a syntactically valid GitHub `owner/name`
+ *  pair. Library callers should pre-validate with this; the lib itself
+ *  also asserts on every entry point so a malformed value can never
+ *  smuggle a sub-path into a `/repos/${repo}/...` interpolation.
+ *
+ *  GitHub also disallows `..` and segments starting with `.` — those
+ *  are explicit path-traversal shapes that the broad character class
+ *  would otherwise let through (e.g., `../user`). */
+export function isValidGithubRepo(repo: string): boolean {
+  if (!REPO_REGEX.test(repo)) return false;
+  if (repo.includes("..")) return false;
+  const [owner, name] = repo.split("/");
+  if (!owner || !name) return false;
+  if (owner.startsWith(".") || name.startsWith(".")) return false;
+  return true;
+}
+
+const INVALID_REPO_ERROR = {
+  message: "Invalid repository identifier",
+  status: 400,
+} as const;
+
 export interface GitHubIssue {
   number: number;
   title: string;
@@ -63,6 +87,9 @@ export async function fetchIssues(
   token: string,
   options?: { state?: "open" | "closed" | "all"; query?: string }
 ): Promise<{ data: GitHubIssue[] | null; error: GitHubApiError | null }> {
+  if (!isValidGithubRepo(repo)) {
+    return { data: null, error: { ...INVALID_REPO_ERROR } };
+  }
   const state = options?.state ?? "open";
   const params = new URLSearchParams({
     state,
@@ -104,6 +131,9 @@ export async function fetchSingleIssue(
   number: number,
   token: string,
 ): Promise<{ data: GitHubIssueDetail | null; error: GitHubApiError | null }> {
+  if (!isValidGithubRepo(repo)) {
+    return { data: null, error: { ...INVALID_REPO_ERROR } };
+  }
   return githubFetch<GitHubIssueDetail>(
     `/repos/${repo}/issues/${number}`,
     token,
@@ -114,6 +144,9 @@ export async function fetchRepo(
   repo: string,
   token: string
 ): Promise<{ data: GitHubRepo | null; error: GitHubApiError | null }> {
+  if (!isValidGithubRepo(repo)) {
+    return { data: null, error: { ...INVALID_REPO_ERROR } };
+  }
   return githubFetch<GitHubRepo>(`/repos/${repo}`, token);
 }
 

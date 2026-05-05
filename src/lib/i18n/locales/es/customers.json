@@ -30,5 +30,9 @@
   "bouncedChip": "Rebotó",
   "complainedChip": "Spam",
   "bouncedRowTooltip": "Resend reportó un rebote duro el {when}. Actualiza el correo del cliente antes de enviar de nuevo.",
-  "complainedRowTooltip": "El destinatario marcó el correo como spam el {when}."
+  "complainedRowTooltip": "El destinatario marcó el correo como spam el {when}.",
+  "archiveAria": "Archivar {name}",
+  "archiveFailed": "No se pudo archivar el cliente.",
+  "contactDeleteFailed": "No se pudo eliminar el contacto.",
+  "contactDeleteAria": "Eliminar contacto {name}"
 }

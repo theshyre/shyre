@@ -24,6 +24,7 @@
     "noParticipants": "Solo la equipo principal tiene acceso. Agrega teams participantes para compartir este cliente.",
     "canSeeOtherEntries": "Puede ver registros de tiempo de otras equipos",
     "removeOrg": "Eliminar",
+    "removeFailed": "No se pudo eliminar el acceso de este equipo.",
     "confirmRemove": "¿Eliminar el acceso de esta equipo? Sus registros históricos permanecerán pero perderán acceso.",
     "permissions": "Permisos",
     "grantPermission": "Otorgar Permiso",
@@ -41,6 +42,7 @@
       "admin": "Control total de este cliente"
     },
     "revoke": "Revocar",
+    "revokeFailed": "No se pudo revocar este permiso.",
     "confirmRevoke": "¿Revocar este permiso?"
   },
   "teamRelationships": {

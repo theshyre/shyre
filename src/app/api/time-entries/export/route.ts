@@ -5,6 +5,7 @@ import {
   parseWeekParam,
 } from "@/lib/time/week";
 import { toCsv, type CsvEntryRow } from "@/lib/time/csv";
+import { logError } from "@/lib/logger";
 
 /**
  * GET /api/time-entries/export
@@ -50,7 +51,7 @@ export async function GET(request: Request): Promise<Response> {
   let q = supabase
     .from("time_entries")
     .select(
-      "start_time, end_time, duration_min, description, billable, github_issue, category_id, projects(name, customers(name)), categories(name)",
+      "id, user_id, team_id, project_id, invoice_id, start_time, end_time, duration_min, description, billable, github_issue, category_id, projects(name, customer_id, customers(name)), categories(name)",
     )
     .is("deleted_at", null)
     .gte("start_time", rangeStart.toISOString())
@@ -61,20 +62,55 @@ export async function GET(request: Request): Promise<Response> {
 
   const { data, error } = await q;
   if (error) {
-    return new Response(`Export failed: ${error.message}`, { status: 500 });
+    logError(error, {
+      userId: user.id,
+      teamId,
+      url: "/api/time-entries/export",
+      action: "exportTimeEntries",
+    });
+    return new Response("Export failed", { status: 500 });
+  }
+
+  // Resolve display names for the userName column. RLS on
+  // user_profiles is "any authenticated", so a simple .in() works
+  // for any user_id in the result.
+  const userIds = Array.from(
+    new Set((data ?? []).map((row) => row.user_id as string)),
+  );
+  const nameById = new Map<string, string>();
+  if (userIds.length > 0) {
+    const { data: profiles, error: profilesErr } = await supabase
+      .from("user_profiles")
+      .select("user_id, display_name")
+      .in("user_id", userIds);
+    if (profilesErr) {
+      logError(profilesErr, {
+        userId: user.id,
+        teamId,
+        url: "/api/time-entries/export",
+        action: "exportTimeEntries.profiles",
+      });
+    } else {
+      for (const p of profiles ?? []) {
+        nameById.set(
+          p.user_id as string,
+          (p.display_name as string) ?? "",
+        );
+      }
+    }
   }
 
   const rows: CsvEntryRow[] = (data ?? []).map((row) => {
     const start = new Date(row.start_time);
     const end = row.end_time ? new Date(row.end_time) : null;
-    const project = unwrapOne<{ name: string; customers: unknown }>(row.projects);
+    const project = unwrapOne<{ name: string; customer_id: string | null; customers: unknown }>(row.projects);
     const client = project ? unwrapOne<{ name: string }>(project.customers) : null;
     const category = unwrapOne<{ name: string }>(row.categories);
 
     return {
-      date: toDateOnly(start),
-      start: toTimeOnly(start),
-      end: end ? toTimeOnly(end) : "",
+      date: toUtcDateOnly(start),
+      start: toUtcTimeOnly(start),
+      end: end ? toUtcTimeOnly(end) : "",
       durationMin: row.duration_min,
       project: project?.name ?? "",
       client: client?.name ?? "",
@@ -82,11 +118,21 @@ export async function GET(request: Request): Promise<Response> {
       description: row.description ?? "",
       billable: row.billable,
       githubIssue: row.github_issue,
+      startIso: start.toISOString(),
+      endIso: end ? end.toISOString() : "",
+      entryId: row.id as string,
+      userId: row.user_id as string,
+      userName: nameById.get(row.user_id as string) ?? "",
+      teamId: row.team_id as string,
+      projectId: (row.project_id as string | null) ?? "",
+      customerId: (project?.customer_id as string | null) ?? "",
+      invoiceId: (row.invoice_id as string | null) ?? "",
+      invoiced: row.invoice_id != null,
     };
   });
 
   const csv = toCsv(rows);
-  const filename = `shyre-time-${toDateOnly(rangeStart)}-to-${toDateOnly(
+  const filename = `shyre-time-${toUtcDateOnly(rangeStart)}-to-${toUtcDateOnly(
     new Date(rangeEnd.getTime() - 1),
   )}.csv`;
 
@@ -103,11 +149,11 @@ export async function GET(request: Request): Promise<Response> {
 function pad(n: number): string {
   return String(n).padStart(2, "0");
 }
-function toDateOnly(d: Date): string {
-  return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
+function toUtcDateOnly(d: Date): string {
+  return `${d.getUTCFullYear()}-${pad(d.getUTCMonth() + 1)}-${pad(d.getUTCDate())}`;
 }
-function toTimeOnly(d: Date): string {
-  return `${pad(d.getHours())}:${pad(d.getMinutes())}`;
+function toUtcTimeOnly(d: Date): string {
+  return `${pad(d.getUTCHours())}:${pad(d.getUTCMinutes())}`;
 }
 
 /**

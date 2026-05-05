@@ -2,10 +2,12 @@
 
 import { useState } from "react";
 import { useTransition } from "react";
-import { Mail, Plus, Pencil, Trash2, Send, Star } from "lucide-react";
+import { Mail, Plus, Pencil, Send, Star } from "lucide-react";
 import { AlertBanner } from "@theshyre/ui";
 import { Tooltip } from "@/components/Tooltip";
 import { useToast } from "@/components/Toast";
+import { InlineDeleteRowConfirm } from "@/components/InlineDeleteRowConfirm";
+import { useTranslations } from "next-intl";
 import { assertActionResult } from "@/lib/action-result";
 import {
   inputClass,
@@ -49,6 +51,7 @@ export function ContactsSection({
   canManage: boolean;
 }): React.JSX.Element {
   const toast = useToast();
+  const tc = useTranslations("customers");
   const [adding, setAdding] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [actionError, setActionError] = useState<string | null>(null);
@@ -74,8 +77,7 @@ export function ContactsSection({
     });
   }
 
-  function onDelete(contactId: string, name: string): void {
-    if (!confirm(`Delete contact "${name}"?`)) return;
+  function onDelete(contactId: string): void {
     setActionError(null);
     startTransition(async () => {
       try {
@@ -243,16 +245,14 @@ export function ContactsSection({
                             <Pencil size={14} />
                           </button>
                         </Tooltip>
-                        <Tooltip label="Delete">
-                          <button
-                            type="button"
-                            onClick={() => onDelete(c.id, c.name)}
-                            className={buttonGhostClass}
-                            aria-label="Delete contact"
-                          >
-                            <Trash2 size={14} />
-                          </button>
-                        </Tooltip>
+                        <InlineDeleteRowConfirm
+                          ariaLabel={tc("contactDeleteAria", { name: c.name })}
+                          onConfirm={() => onDelete(c.id)}
+                          summary={c.name}
+                        />
+                        {/* Note: confirmation surface inline-types
+                            "delete" per docs/reference/forms-and-buttons.md.
+                            Native confirm() was retired here. */}
                       </div>
                     )}
                   </div>

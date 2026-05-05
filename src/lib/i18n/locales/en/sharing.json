@@ -24,6 +24,7 @@
     "noParticipants": "Only the primary team has access. Add participating teams to share this client.",
     "canSeeOtherEntries": "Can see time entries from other teams",
     "removeOrg": "Remove",
+    "removeFailed": "Couldn't remove this team's access.",
     "confirmRemove": "Remove this team's access? Their historical time entries will remain but they'll lose access to this client.",
     "permissions": "Permissions",
     "grantPermission": "Grant Permission",
@@ -41,6 +42,7 @@
       "admin": "Full control of this client"
     },
     "revoke": "Revoke",
+    "revokeFailed": "Couldn't revoke this permission.",
     "confirmRevoke": "Revoke this permission?"
   },
   "teamRelationships": {

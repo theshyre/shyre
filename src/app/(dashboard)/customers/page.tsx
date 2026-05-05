@@ -254,7 +254,10 @@ export default async function ClientsPage({
                         : "—"}
                     </td>
                     <td className="px-4 py-3 text-right">
-                      <ArchiveButton customerId={client.id} />
+                      <ArchiveButton
+                        customerId={client.id}
+                        customerName={client.name ?? ""}
+                      />
                     </td>
                   </tr>
                 );

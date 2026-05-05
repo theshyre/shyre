@@ -135,7 +135,8 @@
     "sent": "Enviado",
     "paid": "Pagado",
     "overdue": "Vencido",
-    "void": "Anulado"
+    "void": "Anulado",
+    "running": "En curso"
   },
   "table": {
     "name": "Nombre",

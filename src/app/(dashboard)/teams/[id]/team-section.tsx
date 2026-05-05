@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useTransition } from "react";
 import { useTranslations } from "next-intl";
 import {
   Users,
@@ -28,6 +28,8 @@ import {
 import { isTeamAdmin, type TeamRole } from "@/lib/team-roles";
 import { useFormAction } from "@/hooks/use-form-action";
 import { SubmitButton } from "@/components/SubmitButton";
+import { InlineDeleteRowConfirm } from "@/components/InlineDeleteRowConfirm";
+import { useToast } from "@/components/Toast";
 import {
   inviteMemberAction,
   removeMemberAction,
@@ -90,7 +92,32 @@ export function TeamSection({
 }: TeamSectionProps): React.JSX.Element {
   const [inviteOpen, setInviteOpen] = useState(false);
   const tc = useTranslations("common");
+  const toast = useToast();
+  const [, startTransition] = useTransition();
   const isAdmin = isTeamAdmin(currentRole);
+
+  const removeMember = (memberId: string, memberUserId: string): void => {
+    startTransition(async () => {
+      const fd = new FormData();
+      fd.set("team_id", teamId);
+      fd.set("member_id", memberId);
+      fd.set("member_user_id", memberUserId);
+      try {
+        await removeMemberAction(fd);
+      } catch (err) {
+        const isRedirect =
+          err instanceof Error && err.message.includes("NEXT_REDIRECT");
+        if (isRedirect) throw err;
+        toast.push({
+          kind: "error",
+          message:
+            err instanceof Error
+              ? err.message
+              : "Couldn't remove member.",
+        });
+      }
+    });
+  };
 
   // A team without an owner is a data-integrity issue — every team
   // should have exactly one. Surface it so ownership-transfer flows
@@ -250,27 +277,11 @@ export function TeamSection({
                   </div>
                 </div>
                 {isAdmin && !isSelf && member.role !== "owner" && (
-                  <form action={removeMemberAction}>
-                    <input type="hidden" name="team_id" value={teamId} />
-                    <input type="hidden" name="member_id" value={member.id} />
-                    <input
-                      type="hidden"
-                      name="member_user_id"
-                      value={member.user_id}
-                    />
-                    <button
-                      type="submit"
-                      className={buttonDangerClass}
-                      onClick={(e) => {
-                        if (!confirm("Remove this member?")) {
-                          e.preventDefault();
-                        }
-                      }}
-                    >
-                      <X size={14} />
-                      Remove
-                    </button>
-                  </form>
+                  <InlineDeleteRowConfirm
+                    ariaLabel={`Remove ${displayName ?? "member"}`}
+                    onConfirm={() => removeMember(member.id, member.user_id)}
+                    summary={displayName ?? member.user_id.slice(0, 8)}
+                  />
                 )}
               </li>
             );

@@ -1,5 +1,10 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
-import { fetchIssues, fetchRepo, validateRepo } from "./github";
+import {
+  fetchIssues,
+  fetchRepo,
+  isValidGithubRepo,
+  validateRepo,
+} from "./github";
 import type { GitHubIssue, GitHubRepo } from "./github";
 
 const mockIssues: GitHubIssue[] = [
@@ -129,6 +134,31 @@ describe("fetchRepo", () => {
     const { data, error } = await fetchRepo("owner/nonexistent", "ghp_token");
     expect(data).toBeNull();
     expect(error?.status).toBe(404);
+  });
+});
+
+describe("isValidGithubRepo", () => {
+  it("accepts owner/name with allowed characters", () => {
+    expect(isValidGithubRepo("octocat/Hello-World")).toBe(true);
+    expect(isValidGithubRepo("a/b")).toBe(true);
+    expect(isValidGithubRepo("owner.name/repo_name")).toBe(true);
+  });
+
+  it("rejects sub-paths or query smuggling", () => {
+    expect(isValidGithubRepo("octocat/Hello-World/issues")).toBe(false);
+    expect(isValidGithubRepo("octocat/Hello-World?")).toBe(false);
+    expect(isValidGithubRepo("../user")).toBe(false);
+    expect(isValidGithubRepo("owner")).toBe(false);
+    expect(isValidGithubRepo("")).toBe(false);
+    expect(isValidGithubRepo("owner/repo with space")).toBe(false);
+  });
+
+  it("short-circuits fetchIssues on a malformed repo (no fetch call)", async () => {
+    const fetchSpy = vi.spyOn(global, "fetch");
+    const { data, error } = await fetchIssues("../bad", "ghp_token");
+    expect(data).toBeNull();
+    expect(error?.status).toBe(400);
+    expect(fetchSpy).not.toHaveBeenCalled();
   });
 });
 

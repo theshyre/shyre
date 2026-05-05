@@ -1,5 +1,6 @@
 import { createClient } from "@/lib/supabase/server";
 import { escapeCsvField } from "@/lib/time/csv";
+import { logError } from "@/lib/logger";
 import { getBusinessIdentityHistoryAction } from "@/app/(dashboard)/business/actions";
 import {
   BUSINESS_FIELD_LABELS,
@@ -37,16 +38,25 @@ export async function GET(
   // whole timeline, not a paginated window.
   let allEntries: IdentityHistoryEntry[] = [];
   let offset = 0;
-  // Cap iterations so a runaway query can't loop forever; 50 pages
-  // × 500 = 25k entries is more than any real business will have.
-  for (let i = 0; i < 50; i++) {
-    const { history, hasMore } = await getBusinessIdentityHistoryAction(
-      businessId,
-      { limit: 500, offset },
-    );
-    allEntries = [...allEntries, ...history];
-    if (!hasMore) break;
-    offset += history.length;
+  try {
+    // Cap iterations so a runaway query can't loop forever; 50 pages
+    // × 500 = 25k entries is more than any real business will have.
+    for (let i = 0; i < 50; i++) {
+      const { history, hasMore } = await getBusinessIdentityHistoryAction(
+        businessId,
+        { limit: 500, offset },
+      );
+      allEntries = [...allEntries, ...history];
+      if (!hasMore) break;
+      offset += history.length;
+    }
+  } catch (err) {
+    logError(err, {
+      userId: user.id,
+      url: `/api/business/${businessId}/identity-history/csv`,
+      action: "exportIdentityHistory",
+    });
+    return new Response("Export failed", { status: 500 });
   }
 
   const expanded = expandWithFieldDiffs({
@@ -101,7 +111,7 @@ export async function GET(
   const csv = lines.join("\n") + "\n";
 
   const today = new Date();
-  const stamp = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, "0")}-${String(today.getDate()).padStart(2, "0")}`;
+  const stamp = `${today.getUTCFullYear()}-${String(today.getUTCMonth() + 1).padStart(2, "0")}-${String(today.getUTCDate()).padStart(2, "0")}`;
   const filename = `shyre-identity-history-${stamp}.csv`;
 
   return new Response(csv, {

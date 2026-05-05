@@ -11,6 +11,12 @@ export async function generateMetadata(): Promise<Metadata> {
 import { Avatar, resolveAvatarUrl } from "@theshyre/ui";
 import { formatCurrency } from "@/lib/invoice-utils";
 import { TeamFilter } from "@/components/TeamFilter";
+import {
+  fromIsoStartOfDay,
+  resolveReportsPeriod,
+  toIsoEndOfDay,
+} from "./reports-period";
+import { ReportsPeriodFilter } from "./reports-period-filter";
 
 interface ClientSummary {
   name: string;
@@ -43,16 +49,29 @@ interface MemberSummary {
 export default async function ReportsPage({
   searchParams,
 }: {
-  searchParams: Promise<{ org?: string }>;
+  searchParams: Promise<{
+    org?: string;
+    from?: string;
+    to?: string;
+    preset?: string;
+  }>;
 }): Promise<React.JSX.Element> {
   const supabase = await createClient();
   const teams = await getUserTeams();
-  const { org: selectedTeamId } = await searchParams;
+  const params = await searchParams;
+  const selectedTeamId = params.org;
+  const period = resolveReportsPeriod({
+    from: params.from ?? null,
+    to: params.to ?? null,
+    preset: params.preset ?? null,
+  });
   const t = await getTranslations("reports");
 
-  // Fetch all time entries with project, client, and author info.
-  // user_id powers the per-member breakdown (agency-owner persona
-  // need: see who's billable and who isn't).
+  // Fetch time entries with project + client + author info, scoped
+  // to the active period. Without a date scope this used to roll up
+  // every entry the viewer could see — useless after the first
+  // quarter and inconsistent with the documented bookkeeper export
+  // contract.
   let entriesQuery = supabase
     .from("time_entries")
     .select(
@@ -60,7 +79,9 @@ export default async function ReportsPage({
     )
     .not("end_time", "is", null)
     .not("duration_min", "is", null)
-    .is("deleted_at", null);
+    .is("deleted_at", null)
+    .gte("start_time", fromIsoStartOfDay(period.from))
+    .lte("start_time", toIsoEndOfDay(period.to));
   if (selectedTeamId) entriesQuery = entriesQuery.eq("team_id", selectedTeamId);
   const { data: entries } = await entriesQuery;
 
@@ -208,6 +229,18 @@ export default async function ReportsPage({
         <BarChart3 size={24} className="text-accent" />
         <h1 className="text-page-title font-bold text-content">{t("title")}</h1>
         <TeamFilter teams={teams} selectedTeamId={selectedTeamId ?? null} />
+      </div>
+
+      <p className="mt-2 text-body text-content-muted">
+        {t("period.label", { from: period.from, to: period.to })}
+      </p>
+
+      <div className="mt-4">
+        <ReportsPeriodFilter
+          from={period.from}
+          to={period.to}
+          preset={period.preset}
+        />
       </div>
 
       {/* Summary cards */}

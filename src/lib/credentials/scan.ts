@@ -76,14 +76,18 @@ export async function scanCredentials(
       .from("team_email_config")
       .select("team_id, api_key_encrypted, api_key_expires_at, teams(name)"),
     // User-level GitHub token. Each user reads only their own
-    // user_settings via existing RLS.
+    // user_settings via existing RLS. We only need presence —
+    // `has_github_token` is a generated column so the secret bytes
+    // never leave Postgres for this query (defense-in-depth: a
+    // future error-capture surface that snapshots row data can't
+    // see the token).
     supabase
       .from("user_settings")
-      .select("user_id, github_token, github_token_expires_at"),
-    // User-level Jira token.
+      .select("user_id, github_token_expires_at, has_github_token"),
+    // User-level Jira token. Same presence-only rule.
     supabase
       .from("user_settings")
-      .select("user_id, jira_api_token, jira_api_token_expires_at"),
+      .select("user_id, jira_api_token_expires_at, has_jira_api_token"),
   ]);
 
   const items: CredentialItem[] = [];
@@ -134,11 +138,11 @@ export async function scanCredentials(
   // GitHub (own row only — RLS already enforces)
   const githubs = (githubRows.data ?? []) as Array<{
     user_id: string;
-    github_token: string | null;
+    has_github_token: boolean | null;
     github_token_expires_at: string | null;
   }>;
   for (const g of githubs) {
-    if (!g.github_token) continue;
+    if (!g.has_github_token) continue;
     items.push(
       buildItem({
         kind: "github_token",
@@ -155,11 +159,11 @@ export async function scanCredentials(
   // Jira (same shape as GitHub)
   const jiras = (jiraRows.data ?? []) as Array<{
     user_id: string;
-    jira_api_token: string | null;
+    has_jira_api_token: boolean | null;
     jira_api_token_expires_at: string | null;
   }>;
   for (const j of jiras) {
-    if (!j.jira_api_token) continue;
+    if (!j.has_jira_api_token) continue;
     items.push(
       buildItem({
         kind: "jira_api_token",

@@ -30,5 +30,9 @@
   "bouncedChip": "Bounced",
   "complainedChip": "Spam",
   "bouncedRowTooltip": "Resend reported a hard bounce on {when}. Update the customer's email before sending again.",
-  "complainedRowTooltip": "Recipient marked the invoice email as spam on {when}."
+  "complainedRowTooltip": "Recipient marked the invoice email as spam on {when}.",
+  "archiveAria": "Archive {name}",
+  "archiveFailed": "Couldn't archive customer.",
+  "contactDeleteFailed": "Couldn't delete contact.",
+  "contactDeleteAria": "Delete contact {name}"
 }

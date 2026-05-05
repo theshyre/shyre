@@ -1,5 +1,6 @@
 import { createClient } from "@/lib/supabase/server";
 import { escapeCsvField } from "@/lib/time/csv";
+import { logError } from "@/lib/logger";
 import {
   expandWithFieldDiffs,
   FIELD_LABELS,
@@ -58,7 +59,12 @@ export async function GET(
     ascending: false,
   });
   if (error) {
-    return new Response(`Export failed: ${error.message}`, { status: 500 });
+    logError(error, {
+      userId: user.id,
+      url: `/api/business/${businessId}/people-history/csv`,
+      action: "exportPeopleHistory",
+    });
+    return new Response("Export failed", { status: 500 });
   }
 
   type Row = NonNullable<typeof rows>[number];
@@ -163,7 +169,7 @@ export async function GET(
   const csv = lines.join("\n") + "\n";
 
   const today = new Date();
-  const stamp = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, "0")}-${String(today.getDate()).padStart(2, "0")}`;
+  const stamp = `${today.getUTCFullYear()}-${String(today.getUTCMonth() + 1).padStart(2, "0")}-${String(today.getUTCDate()).padStart(2, "0")}`;
   const filename = `shyre-people-history-${stamp}.csv`;
 
   return new Response(csv, {

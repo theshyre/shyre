@@ -162,22 +162,22 @@ export async function addEmailDomainAction(formData: FormData): Promise<void> {
     const sender = senderFor("resend", apiKey);
     const status = await sender.ensureDomain(domain);
 
-    assertSupabaseOk(
-      await supabase.from("verified_email_domains").upsert(
-        {
-          team_id: teamId,
-          domain,
-          provider_domain_id: status.providerDomainId,
-          status: status.status,
-          dns_records: status.dnsRecords,
-          verified_at:
-            status.status === "verified" ? new Date().toISOString() : null,
-          last_checked_at: new Date().toISOString(),
-          failure_reason: status.failureReason ?? null,
-        },
-        { onConflict: "team_id,domain" },
-      ),
+    // Direct INSERT/UPDATE of `status` is locked by the
+    // tg_verified_email_domains_lock_status trigger (SAL-024).
+    // The SECURITY DEFINER RPC validates owner/admin and is the
+    // only writer that can set status='verified'.
+    const { error: rpcError } = await supabase.rpc(
+      "upsert_email_domain_state_definer",
+      {
+        p_team_id: teamId,
+        p_domain: domain,
+        p_provider_domain_id: status.providerDomainId,
+        p_status: status.status,
+        p_dns_records: status.dnsRecords ?? null,
+        p_failure_reason: status.failureReason ?? null,
+      },
     );
+    if (rpcError) throw rpcError;
 
     revalidatePath(`/teams/${teamId}/email`);
   }, "addEmailDomainAction") as unknown as void;
@@ -197,7 +197,7 @@ export async function verifyEmailDomainAction(
 
     const { data: row } = await supabase
       .from("verified_email_domains")
-      .select("provider_domain_id")
+      .select("provider_domain_id, domain")
       .eq("id", domainId)
       .eq("team_id", teamId)
       .maybeSingle();
@@ -234,19 +234,20 @@ export async function verifyEmailDomainAction(
     const sender = senderFor("resend", apiKey);
     const status = await sender.refreshDomain(row.provider_domain_id as string);
 
-    assertSupabaseOk(
-      await supabase
-        .from("verified_email_domains")
-        .update({
-          status: status.status,
-          dns_records: status.dnsRecords,
-          verified_at:
-            status.status === "verified" ? new Date().toISOString() : null,
-          last_checked_at: new Date().toISOString(),
-          failure_reason: status.failureReason ?? null,
-        })
-        .eq("id", domainId),
+    // Direct UPDATE of `status` is locked by trigger (SAL-024).
+    // Route through the SECURITY DEFINER RPC.
+    const { error: rpcError } = await supabase.rpc(
+      "upsert_email_domain_state_definer",
+      {
+        p_team_id: teamId,
+        p_domain: row.domain as string,
+        p_provider_domain_id: row.provider_domain_id as string,
+        p_status: status.status,
+        p_dns_records: status.dnsRecords ?? null,
+        p_failure_reason: status.failureReason ?? null,
+      },
     );
+    if (rpcError) throw rpcError;
 
     // ALWAYS revalidate before branching — every path here mutated
     // the row, so the client must re-render against fresh server

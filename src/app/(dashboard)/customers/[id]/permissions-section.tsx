@@ -1,15 +1,16 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useTransition } from "react";
 import { useTranslations } from "next-intl";
-import { KeyRound, Plus, X, User, Users } from "lucide-react";
+import { KeyRound, Plus, User, Users } from "lucide-react";
 import { AlertBanner } from "@theshyre/ui";
 import { useFormAction } from "@/hooks/use-form-action";
 import { SubmitButton } from "@/components/SubmitButton";
+import { InlineDeleteRowConfirm } from "@/components/InlineDeleteRowConfirm";
+import { useToast } from "@/components/Toast";
 import {
   buttonPrimaryClass,
   buttonSecondaryClass,
-  buttonGhostClass,
   selectClass,
   labelClass,
 } from "@/lib/form-styles";
@@ -209,14 +210,31 @@ function PermissionRow({
   userCanAdmin: boolean;
 }): React.JSX.Element {
   const t = useTranslations("sharing.clientSharing");
-
-  const {
-    pending,
-    serverError,
-    handleSubmit,
-  } = useFormAction({ action: revokePermissionAction });
+  const toast = useToast();
+  const [serverError, setServerError] = useState<string | null>(null);
+  const [, startTransition] = useTransition();
 
   const Icon = perm.principal_type === "group" ? Users : User;
+
+  const onRevoke = (): void => {
+    setServerError(null);
+    startTransition(async () => {
+      const fd = new FormData();
+      fd.set("permission_id", perm.id);
+      fd.set("customer_id", customerId);
+      try {
+        await revokePermissionAction(fd);
+      } catch (err) {
+        const isRedirect =
+          err instanceof Error && err.message.includes("NEXT_REDIRECT");
+        if (isRedirect) throw err;
+        const msg =
+          err instanceof Error ? err.message : t("revokeFailed");
+        setServerError(msg);
+        toast.push({ kind: "error", message: msg });
+      }
+    });
+  };
 
   return (
     <li className="rounded-lg border border-edge bg-surface-raised p-3">
@@ -236,21 +254,11 @@ function PermissionRow({
           </span>
         </div>
         {userCanAdmin && (
-          <form action={handleSubmit}>
-            <input type="hidden" name="permission_id" value={perm.id} />
-            <input type="hidden" name="customer_id" value={customerId} />
-            <button
-              type="submit"
-              disabled={pending}
-              className={buttonGhostClass}
-              onClick={(e) => {
-                if (!confirm(t("confirmRevoke"))) e.preventDefault();
-              }}
-            >
-              <X size={14} />
-              <span className="sr-only">{t("revoke")}</span>
-            </button>
-          </form>
+          <InlineDeleteRowConfirm
+            ariaLabel={t("revoke")}
+            onConfirm={onRevoke}
+            summary={perm.principal_name}
+          />
         )}
       </div>
       {serverError && (
