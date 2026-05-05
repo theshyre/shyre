@@ -28,14 +28,32 @@ interface Project {
   require_timestamps: boolean;
   is_internal: boolean;
   default_billable: boolean;
+  customer_id: string | null;
+  parent_project_id: string | null;
+}
+
+interface ParentProjectOption {
+  id: string;
+  name: string;
+  customer_id: string | null;
 }
 
 const STATUSES = ["active", "paused", "completed", "archived"] as const;
 
 export function ProjectEditForm({
   project,
+  eligibleParents = [],
+  hasChildren = false,
 }: {
   project: Project;
+  /** Top-level projects in the same customer the user can re-parent
+   *  to. Excludes the project itself. The trigger validates anyway,
+   *  but client-side filtering prevents an obvious mistake. */
+  eligibleParents?: ParentProjectOption[];
+  /** True when this project has sub-projects of its own. Disables
+   *  the parent dropdown — a project with children can't itself be
+   *  re-parented (would violate the 1-level-deep rule). */
+  hasChildren?: boolean;
 }): React.JSX.Element {
   const t = useTranslations("projects");
   const tc = useTranslations("common");
@@ -111,6 +129,47 @@ export function ProjectEditForm({
               ))}
             </select>
           </div>
+          {/* Parent project — opt-in nesting. Hidden for internal
+              projects (mixed internal/external nesting is not a
+              current use case) and disabled when this project
+              already has children of its own (1-level-deep rule).
+              Eligible parents are scoped to the same customer; the
+              trigger enforces this server-side too. */}
+          {!project.is_internal && (
+            <div>
+              <label
+                htmlFor="project-edit-parent"
+                className={labelClass}
+              >
+                {t("fields.parentProject")}
+              </label>
+              <select
+                id="project-edit-parent"
+                name="parent_project_id"
+                defaultValue={project.parent_project_id ?? ""}
+                disabled={hasChildren}
+                className={selectClass}
+                aria-describedby="project-edit-parent-hint"
+              >
+                <option value="">{t("fields.parentProjectNone")}</option>
+                {eligibleParents
+                  .filter((p) => p.id !== project.id)
+                  .map((p) => (
+                    <option key={p.id} value={p.id}>
+                      {p.name}
+                    </option>
+                  ))}
+              </select>
+              <p
+                id="project-edit-parent-hint"
+                className="mt-1 text-caption text-content-muted"
+              >
+                {hasChildren
+                  ? t("fields.parentProjectLockedHasChildren")
+                  : t("fields.parentProjectHint")}
+              </p>
+            </div>
+          )}
           <div>
             <label htmlFor="project-edit-hourly-rate" className={labelClass}>
               {t("fields.hourlyRate")}

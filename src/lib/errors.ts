@@ -262,6 +262,21 @@ export class AppError extends Error {
       });
     }
 
+    // CHECK constraint or trigger-raised check_violation. Triggers
+    // throw user-meaningful messages (e.g. "Sub-project must belong
+    // to the same customer as its parent"). Map to CONFLICT so the
+    // literal message surfaces through `toUserSafe()` (UNKNOWN +
+    // CONFLICT both forward `message` to the client). Generic
+    // "database error" toast would hide the trigger's intent.
+    if (pgCode === "23514") {
+      return new AppError({
+        code: "CONFLICT",
+        message: pgError.message,
+        userMessageKey: "errors.conflict",
+        details: { pgCode },
+      });
+    }
+
     // Insufficient privilege (RLS)
     if (pgCode === "42501") {
       return new AppError({

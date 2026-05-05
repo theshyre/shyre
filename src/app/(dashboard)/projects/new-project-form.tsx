@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useState } from "react";
+import { useState } from "react";
 import { useTranslations } from "next-intl";
 import { Plus, Building2 } from "lucide-react";
 import { AlertBanner, useKeyboardShortcut } from "@theshyre/ui";
@@ -26,22 +26,39 @@ interface CustomerOption {
   name: string;
 }
 
+interface ParentProjectOption {
+  id: string;
+  name: string;
+  customer_id: string | null;
+  is_internal: boolean;
+}
+
 export function NewProjectForm({
   customers,
   teams,
   defaultTeamId,
   categorySets,
+  eligibleParents = [],
 }: {
   customers: CustomerOption[];
   teams: TeamListItem[];
   defaultTeamId?: string;
   categorySets: CategorySet[];
+  /** Top-level projects the new project can be nested under. The
+   *  dropdown filters this list client-side by the picked customer
+   *  (parent + child must share customer_id, enforced server-side
+   *  by the projects_enforce_parent_invariants trigger). */
+  eligibleParents?: ParentProjectOption[];
 }): React.JSX.Element {
   const [open, setOpen] = useState(false);
   // is_internal drives whether the customer picker is hidden and
   // whether default_billable is forced off. Local state only — the
   // form submits the checkbox value and the server normalizes.
   const [isInternal, setIsInternal] = useState(false);
+  // Selected customer drives the visible parent options — the
+  // trigger refuses cross-customer parents at the DB level, but we
+  // also filter client-side so the user can't pick an invalid one.
+  const [selectedCustomerId, setSelectedCustomerId] = useState<string>("");
   const t = useTranslations("projects");
   const tc = useTranslations("common");
 
@@ -55,7 +72,11 @@ export function NewProjectForm({
 
   useKeyboardShortcut({
     key: "n",
-    onTrigger: useCallback(() => setOpen(true), []),
+    // React Compiler memoizes inline callbacks at the call site;
+    // a manual useCallback here triggered the "inferred deps don't
+    // match" rule because setOpen is a deps-relevant identifier.
+    // Inline is correct.
+    onTrigger: () => setOpen(true),
     enabled: !open,
   });
 
@@ -142,6 +163,8 @@ export function NewProjectForm({
               id="new-project-customer"
               name="customer_id"
               required
+              value={selectedCustomerId}
+              onChange={(e) => setSelectedCustomerId(e.target.value)}
               className={selectClass}
               aria-describedby={
                 fieldErrors.customer_id
@@ -162,6 +185,47 @@ export function NewProjectForm({
             />
           </div>
         )}
+        {/* Parent project — opt-in nesting. Renders only when a
+            customer is picked (since the trigger requires same
+            customer) and there's at least one eligible top-level
+            project under that customer. Hidden for internal projects;
+            mixed internal/external nesting isn't a current use case. */}
+        {!isInternal &&
+          selectedCustomerId &&
+          eligibleParents.some(
+            (p) => !p.is_internal && p.customer_id === selectedCustomerId,
+          ) && (
+            <div className="sm:col-span-2">
+              <label
+                htmlFor="new-project-parent"
+                className={labelClass}
+              >
+                {t("fields.parentProject")}
+              </label>
+              <select
+                id="new-project-parent"
+                name="parent_project_id"
+                defaultValue=""
+                className={selectClass}
+              >
+                <option value="">{t("fields.parentProjectNone")}</option>
+                {eligibleParents
+                  .filter(
+                    (p) =>
+                      !p.is_internal &&
+                      p.customer_id === selectedCustomerId,
+                  )
+                  .map((p) => (
+                    <option key={p.id} value={p.id}>
+                      {p.name}
+                    </option>
+                  ))}
+              </select>
+              <p className="mt-1 text-caption text-content-muted">
+                {t("fields.parentProjectHint")}
+              </p>
+            </div>
+          )}
         <div>
           <label htmlFor="new-project-hourly-rate" className={labelClass}>
             {t("fields.hourlyRate")}

@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import { createClient } from "@/lib/supabase/server";
 import { getTranslations } from "next-intl/server";
 import { notFound } from "next/navigation";
+import Link from "next/link";
 import { Clock, Hash, ExternalLink, FolderKanban } from "lucide-react";
 import { tableClass } from "@/lib/table-styles";
 
@@ -27,6 +28,7 @@ import { formatDate } from "@theshyre/ui";
 import { getVisibleCategorySets } from "@/lib/categories/queries";
 import { ProjectEditForm } from "./project-edit-form";
 import { ProjectClassification } from "./project-classification";
+import { SubProjectsSection } from "./sub-projects-section";
 import { ProjectCategoriesEditor } from "./project-categories-editor";
 
 interface IssueTimeSummary {
@@ -76,6 +78,50 @@ export default async function ProjectDetailPage({
     id: c.id as string,
     name: c.name as string,
   }));
+
+  // Eligible parent projects for the edit form's "Parent project"
+  // dropdown — same team, non-archived, top-level (no parent of
+  // their own), and the same customer as this project. The trigger
+  // enforces same-customer + same-team server-side; client-side
+  // filtering surfaces only the realistically-pickable options.
+  const { data: eligibleParents } = project.customer_id
+    ? await supabase
+        .from("projects_v")
+        .select("id, name, customer_id")
+        .eq("team_id", project.team_id)
+        .eq("customer_id", project.customer_id)
+        .neq("status", "archived")
+        .is("parent_project_id", null)
+        .neq("id", project.id)
+        .order("name")
+    : { data: [] };
+
+  // Children of this project — drives both the "hasChildren" gate on
+  // the edit form (a project with children can't itself be re-
+  // parented) and the "Sub-projects" section + rolled-up totals.
+  const { data: childRows } = await supabase
+    .from("projects_v")
+    .select("id, name, status, budget_hours, hourly_rate")
+    .eq("parent_project_id", project.id)
+    .order("name");
+  const children = (childRows ?? []) as Array<{
+    id: string;
+    name: string;
+    status: string | null;
+    budget_hours: number | null;
+    hourly_rate: number | null;
+  }>;
+  const hasChildren = children.length > 0;
+
+  // Parent reference for the breadcrumb on a child detail page.
+  const parentRef = project.parent_project_id
+    ? await supabase
+        .from("projects_v")
+        .select("id, name")
+        .eq("id", project.parent_project_id)
+        .maybeSingle()
+        .then((r) => r.data as { id: string; name: string } | null)
+    : null;
 
   const categorySetsFull = await getVisibleCategorySets(project.team_id);
   const categorySets = categorySetsFull.map(
@@ -223,6 +269,17 @@ export default async function ProjectDetailPage({
 
   return (
     <div>
+      {/* Breadcrumb-style parent link, when this project IS a child.
+          Shown above the h1 so the user lands on a child page and
+          immediately sees which umbrella it sits under. */}
+      {parentRef && (
+        <Link
+          href={`/projects/${parentRef.id}`}
+          className="inline-flex items-center gap-1 text-caption text-content-secondary hover:text-accent mb-2"
+        >
+          <span aria-hidden="true">←</span> {parentRef.name}
+        </Link>
+      )}
       <div className="flex items-center gap-3">
         <FolderKanban size={24} className="text-accent" />
         <h1 className="text-page-title font-bold text-content break-words">
@@ -236,8 +293,39 @@ export default async function ProjectDetailPage({
       </p>
 
       <div className="mt-6">
-        <ProjectEditForm project={project} />
+        <ProjectEditForm
+          project={project}
+          eligibleParents={(eligibleParents ?? []) as Array<{
+            id: string;
+            name: string;
+            customer_id: string | null;
+          }>}
+          hasChildren={hasChildren}
+        />
       </div>
+
+      {/* Sub-projects section (parent view only) — lists each child
+          with its own burn vs budget, plus a "rolled-up totals" card
+          that sums the parent's own work + every child's. Hidden
+          when there are no children, since the section title would
+          read empty. */}
+      {hasChildren && (
+        <div className="mt-8">
+          <div className="flex items-center gap-3">
+            <FolderKanban size={20} className="text-accent" />
+            <h2 className="text-title font-semibold text-content">
+              {t("subProjects.heading")}
+            </h2>
+          </div>
+          <SubProjectsSection
+            parentId={project.id}
+            parentBudgetHours={(project.budget_hours as number | null) ?? null}
+            parentHourlyRate={(project.hourly_rate as number | null) ?? null}
+            parentOwnMinutes={totalMinutes}
+            subProjects={children}
+          />
+        </div>
+      )}
 
       <div className="mt-6">
         <ProjectClassification

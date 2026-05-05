@@ -37,7 +37,19 @@
     "categorySet": "Category set",
     "noCategorySet": "No categories",
     "requireTimestamps": "Require start/end times on entries",
-    "requireTimestampsHint": "Off: entries need only a date and duration (e.g. 3:15). On: every entry must have explicit start and end times."
+    "requireTimestampsHint": "Off: entries need only a date and duration (e.g. 3:15). On: every entry must have explicit start and end times.",
+    "parentProject": "Parent project (optional)",
+    "parentProjectNone": "— Top-level project —",
+    "parentProjectHint": "Pick a parent to make this a sub-project under it. Sub-projects share the same customer and team as their parent and roll up onto the parent's totals.",
+    "parentProjectLockedHasChildren": "This project has its own sub-projects. Detach them first to re-parent it."
+  },
+  "subProjects": {
+    "heading": "Sub-projects",
+    "totalsHeader": "Rolled-up total (own + sub-projects)",
+    "ownHeader": "Own work",
+    "ofBudget": "{used}h of {budget}h",
+    "dollars": "${used} of ${budget}",
+    "burnAria": "{name} budget burn: {pct}%"
   },
   "table": {
     "customer": "Customer",

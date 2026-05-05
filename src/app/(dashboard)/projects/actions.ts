@@ -72,6 +72,12 @@ export async function createProjectAction(formData: FormData): Promise<void> {
     const invoice_code = normalizeInvoiceCode(formData.get("invoice_code"));
     const category_set_id = (formData.get("category_set_id") as string) || null;
     const require_timestamps = formData.get("require_timestamps") === "on";
+    // Optional parent project — when set, the new project is a
+    // sub-project under the chosen parent. The DB trigger
+    // `projects_enforce_parent_invariants` validates same-customer +
+    // same-team + 1-level-deep; we trust it and pass through.
+    const parent_project_id =
+      (formData.get("parent_project_id") as string) || null;
 
     assertSupabaseOk(
       await supabase.from("projects").insert({
@@ -89,6 +95,7 @@ export async function createProjectAction(formData: FormData): Promise<void> {
         invoice_code,
         category_set_id,
         require_timestamps,
+        parent_project_id,
       })
     );
 
@@ -122,6 +129,16 @@ export async function updateProjectAction(formData: FormData): Promise<void> {
       category_set_id,
       require_timestamps,
     };
+
+    // Parent project re-parenting — only when the field is present on
+    // the form (otherwise we leave the existing relationship alone).
+    // Empty string normalizes to NULL ("detach from parent"). The DB
+    // trigger validates same-customer + same-team + 1-level-deep + no
+    // self-ref + no cycle.
+    if (formData.has("parent_project_id")) {
+      const raw = formData.get("parent_project_id") as string;
+      patch.parent_project_id = raw === "" ? null : raw;
+    }
 
     // default_billable is editable on external projects only — internal
     // projects are pinned to false by setProjectInternalAction. Skip

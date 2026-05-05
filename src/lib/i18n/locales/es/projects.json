@@ -37,7 +37,19 @@
     "categorySet": "Conjunto de categorías",
     "noCategorySet": "Sin categorías",
     "requireTimestamps": "Requerir hora de inicio y fin",
-    "requireTimestampsHint": "Desactivado: las entradas solo necesitan fecha y duración (p. ej. 3:15). Activado: cada entrada requiere hora de inicio y fin explícitas."
+    "requireTimestampsHint": "Desactivado: las entradas solo necesitan fecha y duración (p. ej. 3:15). Activado: cada entrada requiere hora de inicio y fin explícitas.",
+    "parentProject": "Proyecto principal (opcional)",
+    "parentProjectNone": "— Proyecto de nivel superior —",
+    "parentProjectHint": "Elige un proyecto principal para convertir este en un sub-proyecto. Los sub-proyectos comparten el mismo cliente y equipo que el principal y se acumulan en sus totales.",
+    "parentProjectLockedHasChildren": "Este proyecto tiene sus propios sub-proyectos. Sepáralos primero para volver a asignarle un padre."
+  },
+  "subProjects": {
+    "heading": "Sub-proyectos",
+    "totalsHeader": "Total acumulado (propio + sub-proyectos)",
+    "ownHeader": "Trabajo propio",
+    "ofBudget": "{used}h de {budget}h",
+    "dollars": "${used} de ${budget}",
+    "burnAria": "Consumo de presupuesto de {name}: {pct}%"
   },
   "table": {
     "customer": "Cliente",

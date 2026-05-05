@@ -75,6 +75,20 @@ export default async function ProjectsPage({
   if (selectedTeamId) clientsQuery = clientsQuery.eq("team_id", selectedTeamId);
   const { data: customers } = await clientsQuery;
 
+  // Eligible parent projects for the New project form's "Sub-project
+  // of" dropdown — top-level (no parent themselves) + active +
+  // external (internal projects can be parents but the create form
+  // hides the picker when is_internal=true so we filter both ways
+  // client-side). Capped at the team scope.
+  let parentsQuery = supabase
+    .from("projects_v")
+    .select("id, name, customer_id, is_internal")
+    .neq("status", "archived")
+    .is("parent_project_id", null)
+    .order("name");
+  if (selectedTeamId) parentsQuery = parentsQuery.eq("team_id", selectedTeamId);
+  const { data: eligibleParents } = await parentsQuery;
+
   const categorySetsFull = await getVisibleCategorySets(selectedTeamId);
   const categorySets = categorySetsFull.map(
     ({ id, team_id, name, description, is_system, created_by, created_at }) => ({
@@ -105,6 +119,12 @@ export default async function ProjectsPage({
         teams={teams}
         defaultTeamId={selectedTeamId}
         categorySets={categorySets}
+        eligibleParents={(eligibleParents ?? []) as Array<{
+          id: string;
+          name: string;
+          customer_id: string | null;
+          is_internal: boolean;
+        }>}
       />
 
       <ProjectsTable
