@@ -5,8 +5,9 @@ import {
   generateInvoiceNumber,
   formatCurrency,
   minutesToHours,
+  summarizePayments,
 } from "./invoice-utils";
-import type { LineItemResult } from "./invoice-utils";
+import type { LineItemResult, PaymentRow } from "./invoice-utils";
 
 describe("invoice-utils", () => {
   describe("calculateLineItemAmount", () => {
@@ -216,6 +217,92 @@ describe("invoice-utils", () => {
 
     it("handles zero", () => {
       expect(minutesToHours(0)).toBe(0);
+    });
+  });
+
+  describe("summarizePayments", () => {
+    const usd: PaymentRow[] = [
+      { amount: 250, currency: "USD" },
+      { amount: 250, currency: "USD" },
+    ];
+
+    it("sums matching-currency payments only", () => {
+      const r = summarizePayments(usd, "USD");
+      expect(r.matchingTotal).toBe(500);
+      expect(r.hasMismatch).toBe(false);
+      expect(r.mismatchedByCurrency).toEqual({});
+    });
+
+    it("treats null payment.currency as matching the invoice currency (legacy rows)", () => {
+      const r = summarizePayments(
+        [
+          { amount: 100, currency: null },
+          { amount: 50, currency: "USD" },
+        ],
+        "USD",
+      );
+      expect(r.matchingTotal).toBe(150);
+      expect(r.hasMismatch).toBe(false);
+    });
+
+    it("buckets mismatched-currency payments separately and never folds them into the matching total", () => {
+      const r = summarizePayments(
+        [
+          { amount: 100, currency: "USD" },
+          { amount: 200, currency: "CAD" },
+          { amount: 50, currency: "CAD" },
+          { amount: 75, currency: "EUR" },
+        ],
+        "USD",
+      );
+      expect(r.matchingTotal).toBe(100);
+      expect(r.hasMismatch).toBe(true);
+      expect(r.mismatchedByCurrency).toEqual({ CAD: 250, EUR: 75 });
+    });
+
+    it("normalizes currency case so usd matches USD", () => {
+      const r = summarizePayments(
+        [{ amount: 100, currency: "usd" }],
+        "USD",
+      );
+      expect(r.matchingTotal).toBe(100);
+      expect(r.hasMismatch).toBe(false);
+    });
+
+    it("accepts numeric strings (Supabase NUMERIC return shape)", () => {
+      const r = summarizePayments(
+        [
+          { amount: "100.50", currency: "USD" },
+          { amount: "0", currency: "USD" },
+        ],
+        "USD",
+      );
+      expect(r.matchingTotal).toBe(100.5);
+    });
+
+    it("returns zeros on null/empty inputs", () => {
+      expect(summarizePayments(null, "USD")).toEqual({
+        matchingTotal: 0,
+        mismatchedByCurrency: {},
+        hasMismatch: false,
+      });
+      expect(summarizePayments([], "USD")).toEqual({
+        matchingTotal: 0,
+        mismatchedByCurrency: {},
+        hasMismatch: false,
+      });
+    });
+
+    it("falls back to USD when invoice currency is null", () => {
+      const r = summarizePayments(
+        [
+          { amount: 100, currency: "USD" },
+          { amount: 50, currency: "CAD" },
+        ],
+        null,
+      );
+      expect(r.matchingTotal).toBe(100);
+      expect(r.hasMismatch).toBe(true);
     });
   });
 });

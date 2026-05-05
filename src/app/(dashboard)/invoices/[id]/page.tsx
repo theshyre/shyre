@@ -25,7 +25,7 @@ export async function generateMetadata({
   return { title: invoice.invoice_number as string };
 }
 import { formatDate, Avatar, resolveAvatarUrl } from "@theshyre/ui";
-import { formatCurrency } from "@/lib/invoice-utils";
+import { formatCurrency, summarizePayments } from "@/lib/invoice-utils";
 import {
   groupEntriesIntoLineItems,
   type EntryCandidate,
@@ -333,10 +333,16 @@ export default async function InvoiceDetailPage({
     }));
   })();
 
-  const paymentsTotal = (payments ?? []).reduce(
-    (sum, p) => sum + Number(p.amount ?? 0),
-    0,
-  );
+  // Currency-aware payments total. Mismatched-currency payments are
+  // not folded in — they appear in a banner near the totals block.
+  // Bookkeeper finding #13.
+  const paymentsTotal = summarizePayments(
+    (payments ?? []).map((p) => ({
+      amount: p.amount as number | string | null,
+      currency: (p.currency as string | null) ?? null,
+    })),
+    (invoice.currency as string | null) ?? null,
+  ).matchingTotal;
 
   const status = (invoice.status as string | null) ?? "draft";
   // Terminal states (void / paid) get a prominent badge on its own
@@ -583,11 +589,19 @@ export default async function InvoiceDetailPage({
             are recorded so the user sees the actual balance owed,
             same convention Harvest uses. */}
         {(() => {
-          const currency = (invoice.currency as string | null) ?? undefined;
-          const paymentsTotal = (payments ?? []).reduce(
-            (sum, p) => sum + Number(p.amount ?? 0),
-            0,
+          const invoiceCurrency = (invoice.currency as string | null) ?? null;
+          const currency = invoiceCurrency ?? undefined;
+          const paymentSummary = summarizePayments(
+            (payments ?? []).map((p) => ({
+              amount: p.amount as number | string | null,
+              currency: (p.currency as string | null) ?? null,
+            })),
+            invoiceCurrency,
           );
+          // Only matching-currency payments roll into amount-due —
+          // a CAD payment can't reduce a USD invoice's balance
+          // without an FX rate, and we don't capture FX yet.
+          const paymentsTotal = paymentSummary.matchingTotal;
           const discountAmount = Number(invoice.discount_amount ?? 0);
           const discountRate = invoice.discount_rate as number | null;
           const taxRate = Number(invoice.tax_rate ?? 0);
@@ -597,6 +611,23 @@ export default async function InvoiceDetailPage({
           const showPayments = paymentsTotal > 0;
           return (
             <div className="border-t border-edge bg-surface-inset px-4 py-3">
+              {paymentSummary.hasMismatch && (
+                <div
+                  role="alert"
+                  className="mb-3 rounded-md border border-warning/40 bg-warning-soft px-3 py-2 text-caption text-content"
+                >
+                  Foreign-currency payments aren&apos;t included in the
+                  amount-due calculation:{" "}
+                  {Object.entries(paymentSummary.mismatchedByCurrency)
+                    .map(([code, amt]) =>
+                      `${formatCurrency(amt, code)} ${code}`,
+                    )
+                    .join(", ")}
+                  . Record those amounts in the invoice currency (with
+                  the FX rate captured in notes) for clean
+                  reconciliation.
+                </div>
+              )}
               <div className="flex justify-end gap-[32px]">
                 <div className="text-right space-y-1">
                   <p className="text-body text-content-muted">

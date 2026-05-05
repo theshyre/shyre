@@ -34,6 +34,8 @@ import {
   inviteMemberAction,
   removeMemberAction,
   revokeInviteAction,
+  transferOwnershipAction,
+  updateMemberRoleAction,
   updateTeamNameAction,
 } from "./team-actions";
 import { leaveTeamAction, deleteTeamAction } from "../actions";
@@ -114,6 +116,28 @@ export function TeamSection({
             err instanceof Error
               ? err.message
               : "Couldn't remove member.",
+        });
+      }
+    });
+  };
+
+  const updateRole = (memberId: string, newRole: "admin" | "member"): void => {
+    startTransition(async () => {
+      const fd = new FormData();
+      fd.set("team_id", teamId);
+      fd.set("member_id", memberId);
+      fd.set("new_role", newRole);
+      try {
+        await updateMemberRoleAction(fd);
+        toast.push({ kind: "success", message: "Role updated." });
+      } catch (err) {
+        const isRedirect =
+          err instanceof Error && err.message.includes("NEXT_REDIRECT");
+        if (isRedirect) throw err;
+        toast.push({
+          kind: "error",
+          message:
+            err instanceof Error ? err.message : "Couldn't update role.",
         });
       }
     });
@@ -277,11 +301,53 @@ export function TeamSection({
                   </div>
                 </div>
                 {isAdmin && !isSelf && member.role !== "owner" && (
-                  <InlineDeleteRowConfirm
-                    ariaLabel={`Remove ${displayName ?? "member"}`}
-                    onConfirm={() => removeMember(member.id, member.user_id)}
-                    summary={displayName ?? member.user_id.slice(0, 8)}
-                  />
+                  <div className="flex items-center gap-2">
+                    {/* Role flip. Owner can promote and demote; admins
+                        can only demote other admins (the RPC enforces
+                        the asymmetry — promote-to-admin is owner-only).
+                        Hidden when the only valid transition would be
+                        forbidden, so a non-owner viewing a `member`
+                        sees no dropdown at all. */}
+                    {(currentRole === "owner" ||
+                      member.role === "admin") && (
+                      <label className="sr-only" htmlFor={`role-${member.id}`}>
+                        Change role for {displayName ?? "member"}
+                      </label>
+                    )}
+                    {(currentRole === "owner" ||
+                      member.role === "admin") && (
+                      <select
+                        id={`role-${member.id}`}
+                        value={member.role}
+                        onChange={(e) =>
+                          updateRole(
+                            member.id,
+                            e.target.value as "admin" | "member",
+                          )
+                        }
+                        className={selectClass}
+                        aria-label={`Role: ${member.role}`}
+                      >
+                        {/* Owner sees both options; admin viewing
+                            another admin sees only "member" (demote)
+                            because they can't keep the row at admin
+                            without re-promoting. */}
+                        {currentRole === "owner" && (
+                          <option value="admin">admin</option>
+                        )}
+                        {currentRole !== "owner" &&
+                          member.role === "admin" && (
+                            <option value="admin">admin</option>
+                          )}
+                        <option value="member">member</option>
+                      </select>
+                    )}
+                    <InlineDeleteRowConfirm
+                      ariaLabel={`Remove ${displayName ?? "member"}`}
+                      onConfirm={() => removeMember(member.id, member.user_id)}
+                      summary={displayName ?? member.user_id.slice(0, 8)}
+                    />
+                  </div>
                 )}
               </li>
             );
@@ -346,6 +412,16 @@ export function TeamSection({
           {/* Leave org (non-owners, or owners with multiple owners) */}
           {currentRole !== "owner" && (
             <LeaveTeamFlow teamId={teamId} teamName={teamName} />
+          )}
+
+          {/* Transfer ownership (owners only). Sits ABOVE delete so a
+              departing owner sees this safer option first. */}
+          {currentRole === "owner" && (
+            <TransferOwnershipFlow
+              teamId={teamId}
+              members={members}
+              currentUserId={currentUserId}
+            />
           )}
 
           {/* Delete org (owners only) */}
@@ -424,6 +500,169 @@ function LeaveTeamFlow({
         </button>
       </div>
     </form>
+  );
+}
+
+/**
+ * Owner-only flow to hand the team off to another member. The owner
+ * is demoted to admin atomically with the target's promotion to
+ * owner — no transient zero-owner / two-owner state. Typed-name
+ * confirmation matches the destructive-flow rubric.
+ */
+function TransferOwnershipFlow({
+  teamId,
+  members,
+  currentUserId,
+}: {
+  teamId: string;
+  members: Member[];
+  currentUserId: string;
+}): React.JSX.Element {
+  const [confirming, setConfirming] = useState(false);
+  const [serverError, setServerError] = useState<string | null>(null);
+  const [, startTransition] = useTransition();
+  const [newOwnerUserId, setNewOwnerUserId] = useState("");
+  const [confirmName, setConfirmName] = useState("");
+
+  // Eligible recipients: every member except the current owner and
+  // shell accounts (which can't sign in to act on the team).
+  const candidates = members.filter(
+    (m) =>
+      m.user_id !== currentUserId &&
+      m.role !== "owner" &&
+      !m.is_shell,
+  );
+
+  // Pull each candidate's display_name once so the confirm step can
+  // compare typed input case-insensitively.
+  function nameFor(m: Member): string {
+    const profileRaw = m.user_profiles;
+    const profile = Array.isArray(profileRaw) ? profileRaw[0] : profileRaw;
+    return profile && typeof profile === "object" && "display_name" in profile
+      ? ((profile as { display_name: string | null }).display_name ?? "")
+      : "";
+  }
+
+  const target = candidates.find((m) => m.user_id === newOwnerUserId) ?? null;
+  const expectedName = target ? nameFor(target) : "";
+  const canSubmit =
+    target !== null &&
+    expectedName.length > 0 &&
+    confirmName.trim().toLowerCase() === expectedName.trim().toLowerCase();
+
+  function onSubmit(): void {
+    if (!canSubmit || !target) return;
+    setServerError(null);
+    startTransition(async () => {
+      const fd = new FormData();
+      fd.set("team_id", teamId);
+      fd.set("new_owner_user_id", target.user_id);
+      fd.set("confirm_name", confirmName);
+      try {
+        await transferOwnershipAction(fd);
+        // Action issues a redirect via revalidatePath; no toast
+        // needed — the page re-renders with the new role.
+      } catch (err) {
+        const isRedirect =
+          err instanceof Error && err.message.includes("NEXT_REDIRECT");
+        if (isRedirect) throw err;
+        setServerError(
+          err instanceof Error ? err.message : "Couldn't transfer ownership.",
+        );
+      }
+    });
+  }
+
+  if (!confirming) {
+    return (
+      <div className="flex items-center justify-between gap-3">
+        <div>
+          <p className="text-sm font-medium text-content">Transfer ownership</p>
+          <p className="text-xs text-content-muted">
+            Hand the team off to another member. You become an admin.
+          </p>
+        </div>
+        <button
+          type="button"
+          disabled={candidates.length === 0}
+          onClick={() => setConfirming(true)}
+          className={buttonDangerClass}
+        >
+          <Crown size={16} />
+          Transfer
+        </button>
+      </div>
+    );
+  }
+
+  return (
+    <div className="rounded-lg border border-warning/30 bg-warning-soft/30 p-4 space-y-3">
+      {serverError && <AlertBanner tone="error">{serverError}</AlertBanner>}
+      <p className="text-sm text-content">
+        Pick the member who will become the new owner, then type their
+        name to confirm. You will be demoted to admin in the same step.
+      </p>
+      <div>
+        <label htmlFor="transfer-target" className={labelClass}>
+          New owner
+        </label>
+        <select
+          id="transfer-target"
+          value={newOwnerUserId}
+          onChange={(e) => {
+            setNewOwnerUserId(e.target.value);
+            setConfirmName("");
+          }}
+          className={selectClass}
+        >
+          <option value="">Pick a member…</option>
+          {candidates.map((m) => (
+            <option key={m.id} value={m.user_id}>
+              {nameFor(m) || m.user_id.slice(0, 8) + "…"}
+            </option>
+          ))}
+        </select>
+      </div>
+      {target && expectedName && (
+        <div>
+          <label htmlFor="transfer-confirm" className={labelClass}>
+            Type <span className="font-mono">{expectedName}</span> to confirm
+          </label>
+          <input
+            id="transfer-confirm"
+            type="text"
+            value={confirmName}
+            onChange={(e) => setConfirmName(e.target.value)}
+            className={inputClass}
+            autoComplete="off"
+            spellCheck={false}
+          />
+        </div>
+      )}
+      <div className="flex items-center justify-end gap-2">
+        <button
+          type="button"
+          onClick={() => {
+            setConfirming(false);
+            setNewOwnerUserId("");
+            setConfirmName("");
+            setServerError(null);
+          }}
+          className={buttonSecondaryClass}
+        >
+          Cancel
+        </button>
+        <button
+          type="button"
+          onClick={onSubmit}
+          disabled={!canSubmit}
+          className={buttonDangerClass}
+        >
+          <Crown size={16} />
+          Transfer ownership
+        </button>
+      </div>
+    </div>
   );
 }
 

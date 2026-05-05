@@ -128,3 +128,67 @@ export function formatCurrency(amount: number, currency: string = "USD"): string
 export function minutesToHours(minutes: number): number {
   return Math.round((minutes / 60) * 100) / 100;
 }
+
+export interface PaymentRow {
+  amount: number | string | null;
+  currency: string | null;
+}
+
+export interface PaymentSummary {
+  /** Sum of payments whose currency matches the invoice's. The only
+   *  number that is safe to subtract from `total` for an
+   *  "amount due" computation. */
+  matchingTotal: number;
+  /** Per-currency totals for payments whose currency does NOT match
+   *  the invoice's. Surfaced separately so the UI can show a banner
+   *  ("This invoice received 200.00 CAD that doesn't match the USD
+   *  invoice currency.") without rolling them into the headline
+   *  amount-due figure. */
+  mismatchedByCurrency: Record<string, number>;
+  /** True iff at least one payment had a non-null currency that
+   *  didn't match the invoice's. */
+  hasMismatch: boolean;
+}
+
+function moneyToNumber(v: number | string | null | undefined): number {
+  if (v === null || v === undefined || v === "") return 0;
+  const n = typeof v === "number" ? v : Number(v);
+  return Number.isFinite(n) ? n : 0;
+}
+
+/**
+ * Currency-aware payment aggregation. Bookkeeper finding #13: the
+ * old `paymentsTotal = payments.reduce((s, p) => s + p.amount)`
+ * silently summed across currencies, so a USD invoice receiving a
+ * CAD payment would compute a meaningless `100 (USD) + 50 (CAD)
+ * = 150` and show a wrong "amount due."
+ *
+ * Treats payments with a NULL currency as matching the invoice
+ * currency — historical rows imported before currency was tracked
+ * default that way, and assuming "same as invoice" is the only
+ * defensible interpretation when the column is missing.
+ */
+export function summarizePayments(
+  payments: PaymentRow[] | null | undefined,
+  invoiceCurrency: string | null,
+): PaymentSummary {
+  const invoiceCode = (invoiceCurrency ?? "USD").toUpperCase();
+  let matchingTotal = 0;
+  const mismatchedByCurrency: Record<string, number> = {};
+  let hasMismatch = false;
+
+  for (const p of payments ?? []) {
+    const amount = moneyToNumber(p.amount);
+    if (amount === 0) continue;
+    const code = (p.currency ?? "").toUpperCase() || invoiceCode;
+    if (code === invoiceCode) {
+      matchingTotal += amount;
+    } else {
+      mismatchedByCurrency[code] =
+        (mismatchedByCurrency[code] ?? 0) + amount;
+      hasMismatch = true;
+    }
+  }
+
+  return { matchingTotal, mismatchedByCurrency, hasMismatch };
+}

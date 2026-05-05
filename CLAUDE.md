@@ -124,7 +124,7 @@ Vercel and `db-migrate.yml` run in **parallel** on push to `main` — no sequenc
 
 ### Pre-commit gate — `npm run ci:local`
 
-Runs `lint && typecheck && test:coverage`. Run before every commit that adds production code. The coverage threshold has tripped twice on shipped-without-tests code; reproduce locally before pushing. If coverage fails: add tests in the SAME commit. Do not lower the floor.
+Runs `lint && typecheck && test:coverage && build`. Run before every commit that adds production code. The coverage threshold has tripped twice on shipped-without-tests code; the `build` step catches Next.js-only checks (e.g. `"use server"` modules can only export async functions) that `tsc`/`eslint` miss. Reproduce locally before pushing. If coverage fails: add tests in the SAME commit. Do not lower the floor.
 
 ## Security — MANDATORY
 

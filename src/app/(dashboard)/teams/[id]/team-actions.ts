@@ -121,6 +121,106 @@ export async function updateTeamNameAction(formData: FormData): Promise<void> {
   }, "updateTeamNameAction") as unknown as void;
 }
 
+/**
+ * Atomically demote the current owner to admin and promote the
+ * target user to owner. Caller MUST be the current team owner — the
+ * SECURITY DEFINER RPC re-validates that and refuses self-transfer
+ * + shell-account targets so this action is safe even if a caller
+ * bypasses the UI.
+ */
+export async function transferOwnershipAction(
+  formData: FormData,
+): Promise<void> {
+  return runSafeAction(
+    formData,
+    async (formData, { supabase }) => {
+      const teamId = formData.get("team_id") as string;
+      const newOwnerUserId = formData.get("new_owner_user_id") as string;
+      const confirmName = formData.get("confirm_name") as string;
+      if (!teamId) throw new Error("team_id is required.");
+      if (!newOwnerUserId) {
+        throw new Error("Pick a member to transfer ownership to.");
+      }
+
+      // Caller must be the current owner — the RPC enforces this
+      // too, but checking up front keeps the error message
+      // friendlier than a Postgres exception.
+      const { role } = await validateTeamAccess(teamId);
+      if (role !== "owner") {
+        throw new Error("Only the team owner can transfer ownership.");
+      }
+
+      // Typed-name confirmation: bookkeeper-friendly destructive
+      // gate. Match the target's display_name (or email-prefix
+      // when display_name is null) to avoid accidental clicks.
+      const { data: targetProfile } = await supabase
+        .from("user_profiles")
+        .select("display_name")
+        .eq("user_id", newOwnerUserId)
+        .maybeSingle();
+      const expectedName =
+        (targetProfile?.display_name as string | null) ?? "";
+      if (
+        expectedName &&
+        confirmName.trim().toLowerCase() !== expectedName.trim().toLowerCase()
+      ) {
+        throw new Error(
+          `Type the new owner's name (${expectedName}) to confirm.`,
+        );
+      }
+
+      const { error } = await supabase.rpc("transfer_team_ownership", {
+        p_team_id: teamId,
+        p_new_owner_user_id: newOwnerUserId,
+      });
+      if (error) throw new Error(error.message);
+
+      revalidatePath(`/teams/${teamId}`);
+      revalidatePath(`/teams`);
+    },
+    "transferOwnershipAction",
+  ) as unknown as void;
+}
+
+/**
+ * Promote a member to admin or demote an admin to member. Owner can
+ * do either; admins can only demote (the SECURITY DEFINER RPC
+ * enforces this asymmetry — admins can't self-promote-by-proxy).
+ * Use `transferOwnershipAction` to change the owner.
+ */
+export async function updateMemberRoleAction(
+  formData: FormData,
+): Promise<void> {
+  return runSafeAction(
+    formData,
+    async (formData, { supabase }) => {
+      const teamId = formData.get("team_id") as string;
+      const memberId = formData.get("member_id") as string;
+      const newRole = formData.get("new_role") as string;
+      if (!teamId) throw new Error("team_id is required.");
+      if (!memberId) throw new Error("member_id is required.");
+      if (newRole !== "admin" && newRole !== "member") {
+        throw new Error("New role must be 'admin' or 'member'.");
+      }
+
+      const { role } = await validateTeamAccess(teamId);
+      if (!isTeamAdmin(role)) {
+        throw new Error("Only owners and admins can change roles.");
+      }
+
+      const { error } = await supabase.rpc("update_team_member_role", {
+        p_team_id: teamId,
+        p_member_id: memberId,
+        p_new_role: newRole,
+      });
+      if (error) throw new Error(error.message);
+
+      revalidatePath(`/teams/${teamId}`);
+    },
+    "updateMemberRoleAction",
+  ) as unknown as void;
+}
+
 export async function setMemberRateAction(formData: FormData): Promise<void> {
   return runSafeAction(formData, async (formData, { supabase }) => {
     const membershipId = formData.get("membership_id") as string;

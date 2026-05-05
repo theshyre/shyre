@@ -77,13 +77,22 @@ export async function GET(request: Request): Promise<Response> {
   }
 
   // Sum payments per invoice in one query so amount_due reconciles
-  // against the AR-aging report.
+  // against the AR-aging report. Currency-aware: a CAD payment on
+  // a USD invoice doesn't reduce the USD balance (we don't capture
+  // FX rates yet). Bookkeeper finding #13.
   const invoiceIds = (rows ?? []).map((r) => r.id as string);
+  const invoiceCurrencyById = new Map<string, string>();
+  for (const row of rows ?? []) {
+    invoiceCurrencyById.set(
+      row.id as string,
+      ((row.currency as string | null) ?? "USD").toUpperCase(),
+    );
+  }
   const paymentsTotalById = new Map<string, number>();
   if (invoiceIds.length > 0) {
     const { data: payments, error: paymentsErr } = await supabase
       .from("invoice_payments")
-      .select("invoice_id, amount")
+      .select("invoice_id, amount, currency")
       .in("invoice_id", invoiceIds);
     if (paymentsErr) {
       logError(paymentsErr, {
@@ -95,6 +104,13 @@ export async function GET(request: Request): Promise<Response> {
     }
     for (const p of payments ?? []) {
       const id = p.invoice_id as string;
+      const invoiceCurrency = invoiceCurrencyById.get(id) ?? "USD";
+      const paymentCurrency =
+        ((p.currency as string | null) ?? invoiceCurrency).toUpperCase();
+      // Skip mismatched-currency payments. Future: a separate
+      // `payments_total_other_currency` column could surface them
+      // for the bookkeeper's pivot table.
+      if (paymentCurrency !== invoiceCurrency) continue;
       const amount = Number(p.amount ?? 0);
       paymentsTotalById.set(
         id,
