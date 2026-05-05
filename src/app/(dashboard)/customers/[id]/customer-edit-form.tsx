@@ -154,8 +154,8 @@ export function CustomerEditForm({
         </label>
 
         <div>
-          <label className={labelClass}>{t("fields.notes")}</label>
-          <textarea
+          <label htmlFor="[id]-customer-edit-form-notes" className={labelClass}>{t("fields.notes")}</label>
+          <textarea id="[id]-customer-edit-form-notes"
             name="notes"
             rows={3}
             defaultValue={client.notes ?? ""}

@@ -464,8 +464,8 @@ function PersonForm({
 
       <div className="grid gap-3 sm:grid-cols-2">
         <div>
-          <label className={labelClass}>{t("fields.legalName")}</label>
-          <input
+          <label htmlFor="people-legalName" className={labelClass}>{t("fields.legalName")}</label>
+          <input id="people-legalName"
             name="legal_name"
             defaultValue={initial.legal_name}
             required
@@ -478,8 +478,8 @@ function PersonForm({
         </div>
 
         <div>
-          <label className={labelClass}>{t("fields.preferredName")}</label>
-          <input
+          <label htmlFor="people-preferredName" className={labelClass}>{t("fields.preferredName")}</label>
+          <input id="people-preferredName"
             name="preferred_name"
             defaultValue={initial.preferred_name ?? ""}
             className={inputClass}
@@ -490,8 +490,8 @@ function PersonForm({
         </div>
 
         <div className="sm:col-span-2">
-          <label className={labelClass}>{t("fields.userLink")}</label>
-          <select
+          <label htmlFor="people-userLink" className={labelClass}>{t("fields.userLink")}</label>
+          <select id="people-userLink"
             name="user_id"
             defaultValue={initial.user_id ?? ""}
             className={selectClass}
@@ -510,8 +510,8 @@ function PersonForm({
         </div>
 
         <div>
-          <label className={labelClass}>{t("fields.employmentType")}</label>
-          <select
+          <label htmlFor="people-employmentType" className={labelClass}>{t("fields.employmentType")}</label>
+          <select id="people-employmentType"
             name="employment_type"
             defaultValue={initial.employment_type}
             className={selectClass}
@@ -527,8 +527,8 @@ function PersonForm({
         </div>
 
         <div>
-          <label className={labelClass}>{t("fields.title")}</label>
-          <input
+          <label htmlFor="people-title" className={labelClass}>{t("fields.title")}</label>
+          <input id="people-title"
             name="title"
             defaultValue={initial.title ?? ""}
             className={inputClass}
@@ -536,8 +536,8 @@ function PersonForm({
         </div>
 
         <div>
-          <label className={labelClass}>{t("fields.department")}</label>
-          <input
+          <label htmlFor="people-department" className={labelClass}>{t("fields.department")}</label>
+          <input id="people-department"
             name="department"
             defaultValue={initial.department ?? ""}
             className={inputClass}
@@ -545,8 +545,8 @@ function PersonForm({
         </div>
 
         <div>
-          <label className={labelClass}>{t("fields.employeeNumber")}</label>
-          <input
+          <label htmlFor="people-employeeNumber" className={labelClass}>{t("fields.employeeNumber")}</label>
+          <input id="people-employeeNumber"
             name="employee_number"
             defaultValue={initial.employee_number ?? ""}
             className={`${inputClass} font-mono`}
@@ -554,8 +554,8 @@ function PersonForm({
         </div>
 
         <div>
-          <label className={labelClass}>{t("fields.workEmail")}</label>
-          <input
+          <label htmlFor="people-workEmail" className={labelClass}>{t("fields.workEmail")}</label>
+          <input id="people-workEmail"
             type="email"
             name="work_email"
             defaultValue={initial.work_email ?? ""}
@@ -567,8 +567,8 @@ function PersonForm({
         </div>
 
         <div>
-          <label className={labelClass}>{t("fields.workPhone")}</label>
-          <input
+          <label htmlFor="people-workPhone" className={labelClass}>{t("fields.workPhone")}</label>
+          <input id="people-workPhone"
             name="work_phone"
             defaultValue={initial.work_phone ?? ""}
             className={inputClass}
@@ -576,8 +576,8 @@ function PersonForm({
         </div>
 
         <div>
-          <label className={labelClass}>{t("fields.startedOn")}</label>
-          <input
+          <label htmlFor="people-startedOn" className={labelClass}>{t("fields.startedOn")}</label>
+          <input id="people-startedOn"
             type="date"
             name="started_on"
             defaultValue={initial.started_on ?? ""}
@@ -586,8 +586,8 @@ function PersonForm({
         </div>
 
         <div>
-          <label className={labelClass}>{t("fields.endedOn")}</label>
-          <input
+          <label htmlFor="people-endedOn" className={labelClass}>{t("fields.endedOn")}</label>
+          <input id="people-endedOn"
             type="date"
             name="ended_on"
             defaultValue={initial.ended_on ?? ""}
@@ -596,8 +596,8 @@ function PersonForm({
         </div>
 
         <div>
-          <label className={labelClass}>{t("fields.compensationType")}</label>
-          <select
+          <label htmlFor="people-compensationType" className={labelClass}>{t("fields.compensationType")}</label>
+          <select id="people-compensationType"
             name="compensation_type"
             defaultValue={initial.compensation_type ?? ""}
             className={selectClass}
@@ -616,8 +616,8 @@ function PersonForm({
         </div>
 
         <div>
-          <label className={labelClass}>{t("fields.compensationSchedule")}</label>
-          <select
+          <label htmlFor="people-compensationSchedule" className={labelClass}>{t("fields.compensationSchedule")}</label>
+          <select id="people-compensationSchedule"
             name="compensation_schedule"
             defaultValue={initial.compensation_schedule ?? ""}
             className={selectClass}
@@ -635,8 +635,8 @@ function PersonForm({
         </div>
 
         <div>
-          <label className={labelClass}>{t("fields.compensationAmount")}</label>
-          <input
+          <label htmlFor="people-compensationAmount" className={labelClass}>{t("fields.compensationAmount")}</label>
+          <input id="people-compensationAmount"
             type="number"
             name="compensation_amount"
             min={0}
@@ -647,8 +647,8 @@ function PersonForm({
         </div>
 
         <div>
-          <label className={labelClass}>{t("fields.compensationCurrency")}</label>
-          <input
+          <label htmlFor="people-compensationCurrency" className={labelClass}>{t("fields.compensationCurrency")}</label>
+          <input id="people-compensationCurrency"
             name="compensation_currency"
             defaultValue={initial.compensation_currency ?? "USD"}
             maxLength={3}
@@ -657,8 +657,8 @@ function PersonForm({
         </div>
 
         <div className="sm:col-span-2 pt-2">
-          <label className={labelClass}>{t("fields.reportsTo")}</label>
-          <select
+          <label htmlFor="people-reportsTo" className={labelClass}>{t("fields.reportsTo")}</label>
+          <select id="people-reportsTo"
             name="reports_to_person_id"
             defaultValue={initial.reports_to_person_id ?? ""}
             className={selectClass}
@@ -678,32 +678,32 @@ function PersonForm({
           </div>
           <div className="grid gap-3 sm:grid-cols-2">
             <div className="sm:col-span-2">
-              <label className={labelClass}>{t("fields.addressLine1")}</label>
-              <input
+              <label htmlFor="people-addressLine1" className={labelClass}>{t("fields.addressLine1")}</label>
+              <input id="people-addressLine1"
                 name="address_line1"
                 defaultValue={initial.address_line1 ?? ""}
                 className={inputClass}
               />
             </div>
             <div className="sm:col-span-2">
-              <label className={labelClass}>{t("fields.addressLine2")}</label>
-              <input
+              <label htmlFor="people-addressLine2" className={labelClass}>{t("fields.addressLine2")}</label>
+              <input id="people-addressLine2"
                 name="address_line2"
                 defaultValue={initial.address_line2 ?? ""}
                 className={inputClass}
               />
             </div>
             <div>
-              <label className={labelClass}>{t("fields.city")}</label>
-              <input
+              <label htmlFor="people-city" className={labelClass}>{t("fields.city")}</label>
+              <input id="people-city"
                 name="city"
                 defaultValue={initial.city ?? ""}
                 className={inputClass}
               />
             </div>
             <div>
-              <label className={labelClass}>{t("fields.state")}</label>
-              <input
+              <label htmlFor="people-state" className={labelClass}>{t("fields.state")}</label>
+              <input id="people-state"
                 name="state"
                 defaultValue={initial.state ?? ""}
                 maxLength={2}
@@ -711,16 +711,16 @@ function PersonForm({
               />
             </div>
             <div>
-              <label className={labelClass}>{t("fields.postalCode")}</label>
-              <input
+              <label htmlFor="people-postalCode" className={labelClass}>{t("fields.postalCode")}</label>
+              <input id="people-postalCode"
                 name="postal_code"
                 defaultValue={initial.postal_code ?? ""}
                 className={inputClass}
               />
             </div>
             <div>
-              <label className={labelClass}>{t("fields.country")}</label>
-              <input
+              <label htmlFor="people-country" className={labelClass}>{t("fields.country")}</label>
+              <input id="people-country"
                 name="country"
                 defaultValue={initial.country ?? "US"}
                 maxLength={2}
@@ -731,8 +731,8 @@ function PersonForm({
         </div>
 
         <div className="sm:col-span-2">
-          <label className={labelClass}>{t("fields.notes")}</label>
-          <input
+          <label htmlFor="people-notes" className={labelClass}>{t("fields.notes")}</label>
+          <input id="people-notes"
             name="notes"
             defaultValue={initial.notes ?? ""}
             className={inputClass}

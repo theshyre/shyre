@@ -179,8 +179,8 @@ export function ProjectCategoriesEditor({
           main project form, pulled in here so all category controls
           live in one card. */}
       <div>
-        <label className={labelClass}>{t("baseSetLabel")}</label>
-        <select
+        <label htmlFor="[id]-project-categories-editor-baseSetLabel" className={labelClass}>{t("baseSetLabel")}</label>
+        <select id="[id]-project-categories-editor-baseSetLabel"
           value={baseSetId}
           onChange={(e) => setBaseSetId(e.target.value)}
           className={selectClass}
@@ -229,8 +229,8 @@ export function ProjectCategoriesEditor({
       {(expanded || categories.length > 0) && (
         <>
       <div>
-        <label className={labelClass}>{t("setName")}</label>
-        <input
+        <label htmlFor="[id]-project-categories-editor-setName" className={labelClass}>{t("setName")}</label>
+        <input id="[id]-project-categories-editor-setName"
           value={setName}
           onChange={(e) => setSetName(e.target.value)}
           placeholder={t("defaultSetName")}

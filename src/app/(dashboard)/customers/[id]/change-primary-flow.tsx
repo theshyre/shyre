@@ -76,10 +76,11 @@ export function ChangePrimaryFlow({
       )}
 
       <div>
-        <label className={labelClass}>
+        <label htmlFor="cp-new-team" className={labelClass}>
           {currentPrimaryTeamName} →
         </label>
         <select
+          id="cp-new-team"
           name="new_team_id"
           required
           autoFocus

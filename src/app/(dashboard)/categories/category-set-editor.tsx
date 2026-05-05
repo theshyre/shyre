@@ -57,8 +57,8 @@ export function CategorySetEditor({ set, onDone }: Props): React.JSX.Element {
             />
           </div>
           <div>
-            <label className={labelClass}>{t("descriptionLabel")}</label>
-            <input
+            <label htmlFor="categories-category-set-editor-descriptionLabel" className={labelClass}>{t("descriptionLabel")}</label>
+            <input id="categories-category-set-editor-descriptionLabel"
               name="description"
               defaultValue={set.description ?? ""}
               className={inputClass}

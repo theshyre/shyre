@@ -448,8 +448,11 @@ function CredentialsStep({
 
       <div className="space-y-3">
         <div>
-          <label className={labelClass}>Personal Access Token *</label>
+          <label htmlFor="harvest-token" className={labelClass}>
+            Personal Access Token *
+          </label>
           <input
+            id="harvest-token"
             type="password"
             value={token}
             onChange={(e) => setToken(e.target.value)}
@@ -458,8 +461,11 @@ function CredentialsStep({
           />
         </div>
         <div>
-          <label className={labelClass}>Account ID *</label>
+          <label htmlFor="harvest-account-id" className={labelClass}>
+            Account ID *
+          </label>
           <input
+            id="harvest-account-id"
             type="text"
             value={accountId}
             onChange={(e) => setAccountId(e.target.value)}
@@ -468,9 +474,12 @@ function CredentialsStep({
           />
         </div>
         <div>
-          <label className={labelClass}>Import into Team</label>
+          <label htmlFor="harvest-team" className={labelClass}>
+            Import into Team
+          </label>
           {teams.length === 1 ? (
             <input
+              id="harvest-team"
               type="text"
               value={teams[0]?.name ?? ""}
               disabled
@@ -478,6 +487,7 @@ function CredentialsStep({
             />
           ) : (
             <select
+              id="harvest-team"
               value={teamId}
               onChange={(e) => setTeamId(e.target.value)}
               className={selectClass}

@@ -189,16 +189,16 @@ export function NewProjectForm({
           />
         </div>
         <div className="sm:col-span-2">
-          <label className={labelClass}>{t("fields.githubRepo")}</label>
-          <input
+          <label htmlFor="projects-new-project-form-githubRepo" className={labelClass}>{t("fields.githubRepo")}</label>
+          <input id="projects-new-project-form-githubRepo"
             name="github_repo"
             placeholder={t("fields.githubRepoPlaceholder")}
             className={inputClass}
           />
         </div>
         <div>
-          <label className={labelClass}>{t("fields.invoiceCode")}</label>
-          <input
+          <label htmlFor="projects-new-project-form-invoiceCode" className={labelClass}>{t("fields.invoiceCode")}</label>
+          <input id="projects-new-project-form-invoiceCode"
             name="invoice_code"
             placeholder={t("fields.invoiceCodePlaceholder")}
             maxLength={16}
@@ -209,8 +209,8 @@ export function NewProjectForm({
           </p>
         </div>
         <div className="sm:col-span-2">
-          <label className={labelClass}>{t("fields.categorySet")}</label>
-          <select name="category_set_id" className={selectClass}>
+          <label htmlFor="projects-new-project-form-categorySet" className={labelClass}>{t("fields.categorySet")}</label>
+          <select id="projects-new-project-form-categorySet" name="category_set_id" className={selectClass}>
             <option value="">{t("fields.noCategorySet")}</option>
             {categorySets.map((s) => (
               <option key={s.id} value={s.id}>
@@ -255,8 +255,8 @@ export function NewProjectForm({
         </div>
       </div>
       <div>
-        <label className={labelClass}>{t("fields.description")}</label>
-        <textarea name="description" rows={2} className={textareaClass} />
+        <label htmlFor="projects-new-project-form-description" className={labelClass}>{t("fields.description")}</label>
+        <textarea id="projects-new-project-form-description" name="description" rows={2} className={textareaClass} />
       </div>
       <div className="flex gap-2">
         <SubmitButton label={t("saveProject")} pending={pending} success={success} successMessage={tc("actions.saved")} />

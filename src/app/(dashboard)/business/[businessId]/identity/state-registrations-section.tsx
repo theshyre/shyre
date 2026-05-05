@@ -315,8 +315,8 @@ function RegistrationForm({
 
       <div className="grid gap-3 sm:grid-cols-2">
         <div>
-          <label className={labelClass}>{t("fields.state")}</label>
-          <input
+          <label htmlFor="state-registrations-section-state" className={labelClass}>{t("fields.state")}</label>
+          <input id="state-registrations-section-state"
             name="state"
             defaultValue={initial.state}
             placeholder={t("fields.statePlaceholder")}
@@ -346,8 +346,8 @@ function RegistrationForm({
         </div>
 
         <div>
-          <label className={labelClass}>{t("fields.entityNumber")}</label>
-          <input
+          <label htmlFor="state-registrations-section-entityNumber" className={labelClass}>{t("fields.entityNumber")}</label>
+          <input id="state-registrations-section-entityNumber"
             name="entity_number"
             defaultValue={initial.entity_number ?? ""}
             className={`${inputClass} font-mono`}
@@ -355,8 +355,8 @@ function RegistrationForm({
         </div>
 
         <div>
-          <label className={labelClass}>{t("fields.stateTaxId")}</label>
-          <input
+          <label htmlFor="state-registrations-section-stateTaxId" className={labelClass}>{t("fields.stateTaxId")}</label>
+          <input id="state-registrations-section-stateTaxId"
             name="state_tax_id"
             defaultValue={initial.state_tax_id ?? ""}
             className={`${inputClass} font-mono`}
@@ -364,8 +364,8 @@ function RegistrationForm({
         </div>
 
         <div>
-          <label className={labelClass}>{t("fields.registeredOn")}</label>
-          <input
+          <label htmlFor="state-registrations-section-registeredOn" className={labelClass}>{t("fields.registeredOn")}</label>
+          <input id="state-registrations-section-registeredOn"
             type="date"
             name="registered_on"
             defaultValue={initial.registered_on ?? ""}
@@ -374,8 +374,8 @@ function RegistrationForm({
         </div>
 
         <div>
-          <label className={labelClass}>{t("fields.nexusStartDate")}</label>
-          <input
+          <label htmlFor="state-registrations-section-nexusStartDate" className={labelClass}>{t("fields.nexusStartDate")}</label>
+          <input id="state-registrations-section-nexusStartDate"
             type="date"
             name="nexus_start_date"
             defaultValue={initial.nexus_start_date ?? ""}
@@ -384,8 +384,8 @@ function RegistrationForm({
         </div>
 
         <div>
-          <label className={labelClass}>{t("fields.registrationStatus")}</label>
-          <select
+          <label htmlFor="state-registrations-section-registrationStatus" className={labelClass}>{t("fields.registrationStatus")}</label>
+          <select id="state-registrations-section-registrationStatus"
             name="registration_status"
             defaultValue={initial.registration_status}
             className={selectClass}
@@ -399,8 +399,8 @@ function RegistrationForm({
         </div>
 
         <div>
-          <label className={labelClass}>{t("fields.reportFrequency")}</label>
-          <select
+          <label htmlFor="state-registrations-section-reportFrequency" className={labelClass}>{t("fields.reportFrequency")}</label>
+          <select id="state-registrations-section-reportFrequency"
             name="report_frequency"
             defaultValue={initial.report_frequency ?? ""}
             className={selectClass}
@@ -413,8 +413,8 @@ function RegistrationForm({
         </div>
 
         <div>
-          <label className={labelClass}>{t("fields.dueRule")}</label>
-          <select
+          <label htmlFor="state-registrations-section-dueRule" className={labelClass}>{t("fields.dueRule")}</label>
+          <select id="state-registrations-section-dueRule"
             name="due_rule"
             defaultValue={initial.due_rule ?? ""}
             className={selectClass}
@@ -427,8 +427,8 @@ function RegistrationForm({
         </div>
 
         <div>
-          <label className={labelClass}>{t("fields.annualReportDue")}</label>
-          <input
+          <label htmlFor="state-registrations-section-annualReportDue" className={labelClass}>{t("fields.annualReportDue")}</label>
+          <input id="state-registrations-section-annualReportDue"
             name="annual_report_due_mmdd"
             defaultValue={initial.annual_report_due_mmdd ?? ""}
             placeholder="MM-DD"
@@ -438,8 +438,8 @@ function RegistrationForm({
         </div>
 
         <div>
-          <label className={labelClass}>{t("fields.nextDueDate")}</label>
-          <input
+          <label htmlFor="state-registrations-section-nextDueDate" className={labelClass}>{t("fields.nextDueDate")}</label>
+          <input id="state-registrations-section-nextDueDate"
             type="date"
             name="next_due_date"
             defaultValue={initial.next_due_date ?? ""}
@@ -448,8 +448,8 @@ function RegistrationForm({
         </div>
 
         <div>
-          <label className={labelClass}>{t("fields.annualReportFee")}</label>
-          <input
+          <label htmlFor="state-registrations-section-annualReportFee" className={labelClass}>{t("fields.annualReportFee")}</label>
+          <input id="state-registrations-section-annualReportFee"
             type="number"
             name="annual_report_fee_cents"
             min={0}
@@ -460,8 +460,8 @@ function RegistrationForm({
         </div>
 
         <div className="sm:col-span-2">
-          <label className={labelClass}>{t("fields.notes")}</label>
-          <input
+          <label htmlFor="state-registrations-section-notes" className={labelClass}>{t("fields.notes")}</label>
+          <input id="state-registrations-section-notes"
             name="notes"
             defaultValue={initial.notes ?? ""}
             className={inputClass}

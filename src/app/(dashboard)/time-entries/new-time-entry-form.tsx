@@ -265,8 +265,8 @@ export function NewTimeEntryForm({
           </div>
         ) : (
           <div className={formSpanQuarter}>
-            <label className={labelClass}>{t("fields.githubIssue")}</label>
-            <input
+            <label htmlFor="time-entries-new-time-entry-form-githubIssue" className={labelClass}>{t("fields.githubIssue")}</label>
+            <input id="time-entries-new-time-entry-form-githubIssue"
               name="github_issue"
               type="number"
               min="1"

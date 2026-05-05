@@ -72,8 +72,8 @@ export function CategoryPicker({
 
   return (
     <div>
-      <label className={labelClass}>{t("label")}</label>
-      <select
+      <label htmlFor="time-entries-category-picker-label" className={labelClass}>{t("label")}</label>
+      <select id="time-entries-category-picker-label"
         name="category_id"
         className={selectClass}
         defaultValue={defaultValue ?? ""}

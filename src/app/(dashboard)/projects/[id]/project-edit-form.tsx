@@ -221,8 +221,8 @@ export function ProjectEditForm({
           </div>
         </div>
         <div>
-          <label className={labelClass}>{t("fields.description")}</label>
-          <textarea
+          <label htmlFor="[id]-project-edit-form-description" className={labelClass}>{t("fields.description")}</label>
+          <textarea id="[id]-project-edit-form-description"
             name="description"
             rows={3}
             defaultValue={project.description ?? ""}

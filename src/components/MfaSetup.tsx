@@ -387,8 +387,8 @@ export function MfaSetup(): React.JSX.Element {
         </div>
 
         <div>
-          <label className={labelClass}>{t("enterCode")}</label>
-          <input
+          <label htmlFor="components-MfaSetup-enterCode" className={labelClass}>{t("enterCode")}</label>
+          <input id="components-MfaSetup-enterCode"
             type="text"
             inputMode="numeric"
             pattern="[0-9]*"

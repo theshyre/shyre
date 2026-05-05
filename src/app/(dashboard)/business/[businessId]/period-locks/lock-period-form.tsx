@@ -38,8 +38,8 @@ export function LockPeriodForm({ teamOptions }: Props): React.JSX.Element {
       <div className="grid gap-3 sm:grid-cols-3">
         {showTeam && (
           <div>
-            <label className={labelClass}>{t("fields.team")}</label>
-            <select
+            <label htmlFor="period-locks-lock-period-form-team" className={labelClass}>{t("fields.team")}</label>
+            <select id="period-locks-lock-period-form-team"
               name="team_id"
               defaultValue={teamOptions[0]?.id}
               className={selectClass}
@@ -62,8 +62,8 @@ export function LockPeriodForm({ teamOptions }: Props): React.JSX.Element {
         )}
 
         <div>
-          <label className={labelClass}>{t("fields.periodEnd")}</label>
-          <input
+          <label htmlFor="period-locks-lock-period-form-periodEnd" className={labelClass}>{t("fields.periodEnd")}</label>
+          <input id="period-locks-lock-period-form-periodEnd"
             name="period_end"
             type="date"
             className={inputClass}
@@ -72,8 +72,8 @@ export function LockPeriodForm({ teamOptions }: Props): React.JSX.Element {
         </div>
 
         <div className={showTeam ? "" : "sm:col-span-2"}>
-          <label className={labelClass}>{t("fields.notes")}</label>
-          <input name="notes" type="text" className={inputClass} />
+          <label htmlFor="period-locks-lock-period-form-notes" className={labelClass}>{t("fields.notes")}</label>
+          <input id="period-locks-lock-period-form-notes" name="notes" type="text" className={inputClass} />
         </div>
       </div>
 

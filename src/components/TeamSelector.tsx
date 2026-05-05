@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useId, useState } from "react";
 import { Building2 } from "lucide-react";
 import { selectClass, inputClass, labelClass } from "@/lib/form-styles";
 import type { TeamListItem } from "@/lib/team-context";
@@ -30,6 +30,10 @@ export function TeamSelector({
   const [selectedTeamId, setSelectedTeamId] = useState<string>(() =>
     pickInitialTeamId(teams, defaultTeamId),
   );
+  // useId() generates a stable per-instance id so multiple
+  // <TeamSelector>s on the same page (rare but possible) don't
+  // collide on htmlFor / id pairing.
+  const fieldId = useId();
 
   if (teams.length === 0) return null;
 
@@ -38,13 +42,14 @@ export function TeamSelector({
     const singleOrg = teams[0];
     return (
       <div>
-        <label className={labelClass}>
+        <label htmlFor={fieldId} className={labelClass}>
           <span className="inline-flex items-center gap-1.5">
             <Building2 size={14} className="text-accent" />
             {label ?? "Team"}
           </span>
         </label>
         <input
+          id={fieldId}
           type="text"
           value={singleOrg?.name ?? ""}
           disabled
@@ -62,13 +67,14 @@ export function TeamSelector({
   // Multiple teams: dropdown
   return (
     <div>
-      <label className={labelClass}>
+      <label htmlFor={fieldId} className={labelClass}>
         <span className="inline-flex items-center gap-1.5">
           <Building2 size={14} className="text-accent" />
           {label ?? "Team"}
         </span>
       </label>
       <select
+        id={fieldId}
         name="team_id"
         required
         value={selectedTeamId}

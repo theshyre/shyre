@@ -91,8 +91,8 @@ export function IdentityForm({
 
       <div className="grid gap-3 sm:grid-cols-2">
         <div className="sm:col-span-2">
-          <label className={labelClass}>{t("fields.legalName")}</label>
-          <input
+          <label htmlFor="identity-form-legalName" className={labelClass}>{t("fields.legalName")}</label>
+          <input id="identity-form-legalName"
             name="legal_name"
             defaultValue={legalName}
             placeholder={t("fields.legalNamePlaceholder")}
@@ -104,8 +104,8 @@ export function IdentityForm({
         </div>
 
         <div>
-          <label className={labelClass}>{t("fields.entityType")}</label>
-          <select
+          <label htmlFor="identity-form-entityType" className={labelClass}>{t("fields.entityType")}</label>
+          <select id="identity-form-entityType"
             name="entity_type"
             defaultValue={entityType}
             className={selectClass}
@@ -122,8 +122,8 @@ export function IdentityForm({
         {canEditPrivate && (
           <>
             <div>
-              <label className={labelClass}>{t("fields.taxId")}</label>
-              <input
+              <label htmlFor="identity-form-taxId" className={labelClass}>{t("fields.taxId")}</label>
+              <input id="identity-form-taxId"
                 name="tax_id"
                 defaultValue={taxId}
                 placeholder="XX-XXXXXXX"
@@ -135,10 +135,8 @@ export function IdentityForm({
             </div>
 
             <div>
-              <label className={labelClass}>
-                {t("fields.dateIncorporated")}
-              </label>
-              <input
+              <label htmlFor="identity-identity-form-dateIncorporated" className={labelClass}>{t("fields.dateIncorporated")}</label>
+              <input id="identity-identity-form-dateIncorporated"
                 name="date_incorporated"
                 type="date"
                 defaultValue={dateIncorporated}
@@ -147,10 +145,8 @@ export function IdentityForm({
             </div>
 
             <div>
-              <label className={labelClass}>
-                {t("fields.fiscalYearStart")}
-              </label>
-              <input
+              <label htmlFor="identity-identity-form-fiscalYearStart" className={labelClass}>{t("fields.fiscalYearStart")}</label>
+              <input id="identity-identity-form-fiscalYearStart"
                 name="fiscal_year_start"
                 defaultValue={fiscalYearStart}
                 placeholder="01-01"
