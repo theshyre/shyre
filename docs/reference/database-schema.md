@@ -1,317 +1,135 @@
 # Database Schema
 
-All tables live in the `public` schema with Row-Level Security (RLS) enabled. The app is **multi-tenant** — data tables have an `team_id` column and RLS policies check org membership via `user_has_org_access(team_id)`.
+> Last regenerated: 2026-05-05.
+> Source of truth is the live schema (`pg_dump --schema-only`); this document is a hand-curated index that lists each table, its purpose, key columns, and the RLS shape. When live and doc disagree, live wins — open a PR fixing the doc.
 
-## Multi-tenancy
+All tables live in the `public` schema with **Row-Level Security (RLS) enabled**. The app is multi-tenant (team-scoped); most data tables carry a `team_id` and policies scope to it via the SECURITY DEFINER helpers `public.user_has_team_access(team_id)` and `public.user_team_role(team_id)`.
 
-### `teams`
-| Column | Type | Notes |
-|--------|------|-------|
-| id | UUID (PK) | `gen_random_uuid()` |
-| name | TEXT | Required |
-| slug | TEXT | Unique, auto-generated |
-| created_at | TIMESTAMPTZ | |
+A handful of tables are **business-scoped** (a Business owns 1+ Teams) — see "Business identity" below. The shell helpers `public.user_has_business_access(business_id)` / `public.user_business_role(business_id)` derive role from the most-permissive `team_members.role` across the business's teams.
 
-### `team_members`
-| Column | Type | Notes |
-|--------|------|-------|
-| id | UUID (PK) | |
-| team_id | UUID | References `teams(id)` CASCADE |
-| user_id | UUID | References `auth.users(id)` CASCADE |
-| role | TEXT | `owner\|admin\|member` |
-| joined_at | TIMESTAMPTZ | |
+`auth.uid() = user_id` policies are **gone** as of SAL-005 (commit `5221fc1`). User-scoped tables (`user_settings`, `user_profiles`, `mfa_backup_codes`) still use that shape; everything else is team-scoped.
 
-Unique constraint on `(team_id, user_id)`.
+## Naming conventions
 
-### `team_invites`
-| Column | Type | Notes |
-|--------|------|-------|
-| id | UUID (PK) | |
-| team_id | UUID | References `teams(id)` CASCADE |
-| email | TEXT | Invitee email |
-| role | TEXT | `admin\|member` |
-| invited_by | UUID | References `auth.users(id)` |
-| token | TEXT | Unique, auto-generated |
-| expires_at | TIMESTAMPTZ | Default: 7 days |
-| accepted_at | TIMESTAMPTZ | NULL until accepted |
+- `snake_case` columns; `camelCase` fields in TS interfaces.
+- Module-scoped tables get a module prefix (`business_*`, `customer_*`). Exception: `expenses` is unprefixed for historical reasons (see `docs/reference/modules.md`).
+- `_history` tables capture mutation events. Append-only via SECURITY DEFINER triggers; SELECT policies inherit the parent table's role gate.
+- `_v` views (e.g. `customers_v`, `projects_v`) are read-side projections that the app's list pages depend on. Stable contracts.
 
-### Helper functions
-- `user_has_team_access(team_id)` — returns true if `auth.uid()` is a member of the team
-- `user_team_role(team_id)` — returns the user's role in the team
-- `user_has_business_access(business_id)` — true if the user is a member of any team owned by the business
-- `user_business_role(business_id)` — max role (`owner` > `admin` > `member`) across team memberships in the business
+## Identity & multi-tenancy
 
-## Businesses
+| Table | Scope | Purpose |
+|---|---|---|
+| `teams` | `team_id` PK | Tenant unit. Every member, customer, project, time entry, invoice has a `team_id`. |
+| `team_members` | `(team_id, user_id)` | Role grant: `owner` / `admin` / `member`. UNIQUE on the pair. |
+| `team_invites` | `(team_id, token)` | Pending invites. Email-matched on accept. |
+| `team_settings` | `team_id` PK | Per-team settings: default rate, invoice prefix + counter, default tax rate, branding. |
+| `team_shares` | `(parent_team_id, child_team_id)` | Cross-team data sharing — predecessor of `customer_shares`. Largely unused now; kept for legacy import paths. |
+| `team_period_locks` | `(team_id, period_end)` | Bookkeeper period close. Triggers refuse mutations on locked periods. |
+| `team_period_locks_history` | history | Append-only event log for lock/unlock actions. |
+| `team_email_config` | `team_id` PK | Per-team Resend config + encrypted API key + daily-cap counters. SAL-018 envelope encryption. SAL-021 atomic cap RPC. SAL-025 trigger-locks the cap counter. |
+| `verified_email_domains` | `(team_id, domain)` | Mirror of Resend domain verification status. SAL-024 trigger-locks `status` field. |
+| `user_profiles` | `user_id` PK | Display name + avatar URL. `avatar_url` is restricted to preset:* tokens or own-folder Supabase Storage URLs (batch-2 SSRF defense). |
+| `user_settings` | `user_id` PK | Per-user preferences (theme, locale, week-start, density) + integration tokens (`github_token`, `jira_api_token`). Generated `has_*_token` columns mirror presence (SAL-028). |
+| `user_business_affiliations` | `(user_id, business_id)` | Optional second-degree affiliation; underused today. |
+| `mfa_backup_codes` | `user_id` PK FK | Backup-code hashes for TOTP MFA. |
+| `system_admins` | `user_id` PK | Bypasses team boundaries. SECURITY DEFINER predicate `is_system_admin()` is the only sane lookup (SAL-003). |
 
-### `businesses`
-Legal business entity. Owns one or more teams. Identity columns are all nullable — a brand-new business exists as a shell until the user fills in legal details.
+## Business identity (a Team's "issuer" for invoices)
 
-| Column | Type | Notes |
-|--------|------|-------|
-| id | UUID (PK) | |
-| name | TEXT | Display name (may differ from legal_name) |
-| legal_name | TEXT | Registered legal name as filed with the state |
-| entity_type | TEXT | `sole_prop\|llc\|s_corp\|c_corp\|partnership\|nonprofit\|other` |
-| tax_id | TEXT | EIN or equivalent |
-| date_incorporated | DATE | |
-| fiscal_year_start | TEXT | MM-DD format |
-| created_at, updated_at | TIMESTAMPTZ | |
+| Table | Purpose |
+|---|---|
+| `businesses` | The legal entity invoices are sent under. SAL-026 locks INSERT to SECURITY DEFINER paths. |
+| `businesses_history` | Append-only |
+| `business_identity_private` | Tax IDs / EIN / SSN / fiscal year start. SAL-012 narrowed read access. |
+| `business_identity_private_history` | Append-only |
+| `business_state_registrations` | Per-state DBA / sales-tax / employer registrations. |
+| `business_state_registrations_history` | Append-only |
+| `business_tax_registrations` | Federal + state tax-id registry (subset of identity_private). |
+| `business_registered_agents` | Per-state agent of record. |
+| `business_people` | Officers / owners / employees / 1099 contractors. PII columns include compensation, equity, address. |
+| `business_people_history` | Append-only |
 
-`teams.business_id` references `businesses(id)` NOT NULL — every team belongs to exactly one business. A trigger blocks `UPDATE teams SET business_id` once the team has invoices or expenses.
+## Customers (was "clients" pre-2026-04-14)
 
-### `user_business_affiliations`
-A user's "home business" — who they are employed by or contract through. Informational identity, not authorization (auth is derived from `team_members`).
+| Table | Purpose |
+|---|---|
+| `customers` | The downstream entity invoices are sent TO. `team_id`-scoped. Includes `email`, `address`, `default_rate`, `payment_terms_days`, `archived`, `bounced_at`/`complained_at` (Resend webhook flags), `imported_from`/`imported_at`/`import_run_id`. |
+| `customers_v` | View used by `/customers` list page. Adds derived columns the app lists need. |
+| `customer_contacts` | People at a customer org — invoice recipient list. SAL-013 narrowed RLS to team-only after a member-visibility decision. |
+| `customer_shares` | Cross-team visibility of a customer (subcontracting, parent-agency consolidation). |
+| `customer_permissions` | Fine-grained: per-(user OR group) `viewer`/`contributor`/`admin` on a customer. SAL-013 + batch-2 action role gates. |
+| `security_groups` | Named principal sets that customer_permissions can grant to. Platform primitive. |
+| `security_group_members` | `(group_id, user_id)`. |
 
-| Column | Type | Notes |
-|--------|------|-------|
-| id | UUID (PK) | |
-| user_id | UUID | References `auth.users(id)` CASCADE |
-| business_id | UUID | References `businesses(id)` CASCADE |
-| affiliation_role | TEXT | `owner\|employee\|contractor\|partner` |
-| is_primary | BOOLEAN | Partial unique index enforces one primary per user |
-| started_on, ended_on | DATE | Optional |
-| notes | TEXT | |
+## Projects + time + categories (Stint module)
 
-### `business_state_registrations`
-Every state where the business is formed or foreign-qualified. Symmetric model — formation and foreign qualifications live in the same table, distinguished by `is_formation`.
+| Table | Purpose |
+|---|---|
+| `projects` | Belongs to a customer (or `is_internal=true` with `customer_id IS NULL`). `default_billable`, `hourly_rate`, `category_set_id`, `extension_category_set_id`, `github_repo`, `jira_project_key`, `invoice_code`, `require_timestamps`. `2026-05-04` introduced first-class internal projects. |
+| `projects_v` | View used by `/projects` list page. |
+| `time_entries` | The core unit. `start_time`/`end_time` (with generated `duration_min`), `billable`, `description`, `github_issue`, `category_id`, `project_id` (→ `team_id` enforced), `user_id`. Soft-delete via `deleted_at`. Invoice-locked entries have `invoice_id` set + cannot be edited (SAL-006). |
+| `time_entries_history` | Append-only. Captures pre-invoice → post-invoice transitions. |
+| `time_templates` | Per-user named templates that pre-fill the new-entry form. |
+| `categories` | Belongs to a `category_sets` row. Per-team or system-provided. |
+| `category_sets` | Group of categories that a project links to. System sets seed `software`, `meetings`, `admin`, etc.; teams can fork their own. |
 
-| Column | Type | Notes |
-|--------|------|-------|
-| id | UUID (PK) | |
-| business_id | UUID | References `businesses(id)` CASCADE |
-| state | TEXT | Two-letter USPS code |
-| is_formation | BOOLEAN | Partial unique index: exactly one formation per business |
-| registration_type | TEXT | `domestic\|foreign_qualification` |
-| entity_number | TEXT | State-assigned filing number |
-| state_tax_id | TEXT | Distinct from EIN in some states |
-| registered_on | DATE | State approval date |
-| nexus_start_date | DATE | When the business first had nexus — defends late-registration penalties |
-| registration_status | TEXT | `pending\|active\|delinquent\|withdrawn\|revoked` |
-| withdrawn_on, revoked_on | DATE | Required when status is `withdrawn` / `revoked` (CHECK constraint) |
-| report_frequency | TEXT | `annual\|biennial\|decennial` |
-| due_rule | TEXT | `fixed_date\|anniversary\|quarter_end` |
-| annual_report_due_mmdd | TEXT | MM-DD |
-| next_due_date | DATE | Currently user-maintained |
-| annual_report_fee_cents | INTEGER | Cents, never float |
-| registered_agent_id | UUID | References `business_registered_agents(id)` SET NULL |
-| notes | TEXT | |
-| deleted_at | TIMESTAMPTZ | Soft delete |
+## Invoices
 
-### `business_tax_registrations`
-Sales/use tax and similar tax-specific registrations. Separate from state registrations because filing cadence and ID scheme differ.
+| Table | Purpose |
+|---|---|
+| `invoices` | Issued documents. Status enum: `draft|sent|paid|void|overdue` (overdue is a read-time projection). Carries `team_id`, `customer_id`, denormalized `business_id` (frozen at creation), `invoice_number`, money columns (`subtotal`, `discount_amount`, `discount_rate`, `tax_rate`, `tax_amount`, `total`, `currency`), audit timestamps (`sent_at`, `paid_at`, `voided_at`), payment terms, layout options, sent-to-email summary, import-from markers. |
+| `invoices_history` | Append-only event log; SAL-006/010/011 hardened the audit chain. |
+| `invoice_line_items` | Per-line breakdown of a single invoice. |
+| `invoice_line_items_history` | Append-only |
+| `invoice_payments` | Recorded payments (manual or imported). `amount` + `currency` + `paid_on` + `paid_at` + `method` + `reference`. Currency-aware aggregation in batch-3 (bookkeeper #13). |
 
-| Column | Type | Notes |
-|--------|------|-------|
-| id | UUID (PK) | |
-| business_id | UUID | References `businesses(id)` CASCADE |
-| state | TEXT | Two-letter USPS code |
-| tax_type | TEXT | `sales_use\|seller_use\|consumer_use\|gross_receipts` |
-| permit_number | TEXT | |
-| tax_registration_status | TEXT | `pending\|active\|delinquent\|closed` |
-| filing_frequency | TEXT | `monthly\|quarterly\|annual\|semi_annual` |
-| registered_on, nexus_start_date, closed_on, next_filing_due | DATE | |
-| notes | TEXT | |
-| deleted_at | TIMESTAMPTZ | Soft delete |
+## Messaging / outbox (per-team email pipeline)
 
-### `business_people`
-Employment records — everyone the business employs, contracts, or otherwise tracks on payroll. A person MAY be linked to a Shyre user via `user_id` but does not have to be. Linking does NOT grant access (auth is via `team_members`).
+| Table | Purpose |
+|---|---|
+| `team_email_config` | (listed above) Per-team Resend config + encrypted key. |
+| `verified_email_domains` | (listed above) Domain verification mirror. |
+| `message_outbox` | Generic outbound queue. Carries `kind` (`invoice`/`invoice_reminder`/`payment_thanks`), `to_emails` (array), encrypted body refs, status, retry counts. |
+| `message_outbox_events` | Webhook delivery events from Resend, deduped on `svix_id` (SAL-023). |
+| `message_outbox_history` | Append-only log of state transitions. |
 
-| Column | Type | Notes |
-|--------|------|-------|
-| id | UUID (PK) | |
-| business_id | UUID | References `businesses(id)` CASCADE |
-| user_id | UUID | References `auth.users(id)` SET NULL — nullable, optional link |
-| legal_name | TEXT | Required. As on tax forms. Distinct from `user_profiles.display_name` |
-| preferred_name | TEXT | Optional UI display override |
-| work_email, work_phone | TEXT | Payroll/HR contact, distinct from login email |
-| employment_type | TEXT | `w2_employee\|1099_contractor\|partner\|owner\|unpaid` |
-| title, department, employee_number | TEXT | Optional |
-| started_on, ended_on | DATE | CHECK ended >= started |
-| compensation_type | TEXT | `salary\|hourly\|project_based\|equity_only\|unpaid` |
-| compensation_amount_cents | INTEGER | Cents, never float |
-| compensation_currency | TEXT | Default `USD` |
-| compensation_schedule | TEXT | `annual\|monthly\|biweekly\|weekly\|per_hour\|per_project` |
-| address_line1/2, city, state, postal_code, country | TEXT | For 1099 mailing |
-| reports_to_person_id | UUID | Self-reference SET NULL |
-| notes | TEXT | |
-| deleted_at | TIMESTAMPTZ | Soft delete |
+## Expenses (Business module)
 
-Partial unique index on `(business_id, user_id) WHERE user_id IS NOT NULL AND deleted_at IS NULL` — one person-record per linked user per business. Unlinked rows (user_id null) can duplicate freely.
+| Table | Purpose |
+|---|---|
+| `expenses` | Team-scoped expense rows. Inline-edited via `EditableCell`. Soft-delete via `deleted_at`. Imported-from markers. Period-lock trigger applies. |
 
-### `business_registered_agents`
-Structured address for each registered agent. One agent commonly serves one business across many states.
+## Imports
 
-| Column | Type | Notes |
-|--------|------|-------|
-| id | UUID (PK) | |
-| business_id | UUID | References `businesses(id)` CASCADE |
-| name | TEXT | |
-| address_line1, city, state, postal_code, country | TEXT | Structured address — filings rejected on formatting |
-| address_line2 | TEXT | Optional |
-| contact_email, contact_phone | TEXT | Optional |
-| notes | TEXT | |
-| deleted_at | TIMESTAMPTZ | Soft delete |
+| Table | Purpose |
+|---|---|
+| `import_runs` | One row per Harvest CSV upload. `triggered_by_user_id`, summary counts, `undone_at`. |
 
-## Tables
+## Operations / system
 
-### `user_settings`
-One row per user, auto-created on signup via trigger.
+| Table | Purpose |
+|---|---|
+| `error_logs` | Triage table. Server actions wrapped in `runSafeAction` log automatically; API routes call `logError` manually. Viewer at `/system/errors`. |
+| `instance_deploy_config` | Single-row table with the Vercel API token, expiry, and deploy-hook URL. Encrypted via the same envelope scheme as Resend keys. |
+| `system_admins` | (listed above) |
 
-| Column | Type | Notes |
-|--------|------|-------|
-| user_id | UUID (PK) | References `auth.users(id)` |
-| business_name | TEXT | |
-| business_email | TEXT | |
-| business_address | TEXT | |
-| business_phone | TEXT | |
-| logo_url | TEXT | Supabase Storage URL |
-| default_rate | NUMERIC(10,2) | Default: 0 |
-| invoice_prefix | TEXT | Default: 'INV' |
-| invoice_next_num | INTEGER | Default: 1 |
-| tax_rate | NUMERIC(5,2) | Default: 0 |
-| github_token | TEXT | Encrypted, PAT for GitHub API |
-| preferred_theme | TEXT | `system\|light\|dark\|high-contrast`. NULL = follow system |
-| timezone | TEXT | IANA name (e.g. `America/Los_Angeles`). NULL = browser-detected |
-| locale | TEXT | `en\|es`. NULL = app default (en) |
-| week_start | TEXT | `monday\|sunday`. NULL = monday (ISO) |
-| time_format | TEXT | `12h\|24h`. NULL = locale default |
-| created_at | TIMESTAMPTZ | |
-| updated_at | TIMESTAMPTZ | Auto-updated via trigger |
+## Encryption envelope
 
-### `customers` (renamed from `clients`)
-| Column | Type | Notes |
-|--------|------|-------|
-| id | UUID (PK) | `gen_random_uuid()` |
-| user_id | UUID | References `auth.users(id)` |
-| name | TEXT | Required |
-| email | TEXT | |
-| address | TEXT | |
-| notes | TEXT | |
-| default_rate | NUMERIC(10,2) | Hourly rate |
-| created_at | TIMESTAMPTZ | |
-| archived | BOOLEAN | Default: false |
+Two layers: a **KEK** (key-encryption key, env var `EMAIL_KEY_ENCRYPTION_KEY` — single instance-wide AES-256 key) wraps **per-team DEKs** (data-encryption keys, generated when a team first enables the feature). Encrypted secrets in `team_email_config.api_key_encrypted` and `instance_deploy_config.api_token` are AES-256-GCM ciphertexts (12-byte IV || 16-byte auth tag || ciphertext) with the DEK.
 
-### `projects`
-| Column | Type | Notes |
-|--------|------|-------|
-| id | UUID (PK) | |
-| client_id | UUID | References `clients(id)` CASCADE |
-| user_id | UUID | References `auth.users(id)` |
-| name | TEXT | Required |
-| description | TEXT | |
-| hourly_rate | NUMERIC(10,2) | Overrides client rate |
-| budget_hours | NUMERIC(10,2) | Optional cap |
-| github_repo | TEXT | `owner/repo` format |
-| status | TEXT | `active\|paused\|completed\|archived` |
-| category_set_id | UUID | References `category_sets(id)` SET NULL — optional category template |
-| require_timestamps | BOOLEAN | Default true. When false, entries need only date + duration (no explicit start/end). |
-| created_at | TIMESTAMPTZ | |
+## Notable RLS patterns
 
-### `time_entries`
-| Column | Type | Notes |
-|--------|------|-------|
-| id | UUID (PK) | |
-| user_id | UUID | |
-| project_id | UUID | References `projects(id)` CASCADE |
-| description | TEXT | |
-| start_time | TIMESTAMPTZ | Required |
-| end_time | TIMESTAMPTZ | NULL while timer running |
-| duration_min | INTEGER | Generated: `EXTRACT(EPOCH FROM (end - start)) / 60` |
-| billable | BOOLEAN | Default: true |
-| github_issue | INTEGER | GitHub issue number |
-| category_id | UUID | References `categories(id)` SET NULL — trigger enforces set matches project |
-| invoiced | BOOLEAN | Default: false |
-| invoice_id | UUID | References `invoices(id)` SET NULL |
-| deleted_at | TIMESTAMPTZ | Soft delete. NULL for active entries; set to `now()` when trashed. Normal listings, reports, invoicing, and exports must include `WHERE deleted_at IS NULL`. The `/time-entries/trash` view reads rows where it's NOT NULL. RLS is unchanged — the owner can read, restore, or permanently delete their own trashed rows. |
-| created_at | TIMESTAMPTZ | |
+- **`user_team_role(team_id)` → 'owner' | 'admin' | 'member' | NULL.** SECURITY DEFINER. Used in dozens of policies.
+- **`isTeamAdmin(role)`** TS predicate — never inline `role === 'owner' || role === 'admin'`. See `docs/reference/roles-and-permissions.md`.
+- **Audit history tables** are SELECT-only for users; only SECURITY DEFINER triggers can INSERT.
+- **Period-lock triggers** (`tg_invoices_period_lock`, `tg_time_entries_period_lock`, `tg_expenses_period_lock`) refuse mutations whose date falls inside a closed period.
+- **SECURITY DEFINER role-transition RPCs** (`transfer_team_ownership`, `update_team_member_role`) own the role-flip writes — the `team_members.role` UPDATE path is intentionally narrow.
 
-Partial indexes:
-- `idx_time_entries_active_start_time (user_id, start_time) WHERE deleted_at IS NULL` — fast week/day listings without paying for trashed rows.
-- `idx_time_entries_deleted_at (user_id, deleted_at DESC) WHERE deleted_at IS NOT NULL` — fast trash queries.
+## Migrations directory
 
-### `category_sets`
-Templates of time categories. System sets (`is_system=true`, `team_id=NULL`) are seeded and visible to all users. Org sets are user-created copies or custom sets.
+`supabase/migrations/*.sql` — 107 files as of 2026-05-05. Timestamps are monotonic; the latest landed file is the source of truth for next-migration naming. See `docs/reference/migrations.md` for the deploy-ordering playbook (Vercel + db-migrate.yml run in parallel, so additive vs destructive ordering matters).
 
-| Column | Type | Notes |
-|--------|------|-------|
-| id | UUID (PK) | |
-| team_id | UUID | References `teams(id)` CASCADE; NULL for system sets |
-| name | TEXT | Required, unique per org |
-| description | TEXT | |
-| is_system | BOOLEAN | True for built-in templates |
-| created_by | UUID | References `auth.users(id)` |
-| created_at | TIMESTAMPTZ | |
+## Allow-list parity
 
-Check: `is_system` ↔ `team_id IS NULL` (system sets have no org; org sets have one).
-
-### `categories`
-Individual categories within a set.
-
-| Column | Type | Notes |
-|--------|------|-------|
-| id | UUID (PK) | |
-| category_set_id | UUID | References `category_sets(id)` CASCADE |
-| name | TEXT | Required, unique per set |
-| color | TEXT | Hex color, default `#6b7280` |
-| sort_order | INTEGER | Default 0 |
-| created_at | TIMESTAMPTZ | |
-
-### `time_templates`
-Saved (project + category + description + billable) combos for one-click timer starts. Scoped to the owning user within an org.
-
-| Column | Type | Notes |
-|--------|------|-------|
-| id | UUID (PK) | |
-| team_id | UUID | References `teams(id)` CASCADE |
-| user_id | UUID | References `auth.users(id)` CASCADE |
-| project_id | UUID | References `projects(id)` CASCADE |
-| category_id | UUID | References `categories(id)` SET NULL |
-| name | TEXT | Display name; unique per (user, org) |
-| description | TEXT | Pre-filled into the started entry |
-| billable | BOOLEAN | Default true |
-| sort_order | INTEGER | Default 0 |
-| last_used_at | TIMESTAMPTZ | Updated when template is used |
-| created_at | TIMESTAMPTZ | |
-
-### `invoices`
-Carries a denormalized `business_id` (NOT NULL) set at creation time via trigger from `teams.business_id`. Invoices are legal documents; issuer must be stable even if the team is re-parented later.
-
-| Column | Type | Notes |
-|--------|------|-------|
-| id | UUID (PK) | |
-| user_id | UUID | |
-| client_id | UUID | References `clients(id)` |
-| invoice_number | TEXT | Auto-generated, e.g. `INV-2026-001` |
-| issued_date | DATE | |
-| due_date | DATE | |
-| status | TEXT | `draft\|sent\|paid\|overdue\|void` |
-| subtotal | NUMERIC(10,2) | |
-| tax_rate | NUMERIC(5,2) | |
-| tax_amount | NUMERIC(10,2) | |
-| total | NUMERIC(10,2) | |
-| notes | TEXT | |
-| created_at | TIMESTAMPTZ | |
-
-### `invoice_line_items`
-| Column | Type | Notes |
-|--------|------|-------|
-| id | UUID (PK) | |
-| invoice_id | UUID | References `invoices(id)` CASCADE |
-| description | TEXT | Required |
-| quantity | NUMERIC(10,2) | Hours |
-| unit_price | NUMERIC(10,2) | Rate |
-| amount | NUMERIC(10,2) | quantity * unit_price |
-| time_entry_id | UUID | References `time_entries(id)` SET NULL |
-
-## RLS Policies
-
-Every table uses `FOR ALL` policies scoped to `auth.uid() = user_id`. Exception: `invoice_line_items` uses a subquery to check the parent invoice's `user_id`.
-
-## Triggers
-
-- `on_auth_user_created` — Auto-creates `user_settings` row on signup
-- `user_settings_updated_at` — Updates `updated_at` on settings changes
-
-## Indexes
-
-Indexes exist on all foreign key columns plus `time_entries.start_time` for efficient date range queries.
+Every CHECK-constrained enum column has a TS allow-list set in the relevant module's `allow-lists.ts`. The parity test at `src/__tests__/db-parity.test.ts` enforces the two-sided contract — adding a value to the constraint requires updating the TS allow-list in the same PR (and vice versa). Coverage as of 2026-05-05: 22 paired enums.
