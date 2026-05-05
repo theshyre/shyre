@@ -47,6 +47,17 @@ interface ExpenseRow {
   team_id: string;
   user_id: string;
   deleted_at?: string | null;
+  // Wider columns used by splitExpenseAction. Optional so simpler
+  // delete/restore tests don't need to seed them.
+  id?: string;
+  incurred_on?: string;
+  amount?: number;
+  currency?: string;
+  vendor?: string | null;
+  description?: string | null;
+  notes?: string | null;
+  project_id?: string | null;
+  billable?: boolean;
 }
 
 const state: {
@@ -99,8 +110,10 @@ import {
   createExpenseAction,
   deleteExpenseAction,
   restoreExpenseAction,
+  splitExpenseAction,
   updateExpenseAction,
 } from "./actions";
+import { validateSplits } from "./split-helpers";
 
 function reset(): void {
   state.fetchedExpense = null;
@@ -421,5 +434,293 @@ describe("restoreExpenseAction", () => {
     await expect(restoreExpenseAction(fd({}))).rejects.toThrow(
       /Expense id required/,
     );
+  });
+});
+
+describe("splitExpenseAction", () => {
+  beforeEach(() => {
+    reset();
+    // Default: validateSplits returns ok=true for any input. Tests
+    // that check the refusal path override this.
+    vi.mocked(validateSplits).mockReturnValue({
+      ok: true,
+      summary: null,
+      perSplit: {},
+    });
+  });
+
+  function seedOriginal(): void {
+    state.fetchedExpense = {
+      id: "e-1",
+      team_id: "team-1",
+      user_id: fakeUserId,
+      deleted_at: null,
+      incurred_on: "2026-04-15",
+      amount: 100,
+      currency: "USD",
+      vendor: "GitHub",
+      description: "subscription",
+      notes: "annual",
+      project_id: null,
+      billable: false,
+    };
+  }
+
+  function splitsJson(splits: Array<{
+    amount: number;
+    category: string;
+    notes?: string | null;
+  }>): string {
+    return JSON.stringify(
+      splits.map((s) => ({
+        amount: s.amount,
+        category: s.category,
+        notes: s.notes ?? null,
+      })),
+    );
+  }
+
+  it("updates the original to splits[0] and inserts the rest", async () => {
+    seedOriginal();
+    mockValidateTeamAccess.mockResolvedValue({
+      userId: fakeUserId,
+      role: "member",
+    });
+
+    await splitExpenseAction(
+      fd({
+        id: "e-1",
+        splits: splitsJson([
+          { amount: 60, category: "software" },
+          { amount: 30, category: "subscriptions" },
+          { amount: 10, category: "fees" },
+        ]),
+      }),
+    );
+
+    // Original got updated to splits[0].
+    expect(state.updates).toHaveLength(1);
+    const patch = state.updates[0]?.patch as Record<string, unknown>;
+    expect(patch.amount).toBe(60);
+    expect(patch.category).toBe("software");
+    // notes preserved (no override) — split inherits original.notes.
+    expect(patch.notes).toBe("annual");
+    expect(state.updates[0]?.where).toEqual({ id: "e-1" });
+
+    // Two new rows inserted (splits[1] + splits[2]). They inherit
+    // the original's date / vendor / description / project / billable.
+    expect(state.inserts).toHaveLength(1);
+    const inserted = state.inserts[0]?.rows as Array<Record<string, unknown>>;
+    expect(inserted).toHaveLength(2);
+    expect(inserted[0]).toMatchObject({
+      team_id: "team-1",
+      user_id: fakeUserId,
+      incurred_on: "2026-04-15",
+      amount: 30,
+      category: "subscriptions",
+      currency: "USD",
+      vendor: "GitHub",
+      description: "subscription",
+      notes: null,
+      billable: false,
+    });
+    expect(inserted[1]).toMatchObject({
+      amount: 10,
+      category: "fees",
+    });
+  });
+
+  it("uses the per-split notes override when supplied", async () => {
+    seedOriginal();
+    mockValidateTeamAccess.mockResolvedValue({
+      userId: fakeUserId,
+      role: "member",
+    });
+
+    await splitExpenseAction(
+      fd({
+        id: "e-1",
+        splits: splitsJson([
+          { amount: 60, category: "software", notes: "Q1 share" },
+          { amount: 40, category: "subscriptions", notes: "Q2 share" },
+        ]),
+      }),
+    );
+
+    const patch = state.updates[0]?.patch as Record<string, unknown>;
+    expect(patch.notes).toBe("Q1 share");
+    const inserted = state.inserts[0]?.rows as Array<Record<string, unknown>>;
+    expect(inserted[0]?.notes).toBe("Q2 share");
+  });
+
+  it("works when only one split is supplied (no inserts; just an update)", async () => {
+    seedOriginal();
+    mockValidateTeamAccess.mockResolvedValue({
+      userId: fakeUserId,
+      role: "member",
+    });
+
+    await splitExpenseAction(
+      fd({
+        id: "e-1",
+        splits: splitsJson([{ amount: 100, category: "subscriptions" }]),
+      }),
+    );
+
+    expect(state.updates).toHaveLength(1);
+    expect(state.inserts).toEqual([]);
+  });
+
+  it("refuses to split a soft-deleted expense", async () => {
+    seedOriginal();
+    state.fetchedExpense = {
+      ...state.fetchedExpense!,
+      deleted_at: "2026-04-15T00:00:00Z",
+    };
+    mockValidateTeamAccess.mockResolvedValue({
+      userId: fakeUserId,
+      role: "member",
+    });
+
+    await expect(
+      splitExpenseAction(
+        fd({
+          id: "e-1",
+          splits: splitsJson([
+            { amount: 60, category: "software" },
+            { amount: 40, category: "subscriptions" },
+          ]),
+        }),
+      ),
+    ).rejects.toThrow(/deleted/);
+    expect(state.updates).toEqual([]);
+    expect(state.inserts).toEqual([]);
+  });
+
+  it("refuses when caller is a non-author member (RLS would also block)", async () => {
+    seedOriginal();
+    state.fetchedExpense = {
+      ...state.fetchedExpense!,
+      user_id: "u-other",
+    };
+    mockValidateTeamAccess.mockResolvedValue({
+      userId: fakeUserId,
+      role: "member",
+    });
+
+    await expect(
+      splitExpenseAction(
+        fd({
+          id: "e-1",
+          splits: splitsJson([
+            { amount: 60, category: "software" },
+            { amount: 40, category: "subscriptions" },
+          ]),
+        }),
+      ),
+    ).rejects.toThrow(/author.*owner.*admin/i);
+  });
+
+  it("admin can split (not the author)", async () => {
+    seedOriginal();
+    state.fetchedExpense = {
+      ...state.fetchedExpense!,
+      user_id: "u-other",
+    };
+    mockValidateTeamAccess.mockResolvedValue({
+      userId: fakeUserId,
+      role: "admin",
+    });
+
+    await splitExpenseAction(
+      fd({
+        id: "e-1",
+        splits: splitsJson([
+          { amount: 50, category: "software" },
+          { amount: 50, category: "subscriptions" },
+        ]),
+      }),
+    );
+
+    expect(state.updates).toHaveLength(1);
+  });
+
+  it("propagates the validation summary when splits don't sum correctly", async () => {
+    seedOriginal();
+    mockValidateTeamAccess.mockResolvedValue({
+      userId: fakeUserId,
+      role: "member",
+    });
+    vi.mocked(validateSplits).mockReturnValue({
+      ok: false,
+      summary: "Splits must sum to $100.00",
+      perSplit: {},
+    });
+
+    await expect(
+      splitExpenseAction(
+        fd({
+          id: "e-1",
+          splits: splitsJson([
+            { amount: 50, category: "software" },
+            // sums to $50, not the original $100
+          ]),
+        }),
+      ),
+    ).rejects.toThrow(/sum to \$100/);
+    expect(state.updates).toEqual([]);
+  });
+
+  it("rejects when the splits payload is not valid JSON", async () => {
+    await expect(
+      splitExpenseAction(fd({ id: "e-1", splits: "not-json" })),
+    ).rejects.toThrow(/invalid/i);
+    expect(state.updates).toEqual([]);
+  });
+
+  it("rejects when the splits payload is not an array", async () => {
+    await expect(
+      splitExpenseAction(
+        fd({ id: "e-1", splits: '{"amount": 100}' }),
+      ),
+    ).rejects.toThrow(/array|invalid/i);
+    expect(state.updates).toEqual([]);
+  });
+
+  it("rejects when id is missing (no DB read)", async () => {
+    await expect(
+      splitExpenseAction(
+        fd({ splits: splitsJson([{ amount: 100, category: "software" }]) }),
+      ),
+    ).rejects.toThrow(/Expense id required/);
+  });
+
+  it("rejects when splits payload is missing", async () => {
+    await expect(splitExpenseAction(fd({ id: "e-1" }))).rejects.toThrow(
+      /Splits payload required/,
+    );
+  });
+
+  it("rounds split amounts to 2dp before write", async () => {
+    seedOriginal();
+    mockValidateTeamAccess.mockResolvedValue({
+      userId: fakeUserId,
+      role: "member",
+    });
+
+    await splitExpenseAction(
+      fd({
+        id: "e-1",
+        splits: splitsJson([
+          { amount: 33.333, category: "software" },
+          { amount: 66.667, category: "subscriptions" },
+        ]),
+      }),
+    );
+
+    const patch = state.updates[0]?.patch as Record<string, unknown>;
+    expect(patch.amount).toBe(33.33);
+    const inserted = state.inserts[0]?.rows as Array<Record<string, unknown>>;
+    expect(inserted[0]?.amount).toBe(66.67);
   });
 });
