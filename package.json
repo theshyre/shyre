@@ -22,6 +22,7 @@
     "db:push": "bash scripts/db-push.sh",
     "db:status": "bash scripts/db-status.sh",
     "db:new": "supabase migration new",
+    "db:backup": "bash scripts/db-backup.sh",
     "seed:company": "tsx --env-file=.env.local scripts/seed-company-time-log.ts",
     "setup:company": "npm run db:push && npm run seed:company"
   },
