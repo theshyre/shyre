@@ -76,11 +76,17 @@ const state: {
   invoiceIdToInsert: string;
   inserts: { table: string; rows: unknown }[];
   updates: { table: string; patch: unknown; where: Record<string, string | string[]> }[];
+  deletes: { table: string; where: Record<string, string> }[];
   insertShouldError: boolean;
   /** What `.from("invoices").select("team_id, status").eq("id", _).maybeSingle()`
    *  resolves to. The tightened `updateInvoiceStatusAction` reads this
-   *  before the role check + transition guard. */
+   *  before the role check + transition guard. `deleteInvoiceAction`
+   *  uses the same shape. */
   fetchedInvoice: FetchedInvoice | null;
+  /** Count returned for the `.from("invoice_payments").select("id",
+   *  { count: "exact", head: true }).eq("invoice_id", id)` pre-flight
+   *  check inside deleteInvoiceAction. */
+  paymentCount: number;
 } = {
   timeEntries: [],
   settings: null,
@@ -88,8 +94,10 @@ const state: {
   invoiceIdToInsert: "inv-1",
   inserts: [],
   updates: [],
+  deletes: [],
   insertShouldError: false,
   fetchedInvoice: null,
+  paymentCount: 0,
 };
 
 function mockSupabase() {
@@ -109,10 +117,28 @@ function mockSupabase() {
     if (table === "invoice_line_items") {
       return lineItemsChain();
     }
+    if (table === "invoice_payments") {
+      return invoicePaymentsChain();
+    }
     if (table === "user_profiles") {
       return userProfilesChain();
     }
     throw new Error(`unexpected table ${table}`);
+  }
+
+  // Used by deleteInvoiceAction to refuse delete when payments exist.
+  // Production calls .from("invoice_payments").select("id",
+  // { count: "exact", head: true }).eq("invoice_id", id).
+  function invoicePaymentsChain() {
+    const q = {
+      select: (_cols: string, _opts?: { count?: string; head?: boolean }) => q,
+      eq: (_col: string, _val: string) => Promise.resolve({
+        count: state.paymentCount,
+        data: null,
+        error: null,
+      }),
+    };
+    return q;
   }
 
   // Display-name lookup. Production reads
@@ -232,6 +258,15 @@ function mockSupabase() {
           return Promise.resolve({ data: null, error: null });
         },
       }),
+      delete: () => ({
+        eq: (col: string, val: string) => {
+          state.deletes.push({
+            table: "invoices",
+            where: { [col]: val },
+          });
+          return Promise.resolve({ data: null, error: null });
+        },
+      }),
     };
   }
 
@@ -253,6 +288,7 @@ vi.mock("@/lib/supabase/server", () => ({
 
 import {
   createInvoiceAction,
+  deleteInvoiceAction,
   updateInvoiceStatusAction,
 } from "./actions";
 
@@ -263,8 +299,10 @@ function resetState() {
   state.invoiceIdToInsert = "inv-1";
   state.inserts = [];
   state.updates = [];
+  state.deletes = [];
   state.insertShouldError = false;
   state.fetchedInvoice = null;
+  state.paymentCount = 0;
   mockValidateTeamAccess.mockReset();
   mockRevalidatePath.mockReset();
   mockRedirect.mockClear();
@@ -1021,5 +1059,286 @@ describe("createInvoiceAction", () => {
     );
     const rows = lineInsert?.rows as Array<{ unit_price: number }>;
     expect(rows[0]?.unit_price).toBe(300);
+  });
+});
+
+describe("deleteInvoiceAction", () => {
+  beforeEach(resetState);
+
+  it("hard-deletes a void invoice with no payments and revalidates the list", async () => {
+    state.fetchedInvoice = { team_id: "team-1", status: "void" };
+    state.paymentCount = 0;
+    mockValidateTeamAccess.mockResolvedValue({
+      userId: fakeUserId,
+      role: "owner",
+    });
+
+    await deleteInvoiceAction(fd({ id: "inv-7" }));
+
+    expect(mockValidateTeamAccess).toHaveBeenCalledWith("team-1");
+    expect(state.deletes).toEqual([
+      { table: "invoices", where: { id: "inv-7" } },
+    ]);
+    expect(mockRevalidatePath).toHaveBeenCalledWith("/invoices");
+    expect(mockRevalidatePath).toHaveBeenCalledWith("/import");
+  });
+
+  it("admins can delete (role='admin' passes the gate)", async () => {
+    state.fetchedInvoice = { team_id: "team-1", status: "void" };
+    mockValidateTeamAccess.mockResolvedValue({
+      userId: fakeUserId,
+      role: "admin",
+    });
+
+    await deleteInvoiceAction(fd({ id: "inv-7" }));
+
+    expect(state.deletes).toHaveLength(1);
+  });
+
+  it("rejects a plain member (only owner|admin can delete)", async () => {
+    state.fetchedInvoice = { team_id: "team-1", status: "void" };
+    mockValidateTeamAccess.mockResolvedValue({
+      userId: fakeUserId,
+      role: "member",
+    });
+
+    await expect(deleteInvoiceAction(fd({ id: "inv-7" }))).rejects.toThrow(
+      /owner.*admin/i,
+    );
+    expect(state.deletes).toEqual([]);
+  });
+
+  it("refuses to delete a draft invoice (must be void first)", async () => {
+    state.fetchedInvoice = { team_id: "team-1", status: "draft" };
+    mockValidateTeamAccess.mockResolvedValue({
+      userId: fakeUserId,
+      role: "owner",
+    });
+
+    await expect(deleteInvoiceAction(fd({ id: "inv-7" }))).rejects.toThrow(
+      /void/i,
+    );
+    expect(state.deletes).toEqual([]);
+  });
+
+  it("refuses to delete a sent invoice", async () => {
+    state.fetchedInvoice = { team_id: "team-1", status: "sent" };
+    mockValidateTeamAccess.mockResolvedValue({
+      userId: fakeUserId,
+      role: "owner",
+    });
+
+    await expect(deleteInvoiceAction(fd({ id: "inv-7" }))).rejects.toThrow(
+      /void/i,
+    );
+    expect(state.deletes).toEqual([]);
+  });
+
+  it("refuses to delete a paid invoice (terminal good state)", async () => {
+    state.fetchedInvoice = { team_id: "team-1", status: "paid" };
+    mockValidateTeamAccess.mockResolvedValue({
+      userId: fakeUserId,
+      role: "owner",
+    });
+
+    await expect(deleteInvoiceAction(fd({ id: "inv-7" }))).rejects.toThrow(
+      /void/i,
+    );
+    expect(state.deletes).toEqual([]);
+  });
+
+  it("refuses to delete a void invoice that has recorded payments", async () => {
+    state.fetchedInvoice = { team_id: "team-1", status: "void" };
+    state.paymentCount = 1;
+    mockValidateTeamAccess.mockResolvedValue({
+      userId: fakeUserId,
+      role: "owner",
+    });
+
+    await expect(deleteInvoiceAction(fd({ id: "inv-7" }))).rejects.toThrow(
+      /payment/i,
+    );
+    expect(state.deletes).toEqual([]);
+  });
+
+  it("rejects when the invoice id is missing — before any DB read", async () => {
+    await expect(deleteInvoiceAction(fd({}))).rejects.toThrow(
+      /Invoice id is required/,
+    );
+    expect(state.deletes).toEqual([]);
+    expect(mockValidateTeamAccess).not.toHaveBeenCalled();
+  });
+
+  it("returns 'not found' when the invoice id doesn't resolve — before role check", async () => {
+    state.fetchedInvoice = null;
+
+    await expect(
+      deleteInvoiceAction(fd({ id: "missing" })),
+    ).rejects.toThrow(/not found/i);
+    expect(mockValidateTeamAccess).not.toHaveBeenCalled();
+    expect(state.deletes).toEqual([]);
+  });
+});
+
+describe("createInvoiceAction — discount path", () => {
+  beforeEach(resetState);
+
+  function seedHappyPath(): void {
+    mockValidateTeamAccess.mockResolvedValue({
+      userId: fakeUserId,
+      role: "owner",
+    });
+    state.settings = {
+      invoice_prefix: "INV",
+      invoice_next_num: 1,
+      default_rate: 100,
+    };
+    state.timeEntries = [
+      {
+        id: "t1",
+        duration_min: 60,
+        description: "work",
+        projects: {
+          name: "Proj A",
+          hourly_rate: 100,
+          customer_id: "c1",
+          customers: null,
+        },
+      },
+    ];
+  }
+
+  function findInvoiceInsert(): {
+    discount_amount?: unknown;
+    discount_rate?: unknown;
+    discount_reason?: unknown;
+    subtotal?: unknown;
+    total?: unknown;
+  } {
+    const insert = state.inserts.find((i) => i.table === "invoices");
+    return (insert?.rows ?? {}) as Record<string, unknown>;
+  }
+
+  it("rate-only: 10% off a $100 subtotal → discount_amount=10, total=90", async () => {
+    seedHappyPath();
+    try {
+      await createInvoiceAction(
+        fd({
+          team_id: "team-1",
+          discount_rate: "10",
+        }),
+      );
+    } catch {
+      /* redirect throws */
+    }
+    const row = findInvoiceInsert();
+    expect(Number(row.discount_amount)).toBeCloseTo(10, 2);
+    expect(Number(row.discount_rate)).toBeCloseTo(10, 2);
+    expect(Number(row.subtotal)).toBeCloseTo(100, 2);
+    expect(Number(row.total)).toBeCloseTo(90, 2);
+  });
+
+  it("amount-only: $25 off a $100 subtotal → discount_rate=null, total=75", async () => {
+    seedHappyPath();
+    try {
+      await createInvoiceAction(
+        fd({
+          team_id: "team-1",
+          discount_amount: "25",
+        }),
+      );
+    } catch {
+      /* redirect */
+    }
+    const row = findInvoiceInsert();
+    expect(Number(row.discount_amount)).toBeCloseTo(25, 2);
+    // Rate is null when only an amount was supplied — display-only field.
+    expect(row.discount_rate).toBeNull();
+    expect(Number(row.total)).toBeCloseTo(75, 2);
+  });
+
+  it("amount wins when both rate and amount are present (explicit user intent)", async () => {
+    seedHappyPath();
+    try {
+      await createInvoiceAction(
+        fd({
+          team_id: "team-1",
+          discount_rate: "50",
+          discount_amount: "10",
+        }),
+      );
+    } catch {
+      /* redirect */
+    }
+    const row = findInvoiceInsert();
+    // Documented in calculateInvoiceTotals: amount takes priority.
+    expect(Number(row.discount_amount)).toBeCloseTo(10, 2);
+    expect(Number(row.total)).toBeCloseTo(90, 2);
+  });
+
+  it("invalid strings collapse to no discount (parseFloat NaN)", async () => {
+    seedHappyPath();
+    try {
+      await createInvoiceAction(
+        fd({
+          team_id: "team-1",
+          discount_rate: "ten percent",
+          discount_amount: "free",
+        }),
+      );
+    } catch {
+      /* redirect */
+    }
+    const row = findInvoiceInsert();
+    expect(Number(row.discount_amount)).toBeCloseTo(0, 2);
+    expect(row.discount_rate).toBeNull();
+    expect(Number(row.total)).toBeCloseTo(100, 2);
+  });
+
+  it("persists discount_reason when provided", async () => {
+    seedHappyPath();
+    try {
+      await createInvoiceAction(
+        fd({
+          team_id: "team-1",
+          discount_rate: "10",
+          discount_reason: "Loyalty discount",
+        }),
+      );
+    } catch {
+      /* redirect */
+    }
+    const row = findInvoiceInsert();
+    expect(row.discount_reason).toBe("Loyalty discount");
+  });
+
+  it("discount caps at the subtotal so total never goes negative", async () => {
+    seedHappyPath();
+    try {
+      await createInvoiceAction(
+        fd({
+          team_id: "team-1",
+          discount_amount: "9999",
+        }),
+      );
+    } catch {
+      /* redirect */
+    }
+    const row = findInvoiceInsert();
+    expect(Number(row.discount_amount)).toBeCloseTo(100, 2);
+    expect(Number(row.total)).toBeCloseTo(0, 2);
+  });
+
+  it("no discount fields → discount_amount=0, discount_rate=null, total=subtotal", async () => {
+    seedHappyPath();
+    try {
+      await createInvoiceAction(fd({ team_id: "team-1" }));
+    } catch {
+      /* redirect */
+    }
+    const row = findInvoiceInsert();
+    expect(Number(row.discount_amount)).toBeCloseTo(0, 2);
+    expect(row.discount_rate).toBeNull();
+    expect(Number(row.total)).toBeCloseTo(100, 2);
   });
 });
