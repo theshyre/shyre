@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useState, useTransition } from "react";
+import { useCallback, useEffect, useMemo, useState, useTransition } from "react";
 import { useTranslations } from "next-intl";
 import Link from "next/link";
 import { Archive, Building2 } from "lucide-react";
@@ -28,6 +28,10 @@ export interface ProjectRow {
   hourly_rate: number | null;
   status: string | null;
   is_internal: boolean;
+  /** When set, this row is a sub-project. The list renders it
+   *  immediately below its parent with an indented label so the
+   *  hierarchy is visible at a glance. */
+  parent_project_id: string | null;
   customers: { name: string } | null;
 }
 
@@ -90,6 +94,34 @@ export function ProjectsTable({
   const selectedCount = selected.size;
   const allSelected = projects.length > 0 && selectedCount === projects.length;
   const someSelected = selectedCount > 0 && !allSelected;
+
+  // Re-order to put each child immediately after its parent so the
+  // hierarchy is visually contiguous. Top-level projects keep the
+  // server-resolved sort order; children stay in their server-
+  // sorted order within their parent group. When a child's parent
+  // isn't in the visible page (filtered / paginated out), the
+  // child renders as a top-level row to avoid disappearing entirely.
+  const orderedProjects = useMemo(() => {
+    const visibleIds = new Set(projects.map((p) => p.id));
+    const childrenByParent = new Map<string, ProjectRow[]>();
+    const tops: ProjectRow[] = [];
+    for (const p of projects) {
+      if (p.parent_project_id && visibleIds.has(p.parent_project_id)) {
+        const arr = childrenByParent.get(p.parent_project_id) ?? [];
+        arr.push(p);
+        childrenByParent.set(p.parent_project_id, arr);
+      } else {
+        tops.push(p);
+      }
+    }
+    const out: ProjectRow[] = [];
+    for (const p of tops) {
+      out.push(p);
+      const kids = childrenByParent.get(p.id);
+      if (kids) out.push(...kids);
+    }
+    return out;
+  }, [projects]);
 
   useEffect(() => {
     if (selectedCount === 0) return;
@@ -279,14 +311,16 @@ export function ProjectsTable({
           </tr>
         </thead>
         <tbody>
-          {projects.map((project) => {
+          {orderedProjects.map((project) => {
             const customerName =
               project.customers?.name ?? null;
             const isInternal = project.is_internal === true;
             const isSelected = selected.has(project.id);
+            const isChild = project.parent_project_id !== null;
             return (
               <tr
                 key={project.id}
+                aria-level={isChild ? 2 : 1}
                 className={
                   isSelected
                     ? `${tableBodyRowClass} bg-accent-soft/30`
@@ -304,8 +338,21 @@ export function ProjectsTable({
                 <td className="px-4 py-3">
                   <Link
                     href={`/projects/${project.id}`}
-                    className="text-accent hover:underline font-medium"
+                    className={`text-accent hover:underline font-medium ${
+                      isChild ? "pl-6 inline-flex items-center gap-1.5" : ""
+                    }`}
                   >
+                    {/* Visual indent + ↳ glyph for sub-project rows.
+                        aria-level on the <tr> communicates the
+                        hierarchy to AT users. */}
+                    {isChild && (
+                      <span
+                        aria-hidden="true"
+                        className="text-content-muted"
+                      >
+                        ↳
+                      </span>
+                    )}
                     {project.name}
                   </Link>
                   {isInternal && (
