@@ -904,6 +904,15 @@ export async function POST(request: Request): Promise<NextResponse> {
       // authorized. Same precedent as materializeHarvestShellAccount
       // higher up in this file.
       const importAdminClient = createAdminClient();
+      // The per-row time_entries trigger that protects invoiced
+      // entries from UPDATE/DELETE raises with this exact message.
+      // When a re-import would refresh an already-landed-and-now-
+      // invoiced row, the upsert's ON CONFLICT … DO UPDATE path
+      // hits the trigger, the WHOLE batch rolls back, and other
+      // 99 rows in the batch silently fail to update too. We
+      // detect the message, retry the batch row-by-row, and
+      // route the locked rows to skipReasons rather than errors.
+      const INVOICE_LOCK_MARKER = "Time entry is invoiced";
       const BATCH_SIZE = 100;
       for (let i = 0; i < okRows.length; i += BATCH_SIZE) {
         const batch = okRows.slice(i, i + BATCH_SIZE);
@@ -916,6 +925,43 @@ export async function POST(request: Request): Promise<NextResponse> {
           });
 
         if (error) {
+          if (error.message.includes(INVOICE_LOCK_MARKER)) {
+            // Fall back to per-row upserts so the non-invoiced rows
+            // in this batch still get refreshed. Invoiced rows skip
+            // cleanly. The skipReasons line on the summary explains
+            // exactly what happened so the user isn't left guessing.
+            for (const row of batch) {
+              const { error: rowErr, count: rowCount } =
+                await importAdminClient
+                  .from("time_entries")
+                  .upsert([row], {
+                    onConflict:
+                      "team_id,imported_from,import_source_id",
+                    ignoreDuplicates: false,
+                    count: "exact",
+                  });
+              if (rowErr) {
+                if (rowErr.message.includes(INVOICE_LOCK_MARKER)) {
+                  skipReasons.set(
+                    "Already imported and on a non-void invoice — refresh skipped",
+                    (skipReasons.get(
+                      "Already imported and on a non-void invoice — refresh skipped",
+                    ) ?? 0) + 1,
+                  );
+                  timeEntriesSkipped++;
+                  continue;
+                }
+                // Any other per-row error is a real failure.
+                recordError(
+                  `Time entries row: ${rowErr.message}`,
+                  rowErr,
+                );
+                continue;
+              }
+              timeEntriesImported += rowCount ?? 1;
+            }
+            continue;
+          }
           recordError(`Time entries batch: ${error.message}`, error);
           continue;
         }
