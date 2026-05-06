@@ -2,7 +2,8 @@
 
 import { useState } from "react";
 import { useTranslations } from "next-intl";
-import { Trash2, Check, X, Split } from "lucide-react";
+import { Trash2, Check, X, Split, PanelRight } from "lucide-react";
+import { useRouter, usePathname, useSearchParams } from "next/navigation";
 import { Spinner, Avatar, resolveAvatarUrl } from "@theshyre/ui";
 import { Tooltip } from "@/components/Tooltip";
 import { useFormAction } from "@/hooks/use-form-action";
@@ -87,6 +88,15 @@ export function ExpenseRow({
   const toast = useToast();
   const [confirmingDelete, setConfirmingDelete] = useState(false);
   const [splitOpen, setSplitOpen] = useState(false);
+  const router = useRouter();
+  const pathname = usePathname();
+  const searchParams = useSearchParams();
+
+  function openDetailDrawer(): void {
+    const params = new URLSearchParams(searchParams.toString());
+    params.set("edit", expense.id);
+    router.push(`${pathname}?${params.toString()}`);
+  }
 
   const del = useFormAction({
     action: deleteExpenseAction,
@@ -398,6 +408,19 @@ export function ExpenseRow({
           </form>
         ) : (
           <div className="inline-flex items-center gap-0.5">
+            <Tooltip
+              label={t("ariaActions.openDetail", { vendor: ariaIdent })}
+              labelMode="label"
+            >
+              <button
+                type="button"
+                onClick={openDetailDrawer}
+                className="inline-flex items-center rounded-md p-1 text-content-secondary hover:bg-hover hover:text-content"
+                aria-label={t("ariaActions.openDetail", { vendor: ariaIdent })}
+              >
+                <PanelRight size={14} />
+              </button>
+            </Tooltip>
             <Tooltip
               label={t("ariaActions.split", { vendor: ariaIdent })}
               labelMode="label"

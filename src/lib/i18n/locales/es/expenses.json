@@ -45,7 +45,17 @@
     "edit": "Editar gasto de {vendor}",
     "delete": "Eliminar gasto de {vendor}",
     "editField": "Editar {field} de {vendor}",
-    "split": "Dividir {vendor} en varias categorías"
+    "split": "Dividir {vendor} en varias categorías",
+    "openDetail": "Abrir panel de detalle de {vendor}"
+  },
+  "drawer": {
+    "title": "{vendor} — editar",
+    "close": "Cerrar",
+    "untitled": "(gasto sin título)",
+    "savedHint": "Los cambios se guardan automáticamente al salir de cada campo.",
+    "placeholderVendor": "Nombre del proveedor (p. ej. Apple, AWS)",
+    "placeholderDescription": "Qué se compró, con el detalle que querrías tener a la hora de auditar.",
+    "placeholderNotes": "N.º de pedido, N.º de factura, detalles del recibo — cualquier cosa que quieras encontrar después."
   },
   "split": {
     "title": "Dividir este gasto",

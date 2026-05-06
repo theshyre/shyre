@@ -21,6 +21,7 @@ import {
   bulkUpdateExpenseProjectAction,
 } from "./actions";
 import { ExpenseRow, type ExpenseAuthor } from "./expense-row";
+import { ExpenseEditDrawer } from "./expense-edit-drawer";
 import {
   BulkBillablePicker,
   BulkCategoryPicker,
@@ -619,6 +620,20 @@ export function ExpensesTable({
         </tbody>
       </table>
       </div>
+      <ExpenseEditDrawer
+        expenses={expenses}
+        projects={projects}
+        canEditByExpenseId={Object.fromEntries(
+          expenses.map((e) => {
+            const role = teamRoleById.get(e.team_id) ?? "member";
+            const canEdit =
+              e.user_id === viewerUserId ||
+              role === "owner" ||
+              role === "admin";
+            return [e.id, canEdit];
+          }),
+        )}
+      />
     </div>
   );
 }

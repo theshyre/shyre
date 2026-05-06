@@ -45,7 +45,17 @@
     "edit": "Edit {vendor} expense",
     "delete": "Delete {vendor} expense",
     "editField": "Edit {field} for {vendor}",
-    "split": "Split {vendor} into multiple categories"
+    "split": "Split {vendor} into multiple categories",
+    "openDetail": "Open detail panel for {vendor}"
+  },
+  "drawer": {
+    "title": "{vendor} — edit",
+    "close": "Close",
+    "untitled": "(untitled expense)",
+    "savedHint": "Changes save automatically when you leave each field.",
+    "placeholderVendor": "Vendor name (e.g. Apple, AWS)",
+    "placeholderDescription": "What was bought, with as much detail as you'd want at audit time.",
+    "placeholderNotes": "Order #, invoice #, receipt details — anything you'd want to find later."
   },
   "split": {
     "title": "Split this expense",

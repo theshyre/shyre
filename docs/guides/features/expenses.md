@@ -6,6 +6,10 @@ Business expenses — subscriptions, hardware, travel, meals, fees. Tracked per 
 
 Sidebar → **Business** → **Expenses** tile → `/business/expenses`. The tile on `/business` shows this month's count and total at a glance.
 
+## Summary tiles
+
+Above the Add-expense form, four KPI tiles show totals for: **Year to date**, **This month**, **Last month**, and **This quarter**. Click a tile to apply that date range as a filter — click again to clear it. The active tile is highlighted. Other filters you've set (search, category, project, billable) are preserved when you toggle a tile.
+
 ## Adding an expense
 
 1. Press `N` or click **Add expense**
@@ -21,7 +25,27 @@ Sidebar → **Business** → **Expenses** tile → `/business/expenses`. The til
 
 ## Editing / deleting
 
-Click the pencil icon on any row to edit in place. Cmd+Enter saves, Esc cancels. Delete with the trash icon — a small inline confirm appears (no modal).
+Two ways to edit:
+
+- **In-table cells** — click any cell (date, amount, category, vendor, description, notes, project, billable). Edits commit on blur (Tab or click out). Cmd+Enter also commits, Esc cancels.
+- **Detail drawer** — click the side-panel icon in the row's actions column. A drawer slides in from the right with the same fields but more breathing room — multi-line description and notes textareas in particular. Same commit-on-blur semantics. Esc, the X button, or clicking the backdrop closes it. The drawer is deep-linkable: `/business/.../expenses?edit=<expense-id>` opens straight to it.
+
+Delete with the trash icon — a small inline confirm appears (no modal).
+
+## Bulk actions
+
+Select multiple rows via the checkboxes; a strip appears above the table:
+
+- **Set category** — re-categorize many rows at once
+- **Set project** — link a batch of expenses to a project
+- **Set billable** — flip the billable flag (Yes / No / Clear)
+- **Delete selected** — soft-delete with Undo toast
+
+The checkbox in the header is indeterminate when only some rows are selected; click it to toggle all-or-none. With filters active, a "Select all N matching" link extends the selection beyond the visible page.
+
+## "Recategorize N" banner
+
+If any expenses sit in the **Other** category, a banner above the table shows the count with a one-click **Recategorize N** link that filters the table down to just those rows so you can sweep them in one pass.
 
 ## Sample data
 
