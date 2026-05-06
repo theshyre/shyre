@@ -5,6 +5,10 @@ import { useTranslations } from "next-intl";
 import { Clock, Trash2 } from "lucide-react";
 import { TeamFilter } from "@/components/TeamFilter";
 import { MemberFilter, type MemberOption } from "./member-filter";
+import {
+  ProjectFilter,
+  type ProjectFilterOption,
+} from "@/components/ProjectFilter";
 import type { MemberSelection } from "./page";
 import type { TeamListItem } from "@/lib/team-context";
 import {
@@ -54,6 +58,15 @@ interface TimeHomeProps {
   logMaxWindowDays: number;
   running: TimeEntry | null;
   projects: ProjectOption[];
+  /** Project list for the toolbar's filter picker — includes BOTH
+   *  parent and leaf projects (unlike `projects`, which is leaf-only
+   *  for entry creation). Picking a parent rolls up to parent + leaf
+   *  children server-side. */
+  filterPickerProjects: ProjectFilterOption[];
+  /** Selected project id from `?project=` (or null when the filter
+   *  is off). The server has already resolved this to an `.in()` on
+   *  the entry queries — this prop just drives the picker UI. */
+  selectedProjectId: string | null;
   recentProjects: ProjectOption[];
   categories: CategoryOption[];
   templates: TimeTemplate[];
@@ -86,6 +99,8 @@ export function TimeHome({
   logMaxWindowDays,
   running,
   projects,
+  filterPickerProjects,
+  selectedProjectId,
   recentProjects,
   categories,
   templates,
@@ -181,6 +196,10 @@ export function TimeHome({
                 ? memberSelection
                 : memberSelection
           }
+        />
+        <ProjectFilter
+          projects={filterPickerProjects}
+          selectedId={selectedProjectId}
         />
         <BillableFilter active={billableOnly} />
         <div className="ml-auto flex items-start gap-2 flex-wrap">

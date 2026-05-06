@@ -66,7 +66,7 @@ A handful of tables are **business-scoped** (a Business owns 1+ Teams) — see "
 
 | Table | Purpose |
 |---|---|
-| `projects` | Belongs to a customer (or `is_internal=true` with `customer_id IS NULL`). `default_billable`, `hourly_rate`, `category_set_id`, `extension_category_set_id`, `github_repo`, `jira_project_key`, `invoice_code`, `require_timestamps`. `2026-05-04` introduced first-class internal projects. |
+| `projects` | Belongs to a customer (or `is_internal=true` with `customer_id IS NULL`). `default_billable`, `hourly_rate`, `category_set_id`, `extension_category_set_id`, `github_repo`, `jira_project_key`, `invoice_code`, `require_timestamps`. `2026-05-04` introduced first-class internal projects. `2026-04-30` added `parent_project_id` for sub-projects (one-level deep, trigger-enforced) — see `docs/reference/sub-projects-roadmap.md`. |
 | `projects_v` | View used by `/projects` list page. |
 | `time_entries` | The core unit. `start_time`/`end_time` (with generated `duration_min`), `billable`, `description`, `github_issue`, `category_id`, `project_id` (→ `team_id` enforced), `user_id`. Soft-delete via `deleted_at`. Invoice-locked entries have `invoice_id` set + cannot be edited (SAL-006). |
 | `time_entries_history` | Append-only. Captures pre-invoice → post-invoice transitions. |

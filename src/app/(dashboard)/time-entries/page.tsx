@@ -25,6 +25,8 @@ import { TimeHome } from "./time-home";
 import { NoTeamEmptyState } from "./no-team-empty-state";
 import type { TimeView } from "./view-toggle";
 import type { CategoryOption, TimeEntry } from "./types";
+import type { ProjectFilterOption } from "@/components/ProjectFilter";
+import { expandProjectFilter } from "@/lib/projects/expand-filter";
 
 // Supabase returns `projects(..., customers(...))` with `customers` as a
 // 1-element array even though it's a single FK row. Unwrap so downstream
@@ -109,6 +111,11 @@ interface PageProps {
     /** Log view only — how many days back from anchor to render.
      *  Default 14, max 90. Clamped server-side. */
     windowDays?: string;
+    /** Selected project id to scope entries to. When the id refers
+     *  to a parent project, the server expands to the parent + its
+     *  leaf children before applying the `.in()` filter
+     *  (`expandProjectFilter`). Unset = no project filter. */
+    project?: string;
   }>;
 }
 
@@ -207,12 +214,47 @@ export default async function TimeEntriesPage({
     memberFilter.length === 1 &&
     memberFilter[0] === callerId;
 
-  const [userSettings, joinedAt] = await Promise.all([
+  // Projects are needed before the entry queries so we can resolve
+  // the ?project= rollup filter (parent → parent + leaf children) and
+  // attach the filter to week/day/log/running queries. Hoisted into
+  // Phase 0 so the entry fetches in Phase 1 can reference the
+  // expanded id list. Net latency unchanged: this query was already
+  // parallel-able alongside settings + joined_at.
+  const projectsForFilterPromise = (() => {
+    let q = supabase
+      .from("projects")
+      .select(
+        "id, name, github_repo, jira_project_key, team_id, category_set_id, require_timestamps, is_internal, default_billable, parent_project_id, customers(id, name)",
+      )
+      .eq("status", "active")
+      .in("team_id", userTeamIds)
+      .order("name");
+    if (selectedTeamId) q = q.eq("team_id", selectedTeamId);
+    return q;
+  })();
+
+  const [userSettings, joinedAt, { data: rawProjects }] = await Promise.all([
     getUserSettings(),
     needsMembershipFloor && selectedTeamId
       ? getMembershipJoinedAt(supabase, callerId, selectedTeamId)
       : Promise.resolve(null),
+    projectsForFilterPromise,
   ]);
+
+  const projectsRawForFilter = (rawProjects ?? []).map((p) => ({
+    ...p,
+    customers: Array.isArray(p.customers)
+      ? (p.customers[0] ?? null)
+      : (p.customers ?? null),
+  }));
+
+  // Resolve `?project=` to an expanded id list (parent + leaf
+  // children when the selected id is a parent, or just `[id]` for a
+  // leaf or a non-existent id). null = no project filter.
+  const projectFilterId = sp.project?.trim() || null;
+  const expandedProjectIds = projectFilterId
+    ? expandProjectFilter(projectsRawForFilter, projectFilterId)
+    : null;
 
   const tzOffsetMin = userSettings.timezone
     ? getOffsetForZone(userSettings.timezone, new Date())
@@ -287,6 +329,13 @@ export default async function TimeEntriesPage({
     return query.in("user_id", memberFilter);
   }
 
+  function applyProjectFilter<T extends { in: (col: string, vals: string[]) => T }>(
+    query: T,
+  ): T {
+    if (expandedProjectIds === null) return query;
+    return query.in("project_id", expandedProjectIds);
+  }
+
   const recentSinceIso = new Date(
     new Date().getTime() - 30 * 24 * 3600 * 1000,
   ).toISOString();
@@ -308,7 +357,7 @@ export default async function TimeEntriesPage({
       .order("start_time", { ascending: true });
     if (selectedTeamId) q = q.eq("team_id", selectedTeamId);
     if (billableOnly) q = q.eq("billable", true);
-    return applyMemberFilter(q);
+    return applyProjectFilter(applyMemberFilter(q));
   })();
 
   // Day query — only the Day view consumes the result. Week and Log
@@ -324,31 +373,14 @@ export default async function TimeEntriesPage({
       .order("start_time", { ascending: true });
     if (selectedTeamId) q = q.eq("team_id", selectedTeamId);
     if (billableOnly) q = q.eq("billable", true);
-    return applyMemberFilter(q);
-  })();
-
-  // Active projects — fetched always; new-entry form + Recent chips
-  // need them on every view. Includes parent_project_id so we can
-  // filter to leaves below (a project that's a parent of any other
-  // project should NOT be picker-selectable, since logging time on
-  // the parent silently bypasses the per-phase budget the children
-  // exist to track).
-  const projectsPromise = (() => {
-    let q = supabase
-      .from("projects")
-      .select(
-        "id, name, github_repo, jira_project_key, team_id, category_set_id, require_timestamps, is_internal, default_billable, parent_project_id, customers(id, name)",
-      )
-      .eq("status", "active")
-      .in("team_id", userTeamIds)
-      .order("name");
-    if (selectedTeamId) q = q.eq("team_id", selectedTeamId);
-    return q;
+    return applyProjectFilter(applyMemberFilter(q));
   })();
 
   // Recent projects — last 30 days of project_ids; doesn't depend on
   // the projects fetch (we resolve project IDs against the project
-  // list afterwards, not via PostgREST embedding).
+  // list afterwards, not via PostgREST embedding). Honors the
+  // active project filter so the Recent chips don't surface
+  // out-of-scope projects.
   const recentPromise = (() => {
     let q = supabase
       .from("time_entries")
@@ -358,10 +390,13 @@ export default async function TimeEntriesPage({
       .order("start_time", { ascending: false })
       .limit(50);
     if (selectedTeamId) q = q.eq("team_id", selectedTeamId);
-    return q;
+    return applyProjectFilter(q);
   })();
 
-  // Running timer.
+  // Running timer — honors the project filter too. A timer on a
+  // non-matching project would visually contradict the toolbar's
+  // selected scope; better to hide it (it's still discoverable via
+  // /timer or by clearing the filter).
   const runningPromise = (() => {
     let q = supabase
       .from("time_entries")
@@ -371,7 +406,7 @@ export default async function TimeEntriesPage({
       .order("start_time", { ascending: false })
       .limit(1);
     if (selectedTeamId) q = q.eq("team_id", selectedTeamId);
-    return q;
+    return applyProjectFilter(q);
   })();
 
   // Member list (memberships + the subsequent profile lookup) — phase 1
@@ -412,7 +447,6 @@ export default async function TimeEntriesPage({
   const [
     { data: rawWeekEntries },
     { data: rawDayEntries },
-    { data: rawProjects },
     { data: recentRows },
     { data: runningEntries },
     { data: memberRows },
@@ -422,7 +456,6 @@ export default async function TimeEntriesPage({
   ] = await Promise.all([
     weekPromise,
     dayPromise,
-    projectsPromise,
     recentPromise,
     runningPromise,
     memberRowsPromise,
@@ -435,12 +468,7 @@ export default async function TimeEntriesPage({
   // Phase 2 — dependent reads run in parallel with each other.
   // ────────────────────────────────────────────────────────────
 
-  const projectsRaw = (rawProjects ?? []).map((p) => ({
-    ...p,
-    customers: Array.isArray(p.customers)
-      ? (p.customers[0] ?? null)
-      : (p.customers ?? null),
-  }));
+  const projectsRaw = projectsRawForFilter;
   const projectIds = projectsRaw.map((p) => p.id);
   const memberUserIds = Array.from(
     new Set((memberRows ?? []).map((m) => m.user_id as string)),
@@ -461,7 +489,7 @@ export default async function TimeEntriesPage({
             .order("start_time", { ascending: true });
           if (selectedTeamId) q = q.eq("team_id", selectedTeamId);
           if (billableOnly) q = q.eq("billable", true);
-          return applyMemberFilter(q);
+          return applyProjectFilter(applyMemberFilter(q));
         })()
       : Promise.resolve({ data: null });
 
@@ -519,6 +547,23 @@ export default async function TimeEntriesPage({
       ...p,
       extension_category_set_id: extensionByProject.get(p.id) ?? null,
     }));
+
+  // Picker source for the toolbar's project FILTER (not the entry-
+  // creation picker). Includes BOTH parent and leaf projects — picking
+  // a parent rolls up to parent + children via expandProjectFilter on
+  // the next request. Customer name is denormalised onto each row so
+  // two projects named "Phase 1" under different customers can be
+  // told apart in the dropdown.
+  const filterPickerProjects: ProjectFilterOption[] = projectsRaw.map(
+    (p) => ({
+      id: p.id as string,
+      name: p.name as string,
+      parent_project_id: (p.parent_project_id as string | null) ?? null,
+      customer_name:
+        (p.customers as { name?: string | null } | null)?.name ?? null,
+      is_internal: Boolean(p.is_internal),
+    }),
+  );
   const setIds = Array.from(
     new Set(
       projects
@@ -688,6 +733,8 @@ export default async function TimeEntriesPage({
       logMaxWindowDays={LOG_MAX_WINDOW_DAYS}
       running={running as unknown as TimeEntry | null}
       projects={projects}
+      filterPickerProjects={filterPickerProjects}
+      selectedProjectId={projectFilterId}
       recentProjects={recentProjects}
       categories={categories as unknown as CategoryOption[]}
       templates={templates}

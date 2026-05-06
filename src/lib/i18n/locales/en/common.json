@@ -214,5 +214,11 @@
       "projects": "No projects yet.",
       "members": "No members yet."
     }
+  },
+  "projectFilter": {
+    "all": "All projects",
+    "listboxLabel": "Filter by project",
+    "internal": "Internal",
+    "includesSub": "(+{count, plural, =1 {# sub-project} other {# sub-projects}})"
   }
 }

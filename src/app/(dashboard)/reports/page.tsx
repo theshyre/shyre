@@ -12,6 +12,11 @@ import { Avatar, resolveAvatarUrl } from "@theshyre/ui";
 import { formatCurrency } from "@/lib/invoice-utils";
 import { TeamFilter } from "@/components/TeamFilter";
 import {
+  ProjectFilter,
+  type ProjectFilterOption,
+} from "@/components/ProjectFilter";
+import { expandProjectFilter } from "@/lib/projects/expand-filter";
+import {
   fromIsoStartOfDay,
   resolveReportsPeriod,
   toIsoEndOfDay,
@@ -54,18 +59,66 @@ export default async function ReportsPage({
     from?: string;
     to?: string;
     preset?: string;
+    /** Selected project id; expanded server-side to parent + leaf
+     *  children when the id refers to a parent project. Unset = no
+     *  project filter (totals span every visible project in scope). */
+    project?: string;
   }>;
 }): Promise<React.JSX.Element> {
   const supabase = await createClient();
   const teams = await getUserTeams();
   const params = await searchParams;
   const selectedTeamId = params.org;
+  const projectFilterId = params.project?.trim() || null;
   const period = resolveReportsPeriod({
     from: params.from ?? null,
     to: params.to ?? null,
     preset: params.preset ?? null,
   });
   const t = await getTranslations("reports");
+
+  const userTeamIds = teams.map((tm) => tm.id);
+
+  // Project list for the picker — includes BOTH parents and leaves
+  // so a user can pick "the engagement" and roll up to children.
+  // Scoped by team selection when set, else all the user's teams.
+  const projectsQuery = (() => {
+    let q = supabase
+      .from("projects")
+      .select(
+        "id, name, parent_project_id, is_internal, customers(id, name)",
+      )
+      .eq("status", "active")
+      .order("name");
+    if (selectedTeamId) {
+      q = q.eq("team_id", selectedTeamId);
+    } else if (userTeamIds.length > 0) {
+      q = q.in("team_id", userTeamIds);
+    }
+    return q;
+  })();
+  const { data: rawProjects } = await projectsQuery;
+  const filterPickerProjects: ProjectFilterOption[] = (rawProjects ?? []).map(
+    (p) => {
+      const customers = p.customers as
+        | { name?: string | null }
+        | Array<{ name?: string | null }>
+        | null;
+      const customer = Array.isArray(customers)
+        ? (customers[0] ?? null)
+        : customers;
+      return {
+        id: p.id as string,
+        name: p.name as string,
+        parent_project_id: (p.parent_project_id as string | null) ?? null,
+        customer_name: customer?.name ?? null,
+        is_internal: Boolean(p.is_internal),
+      };
+    },
+  );
+  const expandedProjectIds = projectFilterId
+    ? expandProjectFilter(filterPickerProjects, projectFilterId)
+    : null;
 
   // Fetch time entries with project + client + author info, scoped
   // to the active period. Without a date scope this used to roll up
@@ -83,6 +136,9 @@ export default async function ReportsPage({
     .gte("start_time", fromIsoStartOfDay(period.from))
     .lte("start_time", toIsoEndOfDay(period.to));
   if (selectedTeamId) entriesQuery = entriesQuery.eq("team_id", selectedTeamId);
+  if (expandedProjectIds !== null) {
+    entriesQuery = entriesQuery.in("project_id", expandedProjectIds);
+  }
   const { data: entries } = await entriesQuery;
 
   // Get org's default rate (use selected org's settings if filtered, otherwise 0)
@@ -225,10 +281,14 @@ export default async function ReportsPage({
 
   return (
     <div>
-      <div className="flex items-center gap-3">
+      <div className="flex items-center gap-3 flex-wrap">
         <BarChart3 size={24} className="text-accent" />
         <h1 className="text-page-title font-bold text-content">{t("title")}</h1>
         <TeamFilter teams={teams} selectedTeamId={selectedTeamId ?? null} />
+        <ProjectFilter
+          projects={filterPickerProjects}
+          selectedId={projectFilterId}
+        />
       </div>
 
       <p className="mt-2 text-body text-content-muted">

@@ -384,6 +384,16 @@ Smaller items pulled out of the audit campaign that closed on
   rule that flags `<label className={labelClass}>` without
   `htmlFor` so future regressions catch at lint time.
 
+## Sub-projects — Phase C and beyond
+
+Phases A and B (parent_project_id schema + rollup card + leaf-only
+picker + invoice filter) shipped late April / early May. Phase C
+(rollup filters on `/time-entries` and `/reports`) is in flight as
+of 2026-05-05. Bulk reparenting, invoice rendering of hierarchy,
+deeper-than-1-level nesting, and rate cascade are explicitly
+deferred. Full breakdown:
+[`sub-projects-roadmap.md`](./sub-projects-roadmap.md).
+
 ## Other deferred work
 
 Smaller items surfaced by persona reviews but not yet promoted to their
