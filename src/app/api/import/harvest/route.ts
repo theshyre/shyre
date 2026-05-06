@@ -881,7 +881,7 @@ export async function POST(request: Request): Promise<NextResponse> {
         okRows.push(built);
       }
 
-      // Batch insert with idempotency via the partial unique index.
+      // Batch upsert with idempotency via the partial unique index.
       // Conflicts are pre-existing imports — count them as skipped
       // rather than erroring the whole batch.
       // Upsert on the partial unique index (team_id, imported_from,
@@ -893,15 +893,21 @@ export async function POST(request: Request): Promise<NextResponse> {
       // attachment in Harvest) would never propagate; the row would
       // just sit at its first-import state.
       //
-      // Fields explicitly preserved across the upsert: id, created_at,
-      // user_id rewriting from shell-account materialization (those
-      // are computed from the Harvest payload anyway). The id is
-      // preserved by the unique-constraint upsert path — Postgres
-      // updates the existing row in place.
+      // Uses adminClient (not the user-scoped supabase) because
+      // multi-author Harvest pulls assign user_id values that don't
+      // match auth.uid() of the importer — once a "shell" account
+      // has been materialized for a teammate who's never signed in,
+      // their time entries have user_id = <shell user id>, which
+      // the per-user time_entries_insert RLS check rejects. The
+      // import route is owner/admin-gated (line 139), so writing on
+      // the team's behalf via the service role is explicitly
+      // authorized. Same precedent as materializeHarvestShellAccount
+      // higher up in this file.
+      const importAdminClient = createAdminClient();
       const BATCH_SIZE = 100;
       for (let i = 0; i < okRows.length; i += BATCH_SIZE) {
         const batch = okRows.slice(i, i + BATCH_SIZE);
-        const { error, count } = await supabase
+        const { error, count } = await importAdminClient
           .from("time_entries")
           .upsert(batch, {
             onConflict: "team_id,imported_from,import_source_id",
