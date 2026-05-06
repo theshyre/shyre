@@ -79,10 +79,14 @@ export default async function ProjectsPage({
   // of" dropdown — top-level (no parent themselves) + active +
   // external (internal projects can be parents but the create form
   // hides the picker when is_internal=true so we filter both ways
-  // client-side). Capped at the team scope.
+  // client-side). Capped at the team scope. Pulls the inheritable
+  // fields too so the form can pre-fill them when a parent is
+  // picked — see `src/lib/projects/parent-defaults.ts`.
   let parentsQuery = supabase
     .from("projects_v")
-    .select("id, name, customer_id, is_internal")
+    .select(
+      "id, name, customer_id, is_internal, hourly_rate, default_billable, github_repo, jira_project_key, invoice_code, category_set_id, require_timestamps",
+    )
     .neq("status", "archived")
     .is("parent_project_id", null)
     .order("name");
@@ -124,6 +128,13 @@ export default async function ProjectsPage({
           name: string;
           customer_id: string | null;
           is_internal: boolean;
+          hourly_rate: number | string | null;
+          default_billable: boolean | null;
+          github_repo: string | null;
+          jira_project_key: string | null;
+          invoice_code: string | null;
+          category_set_id: string | null;
+          require_timestamps: boolean | null;
         }>}
       />
 

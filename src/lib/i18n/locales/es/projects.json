@@ -41,7 +41,8 @@
     "parentProject": "Proyecto principal (opcional)",
     "parentProjectNone": "— Proyecto de nivel superior —",
     "parentProjectHint": "Elige un proyecto principal para convertir este en un sub-proyecto. Los sub-proyectos comparten el mismo cliente y equipo que el principal y se acumulan en sus totales.",
-    "parentProjectLockedHasChildren": "Este proyecto tiene sus propios sub-proyectos. Sepáralos primero para volver a asignarle un padre."
+    "parentProjectLockedHasChildren": "Este proyecto tiene sus propios sub-proyectos. Sepáralos primero para volver a asignarle un padre.",
+    "parentInheritedHint": "Heredado del proyecto principal — edita cualquier campo para sobrescribir."
   },
   "subProjects": {
     "heading": "Sub-proyectos",

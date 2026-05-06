@@ -388,10 +388,12 @@ Smaller items pulled out of the audit campaign that closed on
 
 Phases A and B (parent_project_id schema + rollup card + leaf-only
 picker + invoice filter) shipped late April / early May. Phase C
-(rollup filters on `/time-entries` and `/reports`) is in flight as
-of 2026-05-05. Bulk reparenting, invoice rendering of hierarchy,
-deeper-than-1-level nesting, and rate cascade are explicitly
-deferred. Full breakdown:
+(rollup filters on `/time-entries` and `/reports`) and Phase D
+(field inheritance on sub-project creation — rate, repo, invoice
+code, Jira key, category set, default-billable, require-timestamps
+pre-filled from the parent) shipped 2026-05-05. Bulk reparenting,
+invoice rendering of hierarchy, deeper-than-1-level nesting, and
+rate cascade are explicitly deferred. Full breakdown:
 [`sub-projects-roadmap.md`](./sub-projects-roadmap.md).
 
 ## Other deferred work

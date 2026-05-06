@@ -95,6 +95,46 @@ small):
   `project_id`. Migrating it to `.in()` is mechanical but expenses
   haven't been called out as a rollup pain point yet.
 
+## Phase D — field inheritance on sub-project creation (shipped 2026-05-05)
+
+When the user picks a parent in the New project form, the inheritable
+fields pre-fill from the parent so a new phase doesn't need every
+detail re-typed. Each remains editable; once the user types in a
+field it's marked touched and a later parent change won't clobber
+their value.
+
+**Inherited via form pre-fill** (visible to the user, can override):
+`hourly_rate`, `default_billable`, `github_repo`, `invoice_code`,
+`category_set_id`, `require_timestamps`. The form shows a
+"Filled from parent" hint after the pick so the user knows what
+just happened.
+
+**Silently inherited in the server action** (no UI surface today):
+`jira_project_key`. If a parent has a Jira key and the form
+submission has none, the action fills it before the INSERT.
+
+**Explicitly NOT inherited** — see `src/lib/projects/parent-defaults.ts`
+for the full rationale. Highlights: `name` / `description` are
+phase-specific; `budget_hours` is a per-phase number, not a default
+that should propagate; `customer_id` / `is_internal` are
+trigger-enforced to match (not "inherited" — constrained); `status`
+is independently lifecycled; `extension_category_set_id` is
+project-scoped (one extension set per project) so cloning categories
+would be a separate, deliberate action.
+
+**Snapshot, not live.** Pre-fill copies the parent's current values
+onto the child as literals at creation time. A later change to the
+parent does NOT retroactively propagate to children. The rollup card
+on the parent's detail page already does null-fallback for
+`hourly_rate` at display time, so a child whose rate is left blank
+shows the parent's current rate without a literal copy — that path
+is unchanged.
+
+**Not in scope here:** an "Apply parent's settings" action on the
+edit form for an existing sub-project. Mostly mechanical to add
+when someone wants it; the core feature here is "make the create
+flow not painful."
+
 ## Deferred — explicitly not in scope
 
 Each of these is a reasonable next phase. If you pick one up, expand

@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { useTranslations } from "next-intl";
-import { Plus, Building2 } from "lucide-react";
+import { Plus, Building2, Sparkles } from "lucide-react";
 import { AlertBanner, useKeyboardShortcut } from "@theshyre/ui";
 import { useFormAction } from "@/hooks/use-form-action";
 import { SubmitButton } from "@/components/SubmitButton";
@@ -19,6 +19,10 @@ import {
 import { TeamSelector } from "@/components/TeamSelector";
 import type { TeamListItem } from "@/lib/team-context";
 import type { CategorySet } from "@/lib/categories/types";
+import {
+  applyParentDefaults,
+  readParentInheritableFields,
+} from "@/lib/projects/parent-defaults";
 import { createProjectAction } from "./actions";
 
 interface CustomerOption {
@@ -31,6 +35,17 @@ interface ParentProjectOption {
   name: string;
   customer_id: string | null;
   is_internal: boolean;
+  /** Inheritable fields — pulled by the page query so the New form
+   *  can pre-fill its inputs from the picked parent. See
+   *  `src/lib/projects/parent-defaults.ts` for the full list +
+   *  rationale for each field included / excluded. */
+  hourly_rate: number | string | null;
+  default_billable: boolean | null;
+  github_repo: string | null;
+  jira_project_key: string | null;
+  invoice_code: string | null;
+  category_set_id: string | null;
+  require_timestamps: boolean | null;
 }
 
 export function NewProjectForm({
@@ -59,16 +74,103 @@ export function NewProjectForm({
   // trigger refuses cross-customer parents at the DB level, but we
   // also filter client-side so the user can't pick an invalid one.
   const [selectedCustomerId, setSelectedCustomerId] = useState<string>("");
+  // Selected parent id — controlled so we can react to changes and
+  // pre-fill inheritable fields. Empty string === "no parent".
+  const [selectedParentId, setSelectedParentId] = useState<string>("");
+
+  // Inheritable fields — controlled so the parent-pick handler can
+  // populate them. Each one carries a `<field>Touched` flag that
+  // flips true the moment the user types/clicks; once touched, a
+  // later parent change does NOT clobber the user's value (their
+  // intent wins). Uses raw strings for inputs so we can fill empties
+  // without coercion surprises.
+  const [hourlyRate, setHourlyRate] = useState<string>("");
+  const [hourlyRateTouched, setHourlyRateTouched] = useState(false);
+  const [githubRepo, setGithubRepo] = useState<string>("");
+  const [githubRepoTouched, setGithubRepoTouched] = useState(false);
+  const [invoiceCode, setInvoiceCode] = useState<string>("");
+  const [invoiceCodeTouched, setInvoiceCodeTouched] = useState(false);
+  const [categorySetId, setCategorySetId] = useState<string>("");
+  const [categorySetIdTouched, setCategorySetIdTouched] = useState(false);
+  const [defaultBillable, setDefaultBillable] = useState<boolean>(true);
+  const [defaultBillableTouched, setDefaultBillableTouched] = useState(false);
+  const [requireTimestamps, setRequireTimestamps] = useState<boolean>(false);
+  const [requireTimestampsTouched, setRequireTimestampsTouched] =
+    useState(false);
+  // Tracks whether the currently-displayed values came from a
+  // parent — drives the "Filled from parent" hint. Cleared when
+  // parent goes back to "(none)" or when the form closes.
+  const [parentDefaultsApplied, setParentDefaultsApplied] = useState(false);
+
   const t = useTranslations("projects");
   const tc = useTranslations("common");
+
+  function resetForm(): void {
+    setIsInternal(false);
+    setSelectedCustomerId("");
+    setSelectedParentId("");
+    setHourlyRate("");
+    setHourlyRateTouched(false);
+    setGithubRepo("");
+    setGithubRepoTouched(false);
+    setInvoiceCode("");
+    setInvoiceCodeTouched(false);
+    setCategorySetId("");
+    setCategorySetIdTouched(false);
+    setDefaultBillable(true);
+    setDefaultBillableTouched(false);
+    setRequireTimestamps(false);
+    setRequireTimestampsTouched(false);
+    setParentDefaultsApplied(false);
+  }
 
   const { pending, success, serverError, fieldErrors, handleSubmit } = useFormAction({
     action: createProjectAction,
     onSuccess: () => {
       setOpen(false);
-      setIsInternal(false);
+      resetForm();
     },
   });
+
+  function handleParentSelect(parentId: string): void {
+    setSelectedParentId(parentId);
+    if (!parentId) {
+      setParentDefaultsApplied(false);
+      return;
+    }
+    const parent = eligibleParents.find((p) => p.id === parentId);
+    const defaults = readParentInheritableFields(parent ?? null);
+    if (!defaults) {
+      setParentDefaultsApplied(false);
+      return;
+    }
+    const { values, appliedAny } = applyParentDefaults(
+      defaults,
+      {
+        hourly_rate: hourlyRate,
+        github_repo: githubRepo,
+        invoice_code: invoiceCode,
+        category_set_id: categorySetId,
+        default_billable: defaultBillable,
+        require_timestamps: requireTimestamps,
+      },
+      {
+        hourly_rate: hourlyRateTouched,
+        github_repo: githubRepoTouched,
+        invoice_code: invoiceCodeTouched,
+        category_set_id: categorySetIdTouched,
+        default_billable: defaultBillableTouched,
+        require_timestamps: requireTimestampsTouched,
+      },
+    );
+    setHourlyRate(values.hourly_rate);
+    setGithubRepo(values.github_repo);
+    setInvoiceCode(values.invoice_code);
+    setCategorySetId(values.category_set_id);
+    setDefaultBillable(values.default_billable);
+    setRequireTimestamps(values.require_timestamps);
+    setParentDefaultsApplied(appliedAny);
+  }
 
   useKeyboardShortcut({
     key: "n",
@@ -205,7 +307,8 @@ export function NewProjectForm({
               <select
                 id="new-project-parent"
                 name="parent_project_id"
-                defaultValue=""
+                value={selectedParentId}
+                onChange={(e) => handleParentSelect(e.target.value)}
                 className={selectClass}
               >
                 <option value="">{t("fields.parentProjectNone")}</option>
@@ -224,6 +327,12 @@ export function NewProjectForm({
               <p className="mt-1 text-caption text-content-muted">
                 {t("fields.parentProjectHint")}
               </p>
+              {parentDefaultsApplied && selectedParentId && (
+                <p className="mt-1 inline-flex items-center gap-1 text-caption text-accent-text">
+                  <Sparkles size={12} aria-hidden="true" />
+                  {t("fields.parentInheritedHint")}
+                </p>
+              )}
             </div>
           )}
         <div>
@@ -236,6 +345,11 @@ export function NewProjectForm({
             type="number"
             step="0.01"
             min="0"
+            value={hourlyRate}
+            onChange={(e) => {
+              setHourlyRate(e.target.value);
+              setHourlyRateTouched(true);
+            }}
             className={inputClass}
           />
         </div>
@@ -257,6 +371,11 @@ export function NewProjectForm({
           <input id="projects-new-project-form-githubRepo"
             name="github_repo"
             placeholder={t("fields.githubRepoPlaceholder")}
+            value={githubRepo}
+            onChange={(e) => {
+              setGithubRepo(e.target.value);
+              setGithubRepoTouched(true);
+            }}
             className={inputClass}
           />
         </div>
@@ -266,6 +385,11 @@ export function NewProjectForm({
             name="invoice_code"
             placeholder={t("fields.invoiceCodePlaceholder")}
             maxLength={16}
+            value={invoiceCode}
+            onChange={(e) => {
+              setInvoiceCode(e.target.value);
+              setInvoiceCodeTouched(true);
+            }}
             className={`${inputClass} font-mono`}
           />
           <p className="mt-1 text-caption text-content-muted">
@@ -274,7 +398,16 @@ export function NewProjectForm({
         </div>
         <div className="sm:col-span-2">
           <label htmlFor="projects-new-project-form-categorySet" className={labelClass}>{t("fields.categorySet")}</label>
-          <select id="projects-new-project-form-categorySet" name="category_set_id" className={selectClass}>
+          <select
+            id="projects-new-project-form-categorySet"
+            name="category_set_id"
+            value={categorySetId}
+            onChange={(e) => {
+              setCategorySetId(e.target.value);
+              setCategorySetIdTouched(true);
+            }}
+            className={selectClass}
+          >
             <option value="">{t("fields.noCategorySet")}</option>
             {categorySets.map((s) => (
               <option key={s.id} value={s.id}>
@@ -289,7 +422,11 @@ export function NewProjectForm({
               <input
                 name="default_billable"
                 type="checkbox"
-                defaultChecked
+                checked={defaultBillable}
+                onChange={(e) => {
+                  setDefaultBillable(e.target.checked);
+                  setDefaultBillableTouched(true);
+                }}
                 className="mt-0.5 h-4 w-4 rounded border-edge text-accent focus:ring-focus-ring"
               />
               <span>
@@ -306,7 +443,11 @@ export function NewProjectForm({
             <input
               name="require_timestamps"
               type="checkbox"
-              defaultChecked={false}
+              checked={requireTimestamps}
+              onChange={(e) => {
+                setRequireTimestamps(e.target.checked);
+                setRequireTimestampsTouched(true);
+              }}
               className="mt-0.5 h-4 w-4 rounded border-edge text-accent focus:ring-focus-ring"
             />
             <span>

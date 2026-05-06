@@ -68,7 +68,7 @@ export async function createProjectAction(formData: FormData): Promise<void> {
     const budgetStr = formData.get("budget_hours") as string;
     const budget_hours = budgetStr ? parseFloat(budgetStr) : null;
     const github_repo = normalizeGithubRepo(formData.get("github_repo"));
-    const jira_project_key = normalizeJiraKey(formData.get("jira_project_key"));
+    let jira_project_key = normalizeJiraKey(formData.get("jira_project_key"));
     const invoice_code = normalizeInvoiceCode(formData.get("invoice_code"));
     const category_set_id = (formData.get("category_set_id") as string) || null;
     const require_timestamps = formData.get("require_timestamps") === "on";
@@ -78,6 +78,30 @@ export async function createProjectAction(formData: FormData): Promise<void> {
     // same-team + 1-level-deep; we trust it and pass through.
     const parent_project_id =
       (formData.get("parent_project_id") as string) || null;
+
+    // Sub-project inheritance: silently fill in fields the form
+    // doesn't expose (today: jira_project_key) from the parent so
+    // sub-projects auto-link to the same Jira project / repo /
+    // invoice code without the user re-typing them. Visible form
+    // fields are pre-filled on the client (NewProjectForm) so the
+    // user sees + can override what they're inheriting; this server
+    // path is for fields with no UI.
+    //
+    // Form values still WIN — we only fill from parent when the
+    // resolved value is null. Future additions to this block belong
+    // alongside the visible-field list in
+    // `src/lib/projects/parent-defaults.ts`.
+    if (parent_project_id && jira_project_key === null) {
+      const { data: parent } = await supabase
+        .from("projects")
+        .select("jira_project_key")
+        .eq("id", parent_project_id)
+        .maybeSingle();
+      const parentKey =
+        (parent as { jira_project_key?: string | null } | null)
+          ?.jira_project_key ?? null;
+      if (parentKey) jira_project_key = parentKey;
+    }
 
     assertSupabaseOk(
       await supabase.from("projects").insert({

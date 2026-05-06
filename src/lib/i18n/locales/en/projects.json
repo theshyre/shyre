@@ -41,7 +41,8 @@
     "parentProject": "Parent project (optional)",
     "parentProjectNone": "— Top-level project —",
     "parentProjectHint": "Pick a parent to make this a sub-project under it. Sub-projects share the same customer and team as their parent and roll up onto the parent's totals.",
-    "parentProjectLockedHasChildren": "This project has its own sub-projects. Detach them first to re-parent it."
+    "parentProjectLockedHasChildren": "This project has its own sub-projects. Detach them first to re-parent it.",
+    "parentInheritedHint": "Filled from parent — edit any field to override."
   },
   "subProjects": {
     "heading": "Sub-projects",
