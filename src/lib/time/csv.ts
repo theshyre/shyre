@@ -22,6 +22,15 @@ export interface CsvEntryRow {
   project: string;
   client: string;
   category: string;
+  /** Name of the `category_set` the category belongs to (e.g.
+   *  "Software development", "Consulting Phase 2"). Surfaces the
+   *  full taxonomy chain so a reviewer reading historical entries
+   *  sees which classification system each line was logged under —
+   *  matters when a project's category_set_id has changed since the
+   *  entry was logged (the project's current set isn't necessarily
+   *  the set the row's category came from). Empty when the entry
+   *  has no category. */
+  categorySet: string;
   description: string;
   billable: boolean;
   /** Legacy GitHub-only column. Populated for both old data
@@ -69,6 +78,7 @@ const HEADERS: Array<keyof CsvEntryRow> = [
   "project",
   "client",
   "category",
+  "categorySet",
   "description",
   "billable",
   "githubIssue",
@@ -94,6 +104,7 @@ const HEADER_LABELS: Record<keyof CsvEntryRow, string> = {
   project: "Project",
   client: "Client",
   category: "Category",
+  categorySet: "Category Set",
   description: "Description",
   billable: "Billable",
   githubIssue: "GitHub Issue",

@@ -39,6 +39,7 @@ function row(overrides: Partial<CsvEntryRow> = {}): CsvEntryRow {
     project: "Alpha",
     client: "Acme",
     category: "Feature",
+    categorySet: "Software development",
     description: "wrote tests",
     billable: true,
     githubIssue: 42,
@@ -71,9 +72,11 @@ describe("toCsv", () => {
     const csv = toCsv([row()]);
     const dataLine = csv.split("\r\n")[1] ?? "";
     // Display columns + legacy githubIssue + new ticketKey/Provider
-    // columns + reconciliation tail.
+    // columns + reconciliation tail. categorySet sits right after
+    // `category` so a reviewer reads "Feature, Software development"
+    // as the full taxonomy chain.
     expect(dataLine.startsWith(
-      "2026-04-13,09:00,10:30,90,Alpha,Acme,Feature,wrote tests,true,42,,,",
+      "2026-04-13,09:00,10:30,90,Alpha,Acme,Feature,Software development,wrote tests,true,42,,,",
     )).toBe(true);
     expect(dataLine).toContain("entry-1");
     expect(dataLine).toContain("team-1");
@@ -81,6 +84,21 @@ describe("toCsv", () => {
     // invoiced=false comes through as a literal "false"; the
     // booleans-stringify rule from escapeCsvField applies here.
     expect(dataLine).toMatch(/false$/);
+  });
+
+  it("renders the Category Set column header (so a reviewer sees the full taxonomy chain even after a project's set switches)", () => {
+    const csv = toCsv([]);
+    expect(csv).toContain("Category Set");
+  });
+
+  it("emits an empty categorySet when the entry has no category", () => {
+    const csv = toCsv([
+      row({ category: "", categorySet: "", githubIssue: null }),
+    ]);
+    const dataLine = csv.split("\r\n")[1] ?? "";
+    // Adjacent commas — the category and categorySet slots are both
+    // blank between `Acme` and `wrote tests`.
+    expect(dataLine).toContain("Acme,,,wrote tests");
   });
 
   it("emits the new Ticket Key + Ticket Provider columns when populated", () => {

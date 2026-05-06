@@ -51,7 +51,7 @@ export async function GET(request: Request): Promise<Response> {
   let q = supabase
     .from("time_entries")
     .select(
-      "id, user_id, team_id, project_id, invoice_id, start_time, end_time, duration_min, description, billable, github_issue, linked_ticket_provider, linked_ticket_key, category_id, projects(name, customer_id, customers(name)), categories(name)",
+      "id, user_id, team_id, project_id, invoice_id, start_time, end_time, duration_min, description, billable, github_issue, linked_ticket_provider, linked_ticket_key, category_id, projects(name, customer_id, customers(name)), categories(name, category_sets(name))",
     )
     .is("deleted_at", null)
     .gte("start_time", rangeStart.toISOString())
@@ -105,7 +105,10 @@ export async function GET(request: Request): Promise<Response> {
     const end = row.end_time ? new Date(row.end_time) : null;
     const project = unwrapOne<{ name: string; customer_id: string | null; customers: unknown }>(row.projects);
     const client = project ? unwrapOne<{ name: string }>(project.customers) : null;
-    const category = unwrapOne<{ name: string }>(row.categories);
+    const category = unwrapOne<{ name: string; category_sets: unknown }>(row.categories);
+    const categorySet = category
+      ? unwrapOne<{ name: string }>(category.category_sets)
+      : null;
 
     // Fold the unified linked_ticket_* columns into the legacy
     // githubIssue column so existing bookkeeper templates keep
@@ -130,6 +133,7 @@ export async function GET(request: Request): Promise<Response> {
       project: project?.name ?? "",
       client: client?.name ?? "",
       category: category?.name ?? "",
+      categorySet: categorySet?.name ?? "",
       description: row.description ?? "",
       billable: row.billable,
       githubIssue: derivedGithubIssue,
