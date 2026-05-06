@@ -6,11 +6,18 @@
  * project is owned by the team but has no customer (it's
  * internal R&D, like Liv's "Liv" self-tracking project).
  *
- * Idempotent: every inserted row carries a sentinel marker in
- * `description` ("[seed:company-time-log] "). Re-running the
- * script first deletes all rows with that marker on the seed
- * project, then re-inserts from the CSV. Manual entries on the
- * same project are untouched.
+ * Idempotent: every inserted row is linked to a singleton
+ * `import_runs` row with `imported_from = 'csv-company-time-log'`
+ * for the team. Re-running the script first deletes all rows
+ * carrying that import_run_id, then re-inserts from the CSV.
+ * Manual entries on the same project are untouched.
+ *
+ * Earlier versions of this script used a `[seed:company-time-log]`
+ * prefix in `description` as the sentinel. That marker leaked
+ * onto user-facing time-entry views. The cleanup script
+ * (`scripts/cleanup-company-time-log-prefix.ts`) backfilled
+ * import_run_id + imported_from on those legacy rows and stripped
+ * the prefix; this script picks up where that left off.
  *
  * Run:
  *   SUPABASE_SERVICE_ROLE_KEY=<key> \
@@ -24,7 +31,7 @@ import { resolve } from "node:path";
 
 const OWNER_EMAIL = "marcus@malcom.io";
 const SEED_PROJECT_NAME = "Shyre";
-const SEED_MARKER = "[seed:company-time-log]";
+const IMPORT_KIND = "csv-company-time-log";
 const CATEGORY_SET_NAME = "Product Development";
 const CSV_PATH = resolve(__dirname, "../docs/company/time-log.csv");
 
@@ -281,14 +288,52 @@ async function main(): Promise<void> {
     projectId = created.id as string;
   }
 
-  // Wipe previously seeded rows so re-runs converge instead of stacking.
-  // Marker-scoped delete preserves any manual entries on the same project.
+  // Find or create the singleton import_run that anchors this seed.
+  // Reusing one record across re-runs keeps /import history from
+  // bloating with one row per re-seed; the same record's `summary`
+  // gets refreshed on each run.
+  let importRunId: string;
+  const { data: existingRun } = await supabase
+    .from("import_runs")
+    .select("id")
+    .eq("team_id", teamId)
+    .eq("imported_from", IMPORT_KIND)
+    .order("created_at", { ascending: false })
+    .limit(1)
+    .maybeSingle();
+  if (existingRun) {
+    importRunId = existingRun.id as string;
+  } else {
+    const { data: created, error: runErr } = await supabase
+      .from("import_runs")
+      .insert({
+        team_id: teamId,
+        triggered_by_user_id: userId,
+        imported_from: IMPORT_KIND,
+        status: "completed",
+        completed_at: new Date().toISOString(),
+        summary: {
+          source: "docs/company/time-log.csv",
+          purpose: "Internal R&D / dogfood time log.",
+        },
+      })
+      .select("id")
+      .single();
+    if (runErr || !created) {
+      throw new Error(`Failed to create import_run: ${runErr?.message}`);
+    }
+    importRunId = created.id as string;
+  }
+
+  // Wipe previously seeded rows so re-runs converge instead of
+  // stacking. Scoped to import_run_id so manual entries on the
+  // same project are untouched. (Earlier versions used a
+  // description-prefix LIKE filter for this — see header doc.)
   const { error: wipeErr } = await supabase
     .from("time_entries")
     .delete()
     .eq("team_id", teamId)
-    .eq("project_id", projectId)
-    .like("description", `${SEED_MARKER}%`);
+    .eq("import_run_id", importRunId);
 
   if (wipeErr) {
     throw new Error(`Failed to wipe prior seed entries: ${wipeErr.message}`);
@@ -313,7 +358,12 @@ async function main(): Promise<void> {
     start_time: string;
     end_time: string;
     billable: boolean;
+    import_run_id: string;
+    imported_from: string;
+    imported_at: string;
   }> = [];
+
+  const importedAt = new Date().toISOString();
 
   const unmappedCategories = new Set<string>();
 
@@ -329,10 +379,13 @@ async function main(): Promise<void> {
         team_id: teamId,
         project_id: projectId,
         category_id: categoryId,
-        description: `${SEED_MARKER} ${r.description}`,
+        description: r.description,
         start_time: startIso,
         end_time: endIso,
         billable: false,
+        import_run_id: importRunId,
+        imported_from: IMPORT_KIND,
+        imported_at: importedAt,
       });
     });
   }

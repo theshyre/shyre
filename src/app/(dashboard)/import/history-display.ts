@@ -96,9 +96,11 @@ export function sourceLabel(run: {
       ? "Harvest"
       : run.imported_from === "csv-expenses"
         ? "Expenses CSV"
-        : // Capitalize the first letter as a fallback.
-          run.imported_from.charAt(0).toUpperCase() +
-          run.imported_from.slice(1);
+        : run.imported_from === "csv-company-time-log"
+          ? "Company time log CSV"
+          : // Capitalize the first letter as a fallback.
+            run.imported_from.charAt(0).toUpperCase() +
+            run.imported_from.slice(1);
   if (run.source_account_identifier) {
     return `${base} · ${run.source_account_identifier}`;
   }
