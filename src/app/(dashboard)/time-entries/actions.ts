@@ -268,6 +268,79 @@ export async function permanentlyDeleteTimeEntryAction(
 }
 
 /**
+ * Update a single time entry's duration while preserving its
+ * start_time. Used by the week-view per-entry sub-row's day cell so
+ * the user can adjust "AE-640 was 1:19, actually 1:30" without
+ * touching the original start clock or any other field.
+ *
+ * end_time = start_time + duration_min * 60s, computed at the
+ * server so the UI never has to round-trip a fragile timestamp.
+ *
+ * Refuses (with a friendly userMessage) when the entry is invoiced —
+ * the trigger would block the UPDATE anyway, but a pre-check gives
+ * a clearer message than the generic CHECK violation.
+ */
+export async function updateTimeEntryDurationAction(
+  formData: FormData,
+): Promise<void> {
+  return runSafeAction(formData, async (fd, { supabase, userId }) => {
+    const id = fd.get("id") as string;
+    const durationMinStr = fd.get("duration_min") as string;
+    const durationMin = parseInt(durationMinStr, 10);
+    if (!id) throw new Error("Entry id required");
+    if (!Number.isFinite(durationMin) || durationMin < 0) {
+      throw new Error("Duration must be a non-negative number of minutes.");
+    }
+
+    // Read existing start_time + invoice state in one trip.
+    const { data: existing, error: existingErr } = await supabase
+      .from("time_entries")
+      .select("user_id, start_time, invoiced, invoice_id")
+      .eq("id", id)
+      .maybeSingle();
+    if (existingErr) throw existingErr;
+    if (!existing) throw new Error("Entry not found");
+    if (existing.user_id !== userId) {
+      throw new Error("Only the entry's author can edit it.");
+    }
+    if (existing.invoiced && existing.invoice_id) {
+      throw new Error(
+        "This entry is on an invoice and is locked. Void the invoice or remove the entry from it before editing.",
+      );
+    }
+
+    // Zero duration → soft-delete the row. Mirrors the cell-level
+    // upsert's "type 0 to delete" semantic so the entire week-grid
+    // surface uses the same convention. Recoverable via the trash.
+    if (durationMin === 0) {
+      assertSupabaseOk(
+        await supabase
+          .from("time_entries")
+          .update({ deleted_at: new Date().toISOString() })
+          .eq("id", id)
+          .eq("user_id", userId),
+      );
+      revalidatePath("/time-entries");
+      revalidatePath("/time-entries/trash");
+      return;
+    }
+
+    const startMs = new Date(existing.start_time as string).getTime();
+    const endIso = new Date(startMs + durationMin * 60_000).toISOString();
+
+    assertSupabaseOk(
+      await supabase
+        .from("time_entries")
+        .update({ end_time: endIso })
+        .eq("id", id)
+        .eq("user_id", userId),
+    );
+
+    revalidatePath("/time-entries");
+  }, "updateTimeEntryDurationAction") as unknown as void;
+}
+
+/**
  * Bulk soft-delete — used by multi-row selection on the day view.
  * RLS + the explicit `.eq("user_id", userId)` clause mean only the
  * caller's own rows will be affected; ids passed in that don't

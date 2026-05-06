@@ -62,6 +62,7 @@ import {
   startTimerAction,
   stopTimerAction,
   updateTimeEntryAction,
+  updateTimeEntryDurationAction,
 } from "./actions";
 import { DurationInput } from "./duration-input";
 import type { ProjectOption, TimeEntry } from "./types";
@@ -192,9 +193,12 @@ export function EntrySummaryRow({
         </div>
       </td>
       {/* Day cells: blank except the entry's day, which shows the
-          entry's individual duration (not the parent row's
-          aggregate). Running entries get the live tick + pulsing
-          dot here, mirroring the parent row's running treatment. */}
+          entry's individual duration. Editable when the entry isn't
+          running and isn't invoice-locked — typing a new H:MM commits
+          via updateTimeEntryDurationAction (preserves start_time,
+          recomputes end). Running entries stay live (read-only with
+          live tick); locked entries stay read-only (the trigger
+          would refuse anyway). Type 0 to soft-delete the entry. */}
       {Array.from({ length: DAYS_IN_WEEK }, (_, i) => {
         if (i !== dayIndex) {
           return (
@@ -205,24 +209,49 @@ export function EntrySummaryRow({
             </td>
           );
         }
+        if (isRunning || locked) {
+          return (
+            <td
+              key={i}
+              className="px-2 py-1.5 align-middle text-right"
+              aria-label={t("durationOnDay", {
+                date: dayDateLong,
+                duration: durationDisplay,
+              })}
+            >
+              <span className="inline-flex items-center justify-end gap-1.5 font-mono text-body tabular-nums text-content">
+                {isRunning && (
+                  <span
+                    className="h-1.5 w-1.5 rounded-full bg-success animate-pulse"
+                    aria-hidden="true"
+                  />
+                )}
+                {durationDisplay}
+              </span>
+            </td>
+          );
+        }
         return (
-          <td
-            key={i}
-            className="px-2 py-1.5 align-middle text-right"
-            aria-label={t("durationOnDay", {
-              date: dayDateLong,
-              duration: durationDisplay,
-            })}
-          >
-            <span className="inline-flex items-center justify-end gap-1.5 font-mono text-body tabular-nums text-content">
-              {isRunning && (
-                <span
-                  className="h-1.5 w-1.5 rounded-full bg-success animate-pulse"
-                  aria-hidden="true"
-                />
-              )}
-              {durationDisplay}
-            </span>
+          <td key={i} className="px-2 py-1.5 align-middle">
+            <label className="flex justify-end cursor-text">
+              <DurationInput
+                name={`entry-${entry.id}-duration`}
+                defaultMinutes={entry.duration_min ?? 0}
+                ariaLabel={t("durationOnDay", {
+                  date: dayDateLong,
+                  duration: durationDisplay,
+                })}
+                onCommit={(committed) => {
+                  if (committed === null) return;
+                  if (committed === (entry.duration_min ?? 0)) return;
+                  const fd = new FormData();
+                  fd.set("id", entry.id);
+                  fd.set("duration_min", String(committed));
+                  void updateTimeEntryDurationAction(fd);
+                }}
+                className="w-20 -mr-1.5 rounded-md border border-transparent bg-transparent px-1.5 py-1 text-body font-mono outline-none transition-colors hover:border-edge-muted focus:border-focus-ring focus:bg-surface-raised focus:ring-2 focus:ring-focus-ring/30"
+              />
+            </label>
           </td>
         );
       })}
