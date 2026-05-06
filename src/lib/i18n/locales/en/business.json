@@ -52,10 +52,22 @@
   },
   "stats": {
     "customers": "Customers",
-    "billableHours": "Billable hrs · this month",
-    "billableHoursShort": "Hours",
-    "expensesShort": "Expenses",
-    "teamCount": "{count, plural, one {# team} other {# teams}}"
+    "customersWithCount": "{count, plural, one {# customer} other {# customers}}",
+    "teamCount": "{count, plural, one {# team} other {# teams}}",
+    "period": "Last 12 months · as of {date}",
+    "revenue": "Cash collected",
+    "revenueHint": "Sum of paid invoices in the last 12 months. Cash basis — sent-but-unpaid invoices are not counted.",
+    "expenses": "Expenses",
+    "expensesHint": "Total expenses in the last 12 months. Excludes 'billable to customer' rows since they get rebilled.",
+    "net": "Net",
+    "netProfit": "Profit",
+    "netLoss": "Loss",
+    "netBreakEven": "Break-even",
+    "netHint": "Cash collected minus non-billable expenses, last 12 months.",
+    "noActivity": "No activity in the last 12 months",
+    "mixedCurrencies": "Mixed currencies — open the business to see breakdown",
+    "adminOnly": "Sign-in required",
+    "memberView": "Financial details require admin or owner access on this business."
   },
   "tiles": {
     "expenses": {

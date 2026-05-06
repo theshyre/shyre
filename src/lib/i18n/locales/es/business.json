@@ -52,10 +52,22 @@
   },
   "stats": {
     "customers": "Clientes",
-    "billableHours": "Hrs facturables · este mes",
-    "billableHoursShort": "Horas",
-    "expensesShort": "Gastos",
-    "teamCount": "{count, plural, one {# equipo} other {# equipos}}"
+    "customersWithCount": "{count, plural, one {# cliente} other {# clientes}}",
+    "teamCount": "{count, plural, one {# equipo} other {# equipos}}",
+    "period": "Últimos 12 meses · al {date}",
+    "revenue": "Cobranza",
+    "revenueHint": "Suma de facturas cobradas en los últimos 12 meses. Base efectivo — no incluye las enviadas sin cobrar.",
+    "expenses": "Gastos",
+    "expensesHint": "Total de gastos de los últimos 12 meses. Excluye los marcados como 'reembolsables al cliente' porque se vuelven a facturar.",
+    "net": "Neto",
+    "netProfit": "Ganancia",
+    "netLoss": "Pérdida",
+    "netBreakEven": "Punto de equilibrio",
+    "netHint": "Cobranza menos gastos no reembolsables, últimos 12 meses.",
+    "noActivity": "Sin actividad en los últimos 12 meses",
+    "mixedCurrencies": "Monedas mixtas — abre el negocio para ver el desglose",
+    "adminOnly": "Requiere autenticación",
+    "memberView": "Los detalles financieros requieren rol de administrador o propietario en este negocio."
   },
   "tiles": {
     "expenses": {
