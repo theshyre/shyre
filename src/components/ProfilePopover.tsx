@@ -73,8 +73,16 @@ export function ProfilePopover({
       }
     }
     function onClick(e: MouseEvent): void {
-      if (rootRef.current && !rootRef.current.contains(e.target as Node))
+      if (rootRef.current && !rootRef.current.contains(e.target as Node)) {
+        // Click might be inside a portaled child popover (e.g. the
+        // ThemePicker dropdown, which renders into document.body to
+        // escape this popover's `overflow-hidden`). Don't close in
+        // that case — closing would unmount the child mid-click and
+        // the user's selection would never reach its handler.
+        const target = e.target as HTMLElement | null;
+        if (target?.closest('[role="menu"]')) return;
         close();
+      }
     }
     window.addEventListener("keydown", onKey);
     document.addEventListener("mousedown", onClick);

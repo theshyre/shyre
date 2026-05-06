@@ -203,7 +203,7 @@ function PeriodToggle({
             aria-pressed={active}
             className={`px-2.5 py-1 rounded text-label font-medium transition-colors ${
               active
-                ? "bg-accent text-accent-text"
+                ? "bg-accent text-content-inverse"
                 : "text-content-secondary hover:bg-hover"
             }`}
           >

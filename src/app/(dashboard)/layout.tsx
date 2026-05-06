@@ -97,7 +97,7 @@ export default async function DashboardLayout({
             tabIndex={-1}
             className="flex-1 overflow-y-auto focus:outline-none"
           >
-            <div className="mx-auto max-w-[1280px] px-[32px] py-8">
+            <div className="px-[32px] py-[32px]">
               <Breadcrumbs />
               {children}
             </div>
