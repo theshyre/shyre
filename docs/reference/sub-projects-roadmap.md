@@ -44,10 +44,10 @@ real customer asks for it, revisit (see "Deferred — deeper nesting").
 - New / edit project forms accept a `parent_project_id` selection.
 - Projects list page renders parents with their children indented
   beneath, breadcrumb-linked.
-- Time-entry project picker is **leaf-only** — selecting "the
-  parent" for a time entry would be ambiguous (it has no work of
-  its own once children exist), so the picker hides parents from
-  the entry-creation flow.
+- Time-entry project picker shipped as **leaf-only** initially —
+  selecting "the parent" for a time entry was framed as ambiguous.
+  The rule was reversed 2026-05-06 (see Phase F below); parents
+  are pickable like leaves now.
 - New-invoice form's project filter accepts an array of project ids
   via `project_ids[]` and the action consumes it via
   `.in("project_id", ids)`.
@@ -134,6 +134,40 @@ is unchanged.
 edit form for an existing sub-project. Mostly mechanical to add
 when someone wants it; the core feature here is "make the create
 flow not painful."
+
+## Phase F — parents are pickable + new ProjectPicker (shipped 2026-05-06)
+
+The original Phase B leaf-only picker rule was reversed. The
+rationale ("logging on the parent silently bypasses per-phase
+budgets") didn't hold up: each project (parent or leaf) has its own
+budget; the rollup card already sums own + children, so a $5,000
+engagement cap is correctly tested against parent_own +
+children_total. Nothing was being bypassed.
+
+The leaf-only rule also caused two regressions:
+1. Historical entries on a project that LATER became a parent
+   silently rendered as "No project / No customer" because the
+   parent was filtered out of the rendering map.
+2. The user expected to still see their parent project in the
+   timer picker after adding a sub-project under it.
+
+Real consulting workflows have engagement-level work (kickoff,
+status meetings, scope discussions, weekly check-ins, admin) that
+doesn't fit any specific phase. Forcing those entries into a
+phase distorts that phase's totals.
+
+Changes:
+  - `/time-entries/page.tsx` no longer filters parent projects out
+    of the picker source. One project list now feeds both the
+    creation pickers and the rendering map.
+  - New `<ProjectPicker>` component (`src/components/ProjectPicker.tsx`)
+    replaces the native `<select>` in NewTimeEntryForm and
+    RunningTimerCard. Searchable, customer-grouped, sub-projects
+    indented under their parent, recent (5) section at the top.
+    Drops a hidden input via `name` for FormData submission.
+  - Sub-projects render with a ↳ glyph + indent so the
+    parent → phase relationship reads at a glance even though
+    both rows are now selectable peers.
 
 ## Deferred — explicitly not in scope
 

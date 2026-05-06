@@ -82,6 +82,10 @@ export interface ProjectOption {
    *  by createTimeEntryAction / startTimerAction / upsertTimesheetCellAction. */
   default_billable?: boolean;
   customers?: CustomerRef | null;
+  /** When non-null, this project is a sub-project of the parent.
+   *  Drives the indented rendering in ProjectPicker so the
+   *  engagement → phase relationship reads at a glance. */
+  parent_project_id?: string | null;
 }
 
 export interface CategoryOption {

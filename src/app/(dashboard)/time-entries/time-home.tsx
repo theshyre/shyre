@@ -57,19 +57,14 @@ interface TimeHomeProps {
   logDefaultWindowDays: number;
   logMaxWindowDays: number;
   running: TimeEntry | null;
-  /** Leaf-only project list — drives the entry-creation pickers.
-   *  Parents are filtered out so a user can't log time directly on
-   *  an engagement when phases exist underneath it. */
+  /** ALL projects (parents AND leaves). Used for both entry-creation
+   *  pickers and the rendering map for existing entries. The earlier
+   *  "leaf-only" rule was dropped 2026-05-06 — see the doc on
+   *  /time-entries/page.tsx for the rationale. */
   projects: ProjectOption[];
-  /** ALL projects (parent + leaf) — rendering map for time-entry
-   *  rows. A historical entry whose project later became a parent
-   *  must still resolve its project + customer when the row renders.
-   *  See the bug fix at /time-entries/page.tsx (2026-05-06). */
-  projectsAll: ProjectOption[];
-  /** Project list for the toolbar's filter picker — includes BOTH
-   *  parent and leaf projects (unlike `projects`, which is leaf-only
-   *  for entry creation). Picking a parent rolls up to parent + leaf
-   *  children server-side. */
+  /** Project list for the toolbar's filter picker — same shape as
+   *  `projects` but pre-projected to the picker's needs (just id,
+   *  name, parent_project_id, customer_name, is_internal). */
   filterPickerProjects: ProjectFilterOption[];
   /** Selected project id from `?project=` (or null when the filter
    *  is off). The server has already resolved this to an `.in()` on
@@ -107,7 +102,6 @@ export function TimeHome({
   logMaxWindowDays,
   running,
   projects,
-  projectsAll,
   filterPickerProjects,
   selectedProjectId,
   recentProjects,
@@ -254,7 +248,7 @@ export function TimeHome({
           maxWindowDays={logMaxWindowDays}
           tzOffsetMin={tzOffsetMin}
           entries={logEntries}
-          projects={projectsAll}
+          projects={projects}
           categories={categories}
           viewerUserId={currentUserId}
         />
@@ -265,7 +259,7 @@ export function TimeHome({
           tzOffsetMin={tzOffsetMin}
           weekEntries={weekEntries}
           dayEntries={dayEntries}
-          projects={projectsAll}
+          projects={projects}
           categories={categories}
           viewerUserId={currentUserId}
         />
@@ -274,7 +268,7 @@ export function TimeHome({
           weekStartStr={weekStartStr}
           tzOffsetMin={tzOffsetMin}
           entries={weekEntries}
-          projects={projectsAll}
+          projects={projects}
           categories={categories}
           defaultTeamId={selectedTeamId ?? undefined}
           currentUserId={currentUserId}

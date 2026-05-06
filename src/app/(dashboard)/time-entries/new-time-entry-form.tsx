@@ -10,7 +10,6 @@ import { FieldError } from "@/components/FieldError";
 import {
   inputClass,
   labelClass,
-  selectClass,
   textareaClass,
   buttonSecondaryClass,
   formGridClass,
@@ -24,6 +23,10 @@ import { TeamSelector } from "@/components/TeamSelector";
 import { Tooltip } from "@/components/Tooltip";
 import { TicketField, ticketFieldVisible } from "@/components/TicketField";
 import { DateField } from "@/components/DateField";
+import {
+  ProjectPicker,
+  type ProjectPickerOption,
+} from "@/components/ProjectPicker";
 import type { TeamListItem } from "@/lib/team-context";
 import { createTimeEntryAction } from "./actions";
 import { CategoryPicker } from "./category-picker";
@@ -44,6 +47,11 @@ interface ProjectOption {
   require_timestamps?: boolean;
   is_internal?: boolean;
   default_billable?: boolean;
+  /** When non-null, this project is a sub-project of `parent_project_id`.
+   *  Drives the indented rendering in ProjectPicker. */
+  parent_project_id?: string | null;
+  /** Customer for the project — null when the project is internal. */
+  customers?: { id: string; name: string } | null;
 }
 
 export function NewTimeEntryForm({
@@ -128,29 +136,22 @@ export function NewTimeEntryForm({
           <label htmlFor="new-time-entry-project" className={labelClass}>
             {t("fields.project")} *
           </label>
-          <select
+          <ProjectPicker
             id="new-time-entry-project"
             name="project_id"
+            value={selectedProjectId}
+            onChange={setSelectedProjectId}
             required
             autoFocus
-            className={selectClass}
-            value={selectedProjectId}
-            onChange={(e) => {
-              setSelectedProjectId(e.target.value);
-            }}
-            aria-describedby={
-              fieldErrors.project_id
-                ? "new-time-entry-project-error"
-                : undefined
-            }
-          >
-            <option value="">{t("fields.project")}</option>
-            {projects.map((p) => (
-              <option key={p.id} value={p.id}>
-                {p.name}
-              </option>
-            ))}
-          </select>
+            ariaLabel={t("fields.project")}
+            projects={projects.map<ProjectPickerOption>((p) => ({
+              id: p.id,
+              name: p.name,
+              parent_project_id: p.parent_project_id ?? null,
+              customer_name: p.customers?.name ?? null,
+              is_internal: p.is_internal === true,
+            }))}
+          />
           <FieldError
             error={fieldErrors.project_id}
             id="new-time-entry-project-error"

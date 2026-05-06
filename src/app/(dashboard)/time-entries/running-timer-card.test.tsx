@@ -59,12 +59,17 @@ describe("RunningTimerCard", () => {
       />,
     );
     fireEvent.click(screen.getByRole("button", { name: /start/i }));
+    // The picker is now <ProjectPicker> — a button trigger + hidden
+    // input for FormData. Confirm both are present.
     expect(
-      document.querySelector('select[name="project_id"]'),
+      document.querySelector('input[type="hidden"][name="project_id"]'),
     ).toBeTruthy();
+    expect(
+      screen.getByRole("button", { name: /^Project$/ }),
+    ).toBeInTheDocument();
   });
 
-  it("autofocuses the project select when expanded", () => {
+  it("autofocuses the project picker trigger when expanded", () => {
     renderWithIntl(
       <RunningTimerCard
         running={null}
@@ -75,7 +80,9 @@ describe("RunningTimerCard", () => {
       />,
     );
     fireEvent.click(screen.getByRole("button", { name: /start/i }));
-    expect(document.querySelector('select[name="project_id"]')).toHaveFocus();
+    expect(
+      screen.getByRole("button", { name: /^Project$/ }),
+    ).toHaveFocus();
   });
 
   it("renders nothing when a timer is running — sidebar <Timer> owns that surface", () => {

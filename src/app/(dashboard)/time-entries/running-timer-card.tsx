@@ -17,6 +17,10 @@ import {
 } from "@/lib/form-styles";
 import { TeamSelector } from "@/components/TeamSelector";
 import { TicketField, ticketFieldVisible } from "@/components/TicketField";
+import {
+  ProjectPicker,
+  type ProjectPickerOption,
+} from "@/components/ProjectPicker";
 import type { TeamListItem } from "@/lib/team-context";
 import { startTimerAction } from "./actions";
 import { notifyTimerChanged } from "@/lib/timer-events";
@@ -229,22 +233,23 @@ export function RunningTimerCard({
           this pick, so it leads. */}
       <div>
         <label className={labelClass}>{tf("project")} *</label>
-        <select
+        <ProjectPicker
           name="project_id"
-          required
-          className={selectClass}
           value={selectedProjectId}
-          onChange={(e) => setSelectedProjectId(e.target.value)}
+          onChange={setSelectedProjectId}
+          required
           autoFocus
-        >
-          <option value="">{tt("selectProject")}</option>
-          {projects.map((p) => (
-            <option key={p.id} value={p.id}>
-              {p.name}
-              {p.customers?.name ? ` · ${p.customers.name}` : ""}
-            </option>
-          ))}
-        </select>
+          ariaLabel={tf("project")}
+          placeholder={tt("selectProject")}
+          projects={projects.map<ProjectPickerOption>((p) => ({
+            id: p.id,
+            name: p.name,
+            parent_project_id: p.parent_project_id ?? null,
+            customer_name: p.customers?.name ?? null,
+            is_internal: p.is_internal === true,
+          }))}
+          recentIds={recentProjects.map((r) => r.id)}
+        />
       </div>
 
       {/* Category — only rendered when the picked project has a set and

@@ -532,33 +532,27 @@ export default async function TimeEntriesPage({
   for (const row of extensionSets ?? []) {
     extensionByProject.set(row.project_id as string, row.id as string);
   }
-  // Leaf-only set: any project that's a parent of another project
-  // is non-pickable for time-entry. Logging onto the parent silently
-  // bypasses the per-phase budget the children exist to track.
-  // Children plus top-level (no children) projects all qualify.
-  const parentIds = new Set(
-    projectsRaw
-      .map((p) => p.parent_project_id as string | null)
-      .filter((v): v is string => v !== null),
-  );
-  // ALL projects (including parents) — rendering map for time-entry
-  // rows. A historical entry whose project later became a parent
-  // (because the user added a sub-project under it) MUST still
-  // resolve its project + customer when the row renders. Bug
-  // 2026-05-06: this list was only the leaf-only `projects` below,
-  // which silently dropped any entry whose project_id pointed at a
-  // parent — those rows rendered as "No project / No customer"
-  // even though the data was fully intact in the DB.
-  const projectsAll = projectsRaw.map((p) => ({
+  // ALL projects (parents AND leaves) — single list used for both
+  // entry creation pickers AND rendering map.
+  //
+  // History: an earlier "leaf-only" rule filtered parents out of
+  // the entry-creation picker on the theory that logging on a
+  // parent silently bypassed per-phase budgets. That rationale
+  // doesn't hold up — the parent has its own budget, and the
+  // rollup card already sums own + children, so a $5,000 cap on
+  // the engagement is correctly tested against parent_own +
+  // children_total. Nothing is bypassed; logging on the parent is
+  // just as legitimate as logging on a phase, and there's real
+  // engagement-level work (kickoff calls, status meetings, admin)
+  // that doesn't fit any specific phase. The leaf-only rule was
+  // also the cause of two regressions: historical entries on a
+  // newly-promoted parent rendered as "No project," and the user
+  // was confused by their parent project disappearing from the
+  // picker. Dropped 2026-05-06.
+  const projects = projectsRaw.map((p) => ({
     ...p,
     extension_category_set_id: extensionByProject.get(p.id) ?? null,
   }));
-  // Leaf-only — picker source for entry CREATION. Logging time
-  // directly on a parent project bypasses the per-phase budget the
-  // children exist to track, so the entry-creation picker hides
-  // parents. This narrower list MUST NOT be used as a lookup map
-  // for rendering existing entries; pass `projectsAll` instead.
-  const projects = projectsAll.filter((p) => !parentIds.has(p.id));
 
   // Picker source for the toolbar's project FILTER (not the entry-
   // creation picker). Includes BOTH parent and leaf projects — picking
@@ -799,7 +793,6 @@ export default async function TimeEntriesPage({
       logMaxWindowDays={LOG_MAX_WINDOW_DAYS}
       running={running as unknown as TimeEntry | null}
       projects={projects}
-      projectsAll={projectsAll}
       filterPickerProjects={filterPickerProjects}
       selectedProjectId={projectFilterId}
       recentProjects={recentProjects}

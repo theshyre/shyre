@@ -220,5 +220,15 @@
     "listboxLabel": "Filter by project",
     "internal": "Internal",
     "includesSub": "(+{count, plural, =1 {# sub-project} other {# sub-projects}})"
+  },
+  "projectPicker": {
+    "placeholder": "Select a project",
+    "searchPlaceholder": "Search projects",
+    "listboxLabel": "Select a project",
+    "recentHeader": "Recent",
+    "groupInternal": "Internal",
+    "groupNoCustomer": "No customer",
+    "noResults": "No projects match \"{query}\"",
+    "clear": "Clear selection"
   }
 }
