@@ -19,8 +19,11 @@ import {
   groupByCurrency,
   maxRole,
   netForBusiness,
-  rolling12MonthCutoff,
+  parsePeriod,
+  PERIODS,
+  periodCutoff,
   sortByCurrency,
+  type Period,
   type Role,
 } from "./business-list-helpers";
 
@@ -55,20 +58,26 @@ interface BusinessSummary {
    *  Drives whether financial KPIs render at all — non-admins see
    *  only customer count + entity metadata. */
   viewerRole: Role;
-  /** Cash collected in the last 12 months, grouped by currency.
+  /** Cash collected in the active period, grouped by currency.
    *  ISO 4217 → minor-unit total. We never sum across currencies. */
   revenueByCurrency: Map<string, number>;
-  /** Non-billable expenses in the last 12 months, by currency.
+  /** Non-billable expenses in the active period, by currency.
    *  Billable-to-customer expenses are excluded by default — they
    *  rebill on the income side and including them inflates the
    *  expenses figure (see bookkeeper persona). */
   expensesByCurrency: Map<string, number>;
 }
 
-export default async function BusinessListPage(): Promise<React.JSX.Element> {
+export default async function BusinessListPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ period?: string }>;
+}): Promise<React.JSX.Element> {
   const t = await getTranslations("business");
   const supabase = await createClient();
   const teams = await getUserTeams();
+  const params = await searchParams;
+  const period = parsePeriod(params.period);
 
   // Resolve every team's business_id in one query (lets us dedupe
   // before fetching per-team stats — no point hitting customers /
@@ -102,14 +111,15 @@ export default async function BusinessListPage(): Promise<React.JSX.Element> {
     teamsByBusiness.set(bid, list);
   }
 
-  const since = rolling12MonthCutoff();
+  const now = new Date();
+  const since = periodCutoff(period, now);
   const summaries: BusinessSummary[] = await Promise.all(
     Array.from(teamsByBusiness.entries()).map(([businessId, teamGroup]) =>
       fetchSummary(supabase, businessId, teamGroup, since),
     ),
   );
 
-  const periodLabel = t("stats.period", { date: formatPeriodAsOf(new Date()) });
+  const periodLabel = formatPeriodLabel(period, now, t);
 
   return (
     <div className="space-y-6">
@@ -142,17 +152,65 @@ export default async function BusinessListPage(): Promise<React.JSX.Element> {
           </Link>
         </div>
       ) : (
-        <div className="grid gap-4 md:grid-cols-2">
-          {summaries.map((biz) => (
-            <BusinessCard
-              key={biz.id}
-              biz={biz}
-              periodLabel={periodLabel}
-              t={t}
-            />
-          ))}
-        </div>
+        <>
+          <PeriodToggle period={period} t={t} />
+          <div className="grid gap-4 md:grid-cols-2">
+            {summaries.map((biz) => (
+              <BusinessCard
+                key={biz.id}
+                biz={biz}
+                periodLabel={periodLabel}
+                t={t}
+              />
+            ))}
+          </div>
+        </>
       )}
+    </div>
+  );
+}
+
+/**
+ * URL-driven segmented control for switching the dashboard period.
+ *
+ * Each segment is a `<Link>` so a click navigates with full
+ * server-side data refresh — no client state, no flicker between
+ * a "switch" and the values catching up. The currently-active
+ * period is signalled via three channels (background fill, text
+ * color, `aria-pressed`) so screen-reader users know which one is
+ * selected and the active state isn't carried by color alone.
+ */
+function PeriodToggle({
+  period,
+  t,
+}: {
+  period: Period;
+  t: (key: string, values?: Record<string, string | number>) => string;
+}): React.JSX.Element {
+  return (
+    <div
+      role="group"
+      aria-label={t("stats.periodToggleLabel")}
+      className="inline-flex items-center gap-0.5 rounded-md border border-edge bg-surface-raised p-0.5"
+    >
+      {PERIODS.map((p) => {
+        const active = p === period;
+        const href = p === "last12" ? "/business" : `/business?period=${p}`;
+        return (
+          <Link
+            key={p}
+            href={href}
+            aria-pressed={active}
+            className={`px-2.5 py-1 rounded text-label font-medium transition-colors ${
+              active
+                ? "bg-accent text-accent-text"
+                : "text-content-secondary hover:bg-hover"
+            }`}
+          >
+            {t(`stats.periodToggle.${p}`)}
+          </Link>
+        );
+      })}
     </div>
   );
 }
@@ -562,10 +620,29 @@ async function fetchSummary(
   };
 }
 
-function formatPeriodAsOf(d: Date): string {
-  return new Intl.DateTimeFormat("en-US", {
+/**
+ * Localized period label for the active toggle state.
+ *
+ * Matches the i18n keys `stats.periodLast12 / .periodYtd / .periodMonth`
+ * and reads the "as of <date>" anchor in the user's locale. Lives
+ * in the page (not in helpers) because it needs the i18n function
+ * threaded through from the server-component layer.
+ */
+function formatPeriodLabel(
+  period: Period,
+  now: Date,
+  t: (key: string, values?: Record<string, string | number>) => string,
+): string {
+  const asOf = new Intl.DateTimeFormat("en-US", {
     month: "short",
     day: "numeric",
     year: "numeric",
-  }).format(d);
+  }).format(now);
+  if (period === "ytd") {
+    return t("stats.periodYtd", { year: now.getFullYear(), date: asOf });
+  }
+  if (period === "month") {
+    return t("stats.periodMonth", { date: asOf });
+  }
+  return t("stats.periodLast12", { date: asOf });
 }

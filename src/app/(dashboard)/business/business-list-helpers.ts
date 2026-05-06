@@ -7,8 +7,58 @@
 
 export type Role = "owner" | "admin" | "member";
 
-/** ISO 8601 (UTC) cutoff for "12 months ago from `now`." */
-export function rolling12MonthCutoff(now: Date = new Date()): string {
+/**
+ * Period the business landing page summarizes over.
+ *
+ * - `last12` (default) — rolling 12 months. Stable across Jan/Feb
+ *   (the YTD trap personas flagged) and what most owners want at
+ *   a glance.
+ * - `ytd` — Jan 1 of the current calendar year through today.
+ *   Useful for tax-prep at year-end; depressing on Jan 5.
+ * - `month` — first of the current calendar month through today.
+ *   Useful for AR / cashflow at month-end.
+ *
+ * Future-proof note: fiscal-year-end is on businesses table but
+ * not yet honored here — when it lands, `ytd` should anchor on
+ * fiscal year start, not Jan 1.
+ */
+export type Period = "last12" | "ytd" | "month";
+
+export const PERIODS: Period[] = ["last12", "ytd", "month"];
+export const DEFAULT_PERIOD: Period = "last12";
+
+/** Parse a `?period=` URL param into a known Period, defaulting to
+ *  `last12` for missing or unrecognized values. */
+export function parsePeriod(raw: string | null | undefined): Period {
+  if (raw === "ytd" || raw === "month" || raw === "last12") return raw;
+  return DEFAULT_PERIOD;
+}
+
+/**
+ * ISO 8601 (UTC) lower bound the chosen period starts from. Inclusive
+ * — pass directly to `gte("paid_at", cutoff)` / `gte("incurred_on", cutoff.slice(0,10))`.
+ *
+ * Implementation notes:
+ *   - All dates are computed in UTC. Until businesses surface a
+ *     timezone preference this is the honest default — the user's
+ *     browser local TZ would silently drift the period boundary.
+ *   - `ytd` uses Jan 1 00:00 UTC of the current year.
+ *   - `month` uses the 1st of the current month at 00:00 UTC.
+ */
+export function periodCutoff(period: Period, now: Date = new Date()): string {
+  if (period === "ytd") {
+    const jan1 = new Date(
+      Date.UTC(now.getUTCFullYear(), 0, 1, 0, 0, 0, 0),
+    );
+    return jan1.toISOString();
+  }
+  if (period === "month") {
+    const monthStart = new Date(
+      Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), 1, 0, 0, 0, 0),
+    );
+    return monthStart.toISOString();
+  }
+  // last12 — rolling 12 months ending now.
   const cutoff = new Date(now);
   cutoff.setMonth(cutoff.getMonth() - 12);
   return cutoff.toISOString();

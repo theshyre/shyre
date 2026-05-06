@@ -1,29 +1,62 @@
 import { describe, expect, it } from "vitest";
 import {
   classifyNet,
+  DEFAULT_PERIOD,
   formatCurrency,
   formatSignedCurrency,
   groupByCurrency,
   maxRole,
   netForBusiness,
-  rolling12MonthCutoff,
+  parsePeriod,
+  periodCutoff,
   sortByCurrency,
 } from "./business-list-helpers";
 
-describe("rolling12MonthCutoff", () => {
-  it("returns a date 12 months before the given anchor", () => {
-    const cutoff = rolling12MonthCutoff(new Date("2026-05-06T00:00:00Z"));
-    expect(cutoff).toBe(new Date("2025-05-06T00:00:00Z").toISOString());
+describe("periodCutoff", () => {
+  const anchor = new Date("2026-05-06T15:30:00Z");
+
+  it("returns Jan 1 UTC of the current year for `ytd`", () => {
+    expect(periodCutoff("ytd", anchor)).toBe(
+      new Date("2026-01-01T00:00:00Z").toISOString(),
+    );
   });
 
-  it("handles month-end roll-over without producing an invalid date", () => {
-    // March 31 -> 12 months back. Some date math libs land on
-    // Feb 31 (invalid) and roll to March 3; we just want a real
-    // date in the right ballpark, not exact day arithmetic.
-    const cutoff = rolling12MonthCutoff(new Date("2026-03-31T00:00:00Z"));
+  it("returns the 1st-of-month UTC for `month`", () => {
+    expect(periodCutoff("month", anchor)).toBe(
+      new Date("2026-05-01T00:00:00Z").toISOString(),
+    );
+  });
+
+  it("returns 12 months before now for `last12`", () => {
+    expect(periodCutoff("last12", anchor)).toBe(
+      new Date("2025-05-06T15:30:00Z").toISOString(),
+    );
+  });
+
+  it("`last12` survives month-end rollovers without producing NaN", () => {
+    const cutoff = periodCutoff("last12", new Date("2026-03-31T00:00:00Z"));
     const parsed = new Date(cutoff);
     expect(Number.isNaN(parsed.getTime())).toBe(false);
-    expect(parsed.getFullYear()).toBe(2025);
+    expect(parsed.getUTCFullYear()).toBe(2025);
+  });
+});
+
+describe("parsePeriod", () => {
+  it("returns the default for null / undefined / empty", () => {
+    expect(parsePeriod(null)).toBe(DEFAULT_PERIOD);
+    expect(parsePeriod(undefined)).toBe(DEFAULT_PERIOD);
+    expect(parsePeriod("")).toBe(DEFAULT_PERIOD);
+  });
+
+  it("returns the matching period for a known token", () => {
+    expect(parsePeriod("ytd")).toBe("ytd");
+    expect(parsePeriod("month")).toBe("month");
+    expect(parsePeriod("last12")).toBe("last12");
+  });
+
+  it("falls back to default for an unrecognized token", () => {
+    expect(parsePeriod("yesterday")).toBe(DEFAULT_PERIOD);
+    expect(parsePeriod("Q1")).toBe(DEFAULT_PERIOD);
   });
 });
 
