@@ -180,6 +180,7 @@ export function InlineEditForm({
                 ?.extension_category_set_id,
             ]}
             defaultValue={entry.category_id}
+            currentCategoryId={entry.category_id}
           />
         </div>
 

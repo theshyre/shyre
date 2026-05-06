@@ -23,6 +23,21 @@ interface Props {
   onChange?: (id: string) => void;
   /** Hidden when the project has no set — nothing is rendered */
   hideWhenEmpty?: boolean;
+  /**
+   * Optional id of the entry's CURRENT category, used by the edit
+   * paths so a category whose set is no longer linked to the project
+   * (the user switched the project's set after this entry was logged)
+   * still renders as a selectable option. Without this, the picker
+   * would silently drop the entry's classification on the next edit
+   * — see `docs/reference/sub-projects-roadmap.md` "Category set
+   * switching" for the design rationale (Option 1).
+   *
+   * The orphaned option is appended after the in-set options with a
+   * `(retired)` suffix so the user understands why it's there.
+   * Passing the currently-in-set category here is a no-op — the
+   * filtered list already includes it.
+   */
+  currentCategoryId?: string | null;
 }
 
 /**
@@ -38,6 +53,7 @@ export function CategoryPicker({
   value,
   onChange,
   hideWhenEmpty = true,
+  currentCategoryId,
 }: Props): React.JSX.Element | null {
   const t = useTranslations("categories.entry");
 
@@ -47,7 +63,24 @@ export function CategoryPicker({
     categorySetIds ?? (categorySetId ? [categorySetId] : [])
   ).filter((id): id is string => !!id);
 
-  if (effectiveSetIds.length === 0) {
+  const filtered = categories.filter((c) =>
+    effectiveSetIds.includes(c.category_set_id),
+  );
+
+  // History-preserving switch: when an entry's current category
+  // belongs to a set the project is no longer linked to, surface it
+  // in the picker anyway so the user can keep the original
+  // classification on edit (or pick a replacement deliberately).
+  // Marked `(retired)` so it reads as obviously different from the
+  // active options. Resolved against the FULL `categories` array
+  // — page-level fetch is responsible for loading the orphan.
+  const orphanedCategory =
+    currentCategoryId &&
+    !filtered.some((c) => c.id === currentCategoryId)
+      ? categories.find((c) => c.id === currentCategoryId)
+      : null;
+
+  if (effectiveSetIds.length === 0 && !orphanedCategory) {
     if (hideWhenEmpty) return null;
     return (
       <div>
@@ -57,10 +90,7 @@ export function CategoryPicker({
     );
   }
 
-  const filtered = categories.filter((c) =>
-    effectiveSetIds.includes(c.category_set_id),
-  );
-  if (filtered.length === 0) {
+  if (filtered.length === 0 && !orphanedCategory) {
     if (hideWhenEmpty) return null;
     return (
       <div>
@@ -86,6 +116,11 @@ export function CategoryPicker({
             {c.name}
           </option>
         ))}
+        {orphanedCategory && (
+          <option key={orphanedCategory.id} value={orphanedCategory.id}>
+            {t("retiredOption", { name: orphanedCategory.name })}
+          </option>
+        )}
       </select>
     </div>
   );

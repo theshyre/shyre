@@ -65,6 +65,60 @@ describe("CategoryPicker", () => {
     );
     expect(container.firstChild).toBeNull();
   });
+
+  it("appends the entry's current category as a (retired) option when its set is no longer linked to the project", () => {
+    // Project's currently-linked set is s1 (Feature, Bug fix).
+    // The entry's category c3 belongs to s2 — orphaned. The picker
+    // should still surface c3 with a (retired) marker so editing
+    // doesn't silently drop the original classification.
+    renderWithIntl(
+      <CategoryPicker
+        categories={categories}
+        categorySetIds={["s1"]}
+        currentCategoryId="c3"
+        defaultValue="c3"
+      />,
+    );
+    const select = screen.getByRole("combobox");
+    const options = Array.from(select.querySelectorAll("option"));
+    // Placeholder + Feature + Bug fix + Other-set (retired)
+    expect(options).toHaveLength(4);
+    expect(options[3]?.textContent).toBe("Other-set (retired)");
+    expect(options[3]?.getAttribute("value")).toBe("c3");
+  });
+
+  it("does NOT mark the current category as (retired) when it's still in a linked set (no false alarm on a normal edit)", () => {
+    renderWithIntl(
+      <CategoryPicker
+        categories={categories}
+        categorySetIds={["s1"]}
+        currentCategoryId="c1"
+        defaultValue="c1"
+      />,
+    );
+    const select = screen.getByRole("combobox");
+    const optionTexts = Array.from(select.querySelectorAll("option")).map(
+      (o) => o.textContent ?? "",
+    );
+    expect(optionTexts).not.toContain("Feature (retired)");
+    expect(optionTexts).toContain("Feature");
+  });
+
+  it("renders the picker (with just the retired option) when the project has no active set but the entry has an orphaned category — preserves the user's chance to keep their original classification", () => {
+    renderWithIntl(
+      <CategoryPicker
+        categories={categories}
+        categorySetIds={[]}
+        currentCategoryId="c3"
+        defaultValue="c3"
+      />,
+    );
+    const select = screen.getByRole("combobox");
+    const options = Array.from(select.querySelectorAll("option"));
+    // Placeholder + the orphan
+    expect(options).toHaveLength(2);
+    expect(options[1]?.textContent).toBe("Other-set (retired)");
+  });
 });
 
 describe("CategoryBadge", () => {

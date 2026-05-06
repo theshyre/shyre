@@ -88,6 +88,37 @@ Sub-projects nest one level deep — phase-of-phase isn't allowed.
 
 Attach a category set to the project to tag every entry with a category. See [categories](categories.md).
 
+### Switching the category set
+
+A project's category set isn't permanent — you can change it from the
+project edit form when the engagement shape changes (e.g. moving from
+"Software development" classification to "Consulting Phase 2"). The
+switch is non-destructive:
+
+- **Historical entries keep their original category.** The entry row
+  still references the original `categories.id`, and the CSV export
+  carries both the **Category** and **Category Set** columns so a
+  reviewer reading old entries sees the full taxonomy chain even
+  after a switch.
+- **Editing a historical entry still lets you re-classify it.** The
+  picker on the entry-edit form lists the old categories with a
+  `(retired)` suffix alongside the new active set, so you can keep
+  the original classification or pick a replacement deliberately.
+- **New entries can only use the currently-linked set.** If the
+  project moved on, new entries should reflect the new shape.
+
+If you need to log a new entry under the OLD set, switch the project
+back temporarily — it's one dropdown change, the inverse of the
+original switch.
+
+### Project audit trail
+
+Every project edit (rate change, set switch, archive, etc.) writes
+an append-only row to `projects_history` with the pre-change state.
+Owner/admin can query it for dispute resolution — "who set this
+project to non-billable on March 12?" — without relying on the
+single `updated_at` timestamp.
+
 ## GitHub integration
 
 Set `github_repo` on the project (format `owner/name`). When logging time, you can pick a GitHub issue from autocomplete — the issue number is saved with the entry for later reporting.

@@ -585,6 +585,39 @@ export default async function TimeEntriesPage({
         .order("sort_order", { ascending: true })
     : Promise.resolve({ data: [] as Array<unknown> });
 
+  // History-preserving category-set switch (Option 1):
+  //
+  // The set-filtered categoriesPromise above only loads categories
+  // belonging to currently-linked sets. If a project's
+  // category_set_id changed since some entries were logged, those
+  // entries' categories are NOT in any active set — and the picker
+  // would silently drop them on edit. Fetch them here by id so the
+  // picker can render them as a "(retired)" option, preserving the
+  // historical classification.
+  //
+  // Source ids come from every visible entry's category_id across
+  // week / day / log (all three arrays are populated by Phase 2's
+  // await). De-duped here; the picker dedupes the resulting list
+  // against the set-filtered fetch on render.
+  const referencedCategoryIds = Array.from(
+    new Set(
+      [
+        ...((rawWeekEntries ?? []) as Array<{ category_id?: string | null }>),
+        ...((rawDayEntries ?? []) as Array<{ category_id?: string | null }>),
+        ...((rawLogEntries ?? []) as Array<{ category_id?: string | null }>),
+      ]
+        .map((r) => r.category_id ?? null)
+        .filter((v): v is string => !!v),
+    ),
+  );
+  const orphanedCategoriesPromise =
+    referencedCategoryIds.length > 0
+      ? supabase
+          .from("categories")
+          .select("id, category_set_id, name, color, sort_order")
+          .in("id", referencedCategoryIds)
+      : Promise.resolve({ data: [] as Array<unknown> });
+
   // The Promise.all result types widened to Record<string, unknown>[]
   // because Phase 1's promise pool unions the typed Supabase
   // builders with the Promise.resolve fallbacks for gated queries.
@@ -620,19 +653,40 @@ export default async function TimeEntriesPage({
 
   const [
     { data: categoryRows },
+    { data: orphanedCategoryRows },
     weekEntries,
     dayEntries,
     logEntries,
     running,
   ] = await Promise.all([
     categoriesPromise,
+    orphanedCategoriesPromise,
     weekEntriesPromise,
     dayEntriesPromise,
     logEntriesP,
     runningP,
   ]);
 
-  const categories = categoryRows ?? [];
+  // Merge set-filtered + orphan categories. The orphan fetch is
+  // by-id so it overlaps the set-filtered batch when the entry's
+  // category is still active; dedup by id keeps each category
+  // appearing once. Orphans appended at the end so the picker's
+  // sort_order is preserved for the active set.
+  type CategoryRow = {
+    id: string;
+    category_set_id: string;
+    name: string;
+    color: string | null;
+    sort_order: number | null;
+  };
+  const categoriesById = new Map<string, CategoryRow>();
+  for (const row of (categoryRows ?? []) as CategoryRow[]) {
+    categoriesById.set(row.id, row);
+  }
+  for (const row of (orphanedCategoryRows ?? []) as CategoryRow[]) {
+    if (!categoriesById.has(row.id)) categoriesById.set(row.id, row);
+  }
+  const categories = Array.from(categoriesById.values());
 
   // Recent projects — distinct project_ids from the last 30 days,
   // top 5, joined back against the active project list so an

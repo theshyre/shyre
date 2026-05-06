@@ -29,6 +29,7 @@
   "entry": {
     "label": "Category",
     "none": "No category",
-    "notConfigured": "This project has no category set — configure one in project settings."
+    "notConfigured": "This project has no category set — configure one in project settings.",
+    "retiredOption": "{name} (retired)"
   }
 }

@@ -29,6 +29,7 @@
   "entry": {
     "label": "Categoría",
     "none": "Sin categoría",
-    "notConfigured": "Este proyecto no tiene un conjunto de categorías — configúralo en los ajustes del proyecto."
+    "notConfigured": "Este proyecto no tiene un conjunto de categorías — configúralo en los ajustes del proyecto.",
+    "retiredOption": "{name} (retirada)"
   }
 }
