@@ -193,6 +193,46 @@ function importToPresets(): DateFieldPreset[] {
   ];
 }
 
+/**
+ * Surface HTTP failures with the actual status code so users get a
+ * meaningful error instead of "Connection failed" when the platform
+ * (not the route handler) returns a non-JSON 5xx — e.g. Vercel's
+ * function-timeout HTML page when an import exceeds maxDuration.
+ *
+ * - 2xx with valid JSON → typed payload.
+ * - non-2xx with JSON body → ApiErrorBody (preserves errorCode/detail).
+ * - non-2xx with non-JSON body → ApiErrorBody synthesised from status.
+ * - 2xx with malformed JSON → ApiErrorBody flagging the bad response.
+ */
+async function parseImportResponse<T extends object>(
+  res: Response,
+  fallbackMessage: string,
+): Promise<T | ApiErrorBody> {
+  if (!res.ok) {
+    let body: Partial<ApiErrorBody> = {};
+    try {
+      body = (await res.json()) as Partial<ApiErrorBody>;
+    } catch {
+      // Non-JSON error body (HTML timeout page, gateway error, etc.)
+    }
+    return {
+      error: body.error ?? `${fallbackMessage} (HTTP ${res.status})`,
+      status: res.status,
+      ...(body.errorCode ? { errorCode: body.errorCode } : {}),
+      ...(body.endpoint ? { endpoint: body.endpoint } : {}),
+      ...(body.detail ? { detail: body.detail } : {}),
+    };
+  }
+  try {
+    return (await res.json()) as T;
+  } catch {
+    return {
+      error: `${fallbackMessage} (invalid response)`,
+      status: res.status,
+    };
+  }
+}
+
 export function HarvestImport({
   teams,
 }: {
@@ -227,8 +267,20 @@ export function HarvestImport({
           action: "validate",
         }),
       });
-      const validateData = await validateRes.json();
+      const validateData = await parseImportResponse<{
+        valid: boolean;
+        error?: string;
+      }>(validateRes, "Could not validate Harvest credentials");
 
+      // Discriminate on `valid` (not `error`): both ApiErrorBody and
+      // the route's validate-failure body carry an optional `error`,
+      // so `"error" in` doesn't narrow. The success body is the only
+      // one that omits `valid`.
+      if (!("valid" in validateData)) {
+        setError(validateData);
+        setLoading(false);
+        return;
+      }
       if (!validateData.valid) {
         setError({ error: validateData.error ?? "Invalid credentials" });
         setLoading(false);
@@ -247,9 +299,10 @@ export function HarvestImport({
           to: toDate || undefined,
         }),
       });
-      const previewData = (await previewRes.json()) as
-        | PreviewData
-        | ApiErrorBody;
+      const previewData = await parseImportResponse<PreviewData>(
+        previewRes,
+        "Could not load Harvest preview",
+      );
 
       if ("error" in previewData) {
         setError(previewData);
@@ -297,7 +350,10 @@ export function HarvestImport({
           to: toDate || undefined,
         }),
       });
-      const data = (await res.json()) as ImportResult | ApiErrorBody;
+      const data = await parseImportResponse<ImportResult>(
+        res,
+        "Import failed",
+      );
 
       if ("error" in data) {
         setError(data);
@@ -627,6 +683,42 @@ function PreviewStep({
     preview.timeEntries +
     preview.invoices +
     preview.invoiceLineItems;
+  const noTimeEntries = preview.timeEntries === 0;
+
+  if (totalRows === 0) {
+    return (
+      <div className="space-y-5">
+        {preview.companyName && (
+          <p className="text-body-lg text-content-secondary">
+            Connected to{" "}
+            <strong className="text-content">{preview.companyName}</strong>
+            {" · "}
+            <span className="text-content-muted font-mono text-caption">
+              {preview.timeZone}
+            </span>
+          </p>
+        )}
+        <div className="rounded-lg border border-edge-muted bg-surface p-6 text-center">
+          <div className="mx-auto mb-3 flex h-10 w-10 items-center justify-center rounded-full bg-warning-soft">
+            <AlertTriangle size={20} className="text-warning" />
+          </div>
+          <h3 className="text-body font-medium text-content mb-1">
+            Nothing to import
+          </h3>
+          <p className="text-caption text-content-muted max-w-md mx-auto">
+            Harvest returned no customers, projects, time entries, or invoices
+            for this account. Go back and adjust the date range — or
+            double-check that you connected the right Harvest account.
+          </p>
+        </div>
+        <div className="flex gap-2">
+          <button onClick={onBack} className={buttonSecondaryClass}>
+            Back
+          </button>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-5">
@@ -639,6 +731,21 @@ function PreviewStep({
             {preview.timeZone}
           </span>
         </p>
+      )}
+
+      {noTimeEntries && (
+        <div className="rounded-md border border-warning/40 bg-warning-soft/40 p-3 text-caption text-content-secondary flex items-start gap-2">
+          <AlertTriangle
+            size={14}
+            className="text-warning shrink-0 mt-0.5"
+            aria-hidden="true"
+          />
+          <span>
+            <strong className="text-content">No time entries</strong> in this
+            date range — only customers, projects, and categories will land.
+            Go back to adjust the dates if you expected entries.
+          </span>
+        </div>
       )}
 
       <div className="grid gap-3 sm:grid-cols-3 lg:grid-cols-5">

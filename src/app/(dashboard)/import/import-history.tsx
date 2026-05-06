@@ -22,6 +22,7 @@ import {
   buildCountsList,
   canRenderUndo,
   effectiveStatusKind,
+  formatSkipBreakdown,
   sourceLabel,
 } from "./history-display";
 
@@ -252,6 +253,29 @@ function RunRow({
                 earliest: formatDateOnly(run.entries_earliest_start),
                 latest: formatDateOnly(run.entries_latest_start),
               })}
+            </div>
+          ) : null}
+
+          {/* Skipped time-entry summary — parity with the post-import
+              DoneStep card so a user reading the row understands
+              WHY a partial import landed fewer rows than expected
+              (invoice-locked vs. duplicate vs. RLS rejection)
+              without having to re-run anything. */}
+          {run.summary?.skipped?.timeEntries &&
+          run.summary.skipped.timeEntries > 0 ? (
+            <div className="text-caption text-content-secondary">
+              {t("skippedSummary", { count: run.summary.skipped.timeEntries })}
+              {(() => {
+                const breakdown = formatSkipBreakdown(
+                  run.summary.skipped.reasons,
+                );
+                return breakdown ? (
+                  <span className="text-content-muted">
+                    {" · "}
+                    {breakdown}
+                  </span>
+                ) : null;
+              })()}
             </div>
           ) : null}
 

@@ -106,6 +106,28 @@ export function sourceLabel(run: {
 }
 
 /**
+ * Format the "why were N entries skipped" breakdown for the import-
+ * history row. Mirrors the per-reason list on the post-import
+ * DoneStep card so the two screens stay in lockstep.
+ *
+ * Returns "" (not null) when there are no reasons — caller renders
+ * the count alone in that case.
+ *
+ * Reasons are emitted in descending count order so the most
+ * prevalent skip class shows first ("23 invoice_locked · 1 duplicate"),
+ * which is what the user wants to see when scanning a row.
+ */
+export function formatSkipBreakdown(
+  reasons: Record<string, number> | undefined,
+): string {
+  if (!reasons) return "";
+  const entries = Object.entries(reasons).filter(([, count]) => count > 0);
+  if (entries.length === 0) return "";
+  entries.sort((a, b) => b[1] - a[1]);
+  return entries.map(([reason, count]) => `${count} ${reason}`).join(" · ");
+}
+
+/**
  * Whether an undo button should render for this row given the
  * caller's role in the owning team. We render only when:
  *   - the run is not already undone, and

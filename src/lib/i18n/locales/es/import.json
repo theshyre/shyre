@@ -35,6 +35,7 @@
       "failed": "Falló",
       "undone": "Deshecho"
     },
-    "attemptedVsLanded": "{attempted} entradas en Harvest · solo {landed} importadas a Shyre"
+    "attemptedVsLanded": "{attempted} entradas en Harvest · solo {landed} importadas a Shyre",
+    "skippedSummary": "Omitidas {count, plural, =1 {# entrada de tiempo} other {# entradas de tiempo}}"
   }
 }

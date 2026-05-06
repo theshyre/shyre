@@ -2,6 +2,7 @@ import { describe, it, expect } from "vitest";
 import {
   effectiveStatusKind,
   buildCountsList,
+  formatSkipBreakdown,
   sourceLabel,
   canRenderUndo,
 } from "./history-display";
@@ -117,6 +118,46 @@ describe("buildCountsList", () => {
     expect(
       buildCountsList({ imported: { expenses: 1 } }, labels),
     ).toEqual(["1 expense"]);
+  });
+});
+
+describe("formatSkipBreakdown", () => {
+  it("returns '' for undefined reasons", () => {
+    expect(formatSkipBreakdown(undefined)).toBe("");
+  });
+  it("returns '' for an empty reasons map", () => {
+    expect(formatSkipBreakdown({})).toBe("");
+  });
+  it("returns '' when every reason has a zero count", () => {
+    expect(formatSkipBreakdown({ duplicate: 0, invoice_locked: 0 })).toBe("");
+  });
+  it("formats a single reason as '<count> <reason>'", () => {
+    expect(formatSkipBreakdown({ invoice_locked: 12 })).toBe("12 invoice_locked");
+  });
+  it("joins multiple reasons with ' · ' separator", () => {
+    // Insertion order is preserved for equal counts; sort below
+    // exercises the descending tie-break path explicitly.
+    expect(
+      formatSkipBreakdown({ invoice_locked: 5, duplicate: 5 }),
+    ).toBe("5 invoice_locked · 5 duplicate");
+  });
+  it("emits reasons in descending count order so the largest skip class shows first", () => {
+    expect(
+      formatSkipBreakdown({
+        duplicate: 3,
+        invoice_locked: 23,
+        no_user_mapping: 7,
+      }),
+    ).toBe("23 invoice_locked · 7 no_user_mapping · 3 duplicate");
+  });
+  it("filters out zero-count reasons but keeps the rest", () => {
+    expect(
+      formatSkipBreakdown({
+        invoice_locked: 4,
+        duplicate: 0,
+        no_user_mapping: 1,
+      }),
+    ).toBe("4 invoice_locked · 1 no_user_mapping");
   });
 });
 
