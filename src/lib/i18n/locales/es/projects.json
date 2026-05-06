@@ -8,6 +8,11 @@
   "saveProject": "Guardar Proyecto",
   "saveChanges": "Guardar Cambios",
   "noProjects": "Aún no hay proyectos. Agrega uno arriba para comenzar.",
+  "emptyTitle": "Aún no hay proyectos",
+  "emptyDescription": "Usa el formulario de arriba para agregar tu primer proyecto — elige un cliente, dale un nombre y podrás empezar a registrar tiempo en él.",
+  "groupInternal": "Internos",
+  "groupNoCustomer": "Sin cliente",
+  "groupCount": "{count, plural, one {# proyecto} other {# proyectos}}",
   "internal": "Interno",
   "fields": {
     "name": "Nombre",

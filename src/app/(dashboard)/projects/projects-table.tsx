@@ -3,7 +3,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState, useTransition } from "react";
 import { useTranslations } from "next-intl";
 import Link from "next/link";
-import { Archive, Building2, FolderTree } from "lucide-react";
+import { Archive, Building2, FolderKanban, FolderTree } from "lucide-react";
 import { Tooltip } from "@/components/Tooltip";
 import { useToast } from "@/components/Toast";
 import { SortableTableHeader } from "@/components/SortableTableHeader";
@@ -165,6 +165,63 @@ export function ProjectsTable({
     return out;
   }, [projects]);
 
+  // Bucket the parent-then-child sequence into customer groups for
+  // the visual treatment. Sub-projects share their parent's customer
+  // (trigger-enforced) so the parent → child contiguity is preserved
+  // when we iterate orderedProjects in order.
+  //
+  // Group order: customers alphabetical (case-insensitive), with
+  // Internal projects pushed to the end as a single bucket. Within
+  // a group, projects keep their orderedProjects order (server sort
+  // + parent-then-child).
+  interface CustomerGroup {
+    /** Stable key — customer name for external, "__internal__" for
+     *  internal projects. Drives React's reconciliation key on the
+     *  group header row. */
+    key: string;
+    label: string;
+    isInternal: boolean;
+    rows: ProjectRow[];
+  }
+  const customerGroups = useMemo<CustomerGroup[]>(() => {
+    const byKey = new Map<string, CustomerGroup>();
+    for (const p of orderedProjects) {
+      const isInternal = p.is_internal === true;
+      const key = isInternal
+        ? "__internal__"
+        : `c:${p.customers?.name ?? "__no_customer__"}`;
+      const label = isInternal
+        ? t("groupInternal")
+        : (p.customers?.name ?? t("groupNoCustomer"));
+      const existing = byKey.get(key);
+      if (existing) {
+        existing.rows.push(p);
+      } else {
+        byKey.set(key, { key, label, isInternal, rows: [p] });
+      }
+    }
+    const groups = Array.from(byKey.values());
+    groups.sort((a, b) => {
+      if (a.isInternal && !b.isInternal) return 1;
+      if (!a.isInternal && b.isInternal) return -1;
+      return a.label.localeCompare(b.label, undefined, {
+        sensitivity: "base",
+      });
+    });
+    return groups;
+  }, [orderedProjects, t]);
+
+  // Total visible-data column count — used as the colSpan on each
+  // group header row so it spans the entire table width. Updated
+  // whenever conditional columns toggle.
+  const totalColSpan =
+    1 /* checkbox */ +
+    1 /* name */ +
+    (showTeamColumn ? 1 : 0) +
+    1 /* hourly rate */ +
+    (showBurnColumn ? 1 : 0) +
+    1; /* status */
+
   useEffect(() => {
     if (selectedCount === 0) return;
     const onKey = (e: KeyboardEvent): void => {
@@ -280,7 +337,17 @@ export function ProjectsTable({
 
   if (projects.length === 0) {
     return (
-      <p className="mt-6 text-body text-content-muted">{t("noProjects")}</p>
+      <div className="mt-6 rounded-lg border border-edge bg-surface-raised p-8 text-center">
+        <div className="mx-auto mb-3 flex h-10 w-10 items-center justify-center rounded-full bg-accent-soft">
+          <FolderKanban size={20} className="text-accent" aria-hidden="true" />
+        </div>
+        <h3 className="text-body-lg font-medium text-content">
+          {t("emptyTitle")}
+        </h3>
+        <p className="mt-1 text-caption text-content-muted max-w-md mx-auto">
+          {t("emptyDescription")}
+        </p>
+      </div>
     );
   }
 
@@ -388,7 +455,6 @@ export function ProjectsTable({
           <col style={{ width: "40px" }} />
           <col />
           {showTeamColumn && <col style={{ width: "160px" }} />}
-          <col />
           <col style={{ width: "120px" }} />
           {showBurnColumn && <col style={{ width: "110px" }} />}
           <col style={{ width: "120px" }} />
@@ -426,12 +492,6 @@ export function ProjectsTable({
                 {tc("nav.teams")}
               </th>
             )}
-            <th
-              scope="col"
-              className={`${tableHeaderCellClass} text-left`}
-            >
-              {t("table.customer")}
-            </th>
             <SortableTableHeader
               label={t("table.hourlyRate")}
               sortKey="hourly_rate"
@@ -457,100 +517,182 @@ export function ProjectsTable({
           </tr>
         </thead>
         <tbody>
-          {orderedProjects.map((project) => {
-            const customerName =
-              project.customers?.name ?? null;
-            const isInternal = project.is_internal === true;
-            const isSelected = selected.has(project.id);
-            const isChild = project.parent_project_id !== null;
-            return (
-              <tr
-                key={project.id}
-                aria-level={isChild ? 2 : 1}
-                className={
-                  isSelected
-                    ? `${tableBodyRowClass} bg-accent-soft/30`
-                    : tableBodyRowClass
-                }
-              >
-                <td className="px-4 py-3">
-                  <input
-                    type="checkbox"
-                    checked={isSelected}
-                    onChange={() => toggleOne(project.id)}
-                    aria-label={t("bulkRowAria", { name: project.name })}
-                  />
-                </td>
-                <td className="px-4 py-3">
-                  <Link
-                    href={`/projects/${project.id}`}
-                    className={`text-accent hover:underline font-medium ${
-                      isChild ? "pl-6 inline-flex items-center gap-1.5" : ""
-                    }`}
-                  >
-                    {/* Visual indent + ↳ glyph for sub-project rows.
-                        aria-level on the <tr> communicates the
-                        hierarchy to AT users. */}
-                    {isChild && (
-                      <span
-                        aria-hidden="true"
-                        className="text-content-muted"
-                      >
-                        ↳
-                      </span>
-                    )}
-                    {project.name}
-                  </Link>
-                  {isInternal && (
-                    <Tooltip
-                      label={t("classification.internalDescription")}
-                    >
-                      <span className="ml-2 inline-flex items-center gap-1 rounded-full bg-surface-inset px-2 py-0.5 text-caption font-medium text-content-secondary">
-                        <Building2 size={10} />
-                        {t("internal")}
-                      </span>
-                    </Tooltip>
-                  )}
-                </td>
-                {showTeamColumn && (
-                  <td className="px-4 py-3">
-                    <span className="inline-flex items-center rounded-full bg-surface-inset px-2 py-0.5 text-caption font-medium text-content-secondary">
-                      {teamNameById.get(project.team_id) ?? "—"}
-                    </span>
-                  </td>
-                )}
-                <td className={tableBodyCellClass}>
-                  {isInternal ? (
-                    <span className="text-content-muted italic">
-                      {t("table.noCustomerInternal")}
-                    </span>
-                  ) : (
-                    (customerName ?? "—")
-                  )}
-                </td>
-                <td className={`${tableBodyCellClass} font-mono`}>
-                  {project.hourly_rate
-                    ? `$${Number(project.hourly_rate).toFixed(2)}/hr`
-                    : "—"}
-                </td>
-                {showBurnColumn && (
-                  <td className={`${tableBodyCellClass} text-right`}>
-                    <BurnCell pct={periodBurnPctById[project.id] ?? null} />
-                  </td>
-                )}
-                <td className="px-4 py-3">
-                  <StatusBadge
-                    status={project.status ?? "active"}
-                    label={tc(`status.${project.status ?? "active"}`)}
-                  />
-                </td>
-              </tr>
-            );
-          })}
+          {customerGroups.map((group) => (
+            <CustomerGroupRows
+              key={group.key}
+              group={group}
+              colSpan={totalColSpan}
+              showTeamColumn={showTeamColumn}
+              showBurnColumn={showBurnColumn}
+              teamNameById={teamNameById}
+              periodBurnPctById={periodBurnPctById}
+              selected={selected}
+              toggleOne={toggleOne}
+              t={t}
+              tc={tc}
+            />
+          ))}
         </tbody>
       </table>
       <PaginationFooter loaded={projects.length} total={totalCount} />
     </div>
+  );
+}
+
+/**
+ * One customer group: header row + every project row underneath.
+ *
+ * Header row uses `<th scope="rowgroup">` semantics rendered as a
+ * `<tr>` so screen readers announce "row group: Acme Corp" before
+ * the data rows. Visually it's a span-the-table band with a folder
+ * icon + customer name + project count — three channels (icon /
+ * text / typography weight) so the grouping doesn't rely on
+ * background color alone.
+ *
+ * Data rows reuse the existing project-row markup. Sub-projects
+ * pick up a `border-l-2 border-edge-muted` on the name cell to
+ * make the parent → child relationship readable as a tree line
+ * — pairs with the existing ↳ glyph + indent.
+ */
+function CustomerGroupRows({
+  group,
+  colSpan,
+  showTeamColumn,
+  showBurnColumn,
+  teamNameById,
+  periodBurnPctById,
+  selected,
+  toggleOne,
+  t,
+  tc,
+}: {
+  group: {
+    key: string;
+    label: string;
+    isInternal: boolean;
+    rows: ProjectRow[];
+  };
+  colSpan: number;
+  showTeamColumn: boolean;
+  showBurnColumn: boolean;
+  teamNameById: Map<string, string>;
+  periodBurnPctById: Record<string, number | null>;
+  selected: Set<string>;
+  toggleOne: (id: string) => void;
+  t: ReturnType<typeof useTranslations>;
+  tc: ReturnType<typeof useTranslations>;
+}): React.JSX.Element {
+  const HeaderIcon = group.isInternal ? Building2 : FolderKanban;
+  return (
+    <>
+      <tr
+        // role="rowgroup" header — visually a span-the-table band,
+        // semantically a group label so AT users land on it before
+        // the contained data rows.
+        className="border-b border-edge bg-surface-inset"
+      >
+        <td colSpan={colSpan} className="px-4 py-2">
+          <div className="flex items-center gap-2">
+            <HeaderIcon
+              size={14}
+              className="text-content-muted shrink-0"
+              aria-hidden="true"
+            />
+            <span className="text-label uppercase tracking-wider font-semibold text-content">
+              {group.label}
+            </span>
+            <span className="text-caption text-content-muted">
+              {t("groupCount", { count: group.rows.length })}
+            </span>
+          </div>
+        </td>
+      </tr>
+      {group.rows.map((project) => {
+        const isInternal = project.is_internal === true;
+        const isSelected = selected.has(project.id);
+        const isChild = project.parent_project_id !== null;
+        return (
+          <tr
+            key={project.id}
+            aria-level={isChild ? 2 : 1}
+            className={
+              isSelected
+                ? `${tableBodyRowClass} bg-accent-soft/30`
+                : tableBodyRowClass
+            }
+          >
+            <td className={tableBodyCellClass}>
+              <input
+                type="checkbox"
+                checked={isSelected}
+                onChange={() => toggleOne(project.id)}
+                aria-label={t("bulkRowAria", { name: project.name })}
+              />
+            </td>
+            <td
+              className={`${tableBodyCellClass} ${
+                isChild ? "border-l-2 border-edge-muted" : ""
+              }`}
+            >
+              <Link
+                href={`/projects/${project.id}`}
+                className={`text-accent hover:underline font-medium ${
+                  isChild ? "pl-6 inline-flex items-center gap-1.5" : ""
+                }`}
+              >
+                {/* Visual indent + ↳ glyph for sub-project rows.
+                    aria-level on the <tr> communicates the
+                    hierarchy to AT users; the border-l-2 on the
+                    cell renders as a tree line so the relationship
+                    reads at a glance, not just via the glyph. */}
+                {isChild && (
+                  <span
+                    aria-hidden="true"
+                    className="text-content-muted"
+                  >
+                    ↳
+                  </span>
+                )}
+                {project.name}
+              </Link>
+              {isInternal && (
+                <Tooltip
+                  label={t("classification.internalDescription")}
+                >
+                  <span className="ml-2 inline-flex items-center gap-1 rounded-full bg-surface-inset px-2 py-0.5 text-caption font-medium text-content-secondary">
+                    <Building2 size={10} />
+                    {t("internal")}
+                  </span>
+                </Tooltip>
+              )}
+            </td>
+            {showTeamColumn && (
+              <td className={tableBodyCellClass}>
+                <span className="inline-flex items-center rounded-full bg-surface-inset px-2 py-0.5 text-caption font-medium text-content-secondary">
+                  {teamNameById.get(project.team_id) ?? "—"}
+                </span>
+              </td>
+            )}
+            <td className={`${tableBodyCellClass} font-mono`}>
+              {project.hourly_rate
+                ? `$${Number(project.hourly_rate).toFixed(2)}/hr`
+                : "—"}
+            </td>
+            {showBurnColumn && (
+              <td className={`${tableBodyCellClass} text-right`}>
+                <BurnCell pct={periodBurnPctById[project.id] ?? null} />
+              </td>
+            )}
+            <td className={tableBodyCellClass}>
+              <StatusBadge
+                status={project.status ?? "active"}
+                label={tc(`status.${project.status ?? "active"}`)}
+              />
+            </td>
+          </tr>
+        );
+      })}
+    </>
   );
 }
 

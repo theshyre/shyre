@@ -8,6 +8,11 @@
   "saveProject": "Save Project",
   "saveChanges": "Save Changes",
   "noProjects": "No projects yet. Add one above to get started.",
+  "emptyTitle": "No projects yet",
+  "emptyDescription": "Use the form above to add your first project — pick a customer, give it a name, and you can start logging time against it.",
+  "groupInternal": "Internal",
+  "groupNoCustomer": "No customer",
+  "groupCount": "{count, plural, one {# project} other {# projects}}",
   "internal": "Internal",
   "fields": {
     "name": "Name",
