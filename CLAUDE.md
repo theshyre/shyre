@@ -211,7 +211,7 @@ Every user-facing string uses translation keys. No hardcoded text.
 
 8 personas at `docs/personas/*.md` are the source of truth: `solo-consultant`, `agency-owner`, `bookkeeper`, `ux-designer`, `accessibility-auditor`, `qa-tester`, `security-reviewer`, `platform-architect`.
 
-- **Persona sync — CRITICAL.** Each persona has three files: `docs/personas/<name>.md` (source), `.claude/agents/<name>.md`, `.cursor/rules/persona-<name>.mdc`. Editing any one requires editing the other two in the same commit.
+- **Persona sync — CRITICAL.** Each persona has two synced files: `docs/personas/<name>.md` (source) and `.claude/agents/<name>.md` (Claude Code wrapper). Editing one requires editing the other in the same commit. The `.cursor/rules/persona-<name>.mdc` mirrors are legacy (Shyre is Claude-Code-only as of 2026-04-29) and no longer required to stay in sync.
 - **Auto-engagement**: craft reviewers and system guardians (QA, Security, UX, Accessibility, Platform) auto-fire on relevant file patterns. Stakeholders (Solo Consultant, Agency Owner, Bookkeeper) are manual-invoke only.
 - **Personas review, they don't implement.** Lenses, not gatekeepers — the human decides.
 - **Prune stale concerns** when a check becomes a lint rule, a test, or a general CLAUDE.md rule.

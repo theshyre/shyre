@@ -1,33 +1,27 @@
 # Personas
 
-Shared persona definitions used by AI coding agents (Claude Code, Cursor) to review Shyre from different stakeholder perspectives.
+Shared persona definitions used by AI coding agents (primarily Claude Code) to review Shyre from different stakeholder perspectives.
 
-Each persona file defines a role, their priorities, and what they look for when evaluating code, features, and workflows. These are the **single source of truth** — tool-specific agent configs (`.claude/agents/`, `.cursor/rules/`) are thin wrappers that reference these files.
+Each persona file defines a role, their priorities, and what they look for when evaluating code, features, and workflows. These are the **single source of truth** — tool-specific agent configs (`.claude/agents/`, optionally `.cursor/rules/`) are thin wrappers that reference these files.
 
-## Personas
+## All personas at a glance
 
-### Stakeholder voices ("would I want to use this?")
+| Persona | Type | Auto-engages on | Primary lens |
+|---|---|---|---|
+| [Solo Consultant](solo-consultant.md) | Stakeholder | Manual | Daily-use friction, data portability, fair pricing, default-period filters |
+| [Agency Owner](agency-owner.md) | Stakeholder | Manual | Roles & RLS scope, bulk ops, cross-team leakage, audit trail |
+| [Bookkeeper](bookkeeper.md) | Stakeholder | Manual | Exports, money precision, period close, category taxonomy |
+| [UX Designer](ux-designer.md) | Craft | `src/app/**/*.tsx`, `src/components/**` | Hierarchy, consistency, redundant visual encoding, modal discipline |
+| [Accessibility Auditor](accessibility-auditor.md) | Craft | Same as UX (separate pass) | Keyboard-first, screen-reader, AA contrast, focus management |
+| [QA Tester](qa-tester.md) | Craft | Any `src/**/*.ts(x)` or `supabase/migrations/**` | Sad paths, RLS from both sides, regression pinning, coverage |
+| [Security Reviewer](security-reviewer.md) | Guardian | `supabase/migrations/**`, `src/lib/supabase/**`, `**/actions.ts`, auth code | RLS correctness, secret handling, audit log, error logging |
+| [Platform Architect](platform-architect.md) | Guardian | `src/lib/modules/**`, `supabase/migrations/**`, new top-level route groups | Shell vs module, table naming, layer violations, pagination primitives |
 
-| Persona | File | Focus |
-|---|---|---|
-| Solo Consultant | [solo-consultant.md](solo-consultant.md) | Daily time tracking friction, invoice-in-2-clicks, data portability, pricing fairness |
-| Agency Owner | [agency-owner.md](agency-owner.md) | Multi-user scenarios, team roles, shared customers, cross-user reports |
-| Bookkeeper | [bookkeeper.md](bookkeeper.md) | Categorization accuracy, CSV/QB exports, 1099 boundaries, audit trail |
+**Type legend:**
 
-### Craft reviewers
-
-| Persona | File | Focus |
-|---|---|---|
-| UX Designer | [ux-designer.md](ux-designer.md) | Information hierarchy, progressive disclosure, redundant visual encoding, keyboard shortcuts |
-| Accessibility Auditor | [accessibility-auditor.md](accessibility-auditor.md) | WCAG AA, keyboard-first nav, color-independent signals, screen-reader labels |
-| QA Tester | [qa-tester.md](qa-tester.md) | Happy + sad paths, edge cases, regression protection, coverage, critical flows |
-
-### System guardians
-
-| Persona | File | Focus |
-|---|---|---|
-| Security Reviewer | [security-reviewer.md](security-reviewer.md) | RLS correctness, secrets handling, session/MFA, CORS, audit log |
-| Platform Architect | [platform-architect.md](platform-architect.md) | Shyre shell vs module boundaries, module registry, schema prefixing |
+- **Stakeholder** — voice of a real user ("would I want to use this?"). Manual-invoke at feature-complete checkpoints; running them on every commit turns them into noise.
+- **Craft** — reviewers for UI / test quality. Auto-fire because they catch issues where they happen.
+- **Guardian** — system-level invariants (security, architecture). Auto-fire on the file patterns that put those invariants at risk.
 
 ## Usage
 
@@ -41,26 +35,9 @@ Invoke with `@persona-name` in a prompt, or let auto-triggers fire (see `CLAUDE.
 @qa-tester evaluate test coverage for the expenses module
 ```
 
-### Cursor
+### Cursor (legacy)
 
-Persona rules live in `.cursor/rules/persona-*.mdc`. They are **manual rules** (not always-apply) — enable them from the rule picker or reference them in your prompt.
-
-## Auto-engagement policy
-
-Apply the relevant persona review alongside regular work whenever these file patterns are touched. Auto-engagement is proactive — the agent initiates the review without being asked.
-
-| Persona | Auto-engages on |
-|---|---|
-| QA Tester | Any `src/**/*.ts(x)` or `supabase/migrations/**/*.sql` change |
-| Security Reviewer | `supabase/migrations/**`, `src/lib/supabase/**`, `src/lib/safe-action.ts`, `src/lib/system-admin.ts`, `src/lib/team-context.ts`, any `**/actions.ts`, `src/app/auth/**` |
-| UX Designer | `src/app/**/*.tsx`, `src/components/**/*.tsx` |
-| Accessibility Auditor | Same as UX Designer (separate pass, different lens) |
-| Platform Architect | `src/lib/modules/**`, `supabase/migrations/**`, new top-level `src/app/(dashboard)/*/page.tsx` |
-
-Rule of thumb:
-
-- **Craft reviewers and system guardians** auto-fire, because they catch bugs where they happen.
-- **Stakeholder voices** (Solo Consultant, Agency Owner, Bookkeeper) are invoked manually at feature-complete checkpoints, because running them on every small change turns them into noise.
+`.cursor/rules/persona-*.mdc` mirrors exist for Cursor but are no longer kept in sync as a hard requirement — Shyre is Claude-Code-only as of 2026-04-29. Treat them as read-only references; new persona changes only need to land in `docs/personas/` and `.claude/agents/`.
 
 ## Working with personas
 
@@ -72,13 +49,14 @@ Rule of thumb:
 
 ## Tool-sync requirement
 
-Every persona has three files that must stay in sync:
+Each persona has two files that must stay in sync:
 
 - `docs/personas/<name>.md` — source of truth
 - `.claude/agents/<name>.md` — Claude Code subagent wrapper
-- `.cursor/rules/persona-<name>.mdc` — Cursor rule wrapper
 
-**Editing any one requires editing the other two.** See `CLAUDE.md` → "Persona sync".
+Editing one requires editing the other in the same commit. The `.cursor/rules/persona-<name>.mdc` mirror is optional (see Cursor note above).
+
+See `CLAUDE.md` → "Persona sync" for the canonical rule.
 
 ## Deferred personas
 

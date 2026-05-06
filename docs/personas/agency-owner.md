@@ -20,7 +20,7 @@ Runs a 3–10 person consulting or dev shop. Bills clients by the hour, but staf
 When reviewing a change, flag:
 
 - [ ] **Does this action respect role?** Contributor / admin / owner distinctions clear, enforced server-side, tested.
-- [ ] **Does it scale to N users in an team?** Rendering the user picker? N^2 queries? N members in a dropdown?
+- [ ] **Does it scale to N users in a team?** Rendering the user picker? N^2 queries? N members in a dropdown?
 - [ ] **Cross-team leakage risk?** Any query that filters by team must actually filter by team — verified, not assumed.
 - [ ] **Does a contributor see only what they should?** Rates, customer notes, other users' entries — list them out.
 - [ ] **Bulk operations present for repetitive admin work?** Month-end invoice run, period-close, period reopen.
