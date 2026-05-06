@@ -12,6 +12,7 @@ import Link from "next/link";
 import { getTranslations } from "next-intl/server";
 import { createClient } from "@/lib/supabase/server";
 import { formatDurationHMZero } from "@/lib/time/week";
+import { computeSubProjectsRollup } from "./sub-projects-rollup";
 
 interface ChildSummary {
   id: string;
@@ -65,40 +66,19 @@ export async function SubProjectsSection({
     }
   }
 
-  const childRows = children.map((c) => {
-    const minutes = minutesByProject.get(c.id) ?? 0;
-    const hours = minutes / 60;
-    const budget = c.budget_hours;
-    const pct = budget && budget > 0 ? Math.min(100, (hours / budget) * 100) : null;
-    return {
-      ...c,
-      minutes,
-      hours,
-      budget,
-      pct,
-    };
+  const { childRows, totals } = computeSubProjectsRollup({
+    parentBudgetHours,
+    parentHourlyRate,
+    parentOwnMinutes,
+    children,
+    minutesByChildId: minutesByProject,
   });
-
-  const childMinutesTotal = childRows.reduce((s, r) => s + r.minutes, 0);
-  const totalMinutes = parentOwnMinutes + childMinutesTotal;
-  const totalHours = totalMinutes / 60;
-  const childBudgetTotal = childRows.reduce(
-    (s, r) => s + (r.budget ?? 0),
-    0,
-  );
-  const totalBudget = (parentBudgetHours ?? 0) + childBudgetTotal;
-
-  // Use parent's hourly_rate as a per-row fallback when a child
-  // doesn't carry its own. Per-row override still wins.
+  const totalMinutes = totals.minutes;
+  const totalHours = totals.hours;
+  const totalBudget = totals.budgetHours;
+  const totalDollars = totals.dollars;
+  const totalBudgetDollars = totals.budgetDollars;
   const parentRate = parentHourlyRate ?? 0;
-  const totalDollars = childRows.reduce(
-    (s, r) => s + (r.minutes / 60) * (r.hourly_rate ?? parentRate),
-    0,
-  ) + (parentOwnMinutes / 60) * parentRate;
-  const totalBudgetDollars = childRows.reduce(
-    (s, r) => s + (r.budget ?? 0) * (r.hourly_rate ?? parentRate),
-    0,
-  ) + (parentBudgetHours ?? 0) * parentRate;
 
   void parentId; // referenced for breadcrumb / future hooks
 
