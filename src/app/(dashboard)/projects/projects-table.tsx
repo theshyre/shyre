@@ -1,9 +1,9 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useState, useTransition } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState, useTransition } from "react";
 import { useTranslations } from "next-intl";
 import Link from "next/link";
-import { Archive, Building2 } from "lucide-react";
+import { Archive, Building2, FolderTree } from "lucide-react";
 import { Tooltip } from "@/components/Tooltip";
 import { useToast } from "@/components/Toast";
 import { SortableTableHeader } from "@/components/SortableTableHeader";
@@ -19,6 +19,7 @@ import {
 import {
   bulkArchiveProjectsAction,
   bulkRestoreProjectsAction,
+  bulkSwitchCategorySetAction,
 } from "./actions";
 
 export interface ProjectRow {
@@ -33,6 +34,12 @@ export interface ProjectRow {
    *  hierarchy is visible at a glance. */
   parent_project_id: string | null;
   customers: { name: string } | null;
+}
+
+interface CategorySetOption {
+  id: string;
+  name: string;
+  is_system: boolean;
 }
 
 interface Props {
@@ -50,6 +57,9 @@ interface Props {
    *  inputs and build the URL inside the client component. */
   selectedTeamId?: string;
   limitParam?: string;
+  /** Category sets the caller can pick from in the bulk-switch
+   *  toolbar action. Includes both system and team-shared sets. */
+  categorySets?: CategorySetOption[];
 }
 
 /**
@@ -71,12 +81,32 @@ export function ProjectsTable({
   dir,
   selectedTeamId,
   limitParam,
+  categorySets = [],
 }: Props): React.JSX.Element {
   const t = useTranslations("projects");
   const tc = useTranslations("common");
   const toast = useToast();
   const [, startTransition] = useTransition();
   const [selected, setSelected] = useState<Set<string>>(new Set());
+  const [setPickerOpen, setSetPickerOpen] = useState(false);
+  const setPickerRef = useRef<HTMLDivElement>(null);
+
+  // Close the bulk-switch dropdown on outside-click. Hooked
+  // unconditionally so the call count stays stable between the
+  // open and closed paths.
+  useEffect(() => {
+    if (!setPickerOpen) return;
+    function handleClick(e: MouseEvent): void {
+      if (
+        setPickerRef.current &&
+        !setPickerRef.current.contains(e.target as Node)
+      ) {
+        setSetPickerOpen(false);
+      }
+    }
+    document.addEventListener("mousedown", handleClick);
+    return () => document.removeEventListener("mousedown", handleClick);
+  }, [setPickerOpen]);
 
   const buildSortHref = useCallback(
     ({ sort: nextSort, dir: nextDir }: { sort: string; dir: "asc" | "desc" }) => {
@@ -152,6 +182,44 @@ export function ProjectsTable({
       return next;
     });
   }, []);
+
+  const onBulkSwitchSet = useCallback(
+    (categorySetId: string | null): void => {
+      const ids = Array.from(selected);
+      if (ids.length === 0) return;
+      startTransition(async () => {
+        const fd = new FormData();
+        for (const id of ids) fd.append("id", id);
+        fd.set("category_set_id", categorySetId ?? "");
+        try {
+          await bulkSwitchCategorySetAction(fd);
+          setSelected(new Set());
+          setSetPickerOpen(false);
+          const setName =
+            categorySetId === null
+              ? t("bulkSwitchSetNoneLabel")
+              : categorySets.find((s) => s.id === categorySetId)?.name ??
+                t("bulkSwitchSetUnknown");
+          toast.push({
+            kind: "success",
+            message: t("bulkSwitchSetToast", {
+              count: ids.length,
+              name: setName,
+            }),
+          });
+        } catch (err) {
+          toast.push({
+            kind: "error",
+            message:
+              err instanceof Error
+                ? err.message
+                : t("bulkSwitchSetFailed"),
+          });
+        }
+      });
+    },
+    [selected, startTransition, toast, t, categorySets],
+  );
 
   const onBulkArchive = useCallback((): void => {
     const ids = Array.from(selected);
@@ -230,14 +298,71 @@ export function ProjectsTable({
                 total: projects.length,
               })}
             </span>
-            <button
-              type="button"
-              onClick={onBulkArchive}
-              className="ml-auto inline-flex items-center gap-1.5 rounded-md border border-error/40 bg-error-soft px-3 py-1.5 text-caption font-semibold text-error-text hover:bg-error/10"
+            <div
+              ref={setPickerRef}
+              className="ml-auto relative inline-flex items-center gap-2"
             >
-              <Archive size={14} />
-              {t("bulkArchive", { count: selectedCount })}
-            </button>
+              {categorySets.length > 0 && (
+                <>
+                  <button
+                    type="button"
+                    onClick={() => setSetPickerOpen((o) => !o)}
+                    aria-haspopup="listbox"
+                    aria-expanded={setPickerOpen}
+                    className="inline-flex items-center gap-1.5 rounded-md border border-edge bg-surface px-3 py-1.5 text-caption font-medium text-content-secondary hover:bg-hover"
+                  >
+                    <FolderTree size={14} />
+                    {t("bulkSwitchSet", { count: selectedCount })}
+                  </button>
+                  {setPickerOpen && (
+                    <div
+                      role="listbox"
+                      aria-label={t("bulkSwitchSetListboxAria")}
+                      className="absolute right-0 top-full mt-1 w-[280px] max-h-[320px] overflow-auto rounded-lg border border-edge bg-surface-raised shadow-lg p-1 z-20"
+                    >
+                      <button
+                        type="button"
+                        role="option"
+                        aria-selected={false}
+                        onClick={() => onBulkSwitchSet(null)}
+                        className="flex w-full items-center gap-2 rounded-md px-2 py-1.5 text-left text-caption hover:bg-hover"
+                      >
+                        <span className="font-medium text-content">
+                          {t("bulkSwitchSetClear")}
+                        </span>
+                      </button>
+                      <div className="my-1 border-t border-edge-muted" />
+                      {categorySets.map((s) => (
+                        <button
+                          key={s.id}
+                          type="button"
+                          role="option"
+                          aria-selected={false}
+                          onClick={() => onBulkSwitchSet(s.id)}
+                          className="flex w-full items-center gap-2 rounded-md px-2 py-1.5 text-left text-caption hover:bg-hover"
+                        >
+                          <span className="font-medium text-content truncate">
+                            {s.is_system
+                              ? t("bulkSwitchSetSystemLabel", {
+                                  name: s.name,
+                                })
+                              : s.name}
+                          </span>
+                        </button>
+                      ))}
+                    </div>
+                  )}
+                </>
+              )}
+              <button
+                type="button"
+                onClick={onBulkArchive}
+                className="inline-flex items-center gap-1.5 rounded-md border border-error/40 bg-error-soft px-3 py-1.5 text-caption font-semibold text-error-text hover:bg-error/10"
+              >
+                <Archive size={14} />
+                {t("bulkArchive", { count: selectedCount })}
+              </button>
+            </div>
           </>
         ) : (
           <span className="text-caption text-content-muted">

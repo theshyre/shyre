@@ -3,8 +3,9 @@ import { createClient } from "@/lib/supabase/server";
 import { getTranslations } from "next-intl/server";
 import { notFound } from "next/navigation";
 import Link from "next/link";
-import { Clock, Hash, ExternalLink, FolderKanban } from "lucide-react";
+import { Clock, Hash, ExternalLink, FolderKanban, History as HistoryIcon } from "lucide-react";
 import { tableClass } from "@/lib/table-styles";
+import { validateTeamAccess } from "@/lib/team-context";
 
 export async function generateMetadata({
   params,
@@ -65,6 +66,15 @@ export default async function ProjectDetailPage({
 
   if (!project) notFound();
 
+  // Resolve the caller's role on this project's team — drives the
+  // "View edit history" link visibility (owner/admin only, matching
+  // the RLS gate on projects_history). Members see the rest of the
+  // detail page normally.
+  const { role: callerRole } = await validateTeamAccess(
+    project.team_id as string,
+  );
+  const callerIsAdmin = callerRole === "owner" || callerRole === "admin";
+
   // Customers on the same team — drives the "Make client work" picker
   // in ProjectClassification. Scoped to the project's team and to
   // non-archived customers; RLS narrows further.
@@ -113,14 +123,34 @@ export default async function ProjectDetailPage({
   }>;
   const hasChildren = children.length > 0;
 
-  // Parent reference for the breadcrumb on a child detail page.
+  // Parent reference — drives:
+  //   (a) the breadcrumb on a child detail page;
+  //   (b) the "Apply parent's settings" affordance on the edit form,
+  //       which retroactively pulls the parent's current inheritable
+  //       fields onto this child. Same field list as the New project
+  //       form's pre-fill — see `src/lib/projects/parent-defaults.ts`.
   const parentRef = project.parent_project_id
     ? await supabase
         .from("projects_v")
-        .select("id, name")
+        .select(
+          "id, name, hourly_rate, default_billable, github_repo, jira_project_key, invoice_code, category_set_id, require_timestamps",
+        )
         .eq("id", project.parent_project_id)
         .maybeSingle()
-        .then((r) => r.data as { id: string; name: string } | null)
+        .then(
+          (r) =>
+            r.data as {
+              id: string;
+              name: string;
+              hourly_rate: number | string | null;
+              default_billable: boolean | null;
+              github_repo: string | null;
+              jira_project_key: string | null;
+              invoice_code: string | null;
+              category_set_id: string | null;
+              require_timestamps: boolean | null;
+            } | null,
+        )
     : null;
 
   const categorySetsFull = await getVisibleCategorySets(project.team_id);
@@ -280,11 +310,20 @@ export default async function ProjectDetailPage({
           <span aria-hidden="true">←</span> {parentRef.name}
         </Link>
       )}
-      <div className="flex items-center gap-3">
+      <div className="flex items-center gap-3 flex-wrap">
         <FolderKanban size={24} className="text-accent" />
         <h1 className="text-page-title font-bold text-content break-words">
           {projectName}
         </h1>
+        {callerIsAdmin && (
+          <Link
+            href={`/projects/${id}/history`}
+            className="ml-auto inline-flex items-center gap-1.5 rounded-md border border-edge bg-surface px-2.5 py-1 text-caption text-content-muted hover:text-content hover:bg-hover transition-colors"
+          >
+            <HistoryIcon size={12} aria-hidden="true" />
+            {t("history.viewLink")}
+          </Link>
+        )}
       </div>
       <p className="mt-1 text-caption text-content-muted">
         {customerName
@@ -301,6 +340,7 @@ export default async function ProjectDetailPage({
             customer_id: string | null;
           }>}
           hasChildren={hasChildren}
+          parent={parentRef}
         />
       </div>
 

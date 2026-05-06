@@ -115,9 +115,44 @@ original switch.
 
 Every project edit (rate change, set switch, archive, etc.) writes
 an append-only row to `projects_history` with the pre-change state.
-Owner/admin can query it for dispute resolution — "who set this
-project to non-billable on March 12?" — without relying on the
-single `updated_at` timestamp.
+Owner/admin can query it via the **View edit history** link in the
+project header — the timeline shows each change as a strikethrough
+old → new diff, with timestamp + actor. Useful for "who set this
+project to non-billable on March 12?" questions without relying on
+the single `updated_at` timestamp. Members don't see the link;
+the underlying `projects_history` table has owner/admin-only RLS.
+
+## Bulk switching the category set
+
+On `/projects`, multi-select rows and use **Switch category set** in
+the bulk strip to apply a new category set to every selected project
+in one action. Useful when an engagement evolves and you want to
+re-classify a fleet of projects (8 phases of a long retainer, for
+instance) without editing each one.
+
+The picker lists every category set the team has access to (system
+sets and team-shared sets). Selecting **(no set — clear category)**
+unsets the category set on each selected project — entries on those
+projects keep their historical categories per the
+"Switching the category set" rules above.
+
+The bulk switch fires the `projects_history` audit trigger once per
+project, so the change is reconstructable per-project from the audit
+trail.
+
+## "Apply parent's settings" on a sub-project
+
+When editing a sub-project, an **Apply [Parent name]'s settings**
+affordance sits below the parent picker. Click it to retroactively
+overwrite the inheritable fields (rate, repo, Jira key, invoice
+code, default-billable, require-timestamps) with the parent's
+*current* values — useful when the parent's settings have evolved
+and you want a phase to catch up without re-typing each field.
+
+Two-stage confirm: click → review the warning → **Apply**. Cancel
+at any time. The button is hidden until you save the project (so
+you don't accidentally apply settings from a parent you've just
+selected but not committed to).
 
 ## GitHub integration
 

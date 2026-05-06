@@ -42,7 +42,10 @@
     "parentProjectNone": "— Proyecto de nivel superior —",
     "parentProjectHint": "Elige un proyecto principal para convertir este en un sub-proyecto. Los sub-proyectos comparten el mismo cliente y equipo que el principal y se acumulan en sus totales.",
     "parentProjectLockedHasChildren": "Este proyecto tiene sus propios sub-proyectos. Sepáralos primero para volver a asignarle un padre.",
-    "parentInheritedHint": "Heredado del proyecto principal — edita cualquier campo para sobrescribir."
+    "parentInheritedHint": "Heredado del proyecto principal — edita cualquier campo para sobrescribir.",
+    "applyParentSettings": "Aplicar configuración de {name}",
+    "applyParentSettingsConfirm": "¿Sobrescribir la tarifa, repositorio, clave de Jira, código de factura, facturabilidad por defecto y marcas de tiempo de este proyecto con los valores actuales de {name}? Puedes editar cualquier campo después.",
+    "applyParentSettingsApply": "Aplicar"
   },
   "subProjects": {
     "heading": "Sub-proyectos",
@@ -112,5 +115,24 @@
   "bulkArchive": "{count, plural, one {Archivar 1} other {Archivar #}}",
   "bulkArchivedToast": "{count, plural, one {1 proyecto archivado} other {# proyectos archivados}}",
   "bulkRestoredToast": "{count, plural, one {1 proyecto restaurado} other {# proyectos restaurados}}",
-  "archiveFailed": "No se pudo archivar el proyecto."
+  "bulkSwitchSet": "{count, plural, one {Cambiar conjunto de categorías} other {Cambiar conjunto en #}}",
+  "bulkSwitchSetListboxAria": "Elige un conjunto de categorías para aplicar",
+  "bulkSwitchSetClear": "(sin conjunto — limpiar categoría)",
+  "bulkSwitchSetSystemLabel": "{name} (integrado)",
+  "bulkSwitchSetToast": "Conjunto de categorías en {count, plural, one {1 proyecto} other {# proyectos}} cambiado a {name}",
+  "bulkSwitchSetNoneLabel": "(sin conjunto)",
+  "bulkSwitchSetUnknown": "el conjunto elegido",
+  "bulkSwitchSetFailed": "No se pudo cambiar el conjunto de categorías.",
+  "archiveFailed": "No se pudo archivar el proyecto.",
+  "history": {
+    "title": "Historial de cambios",
+    "description": "Cada cambio a la configuración de este proyecto queda registrado aquí. Solo propietario / administrador — para resolución de disputas y preguntas como \"¿quién configuró esto el 12 de marzo?\".",
+    "backToProject": "Volver a {name}",
+    "viewLink": "Ver historial de cambios",
+    "entryCount": "{count, plural, one {1 cambio} other {# cambios}}",
+    "empty": "Sin cambios registrados aún — este proyecto no ha sido editado desde que el registro de auditoría entró en funcionamiento.",
+    "notAdmin": "El historial del proyecto solo es visible para propietario / administrador.",
+    "notFound": "Proyecto no encontrado.",
+    "loadMore": "Cargar más"
+  }
 }

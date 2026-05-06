@@ -1,7 +1,8 @@
 "use client";
 
+import { useState } from "react";
 import { useTranslations } from "next-intl";
-import { Building2 } from "lucide-react";
+import { Building2, Sparkles, X } from "lucide-react";
 import { AlertBanner } from "@theshyre/ui";
 import { useFormAction } from "@/hooks/use-form-action";
 import { SubmitButton } from "@/components/SubmitButton";
@@ -11,7 +12,13 @@ import {
   textareaClass,
   labelClass,
   selectClass,
+  buttonGhostClass,
+  buttonSecondaryClass,
 } from "@/lib/form-styles";
+import {
+  applyParentDefaults,
+  readParentInheritableFields,
+} from "@/lib/projects/parent-defaults";
 import { updateProjectAction } from "../actions";
 
 interface Project {
@@ -38,12 +45,25 @@ interface ParentProjectOption {
   customer_id: string | null;
 }
 
+interface ParentInheritable {
+  id: string;
+  name: string;
+  hourly_rate: number | string | null;
+  default_billable: boolean | null;
+  github_repo: string | null;
+  jira_project_key: string | null;
+  invoice_code: string | null;
+  category_set_id: string | null;
+  require_timestamps: boolean | null;
+}
+
 const STATUSES = ["active", "paused", "completed", "archived"] as const;
 
 export function ProjectEditForm({
   project,
   eligibleParents = [],
   hasChildren = false,
+  parent = null,
 }: {
   project: Project;
   /** Top-level projects in the same customer the user can re-parent
@@ -54,9 +74,97 @@ export function ProjectEditForm({
    *  the parent dropdown — a project with children can't itself be
    *  re-parented (would violate the 1-level-deep rule). */
   hasChildren?: boolean;
+  /** The full parent row (with inheritable fields) when this project
+   *  is currently a sub-project. Drives the "Apply parent's settings"
+   *  affordance — clicking it overwrites the inheritable inputs with
+   *  the parent's current values. Null for top-level projects. */
+  parent?: ParentInheritable | null;
 }): React.JSX.Element {
   const t = useTranslations("projects");
   const tc = useTranslations("common");
+
+  // Inheritable fields are controlled state so the "Apply parent's
+  // settings" button can overwrite them programmatically. Other
+  // fields (name, description, status, budget_hours) stay
+  // uncontrolled — they aren't inheritable and benefit from the
+  // simpler markup.
+  const [hourlyRate, setHourlyRate] = useState<string>(
+    project.hourly_rate != null ? String(project.hourly_rate) : "",
+  );
+  const [githubRepo, setGithubRepo] = useState<string>(
+    project.github_repo ?? "",
+  );
+  const [jiraProjectKey, setJiraProjectKey] = useState<string>(
+    project.jira_project_key ?? "",
+  );
+  const [invoiceCode, setInvoiceCode] = useState<string>(
+    project.invoice_code ?? "",
+  );
+  const [defaultBillable, setDefaultBillable] = useState<boolean>(
+    project.default_billable,
+  );
+  const [requireTimestamps, setRequireTimestamps] = useState<boolean>(
+    project.require_timestamps,
+  );
+  const [parentSelection, setParentSelection] = useState<string>(
+    project.parent_project_id ?? "",
+  );
+
+  // Inline confirm pattern for the parent-settings overwrite — first
+  // click arms, second click within the same render commits. Avoids
+  // a browser confirm() dialog (which breaks the in-page flow) and
+  // skips a typed-confirm (overkill for a non-destructive overwrite —
+  // the data isn't lost; the user can keep editing afterwards).
+  const [confirmingApply, setConfirmingApply] = useState(false);
+
+  // The "Apply parent's settings" button is only shown when:
+  //   1. the project actually has a parent (loaded as `parent`);
+  //   2. the user hasn't changed the parent dropdown to a different
+  //      value yet (selecting a new parent without saving means the
+  //      `parent` prop no longer matches; force a save first to load
+  //      the new parent's defaults). Avoids surprises like applying
+  //      the OLD parent's settings after the dropdown has been
+  //      pointed elsewhere.
+  const canApplyParent =
+    parent !== null && parentSelection === parent.id;
+
+  function applyFromParent(): void {
+    if (!parent) return;
+    const defaults = readParentInheritableFields(parent);
+    if (!defaults) return;
+    const { values } = applyParentDefaults(
+      defaults,
+      {
+        hourly_rate: hourlyRate,
+        github_repo: githubRepo,
+        invoice_code: invoiceCode,
+        category_set_id: project.category_set_id ?? "",
+        default_billable: defaultBillable,
+        require_timestamps: requireTimestamps,
+      },
+      // The retroactive Apply gesture is explicit — every field
+      // gets overwritten regardless of what the user previously
+      // typed. So mark every field "untouched" so the helper
+      // overwrites everything.
+      {
+        hourly_rate: false,
+        github_repo: false,
+        invoice_code: false,
+        category_set_id: false,
+        default_billable: false,
+        require_timestamps: false,
+      },
+    );
+    setHourlyRate(values.hourly_rate);
+    setGithubRepo(values.github_repo);
+    // Jira key isn't on the New form / parent-defaults shape, but
+    // it's a parent-inheritable field. Apply directly here.
+    setJiraProjectKey(parent.jira_project_key ?? "");
+    setInvoiceCode(values.invoice_code);
+    setDefaultBillable(values.default_billable);
+    setRequireTimestamps(values.require_timestamps);
+    setConfirmingApply(false);
+  }
 
   const { pending, success, serverError, fieldErrors, handleSubmit } = useFormAction({
     action: updateProjectAction,
@@ -146,7 +254,11 @@ export function ProjectEditForm({
               <select
                 id="project-edit-parent"
                 name="parent_project_id"
-                defaultValue={project.parent_project_id ?? ""}
+                value={parentSelection}
+                onChange={(e) => {
+                  setParentSelection(e.target.value);
+                  setConfirmingApply(false);
+                }}
                 disabled={hasChildren}
                 className={selectClass}
                 aria-describedby="project-edit-parent-hint"
@@ -168,6 +280,44 @@ export function ProjectEditForm({
                   ? t("fields.parentProjectLockedHasChildren")
                   : t("fields.parentProjectHint")}
               </p>
+              {canApplyParent && parent && !confirmingApply && (
+                <button
+                  type="button"
+                  onClick={() => setConfirmingApply(true)}
+                  className={`${buttonGhostClass} mt-2 inline-flex items-center gap-1 text-caption text-accent-text`}
+                >
+                  <Sparkles size={12} aria-hidden="true" />
+                  {t("fields.applyParentSettings", { name: parent.name })}
+                </button>
+              )}
+              {confirmingApply && parent && (
+                <div className="mt-2 rounded-md border border-accent/30 bg-accent-soft/40 p-2.5 space-y-2">
+                  <p className="text-caption text-content-secondary">
+                    {t("fields.applyParentSettingsConfirm", {
+                      name: parent.name,
+                    })}
+                  </p>
+                  <div className="flex items-center gap-2">
+                    <button
+                      type="button"
+                      onClick={applyFromParent}
+                      className={`${buttonSecondaryClass} text-caption`}
+                      style={{ padding: "2px 10px", height: 28 }}
+                    >
+                      <Sparkles size={12} aria-hidden="true" />
+                      {t("fields.applyParentSettingsApply")}
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setConfirmingApply(false)}
+                      className={buttonGhostClass}
+                      aria-label={tc("actions.cancel")}
+                    >
+                      <X size={14} />
+                    </button>
+                  </div>
+                </div>
+              )}
             </div>
           )}
           <div>
@@ -180,7 +330,8 @@ export function ProjectEditForm({
               type="number"
               step="0.01"
               min="0"
-              defaultValue={project.hourly_rate ?? ""}
+              value={hourlyRate}
+              onChange={(e) => setHourlyRate(e.target.value)}
               className={inputClass}
             />
           </div>
@@ -206,7 +357,8 @@ export function ProjectEditForm({
               id="project-edit-github-repo"
               name="github_repo"
               placeholder={t("fields.githubRepoPlaceholder")}
-              defaultValue={project.github_repo ?? ""}
+              value={githubRepo}
+              onChange={(e) => setGithubRepo(e.target.value)}
               className={inputClass}
             />
             <p className="mt-1 text-caption text-content-muted">
@@ -221,7 +373,8 @@ export function ProjectEditForm({
               id="project-edit-jira-key"
               name="jira_project_key"
               placeholder={t("fields.jiraProjectKeyPlaceholder")}
-              defaultValue={project.jira_project_key ?? ""}
+              value={jiraProjectKey}
+              onChange={(e) => setJiraProjectKey(e.target.value)}
               className={`${inputClass} font-mono`}
             />
             <p className="mt-1 text-caption text-content-muted">
@@ -236,7 +389,8 @@ export function ProjectEditForm({
               id="project-edit-invoice-code"
               name="invoice_code"
               placeholder={t("fields.invoiceCodePlaceholder")}
-              defaultValue={project.invoice_code ?? ""}
+              value={invoiceCode}
+              onChange={(e) => setInvoiceCode(e.target.value)}
               maxLength={16}
               className={`${inputClass} font-mono`}
             />
@@ -250,7 +404,8 @@ export function ProjectEditForm({
                 <input
                   name="default_billable"
                   type="checkbox"
-                  defaultChecked={project.default_billable}
+                  checked={defaultBillable}
+                  onChange={(e) => setDefaultBillable(e.target.checked)}
                   className="mt-0.5 h-4 w-4 rounded border-edge text-accent focus:ring-focus-ring"
                 />
                 <span>
@@ -267,7 +422,8 @@ export function ProjectEditForm({
               <input
                 name="require_timestamps"
                 type="checkbox"
-                defaultChecked={project.require_timestamps}
+                checked={requireTimestamps}
+                onChange={(e) => setRequireTimestamps(e.target.checked)}
                 className="mt-0.5 h-4 w-4 rounded border-edge text-accent focus:ring-focus-ring"
               />
               <span>

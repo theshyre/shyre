@@ -4,7 +4,9 @@ import { runSafeAction } from "@/lib/safe-action";
 import { assertSupabaseOk } from "@/lib/errors";
 import { validateTeamAccess } from "@/lib/team-context";
 import { revalidatePath } from "next/cache";
+import { createClient } from "@/lib/supabase/server";
 import { normalizeGithubRepo } from "@/lib/projects/normalize";
+import type { ProjectHistoryEntry } from "./[id]/history/project-history-types";
 
 /** Atlassian project keys are uppercase 2+ chars, letters/digits.
  *  Normalize for symmetry with the detection regex in
@@ -711,6 +713,73 @@ export async function bulkArchiveProjectsAction(
 }
 
 /**
+ * Bulk-switch the category set across the selected projects. Pairs
+ * with the agency-owner persona's "switch all 8 of our projects
+ * from Set X to Set Y" workflow — replaces the one-by-one Edit
+ * dance with a single gesture from /projects' multi-select strip.
+ *
+ * Form contract:
+ *   id (multiple) — project ids to update.
+ *   category_set_id — empty string clears the set; a UUID sets it.
+ *
+ * Validation: the chosen set must be visible to the caller (RLS on
+ * `category_sets` handles this when we attempt to read it). A
+ * forged POST with a foreign id silently no-ops on the visibility
+ * check rather than leaking which sets exist.
+ *
+ * RLS on `projects` skips ids the caller can't update — partial
+ * outcomes are expected and silent (mirrors bulkArchiveProjects).
+ *
+ * The original `category_set_id` is NOT captured for an Undo —
+ * unlike archive, switching a set has no canonical "previous
+ * value" since the operation is many-to-one (could be coming from
+ * different sets). The user re-runs the action with their old set
+ * to reverse, which is one click on the same UI surface. The
+ * `projects_history` audit trail (added 2026-05-06) records the
+ * pre-change snapshot for every project as a side effect of the
+ * UPDATE trigger.
+ */
+export async function bulkSwitchCategorySetAction(
+  formData: FormData,
+): Promise<void> {
+  return runSafeAction(formData, async (formData, { supabase }) => {
+    const ids = formData.getAll("id").map(String).filter(Boolean);
+    if (ids.length === 0) return;
+
+    const rawSetId = (formData.get("category_set_id") as string) ?? "";
+    const category_set_id = rawSetId.length > 0 ? rawSetId : null;
+
+    // Defense-in-depth: confirm the chosen set is one the caller can
+    // actually read. RLS on `category_sets` (system + team + project-
+    // scoped, the latter being a separate concept we don't expose
+    // here) gates this. A null `category_set_id` skips the check —
+    // clearing the set is always allowed.
+    if (category_set_id) {
+      const { data: visible } = await supabase
+        .from("category_sets")
+        .select("id")
+        .eq("id", category_set_id)
+        .maybeSingle();
+      if (!visible) {
+        throw new Error(
+          "That category set isn't accessible. Pick a set from your team's library.",
+        );
+      }
+    }
+
+    assertSupabaseOk(
+      await supabase
+        .from("projects")
+        .update({ category_set_id })
+        .in("id", ids),
+    );
+
+    revalidatePath("/projects");
+    revalidatePath("/time-entries");
+  }, "bulkSwitchCategorySetAction") as unknown as void;
+}
+
+/**
  * Bulk restore — Undo from the bulk-archive toast. Resets
  * `status = 'active'` on the given ids. Uses 'active' rather than
  * a captured pre-archive status because we don't track that —
@@ -733,4 +802,85 @@ export async function bulkRestoreProjectsAction(
     revalidatePath("/projects");
     revalidatePath("/time-entries");
   }, "bulkRestoreProjectsAction") as unknown as void;
+}
+
+/**
+ * Read-only fetch of `projects_history` for one project, paginated
+ * newest-first. Used by the /projects/[id]/history page + dialog.
+ *
+ * RLS on `projects_history` already restricts SELECT to
+ * `public.user_team_role(team_id) IN ('owner','admin')`. This action
+ * trusts that and adds a friendly "you don't have access" envelope
+ * around it so callers don't have to handle empty-when-not-admin as
+ * a separate state.
+ *
+ * Actor display names are resolved in a single round-trip after the
+ * page slice is selected — same shape as
+ * `getBusinessIdentityHistoryAction`. Mirrors the existing audit
+ * surfaces so future maintainers find one consistent pattern.
+ */
+export async function getProjectHistoryAction(
+  projectId: string,
+  options?: { limit?: number; offset?: number },
+): Promise<{ history: ProjectHistoryEntry[]; hasMore: boolean }> {
+  const supabase = await createClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+  if (!user) {
+    throw new Error("Unauthorized");
+  }
+
+  const limit = options?.limit ?? 200;
+  const offset = options?.offset ?? 0;
+  const fetchSize = limit + 1;
+
+  const { data, error } = await supabase
+    .from("projects_history")
+    .select("id, operation, changed_at, changed_by_user_id, previous_state")
+    .eq("project_id", projectId)
+    .order("changed_at", { ascending: false })
+    .range(offset, offset + fetchSize - 1);
+  if (error) throw error;
+
+  const rows = data ?? [];
+  const hasMore = rows.length > limit;
+  const trimmed = rows.slice(0, limit);
+
+  // Resolve actor names in one round-trip.
+  const actorIds = Array.from(
+    new Set(
+      trimmed
+        .map((r) => r.changed_by_user_id as string | null)
+        .filter((id): id is string => id !== null),
+    ),
+  );
+  const nameById = new Map<string, string | null>();
+  if (actorIds.length > 0) {
+    const { data: profiles } = await supabase
+      .from("user_profiles")
+      .select("user_id, display_name")
+      .in("user_id", actorIds);
+    for (const p of profiles ?? []) {
+      nameById.set(
+        p.user_id as string,
+        (p.display_name as string | null) ?? null,
+      );
+    }
+  }
+
+  const history: ProjectHistoryEntry[] = trimmed.map((r) => ({
+    id: r.id as string,
+    operation: r.operation as "UPDATE" | "DELETE",
+    changedAt: r.changed_at as string,
+    changedBy: {
+      userId: (r.changed_by_user_id as string | null) ?? null,
+      displayName:
+        nameById.get((r.changed_by_user_id as string | null) ?? "") ??
+        null,
+    },
+    previousState: (r.previous_state as Record<string, unknown>) ?? {},
+  }));
+
+  return { history, hasMore };
 }

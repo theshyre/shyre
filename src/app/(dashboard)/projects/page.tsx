@@ -146,6 +146,11 @@ export default async function ProjectsPage({
         dir={dir}
         selectedTeamId={selectedTeamId}
         limitParam={sp.limit}
+        categorySets={categorySets.map((s) => ({
+          id: s.id,
+          name: s.name,
+          is_system: s.is_system,
+        }))}
       />
     </div>
   );

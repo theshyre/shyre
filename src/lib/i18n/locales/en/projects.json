@@ -42,7 +42,10 @@
     "parentProjectNone": "— Top-level project —",
     "parentProjectHint": "Pick a parent to make this a sub-project under it. Sub-projects share the same customer and team as their parent and roll up onto the parent's totals.",
     "parentProjectLockedHasChildren": "This project has its own sub-projects. Detach them first to re-parent it.",
-    "parentInheritedHint": "Filled from parent — edit any field to override."
+    "parentInheritedHint": "Filled from parent — edit any field to override.",
+    "applyParentSettings": "Apply {name}'s settings",
+    "applyParentSettingsConfirm": "Overwrite this project's rate, repo, Jira key, invoice code, billable default, and timestamps with {name}'s current values? You can still edit any field afterwards.",
+    "applyParentSettingsApply": "Apply"
   },
   "subProjects": {
     "heading": "Sub-projects",
@@ -112,5 +115,24 @@
   "bulkArchive": "{count, plural, one {Archive 1} other {Archive #}}",
   "bulkArchivedToast": "{count, plural, one {1 project archived} other {# projects archived}}",
   "bulkRestoredToast": "{count, plural, one {1 project restored} other {# projects restored}}",
-  "archiveFailed": "Couldn't archive project."
+  "bulkSwitchSet": "{count, plural, one {Switch category set} other {Switch category set on #}}",
+  "bulkSwitchSetListboxAria": "Pick a category set to apply",
+  "bulkSwitchSetClear": "(no set — clear category)",
+  "bulkSwitchSetSystemLabel": "{name} (built-in)",
+  "bulkSwitchSetToast": "Category set on {count, plural, one {1 project} other {# projects}} set to {name}",
+  "bulkSwitchSetNoneLabel": "(no set)",
+  "bulkSwitchSetUnknown": "the chosen set",
+  "bulkSwitchSetFailed": "Couldn't switch the category set.",
+  "archiveFailed": "Couldn't archive project.",
+  "history": {
+    "title": "Edit history",
+    "description": "Every change to this project's settings is captured here. Owner / admin only — used for dispute resolution and \"who set this on March 12?\" questions.",
+    "backToProject": "Back to {name}",
+    "viewLink": "View edit history",
+    "entryCount": "{count, plural, one {1 change} other {# changes}}",
+    "empty": "No changes recorded yet — this project hasn't been edited since the audit trail came online.",
+    "notAdmin": "Project history is visible to owner / admin only.",
+    "notFound": "Project not found.",
+    "loadMore": "Load more"
+  }
 }
