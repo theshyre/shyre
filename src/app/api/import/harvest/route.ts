@@ -197,6 +197,64 @@ export async function POST(request: Request): Promise<NextResponse> {
         0,
       );
 
+      // Match counts — for each Harvest entity type, query Shyre to
+      // see how many were already imported (matched by Harvest id).
+      // Drives the "6 new · 2 will refresh" preview text. Already-
+      // imported rows go through the upsert-update path on import;
+      // new ones are inserted. Without these counts the user can't
+      // tell whether a re-import will create duplicates or refresh
+      // in place.
+      const harvestCustomerIds = customers.map((c) => String(c.id));
+      const harvestProjectIds = projects.map((p) => String(p.id));
+      const harvestTimeEntryIds = timeEntries.map((e) => String(e.id));
+      const harvestInvoiceIds = invoices.map((i) => String(i.id));
+      const [
+        existingCustomers,
+        existingProjects,
+        existingTimeEntries,
+        existingInvoices,
+      ] = await Promise.all([
+        harvestCustomerIds.length > 0
+          ? supabase
+              .from("customers")
+              .select("import_source_id")
+              .eq("team_id", organizationId)
+              .eq("imported_from", "harvest")
+              .in("import_source_id", harvestCustomerIds)
+          : Promise.resolve({ data: [] as Array<{ import_source_id: string }> }),
+        harvestProjectIds.length > 0
+          ? supabase
+              .from("projects")
+              .select("import_source_id")
+              .eq("team_id", organizationId)
+              .eq("imported_from", "harvest")
+              .in("import_source_id", harvestProjectIds)
+          : Promise.resolve({ data: [] as Array<{ import_source_id: string }> }),
+        harvestTimeEntryIds.length > 0
+          ? supabase
+              .from("time_entries")
+              .select("import_source_id")
+              .eq("team_id", organizationId)
+              .eq("imported_from", "harvest")
+              .in("import_source_id", harvestTimeEntryIds)
+          : Promise.resolve({ data: [] as Array<{ import_source_id: string }> }),
+        harvestInvoiceIds.length > 0
+          ? supabase
+              .from("invoices")
+              .select("import_source_id")
+              .eq("team_id", organizationId)
+              .eq("imported_from", "harvest")
+              .in("import_source_id", harvestInvoiceIds)
+          : Promise.resolve({ data: [] as Array<{ import_source_id: string }> }),
+      ]);
+
+      const existingMatches = {
+        customers: (existingCustomers.data ?? []).length,
+        projects: (existingProjects.data ?? []).length,
+        timeEntries: (existingTimeEntries.data ?? []).length,
+        invoices: (existingInvoices.data ?? []).length,
+      };
+
       return NextResponse.json({
         companyName: company.companyName ?? "",
         timeZone: company.timeZone ?? "UTC",
@@ -208,6 +266,7 @@ export async function POST(request: Request): Promise<NextResponse> {
         categoryCount: collectUniqueTaskNames(timeEntries).length,
         customerNames: customers.slice(0, 10).map((c) => c.name),
         projectNames: projects.slice(0, 10).map((p) => p.name),
+        existingMatches,
         harvestUsers: harvestUsers.map((u) => ({
           id: u.id,
           name: `${u.first_name} ${u.last_name}`.trim(),

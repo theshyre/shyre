@@ -62,6 +62,18 @@ interface PreviewData {
   categoryCount: number;
   customerNames: string[];
   projectNames: string[];
+  /** Per-entity counts of rows that ALREADY exist in Shyre (matched
+   *  by Harvest source id). The import upserts those in place
+   *  rather than creating duplicates. Drives the "N new · M will
+   *  refresh" preview text so the user can tell at a glance
+   *  whether a re-import will land fresh data or just refresh
+   *  what's there. */
+  existingMatches?: {
+    customers: number;
+    projects: number;
+    timeEntries: number;
+    invoices: number;
+  };
   harvestUsers: HarvestUserSummary[];
   shyreMembers: ShyreMemberSummary[];
   businessPeople: BusinessPersonSummary[];
@@ -635,24 +647,28 @@ function PreviewStep({
           label="Customers"
           count={preview.customers}
           names={preview.customerNames}
+          existing={preview.existingMatches?.customers}
         />
         <PreviewCard
           icon={FolderKanban}
           label="Projects"
           count={preview.projects}
           names={preview.projectNames}
+          existing={preview.existingMatches?.projects}
         />
         <PreviewCard
           icon={Clock}
           label="Time entries"
           count={preview.timeEntries}
           names={[]}
+          existing={preview.existingMatches?.timeEntries}
         />
         <PreviewCard
           icon={FileText}
           label="Invoices"
           count={preview.invoices}
           names={[]}
+          existing={preview.existingMatches?.invoices}
         />
         <PreviewCard
           icon={UserCog}
@@ -1184,12 +1200,20 @@ function PreviewCard({
   label,
   count,
   names,
+  existing,
 }: {
   icon: typeof Users;
   label: string;
   count: number;
   names: string[];
+  /** Number of rows already imported in Shyre (matched by Harvest
+   *  source id). Drives the "X new · Y will refresh" line so the
+   *  user can tell whether the import will create rows or refresh
+   *  existing ones. Omit when not applicable (e.g. categories,
+   *  which the importer derives from time entries on the fly). */
+  existing?: number;
 }): React.JSX.Element {
+  const newCount = existing !== undefined ? Math.max(0, count - existing) : null;
   return (
     <div className="rounded-lg border border-edge bg-surface p-3">
       <div className="flex items-center gap-2">
@@ -1199,6 +1223,20 @@ function PreviewCard({
         </span>
       </div>
       <p className="mt-1 text-title font-bold font-mono text-content">{count}</p>
+      {newCount !== null && count > 0 && (
+        // Three-channel encoding via plain language + count split.
+        // "all new" → simple; "all existing" → emphasizes the refresh
+        // case; mixed → both numbers so the user can scan exactly
+        // what's about to happen. Color stays neutral; this is
+        // informational, not a warning.
+        <p className="mt-1 text-caption text-content-secondary">
+          {existing === 0
+            ? `${count} new`
+            : existing === count
+              ? `${count} will refresh`
+              : `${newCount} new · ${existing} will refresh`}
+        </p>
+      )}
       {names.length > 0 && (
         <p className="mt-1 text-caption text-content-muted truncate">
           {names.join(", ")}
