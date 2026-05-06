@@ -19,6 +19,7 @@ import {
   formSpanQuarter,
 } from "@/lib/form-styles";
 import { SubmitButton } from "@/components/SubmitButton";
+import { DateField } from "@/components/DateField";
 import { createExpenseAction } from "./actions";
 import { EXPENSE_CATEGORIES, type ExpenseCategory } from "./categories";
 import { getCategoryHelp } from "./categories-help";
@@ -56,6 +57,7 @@ export function NewExpenseForm({
   const [open, setOpen] = useState(false);
   const [selectedTeamId, setSelectedTeamId] = useState(defaultTeamId);
   const [selectedCategory, setSelectedCategory] = useState<string>("");
+  const [incurredOn, setIncurredOn] = useState<string>(() => todayStr());
   const t = useTranslations("expenses");
   const tc = useTranslations("common");
   const showTeamPicker = teamOptions.length > 1;
@@ -119,14 +121,12 @@ export function NewExpenseForm({
           <label htmlFor="ne-incurred-on" className={labelClass}>
             {t("fields.incurredOn")} *
           </label>
-          <input
+          <DateField
             id="ne-incurred-on"
             name="incurred_on"
-            type="date"
-            defaultValue={todayStr()}
-            required
+            value={incurredOn}
+            onChange={setIncurredOn}
             autoFocus
-            className={inputClass}
           />
         </div>
         <div className={formSpanQuarter}>

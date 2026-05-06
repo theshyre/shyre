@@ -10,6 +10,7 @@ import {
   kbdClass,
 } from "@/lib/form-styles";
 import { Tooltip } from "@/components/Tooltip";
+import { DateField } from "@/components/DateField";
 import {
   parseJumpInput,
   resolveChip,
@@ -55,8 +56,8 @@ interface Props {
  *
  *   - Free-text input is autofocused on open. Solo persona ranked
  *     this above the chips: typing "2022-03" beats hunting for a
- *     chip every time. Native <input type="date"> sits next to it
- *     for users who prefer the calendar widget.
+ *     chip every time. The shared `<DateField>` calendar widget
+ *     sits next to it for users who prefer point-and-click.
  *
  *   - Five chips: Today, Yesterday, Last week, Last month, Last
  *     quarter. Trim of the design doc's eight per the persona
@@ -162,9 +163,9 @@ export function JumpToDate({
     [todayStr, navigateToDate, close],
   );
 
-  // Native <input type="date"> commits via onChange, not onSubmit —
-  // listen separately and skip the parser (the value is already
-  // YYYY-MM-DD).
+  // The DateField commits via onChange (ISO YYYY-MM-DD), not via
+  // a separate submit — listen here and skip the parser (the value
+  // is already in canonical form).
   const onNativePick = useCallback(
     (value: string) => {
       if (!/^\d{4}-\d{2}-\d{2}$/.test(value)) return;
@@ -356,12 +357,10 @@ export function JumpToDate({
             >
               {t("calendarLabel")}
             </label>
-            <input
+            <DateField
               id={`${popoverId}-native`}
-              type="date"
-              defaultValue={anchorStr}
-              onChange={(e) => onNativePick(e.target.value)}
-              className={inputClass}
+              value={anchorStr}
+              onChange={onNativePick}
               min="2000-01-01"
               max="2099-12-31"
             />

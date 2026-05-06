@@ -6,6 +6,7 @@ import { MapPin, Plus, Pencil, X } from "lucide-react";
 import { AlertBanner } from "@theshyre/ui";
 import { useFormAction } from "@/hooks/use-form-action";
 import { SubmitButton } from "@/components/SubmitButton";
+import { DateField } from "@/components/DateField";
 import { InlineDeleteRowConfirm } from "@/components/InlineDeleteRowConfirm";
 import {
   inputClass,
@@ -285,6 +286,19 @@ function RegistrationForm({
     onSuccess: onDone,
   });
 
+  // Controlled state for the three date fields — DateField is
+  // controlled-only, and the form remounts on `registration` prop
+  // changes via the parent's open/close gating.
+  const [registeredOn, setRegisteredOn] = useState(
+    registration?.registered_on ?? "",
+  );
+  const [nexusStartDate, setNexusStartDate] = useState(
+    registration?.nexus_start_date ?? "",
+  );
+  const [nextDueDate, setNextDueDate] = useState(
+    registration?.next_due_date ?? "",
+  );
+
   const initial = registration ?? {
     state: "",
     is_formation: defaultIsFormation,
@@ -365,21 +379,21 @@ function RegistrationForm({
 
         <div>
           <label htmlFor="state-registrations-section-registeredOn" className={labelClass}>{t("fields.registeredOn")}</label>
-          <input id="state-registrations-section-registeredOn"
-            type="date"
+          <DateField
+            id="state-registrations-section-registeredOn"
             name="registered_on"
-            defaultValue={initial.registered_on ?? ""}
-            className={inputClass}
+            value={registeredOn}
+            onChange={setRegisteredOn}
           />
         </div>
 
         <div>
           <label htmlFor="state-registrations-section-nexusStartDate" className={labelClass}>{t("fields.nexusStartDate")}</label>
-          <input id="state-registrations-section-nexusStartDate"
-            type="date"
+          <DateField
+            id="state-registrations-section-nexusStartDate"
             name="nexus_start_date"
-            defaultValue={initial.nexus_start_date ?? ""}
-            className={inputClass}
+            value={nexusStartDate}
+            onChange={setNexusStartDate}
           />
         </div>
 
@@ -439,11 +453,11 @@ function RegistrationForm({
 
         <div>
           <label htmlFor="state-registrations-section-nextDueDate" className={labelClass}>{t("fields.nextDueDate")}</label>
-          <input id="state-registrations-section-nextDueDate"
-            type="date"
+          <DateField
+            id="state-registrations-section-nextDueDate"
             name="next_due_date"
-            defaultValue={initial.next_due_date ?? ""}
-            className={inputClass}
+            value={nextDueDate}
+            onChange={setNextDueDate}
           />
         </div>
 

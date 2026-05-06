@@ -7,6 +7,7 @@ import { UserCog, Plus, Pencil, X, Link2, Link2Off, History } from "lucide-react
 import { AlertBanner } from "@theshyre/ui";
 import { useFormAction } from "@/hooks/use-form-action";
 import { SubmitButton } from "@/components/SubmitButton";
+import { DateField } from "@/components/DateField";
 import { InlineDeleteRowConfirm } from "@/components/InlineDeleteRowConfirm";
 import { LinkPendingSpinner } from "@/components/LinkPendingSpinner";
 import { Tooltip } from "@/components/Tooltip";
@@ -449,6 +450,12 @@ function PersonForm({
       ? (initial.compensation_amount_cents / 100).toFixed(2)
       : "";
 
+  // Controlled state for the two date fields. The form is opened
+  // afresh per person edit (parent toggles editingId), so initial
+  // values seed once on mount.
+  const [startedOn, setStartedOn] = useState(initial.started_on ?? "");
+  const [endedOn, setEndedOn] = useState(initial.ended_on ?? "");
+
   const managerCandidates = people.filter(
     (p) => p.id !== person?.id,
   );
@@ -577,21 +584,21 @@ function PersonForm({
 
         <div>
           <label htmlFor="people-startedOn" className={labelClass}>{t("fields.startedOn")}</label>
-          <input id="people-startedOn"
-            type="date"
+          <DateField
+            id="people-startedOn"
             name="started_on"
-            defaultValue={initial.started_on ?? ""}
-            className={inputClass}
+            value={startedOn}
+            onChange={setStartedOn}
           />
         </div>
 
         <div>
           <label htmlFor="people-endedOn" className={labelClass}>{t("fields.endedOn")}</label>
-          <input id="people-endedOn"
-            type="date"
+          <DateField
+            id="people-endedOn"
             name="ended_on"
-            defaultValue={initial.ended_on ?? ""}
-            className={inputClass}
+            value={endedOn}
+            onChange={setEndedOn}
           />
         </div>
 

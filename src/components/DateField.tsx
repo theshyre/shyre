@@ -541,10 +541,14 @@ export function DateField(props: DateFieldProps): React.JSX.Element {
   return (
     <div ref={rootRef} className={`relative ${className ?? ""}`}>
       <div className="relative">
+        {/* Visible input — text-mode for the popover-driven calendar.
+            DELIBERATELY UNNAMED so FormData carries the ISO value
+            from the hidden input below, not the locale-formatted
+            display string. Caller-supplied `name` lands on the
+            hidden input. */}
         <input
           ref={inputRef}
           id={fieldId}
-          name={name}
           type="text"
           inputMode="numeric"
           value={text}
@@ -567,6 +571,18 @@ export function DateField(props: DateFieldProps): React.JSX.Element {
           autoFocus={autoFocus}
           className={`${inputClass} pr-[36px]`}
         />
+        {/* Hidden input carrying the ISO value for native form
+            submission. Drop-in for `<input type="date" name="x">`
+            in uncontrolled forms — server-side `formData.get("x")`
+            still reads "YYYY-MM-DD". */}
+        {name && (
+          <input
+            type="hidden"
+            name={name}
+            value={value}
+            disabled={disabled}
+          />
+        )}
         <button
           ref={triggerRef}
           type="button"

@@ -412,6 +412,75 @@ describe("DateField", () => {
 });
 
 // --------------------------------------------------------------
+// Form-submission contract — `name` lands on a hidden input
+// carrying the ISO value, NOT the display-format text. Lets
+// uncontrolled forms swap native <input type="date"> for
+// <DateField name="x"> without server-side reparsing.
+// --------------------------------------------------------------
+
+describe("DateField — name= form submission", () => {
+  it("renders a hidden input with the ISO value when `name` is provided", () => {
+    const { container } = render(
+      <DateField value="2026-04-30" onChange={() => {}} name="incurred_on" />,
+    );
+    const hidden = container.querySelector(
+      'input[type="hidden"][name="incurred_on"]',
+    ) as HTMLInputElement | null;
+    expect(hidden).not.toBeNull();
+    expect(hidden!.value).toBe("2026-04-30");
+  });
+
+  it("the visible text input is NOT named — the hidden input owns the form value", () => {
+    const { container } = render(
+      <DateField value="2026-04-30" onChange={() => {}} name="incurred_on" />,
+    );
+    const visible = container.querySelector(
+      'input[type="text"][role="combobox"]',
+    ) as HTMLInputElement | null;
+    expect(visible).not.toBeNull();
+    expect(visible!.getAttribute("name")).toBeNull();
+  });
+
+  it("hidden input value tracks `value` changes (controlled prop)", () => {
+    const { container, rerender } = render(
+      <DateField value="2026-04-30" onChange={() => {}} name="x" />,
+    );
+    const getHidden = () =>
+      container.querySelector(
+        'input[type="hidden"][name="x"]',
+      ) as HTMLInputElement;
+    expect(getHidden().value).toBe("2026-04-30");
+    rerender(<DateField value="2026-05-15" onChange={() => {}} name="x" />);
+    expect(getHidden().value).toBe("2026-05-15");
+    rerender(<DateField value="" onChange={() => {}} name="x" />);
+    expect(getHidden().value).toBe("");
+  });
+
+  it("does NOT render the hidden input when `name` is omitted (controlled-only callers stay unaffected)", () => {
+    const { container } = render(
+      <DateField value="2026-04-30" onChange={() => {}} />,
+    );
+    const hidden = container.querySelector('input[type="hidden"]');
+    expect(hidden).toBeNull();
+  });
+
+  it("FormData picks up ISO from the hidden input when wrapped in a form (drop-in for native type=date)", () => {
+    const { container } = render(
+      <form>
+        <DateField
+          value="2026-04-30"
+          onChange={() => {}}
+          name="incurred_on"
+        />
+      </form>,
+    );
+    const form = container.querySelector("form") as HTMLFormElement;
+    const fd = new FormData(form);
+    expect(fd.get("incurred_on")).toBe("2026-04-30");
+  });
+});
+
+// --------------------------------------------------------------
 // Pure helpers
 // --------------------------------------------------------------
 

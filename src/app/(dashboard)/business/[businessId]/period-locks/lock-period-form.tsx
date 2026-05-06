@@ -1,10 +1,12 @@
 "use client";
 
+import { useState } from "react";
 import { useTranslations } from "next-intl";
 import { Lock } from "lucide-react";
 import { AlertBanner } from "@theshyre/ui";
 import { useFormAction } from "@/hooks/use-form-action";
 import { SubmitButton } from "@/components/SubmitButton";
+import { DateField } from "@/components/DateField";
 import {
   inputClass,
   labelClass,
@@ -25,6 +27,7 @@ export function LockPeriodForm({ teamOptions }: Props): React.JSX.Element {
   });
 
   const showTeam = teamOptions.length > 1;
+  const [periodEnd, setPeriodEnd] = useState("");
 
   return (
     <form
@@ -63,11 +66,11 @@ export function LockPeriodForm({ teamOptions }: Props): React.JSX.Element {
 
         <div>
           <label htmlFor="period-locks-lock-period-form-periodEnd" className={labelClass}>{t("fields.periodEnd")}</label>
-          <input id="period-locks-lock-period-form-periodEnd"
+          <DateField
+            id="period-locks-lock-period-form-periodEnd"
             name="period_end"
-            type="date"
-            className={inputClass}
-            required
+            value={periodEnd}
+            onChange={setPeriodEnd}
           />
         </div>
 

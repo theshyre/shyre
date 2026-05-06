@@ -1,12 +1,13 @@
 "use client";
 
-import { useCallback, useEffect, useRef } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { useTranslations } from "next-intl";
 import { AlertBanner } from "@theshyre/ui";
 import { useFormAction } from "@/hooks/use-form-action";
 import { useFormDirty } from "@/hooks/use-form-dirty";
 import { SubmitButton } from "@/components/SubmitButton";
 import { FieldError } from "@/components/FieldError";
+import { DateField } from "@/components/DateField";
 import {
   inputClass,
   labelClass,
@@ -66,6 +67,8 @@ export function InlineEditForm({
   // state up front instead of letting the user type into a draft
   // that can't be saved.
   const locked = entry.invoiced && entry.invoice_id != null;
+
+  const [entryDate, setEntryDate] = useState(toLocalDate(entry.start_time));
 
   const { pending, success, serverError, fieldErrors, handleSubmit } =
     useFormAction({
@@ -260,13 +263,12 @@ export function InlineEditForm({
               <label htmlFor={`ie-date-${entry.id}`} className={labelClass}>
                 {t("fields.date")} *
               </label>
-              <input
+              <DateField
                 id={`ie-date-${entry.id}`}
                 name="entry_date"
-                type="date"
-                required
-                defaultValue={toLocalDate(entry.start_time)}
-                className={inputClass}
+                value={entryDate}
+                onChange={setEntryDate}
+                disabled={locked}
               />
             </div>
             <div className={formSpanQuarter}>

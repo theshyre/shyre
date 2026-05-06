@@ -1,9 +1,11 @@
 "use client";
 
+import { useState } from "react";
 import { useTranslations } from "next-intl";
 import { AlertBanner } from "@theshyre/ui";
 import { useFormAction } from "@/hooks/use-form-action";
 import { SubmitButton } from "@/components/SubmitButton";
+import { DateField } from "@/components/DateField";
 import {
   inputClass,
   labelClass,
@@ -56,6 +58,9 @@ export function IdentityForm({
 }: Props): React.JSX.Element {
   const t = useTranslations("business.info");
   const tc = useTranslations("common");
+  // DateField is controlled; the form's keyed remount (see formKey
+  // below) re-seeds this state from the latest prop on revalidate.
+  const [incorporated, setIncorporated] = useState(dateIncorporated);
   const { pending, success, serverError, handleSubmit } = useFormAction({
     action: updateBusinessIdentityAction,
   });
@@ -136,11 +141,11 @@ export function IdentityForm({
 
             <div>
               <label htmlFor="identity-identity-form-dateIncorporated" className={labelClass}>{t("fields.dateIncorporated")}</label>
-              <input id="identity-identity-form-dateIncorporated"
+              <DateField
+                id="identity-identity-form-dateIncorporated"
                 name="date_incorporated"
-                type="date"
-                defaultValue={dateIncorporated}
-                className={inputClass}
+                value={incorporated}
+                onChange={setIncorporated}
               />
             </div>
 

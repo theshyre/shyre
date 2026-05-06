@@ -5,13 +5,13 @@ import { useState } from "react";
 import { useTranslations } from "next-intl";
 import { Filter, X } from "lucide-react";
 import {
-  inputClass,
   selectClass,
   labelClass,
   buttonGhostClass,
   buttonPrimaryClass,
 } from "@/lib/form-styles";
 import { INVOICE_STATUSES } from "@/lib/invoice-status";
+import { DateField } from "@/components/DateField";
 
 interface CustomerOption {
   id: string;
@@ -127,25 +127,13 @@ export function InvoiceFilters({
           <label className={labelClass} htmlFor="if-from">
             {t("from")}
           </label>
-          <input
-            id="if-from"
-            type="date"
-            value={from}
-            onChange={(e) => setFrom(e.target.value)}
-            className={inputClass}
-          />
+          <DateField id="if-from" value={from} onChange={setFrom} />
         </div>
         <div>
           <label className={labelClass} htmlFor="if-to">
             {t("to")}
           </label>
-          <input
-            id="if-to"
-            type="date"
-            value={to}
-            onChange={(e) => setTo(e.target.value)}
-            className={inputClass}
-          />
+          <DateField id="if-to" value={to} onChange={setTo} />
         </div>
       </div>
 

@@ -21,6 +21,7 @@ import {
 import Link from "next/link";
 import { inputClass, selectClass, kbdClass } from "@/lib/form-styles";
 import { Tooltip } from "@/components/Tooltip";
+import { DateField } from "@/components/DateField";
 import { EXPENSE_CATEGORIES } from "./categories";
 import {
   applyBillableFilter,
@@ -331,22 +332,18 @@ export function ExpenseFilters({
           <span className="text-caption text-content-muted">
             {t("filters.customRange")}
           </span>
-          <input
-            type="date"
+          <DateField
             value={currentFilters.from ?? ""}
-            onChange={(e) => setDate("from", e.target.value)}
-            aria-label={t("filters.from")}
-            className={inputClass}
-            style={{ width: 160 }}
+            onChange={(v) => setDate("from", v)}
+            ariaLabel={t("filters.from")}
+            className="w-[180px]"
           />
           <span className="text-caption text-content-muted">→</span>
-          <input
-            type="date"
+          <DateField
             value={currentFilters.to ?? ""}
-            onChange={(e) => setDate("to", e.target.value)}
-            aria-label={t("filters.to")}
-            className={inputClass}
-            style={{ width: 160 }}
+            onChange={(v) => setDate("to", v)}
+            ariaLabel={t("filters.to")}
+            className="w-[180px]"
           />
         </div>
       )}

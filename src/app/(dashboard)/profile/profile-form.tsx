@@ -34,6 +34,7 @@ import { MfaSetup } from "@/components/MfaSetup";
 import { useFormAction } from "@/hooks/use-form-action";
 import { SubmitButton } from "@/components/SubmitButton";
 import { Tooltip } from "@/components/Tooltip";
+import { DateField } from "@/components/DateField";
 import {
   inputClass,
   labelClass,
@@ -576,6 +577,12 @@ function IntegrationsSection({
   const [ghState, setGhState] = useState<ConnState>({ status: "idle" });
   const [jiraState, setJiraState] = useState<ConnState>({ status: "idle" });
   const [, startTransition] = useTransition();
+  const [ghExpires, setGhExpires] = useState<string>(
+    githubTokenExpiresAt ?? "",
+  );
+  const [jiraExpires, setJiraExpires] = useState<string>(
+    jiraApiTokenExpiresAt ?? "",
+  );
 
   function readField(name: string): string {
     const el = formRef.current?.elements.namedItem(name);
@@ -659,13 +666,12 @@ function IntegrationsSection({
               >
                 {t("fields.tokenExpiresOn")}
               </label>
-              <input
+              <DateField
                 id="profile-github-token-expires"
                 name="github_token_expires_at"
-                type="date"
-                defaultValue={githubTokenExpiresAt ?? ""}
-                className={inputClass}
-                aria-describedby="profile-github-token-expires-help"
+                value={ghExpires}
+                onChange={setGhExpires}
+                ariaLabel={t("fields.tokenExpiresOn")}
               />
               <p
                 id="profile-github-token-expires-help"
@@ -777,13 +783,12 @@ function IntegrationsSection({
               >
                 {t("fields.tokenExpiresOn")}
               </label>
-              <input
+              <DateField
                 id="profile-jira-token-expires"
                 name="jira_api_token_expires_at"
-                type="date"
-                defaultValue={jiraApiTokenExpiresAt ?? ""}
-                className={inputClass}
-                aria-describedby="profile-jira-token-expires-help"
+                value={jiraExpires}
+                onChange={setJiraExpires}
+                ariaLabel={t("fields.tokenExpiresOn")}
               />
               <p
                 id="profile-jira-token-expires-help"

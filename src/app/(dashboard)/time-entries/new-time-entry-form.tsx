@@ -23,6 +23,7 @@ import {
 import { TeamSelector } from "@/components/TeamSelector";
 import { Tooltip } from "@/components/Tooltip";
 import { TicketField, ticketFieldVisible } from "@/components/TicketField";
+import { DateField } from "@/components/DateField";
 import type { TeamListItem } from "@/lib/team-context";
 import { createTimeEntryAction } from "./actions";
 import { CategoryPicker } from "./category-picker";
@@ -60,6 +61,9 @@ export function NewTimeEntryForm({
 }): React.JSX.Element {
   const [open, setOpen] = useState(false);
   const [selectedProjectId, setSelectedProjectId] = useState("");
+  const [entryDate, setEntryDate] = useState(() =>
+    new Date().toISOString().slice(0, 10),
+  );
   const t = useTranslations("time");
   const tc = useTranslations("common");
 
@@ -232,13 +236,11 @@ export function NewTimeEntryForm({
               >
                 {t("fields.date")} *
               </label>
-              <input
+              <DateField
                 id="new-time-entry-date"
                 name="entry_date"
-                type="date"
-                required
-                defaultValue={new Date().toISOString().slice(0, 10)}
-                className={inputClass}
+                value={entryDate}
+                onChange={setEntryDate}
               />
             </div>
             <div className={formSpanQuarter}>

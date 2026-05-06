@@ -13,6 +13,7 @@ import {
 } from "@/lib/form-styles";
 import { useFormAction } from "@/hooks/use-form-action";
 import { SubmitButton } from "@/components/SubmitButton";
+import { DateField } from "@/components/DateField";
 import { useToast } from "@/components/Toast";
 import { assertActionResult } from "@/lib/action-result";
 import { updateEmailConfigAction } from "./actions";
@@ -48,6 +49,9 @@ export function EmailConfigForm({
     action: updateEmailConfigAction,
   });
   const [testPending, setTestPending] = useState(false);
+  const [apiKeyExpiresAt, setApiKeyExpiresAt] = useState(
+    initial.apiKeyExpiresAt,
+  );
 
   async function onTestSend(): Promise<void> {
     setTestPending(true);
@@ -106,12 +110,12 @@ export function EmailConfigForm({
           <label className={labelClass} htmlFor="api_key_expires_at">
             {t("config.apiKeyExpiresAt")}
           </label>
-          <input
+          <DateField
             id="api_key_expires_at"
             name="api_key_expires_at"
-            type="date"
-            defaultValue={initial.apiKeyExpiresAt}
-            className={`${inputClass} max-w-xs`}
+            value={apiKeyExpiresAt}
+            onChange={setApiKeyExpiresAt}
+            className="max-w-xs"
           />
           <p className="mt-1 text-caption text-content-muted">
             {t("config.apiKeyExpiresAtHint")}

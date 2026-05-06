@@ -2,11 +2,8 @@
 
 import { useRouter, useSearchParams } from "next/navigation";
 import { useTransition, useCallback, useState } from "react";
-import {
-  buttonGhostClass,
-  inputClass,
-  labelClass,
-} from "@/lib/form-styles";
+import { buttonGhostClass, labelClass } from "@/lib/form-styles";
+import { DateField } from "@/components/DateField";
 import type { ReportsPreset } from "./reports-period";
 
 const PRESETS: ReadonlyArray<{ key: ReportsPreset; label: string }> = [
@@ -83,26 +80,22 @@ export function ReportsPeriodFilter({
           <label htmlFor="reports-from" className={labelClass}>
             From
           </label>
-          <input
+          <DateField
             id="reports-from"
-            type="date"
             value={customFrom}
-            onChange={(e) => setCustomFrom(e.target.value)}
-            className={inputClass}
-            aria-label="From date"
+            onChange={setCustomFrom}
+            ariaLabel="From date"
           />
         </div>
         <div>
           <label htmlFor="reports-to" className={labelClass}>
             To
           </label>
-          <input
+          <DateField
             id="reports-to"
-            type="date"
             value={customTo}
-            onChange={(e) => setCustomTo(e.target.value)}
-            className={inputClass}
-            aria-label="To date"
+            onChange={setCustomTo}
+            ariaLabel="To date"
           />
         </div>
         <button

@@ -1,11 +1,13 @@
 "use client";
 
+import { useState } from "react";
 import { useTranslations } from "next-intl";
 import { AlertBanner } from "@theshyre/ui";
 import { Cloud } from "lucide-react";
 import { inputClass, labelClass } from "@/lib/form-styles";
 import { useFormAction } from "@/hooks/use-form-action";
 import { SubmitButton } from "@/components/SubmitButton";
+import { DateField } from "@/components/DateField";
 import { updateDeployConfigAction } from "./actions";
 
 interface Props {
@@ -20,6 +22,9 @@ interface Props {
 
 export function DeployConnectionForm({ initial }: Props): React.JSX.Element {
   const t = useTranslations("messaging.deploy");
+  const [apiTokenExpiresAt, setApiTokenExpiresAt] = useState(
+    initial.apiTokenExpiresAt,
+  );
   const { pending, success, serverError, handleSubmit } = useFormAction({
     action: updateDeployConfigAction,
   });
@@ -65,12 +70,12 @@ export function DeployConnectionForm({ initial }: Props): React.JSX.Element {
           <label className={labelClass} htmlFor="api_token_expires_at">
             {t("connection.apiTokenExpiresAt")}
           </label>
-          <input
+          <DateField
             id="api_token_expires_at"
             name="api_token_expires_at"
-            type="date"
-            defaultValue={initial.apiTokenExpiresAt}
-            className={`${inputClass} max-w-xs`}
+            value={apiTokenExpiresAt}
+            onChange={setApiTokenExpiresAt}
+            className="max-w-xs"
           />
           <p className="mt-1 text-caption text-content-muted">
             {t("connection.apiTokenExpiresAtHint")}

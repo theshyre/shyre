@@ -5,12 +5,12 @@ import { useState } from "react";
 import { useTranslations } from "next-intl";
 import { Filter, X } from "lucide-react";
 import {
-  inputClass,
   selectClass,
   labelClass,
   buttonGhostClass,
   buttonPrimaryClass,
 } from "@/lib/form-styles";
+import { DateField } from "@/components/DateField";
 
 export interface FilterCandidates {
   people: { id: string; name: string }[];
@@ -90,25 +90,13 @@ export function HistoryFilters({
           <label className={labelClass} htmlFor="hf-from">
             {t("filters.from")}
           </label>
-          <input
-            id="hf-from"
-            type="date"
-            value={from}
-            onChange={(e) => setFrom(e.target.value)}
-            className={inputClass}
-          />
+          <DateField id="hf-from" value={from} onChange={setFrom} />
         </div>
         <div>
           <label className={labelClass} htmlFor="hf-to">
             {t("filters.to")}
           </label>
-          <input
-            id="hf-to"
-            type="date"
-            value={to}
-            onChange={(e) => setTo(e.target.value)}
-            className={inputClass}
-          />
+          <DateField id="hf-to" value={to} onChange={setTo} />
         </div>
         <div>
           <label className={labelClass} htmlFor="hf-person">
