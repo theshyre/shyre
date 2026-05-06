@@ -404,7 +404,26 @@ export function HarvestImport({
           </div>
         )}
 
-        {step === "done" && result && <DoneStep result={result} />}
+        {step === "done" && result && (
+          <DoneStep
+            result={result}
+            onAnother={() => {
+              // Keep credentials + team in state (the user is most
+              // likely importing another date range from the same
+              // Harvest account) but reset the date inputs, preview,
+              // mapping, and result so the form starts clean. Land
+              // on the credentials step so the user sees the date
+              // pickers again.
+              setFromDate("");
+              setToDate("");
+              setPreview(null);
+              setUserMapping({});
+              setResult(null);
+              setError(null);
+              setStep("credentials");
+            }}
+          />
+        )}
       </div>
     </div>
   );
@@ -810,11 +829,29 @@ function UserMappingTable({
 
 function DoneStep({
   result,
+  onAnother,
 }: {
   result: ImportResult;
+  onAnother: () => void;
 }): React.JSX.Element {
   const skipReasons = Object.entries(result.skipped.reasons ?? {});
   const recon = result.reconciliation;
+  // Smart "View imported data" target — pick the entity type with
+  // the most rows imported in this run. Time-entry-only re-imports
+  // shouldn't dump the user on /customers; customers-only first-
+  // time imports shouldn't dump them on /time-entries. Falls back
+  // to /customers when nothing imported (e.g. a no-op re-run).
+  const viewHref = (() => {
+    const imp = result.imported;
+    const entries = [
+      { count: imp.timeEntries, href: "/time-entries" },
+      { count: imp.invoices, href: "/invoices" },
+      { count: imp.projects, href: "/projects" },
+      { count: imp.customers, href: "/customers" },
+    ];
+    const top = entries.find((e) => e.count > 0);
+    return top?.href ?? "/customers";
+  })();
 
   return (
     <div className="space-y-4">
@@ -914,9 +951,23 @@ function DoneStep({
         </div>
       )}
 
-      <Link href="/customers" className={buttonPrimaryClass}>
-        View imported data
-      </Link>
+      <div className="flex flex-wrap items-center gap-2">
+        <Link href={viewHref} className={buttonPrimaryClass}>
+          View imported data
+        </Link>
+        {/* "Import another" resets the form so the user can pull a
+            different date range without leaving the page. Otherwise
+            they're stuck on the success card and have to navigate
+            away + back to start over. */}
+        <button
+          type="button"
+          onClick={onAnother}
+          className={buttonSecondaryClass}
+        >
+          <Upload size={14} />
+          Import another
+        </button>
+      </div>
     </div>
   );
 }
