@@ -45,7 +45,46 @@
     "parentInheritedHint": "Filled from parent — edit any field to override.",
     "applyParentSettings": "Apply {name}'s settings",
     "applyParentSettingsConfirm": "Overwrite this project's rate, repo, Jira key, invoice code, billable default, and timestamps with {name}'s current values? You can still edit any field afterwards.",
-    "applyParentSettingsApply": "Apply"
+    "applyParentSettingsApply": "Apply",
+    "recurringBudgetSection": "Recurring budget cap",
+    "recurringBudgetActive": "Active",
+    "budgetPeriod": "Period",
+    "budgetPeriodNone": "— No recurring cap —",
+    "budgetPeriodWeekly": "Weekly",
+    "budgetPeriodMonthly": "Monthly",
+    "budgetPeriodQuarterly": "Quarterly",
+    "budgetPeriodHint": "How often the cap resets. Leave unset for a project with only an overall budget.",
+    "budgetCarryover": "Carryover",
+    "budgetCarryoverNone": "Use it or lose it",
+    "budgetCarryoverWithinQuarter": "Roll over within the quarter (planned)",
+    "budgetCarryoverLifetime": "Lifetime pool (planned)",
+    "budgetCarryoverHint": "Currently only \"use it or lose it\" is enforced. The other modes are placeholders for future contract types.",
+    "budgetHoursPerPeriod": "Hours per period",
+    "budgetDollarsPerPeriod": "Dollars per period",
+    "budgetAlertThreshold": "Alert at (%)",
+    "budgetAlertThresholdPlaceholder": "e.g. 80",
+    "budgetAlertThresholdHint": "Show a warning banner when the period burn meets this percentage. Leave blank for no warning.",
+    "burnPctColumn": "Period burn"
+  },
+  "budget": {
+    "lifetimeLabel": "Lifetime",
+    "periodLabel": {
+      "weekly": "This week",
+      "monthly": "This month",
+      "quarterly": "This quarter"
+    },
+    "hoursOfCap": "{used}h / {cap}h",
+    "hoursOnly": "{used}h",
+    "dollarsOfCap": "${used} / ${cap}",
+    "lastPeriod": "Last period",
+    "dollarBurnNote": "Dollar burn: {pct}%",
+    "periodBurnAria": "Current-period budget burn: {pct}%",
+    "lifetimeBurnAria": "Lifetime budget burn: {pct}%",
+    "alert": {
+      "title": "Approaching cap.",
+      "body": "{periodLabel} is at {pct}% of the cap (threshold {threshold}%).",
+      "dismiss": "Dismiss"
+    }
   },
   "subProjects": {
     "heading": "Sub-projects",

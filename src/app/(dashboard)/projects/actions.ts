@@ -7,6 +7,10 @@ import { revalidatePath } from "next/cache";
 import { createClient } from "@/lib/supabase/server";
 import { normalizeGithubRepo } from "@/lib/projects/normalize";
 import type { ProjectHistoryEntry } from "./[id]/history/project-history-types";
+import {
+  ALLOWED_BUDGET_PERIODS,
+  ALLOWED_BUDGET_CARRYOVER,
+} from "./allow-lists";
 
 /** Atlassian project keys are uppercase 2+ chars, letters/digits.
  *  Normalize for symmetry with the detection regex in
@@ -135,8 +139,6 @@ export async function updateProjectAction(formData: FormData): Promise<void> {
     const id = formData.get("id") as string;
     const name = formData.get("name") as string;
     const description = (formData.get("description") as string) || null;
-    const budgetStr = formData.get("budget_hours") as string;
-    const budget_hours = budgetStr ? parseFloat(budgetStr) : null;
     const github_repo = normalizeGithubRepo(formData.get("github_repo"));
     const jira_project_key = normalizeJiraKey(formData.get("jira_project_key"));
     const invoice_code = normalizeInvoiceCode(formData.get("invoice_code"));
@@ -147,7 +149,6 @@ export async function updateProjectAction(formData: FormData): Promise<void> {
     const patch: Record<string, unknown> = {
       name,
       description,
-      budget_hours,
       github_repo,
       jira_project_key,
       invoice_code,
@@ -181,19 +182,76 @@ export async function updateProjectAction(formData: FormData): Promise<void> {
       }
     }
 
-    // Guardrail: only include hourly_rate in the UPDATE if the caller is
-    // authorized by rate_editability. Existing form submissions and
-    // forged direct POSTs that include hourly_rate for an unauthorized
-    // caller get silently dropped — the rest of the update applies so
-    // a non-rate edit still succeeds. The dedicated setProjectRateAction
-    // below is the right path for rate-only updates.
-    if (formData.has("hourly_rate")) {
+    // Guardrail: only include hourly_rate AND the budget fields in
+    // the UPDATE if the caller is authorized by rate_editability.
+    // Budget edits reveal the same shape of commercial information
+    // as the rate (retainer size, dollar caps), so they share the
+    // gate per the agency-owner persona consultation. Existing form
+    // submissions and forged direct POSTs that include these fields
+    // for an unauthorized caller get silently dropped — the rest
+    // of the update applies so a non-rate edit still succeeds.
+    const touchesRateOrBudget =
+      formData.has("hourly_rate") ||
+      formData.has("budget_hours") ||
+      formData.has("budget_hours_per_period") ||
+      formData.has("budget_dollars_per_period") ||
+      formData.has("budget_period") ||
+      formData.has("budget_carryover") ||
+      formData.has("budget_alert_threshold_pct");
+    if (touchesRateOrBudget) {
       const { data: canSet } = await supabase.rpc("can_set_project_rate", {
         p_project_id: id,
       });
       if (canSet) {
-        const rateStr = formData.get("hourly_rate") as string;
-        patch.hourly_rate = rateStr ? parseFloat(rateStr) : null;
+        if (formData.has("hourly_rate")) {
+          const rateStr = formData.get("hourly_rate") as string;
+          patch.hourly_rate = rateStr ? parseFloat(rateStr) : null;
+        }
+        if (formData.has("budget_hours")) {
+          const s = formData.get("budget_hours") as string;
+          patch.budget_hours = s ? parseFloat(s) : null;
+        }
+        if (formData.has("budget_hours_per_period")) {
+          const s = formData.get("budget_hours_per_period") as string;
+          patch.budget_hours_per_period = s ? parseFloat(s) : null;
+        }
+        if (formData.has("budget_dollars_per_period")) {
+          const s = formData.get("budget_dollars_per_period") as string;
+          patch.budget_dollars_per_period = s ? parseFloat(s) : null;
+        }
+        if (formData.has("budget_period")) {
+          const raw = (formData.get("budget_period") as string) || "";
+          patch.budget_period =
+            raw === "" ? null : raw;
+          if (raw !== "" && !ALLOWED_BUDGET_PERIODS.has(raw)) {
+            throw new Error(
+              `Invalid budget period: ${raw}. Allowed: weekly, monthly, quarterly.`,
+            );
+          }
+        }
+        if (formData.has("budget_carryover")) {
+          const raw = (formData.get("budget_carryover") as string) || "none";
+          if (!ALLOWED_BUDGET_CARRYOVER.has(raw)) {
+            throw new Error(
+              `Invalid budget carryover: ${raw}. Allowed: none, within_quarter, lifetime.`,
+            );
+          }
+          patch.budget_carryover = raw;
+        }
+        if (formData.has("budget_alert_threshold_pct")) {
+          const raw = (formData.get("budget_alert_threshold_pct") as string) || "";
+          if (raw === "") {
+            patch.budget_alert_threshold_pct = null;
+          } else {
+            const n = parseInt(raw, 10);
+            if (!Number.isFinite(n) || n < 1 || n > 100) {
+              throw new Error(
+                "Alert threshold must be between 1 and 100, or empty for no alerts.",
+              );
+            }
+            patch.budget_alert_threshold_pct = n;
+          }
+        }
       }
     }
 

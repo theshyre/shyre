@@ -40,6 +40,9 @@ function row(overrides: Partial<CsvEntryRow> = {}): CsvEntryRow {
     client: "Acme",
     category: "Feature",
     categorySet: "Software development",
+    periodBudgetPeriod: "",
+    periodBudgetHoursCap: "",
+    periodBudgetDollarsCap: "",
     description: "wrote tests",
     billable: true,
     githubIssue: 42,
@@ -74,9 +77,10 @@ describe("toCsv", () => {
     // Display columns + legacy githubIssue + new ticketKey/Provider
     // columns + reconciliation tail. categorySet sits right after
     // `category` so a reviewer reads "Feature, Software development"
-    // as the full taxonomy chain.
+    // as the full taxonomy chain. The three periodBudget* columns
+    // sit between categorySet and description.
     expect(dataLine.startsWith(
-      "2026-04-13,09:00,10:30,90,Alpha,Acme,Feature,Software development,wrote tests,true,42,,,",
+      "2026-04-13,09:00,10:30,90,Alpha,Acme,Feature,Software development,,,,wrote tests,true,42,,,",
     )).toBe(true);
     expect(dataLine).toContain("entry-1");
     expect(dataLine).toContain("team-1");
@@ -84,6 +88,23 @@ describe("toCsv", () => {
     // invoiced=false comes through as a literal "false"; the
     // booleans-stringify rule from escapeCsvField applies here.
     expect(dataLine).toMatch(/false$/);
+  });
+
+  it("renders Period Budget columns when the project has a recurring cap", () => {
+    const csv = toCsv([
+      row({
+        periodBudgetPeriod: "monthly",
+        periodBudgetHoursCap: "30",
+        periodBudgetDollarsCap: "6000",
+        githubIssue: null,
+      }),
+    ]);
+    expect(csv).toContain("Period Budget Type");
+    expect(csv).toContain("Period Budget Hours Cap");
+    expect(csv).toContain("Period Budget Dollars Cap");
+    expect(csv).toContain("monthly");
+    expect(csv).toContain("30");
+    expect(csv).toContain("6000");
   });
 
   it("renders the Category Set column header (so a reviewer sees the full taxonomy chain even after a project's set switches)", () => {
@@ -96,9 +117,10 @@ describe("toCsv", () => {
       row({ category: "", categorySet: "", githubIssue: null }),
     ]);
     const dataLine = csv.split("\r\n")[1] ?? "";
-    // Adjacent commas — the category and categorySet slots are both
-    // blank between `Acme` and `wrote tests`.
-    expect(dataLine).toContain("Acme,,,wrote tests");
+    // Adjacent commas — category, categorySet, and the three
+    // periodBudget* slots are all blank between `Acme` and
+    // `wrote tests`.
+    expect(dataLine).toContain("Acme,,,,,,wrote tests");
   });
 
   it("emits the new Ticket Key + Ticket Provider columns when populated", () => {

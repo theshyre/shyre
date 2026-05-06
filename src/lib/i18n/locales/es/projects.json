@@ -45,7 +45,46 @@
     "parentInheritedHint": "Heredado del proyecto principal — edita cualquier campo para sobrescribir.",
     "applyParentSettings": "Aplicar configuración de {name}",
     "applyParentSettingsConfirm": "¿Sobrescribir la tarifa, repositorio, clave de Jira, código de factura, facturabilidad por defecto y marcas de tiempo de este proyecto con los valores actuales de {name}? Puedes editar cualquier campo después.",
-    "applyParentSettingsApply": "Aplicar"
+    "applyParentSettingsApply": "Aplicar",
+    "recurringBudgetSection": "Tope de presupuesto recurrente",
+    "recurringBudgetActive": "Activo",
+    "budgetPeriod": "Período",
+    "budgetPeriodNone": "— Sin tope recurrente —",
+    "budgetPeriodWeekly": "Semanal",
+    "budgetPeriodMonthly": "Mensual",
+    "budgetPeriodQuarterly": "Trimestral",
+    "budgetPeriodHint": "Cada cuánto se reinicia el tope. Déjalo sin definir si el proyecto solo tiene presupuesto total.",
+    "budgetCarryover": "Acumulación",
+    "budgetCarryoverNone": "Úsalo o piérdelo",
+    "budgetCarryoverWithinQuarter": "Acumular dentro del trimestre (planeado)",
+    "budgetCarryoverLifetime": "Acumulación de por vida (planeado)",
+    "budgetCarryoverHint": "Actualmente solo se aplica \"úsalo o piérdelo\". Los otros modos son marcadores para futuros tipos de contrato.",
+    "budgetHoursPerPeriod": "Horas por período",
+    "budgetDollarsPerPeriod": "Dólares por período",
+    "budgetAlertThreshold": "Alertar al (%)",
+    "budgetAlertThresholdPlaceholder": "p. ej. 80",
+    "budgetAlertThresholdHint": "Mostrar un aviso cuando el consumo del período alcance este porcentaje. Déjalo en blanco para no mostrar aviso.",
+    "burnPctColumn": "Consumo del período"
+  },
+  "budget": {
+    "lifetimeLabel": "Total",
+    "periodLabel": {
+      "weekly": "Esta semana",
+      "monthly": "Este mes",
+      "quarterly": "Este trimestre"
+    },
+    "hoursOfCap": "{used}h / {cap}h",
+    "hoursOnly": "{used}h",
+    "dollarsOfCap": "${used} / ${cap}",
+    "lastPeriod": "Período anterior",
+    "dollarBurnNote": "Consumo en dólares: {pct}%",
+    "periodBurnAria": "Consumo del presupuesto del período actual: {pct}%",
+    "lifetimeBurnAria": "Consumo del presupuesto total: {pct}%",
+    "alert": {
+      "title": "Acercándose al tope.",
+      "body": "{periodLabel} está al {pct}% del tope (umbral {threshold}%).",
+      "dismiss": "Descartar"
+    }
   },
   "subProjects": {
     "heading": "Sub-proyectos",

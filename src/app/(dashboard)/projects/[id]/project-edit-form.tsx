@@ -27,6 +27,19 @@ interface Project {
   description: string | null;
   hourly_rate: number | null;
   budget_hours: number | null;
+  /** Recurring per-period hour cap; null when no recurring cap. */
+  budget_hours_per_period: number | null;
+  /** Recurring per-period dollar cap. Null when no dollar cap.
+   *  RLS-gated through `projects_v` (rate-visibility); pass through
+   *  whatever the page query returns. */
+  budget_dollars_per_period: number | null;
+  /** Period type for the recurring cap. Null = no recurring cap. */
+  budget_period: "weekly" | "monthly" | "quarterly" | null;
+  /** Carryover policy. v1 only honors 'none'; the others exist for
+   *  future expansion and currently behave like 'none'. */
+  budget_carryover: "none" | "within_quarter" | "lifetime";
+  /** Threshold % at which to fire an alert. Null = no alerts. */
+  budget_alert_threshold_pct: number | null;
   github_repo: string | null;
   jira_project_key: string | null;
   invoice_code: string | null;
@@ -446,7 +459,172 @@ export function ProjectEditForm({
         </div>
       </div>
 
+      <BudgetSection project={project} />
+
       <SubmitButton label={t("saveChanges")} pending={pending} success={success} successMessage={tc("actions.saved")} />
     </form>
+  );
+}
+
+/**
+ * Recurring-budget disclosure section. Collapsed by default — most
+ * projects don't carry a recurring cap, and the rule "don't surface
+ * what most users don't need" wins on the form's information density.
+ * Open the disclosure when any field is non-null so a user editing
+ * an existing recurring cap doesn't have to hunt for it.
+ *
+ * Fields land via FormData in the standard way; updateProjectAction
+ * gates them through the rate-edit permission alongside hourly_rate.
+ */
+function BudgetSection({ project }: { project: Project }): React.JSX.Element {
+  const t = useTranslations("projects");
+  const hasRecurring = project.budget_period !== null;
+  const [open, setOpen] = useState(hasRecurring);
+  const [period, setPeriod] = useState<string>(project.budget_period ?? "");
+  const [hoursPer, setHoursPer] = useState<string>(
+    project.budget_hours_per_period != null
+      ? String(project.budget_hours_per_period)
+      : "",
+  );
+  const [dollarsPer, setDollarsPer] = useState<string>(
+    project.budget_dollars_per_period != null
+      ? String(project.budget_dollars_per_period)
+      : "",
+  );
+  const [carryover, setCarryover] = useState<string>(
+    project.budget_carryover ?? "none",
+  );
+  const [threshold, setThreshold] = useState<string>(
+    project.budget_alert_threshold_pct != null
+      ? String(project.budget_alert_threshold_pct)
+      : "",
+  );
+
+  return (
+    <div className="rounded-lg border border-edge bg-surface-raised p-4">
+      <button
+        type="button"
+        onClick={() => setOpen((o) => !o)}
+        aria-expanded={open}
+        className="flex items-center gap-2 text-body-lg font-medium text-content w-full text-left"
+      >
+        <span className="text-content-muted">{open ? "▼" : "▶"}</span>
+        {t("fields.recurringBudgetSection")}
+        {hasRecurring && !open && (
+          <span className="ml-auto text-caption text-content-muted">
+            {t("fields.recurringBudgetActive")}
+          </span>
+        )}
+      </button>
+      {open && (
+        <div className="mt-3 grid gap-3 sm:grid-cols-2">
+          <div>
+            <label htmlFor="project-edit-budget-period" className={labelClass}>
+              {t("fields.budgetPeriod")}
+            </label>
+            <select
+              id="project-edit-budget-period"
+              name="budget_period"
+              value={period}
+              onChange={(e) => setPeriod(e.target.value)}
+              className={selectClass}
+            >
+              <option value="">{t("fields.budgetPeriodNone")}</option>
+              <option value="weekly">{t("fields.budgetPeriodWeekly")}</option>
+              <option value="monthly">{t("fields.budgetPeriodMonthly")}</option>
+              <option value="quarterly">{t("fields.budgetPeriodQuarterly")}</option>
+            </select>
+            <p className="mt-1 text-caption text-content-muted">
+              {t("fields.budgetPeriodHint")}
+            </p>
+          </div>
+          <div>
+            <label
+              htmlFor="project-edit-budget-carryover"
+              className={labelClass}
+            >
+              {t("fields.budgetCarryover")}
+            </label>
+            <select
+              id="project-edit-budget-carryover"
+              name="budget_carryover"
+              value={carryover}
+              onChange={(e) => setCarryover(e.target.value)}
+              className={selectClass}
+            >
+              <option value="none">{t("fields.budgetCarryoverNone")}</option>
+              <option value="within_quarter">
+                {t("fields.budgetCarryoverWithinQuarter")}
+              </option>
+              <option value="lifetime">
+                {t("fields.budgetCarryoverLifetime")}
+              </option>
+            </select>
+            <p className="mt-1 text-caption text-content-muted">
+              {t("fields.budgetCarryoverHint")}
+            </p>
+          </div>
+          <div>
+            <label
+              htmlFor="project-edit-budget-hours-per-period"
+              className={labelClass}
+            >
+              {t("fields.budgetHoursPerPeriod")}
+            </label>
+            <input
+              id="project-edit-budget-hours-per-period"
+              name="budget_hours_per_period"
+              type="number"
+              step="0.5"
+              min="0"
+              value={hoursPer}
+              onChange={(e) => setHoursPer(e.target.value)}
+              className={inputClass}
+            />
+          </div>
+          <div>
+            <label
+              htmlFor="project-edit-budget-dollars-per-period"
+              className={labelClass}
+            >
+              {t("fields.budgetDollarsPerPeriod")}
+            </label>
+            <input
+              id="project-edit-budget-dollars-per-period"
+              name="budget_dollars_per_period"
+              type="number"
+              step="0.01"
+              min="0"
+              value={dollarsPer}
+              onChange={(e) => setDollarsPer(e.target.value)}
+              className={inputClass}
+            />
+          </div>
+          <div className="sm:col-span-2">
+            <label
+              htmlFor="project-edit-budget-threshold"
+              className={labelClass}
+            >
+              {t("fields.budgetAlertThreshold")}
+            </label>
+            <input
+              id="project-edit-budget-threshold"
+              name="budget_alert_threshold_pct"
+              type="number"
+              step="1"
+              min="1"
+              max="100"
+              value={threshold}
+              onChange={(e) => setThreshold(e.target.value)}
+              placeholder={t("fields.budgetAlertThresholdPlaceholder")}
+              className={inputClass}
+            />
+            <p className="mt-1 text-caption text-content-muted">
+              {t("fields.budgetAlertThresholdHint")}
+            </p>
+          </div>
+        </div>
+      )}
+    </div>
   );
 }

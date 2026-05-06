@@ -31,6 +31,17 @@ export interface CsvEntryRow {
    *  the set the row's category came from). Empty when the entry
    *  has no category. */
   categorySet: string;
+  /** Period type (`weekly` / `monthly` / `quarterly`) on the
+   *  project at the time of export. Empty when the project has no
+   *  recurring cap. Surfaces with the cap below so a reviewer
+   *  reconciling the CSV against the in-app burn bar sees both
+   *  numbers. */
+  periodBudgetPeriod: string;
+  /** Project's hours-per-period cap. Empty when none set. */
+  periodBudgetHoursCap: string;
+  /** Project's dollars-per-period cap. Empty when none set or when
+   *  the caller can't see rate-adjacent fields (RLS). */
+  periodBudgetDollarsCap: string;
   description: string;
   billable: boolean;
   /** Legacy GitHub-only column. Populated for both old data
@@ -79,6 +90,9 @@ const HEADERS: Array<keyof CsvEntryRow> = [
   "client",
   "category",
   "categorySet",
+  "periodBudgetPeriod",
+  "periodBudgetHoursCap",
+  "periodBudgetDollarsCap",
   "description",
   "billable",
   "githubIssue",
@@ -105,6 +119,9 @@ const HEADER_LABELS: Record<keyof CsvEntryRow, string> = {
   client: "Client",
   category: "Category",
   categorySet: "Category Set",
+  periodBudgetPeriod: "Period Budget Type",
+  periodBudgetHoursCap: "Period Budget Hours Cap",
+  periodBudgetDollarsCap: "Period Budget Dollars Cap",
   description: "Description",
   billable: "Billable",
   githubIssue: "GitHub Issue",

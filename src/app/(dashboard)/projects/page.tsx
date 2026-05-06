@@ -10,6 +10,18 @@ export async function generateMetadata(): Promise<Metadata> {
 }
 import { TeamFilter } from "@/components/TeamFilter";
 import { getVisibleCategorySets } from "@/lib/categories/queries";
+import { getUserSettings } from "@/lib/user-settings";
+import { cookies } from "next/headers";
+import {
+  TZ_COOKIE_NAME,
+  parseTzOffset,
+  getOffsetForZone,
+  getLocalToday,
+} from "@/lib/time/tz";
+import {
+  computeProjectPeriodBurn,
+  type BudgetPeriod,
+} from "@/lib/projects/budget-period";
 import { NewProjectForm } from "./new-project-form";
 import { parseListPagination } from "@/lib/pagination/list-pagination";
 import { ProjectsTable, type ProjectRow } from "./projects-table";
@@ -110,6 +122,83 @@ export default async function ProjectsPage({
     teams.map((o) => [o.id as string, (o.name as string) ?? "—"]),
   );
 
+  // Period-burn % per row — only for projects with a recurring
+  // period configured. Cheap-but-not-free: one wide query for time
+  // entries on those projects within the last 90 days (covers
+  // every period type up to quarterly), grouped per-project in JS
+  // and run through the period-burn helper. Hidden cells render as
+  // "—" so projects without a period don't push a noisy column.
+  const projectsWithPeriod = (projects ?? []).filter(
+    (p) =>
+      (p as { budget_period?: string | null }).budget_period != null,
+  );
+  const periodBurnByProject = new Map<string, number | null>();
+  if (projectsWithPeriod.length > 0) {
+    const cookieStore = await cookies();
+    const cookieOffset = parseTzOffset(
+      cookieStore.get(TZ_COOKIE_NAME)?.value,
+    );
+    const userSettings = await getUserSettings();
+    const tzOffsetMin = userSettings.timezone
+      ? getOffsetForZone(userSettings.timezone, new Date())
+      : cookieOffset;
+    const todayLocal = getLocalToday(tzOffsetMin);
+
+    const ninetyDaysAgo = new Date(
+      new Date().getTime() - 90 * 24 * 3600 * 1000,
+    ).toISOString();
+    const projectIdsWithPeriod = projectsWithPeriod.map(
+      (p) => (p as { id: string }).id,
+    );
+    const { data: burnEntries } = await supabase
+      .from("time_entries")
+      .select("project_id, start_time, duration_min")
+      .in("project_id", projectIdsWithPeriod)
+      .is("deleted_at", null)
+      .gte("start_time", ninetyDaysAgo);
+    const entriesByProject = new Map<
+      string,
+      Array<{ start_time: string; duration_min: number | null }>
+    >();
+    for (const e of burnEntries ?? []) {
+      const pid = e.project_id as string;
+      const list = entriesByProject.get(pid) ?? [];
+      list.push({
+        start_time: e.start_time as string,
+        duration_min: (e.duration_min as number | null) ?? null,
+      });
+      entriesByProject.set(pid, list);
+    }
+    type ProjectRowShape = {
+      id: string;
+      budget_period?: string | null;
+      budget_hours_per_period?: number | string | null;
+      budget_dollars_per_period?: number | string | null;
+      budget_alert_threshold_pct?: number | null;
+      hourly_rate?: number | string | null;
+    };
+    for (const p of projectsWithPeriod as ProjectRowShape[]) {
+      const burn = computeProjectPeriodBurn({
+        budget_period: p.budget_period as BudgetPeriod,
+        budget_hours_per_period:
+          p.budget_hours_per_period == null
+            ? null
+            : Number(p.budget_hours_per_period),
+        budget_dollars_per_period:
+          p.budget_dollars_per_period == null
+            ? null
+            : Number(p.budget_dollars_per_period),
+        budget_alert_threshold_pct: p.budget_alert_threshold_pct ?? null,
+        effectiveRate:
+          p.hourly_rate == null ? null : Number(p.hourly_rate),
+        entries: entriesByProject.get(p.id) ?? [],
+        anchorLocalDate: todayLocal,
+        tzOffsetMin,
+      });
+      periodBurnByProject.set(p.id, burn?.pctHours ?? null);
+    }
+  }
+
   return (
     <div>
       <div className="flex items-center gap-3">
@@ -151,6 +240,7 @@ export default async function ProjectsPage({
           name: s.name,
           is_system: s.is_system,
         }))}
+        periodBurnPctById={Object.fromEntries(periodBurnByProject.entries())}
       />
     </div>
   );

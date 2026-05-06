@@ -27,6 +27,21 @@ export async function generateMetadata({
 }
 import { formatDate } from "@theshyre/ui";
 import { getVisibleCategorySets } from "@/lib/categories/queries";
+import { getUserSettings } from "@/lib/user-settings";
+import {
+  TZ_COOKIE_NAME,
+  parseTzOffset,
+  getLocalToday,
+  getOffsetForZone,
+} from "@/lib/time/tz";
+import { cookies } from "next/headers";
+import {
+  computeProjectPeriodBurn,
+  computePreviousPeriodBounds,
+  sumMinutesInPeriod,
+  type BudgetPeriod,
+} from "@/lib/projects/budget-period";
+import { BudgetMasthead } from "./budget-masthead";
 import { ProjectEditForm } from "./project-edit-form";
 import { ProjectClassification } from "./project-classification";
 import { SubProjectsSection } from "./sub-projects-section";
@@ -230,6 +245,58 @@ export default async function ProjectDetailPage({
   );
   const totalHours = (totalMinutes / 60).toFixed(1);
 
+  // Budget masthead — period bar + lifetime bar.
+  // Resolve the user's TZ via the shared settings + cookie pipeline
+  // (matches /time-entries/page.tsx). When the project has no
+  // recurring period, the masthead component renders only the
+  // lifetime bar (or nothing, when neither is set).
+  const cookieStore = await cookies();
+  const cookieOffset = parseTzOffset(cookieStore.get(TZ_COOKIE_NAME)?.value);
+  const userSettings = await getUserSettings();
+  const tzOffsetMin = userSettings.timezone
+    ? getOffsetForZone(userSettings.timezone, new Date())
+    : cookieOffset;
+  const todayLocal = getLocalToday(tzOffsetMin);
+
+  const projectBudgetPeriod = (project.budget_period as BudgetPeriod | null) ??
+    null;
+  const projectRate = (project.hourly_rate as number | null) ?? null;
+  const periodBurn = projectBudgetPeriod
+    ? computeProjectPeriodBurn({
+        budget_period: projectBudgetPeriod,
+        budget_hours_per_period:
+          (project.budget_hours_per_period as number | null) ?? null,
+        budget_dollars_per_period:
+          (project.budget_dollars_per_period as number | null) ?? null,
+        budget_alert_threshold_pct:
+          (project.budget_alert_threshold_pct as number | null) ?? null,
+        effectiveRate: projectRate,
+        entries: allEntries.map((e) => ({
+          start_time: e.start_time as string,
+          duration_min: (e.duration_min as number | null) ?? null,
+        })),
+        anchorLocalDate: todayLocal,
+        tzOffsetMin,
+      })
+    : null;
+  const previousPeriodMinutes = projectBudgetPeriod
+    ? (() => {
+        const bounds = computePreviousPeriodBounds(
+          projectBudgetPeriod,
+          todayLocal,
+          tzOffsetMin,
+        );
+        return sumMinutesInPeriod(
+          allEntries.map((e) => ({
+            start_time: e.start_time as string,
+            duration_min: (e.duration_min as number | null) ?? null,
+          })),
+          bounds.startUtc,
+          bounds.endUtc,
+        );
+      })()
+    : null;
+
   // Group time by linked ticket. Prefer the unified linked_ticket_*
   // columns; fall back to legacy github_issue (integer) so old data
   // imported pre-linked_ticket_* still aggregates. Both shapes
@@ -330,6 +397,36 @@ export default async function ProjectDetailPage({
           ? t("editSubtitleWithCustomer", { customer: customerName })
           : t("editSubtitle")}
       </p>
+
+      <div className="mt-4">
+        <BudgetMasthead
+          projectId={id}
+          lifetimeMinutes={totalMinutes}
+          lifetimeBudgetHours={
+            (project.budget_hours as number | null) ?? null
+          }
+          lifetimeRate={projectRate}
+          lifetimeBudgetDollars={null}
+          period={
+            periodBurn && projectBudgetPeriod
+              ? {
+                  type: projectBudgetPeriod,
+                  startLocal: periodBurn.bounds.startLocal,
+                  endLocal: periodBurn.bounds.endLocal,
+                  minutes: periodBurn.minutes,
+                  capHours: periodBurn.capHours,
+                  capDollars: periodBurn.capDollars,
+                  rate: projectRate,
+                  alertThresholdPct:
+                    (project.budget_alert_threshold_pct as number | null) ??
+                    null,
+                  alertActive: periodBurn.alertActive,
+                  previousMinutes: previousPeriodMinutes,
+                }
+              : null
+          }
+        />
+      </div>
 
       <div className="mt-6">
         <ProjectEditForm

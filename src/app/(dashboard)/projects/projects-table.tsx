@@ -60,6 +60,10 @@ interface Props {
   /** Category sets the caller can pick from in the bulk-switch
    *  toolbar action. Includes both system and team-shared sets. */
   categorySets?: CategorySetOption[];
+  /** Per-project current-period burn % — rendered as a column when
+   *  any visible project has a recurring period configured. Empty
+   *  object renders as "—" for every row. Computed server-side. */
+  periodBurnPctById?: Record<string, number | null>;
 }
 
 /**
@@ -82,6 +86,7 @@ export function ProjectsTable({
   selectedTeamId,
   limitParam,
   categorySets = [],
+  periodBurnPctById = {},
 }: Props): React.JSX.Element {
   const t = useTranslations("projects");
   const tc = useTranslations("common");
@@ -121,6 +126,13 @@ export function ProjectsTable({
   );
 
   const showTeamColumn = teamNameById.size > 1;
+  // Show the Period Burn column only when at least one visible
+  // project has a recurring period configured (and therefore a
+  // numeric burn). Zero work otherwise — keeps the projects list
+  // clean for users who don't use recurring caps.
+  const showBurnColumn = Object.values(periodBurnPctById).some(
+    (v) => v != null,
+  );
   const selectedCount = selected.size;
   const allSelected = projects.length > 0 && selectedCount === projects.length;
   const someSelected = selectedCount > 0 && !allSelected;
@@ -378,6 +390,7 @@ export function ProjectsTable({
           {showTeamColumn && <col style={{ width: "160px" }} />}
           <col />
           <col style={{ width: "120px" }} />
+          {showBurnColumn && <col style={{ width: "110px" }} />}
           <col style={{ width: "120px" }} />
         </colgroup>
         <thead>
@@ -426,6 +439,14 @@ export function ProjectsTable({
               currentDir={dir}
               href={buildSortHref}
             />
+            {showBurnColumn && (
+              <th
+                scope="col"
+                className={`${tableHeaderCellClass} text-right`}
+              >
+                {t("burnPctColumn")}
+              </th>
+            )}
             <SortableTableHeader
               label={t("table.status")}
               sortKey="status"
@@ -512,6 +533,11 @@ export function ProjectsTable({
                     ? `$${Number(project.hourly_rate).toFixed(2)}/hr`
                     : "—"}
                 </td>
+                {showBurnColumn && (
+                  <td className={`${tableBodyCellClass} text-right`}>
+                    <BurnCell pct={periodBurnPctById[project.id] ?? null} />
+                  </td>
+                )}
                 <td className="px-4 py-3">
                   <StatusBadge
                     status={project.status ?? "active"}
@@ -525,6 +551,26 @@ export function ProjectsTable({
       </table>
       <PaginationFooter loaded={projects.length} total={totalCount} />
     </div>
+  );
+}
+
+function BurnCell({ pct }: { pct: number | null }): React.JSX.Element {
+  if (pct === null) {
+    return <span className="text-content-muted">—</span>;
+  }
+  // Color anchored at fixed 80/100 — same rule as the masthead bars
+  // so a yellow row always means "approaching cap" regardless of
+  // each project's individual threshold setting.
+  const colorClass =
+    pct >= 100
+      ? "text-error font-semibold"
+      : pct >= 80
+        ? "text-warning font-semibold"
+        : "text-content-secondary";
+  return (
+    <span className={`font-mono tabular-nums ${colorClass}`}>
+      {Math.round(pct)}%
+    </span>
   );
 }
 

@@ -140,6 +140,83 @@ The bulk switch fires the `projects_history` audit trigger once per
 project, so the change is reconstructable per-project from the audit
 trail.
 
+## Recurring budget caps
+
+Beyond the lifetime `budget_hours` ceiling, a project can carry a
+**recurring per-period cap** — useful for retainer engagements where
+the contract guarantees a fixed amount of work each month / week /
+quarter, independent of the lifetime total.
+
+### Configuring
+
+On the project edit form, expand the **Recurring budget cap**
+disclosure to set:
+
+- **Period** — `weekly`, `monthly`, or `quarterly`. Calendar-based,
+  in your timezone (April 1 → April 30 for monthly; Mon → Sun for
+  weekly; Q1 = Jan-Mar etc. for quarterly).
+- **Hours per period** — soft cap on hours.
+- **Dollars per period** — soft cap on revenue (hours × rate). One
+  cap, both caps, or neither — your call.
+- **Carryover** — only **Use it or lose it** is enforced today.
+  The other modes (within-quarter, lifetime pool) are placeholders
+  for future contract types.
+- **Alert at (%)** — show a warning banner on the project page
+  when the period burn meets this threshold. Leave blank for no
+  banner. The bar's color (green / yellow / red) is anchored at
+  fixed 80% / 100% breakpoints regardless of your alert threshold,
+  so a yellow bar always means the same thing across projects;
+  the threshold renders as a small tick mark on the bar.
+
+Editing budget fields requires the same permission as editing the
+project's hourly rate — they reveal the same shape of commercial
+information (retainer size, dollar caps).
+
+### Reading the masthead
+
+When a recurring cap is set, the project detail page shows a
+stacked **Budget masthead** at the top:
+
+- **This [week / month / quarter]** — current-period burn, with
+  optional dollar caption and a "Last period: 28h" sub-line for
+  context after a fresh rollover.
+- **Lifetime** — overall hours-vs-budget ceiling.
+
+Each bar is icon + text + numeric + colored fill (three channels).
+A tick mark on the bar indicates the alert threshold when set.
+
+### When the period rolls over
+
+At calendar boundaries (midnight in your TZ on the 1st of the
+month, etc.), the period bar resets to 0 cleanly. **No carryover**
+in v1: any unused hours from the prior period don't roll forward.
+The "Last period" sub-line keeps the prior number visible for a
+few days after rollover so the change isn't a surprise.
+
+### Period close + reconciliation
+
+Budget burn is computed live from `time_entries` — it reflects
+whatever the database currently says about that month. **If you
+need April's number to be stable after May 1**, use
+[period locks](period-locks.md) on the relevant
+team — once April is locked, no one can edit April time entries,
+which means the April column can't drift later. Without a period
+lock, a soft-delete or edit on an April entry on May 6 will shift
+the April masthead retroactively.
+
+The CSV export carries the project's current `Period Budget Type`,
+`Period Budget Hours Cap`, and `Period Budget Dollars Cap` columns
+on every row, so an exported CSV can be reconciled against the
+in-app burn bar months later regardless of changes since.
+
+### `/projects` list
+
+When at least one visible project carries a recurring period, a
+**Period burn** column appears on `/projects`. Each row shows the
+current-period burn % (color-anchored at the same 80% / 100%
+breakpoints as the masthead) so an owner can scan an 8-project
+retainer book and spot trouble in one glance.
+
 ## "Apply parent's settings" on a sub-project
 
 When editing a sub-project, an **Apply [Parent name]'s settings**

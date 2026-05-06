@@ -45,6 +45,10 @@ import {
 } from "@/app/(dashboard)/business/people-allow-lists";
 import { ALLOWED_INVOICE_GROUPING_MODES } from "@/app/(dashboard)/invoices/allow-lists";
 import {
+  ALLOWED_BUDGET_PERIODS,
+  ALLOWED_BUDGET_CARRYOVER,
+} from "@/app/(dashboard)/projects/allow-lists";
+import {
   ALLOWED_OUTBOX_STATUS,
   ALLOWED_RELATED_KINDS,
   ALLOWED_DOMAIN_STATUS,
@@ -221,6 +225,16 @@ const PAIRS: Pair[] = [
     appSet: new Set(ALLOWED_DOMAIN_STATUS),
     column: "status",
     table: "verified_email_domains",
+  },
+  {
+    name: "budgetPeriods",
+    appSet: ALLOWED_BUDGET_PERIODS,
+    column: "budget_period",
+  },
+  {
+    name: "budgetCarryover",
+    appSet: ALLOWED_BUDGET_CARRYOVER,
+    column: "budget_carryover",
   },
 ];
 
