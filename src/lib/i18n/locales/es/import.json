@@ -31,8 +31,10 @@
     "statuses": {
       "running": "En progreso",
       "completed": "Importado",
+      "partial": "Parcial",
       "failed": "Falló",
       "undone": "Deshecho"
-    }
+    },
+    "attemptedVsLanded": "{attempted} entradas en Harvest · solo {landed} importadas a Shyre"
   }
 }

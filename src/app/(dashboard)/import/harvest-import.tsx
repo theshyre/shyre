@@ -111,6 +111,14 @@ interface ImportResult {
   };
   errors: string[];
   reconciliation?: Reconciliation;
+  /** Date range covered by the Harvest entries this pull asked for —
+   *  independent of how many landed (so a partially-rejected import
+   *  still shows the window the user attempted). NULL when no time
+   *  entries were in the response. */
+  entryDateRange?: {
+    earliest: string | null;
+    latest: string | null;
+  };
 }
 
 /**
@@ -136,6 +144,21 @@ interface ApiErrorBody {
  */
 function pad2(n: number): string {
   return String(n).padStart(2, "0");
+}
+
+/** Locale-friendly date for the post-import summary's "Covers …"
+ *  line. Year omitted when it matches the current year. spent_date
+ *  is YYYY-MM-DD (calendar-only, no clock), parsed in local TZ. */
+function formatSummaryDate(yyyymmdd: string): string {
+  const parts = yyyymmdd.split("-").map(Number);
+  if (parts.length !== 3 || parts.some(Number.isNaN)) return yyyymmdd;
+  const [y, m, d] = parts;
+  const sameYear = y === new Date().getFullYear();
+  return new Date(y!, m! - 1, d!).toLocaleDateString(undefined, {
+    year: sameYear ? undefined : "numeric",
+    month: "short",
+    day: "numeric",
+  });
 }
 function isoToday(): string {
   const d = new Date();
@@ -819,6 +842,19 @@ function DoneStep({
       </div>
 
       {recon && <ReconciliationSection recon={recon} />}
+
+      {result.entryDateRange?.earliest && result.entryDateRange?.latest && (
+        // Date range covered by the imported entries — independent of
+        // how many actually landed. Lets the user confirm at a glance
+        // that the import picked up the calendar window they
+        // intended ("yes, I pulled all of April"). Mirrors the
+        // history list's "Covers Apr 1 – Apr 30" line.
+        <div className="text-caption text-content-secondary">
+          Covers{" "}
+          {formatSummaryDate(result.entryDateRange.earliest)} –{" "}
+          {formatSummaryDate(result.entryDateRange.latest)}
+        </div>
+      )}
 
       <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
         <ResultCard

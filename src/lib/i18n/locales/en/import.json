@@ -31,8 +31,10 @@
     "statuses": {
       "running": "Running",
       "completed": "Imported",
+      "partial": "Partial",
       "failed": "Failed",
       "undone": "Undone"
-    }
+    },
+    "attemptedVsLanded": "{attempted} entries from Harvest · only {landed} landed in Shyre"
   }
 }

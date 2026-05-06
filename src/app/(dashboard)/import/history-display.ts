@@ -6,15 +6,40 @@
 
 import type { ImportRunRow } from "./import-history";
 
-export type StatusKind = "running" | "completed" | "failed" | "undone";
+export type StatusKind =
+  | "running"
+  | "completed"
+  | "partial"
+  | "failed"
+  | "undone";
 
 /** Resolve the effective status for display. Undone always wins over
- * the underlying status (a completed-then-undone row reads as "Undone"). */
+ * the underlying status (a completed-then-undone row reads as "Undone").
+ *
+ * A run is "partial" when:
+ *   - status === "completed", AND
+ *   - the importer collected any errors during the run, OR
+ *   - reconciliation says the count from the source doesn't match
+ *     what landed in Shyre.
+ *
+ * The Harvest importer's per-batch error path is the exact case
+ * the user just hit: 200 of 223 entries got rejected by RLS, but
+ * the run completed (the rejections were collected, not thrown).
+ * Without a partial state the user reads the green "Imported"
+ * badge and assumes everything landed.
+ */
 export function effectiveStatusKind(run: {
   status: ImportRunRow["status"];
   undone_at: string | null;
+  summary?: ImportRunRow["summary"];
 }): StatusKind {
   if (run.undone_at) return "undone";
+  if (run.status === "completed") {
+    const errs = run.summary?.errors;
+    if (errs && errs.length > 0) return "partial";
+    const recon = run.summary?.reconciliation;
+    if (recon && recon.match === false) return "partial";
+  }
   return run.status;
 }
 

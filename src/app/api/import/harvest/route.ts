@@ -937,6 +937,24 @@ export async function POST(request: Request): Promise<NextResponse> {
         Object.fromEntries(skipReasons),
       );
 
+      // Date range covered by the entries Harvest returned for this
+      // pull — independent of how many landed, so the user sees the
+      // window they ASKED for (regardless of skip / error rejections).
+      // Shown on the post-import summary screen (and the import
+      // history list, computed there from time_entries).
+      let earliestSpentDate: string | null = null;
+      let latestSpentDate: string | null = null;
+      for (const hte of harvestTimeEntries) {
+        const d = hte.spent_date;
+        if (!d) continue;
+        if (earliestSpentDate === null || d < earliestSpentDate) {
+          earliestSpentDate = d;
+        }
+        if (latestSpentDate === null || d > latestSpentDate) {
+          latestSpentDate = d;
+        }
+      }
+
       const summary = {
         imported: {
           customers: customersImported,
@@ -953,6 +971,10 @@ export async function POST(request: Request): Promise<NextResponse> {
         },
         errors,
         reconciliation,
+        entryDateRange: {
+          earliest: earliestSpentDate,
+          latest: latestSpentDate,
+        },
       };
 
       await supabase

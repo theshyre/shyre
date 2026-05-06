@@ -8,6 +8,7 @@ import {
   XCircle,
   Undo2,
   Loader2,
+  AlertTriangle,
   X,
 } from "lucide-react";
 import { InlineErrorCard } from "@/components/InlineErrorCard";
@@ -45,6 +46,16 @@ export interface ImportRunRow {
           reasons?: Record<string, number>;
         };
         errors?: string[];
+        /** Reconciliation snapshot from the importer — surfaces the
+         *  "Harvest had X, Shyre got Y" mismatch on the row when
+         *  match=false. Only the totals fields are needed for the
+         *  history list; the per-customer breakdown lives on the
+         *  post-import summary page. */
+        reconciliation?: {
+          match: boolean;
+          harvest?: { count: number; hours: number };
+          shyre?: { count: number; hours: number };
+        } | null;
       }
     | null;
   undone_at: string | null;
@@ -205,7 +216,11 @@ function RunRow({
   return (
     <div className="space-y-2">
       <div className="flex items-start gap-3 flex-wrap">
-        <StatusBadge status={run.status} undone={run.undone_at !== null} />
+        <StatusBadge
+          status={run.status}
+          undone={run.undone_at !== null}
+          summary={run.summary}
+        />
 
         <div className="flex-1 min-w-[220px] space-y-0.5">
           <div className="flex items-baseline gap-2 flex-wrap">
@@ -249,9 +264,40 @@ function RunRow({
             </div>
           ) : null}
 
-          {run.status === "failed" && run.summary?.errors?.length ? (
+          {/* Errors — surface for both failed runs AND for completed
+              runs that collected errors during per-batch processing
+              (the Harvest importer's recordError path). Without
+              this, a partial-completion run reads as a green
+              "Imported" with no indication that 200 of 223 rows
+              were rejected. */}
+          {run.summary?.errors?.length ? (
             <div className="text-caption text-error">
               {run.summary.errors[0]}
+              {run.summary.errors.length > 1 && (
+                <span className="text-content-muted">
+                  {" "}
+                  · +{run.summary.errors.length - 1} more
+                </span>
+              )}
+            </div>
+          ) : null}
+
+          {/* Attempted vs landed — surfaces from the Harvest
+              reconciliation snapshot when the row count from the
+              source doesn't match what landed in Shyre. The user's
+              question "I tried to import 223 entries, where's the
+              223?" is answered here: 23 landed, 200 didn't. */}
+          {run.summary?.reconciliation &&
+          run.summary.reconciliation.match === false &&
+          run.summary.reconciliation.harvest &&
+          run.summary.reconciliation.shyre &&
+          run.summary.reconciliation.harvest.count !==
+            run.summary.reconciliation.shyre.count ? (
+            <div className="text-caption text-warning">
+              {t("attemptedVsLanded", {
+                attempted: run.summary.reconciliation.harvest.count,
+                landed: run.summary.reconciliation.shyre.count,
+              })}
             </div>
           ) : null}
 
@@ -468,14 +514,17 @@ function UndoConfirmInline({
 function StatusBadge({
   status,
   undone,
+  summary,
 }: {
   status: ImportRunRow["status"];
   undone: boolean;
+  summary: ImportRunRow["summary"];
 }): React.JSX.Element {
   const t = useTranslations("import.history");
   const kind = effectiveStatusKind({
     status,
     undone_at: undone ? "x" : null,
+    summary,
   });
 
   if (kind === "undone") {
@@ -491,6 +540,17 @@ function StatusBadge({
       <span className="inline-flex items-center gap-1 rounded-full bg-success-soft px-2 py-0.5 text-caption font-medium text-success-text">
         <CheckCircle size={10} />
         {t("statuses.completed")}
+      </span>
+    );
+  }
+  if (kind === "partial") {
+    // Yellow "Partial" badge — completed with errors / mismatched
+    // reconciliation. Three-channel encoding (icon + text + color)
+    // so AT users + non-color users get the signal too.
+    return (
+      <span className="inline-flex items-center gap-1 rounded-full bg-warning-soft px-2 py-0.5 text-caption font-medium text-warning">
+        <AlertTriangle size={10} />
+        {t("statuses.partial")}
       </span>
     );
   }

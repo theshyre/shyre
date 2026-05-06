@@ -33,6 +33,40 @@ describe("effectiveStatusKind", () => {
       "failed",
     );
   });
+  it("returns 'partial' when status='completed' AND errors are present", () => {
+    expect(
+      effectiveStatusKind({
+        status: "completed",
+        undone_at: null,
+        summary: {
+          errors: ["Time entries batch: new row violates row-level security policy"],
+        },
+      }),
+    ).toBe("partial");
+  });
+  it("returns 'partial' when reconciliation reports a mismatch", () => {
+    expect(
+      effectiveStatusKind({
+        status: "completed",
+        undone_at: null,
+        summary: {
+          reconciliation: { match: false },
+        },
+      }),
+    ).toBe("partial");
+  });
+  it("stays 'completed' when errors is empty AND reconciliation matches", () => {
+    expect(
+      effectiveStatusKind({
+        status: "completed",
+        undone_at: null,
+        summary: {
+          errors: [],
+          reconciliation: { match: true },
+        },
+      }),
+    ).toBe("completed");
+  });
 });
 
 describe("buildCountsList", () => {
