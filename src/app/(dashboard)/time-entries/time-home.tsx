@@ -57,7 +57,15 @@ interface TimeHomeProps {
   logDefaultWindowDays: number;
   logMaxWindowDays: number;
   running: TimeEntry | null;
+  /** Leaf-only project list — drives the entry-creation pickers.
+   *  Parents are filtered out so a user can't log time directly on
+   *  an engagement when phases exist underneath it. */
   projects: ProjectOption[];
+  /** ALL projects (parent + leaf) — rendering map for time-entry
+   *  rows. A historical entry whose project later became a parent
+   *  must still resolve its project + customer when the row renders.
+   *  See the bug fix at /time-entries/page.tsx (2026-05-06). */
+  projectsAll: ProjectOption[];
   /** Project list for the toolbar's filter picker — includes BOTH
    *  parent and leaf projects (unlike `projects`, which is leaf-only
    *  for entry creation). Picking a parent rolls up to parent + leaf
@@ -99,6 +107,7 @@ export function TimeHome({
   logMaxWindowDays,
   running,
   projects,
+  projectsAll,
   filterPickerProjects,
   selectedProjectId,
   recentProjects,
@@ -245,7 +254,7 @@ export function TimeHome({
           maxWindowDays={logMaxWindowDays}
           tzOffsetMin={tzOffsetMin}
           entries={logEntries}
-          projects={projects}
+          projects={projectsAll}
           categories={categories}
           viewerUserId={currentUserId}
         />
@@ -256,7 +265,7 @@ export function TimeHome({
           tzOffsetMin={tzOffsetMin}
           weekEntries={weekEntries}
           dayEntries={dayEntries}
-          projects={projects}
+          projects={projectsAll}
           categories={categories}
           viewerUserId={currentUserId}
         />
@@ -265,7 +274,7 @@ export function TimeHome({
           weekStartStr={weekStartStr}
           tzOffsetMin={tzOffsetMin}
           entries={weekEntries}
-          projects={projects}
+          projects={projectsAll}
           categories={categories}
           defaultTeamId={selectedTeamId ?? undefined}
           currentUserId={currentUserId}

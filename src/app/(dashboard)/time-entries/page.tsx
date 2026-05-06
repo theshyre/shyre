@@ -541,12 +541,24 @@ export default async function TimeEntriesPage({
       .map((p) => p.parent_project_id as string | null)
       .filter((v): v is string => v !== null),
   );
-  const projects = projectsRaw
-    .filter((p) => !parentIds.has(p.id))
-    .map((p) => ({
-      ...p,
-      extension_category_set_id: extensionByProject.get(p.id) ?? null,
-    }));
+  // ALL projects (including parents) — rendering map for time-entry
+  // rows. A historical entry whose project later became a parent
+  // (because the user added a sub-project under it) MUST still
+  // resolve its project + customer when the row renders. Bug
+  // 2026-05-06: this list was only the leaf-only `projects` below,
+  // which silently dropped any entry whose project_id pointed at a
+  // parent — those rows rendered as "No project / No customer"
+  // even though the data was fully intact in the DB.
+  const projectsAll = projectsRaw.map((p) => ({
+    ...p,
+    extension_category_set_id: extensionByProject.get(p.id) ?? null,
+  }));
+  // Leaf-only — picker source for entry CREATION. Logging time
+  // directly on a parent project bypasses the per-phase budget the
+  // children exist to track, so the entry-creation picker hides
+  // parents. This narrower list MUST NOT be used as a lookup map
+  // for rendering existing entries; pass `projectsAll` instead.
+  const projects = projectsAll.filter((p) => !parentIds.has(p.id));
 
   // Picker source for the toolbar's project FILTER (not the entry-
   // creation picker). Includes BOTH parent and leaf projects — picking
@@ -787,6 +799,7 @@ export default async function TimeEntriesPage({
       logMaxWindowDays={LOG_MAX_WINDOW_DAYS}
       running={running as unknown as TimeEntry | null}
       projects={projects}
+      projectsAll={projectsAll}
       filterPickerProjects={filterPickerProjects}
       selectedProjectId={projectFilterId}
       recentProjects={recentProjects}

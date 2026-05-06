@@ -115,6 +115,75 @@ describe("WeekTimesheet", () => {
     expect(screen.getByText("Alpha")).toBeInTheDocument();
   });
 
+  // Regression — bug 2026-05-06: when a project becomes a parent
+  // (because the user added a sub-project under it), historical
+  // time entries on that parent must still render with the parent's
+  // name + customer. Earlier the time-entries page filtered parents
+  // out of the `projects` array used as the rendering lookup map,
+  // causing those rows to silently render as "No project / No
+  // customer." Caller now passes the FULL project list (parents +
+  // leaves) to WeekTimesheet, so the lookup resolves.
+  it("renders entries whose project is a parent (has sub-projects) — does NOT drop them as 'No project'", () => {
+    const parent: ProjectOption = {
+      id: "p-engagement",
+      name: "Engagement",
+      github_repo: null,
+      jira_project_key: null,
+      team_id: "o1",
+      category_set_id: null,
+      require_timestamps: false,
+    };
+    const child: ProjectOption = {
+      id: "p-phase-1",
+      name: "Phase 1",
+      github_repo: null,
+      jira_project_key: null,
+      team_id: "o1",
+      category_set_id: null,
+      require_timestamps: false,
+    };
+    // Entry on the parent — pre-existing data from before the
+    // sub-project was created.
+    const start = new Date(Date.UTC(2026, 3, 13, 0, 0));
+    const end = new Date(start.getTime() + 60 * 60 * 1000);
+    const entry: TimeEntry = {
+      id: "e-parent",
+      team_id: "o1",
+      user_id: "u1",
+      project_id: "p-engagement",
+      description: null,
+      start_time: start.toISOString(),
+      end_time: end.toISOString(),
+      duration_min: 60,
+      billable: true,
+      github_issue: null,
+      linked_ticket_provider: null,
+      linked_ticket_key: null,
+      linked_ticket_url: null,
+      linked_ticket_title: null,
+      linked_ticket_refreshed_at: null,
+      invoiced: false,
+      invoice_id: null,
+      invoice_number: null,
+      category_id: null,
+      projects: { id: "p-engagement", name: "Engagement", github_repo: null },
+      author: null,
+    };
+    renderTimesheet(
+      <WeekTimesheet
+        weekStartStr={weekStartStr}
+        tzOffsetMin={tzOffsetMin}
+        entries={[entry]}
+        projects={[parent, child]}
+        categories={[]}
+      />,
+    );
+    // The parent's name should render as the row label. If the
+    // lookup map were leaf-only, "Engagement" would be missing
+    // from the DOM and a "No project" placeholder would appear.
+    expect(screen.getByText("Engagement")).toBeInTheDocument();
+  });
+
   it("sums daily totals in the footer", () => {
     renderTimesheet(
       <WeekTimesheet
