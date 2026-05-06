@@ -659,6 +659,58 @@ export async function bulkUpdateExpenseProjectAction(
   );
 }
 
+/**
+ * Bulk-set the `billable` flag on N expenses. Three legal payload
+ * shapes match the per-row inline edit:
+ *   - "true"   → billable=true
+ *   - "false"  → billable=false
+ *   - ""       → billable=null (clear / unset; downstream rules
+ *                 re-apply when relevant)
+ *
+ * Reuses `resolveAuthorizedExpenseIds` so RLS-filtered ids are the
+ * only ones written, exactly like the category / project bulk
+ * actions. Surfaces `bulkUpdateExpenseBillableAction` as the
+ * default export name to mirror those siblings.
+ */
+export async function bulkUpdateExpenseBillableAction(
+  formData: FormData,
+): Promise<
+  | { success: true }
+  | { success: false; error: import("@/lib/errors").SerializedAppError }
+> {
+  return runSafeAction(
+    formData,
+    async (fd, { supabase, userId }) => {
+      const raw = String(fd.get("billable") ?? "").trim();
+      let billable: boolean | null;
+      if (raw === "true") billable = true;
+      else if (raw === "false") billable = false;
+      else if (raw === "") billable = null;
+      else throw new Error(`Invalid billable value: ${raw}`);
+
+      const authorized = await resolveAuthorizedExpenseIds(
+        supabase,
+        fd,
+        userId,
+      );
+      if (authorized.length === 0) {
+        throw new Error("None of the selected rows are editable.");
+      }
+
+      assertSupabaseOk(
+        await supabase
+          .from("expenses")
+          .update({ billable })
+          .in("id", authorized),
+      );
+
+      revalidatePath("/business");
+      revalidatePath("/business/expenses");
+    },
+    "bulkUpdateExpenseBillableAction",
+  );
+}
+
 /** Bulk soft-delete N expenses. Mirror of single-row delete: sets
  *  deleted_at = now() so the Undo toast can restore them. */
 export async function bulkDeleteExpensesAction(

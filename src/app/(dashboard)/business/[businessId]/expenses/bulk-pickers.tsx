@@ -9,7 +9,7 @@ import {
 } from "react";
 import { createPortal } from "react-dom";
 import { useTranslations } from "next-intl";
-import { Tag, FolderKanban, Loader2, Check } from "lucide-react";
+import { Tag, FolderKanban, Loader2, Check, DollarSign } from "lucide-react";
 import { Tooltip } from "@/components/Tooltip";
 import { useDropdownPlacement } from "@/hooks/use-dropdown-placement";
 import { EXPENSE_CATEGORIES } from "./categories";
@@ -93,6 +93,61 @@ export function BulkProjectPicker({
         projects.length === 0 ? t("bulk.noProjectsToAssign") : null
       }
       disabled={projects.length === 0}
+      items={items}
+      onSelect={onSelect}
+    />
+  );
+}
+
+interface BillableProps {
+  /** Receives "true", "false", or "" (clear / unset). */
+  onSelect: (billable: string) => Promise<void>;
+}
+
+/**
+ * Bulk Billable picker — set every selected row's `billable` flag
+ * in one action. Three options match the row-level shape:
+ *   - Yes: billable=true (reimbursable / on-the-clock client work)
+ *   - No: billable=false (absorbed / non-reimbursable)
+ *   - Clear: billable=null (explicitly unset, lets the project /
+ *     entry's natural default re-apply via downstream rules)
+ *
+ * Surfaces alongside Bulk Category and Bulk Project. Solves the
+ * agency-owner workflow of marking 30 imported "AWS" rows as
+ * reimbursable to a single customer in one gesture.
+ */
+export function BulkBillablePicker({
+  onSelect,
+}: BillableProps): React.JSX.Element {
+  const t = useTranslations("expenses");
+  const items: DropdownItem[] = [
+    {
+      key: "true",
+      value: "true",
+      label: t("bulk.billable.yes"),
+      muted: false,
+      help: null,
+    },
+    {
+      key: "false",
+      value: "false",
+      label: t("bulk.billable.no"),
+      muted: false,
+      help: null,
+    },
+    {
+      key: "clear",
+      value: "",
+      label: t("bulk.billable.clear"),
+      muted: true,
+      help: null,
+    },
+  ];
+  return (
+    <DropdownPicker
+      label={t("bulk.setBillable")}
+      icon={<DollarSign size={14} />}
+      menuWidthPx={220}
       items={items}
       onSelect={onSelect}
     />

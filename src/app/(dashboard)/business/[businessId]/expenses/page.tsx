@@ -11,6 +11,10 @@ import { TableDensityToggle } from "@/components/TableDensityToggle";
 import { TableDensityDefault } from "@/components/TableDensityDefault";
 import { ExpensesTable } from "./expenses-table";
 import { ExpenseFilters } from "./expense-filters";
+import {
+  ExpenseSummaryTiles,
+  type PeriodTotal,
+} from "./expense-summary-tiles";
 import { parseExpenseFilters, hasActiveFilters } from "./filter-params";
 import { applyExpenseFilters } from "./query-filters";
 import { parseListPagination } from "@/lib/pagination/list-pagination";
@@ -45,15 +49,24 @@ export interface ProjectOption {
   team_id: string;
 }
 
-function formatCurrency(amount: number, currency: string): string {
-  try {
-    return new Intl.NumberFormat("en-US", {
-      style: "currency",
-      currency,
-    }).format(amount);
-  } catch {
-    return `${currency} ${amount.toFixed(2)}`;
-  }
+function pad2(n: number): string {
+  return String(n).padStart(2, "0");
+}
+
+/**
+ * Given an exclusive end-of-period date string (YYYY-MM-DD), return
+ * the inclusive last day before it. Used to convert exclusive period
+ * upper bounds (e.g. "first of next month") into the inclusive
+ * `to` filter the URL expects (e.g. "last day of this month").
+ */
+function lastDateBefore(yyyymmdd: string): string {
+  const [yStr, mStr, dStr] = yyyymmdd.split("-");
+  const y = Number(yStr);
+  const m = Number(mStr);
+  const d = Number(dStr);
+  const dt = new Date(Date.UTC(y, m - 1, d));
+  dt.setUTCDate(dt.getUTCDate() - 1);
+  return `${dt.getUTCFullYear()}-${pad2(dt.getUTCMonth() + 1)}-${pad2(dt.getUTCDate())}`;
 }
 
 interface PageProps {
@@ -237,30 +250,76 @@ export default async function ExpensesPage({
   // Expenses can be logged in different currencies, so sum
   // per-currency and render each group on its own — naively
   // summing across currencies would silently produce a wrong
-  // number. The query selects only (amount, currency) for the
-  // current-month rows, no joins.
+  // KPI tiles above the form — Year-to-date / This month /
+  // Last month / This quarter. One wide query pulls every row
+  // since the earliest period start (covers the January edge
+  // where last-month spans into the prior year), then JS buckets
+  // each row into the four periods. Independent of the rendered
+  // list query, so toggling row-level filters doesn't shift the
+  // KPI numbers.
   const now = new Date();
-  const monthStart = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}-01`;
-  const { data: monthRows } = await supabase
+  const todayY = now.getFullYear();
+  const todayM = now.getMonth(); // 0-indexed
+  const todayStr = `${todayY}-${pad2(todayM + 1)}-${pad2(now.getDate())}`;
+
+  const ytdStart = `${todayY}-01-01`;
+
+  const thisMonthStart = `${todayY}-${pad2(todayM + 1)}-01`;
+  const nextMonthY = todayM === 11 ? todayY + 1 : todayY;
+  const nextMonthM = todayM === 11 ? 1 : todayM + 2;
+  const thisMonthEndExclusive = `${nextMonthY}-${pad2(nextMonthM)}-01`;
+  const thisMonthEndInclusive = lastDateBefore(thisMonthEndExclusive);
+
+  const lastMonthY = todayM === 0 ? todayY - 1 : todayY;
+  const lastMonthM = todayM === 0 ? 12 : todayM;
+  const lastMonthStart = `${lastMonthY}-${pad2(lastMonthM)}-01`;
+  const lastMonthEndInclusive = lastDateBefore(thisMonthStart);
+
+  const quarterStartM = Math.floor(todayM / 3) * 3 + 1; // 1, 4, 7, 10
+  const quarterStart = `${todayY}-${pad2(quarterStartM)}-01`;
+  const nextQuarterStartM = quarterStartM + 3;
+  const nextQuarterY = nextQuarterStartM > 12 ? todayY + 1 : todayY;
+  const nextQuarterM = nextQuarterStartM > 12 ? nextQuarterStartM - 12 : nextQuarterStartM;
+  const quarterEndExclusive = `${nextQuarterY}-${pad2(nextQuarterM)}-01`;
+  const quarterEndInclusive = lastDateBefore(quarterEndExclusive);
+
+  // Widest start = min(ytdStart, lastMonthStart) — handles January
+  // where last month is December of the prior year.
+  const widestStart =
+    lastMonthStart < ytdStart ? lastMonthStart : ytdStart;
+
+  const { data: kpiRows } = await supabase
     .from("expenses")
-    .select("amount, currency")
+    .select("amount, currency, incurred_on")
     .in("team_id", teamIds)
     .is("deleted_at", null)
-    .gte("incurred_on", monthStart);
+    .gte("incurred_on", widestStart);
+
+  const ytdByCurrency = new Map<string, number>();
   const monthByCurrency = new Map<string, number>();
-  for (const row of monthRows ?? []) {
+  const lastMonthByCurrency = new Map<string, number>();
+  const quarterByCurrency = new Map<string, number>();
+  for (const row of kpiRows ?? []) {
     const code = ((row.currency as string | null) ?? "USD").toUpperCase();
     const amt = Number(row.amount);
     if (!Number.isFinite(amt)) continue;
-    monthByCurrency.set(code, (monthByCurrency.get(code) ?? 0) + amt);
+    const d = row.incurred_on as string;
+    if (d >= ytdStart && d <= todayStr) {
+      ytdByCurrency.set(code, (ytdByCurrency.get(code) ?? 0) + amt);
+    }
+    if (d >= thisMonthStart && d < thisMonthEndExclusive) {
+      monthByCurrency.set(code, (monthByCurrency.get(code) ?? 0) + amt);
+    }
+    if (d >= lastMonthStart && d < thisMonthStart) {
+      lastMonthByCurrency.set(
+        code,
+        (lastMonthByCurrency.get(code) ?? 0) + amt,
+      );
+    }
+    if (d >= quarterStart && d < quarterEndExclusive) {
+      quarterByCurrency.set(code, (quarterByCurrency.get(code) ?? 0) + amt);
+    }
   }
-  const monthTotalLabel =
-    monthByCurrency.size === 0
-      ? formatCurrency(0, "USD")
-      : Array.from(monthByCurrency.entries())
-          .sort((a, b) => a[0].localeCompare(b[0]))
-          .map(([code, amt]) => formatCurrency(amt, code))
-          .join(" · ");
 
   // Recategorize callout: every CSV-imported expense lands in
   // category="other" by default. Surface a single soft banner when
@@ -291,15 +350,45 @@ export default async function ExpensesPage({
 
   const totalCount = (allYearsRows ?? []).length;
 
+  const periodTotals: PeriodTotal[] = [
+    {
+      key: "ytd",
+      totalsByCurrency: ytdByCurrency,
+      from: ytdStart,
+      to: todayStr,
+    },
+    {
+      key: "month",
+      totalsByCurrency: monthByCurrency,
+      from: thisMonthStart,
+      to: thisMonthEndInclusive,
+    },
+    {
+      key: "lastMonth",
+      totalsByCurrency: lastMonthByCurrency,
+      from: lastMonthStart,
+      to: lastMonthEndInclusive,
+    },
+    {
+      key: "quarter",
+      totalsByCurrency: quarterByCurrency,
+      from: quarterStart,
+      to: quarterEndInclusive,
+    },
+  ];
+
   return (
     <div className="space-y-4">
       <div className="flex items-center gap-3 flex-wrap">
         <span className="text-body-lg font-semibold text-content">{t("title")}</span>
-        <span className="inline-flex items-center gap-1.5 rounded-full bg-surface-inset px-3 py-1 text-caption font-medium text-content-secondary">
-          {t("monthTotal", { amount: monthTotalLabel })}
-        </span>
         <TableDensityToggle className="ml-auto" />
       </div>
+
+      <ExpenseSummaryTiles
+        periods={periodTotals}
+        filters={filters}
+        basePath={`/business/${businessId}/expenses`}
+      />
 
       {lockSummary && (
         <div
@@ -315,13 +404,22 @@ export default async function ExpensesPage({
 
       {otherCount > 0 && (
         <div
-          className="rounded-md border border-warning/40 bg-warning-soft/20 px-3 py-2 text-caption text-content-secondary"
+          className="rounded-md border border-warning/40 bg-warning-soft/20 px-3 py-2 text-caption text-content-secondary flex items-start gap-3"
           role="status"
         >
-          <span className="font-semibold text-warning">
-            {t("recategorizeBanner.title", { count: otherCount })}
-          </span>{" "}
-          {t("recategorizeBanner.body")}
+          <div className="flex-1 min-w-0">
+            <span className="font-semibold text-warning">
+              {t("recategorizeBanner.title", { count: otherCount })}
+            </span>{" "}
+            {t("recategorizeBanner.body")}
+          </div>
+          <Link
+            href={`/business/${businessId}/expenses?category=other`}
+            className={`${buttonSecondaryClass} shrink-0`}
+          >
+            {t("recategorizeBanner.cta", { count: otherCount })}
+            <LinkPendingSpinner size={10} className="" />
+          </Link>
         </div>
       )}
 
@@ -389,26 +487,33 @@ export default async function ExpensesPage({
 }
 
 /** Build a CSV-export href from the active filter set. The export
- *  route honors the same params as the page, so passing the filters
- *  through keeps "what you see is what you export." */
+ *  route now honors EVERY filter the page applies — q (free-text
+ *  search), project, multi-category, billable, from/to. Earlier
+ *  versions silently dropped q + project + multi-category, which
+ *  meant "Travel · Q2 · Acme" filtered in the UI exported the
+ *  whole business (bookkeeper / agency-owner blocking concern,
+ *  fixed 2026-05-06). The route accepts the same param shape as
+ *  the page's filter URL: `category` is comma-joined when the
+ *  user selects multiple. */
 function buildExpensesCsvHref(
   businessId: string,
   filters: {
+    q: string;
     from: string | null;
     to: string | null;
     categories: string[];
+    project: string | null;
     billable: boolean | null;
   },
 ): string {
   const sp = new URLSearchParams();
+  if (filters.q) sp.set("q", filters.q);
   if (filters.from) sp.set("from", filters.from);
   if (filters.to) sp.set("to", filters.to);
-  // Single-category filter only — multi-category in the URL would
-  // need repeated `category=` params and the route reads only the
-  // first. The filter UX treats "no selection" as "all" anyway.
-  if (filters.categories.length === 1) {
-    sp.set("category", filters.categories[0]!);
+  if (filters.categories.length > 0) {
+    sp.set("category", filters.categories.join(","));
   }
+  if (filters.project !== null) sp.set("project", filters.project);
   if (filters.billable === true) sp.set("billable", "1");
   if (filters.billable === false) sp.set("billable", "0");
   const qs = sp.toString();

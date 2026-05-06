@@ -16,11 +16,16 @@ import { assertActionResult } from "@/lib/action-result";
 import {
   bulkDeleteExpensesAction,
   bulkRestoreExpensesAction,
+  bulkUpdateExpenseBillableAction,
   bulkUpdateExpenseCategoryAction,
   bulkUpdateExpenseProjectAction,
 } from "./actions";
 import { ExpenseRow, type ExpenseAuthor } from "./expense-row";
-import { BulkCategoryPicker, BulkProjectPicker } from "./bulk-pickers";
+import {
+  BulkBillablePicker,
+  BulkCategoryPicker,
+  BulkProjectPicker,
+} from "./bulk-pickers";
 import type { ProjectOption } from "./page";
 import type { ExpenseFilters } from "./filter-params";
 import { appendFilterParams } from "./filter-formdata";
@@ -367,6 +372,46 @@ export function ExpensesTable({
     ],
   );
 
+  const bulkSetBillable = useCallback(
+    async (billable: string): Promise<void> => {
+      const fd = new FormData();
+      fd.set("billable", billable);
+      let count: number;
+      if (selectAllMatching) {
+        fd.set("scope", "filters");
+        fd.set("businessId", businessId);
+        appendFilterParams(fd, filters);
+        count = matchingCount;
+      } else {
+        const ids = Array.from(selectedIds);
+        if (ids.length === 0) return;
+        for (const id of ids) fd.append("id", id);
+        count = ids.length;
+      }
+      const result = await bulkUpdateExpenseBillableAction(fd);
+      if (result && "success" in result && !result.success) {
+        toast.push({
+          kind: "error",
+          message: result.error.userMessageKey,
+        });
+        throw new Error(result.error.userMessageKey);
+      }
+      const message = tToast("bulkBillableAssigned", { count });
+      flashAck(message);
+      toast.push({ kind: "success", message });
+    },
+    [
+      selectAllMatching,
+      selectedIds,
+      matchingCount,
+      filters,
+      businessId,
+      toast,
+      tToast,
+      flashAck,
+    ],
+  );
+
   if (expenses.length === 0) {
     return (
       <div className="rounded-lg border border-edge bg-surface-raised p-6 text-body text-content-muted">
@@ -443,6 +488,7 @@ export function ExpensesTable({
               projects={projects}
               onSelect={bulkSetProject}
             />
+            <BulkBillablePicker onSelect={bulkSetBillable} />
             <Tooltip label={t("bulk.delete")}>
               <span className="inline-flex">
                 <InlineDeleteRowConfirm
@@ -492,7 +538,7 @@ export function ExpensesTable({
           <col style={{ width: 40 }} />
           <col style={{ width: 96 }} />
         </colgroup>
-        <thead className="bg-surface-inset border-b border-edge">
+        <thead className="bg-surface-inset border-b border-edge sticky top-0 z-10">
           <tr>
             <th className="text-left">
               <span className="flex min-h-[1.75rem] items-center">

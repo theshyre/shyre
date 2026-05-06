@@ -8,6 +8,15 @@
   "noProject": "— Sin proyecto —",
   "selectCategory": "— Selecciona categoría —",
   "monthTotal": "Este mes · {amount}",
+  "summary": {
+    "labels": {
+      "ytd": "Año hasta la fecha",
+      "month": "Este mes",
+      "lastMonth": "Mes anterior",
+      "quarter": "Este trimestre"
+    },
+    "empty": "—"
+  },
   "confirmDelete": "Eliminar",
   "sampleTag": "ejemplo",
   "billableTag": "facturable",
@@ -16,7 +25,8 @@
   "exportCsv": "Exportar CSV",
   "recategorizeBanner": {
     "title": "{count, plural, =1 {1 gasto en categoría 'Otros'} other {# gastos en categoría 'Otros'}}.",
-    "body": "Reclasifícalos antes de generar informes fiscales — los gastos importados quedan en 'Otros' hasta que los categorices."
+    "body": "Reclasifícalos antes de generar informes fiscales — los gastos importados quedan en 'Otros' hasta que los categorices.",
+    "cta": "Reclasificar {count}"
   },
   "import": {
     "title": "Importar gastos desde CSV",
@@ -28,7 +38,8 @@
     "undo": "Deshacer",
     "bulkDeleted": "{count, plural, =1 {1 gasto eliminado} other {# gastos eliminados}}",
     "bulkCategorized": "Categoría aplicada a {count, plural, =1 {1 gasto} other {# gastos}}",
-    "bulkProjectAssigned": "Proyecto asignado a {count, plural, =1 {1 gasto} other {# gastos}}"
+    "bulkProjectAssigned": "Proyecto asignado a {count, plural, =1 {1 gasto} other {# gastos}}",
+    "bulkBillableAssigned": "Estado facturable actualizado en {count, plural, =1 {1 gasto} other {# gastos}}"
   },
   "ariaActions": {
     "edit": "Editar gasto de {vendor}",
@@ -91,6 +102,12 @@
     "delete": "Eliminar seleccionados",
     "setCategory": "Asignar categoría",
     "setProject": "Asignar proyecto",
+    "setBillable": "Marcar facturable",
+    "billable": {
+      "yes": "Facturable",
+      "no": "No facturable",
+      "clear": "Limpiar"
+    },
     "noProjectsToAssign": "No hay proyectos activos en este negocio — crea uno antes de asignar en lote."
   },
   "categories": {

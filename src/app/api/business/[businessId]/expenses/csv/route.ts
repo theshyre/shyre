@@ -38,6 +38,8 @@ export async function GET(
   const billable = url.searchParams.get("billable");
   const fromParam = url.searchParams.get("from");
   const toParam = url.searchParams.get("to");
+  const projectParam = url.searchParams.get("project");
+  const qParam = url.searchParams.get("q");
   const includeDeleted = url.searchParams.get("includeDeleted") === "1";
 
   // Resolve teams under the business — RLS still gates access — so
@@ -73,11 +75,41 @@ export async function GET(
 
   if (!includeDeleted) query = query.is("deleted_at", null);
   if (teamId) query = query.eq("team_id", teamId);
-  if (category) query = query.eq("category", category);
+  // Multi-category — `category` may be a comma-joined list ("travel,meals")
+  // matching the page's filter URL shape. Single value still works.
+  if (category) {
+    const cats = category
+      .split(",")
+      .map((c) => c.trim())
+      .filter((c) => c.length > 0);
+    if (cats.length === 1) {
+      query = query.eq("category", cats[0]!);
+    } else if (cats.length > 1) {
+      query = query.in("category", cats);
+    }
+  }
   if (billable === "1") query = query.eq("billable", true);
   if (billable === "0") query = query.eq("billable", false);
   if (fromParam) query = query.gte("incurred_on", fromParam);
   if (toParam) query = query.lte("incurred_on", toParam);
+  // Project filter — "none" matches rows with no project, any UUID
+  // matches that exact project. Mirrors the page's parseExpenseFilters.
+  if (projectParam === "none") {
+    query = query.is("project_id", null);
+  } else if (projectParam && /^[0-9a-f-]{8,}$/i.test(projectParam)) {
+    query = query.eq("project_id", projectParam);
+  }
+  // Free-text search — case-insensitive substring on vendor /
+  // description / notes (same shape as applyExpenseFilters in
+  // query-filters.ts). Escape PostgreSQL ILIKE wildcards so a
+  // user typing "100%" doesn't wildcard-match every row.
+  if (qParam && qParam.trim().length > 0) {
+    const escaped = qParam.trim().replace(/[\\%_]/g, "\\$&");
+    const pattern = `%${escaped}%`;
+    query = query.or(
+      `vendor.ilike.${pattern},description.ilike.${pattern},notes.ilike.${pattern}`,
+    );
+  }
 
   const { data: rows, error } = await query;
   if (error) {

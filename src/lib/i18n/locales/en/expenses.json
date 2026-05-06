@@ -8,6 +8,15 @@
   "noProject": "— No project —",
   "selectCategory": "— Select category —",
   "monthTotal": "This month · {amount}",
+  "summary": {
+    "labels": {
+      "ytd": "Year to date",
+      "month": "This month",
+      "lastMonth": "Last month",
+      "quarter": "This quarter"
+    },
+    "empty": "—"
+  },
   "confirmDelete": "Delete",
   "sampleTag": "sample",
   "billableTag": "billable",
@@ -16,7 +25,8 @@
   "exportCsv": "Export CSV",
   "recategorizeBanner": {
     "title": "{count, plural, =1 {1 expense in 'Other' category} other {# expenses in 'Other' category}}.",
-    "body": "Recategorize before running tax reports — imported expenses default to 'Other' until you classify them."
+    "body": "Recategorize before running tax reports — imported expenses default to 'Other' until you classify them.",
+    "cta": "Recategorize {count}"
   },
   "import": {
     "title": "Import expenses from CSV",
@@ -28,7 +38,8 @@
     "undo": "Undo",
     "bulkDeleted": "{count, plural, =1 {1 expense deleted} other {# expenses deleted}}",
     "bulkCategorized": "Category set on {count, plural, =1 {1 expense} other {# expenses}}",
-    "bulkProjectAssigned": "Project assigned to {count, plural, =1 {1 expense} other {# expenses}}"
+    "bulkProjectAssigned": "Project assigned to {count, plural, =1 {1 expense} other {# expenses}}",
+    "bulkBillableAssigned": "Billable flag updated on {count, plural, =1 {1 expense} other {# expenses}}"
   },
   "ariaActions": {
     "edit": "Edit {vendor} expense",
@@ -91,6 +102,12 @@
     "delete": "Delete selected",
     "setCategory": "Set category",
     "setProject": "Set project",
+    "setBillable": "Set billable",
+    "billable": {
+      "yes": "Billable",
+      "no": "Non-billable",
+      "clear": "Clear"
+    },
     "noProjectsToAssign": "No active projects in this business — add one before bulk-assigning."
   },
   "categories": {
