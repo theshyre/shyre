@@ -25,6 +25,12 @@ import {
 import { NewProjectForm } from "./new-project-form";
 import { parseListPagination } from "@/lib/pagination/list-pagination";
 import { ProjectsTable, type ProjectRow } from "./projects-table";
+import {
+  CustomerFilter,
+  ProjectFiltersClearHint,
+  ProjectSearchInput,
+  StatusFilter,
+} from "./projects-filters";
 
 // Whitelist for sort keys — gates URL input before it reaches the
 // query builder. Everything else falls back to the default.
@@ -44,6 +50,40 @@ function parseDir(raw: string | undefined): "asc" | "desc" {
   return raw === "desc" ? "desc" : "asc";
 }
 
+// `?status=` whitelist. "all" relaxes the default-archived-hidden
+// filter and shows every status; "active" (the default) hides
+// archived. Anything outside the set falls back to the default.
+const ALLOWED_STATUS_FILTERS = [
+  "active",
+  "paused",
+  "completed",
+  "archived",
+  "all",
+] as const;
+type StatusFilter = (typeof ALLOWED_STATUS_FILTERS)[number];
+
+function parseStatusFilter(raw: string | undefined): StatusFilter {
+  return (ALLOWED_STATUS_FILTERS as readonly string[]).includes(raw ?? "")
+    ? (raw as StatusFilter)
+    : "active";
+}
+
+// `?customer=` is either a customer UUID or the literal "internal"
+// (matches projects with is_internal=true). Empty / unknown =
+// no filter. The UUID itself is validated structurally below; an
+// invalid one will simply yield no results, which is fine.
+function parseCustomerFilter(
+  raw: string | undefined,
+): { kind: "all" } | { kind: "internal" } | { kind: "id"; id: string } {
+  if (!raw) return { kind: "all" };
+  if (raw === "internal") return { kind: "internal" };
+  // Loose UUID guard so a typo or tampered URL doesn't reach the
+  // query builder as a free-text. Supabase will reject malformed
+  // UUIDs anyway; this is a friendlier short-circuit.
+  if (/^[0-9a-fA-F-]{36}$/.test(raw)) return { kind: "id", id: raw };
+  return { kind: "all" };
+}
+
 export default async function ProjectsPage({
   searchParams,
 }: {
@@ -52,6 +92,14 @@ export default async function ProjectsPage({
     limit?: string;
     sort?: string;
     dir?: string;
+    /** Status filter — `active` (default) hides archived; `all`
+     *  shows every status; the four named statuses pin to a
+     *  single value. */
+    status?: string;
+    /** Customer filter — UUID, "internal", or empty/missing. */
+    customer?: string;
+    /** Free-text name search — server-side ILIKE match. */
+    q?: string;
   }>;
 }): Promise<React.JSX.Element> {
   const supabase = await createClient();
@@ -63,6 +111,9 @@ export default async function ProjectsPage({
 
   const sort = parseSort(sp.sort);
   const dir = parseDir(sp.dir);
+  const statusFilter = parseStatusFilter(sp.status);
+  const customerFilter = parseCustomerFilter(sp.customer);
+  const searchQuery = (sp.q ?? "").trim();
 
   // count: "exact" + .range() + id tiebreaker — same shape as
   // every other list page in Shyre. See the expenses page for
@@ -72,9 +123,34 @@ export default async function ProjectsPage({
   let projectsQuery = supabase
     .from("projects_v")
     .select("*, customers(name)", { count: "exact" })
-    .neq("status", "archived")
     .order(sort, { ascending: dir === "asc", nullsFirst: false })
     .order("id", { ascending: false });
+
+  // Status filter — "active" hides archived (the original default
+  // behavior); the four named statuses pin to a single value;
+  // "all" applies no status filter.
+  if (statusFilter === "active") {
+    projectsQuery = projectsQuery.neq("status", "archived");
+  } else if (statusFilter !== "all") {
+    projectsQuery = projectsQuery.eq("status", statusFilter);
+  }
+
+  // Customer filter — id, internal, or no-op.
+  if (customerFilter.kind === "internal") {
+    projectsQuery = projectsQuery.eq("is_internal", true);
+  } else if (customerFilter.kind === "id") {
+    projectsQuery = projectsQuery.eq("customer_id", customerFilter.id);
+  }
+
+  // Free-text search — case-insensitive substring on the project's
+  // own name. Escape % and _ in the user's input so a user typing
+  // "100%" doesn't accidentally match every project. PostgreSQL's
+  // ILIKE treats those as wildcards. Backslash escapes them.
+  if (searchQuery.length > 0) {
+    const escaped = searchQuery.replace(/[\\%_]/g, "\\$&");
+    projectsQuery = projectsQuery.ilike("name", `%${escaped}%`);
+  }
+
   if (selectedTeamId) projectsQuery = projectsQuery.eq("team_id", selectedTeamId);
   const { data: projects, count: projectsMatchingCount } =
     await projectsQuery.range(0, limit - 1);
@@ -199,12 +275,28 @@ export default async function ProjectsPage({
     }
   }
 
+  const filtersActive =
+    statusFilter !== "active" ||
+    customerFilter.kind !== "all" ||
+    searchQuery.length > 0;
+
   return (
     <div>
       <div className="flex items-center gap-3">
         <FolderKanban size={24} className="text-accent" />
         <h1 className="text-page-title font-bold text-content">{t("title")}</h1>
+      </div>
+
+      <div className="mt-3 flex items-center gap-2 flex-wrap">
         <TeamFilter teams={teams} selectedTeamId={selectedTeamId ?? null} />
+        <StatusFilter selected={statusFilter} />
+        <CustomerFilter
+          selection={customerFilter}
+          customers={customers ?? []}
+        />
+        <div className="ml-auto">
+          <ProjectSearchInput initialQuery={searchQuery} />
+        </div>
       </div>
 
       <NewProjectForm
@@ -242,6 +334,9 @@ export default async function ProjectsPage({
         }))}
         periodBurnPctById={Object.fromEntries(periodBurnByProject.entries())}
       />
+      {(projects?.length ?? 0) === 0 && (
+        <ProjectFiltersClearHint active={filtersActive} />
+      )}
     </div>
   );
 }

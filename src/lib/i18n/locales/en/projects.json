@@ -13,6 +13,32 @@
   "groupInternal": "Internal",
   "groupNoCustomer": "No customer",
   "groupCount": "{count, plural, one {# project} other {# projects}}",
+  "filters": {
+    "noResultsHint": "No projects match these filters.",
+    "clearAll": "Clear filters",
+    "status": {
+      "listboxLabel": "Filter by status",
+      "label": {
+        "all": "All statuses",
+        "active": "Active",
+        "paused": "Paused",
+        "completed": "Completed",
+        "archived": "Archived"
+      }
+    },
+    "customer": {
+      "listboxLabel": "Filter by customer",
+      "label": {
+        "all": "All customers",
+        "internal": "Internal projects",
+        "unknown": "Unknown customer"
+      }
+    },
+    "search": {
+      "placeholder": "Search projects",
+      "ariaLabel": "Search projects by name"
+    }
+  },
   "internal": "Internal",
   "fields": {
     "name": "Name",

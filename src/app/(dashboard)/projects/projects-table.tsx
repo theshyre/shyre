@@ -586,12 +586,15 @@ function CustomerGroupRows({
   return (
     <>
       <tr
-        // role="rowgroup" header — visually a span-the-table band,
-        // semantically a group label so AT users land on it before
-        // the contained data rows.
-        className="border-b border-edge bg-surface-inset"
+        // Visually a span-the-table band; semantically a group
+        // label so AT users land on it before the contained data
+        // rows. Sticky so the customer context stays visible as
+        // the user scrolls a long list — top:0 sticks it to the
+        // closest scroll container (the page's main area when the
+        // table runs past the viewport).
+        className="border-b border-edge bg-surface-inset sticky top-0 z-10"
       >
-        <td colSpan={colSpan} className="px-4 py-2">
+        <td colSpan={colSpan} className="px-4 py-2 bg-surface-inset">
           <div className="flex items-center gap-2">
             <HeaderIcon
               size={14}

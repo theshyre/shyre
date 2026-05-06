@@ -13,6 +13,32 @@
   "groupInternal": "Internos",
   "groupNoCustomer": "Sin cliente",
   "groupCount": "{count, plural, one {# proyecto} other {# proyectos}}",
+  "filters": {
+    "noResultsHint": "Ningún proyecto coincide con estos filtros.",
+    "clearAll": "Limpiar filtros",
+    "status": {
+      "listboxLabel": "Filtrar por estado",
+      "label": {
+        "all": "Todos los estados",
+        "active": "Activos",
+        "paused": "Pausados",
+        "completed": "Completados",
+        "archived": "Archivados"
+      }
+    },
+    "customer": {
+      "listboxLabel": "Filtrar por cliente",
+      "label": {
+        "all": "Todos los clientes",
+        "internal": "Proyectos internos",
+        "unknown": "Cliente desconocido"
+      }
+    },
+    "search": {
+      "placeholder": "Buscar proyectos",
+      "ariaLabel": "Buscar proyectos por nombre"
+    }
+  },
   "internal": "Interno",
   "fields": {
     "name": "Nombre",
