@@ -8,19 +8,20 @@ import type { BudgetPeriod } from "@/lib/projects/budget-period";
 export interface BudgetMastheadProps {
   projectId: string;
   /** Hours total across the project's lifetime, regardless of period.
-   *  Used by the lifetime bar (always shown). */
+   *  Used by the lifetime row (always shown). */
   lifetimeMinutes: number;
-  /** Lifetime cap in hours. Null when no overall budget set. */
+  /** Lifetime cap in hours. Null when no overall budget set —
+   *  lifetime row still renders but as plain "logged" text without
+   *  a bar (no cap means no progress to show). */
   lifetimeBudgetHours: number | null;
-  /** Effective hourly rate used for the lifetime dollar caption.
-   *  Null when no rate (caption then renders hours only). */
+  /** Effective hourly rate for converting lifetime hours to a
+   *  dollar caption. Null = caption omitted. */
   lifetimeRate: number | null;
-  /** Lifetime dollar cap. Null when no dollar cap on lifetime
-   *  (today there's only an hours lifetime cap, but the structure
-   *  matches the period bar for layout consistency). */
+  /** Lifetime dollar cap. Today there's no UI to set this; reserved
+   *  so future "lifetime $X" caps land without a layout change. */
   lifetimeBudgetDollars: number | null;
   /** Period config + computed burn. Null when the project has no
-   *  recurring period — the period bar is hidden. */
+   *  recurring period configured. */
   period: {
     type: BudgetPeriod;
     /** Local YYYY-MM-DD (start of current period in user's TZ). */
@@ -30,34 +31,39 @@ export interface BudgetMastheadProps {
     minutes: number;
     capHours: number | null;
     capDollars: number | null;
-    /** Effective rate for converting hours to dollars when a dollar
-     *  cap is set. */
+    /** Effective rate for converting hours to dollars. */
     rate: number | null;
     /** Threshold % at which the alert fires. Null when alerts off. */
     alertThresholdPct: number | null;
-    /** True when current burn meets/exceeds alertThresholdPct (on
-     *  either hours or dollars). Computed server-side. */
     alertActive: boolean;
-    /** Optional last-period burn for the "last period: 28h/30h"
-     *  caption — null when there's no prior period worth showing
-     *  (e.g. this is the first month after the project was created). */
+    /** Optional last-period burn in minutes. */
     previousMinutes: number | null;
   } | null;
 }
 
 /**
- * Stacked masthead block on the project detail page. Two bars,
- * period-first + lifetime, each with icon + label + numeric +
- * colored fill. Color anchors at fixed 80%/100% (not the
- * user-configurable threshold, per UX-designer review) so a green
- * bar always means "comfortably under" across every project.
+ * Project budget summary at the top of the project detail page.
  *
- * Banner above when `alertActive` is true; dismissable per period
- * crossing via localStorage. Solo-consultant + agency-owner agreed
- * fire-once-per-crossing > sticky-every-page-load.
+ * Layout: a single bordered card containing two stacked rows
+ * (period above, lifetime below) separated by a thin divider.
+ * Each row is a self-contained block with its own hierarchy:
  *
- * Fully hidden when neither lifetime nor period caps are set —
- * keeps the masthead off projects with no budget configured.
+ *     [icon] LABEL
+ *     <hero number>          <cap>            <pct%>
+ *     ████████░░░░░░░░░░░░░░░░░░░░░░░░░░  (visible bar)
+ *     <secondary caption — dollars / "no cap" / etc>
+ *     <last period sub-line>  (period row only)
+ *
+ * Color on the bar anchors at fixed 80%/100% breakpoints (NOT the
+ * user threshold) so green always means the same thing across
+ * projects. The user's threshold renders as a tick mark on the bar
+ * — separate channel for that signal.
+ *
+ * Hidden entirely when neither a recurring period nor a lifetime
+ * cap is set (project carries no budget signal worth surfacing).
+ *
+ * The banner above fires when alertActive is true; dismissable per
+ * (project, period_start) via localStorage v1.
  */
 export function BudgetMasthead({
   projectId,
@@ -70,16 +76,10 @@ export function BudgetMasthead({
   const t = useTranslations("projects.budget");
 
   // Hide the entire masthead when there's no budget signal to show.
-  // A project without any cap shouldn't take up vertical space here.
   if (!period && lifetimeBudgetHours == null) {
     return null;
   }
 
-  // Dismissal key encodes (project, period_start) so a new period
-  // re-opens the banner. The Banner component is keyed on this so
-  // a period rollover remounts the component, and localStorage is
-  // re-read fresh via the useState lazy initializer (no effect, no
-  // setState-in-effect lint friction).
   const dismissalKey = period
     ? `shyre:budget-alert-dismissed:${projectId}:${period.type}:${period.startLocal}`
     : null;
@@ -100,10 +100,10 @@ export function BudgetMasthead({
         />
       )}
 
-      <div className="rounded-lg border border-edge bg-surface-raised p-4 space-y-3">
+      <div className="rounded-lg border border-edge bg-surface-raised divide-y divide-edge-muted">
         {period && (
-          <BudgetBar
-            icon={<CalendarClock size={14} />}
+          <BudgetRow
+            icon={<CalendarClock size={14} aria-hidden="true" />}
             label={t(`periodLabel.${period.type}`)}
             minutes={period.minutes}
             capHours={period.capHours}
@@ -112,11 +112,12 @@ export function BudgetMasthead({
             thresholdPct={period.alertThresholdPct}
             previousMinutes={period.previousMinutes}
             previousLabel={t("lastPeriod")}
+            hoursOnlyLabel={t("hoursOnlyLabel")}
             ariaLabelKey="periodBurnAria"
           />
         )}
-        <BudgetBar
-          icon={<Target size={14} />}
+        <BudgetRow
+          icon={<Target size={14} aria-hidden="true" />}
           label={t("lifetimeLabel")}
           minutes={lifetimeMinutes}
           capHours={lifetimeBudgetHours}
@@ -125,9 +126,179 @@ export function BudgetMasthead({
           thresholdPct={null}
           previousMinutes={null}
           previousLabel={null}
+          hoursOnlyLabel={t("hoursOnlyLabel")}
           ariaLabelKey="lifetimeBurnAria"
         />
       </div>
+    </div>
+  );
+}
+
+interface RowProps {
+  icon: React.ReactNode;
+  label: string;
+  minutes: number;
+  capHours: number | null;
+  capDollars: number | null;
+  rate: number | null;
+  /** When non-null, draws a tick mark at this % on the bar so the
+   *  user's custom threshold is visible without remapping the
+   *  color (which is anchored at fixed 80/100 breakpoints). */
+  thresholdPct: number | null;
+  previousMinutes: number | null;
+  previousLabel: string | null;
+  /** Translation for the "no cap set" caption when neither hours
+   *  nor dollar cap exists on this row. */
+  hoursOnlyLabel: string;
+  ariaLabelKey: "periodBurnAria" | "lifetimeBurnAria";
+}
+
+function BudgetRow({
+  icon,
+  label,
+  minutes,
+  capHours,
+  capDollars,
+  rate,
+  thresholdPct,
+  previousMinutes,
+  previousLabel,
+  hoursOnlyLabel,
+  ariaLabelKey,
+}: RowProps): React.JSX.Element {
+  const t = useTranslations("projects.budget");
+  const hours = minutes / 60;
+  const dollars = rate != null && rate > 0 ? hours * rate : null;
+
+  // Compute the bar's burn % from whichever cap is set. Hours cap
+  // wins when both are set (it's the more concrete number for a
+  // burn bar). Falls back to dollar cap when hours is null.
+  // Returns null when neither is set — bar then doesn't render.
+  let pctForBar: number | null = null;
+  if (capHours != null && capHours > 0) {
+    pctForBar = (hours / capHours) * 100;
+  } else if (capDollars != null && capDollars > 0 && dollars != null) {
+    pctForBar = (dollars / capDollars) * 100;
+  }
+  const fillPct =
+    pctForBar === null ? null : Math.min(100, pctForBar);
+  const displayPct = pctForBar === null ? null : Math.round(pctForBar);
+
+  // Color anchored at fixed 80/100 breakpoints — same rule across
+  // every project so green/yellow/red read consistently.
+  const colorClass =
+    pctForBar === null
+      ? "bg-accent"
+      : pctForBar >= 100
+        ? "bg-error"
+        : pctForBar >= 80
+          ? "bg-warning"
+          : "bg-accent";
+  const pctTextClass =
+    pctForBar === null
+      ? "text-content-muted"
+      : pctForBar >= 100
+        ? "text-error"
+        : pctForBar >= 80
+          ? "text-warning"
+          : "text-content";
+
+  // Cap caption sits at the right of the hero line ("of 30h",
+  // "of $2,500", or both when both caps are set).
+  const capCaption: string | null = (() => {
+    if (capHours != null && capDollars != null && dollars != null) {
+      return t("capBoth", {
+        hours: capHours.toFixed(1),
+        dollars: capDollars.toFixed(0),
+      });
+    }
+    if (capHours != null) {
+      return t("capHours", { cap: capHours.toFixed(1) });
+    }
+    if (capDollars != null) {
+      return t("capDollars", { cap: capDollars.toFixed(0) });
+    }
+    return null;
+  })();
+
+  return (
+    <div className="px-4 py-3">
+      <div className="flex items-center gap-2 text-content-muted">
+        {icon}
+        <h3 className="text-label uppercase tracking-wider">{label}</h3>
+      </div>
+
+      <div className="mt-1.5 flex items-baseline gap-3 flex-wrap">
+        <span className="font-mono text-title font-semibold tabular-nums text-content">
+          {hours.toFixed(1)}h
+        </span>
+        {capCaption && (
+          <span className="font-mono text-body text-content-muted tabular-nums">
+            {capCaption}
+          </span>
+        )}
+        {displayPct != null && (
+          <span
+            className={`ml-auto font-mono text-body-lg font-semibold tabular-nums ${pctTextClass}`}
+          >
+            {displayPct}%
+          </span>
+        )}
+      </div>
+
+      {fillPct !== null && (
+        <div className="mt-2 relative">
+          <div
+            className="h-2 rounded-full bg-edge overflow-hidden"
+            role="progressbar"
+            aria-valuenow={Math.round(pctForBar ?? 0)}
+            aria-valuemin={0}
+            aria-valuemax={100}
+            aria-label={t(ariaLabelKey, {
+              pct: Math.round(pctForBar ?? 0),
+            })}
+          >
+            <div
+              className={`h-2 rounded-full transition-all ${colorClass}`}
+              style={{ width: `${fillPct}%` }}
+            />
+          </div>
+          {thresholdPct !== null &&
+            thresholdPct > 0 &&
+            thresholdPct < 100 && (
+              <div
+                className="absolute top-0 h-2 w-0.5 bg-content"
+                style={{ left: `${thresholdPct}%` }}
+                aria-hidden="true"
+              />
+            )}
+        </div>
+      )}
+
+      {/* Caption row beneath the bar — surfaces the secondary
+          metric (dollars when hours is the primary, or "no cap"
+          when neither). */}
+      {capCaption == null ? (
+        <p className="mt-2 text-caption text-content-muted italic">
+          {hoursOnlyLabel}
+        </p>
+      ) : capDollars != null && dollars != null ? (
+        <p className="mt-2 text-caption text-content-muted font-mono tabular-nums">
+          {t("dollarCaption", {
+            used: dollars.toFixed(2),
+            cap: capDollars.toFixed(2),
+          })}
+        </p>
+      ) : null}
+
+      {previousMinutes !== null && previousLabel && (
+        <p className="mt-1 text-caption text-content-muted">
+          {previousLabel}:{" "}
+          <span className="font-mono tabular-nums">
+            {(previousMinutes / 60).toFixed(1)}h
+          </span>
+        </p>
+      )}
     </div>
   );
 }
@@ -173,15 +344,26 @@ function DismissibleAlert({
     try {
       window.localStorage.setItem(dismissalKey, "1");
     } catch {
-      // localStorage unavailable (private mode) — fall through and
-      // accept that the banner reappears on next load.
+      // localStorage unavailable — banner reappears on next load.
     }
     setDismissed(true);
   }
 
-  const pct = period.capHours
-    ? Math.round((period.minutes / 60 / period.capHours) * 100)
-    : 0;
+  // Pick the burn % that drives the alert — same precedence as the
+  // bar (hours cap first, then dollars).
+  let pct = 0;
+  const hours = period.minutes / 60;
+  if (period.capHours && period.capHours > 0) {
+    pct = Math.round((hours / period.capHours) * 100);
+  } else if (
+    period.capDollars &&
+    period.capDollars > 0 &&
+    period.rate &&
+    period.rate > 0
+  ) {
+    pct = Math.round(((hours * period.rate) / period.capDollars) * 100);
+  }
+
   return (
     <div
       role="status"
@@ -204,122 +386,6 @@ function DismissibleAlert({
       >
         <X size={14} />
       </button>
-    </div>
-  );
-}
-
-interface BarProps {
-  icon: React.ReactNode;
-  label: string;
-  minutes: number;
-  capHours: number | null;
-  capDollars: number | null;
-  rate: number | null;
-  /** When set, draws a tick mark at this % on the bar so the user's
-   *  custom threshold remains visible without remapping the color. */
-  thresholdPct: number | null;
-  previousMinutes: number | null;
-  /** Translation prefix for the "Last period" caption. Null hides. */
-  previousLabel: string | null;
-  ariaLabelKey: "periodBurnAria" | "lifetimeBurnAria";
-}
-
-function BudgetBar({
-  icon,
-  label,
-  minutes,
-  capHours,
-  capDollars,
-  rate,
-  thresholdPct,
-  previousMinutes,
-  previousLabel,
-  ariaLabelKey,
-}: BarProps): React.JSX.Element {
-  const t = useTranslations("projects.budget");
-  const hours = minutes / 60;
-  const pct = capHours && capHours > 0 ? (hours / capHours) * 100 : null;
-  const fillPct = pct === null ? null : Math.min(100, pct);
-  const dollars = rate ? hours * rate : null;
-  const dollarPct =
-    capDollars && capDollars > 0 && dollars != null
-      ? (dollars / capDollars) * 100
-      : null;
-
-  // Color anchored at fixed 80/100 — never tied to the user's
-  // threshold (UX-designer review).
-  const colorClass =
-    pct === null
-      ? "bg-accent"
-      : pct >= 100
-        ? "bg-error"
-        : pct >= 80
-          ? "bg-warning"
-          : "bg-accent";
-
-  return (
-    <div>
-      <div className="flex items-baseline gap-2">
-        <span className="text-content-muted shrink-0">{icon}</span>
-        <span className="text-label uppercase tracking-wider text-content-muted">
-          {label}
-        </span>
-        <span className="ml-auto font-mono tabular-nums text-content">
-          {capHours != null
-            ? t("hoursOfCap", {
-                used: hours.toFixed(1),
-                cap: capHours.toFixed(1),
-              })
-            : t("hoursOnly", { used: hours.toFixed(1) })}
-        </span>
-      </div>
-      {capDollars != null && dollars != null && (
-        <p className="mt-0.5 text-caption text-content-muted text-right font-mono tabular-nums">
-          {t("dollarsOfCap", {
-            used: dollars.toFixed(2),
-            cap: capDollars.toFixed(2),
-          })}
-        </p>
-      )}
-      {fillPct !== null && (
-        <div className="mt-1.5 relative">
-          <div
-            className="h-1.5 rounded-full bg-edge overflow-hidden"
-            role="progressbar"
-            aria-valuenow={Math.round(pct ?? 0)}
-            aria-valuemin={0}
-            aria-valuemax={100}
-            aria-label={t(ariaLabelKey, {
-              pct: Math.round(pct ?? 0),
-            })}
-          >
-            <div
-              className={`h-1.5 ${colorClass}`}
-              style={{ width: `${fillPct}%` }}
-            />
-          </div>
-          {thresholdPct !== null && thresholdPct > 0 && thresholdPct < 100 && (
-            // Threshold tick — the "color stays anchored at 80/100,
-            // user threshold renders as a separate channel" pattern
-            // from the UX review.
-            <div
-              className="absolute top-0 h-1.5 w-0.5 bg-content-muted"
-              style={{ left: `${thresholdPct}%` }}
-              aria-hidden="true"
-            />
-          )}
-        </div>
-      )}
-      {previousMinutes !== null && previousLabel && (
-        <p className="mt-1 text-caption text-content-muted">
-          {previousLabel}: {(previousMinutes / 60).toFixed(1)}h
-          {dollarPct !== null && Math.round(dollarPct) !== Math.round(pct ?? 0) && (
-            <span className="ml-2">
-              {t("dollarBurnNote", { pct: Math.round(dollarPct) })}
-            </span>
-          )}
-        </p>
-      )}
     </div>
   );
 }

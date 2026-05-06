@@ -73,11 +73,13 @@
       "monthly": "This month",
       "quarterly": "This quarter"
     },
-    "hoursOfCap": "{used}h / {cap}h",
-    "hoursOnly": "{used}h",
-    "dollarsOfCap": "${used} / ${cap}",
+    "capHours": "of {cap}h",
+    "capDollars": "of ${cap}",
+    "capBoth": "of {hours}h · ${dollars}",
+    "hoursOnlyLabel": "No cap set",
+    "dollarCaption": "${used} of ${cap}",
     "lastPeriod": "Last period",
-    "dollarBurnNote": "Dollar burn: {pct}%",
+    "thresholdTickAria": "Alert threshold at {pct}%",
     "periodBurnAria": "Current-period budget burn: {pct}%",
     "lifetimeBurnAria": "Lifetime budget burn: {pct}%",
     "alert": {

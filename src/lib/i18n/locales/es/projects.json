@@ -73,11 +73,13 @@
       "monthly": "Este mes",
       "quarterly": "Este trimestre"
     },
-    "hoursOfCap": "{used}h / {cap}h",
-    "hoursOnly": "{used}h",
-    "dollarsOfCap": "${used} / ${cap}",
+    "capHours": "de {cap}h",
+    "capDollars": "de ${cap}",
+    "capBoth": "de {hours}h · ${dollars}",
+    "hoursOnlyLabel": "Sin tope configurado",
+    "dollarCaption": "${used} de ${cap}",
     "lastPeriod": "Período anterior",
-    "dollarBurnNote": "Consumo en dólares: {pct}%",
+    "thresholdTickAria": "Umbral de aviso al {pct}%",
     "periodBurnAria": "Consumo del presupuesto del período actual: {pct}%",
     "lifetimeBurnAria": "Consumo del presupuesto total: {pct}%",
     "alert": {
