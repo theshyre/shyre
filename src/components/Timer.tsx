@@ -149,15 +149,17 @@ export default function Timer({
         <Tooltip label={new Date(running.start_time).toLocaleString()}>
           <p className="text-caption text-content-muted">{startedCaption}</p>
         </Tooltip>
-        <EntryAuthor author={author} size={16} />
-        <Link
-          href={entryHref}
-          className="inline-flex items-center gap-1 text-caption text-content-secondary hover:text-content focus-visible:outline-none focus-visible:underline"
-        >
-          View entry
-          <ArrowRight size={12} />
-          <LinkPendingSpinner />
-        </Link>
+        <div className="flex items-center justify-between gap-2">
+          <EntryAuthor author={author} size={16} />
+          <Link
+            href={entryHref}
+            className="inline-flex items-center gap-1 text-caption text-content-secondary hover:text-content focus-visible:outline-none focus-visible:underline shrink-0"
+          >
+            {t("viewEntry")}
+            <ArrowRight size={12} />
+            <LinkPendingSpinner />
+          </Link>
+        </div>
         <button
           type="button"
           onClick={handleStop}

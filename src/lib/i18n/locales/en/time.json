@@ -120,6 +120,7 @@
     "stop": "Stop",
     "running": "Running",
     "stopped": "Stopped",
+    "viewEntry": "View entry",
     "selectProject": "Select a project",
     "selectCategory": "Select a category",
     "noProject": "No project selected"

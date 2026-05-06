@@ -120,6 +120,7 @@
     "stop": "Detener",
     "running": "En curso",
     "stopped": "Detenido",
+    "viewEntry": "Ver entrada",
     "selectProject": "Selecciona un proyecto",
     "selectCategory": "Selecciona una categoría",
     "noProject": "Sin proyecto seleccionado"
