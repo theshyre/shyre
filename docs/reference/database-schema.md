@@ -70,6 +70,7 @@ A handful of tables are **business-scoped** (a Business owns 1+ Teams) — see "
 | `projects_v` | View used by `/projects` list page. |
 | `time_entries` | The core unit. `start_time`/`end_time` (with generated `duration_min`), `billable`, `description`, `github_issue`, `category_id`, `project_id` (→ `team_id` enforced), `user_id`. Soft-delete via `deleted_at`. Invoice-locked entries have `invoice_id` set + cannot be edited (SAL-006). |
 | `time_entries_history` | Append-only. Captures pre-invoice → post-invoice transitions. |
+| `projects_history` | Append-only audit trail (added 2026-05-06). BEFORE UPDATE/DELETE trigger snapshots `to_jsonb(OLD)` so a project's pre-change state is queryable for forensic / dispute work — needed once `category_set_id` could flip mid-quarter (Option 1 of category-set switching). Owner/admin SELECT only. |
 | `time_templates` | Per-user named templates that pre-fill the new-entry form. |
 | `categories` | Belongs to a `category_sets` row. Per-team or system-provided. |
 | `category_sets` | Group of categories that a project links to. System sets seed `software`, `meetings`, `admin`, etc.; teams can fork their own. |
