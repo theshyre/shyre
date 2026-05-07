@@ -21,7 +21,6 @@ import {
   bulkUpdateExpenseProjectAction,
 } from "./actions";
 import { ExpenseRow, type ExpenseAuthor } from "./expense-row";
-import { ExpenseEditDrawer } from "./expense-edit-drawer";
 import {
   BulkBillablePicker,
   BulkCategoryPicker,
@@ -112,6 +111,10 @@ export function ExpensesTable({
   const tc = useTranslations("common");
   const tToast = useTranslations("expenses.toast");
   const toast = useToast();
+  // Total <th> count: select, date, amount, category, [team?], vendor,
+  // description, notes, project, author, actions = 10 (+1 with team).
+  // The expanded-row spans this many columns.
+  const columnCount = showTeamColumn ? 11 : 10;
 
   // Selection state — id-keyed Set so toggling is O(1) and
   // selection survives re-renders triggered by an in-cell save
@@ -611,6 +614,7 @@ export function ExpensesTable({
                     ? (teamNameById.get(e.team_id) ?? null)
                     : null
                 }
+                columnCount={columnCount}
                 canEdit={canEdit}
                 selected={selectAllMatching || selectedIds.has(e.id)}
                 onToggleSelect={toggleOne}
@@ -620,20 +624,6 @@ export function ExpensesTable({
         </tbody>
       </table>
       </div>
-      <ExpenseEditDrawer
-        expenses={expenses}
-        projects={projects}
-        canEditByExpenseId={Object.fromEntries(
-          expenses.map((e) => {
-            const role = teamRoleById.get(e.team_id) ?? "member";
-            const canEdit =
-              e.user_id === viewerUserId ||
-              role === "owner" ||
-              role === "admin";
-            return [e.id, canEdit];
-          }),
-        )}
-      />
     </div>
   );
 }

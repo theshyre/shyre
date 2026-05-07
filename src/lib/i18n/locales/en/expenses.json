@@ -46,12 +46,11 @@
     "delete": "Delete {vendor} expense",
     "editField": "Edit {field} for {vendor}",
     "split": "Split {vendor} into multiple categories",
-    "openDetail": "Open detail panel for {vendor}"
+    "expandDetail": "Expand details for {vendor}",
+    "collapseDetail": "Collapse details for {vendor}"
   },
   "drawer": {
-    "title": "{vendor} — edit",
-    "close": "Close",
-    "untitled": "(untitled expense)",
+    "collapse": "Collapse",
     "savedHint": "Changes save automatically when you leave each field.",
     "placeholderVendor": "Vendor name (e.g. Apple, AWS)",
     "placeholderDescription": "What was bought, with as much detail as you'd want at audit time.",

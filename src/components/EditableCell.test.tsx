@@ -220,8 +220,8 @@ describe("EditableCell — number + date variants", () => {
     expect(input.step).toBe("0.01");
   });
 
-  it("date input has type='date'", () => {
-    const { getByRole, getByLabelText } = render(
+  it("date variant uses DateField (calendar widget) — not native input", () => {
+    const { getByRole, getByLabelText, queryByRole } = render(
       <EditableCell
         variant="date"
         value="2019-12-16"
@@ -229,10 +229,18 @@ describe("EditableCell — number + date variants", () => {
         onCommit={async () => {}}
       />,
     );
-    fireEvent.click(getByRole("button"));
+    // Click to enter edit mode. The display button is the *only* button
+    // before edit; once we click it, DateField mounts which adds its own
+    // calendar-trigger button — so we grab the display button by name.
+    fireEvent.click(getByRole("button", { name: /Dec 16, 2019|edit date/i }));
+    // DateField renders a text input (the visible value uses MM/DD/YYYY
+    // by default); the underlying wire format is still ISO. The native
+    // type="date" picker is gone.
     const input = getByLabelText("Edit date") as HTMLInputElement;
-    expect(input.type).toBe("date");
-    expect(input.value).toBe("2019-12-16");
+    expect(input.type).toBe("text");
+    expect(input.value).toBe("12/16/2019");
+    // Calendar trigger button exists alongside the text input.
+    expect(queryByRole("button", { name: /open calendar/i })).toBeTruthy();
   });
 });
 

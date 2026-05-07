@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { useTranslations } from "next-intl";
-import { Trash2, Check, X, Split, PanelRight } from "lucide-react";
+import { Trash2, Check, X, Split, ChevronDown, ChevronUp } from "lucide-react";
 import { useRouter, usePathname, useSearchParams } from "next/navigation";
 import { Spinner, Avatar, resolveAvatarUrl } from "@theshyre/ui";
 import { Tooltip } from "@/components/Tooltip";
@@ -23,6 +23,7 @@ import {
   formatExpenseDateDisplay,
 } from "./format-helpers";
 import { SplitExpenseModal } from "./split-expense-modal";
+import { ExpenseExpandedRow } from "./expense-expanded-row";
 import type { ProjectOption } from "./page";
 
 interface ExpenseRecord {
@@ -56,6 +57,7 @@ export function ExpenseRow({
   author,
   projects,
   teamName,
+  columnCount,
   canEdit,
   selected,
   onToggleSelect,
@@ -72,6 +74,9 @@ export function ExpenseRow({
    *  column is hidden — the row drops the cell entirely so column
    *  count matches the header. */
   teamName: string | null;
+  /** Number of columns in the parent table; the inline expansion
+   *  uses it for `colSpan` so the panel stretches the full row. */
+  columnCount: number;
   /** True when the viewer authored this expense OR is owner|admin
    *  on its team. Hides the Trash icon for non-authors and disables
    *  every editable cell so the UI matches the action-layer role
@@ -92,10 +97,17 @@ export function ExpenseRow({
   const pathname = usePathname();
   const searchParams = useSearchParams();
 
-  function openDetailDrawer(): void {
+  const isExpanded = searchParams.get("edit") === expense.id;
+
+  function toggleExpand(): void {
     const params = new URLSearchParams(searchParams.toString());
-    params.set("edit", expense.id);
-    router.push(`${pathname}?${params.toString()}`);
+    if (isExpanded) {
+      params.delete("edit");
+    } else {
+      params.set("edit", expense.id);
+    }
+    const qs = params.toString();
+    router.push(qs ? `${pathname}?${qs}` : pathname);
   }
 
   const del = useFormAction({
@@ -149,10 +161,11 @@ export function ExpenseRow({
   const ariaIdent = vendorLabel || t(`categories.${expense.category}`);
 
   return (
+    <>
     <tr
       className={`border-b border-edge last:border-0 hover:bg-hover transition-colors ${
         selected ? "bg-accent-soft/30" : ""
-      }`}
+      } ${isExpanded ? "bg-accent-soft/40 hover:bg-accent-soft/40" : ""}`}
     >
       {/* Selection checkbox — wrapped in a min-h-[1.75rem]
           flex container so the checkbox shares the same line-box
@@ -409,16 +422,29 @@ export function ExpenseRow({
         ) : (
           <div className="inline-flex items-center gap-0.5">
             <Tooltip
-              label={t("ariaActions.openDetail", { vendor: ariaIdent })}
+              label={
+                isExpanded
+                  ? t("ariaActions.collapseDetail", { vendor: ariaIdent })
+                  : t("ariaActions.expandDetail", { vendor: ariaIdent })
+              }
               labelMode="label"
             >
               <button
                 type="button"
-                onClick={openDetailDrawer}
+                onClick={toggleExpand}
+                aria-expanded={isExpanded}
                 className="inline-flex items-center rounded-md p-1 text-content-secondary hover:bg-hover hover:text-content"
-                aria-label={t("ariaActions.openDetail", { vendor: ariaIdent })}
+                aria-label={
+                  isExpanded
+                    ? t("ariaActions.collapseDetail", { vendor: ariaIdent })
+                    : t("ariaActions.expandDetail", { vendor: ariaIdent })
+                }
               >
-                <PanelRight size={14} />
+                {isExpanded ? (
+                  <ChevronUp size={14} />
+                ) : (
+                  <ChevronDown size={14} />
+                )}
               </button>
             </Tooltip>
             <Tooltip
@@ -464,5 +490,14 @@ export function ExpenseRow({
         />
       )}
     </tr>
+    {isExpanded && (
+      <ExpenseExpandedRow
+        expense={expense}
+        projects={projects}
+        columnCount={columnCount}
+        canEdit={canEdit}
+      />
+    )}
+    </>
   );
 }

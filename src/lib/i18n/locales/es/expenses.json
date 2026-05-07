@@ -46,12 +46,11 @@
     "delete": "Eliminar gasto de {vendor}",
     "editField": "Editar {field} de {vendor}",
     "split": "Dividir {vendor} en varias categorías",
-    "openDetail": "Abrir panel de detalle de {vendor}"
+    "expandDetail": "Mostrar detalles de {vendor}",
+    "collapseDetail": "Ocultar detalles de {vendor}"
   },
   "drawer": {
-    "title": "{vendor} — editar",
-    "close": "Cerrar",
-    "untitled": "(gasto sin título)",
+    "collapse": "Cerrar",
     "savedHint": "Los cambios se guardan automáticamente al salir de cada campo.",
     "placeholderVendor": "Nombre del proveedor (p. ej. Apple, AWS)",
     "placeholderDescription": "Qué se compró, con el detalle que querrías tener a la hora de auditar.",

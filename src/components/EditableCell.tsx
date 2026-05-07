@@ -10,6 +10,7 @@ import {
 } from "react";
 import { Loader2, AlertTriangle } from "lucide-react";
 import { Tooltip } from "@/components/Tooltip";
+import { DateField } from "@/components/DateField";
 
 export type EditableCellVariant =
   | "text"
@@ -153,34 +154,43 @@ export function EditableCell(props: EditableCellProps): React.JSX.Element {
     setErrorMessage(null);
   }, []);
 
-  const commit = useCallback(async () => {
-    const next = draft ?? value;
-    // No change → just snap back to idle, no server roundtrip.
-    if (next === value) {
-      setMode("idle");
-      setDraft(null);
-      setErrorMessage(null);
-      return;
-    }
-    if (props.validate) {
-      const err = props.validate(next);
-      if (err) {
-        setErrorMessage(err);
-        setMode("error");
+  /**
+   * Commit the current edit. Pass `nextValue` when the caller already
+   * has the freshly-picked value in hand (e.g. DateField's onChange
+   * fires before React state has flushed `setDraft`); otherwise it
+   * falls back to the in-state draft.
+   */
+  const commit = useCallback(
+    async (nextValue?: string) => {
+      const next = nextValue ?? draft ?? value;
+      // No change → just snap back to idle, no server roundtrip.
+      if (next === value) {
+        setMode("idle");
+        setDraft(null);
+        setErrorMessage(null);
         return;
       }
-    }
-    setMode("saving");
-    setErrorMessage(null);
-    try {
-      await onCommit(next);
-      setMode("idle");
-      setDraft(null);
-    } catch (err) {
-      setErrorMessage(err instanceof Error ? err.message : "Save failed");
-      setMode("error");
-    }
-  }, [draft, value, onCommit, props]);
+      if (props.validate) {
+        const err = props.validate(next);
+        if (err) {
+          setErrorMessage(err);
+          setMode("error");
+          return;
+        }
+      }
+      setMode("saving");
+      setErrorMessage(null);
+      try {
+        await onCommit(next);
+        setMode("idle");
+        setDraft(null);
+      } catch (err) {
+        setErrorMessage(err instanceof Error ? err.message : "Save failed");
+        setMode("error");
+      }
+    },
+    [draft, value, onCommit, props],
+  );
 
   const handleKey = useCallback(
     (
@@ -288,19 +298,30 @@ export function EditableCell(props: EditableCellProps): React.JSX.Element {
             errorBorder ? "border-error" : "border-accent"
           } focus:outline-none focus:ring-1 focus:ring-accent`}
         />
+      ) : props.variant === "date" ? (
+        // DateField is the project's calendar-widget primitive — used
+        // here so inline date edits in tables (expenses, future time-
+        // entry surfaces) stop falling back to the OS picker. DateField
+        // only fires onChange on a successfully-parsed pick (calendar
+        // click or blur after typing), so we can commit immediately
+        // and skip the textarea-style "wait for blur" dance.
+        <DateField
+          value={effectiveDraft}
+          onChange={(next) => {
+            setDraft(next);
+            void commit(next);
+          }}
+          ariaLabel={ariaLabel}
+          disabled={showSpinner}
+          autoFocus
+        />
       ) : (
         <input
           ref={(el) => {
             inputRef.current = el;
           }}
           aria-label={ariaLabel}
-          type={
-            props.variant === "number"
-              ? "number"
-              : props.variant === "date"
-                ? "date"
-                : "text"
-          }
+          type={props.variant === "number" ? "number" : "text"}
           value={effectiveDraft}
           onChange={(e) => setDraft(e.target.value)}
           onKeyDown={handleKey}

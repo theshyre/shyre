@@ -27,8 +27,8 @@ Above the Add-expense form, four KPI tiles show totals for: **Year to date**, **
 
 Two ways to edit:
 
-- **In-table cells** — click any cell (date, amount, category, vendor, description, notes, project, billable). Edits commit on blur (Tab or click out). Cmd+Enter also commits, Esc cancels.
-- **Detail drawer** — click the side-panel icon in the row's actions column. A drawer slides in from the right with the same fields but more breathing room — multi-line description and notes textareas in particular. Same commit-on-blur semantics. Esc, the X button, or clicking the backdrop closes it. The drawer is deep-linkable: `/business/.../expenses?edit=<expense-id>` opens straight to it.
+- **In-table cells** — click any cell (date, amount, category, vendor, description, notes, project, billable). Date cells open a calendar widget; everything else commits on blur (Tab or click out). Cmd+Enter also commits, Esc cancels.
+- **Expand row** — click the chevron in the row's actions column. The row expands inline (between its neighbors) to reveal full-width Description and Notes textareas plus all other fields with breathing room. Click the chevron again or press Esc to collapse. Same commit-on-blur semantics. The expansion is deep-linkable: `/business/.../expenses?edit=<expense-id>` opens that row already expanded.
 
 Delete with the trash icon — a small inline confirm appears (no modal).
 
