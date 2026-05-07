@@ -3,7 +3,6 @@
 import { useState } from "react";
 import { useTranslations } from "next-intl";
 import { Trash2, Check, X, Split, ChevronDown, ChevronUp } from "lucide-react";
-import { useRouter, usePathname, useSearchParams } from "next/navigation";
 import { Spinner, Avatar, resolveAvatarUrl } from "@theshyre/ui";
 import { Tooltip } from "@/components/Tooltip";
 import { useFormAction } from "@/hooks/use-form-action";
@@ -61,6 +60,8 @@ export function ExpenseRow({
   canEdit,
   selected,
   onToggleSelect,
+  isExpanded,
+  onToggleExpand,
 }: {
   expense: ExpenseRecord;
   /** The submitter (avatar + name). Per CLAUDE.md "time-entry
@@ -86,6 +87,11 @@ export function ExpenseRow({
   selected: boolean;
   /** Toggle this row's id in/out of the bulk-select set. */
   onToggleSelect: (id: string) => void;
+  /** Whether the inline detail panel is currently expanded. Owned
+   *  by the parent table (purely client state — toggling is instant,
+   *  no server roundtrip; the URL is shadowed via `replaceState`). */
+  isExpanded: boolean;
+  onToggleExpand: (id: string) => void;
 }): React.JSX.Element {
   const t = useTranslations("expenses");
   const tc = useTranslations("common");
@@ -93,21 +99,9 @@ export function ExpenseRow({
   const toast = useToast();
   const [confirmingDelete, setConfirmingDelete] = useState(false);
   const [splitOpen, setSplitOpen] = useState(false);
-  const router = useRouter();
-  const pathname = usePathname();
-  const searchParams = useSearchParams();
-
-  const isExpanded = searchParams.get("edit") === expense.id;
 
   function toggleExpand(): void {
-    const params = new URLSearchParams(searchParams.toString());
-    if (isExpanded) {
-      params.delete("edit");
-    } else {
-      params.set("edit", expense.id);
-    }
-    const qs = params.toString();
-    router.push(qs ? `${pathname}?${qs}` : pathname);
+    onToggleExpand(expense.id);
   }
 
   const del = useFormAction({
@@ -496,6 +490,7 @@ export function ExpenseRow({
         projects={projects}
         columnCount={columnCount}
         canEdit={canEdit}
+        onClose={toggleExpand}
       />
     )}
     </>

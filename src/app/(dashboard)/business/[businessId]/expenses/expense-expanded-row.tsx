@@ -1,7 +1,6 @@
 "use client";
 
 import { useEffect } from "react";
-import { useRouter, usePathname, useSearchParams } from "next/navigation";
 import { useTranslations } from "next-intl";
 import { ChevronUp } from "lucide-react";
 import {
@@ -40,6 +39,10 @@ interface Props {
    *  fixed layout. */
   columnCount: number;
   canEdit: boolean;
+  /** Called when the user dismisses the expansion (Esc, the
+   *  "Collapse" button). Owned by the parent so URL syncing and
+   *  the chevron's `aria-expanded` state stay consistent. */
+  onClose: () => void;
 }
 
 /**
@@ -65,33 +68,22 @@ export function ExpenseExpandedRow({
   projects,
   columnCount,
   canEdit,
+  onClose,
 }: Props): React.JSX.Element {
   const t = useTranslations("expenses");
-  const router = useRouter();
-  const pathname = usePathname();
-  const searchParams = useSearchParams();
 
-  // Esc returns to the un-expanded list. We listen unconditionally
-  // since the row only mounts when expanded — the effect deps reset
-  // when a different row takes over the `?edit` param.
+  // Esc returns to the un-expanded list. The row only mounts when
+  // expanded, so the listener can be unconditional.
   useEffect(() => {
     function onKey(e: KeyboardEvent): void {
       if (e.key === "Escape") {
         e.preventDefault();
-        close();
+        onClose();
       }
     }
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
-
-  function close(): void {
-    const params = new URLSearchParams(searchParams.toString());
-    params.delete("edit");
-    const qs = params.toString();
-    router.push(qs ? `${pathname}?${qs}` : pathname);
-  }
+  }, [onClose]);
 
   const commitField = async (
     field: string,
@@ -119,11 +111,11 @@ export function ExpenseExpandedRow({
 
   return (
     <tr className="bg-accent-soft/20 border-b border-edge">
-      <td
-        colSpan={columnCount}
-        className="px-6 py-4"
-      >
-        <div className="grid gap-3 md:grid-cols-4">
+      <td colSpan={columnCount} className="px-6 py-4">
+        {/* Slide-in adds a tiny "yes, something happened" cue on
+            expand. Honors prefers-reduced-motion via the @media
+            rule in globals.css that collapses transitions. */}
+        <div className="grid gap-3 md:grid-cols-4 animate-expand-in">
           <Field label={t("fields.incurredOn")}>
             <EditableCell
               variant="date"
@@ -229,7 +221,7 @@ export function ExpenseExpandedRow({
             </span>
             <button
               type="button"
-              onClick={close}
+              onClick={onClose}
               aria-label={t("drawer.collapse")}
               className={`${buttonGhostClass} gap-1`}
             >

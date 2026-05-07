@@ -116,6 +116,39 @@ export function ExpensesTable({
   // The expanded-row spans this many columns.
   const columnCount = showTeamColumn ? 11 : 10;
 
+  // Inline-row expansion is purely client state — toggling does not
+  // need to round-trip to the server. We seed from `?edit=<id>` on
+  // mount (so deep links land already-expanded), then drive subsequent
+  // toggles via React state and a `history.replaceState` shadow so the
+  // URL stays shareable without triggering Next's server-component
+  // re-render. Using `router.push` here added a ~2s click-to-expand
+  // delay that this lift-to-state pattern eliminates.
+  const initialEditId = useMemo(() => {
+    if (typeof window === "undefined") return null;
+    return new URLSearchParams(window.location.search).get("edit");
+  }, []);
+  const [expandedId, setExpandedId] = useState<string | null>(initialEditId);
+
+  const toggleExpand = useCallback((id: string) => {
+    setExpandedId((prev) => {
+      const next = prev === id ? null : id;
+      // Mirror to the URL without going through Next's router so we
+      // skip the server-component re-render. Replace (not push) so
+      // the back button doesn't accumulate one entry per row toggle.
+      if (typeof window !== "undefined") {
+        const params = new URLSearchParams(window.location.search);
+        if (next === null) params.delete("edit");
+        else params.set("edit", next);
+        const qs = params.toString();
+        const url = qs
+          ? `${window.location.pathname}?${qs}`
+          : window.location.pathname;
+        window.history.replaceState({}, "", url);
+      }
+      return next;
+    });
+  }, []);
+
   // Selection state — id-keyed Set so toggling is O(1) and
   // selection survives re-renders triggered by an in-cell save
   // (cell save → re-fetch → expenses prop changes → component
@@ -618,6 +651,8 @@ export function ExpensesTable({
                 canEdit={canEdit}
                 selected={selectAllMatching || selectedIds.has(e.id)}
                 onToggleSelect={toggleOne}
+                isExpanded={expandedId === e.id}
+                onToggleExpand={toggleExpand}
               />
             );
           })}
