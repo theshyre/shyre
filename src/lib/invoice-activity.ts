@@ -37,6 +37,7 @@ export type InvoiceActivityEventType =
   | "paid"
   | "voided"
   | "payment"
+  | "paidDateCorrection"
   | "updated";
 
 export interface InvoiceActivityEvent {
@@ -74,6 +75,16 @@ export interface InvoiceActivityEvent {
    *  Resend's payload includes one. */
   webhook?: {
     detail: string | null;
+  };
+  /** Populated for `paidDateCorrection` events. The old + new dates
+   *  let the renderer show "Paid date changed: <old> → <new>"; the
+   *  reason is the free-text intent string the actor supplied via
+   *  the `edit_invoice_paid_date` RPC. Either date may be null on
+   *  legacy data where paid_at was unset before the correction. */
+  paidDateCorrection?: {
+    oldPaidAt: string | null;
+    newPaidAt: string | null;
+    reason: string;
   };
 }
 
@@ -126,6 +137,10 @@ export interface InvoiceActivityInput {
     changed_by_user_id: string | null;
     /** Full row state pre-change as JSONB. */
     previous_state: Record<string, unknown>;
+    /** Free-text intent for explicit-correction events. Populated by
+     *  `edit_invoice_paid_date` (and future correction RPCs). NULL on
+     *  ordinary updates. */
+    correction_reason?: string | null;
   }>;
   payments: Array<{
     id: string;
@@ -377,9 +392,62 @@ export function buildInvoiceActivity(
     });
   }
 
+  // Paid-date corrections — explicit, reason-bearing edits made via
+  // `edit_invoice_paid_date`. Render as a distinct event with the
+  // old → new dates and the reason text, NOT as a generic "Updated".
+  // Walk in chronological order so the `newPaidAt` lookup for each
+  // correction reads the value visible AFTER it, which is either the
+  // next history row's previous_state.paid_at or the current invoice
+  // paid_at when this is the most recent correction.
+  const corrections = history
+    .filter((h) => h.correction_reason != null && h.correction_reason !== "")
+    .slice()
+    .sort(
+      (a, b) =>
+        new Date(a.changed_at).getTime() - new Date(b.changed_at).getTime(),
+    );
+  const sortedHistoryAsc = history
+    .slice()
+    .sort(
+      (a, b) =>
+        new Date(a.changed_at).getTime() - new Date(b.changed_at).getTime(),
+    );
+  for (const h of corrections) {
+    const oldPaidAt = (h.previous_state.paid_at as string | null) ?? null;
+    // Look for the next history row (any kind) whose previous_state.paid_at
+    // differs from `oldPaidAt` — that snapshot is the value AFTER this
+    // correction. Fall back to the current invoice paid_at when this
+    // is the most recent correction.
+    let newPaidAt: string | null = invoice.paid_at;
+    const idxInAsc = sortedHistoryAsc.findIndex((x) => x.id === h.id);
+    for (let j = idxInAsc + 1; j < sortedHistoryAsc.length; j++) {
+      const next = sortedHistoryAsc[j];
+      if (!next) continue;
+      const nextOld = (next.previous_state.paid_at as string | null) ?? null;
+      if (nextOld !== oldPaidAt) {
+        newPaidAt = nextOld;
+        break;
+      }
+    }
+    events.push({
+      id: `paidDateCorrection-${h.id}`,
+      type: "paidDateCorrection",
+      occurredAt: h.changed_at,
+      actorUserId: h.changed_by_user_id,
+      paidDateCorrection: {
+        oldPaidAt,
+        newPaidAt,
+        reason: h.correction_reason ?? "",
+      },
+    });
+  }
+
   // Generic "updated" events — anything in invoices_history that
-  // wasn't already accounted for by a status flip.
+  // wasn't already accounted for by a status flip or a paid-date
+  // correction (which has its own dedicated event above).
+  const correctionIds = new Set(corrections.map((h) => h.id));
   for (const h of history) {
+    if (correctionIds.has(h.id)) continue;
     if (!looksLikeContentEdit(h.previous_state, invoice)) continue;
     events.push({
       id: `updated-${h.id}`,

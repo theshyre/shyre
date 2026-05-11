@@ -19,6 +19,62 @@ Generate and send invoices from tracked time. This surface is early — the basi
 - **Overdue** — past due date
 - **Void** — cancelled; preserves the record for audit
 
+## Recording a payment
+
+When a customer pays, open the invoice and click **Record payment**. An inline form opens with four fields:
+
+- **Amount** — defaults to the outstanding balance. Edit it for partial payments.
+- **Paid on** — defaults to today; change it to the actual date you received payment. This is what gets recorded in your books, not when you happened to click the button.
+- **Method** *(optional)* — ACH, wire, check, cash, card, Stripe, PayPal, or anything else you want to type.
+- **Reference** *(optional)* — a check number, ACH trace, Stripe charge ID, or any other lookup string.
+
+`Cmd+Enter` submits; `Escape` cancels.
+
+The invoice's status flips to **Paid** as soon as the recorded payments sum to (or exceed) the invoice total. Until then it stays **Sent** or **Overdue** with the partial payment(s) showing in the activity log. The `paid_at` timestamp on the invoice is the **Paid on** date of the payment that crossed the line — not the moment you clicked Record, so a Tuesday-click on a Friday-receipt produces correct cash-basis numbers.
+
+Restricted to **owners and admins**. Members can view payments but can't record them.
+
+### When you can record payments
+
+- **Sent**, **Overdue** — normal case
+- **Paid** — extra payments are allowed for overpayments / corrections; the status doesn't change
+- **Draft** — rejected; there's no real bill yet
+- **Void** — rejected; the invoice is cancelled
+
+### Period locks
+
+If the **Paid on** date falls inside a locked accounting period, the server rejects the insert with the lock's reason. Pick a date inside an open period, or unlock the period if you're an owner. See [Period locks](period-locks.md).
+
+## Correcting a paid date
+
+If an invoice ended up with the wrong paid date — common on invoices marked via the legacy one-click button before the Record Payment form existed, or on Harvest imports where the paid date came across as the import date — open the invoice and click **Edit** next to the "Paid on..." label in the header.
+
+The form has two required fields:
+
+- **Paid on** — the corrected date.
+- **Reason for change** — minimum 10 characters. Persisted in the audit trail so a future auditor or you-six-months-from-now can see *why* the date moved, not just *that* it moved. The activity log on the same page renders the correction inline.
+
+`Cmd+Enter` submits, `Escape` cancels. Owner/admin only.
+
+### What the system actually does
+
+- Updates `invoices.paid_at` to the new date (UTC midnight of the chosen day).
+- Updates the canonical `invoice_payments` row's `paid_on`:
+  - **Legacy invoices with no payment row** — creates a synthetic payment row with the new date, amount equal to the invoice total, currency inherited, and method/reference blank (you can complete it later when a payments-edit UI ships).
+  - **Single payment row** — updates that row's `paid_on` to the new date.
+  - **Two or more payment rows** — rejected. The paid date is defined by whichever payment crossed the total, and Shyre doesn't have a per-payment edit UI yet. The error message names the existing payment dates.
+
+### Validation
+
+Hard rejections:
+
+- Reason shorter than 10 characters.
+- New paid date before the invoice's **issued date** (the cash can't precede the bill).
+- New paid date in the future.
+- New date inside a locked accounting period, OR the *current* paid date is inside a locked period (you can't move a date *out of* a locked period either).
+- Caller is not an owner or admin.
+- Invoice status is not `paid`.
+
 ## Numbering
 
 Invoices are numbered sequentially per team, in the format `INV-{YYYY}-{NNN}`. Numbers can't be reused.

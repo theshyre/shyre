@@ -138,6 +138,33 @@
     "deleteConfirm": "Delete",
     "deleteConfirmInputLabel": "Type the invoice number ({number}) to confirm deletion"
   },
+  "payment": {
+    "title": "Record payment",
+    "recordButton": "Record payment",
+    "amount": "Amount",
+    "paidOn": "Paid on",
+    "method": "Method (optional)",
+    "reference": "Reference (optional)",
+    "balanceDue": "Balance due",
+    "formAriaLabel": "Record a payment against this invoice",
+    "recordFailed": "Couldn't record the payment."
+  },
+  "paidDate": {
+    "on": "on",
+    "unknownDate": "(no date recorded)",
+    "editButton": "Edit",
+    "editTooltip": "Correct the paid date",
+    "editAriaLabel": "Edit paid date",
+    "multiPaymentTooltip": "This invoice has {count} payment records — edit the individual payment rows in the activity log below.",
+    "formTitle": "Correct paid date",
+    "formAriaLabel": "Correct the paid date for this invoice",
+    "dateLabel": "Paid on",
+    "reasonLabel": "Reason for change",
+    "reasonPlaceholder": "Why is this being corrected? Persisted in the audit trail.",
+    "reasonMin": "{current}/{min} — a longer reason is required for the audit trail.",
+    "saveButton": "Save correction",
+    "saveFailed": "Couldn't save the correction."
+  },
   "status": {
     "draft": "Draft",
     "sent": "Sent",
@@ -175,6 +202,8 @@
     "paid": "Marked as paid.",
     "voided": "Voided.",
     "paymentReceived": "Payment received on {date}.",
+    "paidDateCorrection": "Paid date changed: {oldDate} → {newDate}.",
+    "unknownDate": "(unknown)",
     "updated": "Invoice updated.",
     "pdfSha": "PDF: {sha}…"
   },

@@ -38,6 +38,7 @@ import { InvoiceActions } from "./invoice-actions";
 import { InvoicePdfButton } from "./invoice-pdf-button";
 import { SendInvoiceButton } from "./send-invoice-button";
 import { InvoiceStatusBadge } from "../invoice-status-badge";
+import { PaidDateBlock } from "./paid-date-block";
 /**
  * Drop the country line from a multi-line formatted address unless
  * the caller wants to show it. `formatAddressMultiLine` returns
@@ -116,7 +117,9 @@ export default async function InvoiceDetailPage({
       .single(),
     supabase
       .from("invoices_history")
-      .select("id, changed_at, changed_by_user_id, previous_state")
+      .select(
+        "id, changed_at, changed_by_user_id, previous_state, correction_reason",
+      )
       .eq("invoice_id", id)
       .order("changed_at", { ascending: true }),
     supabase
@@ -381,14 +384,24 @@ export default async function InvoiceDetailPage({
             invoiceId={invoice.id}
             currentStatus={status}
             invoiceNumber={invoice.invoice_number}
+            invoiceTotal={Number(invoice.total ?? 0)}
+            paymentsTotal={paymentsTotal}
+            currency={(invoice.currency as string | null) ?? null}
           />
         </div>
       </div>
-      {showProminentBadge && (
+      {showProminentBadge && status === "paid" ? (
+        <PaidDateBlock
+          invoiceId={invoice.id as string}
+          paidAt={(invoice.paid_at as string | null) ?? null}
+          issuedDate={(invoice.issued_date as string | null) ?? null}
+          paymentCount={(payments ?? []).length}
+        />
+      ) : showProminentBadge ? (
         <div className="mt-3">
           <InvoiceStatusBadge status={status} size="prominent" />
         </div>
-      )}
+      ) : null}
 
       {/* Invoice details */}
       <div className="mt-6 grid gap-6 sm:grid-cols-2">
@@ -725,6 +738,8 @@ export default async function InvoiceDetailPage({
               (h.changed_by_user_id as string | null) ?? null,
             previous_state:
               (h.previous_state as Record<string, unknown>) ?? {},
+            correction_reason:
+              (h.correction_reason as string | null) ?? null,
           })),
           payments: (payments ?? []).map((p) => ({
             id: p.id as string,

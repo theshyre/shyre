@@ -67,6 +67,8 @@ interface TeamMemberRate {
 interface FetchedInvoice {
   team_id: string;
   status: string;
+  total?: number;
+  currency?: string | null;
 }
 
 const state: {
@@ -87,6 +89,15 @@ const state: {
    *  { count: "exact", head: true }).eq("invoice_id", id)` pre-flight
    *  check inside deleteInvoiceAction. */
   paymentCount: number;
+  /** Rows returned by the `.from("invoice_payments").select("amount").eq(...)`
+   *  path used by recordInvoicePaymentAction to compute the running sum. */
+  paymentRows: Array<{ amount: number }>;
+  /** If set, the next invoice_payments insert returns this error. */
+  paymentInsertError: { message: string; code: string } | null;
+  /** Records every supabase.rpc(name, args) invocation. */
+  rpcCalls: Array<{ name: string; args: Record<string, unknown> }>;
+  /** If set, the next rpc call returns this error instead of success. */
+  rpcError: { message: string; code: string } | null;
 } = {
   timeEntries: [],
   settings: null,
@@ -98,6 +109,10 @@ const state: {
   insertShouldError: false,
   fetchedInvoice: null,
   paymentCount: 0,
+  paymentRows: [],
+  paymentInsertError: null,
+  rpcCalls: [],
+  rpcError: null,
 };
 
 function mockSupabase() {
@@ -126,17 +141,30 @@ function mockSupabase() {
     throw new Error(`unexpected table ${table}`);
   }
 
-  // Used by deleteInvoiceAction to refuse delete when payments exist.
-  // Production calls .from("invoice_payments").select("id",
-  // { count: "exact", head: true }).eq("invoice_id", id).
+  // Two production callers:
+  //   1. deleteInvoiceAction refuses delete when payments exist —
+  //      `.select("id", { count: "exact", head: true }).eq("invoice_id", id)`.
+  //      Reads `count`, ignores `data`.
+  //   2. recordInvoicePaymentAction inserts (`.insert({...})`) and
+  //      then re-reads the running sum (`.select("amount").eq("invoice_id", id)`).
+  //      Reads `data`, ignores `count`.
+  // The terminal resolves to BOTH so either caller is happy.
   function invoicePaymentsChain() {
     const q = {
       select: (_cols: string, _opts?: { count?: string; head?: boolean }) => q,
       eq: (_col: string, _val: string) => Promise.resolve({
         count: state.paymentCount,
-        data: null,
+        data: state.paymentRows,
         error: null,
       }),
+      insert: (rows: unknown) => {
+        state.inserts.push({ table: "invoice_payments", rows });
+        return Promise.resolve(
+          state.paymentInsertError
+            ? { data: null, error: state.paymentInsertError }
+            : { data: null, error: null },
+        );
+      },
     };
     return q;
   }
@@ -279,7 +307,16 @@ function mockSupabase() {
     };
   }
 
-  return { from: fromTable };
+  function rpc(name: string, args: Record<string, unknown>) {
+    state.rpcCalls.push({ name, args });
+    return Promise.resolve(
+      state.rpcError
+        ? { data: null, error: state.rpcError }
+        : { data: null, error: null },
+    );
+  }
+
+  return { from: fromTable, rpc };
 }
 
 vi.mock("@/lib/supabase/server", () => ({
@@ -289,6 +326,8 @@ vi.mock("@/lib/supabase/server", () => ({
 import {
   createInvoiceAction,
   deleteInvoiceAction,
+  editInvoicePaidDateAction,
+  recordInvoicePaymentAction,
   updateInvoiceStatusAction,
 } from "./actions";
 
@@ -303,6 +342,10 @@ function resetState() {
   state.insertShouldError = false;
   state.fetchedInvoice = null;
   state.paymentCount = 0;
+  state.paymentRows = [];
+  state.paymentInsertError = null;
+  state.rpcCalls = [];
+  state.rpcError = null;
   mockValidateTeamAccess.mockReset();
   mockRevalidatePath.mockReset();
   mockRedirect.mockClear();
@@ -1340,5 +1383,351 @@ describe("createInvoiceAction — discount path", () => {
     expect(Number(row.discount_amount)).toBeCloseTo(0, 2);
     expect(row.discount_rate).toBeNull();
     expect(Number(row.total)).toBeCloseTo(100, 2);
+  });
+});
+
+describe("recordInvoicePaymentAction", () => {
+  beforeEach(resetState);
+
+  function findPaymentInsert(): Record<string, unknown> {
+    const ins = state.inserts.find((i) => i.table === "invoice_payments");
+    if (!ins) throw new Error("no invoice_payments insert");
+    return ins.rows as Record<string, unknown>;
+  }
+
+  it("records a full payment, flips status to paid with paid_at = paid_on (NOT now)", async () => {
+    state.fetchedInvoice = {
+      team_id: "team-1",
+      status: "sent",
+      total: 1000,
+      currency: "USD",
+    };
+    // After our insert, the sum-query returns the new row.
+    state.paymentRows = [{ amount: 1000 }];
+    mockValidateTeamAccess.mockResolvedValue({ userId: fakeUserId, role: "owner" });
+
+    await recordInvoicePaymentAction(
+      fd({
+        invoice_id: "inv-1",
+        amount: "1000",
+        paid_on: "2026-04-30",
+        method: "ACH",
+        reference: "ref-123",
+      }),
+    );
+
+    const payment = findPaymentInsert();
+    expect(payment).toMatchObject({
+      invoice_id: "inv-1",
+      amount: 1000,
+      currency: "USD",
+      paid_on: "2026-04-30",
+      method: "ACH",
+      reference: "ref-123",
+    });
+
+    expect(state.updates).toContainEqual({
+      table: "invoices",
+      patch: { status: "paid", paid_at: "2026-04-30T00:00:00Z" },
+      where: { id: "inv-1" },
+    });
+    expect(mockRevalidatePath).toHaveBeenCalledWith("/invoices");
+    expect(mockRevalidatePath).toHaveBeenCalledWith("/invoices/inv-1");
+  });
+
+  it("records a partial payment without flipping status", async () => {
+    state.fetchedInvoice = {
+      team_id: "team-1",
+      status: "sent",
+      total: 1000,
+      currency: "USD",
+    };
+    state.paymentRows = [{ amount: 400 }];
+    mockValidateTeamAccess.mockResolvedValue({ userId: fakeUserId, role: "owner" });
+
+    await recordInvoicePaymentAction(
+      fd({
+        invoice_id: "inv-1",
+        amount: "400",
+        paid_on: "2026-04-30",
+      }),
+    );
+
+    expect(findPaymentInsert()).toMatchObject({ amount: 400, paid_on: "2026-04-30" });
+    expect(state.updates.find((u) => u.table === "invoices")).toBeUndefined();
+  });
+
+  it("flips when the final payment in a series crosses the total", async () => {
+    state.fetchedInvoice = {
+      team_id: "team-1",
+      status: "overdue",
+      total: 1000,
+      currency: "USD",
+    };
+    // Existing 600 + the new 400 = 1000.
+    state.paymentRows = [{ amount: 600 }, { amount: 400 }];
+    mockValidateTeamAccess.mockResolvedValue({ userId: fakeUserId, role: "admin" });
+
+    await recordInvoicePaymentAction(
+      fd({
+        invoice_id: "inv-1",
+        amount: "400",
+        paid_on: "2026-05-01",
+      }),
+    );
+
+    expect(state.updates).toContainEqual({
+      table: "invoices",
+      patch: { status: "paid", paid_at: "2026-05-01T00:00:00Z" },
+      where: { id: "inv-1" },
+    });
+  });
+
+  it("rejects payment on a draft invoice", async () => {
+    state.fetchedInvoice = {
+      team_id: "team-1",
+      status: "draft",
+      total: 1000,
+      currency: "USD",
+    };
+    mockValidateTeamAccess.mockResolvedValue({ userId: fakeUserId, role: "owner" });
+
+    await expect(
+      recordInvoicePaymentAction(
+        fd({ invoice_id: "inv-1", amount: "100", paid_on: "2026-04-30" }),
+      ),
+    ).rejects.toThrow(/draft/);
+    expect(state.inserts.find((i) => i.table === "invoice_payments")).toBeUndefined();
+  });
+
+  it("rejects payment on a void invoice", async () => {
+    state.fetchedInvoice = {
+      team_id: "team-1",
+      status: "void",
+      total: 1000,
+      currency: "USD",
+    };
+    mockValidateTeamAccess.mockResolvedValue({ userId: fakeUserId, role: "owner" });
+
+    await expect(
+      recordInvoicePaymentAction(
+        fd({ invoice_id: "inv-1", amount: "100", paid_on: "2026-04-30" }),
+      ),
+    ).rejects.toThrow(/void/);
+  });
+
+  it("rejects non-admin/owner callers", async () => {
+    state.fetchedInvoice = {
+      team_id: "team-1",
+      status: "sent",
+      total: 1000,
+      currency: "USD",
+    };
+    mockValidateTeamAccess.mockResolvedValue({ userId: fakeUserId, role: "member" });
+
+    await expect(
+      recordInvoicePaymentAction(
+        fd({ invoice_id: "inv-1", amount: "100", paid_on: "2026-04-30" }),
+      ),
+    ).rejects.toThrow(/owners and admins/);
+    expect(state.inserts.find((i) => i.table === "invoice_payments")).toBeUndefined();
+  });
+
+  it("rejects amount <= 0", async () => {
+    state.fetchedInvoice = {
+      team_id: "team-1",
+      status: "sent",
+      total: 1000,
+      currency: "USD",
+    };
+    mockValidateTeamAccess.mockResolvedValue({ userId: fakeUserId, role: "owner" });
+
+    await expect(
+      recordInvoicePaymentAction(
+        fd({ invoice_id: "inv-1", amount: "0", paid_on: "2026-04-30" }),
+      ),
+    ).rejects.toThrow(/greater than zero/);
+    await expect(
+      recordInvoicePaymentAction(
+        fd({ invoice_id: "inv-1", amount: "-50", paid_on: "2026-04-30" }),
+      ),
+    ).rejects.toThrow(/greater than zero/);
+  });
+
+  it("rejects malformed paid_on", async () => {
+    state.fetchedInvoice = {
+      team_id: "team-1",
+      status: "sent",
+      total: 1000,
+      currency: "USD",
+    };
+    mockValidateTeamAccess.mockResolvedValue({ userId: fakeUserId, role: "owner" });
+
+    await expect(
+      recordInvoicePaymentAction(
+        fd({ invoice_id: "inv-1", amount: "100", paid_on: "tomorrow" }),
+      ),
+    ).rejects.toThrow(/Paid date/);
+  });
+
+  it("does not re-flip status on already-paid invoices (overpayment / correction)", async () => {
+    state.fetchedInvoice = {
+      team_id: "team-1",
+      status: "paid",
+      total: 1000,
+      currency: "USD",
+    };
+    state.paymentRows = [{ amount: 1000 }, { amount: 50 }];
+    mockValidateTeamAccess.mockResolvedValue({ userId: fakeUserId, role: "owner" });
+
+    await recordInvoicePaymentAction(
+      fd({ invoice_id: "inv-1", amount: "50", paid_on: "2026-05-02" }),
+    );
+
+    expect(findPaymentInsert()).toMatchObject({ amount: 50 });
+    expect(state.updates.find((u) => u.table === "invoices")).toBeUndefined();
+  });
+
+  it("inherits currency from the parent invoice (single-currency rule)", async () => {
+    state.fetchedInvoice = {
+      team_id: "team-1",
+      status: "sent",
+      total: 500,
+      currency: "EUR",
+    };
+    state.paymentRows = [{ amount: 200 }];
+    mockValidateTeamAccess.mockResolvedValue({ userId: fakeUserId, role: "owner" });
+
+    await recordInvoicePaymentAction(
+      fd({ invoice_id: "inv-1", amount: "200", paid_on: "2026-04-30" }),
+    );
+
+    expect(findPaymentInsert()).toMatchObject({ currency: "EUR" });
+  });
+
+  it("surfaces period-lock errors from the trigger", async () => {
+    state.fetchedInvoice = {
+      team_id: "team-1",
+      status: "sent",
+      total: 1000,
+      currency: "USD",
+    };
+    state.paymentInsertError = {
+      message: "Period locked: cannot insert payment dated 2026-01-15",
+      code: "P0001",
+    };
+    mockValidateTeamAccess.mockResolvedValue({ userId: fakeUserId, role: "owner" });
+
+    await expect(
+      recordInvoicePaymentAction(
+        fd({ invoice_id: "inv-1", amount: "100", paid_on: "2026-01-15" }),
+      ),
+    ).rejects.toThrow(/Period locked/);
+  });
+
+  it("rejects when invoice is not found", async () => {
+    state.fetchedInvoice = null;
+    mockValidateTeamAccess.mockResolvedValue({ userId: fakeUserId, role: "owner" });
+
+    await expect(
+      recordInvoicePaymentAction(
+        fd({ invoice_id: "nope", amount: "100", paid_on: "2026-04-30" }),
+      ),
+    ).rejects.toThrow(/not found/);
+  });
+});
+
+describe("editInvoicePaidDateAction", () => {
+  beforeEach(resetState);
+
+  it("calls the RPC with the right args; revalidates list + detail", async () => {
+    await editInvoicePaidDateAction(
+      fd({
+        invoice_id: "inv-1",
+        new_paid_on: "2026-05-04",
+        reason: "Wrong date — got paid May 4, not May 11",
+      }),
+    );
+
+    expect(state.rpcCalls).toHaveLength(1);
+    expect(state.rpcCalls[0]).toEqual({
+      name: "edit_invoice_paid_date",
+      args: {
+        p_invoice_id: "inv-1",
+        p_new_paid_on: "2026-05-04",
+        p_reason: "Wrong date — got paid May 4, not May 11",
+      },
+    });
+    expect(mockRevalidatePath).toHaveBeenCalledWith("/invoices");
+    expect(mockRevalidatePath).toHaveBeenCalledWith("/invoices/inv-1");
+  });
+
+  it("rejects reason shorter than 10 chars without calling the RPC", async () => {
+    await expect(
+      editInvoicePaidDateAction(
+        fd({
+          invoice_id: "inv-1",
+          new_paid_on: "2026-05-04",
+          reason: "typo",
+        }),
+      ),
+    ).rejects.toThrow(/at least 10 characters/);
+    expect(state.rpcCalls).toHaveLength(0);
+  });
+
+  it("rejects malformed new_paid_on", async () => {
+    await expect(
+      editInvoicePaidDateAction(
+        fd({
+          invoice_id: "inv-1",
+          new_paid_on: "tomorrow",
+          reason: "valid correction reason text",
+        }),
+      ),
+    ).rejects.toThrow(/New paid date/);
+    expect(state.rpcCalls).toHaveLength(0);
+  });
+
+  it("rejects missing invoice_id", async () => {
+    await expect(
+      editInvoicePaidDateAction(
+        fd({
+          new_paid_on: "2026-05-04",
+          reason: "valid correction reason text",
+        }),
+      ),
+    ).rejects.toThrow(/Invoice id/);
+    expect(state.rpcCalls).toHaveLength(0);
+  });
+
+  it("trims whitespace before length-checking the reason", async () => {
+    await expect(
+      editInvoicePaidDateAction(
+        fd({
+          invoice_id: "inv-1",
+          new_paid_on: "2026-05-04",
+          reason: "   short   ",
+        }),
+      ),
+    ).rejects.toThrow(/at least 10 characters/);
+    expect(state.rpcCalls).toHaveLength(0);
+  });
+
+  it("surfaces RPC errors verbatim (period-lock, role, multi-payment)", async () => {
+    state.rpcError = {
+      message:
+        "This invoice has 2 payments dated 2026-03-15, 2026-04-22. Edit individual payments instead.",
+      code: "check_violation",
+    };
+
+    await expect(
+      editInvoicePaidDateAction(
+        fd({
+          invoice_id: "inv-1",
+          new_paid_on: "2026-05-04",
+          reason: "Trying to fix the date for an invoice that has 2 payments",
+        }),
+      ),
+    ).rejects.toThrow(/2 payments dated/);
   });
 });

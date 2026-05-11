@@ -74,6 +74,7 @@ const ICON_BY_TYPE: Record<
   paid: CheckCircle2,
   voided: XCircle,
   payment: CircleDollarSign,
+  paidDateCorrection: Pencil,
   updated: Pencil,
 };
 
@@ -126,6 +127,16 @@ export async function InvoiceActivity({
             event.payment?.paidOn ?? event.occurredAt,
           ),
         });
+      case "paidDateCorrection": {
+        const c = event.paidDateCorrection;
+        const oldD = c?.oldPaidAt
+          ? formatPaymentHeadlineDate(c.oldPaidAt.slice(0, 10))
+          : t("unknownDate");
+        const newD = c?.newPaidAt
+          ? formatPaymentHeadlineDate(c.newPaidAt.slice(0, 10))
+          : t("unknownDate");
+        return t("paidDateCorrection", { oldDate: oldD, newDate: newD });
+      }
       case "updated":
         return t("updated");
     }
@@ -198,6 +209,12 @@ export async function InvoiceActivity({
                     {[event.payment?.method, event.payment?.reference]
                       .filter((s): s is string => Boolean(s))
                       .join(" · ")}
+                  </p>
+                ) : null}
+                {event.type === "paidDateCorrection" &&
+                event.paidDateCorrection?.reason ? (
+                  <p className="mt-1 text-caption text-content-secondary italic">
+                    “{event.paidDateCorrection.reason}”
                   </p>
                 ) : null}
                 {event.type === "sent" && event.sentTo?.attachmentSha256 ? (

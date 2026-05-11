@@ -138,6 +138,33 @@
     "deleteConfirm": "Eliminar",
     "deleteConfirmInputLabel": "Escribe el número de factura ({number}) para confirmar la eliminación"
   },
+  "payment": {
+    "title": "Registrar pago",
+    "recordButton": "Registrar pago",
+    "amount": "Monto",
+    "paidOn": "Fecha de pago",
+    "method": "Método (opcional)",
+    "reference": "Referencia (opcional)",
+    "balanceDue": "Saldo pendiente",
+    "formAriaLabel": "Registrar un pago para esta factura",
+    "recordFailed": "No se pudo registrar el pago."
+  },
+  "paidDate": {
+    "on": "el",
+    "unknownDate": "(sin fecha registrada)",
+    "editButton": "Editar",
+    "editTooltip": "Corregir la fecha de pago",
+    "editAriaLabel": "Editar fecha de pago",
+    "multiPaymentTooltip": "Esta factura tiene {count} registros de pago — edita las filas individuales en el historial de actividad abajo.",
+    "formTitle": "Corregir fecha de pago",
+    "formAriaLabel": "Corregir la fecha de pago de esta factura",
+    "dateLabel": "Fecha de pago",
+    "reasonLabel": "Motivo del cambio",
+    "reasonPlaceholder": "¿Por qué se está corrigiendo? Se guarda en el historial de auditoría.",
+    "reasonMin": "{current}/{min} — se requiere un motivo más largo para la auditoría.",
+    "saveButton": "Guardar corrección",
+    "saveFailed": "No se pudo guardar la corrección."
+  },
   "status": {
     "draft": "Borrador",
     "sent": "Enviada",
@@ -175,6 +202,8 @@
     "paid": "Marcada como pagada.",
     "voided": "Anulada.",
     "paymentReceived": "Pago recibido el {date}.",
+    "paidDateCorrection": "Fecha de pago cambiada: {oldDate} → {newDate}.",
+    "unknownDate": "(desconocida)",
     "updated": "Factura actualizada.",
     "pdfSha": "PDF: {sha}…"
   },

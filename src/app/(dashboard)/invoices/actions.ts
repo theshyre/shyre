@@ -582,3 +582,173 @@ export async function bulkUpdateInvoiceStatusAction(
     "bulkUpdateInvoiceStatusAction",
   ) as unknown as void;
 }
+
+/**
+ * Record a payment against an invoice. Owner/admin only. Inserts a
+ * row in `invoice_payments` and — when the running sum reaches the
+ * invoice total — flips `invoices.status` to 'paid' with `paid_at`
+ * set to the payment's `paid_on` date (NOT now()). That's the cash-
+ * basis "moment the invoice became paid"; defaulting to now() is
+ * exactly what we set out to fix when the user clicks "Mark Paid"
+ * days after the cheque cleared.
+ *
+ * Partial payments leave status untouched (sum < total); the next
+ * payment that crosses the line flips it. Period-lock errors raised
+ * by the `invoice_payments` BEFORE-INSERT trigger surface verbatim.
+ */
+export async function recordInvoicePaymentAction(
+  formData: FormData,
+): Promise<void> {
+  return runSafeAction(
+    formData,
+    async (formData, { supabase }) => {
+      const id = (formData.get("invoice_id") as string) ?? "";
+      const amountStr = (formData.get("amount") as string) ?? "";
+      const paidOn = (formData.get("paid_on") as string) ?? "";
+      const methodRaw = (formData.get("method") as string) ?? "";
+      const referenceRaw = (formData.get("reference") as string) ?? "";
+
+      if (!id) throw new Error("Invoice id is required.");
+      if (!paidOn || !/^\d{4}-\d{2}-\d{2}$/.test(paidOn)) {
+        throw new Error("Paid date is required (YYYY-MM-DD).");
+      }
+      const amount = parseFloat(amountStr);
+      if (!Number.isFinite(amount) || amount <= 0) {
+        throw new Error("Amount must be greater than zero.");
+      }
+      const method = methodRaw.trim() === "" ? null : methodRaw.trim();
+      const reference =
+        referenceRaw.trim() === "" ? null : referenceRaw.trim();
+
+      const { data: invoice, error: fetchError } = await supabase
+        .from("invoices")
+        .select("team_id, status, total, currency")
+        .eq("id", id)
+        .maybeSingle();
+      if (fetchError) throw fetchError;
+      if (!invoice) throw new Error("Invoice not found.");
+
+      const teamId = invoice.team_id as string;
+      const status = (invoice.status as string | null) ?? "draft";
+      const total = Number(invoice.total ?? 0);
+      const currency = (invoice.currency as string | null) ?? null;
+
+      const { role } = await validateTeamAccess(teamId);
+      if (role !== "owner" && role !== "admin") {
+        throw new Error("Only owners and admins can record payments.");
+      }
+
+      // Don't record payments against draft (not yet a real bill) or
+      // void (cancelled — recording a payment would be reanimating a
+      // dead invoice). Sent / overdue / paid all accept payments —
+      // 'paid' permits over-payment recording for the rare refund /
+      // correction case.
+      if (status === "draft" || status === "void") {
+        throw new Error(
+          `Cannot record payment on a ${status} invoice.`,
+        );
+      }
+
+      // Insert the payment. `team_id` and `created_by_user_id` are
+      // auto-stamped by existing BEFORE-INSERT triggers
+      // (`tg_invoice_payments_set_team`, `tg_invoice_payments_stamp_actor`).
+      // currency inherits from the parent invoice — single-currency
+      // per invoice is the existing money rule.
+      assertSupabaseOk(
+        await supabase.from("invoice_payments").insert({
+          invoice_id: id,
+          amount,
+          currency,
+          paid_on: paidOn,
+          method,
+          reference,
+        }),
+      );
+
+      // Re-read the running sum AFTER the insert so the flip decision
+      // sees committed state including this row. Skip if status is
+      // already 'paid' — over-payments don't re-flip.
+      if (status !== "paid") {
+        const { data: rows, error: sumError } = await supabase
+          .from("invoice_payments")
+          .select("amount")
+          .eq("invoice_id", id);
+        if (sumError) throw sumError;
+        const runningTotal = (rows ?? []).reduce(
+          (acc, r) => acc + Number(r.amount ?? 0),
+          0,
+        );
+        if (runningTotal + 1e-9 >= total) {
+          assertSupabaseOk(
+            await supabase
+              .from("invoices")
+              .update({
+                status: "paid",
+                paid_at: `${paidOn}T00:00:00Z`,
+              })
+              .eq("id", id),
+          );
+        }
+      }
+
+      revalidatePath("/invoices");
+      revalidatePath(`/invoices/${id}`);
+    },
+    {
+      actionName: "recordInvoicePaymentAction",
+      teamIdFrom: () => null,
+    },
+  ) as unknown as void;
+}
+
+/**
+ * Correct the paid date on a paid invoice. Owner/admin only.
+ *
+ * Delegates the actual two-row update to the `edit_invoice_paid_date`
+ * RPC (a SECURITY DEFINER Postgres function) so the change to
+ * `invoices.paid_at` and the canonical `invoice_payments` row is
+ * atomic. The RPC enforces role, status, date sanity, period locks
+ * on both old + new dates, and a >= 10-char correction reason that
+ * the history trigger captures.
+ *
+ * For legacy paid invoices with no `invoice_payments` row, the RPC
+ * inserts a synthetic payment so every paid invoice ends up with a
+ * canonical record going forward.
+ */
+export async function editInvoicePaidDateAction(
+  formData: FormData,
+): Promise<void> {
+  return runSafeAction(
+    formData,
+    async (formData, { supabase }) => {
+      const id = (formData.get("invoice_id") as string) ?? "";
+      const newPaidOn = (formData.get("new_paid_on") as string) ?? "";
+      const reasonRaw = (formData.get("reason") as string) ?? "";
+
+      if (!id) throw new Error("Invoice id is required.");
+      if (!newPaidOn || !/^\d{4}-\d{2}-\d{2}$/.test(newPaidOn)) {
+        throw new Error("New paid date is required (YYYY-MM-DD).");
+      }
+      const reason = reasonRaw.trim();
+      if (reason.length < 10) {
+        throw new Error(
+          "A correction reason of at least 10 characters is required.",
+        );
+      }
+
+      const { error } = await supabase.rpc("edit_invoice_paid_date", {
+        p_invoice_id: id,
+        p_new_paid_on: newPaidOn,
+        p_reason: reason,
+      });
+      if (error) throw error;
+
+      revalidatePath("/invoices");
+      revalidatePath(`/invoices/${id}`);
+    },
+    {
+      actionName: "editInvoicePaidDateAction",
+      teamIdFrom: () => null,
+    },
+  ) as unknown as void;
+}

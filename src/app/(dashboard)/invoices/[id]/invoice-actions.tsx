@@ -6,12 +6,19 @@ import { useTranslations } from "next-intl";
 import { Send, CheckCircle, XCircle, AlertTriangle, Trash2, X } from "lucide-react";
 import { useFormAction } from "@/hooks/use-form-action";
 import { SubmitButton } from "@/components/SubmitButton";
+import { DateField } from "@/components/DateField";
 import {
+  buttonPrimaryClass,
   buttonSecondaryClass,
   inputClass,
 } from "@/lib/form-styles";
 import { allowedNextStatuses, type InvoiceStatus } from "@/lib/invoice-status";
-import { updateInvoiceStatusAction, deleteInvoiceAction } from "../actions";
+import {
+  updateInvoiceStatusAction,
+  deleteInvoiceAction,
+  recordInvoicePaymentAction,
+} from "../actions";
+import { formatCurrency } from "@/lib/invoice-utils";
 
 interface InvoiceActionsProps {
   invoiceId: string;
@@ -20,6 +27,14 @@ interface InvoiceActionsProps {
    *  typed-confirm word when voiding so the user has to recognize
    *  *which* invoice they're killing. */
   invoiceNumber: string;
+  /** Invoice total in its native currency. Drives the default
+   *  payment amount (balance due) on the Record Payment form. */
+  invoiceTotal: number;
+  /** Sum of recorded payments in the invoice's currency. */
+  paymentsTotal: number;
+  /** Invoice currency (ISO 4217) — used to format the balance-due
+   *  hint and inherited onto the payment row server-side. */
+  currency: string | null;
 }
 
 const ACTION_META: Record<
@@ -42,15 +57,34 @@ export function InvoiceActions({
   invoiceId,
   currentStatus,
   invoiceNumber,
+  invoiceTotal,
+  paymentsTotal,
+  currency,
 }: InvoiceActionsProps): React.JSX.Element {
   const t = useTranslations("invoices.actions");
   const next = allowedNextStatuses(currentStatus);
+  const balanceDue = Math.max(0, invoiceTotal - paymentsTotal);
 
   return (
     <div className="flex gap-2 flex-wrap">
       {next.map((status) => {
         const meta = ACTION_META[status];
         if (!meta) return null;
+        // 'paid' is the only status that doesn't flip directly —
+        // recording a payment row is the canonical path. The action
+        // auto-flips status to paid once the running sum >= total,
+        // with paid_at set to the payment's paid_on (cash-basis-
+        // correct, not now()).
+        if (status === "paid") {
+          return (
+            <RecordPaymentButton
+              key={status}
+              invoiceId={invoiceId}
+              balanceDue={balanceDue}
+              currency={currency}
+            />
+          );
+        }
         return meta.tone === "danger" ? (
           <VoidButton
             key={status}
@@ -367,4 +401,231 @@ function DeleteButton({
       {error && <p className="text-caption text-error">{error}</p>}
     </div>
   );
+}
+
+/**
+ * Record a payment against an invoice via the inline-expansion
+ * pattern. Replaces the old one-click "Mark Paid" button so the user
+ * can specify when payment was actually received — critical for
+ * cash-basis accounting (a Tuesday-click on a Friday-receipt would
+ * otherwise stamp the wrong period). The amount defaults to the
+ * outstanding balance so the common case ("paid in full") is one
+ * Enter press away.
+ *
+ * Status auto-flips to 'paid' server-side once recorded payments sum
+ * to the invoice total; partial payments leave status as 'sent' or
+ * 'overdue'. See `recordInvoicePaymentAction`.
+ */
+function RecordPaymentButton({
+  invoiceId,
+  balanceDue,
+  currency,
+}: {
+  invoiceId: string;
+  balanceDue: number;
+  currency: string | null;
+}): React.JSX.Element {
+  const t = useTranslations("invoices.payment");
+  const tc = useTranslations("common");
+  const router = useRouter();
+  const [open, setOpen] = useState(false);
+  const [amount, setAmount] = useState<string>(
+    balanceDue > 0 ? balanceDue.toFixed(2) : "",
+  );
+  const [paidOn, setPaidOn] = useState<string>(() => isoToday());
+  const [method, setMethod] = useState("");
+  const [reference, setReference] = useState("");
+  const [pending, setPending] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  const parsedAmount = Number(amount);
+  const armed =
+    Number.isFinite(parsedAmount) &&
+    parsedAmount > 0 &&
+    paidOn !== "" &&
+    !pending;
+
+  async function fire(): Promise<void> {
+    if (!armed) return;
+    setPending(true);
+    setError(null);
+    try {
+      const f = new FormData();
+      f.set("invoice_id", invoiceId);
+      f.set("amount", String(parsedAmount));
+      f.set("paid_on", paidOn);
+      if (method.trim() !== "") f.set("method", method.trim());
+      if (reference.trim() !== "") f.set("reference", reference.trim());
+      const result = (await recordInvoicePaymentAction(f)) as unknown as
+        | { success: boolean; error?: { message: string } }
+        | void;
+      if (
+        result &&
+        (result as { success: boolean }).success === false
+      ) {
+        throw new Error(
+          (result as { error?: { message: string } }).error?.message ??
+            t("recordFailed"),
+        );
+      }
+      setOpen(false);
+      setAmount(balanceDue > 0 ? balanceDue.toFixed(2) : "");
+      setMethod("");
+      setReference("");
+      router.refresh();
+    } catch (err: unknown) {
+      setError(err instanceof Error ? err.message : String(err));
+    } finally {
+      setPending(false);
+    }
+  }
+
+  function onAnyKey(e: KeyboardEvent<HTMLElement>): void {
+    if ((e.metaKey || e.ctrlKey) && e.key === "Enter" && armed) {
+      e.preventDefault();
+      void fire();
+    } else if (e.key === "Escape") {
+      e.preventDefault();
+      setOpen(false);
+      setError(null);
+    }
+  }
+
+  if (!open) {
+    return (
+      <button
+        type="button"
+        onClick={() => {
+          setError(null);
+          setOpen(true);
+        }}
+        className={buttonSecondaryClass}
+      >
+        <CheckCircle size={16} />
+        {t("recordButton")}
+      </button>
+    );
+  }
+
+  return (
+    <div
+      className="flex flex-col gap-2 rounded-md border border-edge bg-surface-raised p-3 min-w-[280px]"
+      onKeyDown={onAnyKey}
+      role="group"
+      aria-label={t("formAriaLabel")}
+    >
+      <div className="flex items-center justify-between">
+        <span className="text-caption font-semibold uppercase tracking-wider text-content-muted">
+          {t("title")}
+        </span>
+        {balanceDue > 0 && (
+          <span className="text-caption text-content-muted">
+            {t("balanceDue")}:{" "}
+            <span className="font-mono tabular-nums text-content">
+              {formatCurrency(balanceDue, currency ?? undefined)}
+            </span>
+          </span>
+        )}
+      </div>
+
+      <label className="flex flex-col gap-1">
+        <span className="text-caption text-content-secondary">
+          {t("amount")}
+        </span>
+        <input
+          autoFocus
+          type="number"
+          inputMode="decimal"
+          step="0.01"
+          min="0"
+          value={amount}
+          onChange={(e) => setAmount(e.target.value)}
+          aria-label={t("amount")}
+          className={`${inputClass} font-mono tabular-nums`}
+        />
+      </label>
+
+      <label className="flex flex-col gap-1">
+        <span className="text-caption text-content-secondary">
+          {t("paidOn")}
+        </span>
+        <DateField
+          value={paidOn}
+          onChange={setPaidOn}
+          ariaLabel={t("paidOn")}
+        />
+      </label>
+
+      <label className="flex flex-col gap-1">
+        <span className="text-caption text-content-secondary">
+          {t("method")}
+        </span>
+        <input
+          type="text"
+          value={method}
+          onChange={(e) => setMethod(e.target.value)}
+          list={`payment-method-${invoiceId}`}
+          maxLength={64}
+          aria-label={t("method")}
+          className={inputClass}
+        />
+        <datalist id={`payment-method-${invoiceId}`}>
+          <option value="ACH" />
+          <option value="Wire" />
+          <option value="Check" />
+          <option value="Cash" />
+          <option value="Card" />
+          <option value="Stripe" />
+          <option value="PayPal" />
+        </datalist>
+      </label>
+
+      <label className="flex flex-col gap-1">
+        <span className="text-caption text-content-secondary">
+          {t("reference")}
+        </span>
+        <input
+          type="text"
+          value={reference}
+          onChange={(e) => setReference(e.target.value)}
+          maxLength={128}
+          aria-label={t("reference")}
+          className={inputClass}
+        />
+      </label>
+
+      <div className="flex items-center gap-2 mt-1">
+        <button
+          type="button"
+          onClick={() => void fire()}
+          disabled={!armed}
+          aria-label={t("recordButton")}
+          className={buttonPrimaryClass}
+        >
+          <CheckCircle size={16} />
+          {pending ? `${t("recordButton")}…` : t("recordButton")}
+        </button>
+        <button
+          type="button"
+          onClick={() => {
+            setOpen(false);
+            setError(null);
+          }}
+          disabled={pending}
+          className={buttonSecondaryClass}
+        >
+          {tc("actions.cancel")}
+        </button>
+      </div>
+
+      {error && <p className="text-caption text-error" role="alert">{error}</p>}
+    </div>
+  );
+}
+
+/** Local-midnight YYYY-MM-DD for "today" — same shape DateField speaks. */
+function isoToday(): string {
+  const d = new Date();
+  const pad = (n: number): string => String(n).padStart(2, "0");
+  return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
 }
