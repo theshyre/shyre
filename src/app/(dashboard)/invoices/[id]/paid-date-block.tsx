@@ -4,7 +4,6 @@ import { useState, type KeyboardEvent } from "react";
 import { useRouter } from "next/navigation";
 import { useTranslations } from "next-intl";
 import { CheckCircle, Pencil, X } from "lucide-react";
-import { formatDate } from "@theshyre/ui";
 import { DateField } from "@/components/DateField";
 import { Tooltip } from "@/components/Tooltip";
 import { FieldError } from "@/components/FieldError";
@@ -15,6 +14,28 @@ import {
 } from "@/lib/form-styles";
 import { InvoiceStatusBadge } from "../invoice-status-badge";
 import { editInvoicePaidDateAction } from "../actions";
+
+const MONTH_ABBREV = [
+  "Jan", "Feb", "Mar", "Apr", "May", "Jun",
+  "Jul", "Aug", "Sep", "Oct", "Nov", "Dec",
+];
+
+/**
+ * Format the UTC-date component of a paid_at ISO string as
+ * "MMM D, YYYY". `paid_at` is stored as midnight UTC of the
+ * paid day — feeding it through `formatDate` (which is
+ * `Date.toLocaleDateString`) shifts the visible day backward
+ * in negative-offset timezones (Pacific: May 8 UTC → May 7).
+ * The UTC date IS the user-meant date, so extract it from the
+ * string directly.
+ */
+function formatPaidDate(iso: string): string {
+  const m = iso.match(/^(\d{4})-(\d{2})-(\d{2})/);
+  if (!m) return iso;
+  const [, y, mo, d] = m;
+  const month = MONTH_ABBREV[Number(mo) - 1] ?? mo;
+  return `${month} ${Number(d)}, ${y}`;
+}
 
 interface Props {
   invoiceId: string;
@@ -110,7 +131,7 @@ export function PaidDateBlock({
     }
   }
 
-  const formattedDate = paidAt ? formatDate(paidAt) : t("unknownDate");
+  const formattedDate = paidAt ? formatPaidDate(paidAt) : t("unknownDate");
 
   return (
     <div className="mt-3 flex flex-col gap-3">

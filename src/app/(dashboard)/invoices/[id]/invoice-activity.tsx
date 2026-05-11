@@ -202,7 +202,18 @@ export async function InvoiceActivity({
                   event.type === "complained"
                     ? t("viaResend")
                     : actorName}{" "}
-                  {t("on")} <LocalDateTime value={event.occurredAt} />
+                  {t("on")}{" "}
+                  {/* Payment events are date-grained, not moment-
+                      grained. paid_at on a manually-recorded payment
+                      is either NULL or a synthetic UTC midnight, and
+                      `<LocalDateTime>` would shift midnight UTC to
+                      "yesterday 5pm" in negative TZs. Render a
+                      date-only headline that matches paid_on. */}
+                  {event.type === "payment" && event.payment?.paidOn ? (
+                    formatPaymentHeadlineDate(event.payment.paidOn)
+                  ) : (
+                    <LocalDateTime value={event.occurredAt} />
+                  )}
                 </p>
                 {event.payment?.method || event.payment?.reference ? (
                   <p className="mt-1 text-caption text-content-secondary">
