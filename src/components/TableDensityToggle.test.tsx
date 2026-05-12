@@ -2,9 +2,9 @@ import { describe, it, expect, vi, beforeEach } from "vitest";
 import { render, screen, fireEvent } from "@testing-library/react";
 import { TableDensityProvider } from "./table-density-provider";
 
-const updateMock = vi.fn(async () => undefined);
+const updateMock = vi.fn<(fd: FormData) => Promise<void>>(async () => undefined);
 vi.mock("./table-density-action", () => ({
-  updateTableDensityAction: (...args: unknown[]) => updateMock(...args),
+  updateTableDensityAction: (fd: FormData) => updateMock(fd),
 }));
 
 import { TableDensityToggle } from "./TableDensityToggle";
