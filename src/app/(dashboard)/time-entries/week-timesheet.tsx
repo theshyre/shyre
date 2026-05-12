@@ -1688,6 +1688,7 @@ function TimesheetRow({
               <EntryEditRow
                 entry={entry}
                 project={project}
+                projects={projects}
                 tzOffsetMin={tzOffsetMin}
                 dayDateLong={dayLong}
                 onClose={() => setEditingEntryId(null)}

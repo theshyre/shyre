@@ -156,6 +156,88 @@ export async function updateTimeEntryAction(formData: FormData): Promise<void> {
       patch.category_id = (formData.get("category_id") as string) || null;
     }
 
+    // Project change — supports the "I forgot to create a sub-project,
+    // now I need to move entries from parent to child" workflow.
+    // Constraints enforced here:
+    //   - Destination must be on the same team as the entry. Cross-team
+    //     moves are a different beast (privacy + permissions surface)
+    //     and not in scope today; refuse defensively even though RLS
+    //     would also block.
+    //   - If the entry's category_id doesn't belong to the destination
+    //     project's category set(s) (base + extension), clear it. The
+    //     category picker on the form already offers the destination's
+    //     categories, but a category that was valid for the source may
+    //     not exist on the destination — keeping it would surface as an
+    //     "unknown category" pill on the entry.
+    //   - Billable pinning for internal destinations is handled below
+    //     (the projectIsInternal lookup uses the destination project
+    //     when the project is being changed).
+    let projectChanging = false;
+    let newProjectId: string | null = null;
+    if (formData.has("project_id")) {
+      newProjectId = (formData.get("project_id") as string) || null;
+      if (newProjectId) {
+        // Look up the destination project + the entry's current team.
+        const [destResult, entryResult] = await Promise.all([
+          supabase
+            .from("projects")
+            .select("id, team_id, is_internal, category_set_id, extension_category_set_id")
+            .eq("id", newProjectId)
+            .maybeSingle(),
+          supabase
+            .from("time_entries")
+            .select("team_id, project_id, category_id")
+            .eq("id", id)
+            .maybeSingle(),
+        ]);
+        const dest = destResult.data;
+        const entry = entryResult.data;
+        if (!dest || !entry) {
+          throw new Error("Project or entry not found.");
+        }
+        if (dest.team_id !== entry.team_id) {
+          throw new Error(
+            "Cannot move a time entry across teams. Pick a project on the same team.",
+          );
+        }
+        if (dest.id !== entry.project_id) {
+          projectChanging = true;
+          patch.project_id = dest.id;
+          // Category compatibility check. If the form is also
+          // submitting a fresh category_id, trust the form (the picker
+          // already offered the destination's categories). Otherwise
+          // verify the existing category belongs to the destination's
+          // category set(s); clear if it doesn't.
+          if (!formData.has("category_id") && entry.category_id) {
+            const allowedSetIds = [
+              dest.category_set_id,
+              dest.extension_category_set_id,
+            ].filter((s): s is string => typeof s === "string");
+            if (allowedSetIds.length > 0) {
+              const { data: cat } = await supabase
+                .from("categories")
+                .select("id, category_set_id")
+                .eq("id", entry.category_id)
+                .maybeSingle();
+              const catSet = cat?.category_set_id as string | undefined;
+              if (!catSet || !allowedSetIds.includes(catSet)) {
+                patch.category_id = null;
+              }
+            } else {
+              // Destination has no category sets configured at all —
+              // clear any prior category since the destination can't
+              // host one.
+              patch.category_id = null;
+            }
+          }
+          // The internal-billable pinning below re-fetches the entry's
+          // project state. When the project is changing, prime the
+          // projectIsInternal flag from the destination instead so the
+          // pin uses the right answer.
+        }
+      }
+    }
+
     let timeUpdated = false;
     if (durationMinStr && entryDate) {
       const durationMin = parseInt(durationMinStr, 10);
@@ -184,19 +266,35 @@ export async function updateTimeEntryAction(formData: FormData): Promise<void> {
     let projectId: string | null = null;
     let projectIsInternal = false;
     if (needsExisting) {
-      const { data: existing } = await supabase
-        .from("time_entries")
-        .select("project_id, projects(is_internal)")
-        .eq("id", id)
-        .maybeSingle();
-      projectId = (existing?.project_id as string | null) ?? null;
-      const p = existing?.projects as
-        | { is_internal?: boolean }
-        | { is_internal?: boolean }[]
-        | null
-        | undefined;
-      const proj = Array.isArray(p) ? (p[0] ?? null) : (p ?? null);
-      projectIsInternal = proj?.is_internal === true;
+      // When the project is being changed in the same submit, query
+      // the DESTINATION's is_internal flag instead of the existing
+      // entry's — billable pin must reflect where the entry is going,
+      // not where it's been. Falls back to the entry's existing
+      // project when project_id isn't changing.
+      const lookupProjectId = projectChanging ? newProjectId : null;
+      if (lookupProjectId) {
+        const { data: destProj } = await supabase
+          .from("projects")
+          .select("id, is_internal")
+          .eq("id", lookupProjectId)
+          .maybeSingle();
+        projectId = lookupProjectId;
+        projectIsInternal = destProj?.is_internal === true;
+      } else {
+        const { data: existing } = await supabase
+          .from("time_entries")
+          .select("project_id, projects(is_internal)")
+          .eq("id", id)
+          .maybeSingle();
+        projectId = (existing?.project_id as string | null) ?? null;
+        const p = existing?.projects as
+          | { is_internal?: boolean }
+          | { is_internal?: boolean }[]
+          | null
+          | undefined;
+        const proj = Array.isArray(p) ? (p[0] ?? null) : (p ?? null);
+        projectIsInternal = proj?.is_internal === true;
+      }
     }
 
     if (billableSubmitted !== null) {

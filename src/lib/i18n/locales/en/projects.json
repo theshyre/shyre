@@ -95,7 +95,7 @@
     "budgetAlertThreshold": "Alert at (%)",
     "budgetAlertThresholdPlaceholder": "e.g. 80",
     "budgetAlertThresholdHint": "Show a warning banner when the period burn meets this percentage. Leave blank for no warning.",
-    "burnPctColumn": "Period burn"
+    "burnPctColumn": "Budget"
   },
   "budget": {
     "lifetimeLabel": "Lifetime",

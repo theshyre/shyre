@@ -41,7 +41,9 @@
     "save": "Guardar",
     "editingOn": "Editando — {date}",
     "durationOnDay": "{date} — {duration}",
+    "projectMoveHint": "Moviendo esta entrada. Si el nuevo proyecto usa categorías distintas, la categoría se borrará al guardar.",
     "fields": {
+      "project": "Proyecto",
       "description": "Descripción",
       "descriptionPlaceholder": "¿En qué trabajaste?",
       "billable": "Facturable",

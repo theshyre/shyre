@@ -41,7 +41,9 @@
     "save": "Save",
     "editingOn": "Editing — {date}",
     "durationOnDay": "{date} — {duration}",
+    "projectMoveHint": "Moving this entry. If the new project uses different categories, the category will be cleared on save.",
     "fields": {
+      "project": "Project",
       "description": "Description",
       "descriptionPlaceholder": "What did you work on?",
       "billable": "Billable",

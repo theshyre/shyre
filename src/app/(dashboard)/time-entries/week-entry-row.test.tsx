@@ -330,6 +330,7 @@ describe("EntryEditRow", () => {
         <EntryEditRow
           entry={makeEntry("e1")}
           project={project}
+          projects={[project]}
           dayDateLong="Tuesday, May 5"
           onClose={() => {}}
         />,
@@ -348,6 +349,7 @@ describe("EntryEditRow", () => {
         <EntryEditRow
           entry={makeEntry("e1")}
           project={project}
+          projects={[project]}
           dayDateLong="Tuesday, May 5"
           onClose={onClose}
         />,

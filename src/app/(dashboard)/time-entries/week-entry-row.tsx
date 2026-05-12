@@ -28,7 +28,7 @@
  * for separate viewports.
  */
 
-import { useEffect, useRef } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useTranslations } from "next-intl";
 import {
   Play,
@@ -52,6 +52,7 @@ import { TicketField } from "@/components/TicketField";
 import { Tooltip } from "@/components/Tooltip";
 import {
   inputClass,
+  selectClass,
   buttonGhostClass,
   labelClass,
 } from "@/lib/form-styles";
@@ -379,6 +380,10 @@ export function EntrySummaryRow({
 interface EntryEditRowProps {
   entry: TimeEntry;
   project: ProjectOption | undefined;
+  /** Full project list — the project picker offers same-team
+   *  projects, so the caller passes the page's already-fetched
+   *  list rather than re-fetching here. */
+  projects: ProjectOption[];
   tzOffsetMin?: number;
   /** Locale-formatted long-form date string for the edit form's
    *  metadata strip header. */
@@ -389,12 +394,30 @@ interface EntryEditRowProps {
 export function EntryEditRow({
   entry,
   project,
+  projects,
   tzOffsetMin,
   dayDateLong,
   onClose,
 }: EntryEditRowProps): React.JSX.Element {
   const t = useTranslations("time.entryRow");
   const tc = useTranslations("common");
+
+  // Tracks the picked destination project so the user can move this
+  // entry to a sub-project (or any same-team project). Same-team
+  // filtering is server-enforced too — the picker here just hides
+  // cross-team options.
+  const [selectedProjectId, setSelectedProjectId] = useState(entry.project_id);
+  // Only offer projects on the entry's team. The page already scopes
+  // to the active team, so the list IS the team's projects, but a
+  // defensive same-team filter guards against future plumbing
+  // accidents.
+  const sameTeamProjects = projects.filter(
+    (p) => p.team_id === entry.team_id,
+  );
+  const projectChanging = selectedProjectId !== entry.project_id;
+  // Invoiced entries can't be moved — the DB trigger refuses writes.
+  // Disable the picker so the UI doesn't accept input it can't honor.
+  const locked = entry.invoiced && entry.invoice_id != null;
 
   const update = useFormAction({
     action: updateTimeEntryAction,
@@ -466,6 +489,40 @@ export function EntryEditRow({
           </p>
 
           <div className="space-y-3">
+            {/* Project picker — supports "I forgot to create the
+                sub-project, now I need to move this entry." Selecting
+                a different project submits `project_id` and the
+                action validates same-team + clears the category if
+                the destination doesn't accept it. Disabled when the
+                entry is locked (invoiced) since the DB trigger refuses
+                writes regardless. */}
+            <div>
+              <label
+                htmlFor={`entry-edit-project-${entry.id}`}
+                className={labelClass}
+              >
+                {t("fields.project")}
+              </label>
+              <select
+                id={`entry-edit-project-${entry.id}`}
+                name="project_id"
+                value={selectedProjectId}
+                onChange={(e) => setSelectedProjectId(e.target.value)}
+                disabled={locked}
+                className={selectClass}
+              >
+                {sameTeamProjects.map((p) => (
+                  <option key={p.id} value={p.id}>
+                    {p.name}
+                  </option>
+                ))}
+              </select>
+              {projectChanging && (
+                <p className="mt-1 text-caption text-content-muted italic">
+                  {t("projectMoveHint")}
+                </p>
+              )}
+            </div>
             <div>
               <label
                 htmlFor={`entry-edit-desc-${entry.id}`}

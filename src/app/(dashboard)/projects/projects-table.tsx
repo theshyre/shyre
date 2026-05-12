@@ -134,13 +134,14 @@ export function ProjectsTable({
   );
 
   const showTeamColumn = teamNameById.size > 1;
-  // Show the Period Burn column only when at least one visible
-  // project has a recurring period configured (and therefore a
-  // numeric burn). Zero work otherwise — keeps the projects list
-  // clean for users who don't use recurring caps.
-  const showBurnColumn = Object.values(periodBurnPctById).some(
-    (v) => v != null,
-  );
+  // Budget column is ALWAYS visible — for at-a-glance scanning, the
+  // user wants the column slot reserved whether or not a project has
+  // a recurring cap configured. Projects without a budget render as
+  // an em-dash (BurnCell handles `null`). Previously gated behind
+  // "at least one visible project has a numeric burn"; that hid the
+  // affordance entirely for users who hadn't set up any recurring
+  // budget yet — including the prompt to set one.
+  const showBurnColumn = true;
   const selectedCount = selected.size;
   const allSelected = projects.length > 0 && selectedCount === projects.length;
   const someSelected = selectedCount > 0 && !allSelected;

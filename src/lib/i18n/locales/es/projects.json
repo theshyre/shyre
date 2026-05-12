@@ -95,7 +95,7 @@
     "budgetAlertThreshold": "Alertar al (%)",
     "budgetAlertThresholdPlaceholder": "p. ej. 80",
     "budgetAlertThresholdHint": "Mostrar un aviso cuando el consumo del período alcance este porcentaje. Déjalo en blanco para no mostrar aviso.",
-    "burnPctColumn": "Consumo del período"
+    "burnPctColumn": "Presupuesto"
   },
   "budget": {
     "lifetimeLabel": "Total",

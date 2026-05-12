@@ -69,6 +69,12 @@ export function InlineEditForm({
   const locked = entry.invoiced && entry.invoice_id != null;
 
   const [entryDate, setEntryDate] = useState(toLocalDate(entry.start_time));
+  // Track the picked project so changing it (a) re-keys the category
+  // picker against the destination's category set, (b) flows through
+  // the form as `project_id` for updateTimeEntryAction. The picker is
+  // disabled when the entry is locked (invoiced) — moves on locked
+  // entries are refused by the DB trigger anyway.
+  const [selectedProjectId, setSelectedProjectId] = useState(entry.project_id);
 
   const { pending, success, serverError, fieldErrors, handleSubmit } =
     useFormAction({
@@ -163,8 +169,10 @@ export function InlineEditForm({
           </label>
           <select
             id={`ie-project-${entry.id}`}
-            defaultValue={entry.project_id}
-            disabled
+            name="project_id"
+            value={selectedProjectId}
+            onChange={(e) => setSelectedProjectId(e.target.value)}
+            disabled={locked}
             className={selectClass}
           >
             {projects.map((p) => (
@@ -175,14 +183,24 @@ export function InlineEditForm({
           </select>
         </div>
         <div className={formSpanHalf}>
+          {/* Category picker — re-keyed on selectedProjectId so its
+              internal state resets when the destination project
+              changes. The picker offers the destination's allowed
+              categories; if the entry's original category isn't in
+              the new set, the action clears it server-side. */}
           <CategoryPicker
+            key={selectedProjectId}
             categories={categories}
             categorySetIds={[
-              entry.projects?.category_set_id,
-              projects.find((p) => p.id === entry.project_id)
+              projects.find((p) => p.id === selectedProjectId)?.category_set_id,
+              projects.find((p) => p.id === selectedProjectId)
                 ?.extension_category_set_id,
             ]}
-            defaultValue={entry.category_id}
+            defaultValue={
+              selectedProjectId === entry.project_id
+                ? entry.category_id
+                : null
+            }
             currentCategoryId={entry.category_id}
           />
         </div>
