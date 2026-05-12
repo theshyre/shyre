@@ -3,7 +3,14 @@
 import { useCallback, useEffect, useMemo, useRef, useState, useTransition } from "react";
 import { useTranslations } from "next-intl";
 import Link from "next/link";
-import { Archive, Building2, FolderKanban, FolderTree } from "lucide-react";
+import {
+  AlertTriangle,
+  Archive,
+  Building2,
+  FolderKanban,
+  FolderTree,
+  XCircle,
+} from "lucide-react";
 import { Tooltip } from "@/components/Tooltip";
 import { useToast } from "@/components/Toast";
 import { CustomerChip } from "@/components/CustomerChip";
@@ -694,7 +701,12 @@ function CustomerGroupRows({
             </td>
             {showBurnColumn && (
               <td className={`${tableBodyCellClass} text-right`}>
-                <BurnCell pct={periodBurnPctById[project.id] ?? null} />
+                <div className="flex justify-end">
+                  <BurnCell
+                    pct={periodBurnPctById[project.id] ?? null}
+                    projectName={project.name}
+                  />
+                </div>
               </td>
             )}
             <td className={tableBodyCellClass}>
@@ -710,23 +722,67 @@ function CustomerGroupRows({
   );
 }
 
-function BurnCell({ pct }: { pct: number | null }): React.JSX.Element {
+function BurnCell({
+  pct,
+  projectName,
+}: {
+  pct: number | null;
+  projectName: string;
+}): React.JSX.Element {
   if (pct === null) {
     return <span className="text-content-muted">—</span>;
   }
-  // Color anchored at fixed 80/100 — same rule as the masthead bars
-  // so a yellow row always means "approaching cap" regardless of
-  // each project's individual threshold setting.
-  const colorClass =
+  // 3-channel encoding: position (bar fill), color, and an icon at
+  // the 80%/100% breakpoints. Two non-color channels survives
+  // deuteranopia / protanopia — the masthead's hue-only treatment
+  // would flatten to a single grayscale fill for those viewers.
+  //
+  // pctForBar caps display at 100 so the bar fills cleanly even when
+  // the project is 250% over budget; the numeric text honors the
+  // true value so the reader still sees how bad it is.
+  const fillPct = Math.min(100, Math.max(0, pct));
+  const fillColorClass =
+    pct >= 100
+      ? "bg-error"
+      : pct >= 80
+        ? "bg-warning"
+        : "bg-success";
+  const textColorClass =
     pct >= 100
       ? "text-error font-semibold"
       : pct >= 80
         ? "text-warning font-semibold"
         : "text-content-secondary";
+  const Icon = pct >= 100 ? XCircle : pct >= 80 ? AlertTriangle : null;
+  const rounded = Math.round(pct);
   return (
-    <span className={`font-mono tabular-nums ${colorClass}`}>
-      {Math.round(pct)}%
-    </span>
+    <div
+      className="flex items-center gap-2 min-w-0"
+      role="progressbar"
+      aria-valuenow={rounded}
+      aria-valuemin={0}
+      aria-valuemax={100}
+      aria-label={`${projectName} budget burn ${rounded}%`}
+    >
+      <div className="h-1.5 w-16 rounded-full bg-edge overflow-hidden shrink-0">
+        <div
+          className={`h-1.5 rounded-full ${fillColorClass}`}
+          style={{ width: `${fillPct}%` }}
+        />
+      </div>
+      {Icon && (
+        <Icon
+          size={12}
+          aria-hidden="true"
+          className={`shrink-0 ${textColorClass}`}
+        />
+      )}
+      <span
+        className={`font-mono tabular-nums text-caption ${textColorClass}`}
+      >
+        {rounded}%
+      </span>
+    </div>
   );
 }
 

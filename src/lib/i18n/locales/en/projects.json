@@ -109,6 +109,7 @@
     "capBoth": "of {hours}h · ${dollars}",
     "hoursOnlyLabel": "No cap set",
     "dollarCaption": "${used} of ${cap}",
+    "dollarsDerivedFromRate": "Computed at {rate}/hr — re-derives if the rate changes.",
     "lastPeriod": "Last period",
     "thresholdTickAria": "Alert threshold at {pct}%",
     "periodBurnAria": "Current-period budget burn: {pct}%",
@@ -118,6 +119,14 @@
       "body": "{periodLabel} is at {pct}% of the cap (threshold {threshold}%).",
       "dismiss": "Dismiss"
     }
+  },
+  "budgetHelper": {
+    "atRate": "at {rate}/hr (rate change auto-rebinds the dollar value)",
+    "hoursPlaceholder": "Hours",
+    "dollarsLabel": "Budget dollars",
+    "dollarsPlaceholder": "0.00",
+    "noRateHint": "Set hourly rate above to enter the budget in dollars.",
+    "internalHint": "Internal project — no rate, dollar budget doesn't apply."
   },
   "subProjects": {
     "heading": "Sub-projects",

@@ -109,6 +109,7 @@
     "capBoth": "de {hours}h · ${dollars}",
     "hoursOnlyLabel": "Sin tope configurado",
     "dollarCaption": "${used} de ${cap}",
+    "dollarsDerivedFromRate": "Calculado a {rate}/h — se recalcula si cambia la tarifa.",
     "lastPeriod": "Período anterior",
     "thresholdTickAria": "Umbral de aviso al {pct}%",
     "periodBurnAria": "Consumo del presupuesto del período actual: {pct}%",
@@ -118,6 +119,14 @@
       "body": "{periodLabel} está al {pct}% del tope (umbral {threshold}%).",
       "dismiss": "Descartar"
     }
+  },
+  "budgetHelper": {
+    "atRate": "a {rate}/h (cambiar la tarifa recalcula el valor en dólares)",
+    "hoursPlaceholder": "Horas",
+    "dollarsLabel": "Presupuesto en dólares",
+    "dollarsPlaceholder": "0.00",
+    "noRateHint": "Establece la tarifa por hora arriba para ingresar el presupuesto en dólares.",
+    "internalHint": "Proyecto interno — sin tarifa, el presupuesto en dólares no aplica."
   },
   "subProjects": {
     "heading": "Sub-proyectos",

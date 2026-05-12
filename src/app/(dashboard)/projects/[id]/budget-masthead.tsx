@@ -283,12 +283,21 @@ function BudgetRow({
           {hoursOnlyLabel}
         </p>
       ) : capDollars != null && dollars != null ? (
-        <p className="mt-2 text-caption text-content-muted font-mono tabular-nums">
-          {t("dollarCaption", {
-            used: dollars.toFixed(2),
-            cap: capDollars.toFixed(2),
-          })}
-        </p>
+        <>
+          <p className="mt-2 text-caption text-content-muted font-mono tabular-nums">
+            {t("dollarCaption", {
+              used: dollars.toFixed(2),
+              cap: capDollars.toFixed(2),
+            })}
+          </p>
+          {rate != null && rate > 0 && (
+            <p className="mt-0.5 text-caption text-content-muted italic">
+              {t("dollarsDerivedFromRate", {
+                rate: `$${rate.toFixed(2)}`,
+              })}
+            </p>
+          )}
+        </>
       ) : null}
 
       {previousMinutes !== null && previousLabel && (

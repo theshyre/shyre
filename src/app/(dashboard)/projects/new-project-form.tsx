@@ -24,6 +24,7 @@ import {
   readParentInheritableFields,
 } from "@/lib/projects/parent-defaults";
 import { createProjectAction } from "./actions";
+import { BudgetHoursWithDollars } from "./budget-hours-with-dollars";
 
 interface CustomerOption {
   id: string;
@@ -353,19 +354,11 @@ export function NewProjectForm({
             className={inputClass}
           />
         </div>
-        <div>
-          <label htmlFor="new-project-budget-hours" className={labelClass}>
-            {t("fields.budgetHours")}
-          </label>
-          <input
-            id="new-project-budget-hours"
-            name="budget_hours"
-            type="number"
-            step="0.5"
-            min="0"
-            className={inputClass}
-          />
-        </div>
+        <BudgetHoursWithDollars
+          idPrefix="new-project"
+          hourlyRate={hourlyRate}
+          isInternal={isInternal}
+        />
         <div className="sm:col-span-2">
           <label htmlFor="projects-new-project-form-githubRepo" className={labelClass}>{t("fields.githubRepo")}</label>
           <input id="projects-new-project-form-githubRepo"

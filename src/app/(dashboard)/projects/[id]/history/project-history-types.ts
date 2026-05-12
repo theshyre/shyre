@@ -15,6 +15,18 @@ export const PROJECT_FIELD_LABELS: Record<string, string> = {
   description: "Description",
   hourly_rate: "Hourly rate",
   budget_hours: "Budget (hours)",
+  // Recurring-budget fields added 2026-05-12. The columns existed on
+  // `projects` since the 2026-05-06 migration and the `projects_history`
+  // trigger has been capturing them in `previous_state` all along,
+  // but `expandWithFieldDiffs` hides anything not in this map — so
+  // bumping a quarterly cap from 60h to 80h, or changing the alert
+  // threshold, was invisible in the timeline UI. Bookkeeper +
+  // agency-owner persona reviews both flagged this as blocking.
+  budget_period: "Budget period",
+  budget_hours_per_period: "Budget hours / period",
+  budget_dollars_per_period: "Budget dollars / period",
+  budget_alert_threshold_pct: "Budget alert threshold (%)",
+  budget_carryover: "Budget carryover",
   github_repo: "GitHub repo",
   jira_project_key: "Jira project key",
   invoice_code: "Invoice code",

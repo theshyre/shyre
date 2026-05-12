@@ -384,6 +384,39 @@ Smaller items pulled out of the audit campaign that closed on
   rule that flags `<label className={labelClass}>` without
   `htmlFor` so future regressions catch at lint time.
 
+## WIP report (work-in-progress, blocked on rate-at-entry snapshots)
+
+**What it answers:** "How much logged-but-unbilled labor do I have on the
+books right now?" Per-project (or per-customer / per-member) rollup of
+`SUM(duration_hours × rate)` across every billable time entry where
+`invoice_id IS NULL AND deleted_at IS NULL`.
+
+Surfaces in `/reports` as the Friday-before-invoicing view bookkeeper
++ agency-owner both ranked #1 (see persona reviews 2026-05-12, project
+budget visualization). Solo's same-day kill-feature is a row-level
+"Generate invoice" affordance on overrun rows (see Phase 1 — budget
+overruns table — for the immediate version).
+
+**Why deferred:** Shyre stores ONE current `hourly_rate` per project.
+A mid-engagement rate bump retroactively multiplies historical entries
+at the new rate, overstating WIP. The bookkeeper persona flagged this
+as the same class of bug as the budget-$-drift problem — anywhere we
+display "$X spent" derived from `current_rate × historical_hours`, the
+number moves under the user's feet on a rate edit, with no audit trail.
+
+**Prerequisite:** snapshot `rate_at_entry` (and currency) onto every
+`time_entries` row at insert/update time. Migration adds two columns,
+the create / start-timer / duplicate / update actions stamp from the
+project's effective rate at the moment, and every burn / WIP query
+shifts from `entries.duration × project.hourly_rate` to
+`entries.duration × entries.rate_at_entry`. Once that lands the WIP
+report (and the dollar-burn numbers throughout the masthead + the
+projects list) become honest.
+
+Same prereq unlocks: an accurate "$ spent of $ budget" caption in the
+masthead/list, a true rate-realization report, and CSV exports that
+won't disagree across re-runs after a rate edit.
+
 ## Sub-projects — Phase C and beyond
 
 Phases A and B (parent_project_id schema + rollup card + leaf-only

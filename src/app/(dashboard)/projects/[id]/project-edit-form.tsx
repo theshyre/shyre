@@ -20,6 +20,7 @@ import {
   readParentInheritableFields,
 } from "@/lib/projects/parent-defaults";
 import { updateProjectAction } from "../actions";
+import { BudgetHoursWithDollars } from "../budget-hours-with-dollars";
 
 interface Project {
   id: string;
@@ -348,20 +349,12 @@ export function ProjectEditForm({
               className={inputClass}
             />
           </div>
-          <div>
-            <label htmlFor="project-edit-budget-hours" className={labelClass}>
-              {t("fields.budgetHours")}
-            </label>
-            <input
-              id="project-edit-budget-hours"
-              name="budget_hours"
-              type="number"
-              step="0.5"
-              min="0"
-              defaultValue={project.budget_hours ?? ""}
-              className={inputClass}
-            />
-          </div>
+          <BudgetHoursWithDollars
+            idPrefix="project-edit"
+            defaultHours={project.budget_hours != null ? String(project.budget_hours) : ""}
+            hourlyRate={hourlyRate}
+            isInternal={project.is_internal}
+          />
           <div>
             <label htmlFor="project-edit-github-repo" className={labelClass}>
               {t("fields.githubRepo")}
