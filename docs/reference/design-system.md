@@ -43,7 +43,7 @@ All colors use semantic CSS custom properties defined in `globals.css` with 3 th
 
 ## Typography
 
-- Primary: Geist Sans (via `next/font/google`)
+- Primary: Geist Sans (via the self-hosted [`geist`](https://www.npmjs.com/package/geist) npm package — no build-time Google Fonts fetch)
 - Monospace: Geist Mono — used for monetary values, rates, durations
 
 **MANDATORY: use the semantic typography scale defined in `globals.css`.** Never use `text-[Npx]` or raw Tailwind `text-xs`/`text-sm`/`text-base`/`text-lg`/`text-xl` in new code — those are absolute sizes that won't scale with the user's text-size preference.

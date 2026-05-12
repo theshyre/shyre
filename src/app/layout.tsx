@@ -1,5 +1,12 @@
 import type { Metadata } from "next";
-import { Geist, Geist_Mono } from "next/font/google";
+// Geist is self-hosted via the official `geist` npm package rather
+// than `next/font/google`. The Google variant requires a build-time
+// fetch from fonts.googleapis.com which fails closed in sandboxed
+// CI/runtime environments and adds a third-party dependency to the
+// build. `geist` ships the same font files locally and exposes
+// matching `--font-geist-sans` / `--font-geist-mono` CSS variables.
+import { GeistSans } from "geist/font/sans";
+import { GeistMono } from "geist/font/mono";
 import { NextIntlClientProvider } from "next-intl";
 import { getLocale, getMessages } from "next-intl/server";
 import { buildAntiFlashScript } from "@theshyre/theme";
@@ -7,16 +14,6 @@ import { ThemeProvider } from "@/components/theme-provider";
 import { TextSizeProvider } from "@/components/text-size-provider";
 import { TopProgressBar } from "@/components/TopProgressBar";
 import "./globals.css";
-
-const geistSans = Geist({
-  variable: "--font-geist-sans",
-  subsets: ["latin"],
-});
-
-const geistMono = Geist_Mono({
-  variable: "--font-geist-mono",
-  subsets: ["latin"],
-});
 
 export const metadata: Metadata = {
   // Per-route metadata exports return a bare page label (e.g. "Invoices",
@@ -44,7 +41,7 @@ export default async function RootLayout({
   return (
     <html
       lang={locale}
-      className={`${geistSans.variable} ${geistMono.variable} h-full antialiased`}
+      className={`${GeistSans.variable} ${GeistMono.variable} h-full antialiased`}
       suppressHydrationWarning
     >
       <head>
