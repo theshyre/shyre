@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { localDayBoundsIso } from "./local-day-bounds";
+import { localDayBoundsIso, isInLocalDay } from "./local-day-bounds";
 
 describe("localDayBoundsIso", () => {
   it("returns a [start, end] pair separated by exactly 24 hours", () => {
@@ -53,5 +53,76 @@ describe("localDayBoundsIso", () => {
     const today = new Date();
     expect(start.getDate()).toBe(today.getDate());
     expect(end.getTime() - start.getTime()).toBe(24 * 60 * 60 * 1000);
+  });
+});
+
+describe("isInLocalDay", () => {
+  const dayStart = "2026-05-12T07:00:00.000Z";
+  const dayEnd = "2026-05-13T07:00:00.000Z";
+
+  it("returns true for a timestamp inside the window", () => {
+    expect(isInLocalDay("2026-05-12T14:30:00.000Z", dayStart, dayEnd)).toBe(
+      true,
+    );
+  });
+
+  it("returns true for a timestamp exactly at the lower bound", () => {
+    expect(isInLocalDay("2026-05-12T07:00:00.000Z", dayStart, dayEnd)).toBe(
+      true,
+    );
+  });
+
+  it("returns false for a timestamp exactly at the upper bound (half-open)", () => {
+    expect(isInLocalDay("2026-05-13T07:00:00.000Z", dayStart, dayEnd)).toBe(
+      false,
+    );
+  });
+
+  it("returns false for a timestamp before the window", () => {
+    expect(isInLocalDay("2026-05-12T06:59:59.999Z", dayStart, dayEnd)).toBe(
+      false,
+    );
+  });
+
+  // The bug this guards against: Postgres `timestamptz` serializes to
+  // `"YYYY-MM-DDTHH:MM:SS+00:00"`. Comparing that string against a
+  // `Date.toISOString()` bound (`"...Z"`) lexicographically marks the
+  // entry as "before the window" because `+` (0x2B) < `Z` (0x5A).
+  // Forces numeric comparison.
+  it("correctly classifies a Postgres-style `+00:00` timestamp at the boundary", () => {
+    expect(
+      isInLocalDay("2026-05-12T07:00:00+00:00", dayStart, dayEnd),
+    ).toBe(true);
+  });
+
+  it("correctly classifies a Postgres-style timestamp inside the window", () => {
+    expect(
+      isInLocalDay("2026-05-12T14:30:00+00:00", dayStart, dayEnd),
+    ).toBe(true);
+  });
+
+  it("handles fractional-second precision from Postgres (`.123456+00:00`)", () => {
+    expect(
+      isInLocalDay("2026-05-12T07:00:00.123456+00:00", dayStart, dayEnd),
+    ).toBe(true);
+  });
+
+  it("returns false for a Postgres-style timestamp on the prior day", () => {
+    expect(
+      isInLocalDay("2026-05-12T06:59:59+00:00", dayStart, dayEnd),
+    ).toBe(false);
+  });
+
+  it("returns false for a Postgres-style timestamp on the next day", () => {
+    expect(
+      isInLocalDay("2026-05-13T07:00:00+00:00", dayStart, dayEnd),
+    ).toBe(false);
+  });
+
+  it("handles non-UTC offsets correctly (instant-based, not wall-clock)", () => {
+    // 2026-05-12 03:00 EDT == 07:00 UTC == start of the window.
+    expect(
+      isInLocalDay("2026-05-12T03:00:00-04:00", dayStart, dayEnd),
+    ).toBe(true);
   });
 });

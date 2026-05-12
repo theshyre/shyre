@@ -5,6 +5,7 @@ import { assertSupabaseOk } from "@/lib/errors";
 import { validateTeamAccess } from "@/lib/team-context";
 import { localDateMidnightUtc } from "@/lib/time/tz";
 import { buildTicketAttachment } from "@/lib/tickets/attach";
+import { isInLocalDay } from "@/lib/local-day-bounds";
 import { revalidatePath } from "next/cache";
 
 /**
@@ -567,9 +568,11 @@ export async function startTimerAction(formData: FormData): Promise<void> {
           d.setUTCDate(d.getUTCDate() + 1);
           return d.toISOString();
         })();
-      const sourceStart = source.start_time as string;
-      const isOnToday =
-        sourceStart >= dayStartLocal && sourceStart < dayEndLocal;
+      const isOnToday = isInLocalDay(
+        source.start_time as string,
+        dayStartLocal,
+        dayEndLocal,
+      );
 
       if (isOnToday) {
         // Resume in place — backdate start_time so the running
