@@ -33,6 +33,10 @@ export default defineConfig({
         branches: 39,
         functions: 42,
         lines: 46,
+        // Note: measured numbers as of 2026-05-12 are 46.39 / 39.38
+        // / 42.52 / 46.56. The floor is set just below to allow
+        // 0.2-0.3 pp slack for nondeterminism. Ratchet on the next
+        // coverage-raising PR.
       },
     },
   },
