@@ -14,7 +14,7 @@ import { addLocalDays } from "@/lib/time/tz";
 import { buttonSecondaryClass } from "@/lib/form-styles";
 import { EntryTable } from "./entry-table";
 import { JumpToDate } from "./jump-to-date";
-import type { EntryGroup } from "@/lib/time/grouping";
+import { groupEntriesByCustomer } from "./customer-grouping";
 import type { CategoryOption, ProjectOption, TimeEntry } from "./types";
 
 interface DayBand {
@@ -213,6 +213,11 @@ function BandSection({
   tEmpty: string;
   tToday: string;
 }): React.JSX.Element {
+  const tTimesheet = useTranslations("time.timesheet.customerSubgroup");
+  const customerGroups = groupEntriesByCustomer(band.entries, projects, {
+    internal: tTimesheet("internal"),
+    noCustomer: tTimesheet("noCustomer"),
+  });
   const totalMin = sumDurationMin(band.entries);
   const billableMin = sumBillableMin(band.entries);
   const headingId = `log-day-${band.key}`;
@@ -277,13 +282,17 @@ function BandSection({
         </div>
       ) : (
         <div className="px-3 pb-3 pt-1">
+          {/* Customer sub-grouped EntryTable — mirrors the Day view's
+              layout so a user scanning the Log sees one customer
+              cluster per (day × customer) pair, with the hashed rail
+              tying same-customer rows together. Part of the time-
+              views parity rule (memory: feedback_time_views_parity). */}
           <EntryTable
-            groups={[singleDayGroup(band)]}
+            groups={customerGroups}
             projects={projects}
             categories={categories}
             expandedEntryId={expandedEntryId}
             onToggleExpand={onToggleExpand}
-            hideGroupHeaders
             tzOffsetMin={tzOffsetMin}
             viewerUserId={viewerUserId}
           />
@@ -291,17 +300,6 @@ function BandSection({
       )}
     </section>
   );
-}
-
-/** Wrap a band's entries in the EntryGroup shape EntryTable consumes. */
-function singleDayGroup(band: DayBand): EntryGroup<TimeEntry> {
-  return {
-    id: band.key,
-    label: band.key,
-    entries: band.entries,
-    totalMin: sumDurationMin(band.entries),
-    billableMin: sumBillableMin(band.entries),
-  };
 }
 
 /** ISO start_time → local YYYY-MM-DD using the user's tz offset.

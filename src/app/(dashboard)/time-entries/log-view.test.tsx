@@ -18,7 +18,7 @@ vi.mock("./actions", () => ({
 
 import { LogView } from "./log-view";
 import { ToastProvider } from "@/components/Toast";
-import type { TimeEntry } from "./types";
+import type { ProjectOption, TimeEntry } from "./types";
 
 function renderLog(ui: React.ReactElement): ReturnType<typeof renderWithIntl> {
   return renderWithIntl(<ToastProvider>{ui}</ToastProvider>);
@@ -137,5 +137,57 @@ describe("LogView", () => {
     for (const h of heads) {
       expect(h).not.toHaveAttribute("aria-current", "date");
     }
+  });
+
+  // Log view customer sub-grouping (parity rule with Week + Day, 2026-05-12).
+  // Within each day band, entries are sub-grouped by customer; every
+  // customer renders a <th scope="rowgroup"> sub-header regardless of
+  // entry count, so a day with two customers shows two sub-headers.
+  it("sub-groups each day's entries by customer", () => {
+    const projAcme: ProjectOption = {
+      id: "p-acme",
+      name: "Acme Project",
+      github_repo: null,
+      jira_project_key: null,
+      team_id: "o1",
+      category_set_id: null,
+      require_timestamps: false,
+      customers: { id: "cust-acme", name: "Acme Corp" },
+    };
+    const projBeta: ProjectOption = {
+      id: "p-beta",
+      name: "Beta Project",
+      github_repo: null,
+      jira_project_key: null,
+      team_id: "o1",
+      category_set_id: null,
+      require_timestamps: false,
+      customers: { id: "cust-beta", name: "Beta LLC" },
+    };
+    const entries: TimeEntry[] = [
+      {
+        ...makeEntry("a", new Date(Date.UTC(2026, 3, 29, 9))),
+        project_id: "p-acme",
+        projects: { id: "p-acme", name: "Acme Project", github_repo: null },
+      },
+      {
+        ...makeEntry("b", new Date(Date.UTC(2026, 3, 29, 11))),
+        project_id: "p-beta",
+        projects: { id: "p-beta", name: "Beta Project", github_repo: null },
+      },
+    ];
+    const { container } = renderLog(
+      <LogView
+        {...baseProps}
+        projects={[projAcme, projBeta]}
+        entries={entries}
+      />,
+    );
+    const rowgroups = container.querySelectorAll("th[scope='rowgroup']");
+    // Exactly one rowgroup per customer in today's band.
+    expect(rowgroups).toHaveLength(2);
+    const labels = Array.from(rowgroups).map((el) => el.textContent ?? "");
+    expect(labels.some((l) => l.includes("Acme Corp"))).toBe(true);
+    expect(labels.some((l) => l.includes("Beta LLC"))).toBe(true);
   });
 });
