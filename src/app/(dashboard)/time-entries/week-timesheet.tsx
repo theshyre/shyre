@@ -60,6 +60,7 @@ import { Tooltip } from "@/components/Tooltip";
 import { useAutosaveStatus } from "@/hooks/useAutosaveStatus";
 import { useToast } from "@/components/Toast";
 import { EntryAuthor } from "@/components/EntryAuthor";
+import { CustomerChip } from "@/components/CustomerChip";
 import { JumpToDate } from "./jump-to-date";
 import type { AuthorInfo, CategoryOption, ProjectOption, TimeEntry } from "./types";
 
@@ -1282,22 +1283,34 @@ function TimesheetRow({
               source of "Pierce …" cut-offs); a Tooltip restores the
               full name on hover per the MANDATORY truncation-tooltip
               rule. */}
+          {/* Customer identity. CustomerChip is a square initials
+              tile drawn from the AVATAR_PRESETS palette and hashed
+              on customer.id so the color is stable across renames.
+              Replaces the all-caps "CUSTOMER" label — the chip
+              itself signals the role (square = organization, paired
+              with a name) per the Entity Identity rule. */}
           {!hideProject &&
             (project?.customers?.name ? (
-              <Tooltip label={project.customers.name}>
-                <div className="text-caption text-content-secondary truncate mt-0.5">
-                  <span className="text-label uppercase text-content-muted mr-1.5">
-                    {t("row.customerLabel")}
-                  </span>
-                  {project.customers.name}
-                </div>
-              </Tooltip>
+              <div className="flex items-center gap-1.5 mt-0.5 min-w-0">
+                <CustomerChip
+                  customerId={project.customers.id ?? null}
+                  customerName={project.customers.name}
+                />
+                <Tooltip label={project.customers.name}>
+                  <div className="text-caption text-content-secondary truncate min-w-0">
+                    {project.customers.name}
+                  </div>
+                </Tooltip>
+              </div>
             ) : (
-              <div className="text-caption text-content-muted truncate mt-0.5">
-                <span className="text-label uppercase mr-1.5">
-                  {t("row.customerLabel")}
+              <div className="flex items-center gap-1.5 mt-0.5 min-w-0">
+                <CustomerChip
+                  customerId={null}
+                  customerName={null}
+                />
+                <span className="text-caption text-content-muted italic truncate">
+                  {t("row.noCustomer")}
                 </span>
-                <span className="italic">{t("row.noCustomer")}</span>
               </div>
             ))}
           {/* Project line — only when the row's headline is Category

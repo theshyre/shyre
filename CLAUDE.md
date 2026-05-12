@@ -161,6 +161,21 @@ Every meaningful UI element communicates through ≥2 of 3 channels: icon, text,
 
 Every time entry displayed anywhere in the app must show who logged it (avatar + display name, or avatar with name-on-hover in dense contexts). No conditional hide based on author count. Render via `<Avatar>` from `@theshyre/ui` paired with `user_profiles.display_name`. Fetch `user_profiles(display_name, avatar_url)` on every query that returns a time entry destined for display. Generalizes to any future user-authored content.
 
+### Entity identity
+
+Every recurring entity rendered as identifying context across multiple surfaces gets a stable, deterministic visual identity-mark in addition to its text name. ≥2 channels (text + identity-mark) on every surface where the entity appears. The identity-mark is type-specific:
+
+- **Members** → round `<Avatar>` from `@theshyre/ui`, hashed on `user_id` via `presetAvatarUrl()`. Existing — satisfied.
+- **Customers** → square `<CustomerChip>` with 2-letter initials, hashed on `customer.id` from the same `AVATAR_PRESETS` palette as Avatar. Round vs. square disambiguates "person" vs. "organization" at any size.
+- **Categories** → colored dot (existing — see week-timesheet's category dot). The free-form category-color picker today is grandfathered; a follow-up audit will constrain it to the curated palette and verify contrast in light / dark / high-contrast.
+- **Projects** → inherit the customer's chip + their own project-name text. No independent identity-mark (would double the visual vocabulary for no scanning gain).
+
+Identity-marks are `aria-hidden="true"` — the accessible name comes from the text label rendered next to the chip. Screen readers never speak "EC" as the customer's identity. Initials collisions (`Atlas Corp` and `Acme Co` both → "AC") are acceptable because color is the disambiguator for sighted users and the full name is always paired.
+
+Colors come from the per-theme `AVATAR_PRESETS` palette (CVD-audited, contrast-vetted) — never free-form HSL hashes. New entity types must reuse the same palette unless a documented contrast audit justifies a separate set.
+
+Surfaces in scope today: time-entries (week / day / log views), customer list, project list / detail, invoice list / detail, dashboard widgets, reports breakdowns, search results, command palette. Out of scope: PDF invoices to clients, statement-of-work exports, customer-facing portals — internal scanning aid, not client-facing branding.
+
 ### Navigation feedback
 
 Every nav-triggering action must give visible feedback within 100ms.

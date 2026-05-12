@@ -594,4 +594,45 @@ describe("WeekTimesheet", () => {
     // No "entries" count, no ticket chip — the empty state is intact.
     expect(screen.queryByText(/entries/i)).toBeNull();
   });
+
+  // Entity identity rule (CLAUDE.md): every customer reference gets
+  // a stable visual identity-mark in addition to the text name.
+  it("renders a CustomerChip next to the customer name on the row", () => {
+    const projectWithCustomer: ProjectOption = {
+      ...project,
+      customers: { id: "cust-1", name: "Acme Corp" },
+    };
+    const e = makeEntry("e1", {
+      day: 0,
+      durationMin: 60,
+      projectId: projectWithCustomer.id,
+    });
+    // makeEntry's hardcoded projects field would override; rewrite it
+    // here so the row resolves the customer.
+    const entry: TimeEntry = {
+      ...e,
+      projects: {
+        id: projectWithCustomer.id,
+        name: projectWithCustomer.name,
+        github_repo: null,
+      },
+    };
+    const { container } = renderTimesheet(
+      <WeekTimesheet
+        weekStartStr={weekStartStr}
+        tzOffsetMin={tzOffsetMin}
+        entries={[entry]}
+        projects={[projectWithCustomer]}
+        categories={[]}
+      />,
+    );
+    // Chip is aria-hidden with 2-letter initials. Acme Corp → "AC".
+    const chips = container.querySelectorAll(
+      "span[aria-hidden='true']",
+    );
+    const acmeChip = Array.from(chips).find(
+      (el) => el.textContent === "AC",
+    );
+    expect(acmeChip).toBeDefined();
+  });
 });
