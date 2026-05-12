@@ -33,6 +33,8 @@ export default defineConfig({
         branches: 36,
         functions: 39,
         lines: 43,
+        // Current measurement: 43.84 / 36.83 / 39.99 / 43.93.
+        // Bumped 2026-05-12 push #5.
       },
     },
   },
