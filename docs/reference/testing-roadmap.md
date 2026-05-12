@@ -17,13 +17,14 @@ Build:     `npm run ci:local` now also runs `next build` to catch
            lint/typecheck/vitest miss.
 ```
 
-**2026-05-12 push — coverage wave 1.** +104 new tests across 9 previously-untested files:
-schema validators (`customer.ts`, `project.ts`, `team-settings.ts`), messaging
-registry (`variables.ts`, `allow-lists.ts`, `providers/index.ts`), breadcrumb
-registry data invariants, table-style constant guardrails, table-density
-server action, and a focused `loadInvoiceSendBundle` mock-supabase suite.
-Floor ratcheted to 45 / 38 / 42 / 45. Established the time-views parity
-rule (week/day/log — see `memory/feedback_time_views_parity.md`).
+**2026-05-12 push — coverage waves 1 + 2.** +126 new tests across 10
+previously-untested files. Wave 1 covered the low-hanging schema + registry
++ table-style + invoice-bundle targets. Wave 2 added a focused
+`sendInvoice` orchestrator suite (22 cases — happy path, every failure
+mode, idempotency-key shape, override precedence, envelope-count cap
+accounting). Floor ratcheted from 44/36/40/44 to 46/39/42/46. Established
+the time-views parity rule (week/day/log — see
+`memory/feedback_time_views_parity.md`).
 
 **2026-05-11 push #2 (priority items 10–19).** 132 new tests
 across 8 untested server-action files. Coverage gain ~3 pp; the
