@@ -1037,7 +1037,7 @@ export function WeekTimesheet({
                     isToday ? "bg-accent-soft/40" : ""
                   }`}
                 >
-                  {min > 0 ? formatDurationHMZero(min) : <span className="text-content-muted/50">·</span>}
+                  {min > 0 ? formatDurationHMZero(min) : <span className="text-content-muted">·</span>}
                 </td>
               );
             })}
@@ -1065,6 +1065,7 @@ function TimesheetRow({
   projects,
   categories,
   groupBy,
+  hideCustomer = false,
   onCellCommit,
   onDelete,
   onDiscardEmpty,
@@ -1088,6 +1089,12 @@ function TimesheetRow({
    *  placement — the chip appears on non-member groupings so the viewer
    *  can always tell whose time they're looking at. */
   groupBy: GroupBy;
+  /** True when this row sits beneath a customer sub-group header
+   *  (Member groupings, multi-row customer runs). The chip + name
+   *  live in the sub-header so we suppress the per-row customer
+   *  block. False for inline single-row customers (no sub-header)
+   *  and for non-Member groupings. */
+  hideCustomer?: boolean;
   onCellCommit: (dayIndex: number, minutes: number) => void | Promise<void>;
   onDelete: () => void;
   onDiscardEmpty: () => void;
@@ -1292,51 +1299,57 @@ function TimesheetRow({
               Internal projects (project.is_internal) get the
               Building glyph + "Internal" label instead of the
               missing-data treatment — the lack of a customer is
-              intentional design, not a gap. */}
-          {!hideProject &&
+              intentional design, not a gap.
+              `hideCustomer` is true when the row sits beneath a
+              customer sub-group header (Member groupings only) —
+              chip + name moves into the sub-header so contiguous
+              same-customer rows don't repeat themselves. */}
+          {!hideProject && !hideCustomer &&
             (project?.customers?.name ? (
-              <div className="flex items-center gap-1.5 mt-0.5 min-w-0">
+              <div className="flex items-center gap-1.5 mt-1 min-w-0">
                 <CustomerChip
                   customerId={project.customers.id ?? null}
                   customerName={project.customers.name}
                 />
                 <Tooltip label={project.customers.name}>
-                  <div className="text-caption text-content-secondary truncate min-w-0">
+                  <div className="text-body text-content-secondary truncate min-w-0">
                     {project.customers.name}
                   </div>
                 </Tooltip>
               </div>
             ) : project?.is_internal ? (
-              <div className="flex items-center gap-1.5 mt-0.5 min-w-0">
+              <div className="flex items-center gap-1.5 mt-1 min-w-0">
                 <CustomerChip
                   customerId={null}
                   customerName={null}
                   internal
                 />
-                <span className="text-caption text-content-secondary truncate">
+                <span className="text-body text-content-secondary truncate">
                   {t("row.internal")}
                 </span>
               </div>
             ) : (
-              <div className="flex items-center gap-1.5 mt-0.5 min-w-0">
+              <div className="flex items-center gap-1.5 mt-1 min-w-0">
                 <CustomerChip
                   customerId={null}
                   customerName={null}
                 />
-                <span className="text-caption text-content-muted italic truncate">
+                <span className="text-body text-content-muted italic truncate">
                   {t("row.noCustomer")}
                 </span>
               </div>
             ))}
           {/* Project line — only when the row's headline is Category
               and Project isn't already promoted (hideCategory) or
-              hidden into the group header (hideProject). */}
+              hidden into the group header (hideProject). The
+              uppercase "PROJECT" prefix was dropped (persona review,
+              2026-05-12): project is the only metadata line without
+              a chip, so users identify it by elimination; the prefix
+              shouted structure for no scanning gain and ate ~50px of
+              truncation budget. */}
           {!hideCategory && !hideProject && (
             <Tooltip label={project?.name ?? t("row.noProject")}>
-              <div className="text-caption text-content-secondary truncate mt-0.5">
-                <span className="text-label uppercase text-content-muted mr-1.5">
-                  {t("row.projectLabel")}
-                </span>
+              <div className="text-body text-content-secondary truncate mt-1">
                 {project?.name ?? (
                   <span className="italic text-content-muted">
                     {t("row.noProject")}
@@ -1363,7 +1376,7 @@ function TimesheetRow({
               const ticketUrl = e.linked_ticket_url;
               const description = e.description ?? "";
               return (
-                <div className="flex items-center gap-1.5 text-caption mt-0.5 min-w-0">
+                <div className="flex items-center gap-1.5 text-body mt-1 min-w-0">
                   {ticketKey ? (
                     ticketUrl ? (
                       <a
@@ -1371,21 +1384,21 @@ function TimesheetRow({
                         target="_blank"
                         rel="noopener noreferrer"
                         aria-label={tEntry("ticketLinkAria", { key: ticketKey })}
-                        className="inline-flex items-center gap-1 font-mono text-caption text-accent shrink-0 hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent rounded"
+                        className="inline-flex items-center gap-1 font-mono text-body text-accent shrink-0 hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent rounded"
                       >
-                        <ExternalLink size={11} aria-hidden="true" className="shrink-0" />
+                        <ExternalLink size={12} aria-hidden="true" className="shrink-0" />
                         {ticketKey}
                       </a>
                     ) : (
-                      <span className="inline-flex items-center gap-1 font-mono text-caption text-accent shrink-0">
-                        <LinkIcon size={11} aria-hidden="true" className="shrink-0" />
+                      <span className="inline-flex items-center gap-1 font-mono text-body text-accent shrink-0">
+                        <LinkIcon size={12} aria-hidden="true" className="shrink-0" />
                         {ticketKey}
                       </span>
                     )
                   ) : null}
                   <Tooltip label={description || tEntry("untitled")}>
                     <span
-                      className="text-content-secondary truncate min-w-0"
+                      className="text-body text-content-secondary truncate min-w-0"
                       aria-hidden="true"
                     >
                       {description || (
@@ -1402,7 +1415,7 @@ function TimesheetRow({
               );
             }
             return (
-              <div className="text-caption text-content-muted mt-0.5">
+              <div className="text-caption text-content-muted mt-1">
                 {t("row.entryCount", { count: flat.length })}
               </div>
             );
@@ -1529,7 +1542,7 @@ function TimesheetRow({
               // read-only total. Per-entry sub-rows below handle
               // the editable per-day durations.
               <div className="w-full py-1 text-right font-mono text-title tabular-nums text-content-muted">
-                {min > 0 ? formatDurationHMZero(min) : <span className="text-content-muted/50">·</span>}
+                {min > 0 ? formatDurationHMZero(min) : <span className="text-content-muted">·</span>}
               </div>
             )}
           </td>
@@ -1547,7 +1560,7 @@ function TimesheetRow({
           return rowTotalDisplay > 0 ? (
             formatDurationHMZero(rowTotalDisplay)
           ) : (
-            <span className="text-content-muted/50">—</span>
+            <span className="text-content-muted">—</span>
           );
         })()}
       </td>
@@ -1825,7 +1838,7 @@ function GroupBlock({
               {min > 0 ? (
                 formatDurationHMZero(min)
               ) : (
-                <span className="text-content-muted/50">·</span>
+                <span className="text-content-muted">·</span>
               )}
             </td>
           );
@@ -1836,72 +1849,352 @@ function GroupBlock({
         <td className="px-2 py-1.5" />
       </tr>
       {!collapsed &&
-        group.rows.map((row) => {
-          const rowIdx = rowsFlat.indexOf(row);
-          return (
-            <TimesheetRow
-              key={`${row.projectId}::${row.categoryId ?? ""}::${row.userId}`}
-              rowIndex={rowIdx}
-              row={row}
-              projects={projects}
-              categories={categories}
-              groupBy={groupBy}
-              onCellCommit={(dayIndex, minutes) =>
-                onCellCommit(row.projectId, row.categoryId, dayIndex, minutes)
-              }
-              onDelete={() => {
-                void onDelete(row.projectId, row.categoryId, row.userId);
-              }}
-              onDiscardEmpty={() =>
-                onDiscardEmpty(row.projectId, row.categoryId)
-              }
-              onStartTimer={() => {
-                void onStartTimer(row.projectId, row.categoryId);
-              }}
-              isRunningRow={
-                !!runningEntry &&
-                runningEntry.project_id === row.projectId &&
-                runningEntry.category_id === row.categoryId &&
-                runningEntry.user_id === row.userId
-              }
-              runningStartIso={
-                runningEntry &&
-                runningEntry.project_id === row.projectId &&
-                runningEntry.category_id === row.categoryId &&
-                runningEntry.user_id === row.userId
-                  ? runningEntry.start_time
-                  : null
-              }
-              runningDayIndex={
-                runningEntry &&
-                runningEntry.project_id === row.projectId &&
-                runningEntry.category_id === row.categoryId &&
-                runningEntry.user_id === row.userId
-                  ? runningDayIndex
-                  : -1
-              }
-              onStopTimer={
-                runningEntry &&
-                runningEntry.project_id === row.projectId &&
-                runningEntry.category_id === row.categoryId &&
-                runningEntry.user_id === row.userId
-                  ? () => void onStopTimer(runningEntry.id)
-                  : undefined
-              }
-              weekDays={weekDays}
-              todayStr={todayStr}
-              tzOffsetMin={tzOffsetMin}
-              setCellRef={setCellRef}
-              onArrowNav={(dir, dayIdx) => {
-                if (dir === "up") focusCell(rowIdx - 1, dayIdx, "up");
-                else if (dir === "down") focusCell(rowIdx + 1, dayIdx, "down");
-                else if (dir === "left") focusCell(rowIdx, dayIdx - 1);
-                else focusCell(rowIdx, dayIdx + 1);
-              }}
-            />
-          );
+        renderGroupedRows({
+          group,
+          groupBy,
+          projects,
+          categories,
+          rowsFlat,
+          weekDays,
+          todayStr,
+          tzOffsetMin,
+          setCellRef,
+          focusCell,
+          onCellCommit,
+          onDelete,
+          onDiscardEmpty,
+          onStartTimer,
+          runningEntry,
+          runningDayIndex,
+          onStopTimer,
         })}
     </tbody>
+  );
+}
+
+/** Customer sub-grouping inside a Member-grouped block. Contiguous
+ *  rows from the same customer collapse into a sub-group with a
+ *  shared header; single-row customers render inline (no sub-header
+ *  for a group of one). Persona-converged design (UX + solo + agency
+ *  + a11y, 2026-05-12): the same customer name repeating on three
+ *  consecutive rows didn't communicate grouping — the sub-header
+ *  carries the chip + name + per-day subtotals once, and the rows
+ *  beneath drop their per-row customer line. */
+interface CustomerSubGroup {
+  /** Customer id, or null for internal/no-customer rows. */
+  customerId: string | null;
+  customerName: string | null;
+  /** True when the rows in this sub-group belong to projects flagged
+   *  is_internal — surfaces as a "Internal" label + Building chip. */
+  isInternal: boolean;
+  rows: Row[];
+  byDay: number[];
+  totalMin: number;
+}
+
+function buildCustomerSubGroups(
+  rows: Row[],
+  projects: ProjectOption[],
+  categories: CategoryOption[],
+): CustomerSubGroup[] {
+  const byKey = new Map<string, CustomerSubGroup>();
+  for (const row of rows) {
+    const project = projects.find((p) => p.id === row.projectId);
+    const customer = project?.customers ?? null;
+    const isInternal = !customer && project?.is_internal === true;
+    const key = customer?.id ?? (isInternal ? "__internal__" : "__no_customer__");
+    let sg = byKey.get(key);
+    if (!sg) {
+      sg = {
+        customerId: customer?.id ?? null,
+        customerName: customer?.name ?? null,
+        isInternal,
+        rows: [],
+        byDay: Array.from({ length: DAYS_IN_WEEK }, () => 0),
+        totalMin: 0,
+      };
+      byKey.set(key, sg);
+    }
+    sg.rows.push(row);
+    for (let i = 0; i < DAYS_IN_WEEK; i++) {
+      const m = row.byDay[i] ?? 0;
+      sg.byDay[i] = (sg.byDay[i] ?? 0) + m;
+      sg.totalMin += m;
+    }
+  }
+  // Sort customer sub-groups: named customers alpha first, then
+  // Internal, then No-customer. Predictable scan order for owners.
+  const out = Array.from(byKey.values()).sort((a, b) => {
+    const rank = (s: CustomerSubGroup): number => {
+      if (s.customerName) return 0;
+      if (s.isInternal) return 1;
+      return 2;
+    };
+    const ra = rank(a);
+    const rb = rank(b);
+    if (ra !== rb) return ra - rb;
+    return (a.customerName ?? "").localeCompare(b.customerName ?? "");
+  });
+  // Sort rows inside each sub-group by category name then project
+  // name. Without this the order is insertion-order from the upstream
+  // Map — arbitrary across renders.
+  for (const sg of out) {
+    sg.rows.sort((a, b) => {
+      const catA =
+        (a.categoryId
+          ? categories.find((c) => c.id === a.categoryId)?.name
+          : null) ?? "";
+      const catB =
+        (b.categoryId
+          ? categories.find((c) => c.id === b.categoryId)?.name
+          : null) ?? "";
+      if (catA !== catB) return catA.localeCompare(catB);
+      const projA = projects.find((p) => p.id === a.projectId)?.name ?? "";
+      const projB = projects.find((p) => p.id === b.projectId)?.name ?? "";
+      return projA.localeCompare(projB);
+    });
+  }
+  return out;
+}
+
+interface RenderGroupedRowsArgs {
+  group: RowGroup;
+  groupBy: GroupBy;
+  projects: ProjectOption[];
+  categories: CategoryOption[];
+  rowsFlat: Row[];
+  weekDays: string[];
+  todayStr: string;
+  tzOffsetMin: number | undefined;
+  setCellRef: (row: number, day: number, el: HTMLInputElement | null) => void;
+  focusCell: (
+    rowIdx: number,
+    dayIdx: number,
+    dir?: "up" | "down",
+  ) => void;
+  onCellCommit: (
+    projectId: string,
+    categoryId: string | null,
+    dayIndex: number,
+    minutes: number,
+  ) => void | Promise<void>;
+  onDelete: (
+    projectId: string,
+    categoryId: string | null,
+    userId: string,
+  ) => void | Promise<void>;
+  onDiscardEmpty: (projectId: string, categoryId: string | null) => void;
+  onStartTimer: (
+    projectId: string,
+    categoryId: string | null,
+  ) => void | Promise<void>;
+  runningEntry: TimeEntry | null;
+  runningDayIndex: number;
+  onStopTimer: (entryId: string) => void | Promise<void>;
+}
+
+function renderGroupedRows(args: RenderGroupedRowsArgs): React.JSX.Element[] {
+  const { group, groupBy, projects, weekDays, todayStr } = args;
+  // Customer sub-grouping only fires under Member groupings — under
+  // Project (one customer per group) it's degenerate, and under
+  // Category it would shatter the same category across customers,
+  // which is the opposite of what scanning by category wants.
+  if (groupBy !== "member") {
+    return group.rows.map((row) => renderTimesheetRow(args, row, false));
+  }
+  const subGroups = buildCustomerSubGroups(group.rows, projects, args.categories);
+  const out: React.JSX.Element[] = [];
+  for (const sg of subGroups) {
+    const headerKey = `cust:${sg.customerId ?? (sg.isInternal ? "__internal__" : "__none__")}`;
+    if (sg.rows.length > 1) {
+      // Multi-row customer → emit a sub-header + rows with hideCustomer.
+      out.push(
+        <CustomerSubHeader
+          key={`${headerKey}:header`}
+          subGroup={sg}
+          weekDays={weekDays}
+          todayStr={todayStr}
+        />,
+      );
+      for (const row of sg.rows) {
+        out.push(renderTimesheetRow(args, row, true));
+      }
+    } else {
+      // Single-row customer → render inline; the row keeps its chip+name.
+      for (const row of sg.rows) {
+        out.push(renderTimesheetRow(args, row, false));
+      }
+    }
+  }
+  return out;
+}
+
+function renderTimesheetRow(
+  args: RenderGroupedRowsArgs,
+  row: Row,
+  hideCustomer: boolean,
+): React.JSX.Element {
+  const {
+    groupBy,
+    projects,
+    categories,
+    rowsFlat,
+    weekDays,
+    todayStr,
+    tzOffsetMin,
+    setCellRef,
+    focusCell,
+    onCellCommit,
+    onDelete,
+    onDiscardEmpty,
+    onStartTimer,
+    runningEntry,
+    runningDayIndex,
+    onStopTimer,
+  } = args;
+  const rowIdx = rowsFlat.indexOf(row);
+  const isRunningRow =
+    !!runningEntry &&
+    runningEntry.project_id === row.projectId &&
+    runningEntry.category_id === row.categoryId &&
+    runningEntry.user_id === row.userId;
+  return (
+    <TimesheetRow
+      key={`${row.projectId}::${row.categoryId ?? ""}::${row.userId}`}
+      rowIndex={rowIdx}
+      row={row}
+      projects={projects}
+      categories={categories}
+      groupBy={groupBy}
+      hideCustomer={hideCustomer}
+      onCellCommit={(dayIndex, minutes) =>
+        onCellCommit(row.projectId, row.categoryId, dayIndex, minutes)
+      }
+      onDelete={() => {
+        void onDelete(row.projectId, row.categoryId, row.userId);
+      }}
+      onDiscardEmpty={() => onDiscardEmpty(row.projectId, row.categoryId)}
+      onStartTimer={() => {
+        void onStartTimer(row.projectId, row.categoryId);
+      }}
+      isRunningRow={isRunningRow}
+      runningStartIso={isRunningRow ? runningEntry.start_time : null}
+      runningDayIndex={isRunningRow ? runningDayIndex : -1}
+      onStopTimer={
+        isRunningRow ? () => void onStopTimer(runningEntry.id) : undefined
+      }
+      weekDays={weekDays}
+      todayStr={todayStr}
+      tzOffsetMin={tzOffsetMin}
+      setCellRef={setCellRef}
+      onArrowNav={(dir, dayIdx) => {
+        if (dir === "up") focusCell(rowIdx - 1, dayIdx, "up");
+        else if (dir === "down") focusCell(rowIdx + 1, dayIdx, "down");
+        else if (dir === "left") focusCell(rowIdx, dayIdx - 1);
+        else focusCell(rowIdx, dayIdx + 1);
+      }}
+    />
+  );
+}
+
+/** Customer sub-header inside a Member group. Quieter than the
+ *  Member group header (no chevron, lighter background, smaller
+ *  indentation step) so the visual hierarchy reads:
+ *    Member header (loud) → Customer sub-header (medium) → row.
+ *  Uses `<th scope="rowgroup">` for AT semantics — the customer
+ *  name announces as the rowgroup label, and the chip stays
+ *  aria-hidden per the Entity Identity rule. */
+function CustomerSubHeader({
+  subGroup,
+  weekDays,
+  todayStr,
+}: {
+  subGroup: CustomerSubGroup;
+  weekDays: string[];
+  todayStr: string;
+}): React.JSX.Element {
+  const tSub = useTranslations("time.timesheet.customerSubgroup");
+  const customerName = subGroup.customerName
+    ? subGroup.customerName
+    : subGroup.isInternal
+      ? tSub("internal")
+      : tSub("noCustomer");
+  return (
+    <tr className="bg-surface-inset/40 border-b border-edge-muted">
+      <th
+        scope="rowgroup"
+        className="py-1 pl-8 pr-2 align-middle text-left font-normal"
+      >
+        <div className="flex items-center gap-2 min-w-0">
+          {subGroup.customerName ? (
+            <CustomerChip
+              customerId={subGroup.customerId}
+              customerName={subGroup.customerName}
+              size={18}
+            />
+          ) : subGroup.isInternal ? (
+            <CustomerChip
+              customerId={null}
+              customerName={null}
+              internal
+              size={18}
+            />
+          ) : (
+            <CustomerChip
+              customerId={null}
+              customerName={null}
+              size={18}
+            />
+          )}
+          <Tooltip label={customerName}>
+            <span
+              className={`text-body-lg font-semibold truncate min-w-0 ${
+                subGroup.customerName
+                  ? "text-content"
+                  : "text-content-muted italic"
+              }`}
+            >
+              {customerName}
+            </span>
+          </Tooltip>
+        </div>
+      </th>
+      {subGroup.byDay.map((min, i) => {
+        const dayStr = weekDays[i];
+        const isToday = dayStr === todayStr;
+        const isWeekend = i >= 5;
+        return (
+          <td
+            key={dayStr ?? i}
+            className={`px-2 py-1 text-right font-mono text-body tabular-nums text-content-secondary ${
+              isToday
+                ? "bg-accent-soft/40"
+                : isWeekend
+                  ? "bg-surface-inset/40"
+                  : ""
+            }`}
+          >
+            {min > 0 ? (
+              formatDurationHMZero(min)
+            ) : (
+              <span className="text-content-muted" aria-hidden="true">
+                ·
+              </span>
+            )}
+          </td>
+        );
+      })}
+      <td
+        className="px-2 py-1 text-right font-mono text-body font-semibold tabular-nums text-content"
+        aria-label={tSub("subtotalAria", {
+          customer: customerName,
+          duration: formatDurationHMZero(subGroup.totalMin),
+        })}
+      >
+        {formatDurationHMZero(subGroup.totalMin)}
+      </td>
+      <td className="px-2 py-1" />
+    </tr>
   );
 }
 

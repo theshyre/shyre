@@ -281,12 +281,15 @@
       "rowCount": "{count, plural, one {# row} other {# rows}}"
     },
     "row": {
-      "customerLabel": "Customer",
-      "projectLabel": "Project",
       "noCustomer": "No customer",
       "internal": "Internal",
       "noProject": "No project",
       "entryCount": "{count, plural, one {# entry} other {# entries}} — expand for detail"
+    },
+    "customerSubgroup": {
+      "subtotalAria": "{customer} subtotal: {duration}",
+      "internal": "Internal",
+      "noCustomer": "No customer"
     }
   },
   "rowDelete": {

@@ -174,14 +174,14 @@ export function EntrySummaryRow({
                 target="_blank"
                 rel="noopener noreferrer"
                 aria-label={t("ticketLinkAria", { key: ticketKey })}
-                className="inline-flex items-center gap-1 font-mono text-caption text-accent shrink-0 hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent rounded"
+                className="inline-flex items-center gap-1 font-mono text-body text-accent shrink-0 hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent rounded"
               >
-                <ExternalLink size={11} aria-hidden="true" className="shrink-0" />
+                <ExternalLink size={12} aria-hidden="true" className="shrink-0" />
                 {ticketKey}
               </a>
             ) : (
-              <span className="inline-flex items-center gap-1 font-mono text-caption text-accent shrink-0">
-                <LinkIcon size={11} aria-hidden="true" className="shrink-0" />
+              <span className="inline-flex items-center gap-1 font-mono text-body text-accent shrink-0">
+                <LinkIcon size={12} aria-hidden="true" className="shrink-0" />
                 {ticketKey}
               </span>
             )
@@ -220,7 +220,7 @@ export function EntrySummaryRow({
         if (i !== dayIndex) {
           return (
             <td key={i} className="px-2 py-1.5 align-middle text-right">
-              <span className="text-content-muted/50" aria-hidden="true">
+              <span className="text-content-muted" aria-hidden="true">
                 ·
               </span>
             </td>

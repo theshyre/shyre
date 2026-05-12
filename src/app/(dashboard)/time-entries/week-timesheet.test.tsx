@@ -635,4 +635,79 @@ describe("WeekTimesheet", () => {
     );
     expect(acmeChip).toBeDefined();
   });
+
+  // Customer sub-grouping (persona-converged design, 2026-05-12).
+  // When two or more rows in a Member group share a customer, the
+  // chip + name lift into a sub-header (<th scope="rowgroup">) and
+  // the per-row customer line disappears so contiguous same-customer
+  // rows don't repeat themselves.
+  it("emits a customer sub-header (rowgroup) when two rows share a customer", () => {
+    const projA: ProjectOption = {
+      ...project,
+      id: "p-a",
+      name: "Project A",
+      customers: { id: "cust-eyereg", name: "EyeReg Consulting" },
+    };
+    const projB: ProjectOption = {
+      ...project,
+      id: "p-b",
+      name: "Project B",
+      customers: { id: "cust-eyereg", name: "EyeReg Consulting" },
+    };
+    const entryA = makeEntry("e1", { day: 0, durationMin: 60, projectId: "p-a" });
+    const entryB = makeEntry("e2", { day: 1, durationMin: 30, projectId: "p-b" });
+    // Override the projects lookup to point each entry at its own project.
+    const e1: TimeEntry = {
+      ...entryA,
+      projects: { id: "p-a", name: "Project A", github_repo: null },
+    };
+    const e2: TimeEntry = {
+      ...entryB,
+      projects: { id: "p-b", name: "Project B", github_repo: null },
+    };
+    const { container } = renderTimesheet(
+      <WeekTimesheet
+        weekStartStr={weekStartStr}
+        tzOffsetMin={tzOffsetMin}
+        entries={[e1, e2]}
+        projects={[projA, projB]}
+        categories={[]}
+      />,
+    );
+    // Sub-header is a <th scope="rowgroup"> with the customer name.
+    const rowgroup = container.querySelector("th[scope='rowgroup']");
+    expect(rowgroup).not.toBeNull();
+    expect(rowgroup?.textContent).toMatch(/EyeReg Consulting/);
+    // Customer name should appear exactly ONCE on the page — in the
+    // sub-header — even though two rows belong to that customer.
+    const allCustomerMentions = screen.getAllByText("EyeReg Consulting");
+    expect(allCustomerMentions).toHaveLength(1);
+  });
+
+  it("does NOT emit a customer sub-header when only one row belongs to the customer", () => {
+    const projWithCustomer: ProjectOption = {
+      ...project,
+      customers: { id: "cust-solo", name: "Solo Customer" },
+    };
+    const entry = makeEntry("e1", { day: 0, durationMin: 60 });
+    const e: TimeEntry = {
+      ...entry,
+      projects: { id: project.id, name: project.name, github_repo: null },
+    };
+    const { container } = renderTimesheet(
+      <WeekTimesheet
+        weekStartStr={weekStartStr}
+        tzOffsetMin={tzOffsetMin}
+        entries={[e]}
+        projects={[projWithCustomer]}
+        categories={[]}
+      />,
+    );
+    // No rowgroup sub-header for a 1-row customer — would be noise.
+    expect(
+      container.querySelector("th[scope='rowgroup']"),
+    ).toBeNull();
+    // Customer name stays inline on the row instead.
+    expect(screen.getByText("Solo Customer")).toBeInTheDocument();
+  });
 });
