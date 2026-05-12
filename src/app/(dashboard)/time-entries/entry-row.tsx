@@ -8,6 +8,7 @@ import { formatDurationHM } from "@/lib/time/week";
 import { EntryAuthor } from "@/components/EntryAuthor";
 import { Tooltip } from "@/components/Tooltip";
 import { TicketChip } from "@/components/TicketChip";
+import { CustomerChip } from "@/components/CustomerChip";
 import { EntryKebabMenu } from "./entry-kebab-menu";
 import { InlineEditForm } from "./inline-edit-form";
 import type { CategoryOption, ProjectOption, TimeEntry } from "./types";
@@ -52,6 +53,8 @@ export function EntryRow({
   const isRunning = !entry.end_time;
   const projectName = entry.projects?.name ?? "—";
   const customerName = entry.projects?.customers?.name ?? null;
+  const customerId = entry.projects?.customers?.id ?? null;
+  const projectIsInternal = entry.projects?.is_internal === true;
   const startDate = new Date(entry.start_time);
   const startTime = startDate.toLocaleTimeString(undefined, {
     hour: "numeric",
@@ -129,19 +132,45 @@ export function EntryRow({
 
         {/* Project · Client + Description — truncated with Tooltips on
             hover so the full value is reachable per the MANDATORY
-            tooltip rule for truncated content that conveys identity. */}
+            tooltip rule for truncated content that conveys identity.
+            Customer identity is rendered via CustomerChip per the
+            Entity Identity rule (CLAUDE.md): square initials tile
+            shared with the week view; internal projects get the
+            Building glyph instead of a "?". */}
         <td className="px-3 py-2.5 align-middle min-w-0 max-w-0">
           <Tooltip
             label={
               customerName
                 ? `${projectName} · ${customerName}`
-                : projectName
+                : projectIsInternal
+                  ? `${projectName} · ${t("timesheet.row.internal")}`
+                  : projectName
             }
           >
-            <div className="text-caption text-content-secondary truncate">
-              <span className="text-content">{projectName}</span>
+            <div className="flex items-center gap-1.5 text-caption text-content-secondary min-w-0">
+              {customerName ? (
+                <CustomerChip
+                  customerId={customerId}
+                  customerName={customerName}
+                  size={14}
+                />
+              ) : projectIsInternal ? (
+                <CustomerChip
+                  customerId={null}
+                  customerName={null}
+                  internal
+                  size={14}
+                />
+              ) : null}
+              <span className="text-content truncate">{projectName}</span>
               {customerName && (
-                <span className="text-content-muted"> · {customerName}</span>
+                <span className="text-content-muted truncate"> · {customerName}</span>
+              )}
+              {!customerName && projectIsInternal && (
+                <span className="text-content-muted truncate">
+                  {" "}
+                  · {t("timesheet.row.internal")}
+                </span>
               )}
             </div>
           </Tooltip>

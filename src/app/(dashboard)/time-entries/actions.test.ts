@@ -71,6 +71,13 @@ const state: {
   /** Existing same-day entry on (user, project, category) that
    *  startTimerAction may resume. `null` means "no row, create new." */
   resumeEntry: { id: string; duration_min: number; description: string | null } | null;
+  /** Row returned by `.from("time_entries").select("project_id,
+   *  projects(is_internal)").eq("id", X).maybeSingle()` —
+   *  updateTimeEntryAction consults this to enforce internal-only
+   *  rules. */
+  existingTimeEntry:
+    | { project_id: string | null; projects: { is_internal: boolean } | null }
+    | null;
 } = {
   updates: [],
   deletes: [],
@@ -78,6 +85,7 @@ const state: {
   updateError: null,
   project: null,
   resumeEntry: null,
+  existingTimeEntry: null,
 };
 
 function mockSupabase() {
@@ -181,7 +189,20 @@ function tableChain(table: string) {
       return chain;
     },
     maybeSingle() {
-      return Promise.resolve({ data: state.resumeEntry, error: null });
+      // updateTimeEntryAction's project-classification probe uses
+      // .select("project_id, projects(is_internal)").eq("id", X)
+      //   .maybeSingle() and expects a row-shape, not a list.
+      // startTimerAction's resume-lookup is also a maybeSingle but
+      // wants the resume-entry shape. We pick by which select() the
+      // chain saw last: if the filters include `id`, it's the update
+      // path; otherwise fall through to the resume shape.
+      const wantsExisting =
+        op.filters.some((f) => f.col === "id") &&
+        state.existingTimeEntry !== null;
+      return Promise.resolve({
+        data: wantsExisting ? state.existingTimeEntry : state.resumeEntry,
+        error: null,
+      });
     },
     then(resolve: (v: { data: unknown; error: unknown }) => void) {
       // Record the operation when the chain is awaited.
@@ -219,6 +240,7 @@ import {
   restoreTimeEntriesAction,
   restoreTimeEntryAction,
   stopTimerAction,
+  updateTimeEntryAction,
 } from "./actions";
 
 function reset(): void {
@@ -228,6 +250,7 @@ function reset(): void {
   state.updateError = null;
   state.project = null;
   state.resumeEntry = null;
+  state.existingTimeEntry = null;
   mockValidateTeamAccess.mockReset();
   mockRevalidatePath.mockReset();
 }
@@ -542,5 +565,103 @@ describe("createTimeEntryAction", () => {
 
     const row = state.inserts[0]?.rows as Record<string, unknown>;
     expect(row.start_time).toBe("2026-04-15T00:00:00.000Z");
+  });
+});
+
+describe("updateTimeEntryAction (field-selective patch)", () => {
+  beforeEach(reset);
+
+  function findUpdate(): { patch: Record<string, unknown> } | null {
+    const u = state.updates.find((u) => u.table === "time_entries");
+    if (!u) return null;
+    return { patch: u.patch as Record<string, unknown> };
+  }
+
+  it("description-only submit does NOT blank start_time / category_id (regression: prior version coerced missing fields to null, tripping NOT NULL on start_time)", async () => {
+    state.existingTimeEntry = {
+      project_id: "p-1",
+      projects: { is_internal: false },
+    };
+    await updateTimeEntryAction(
+      fd({ id: "e-1", description: "Fix login bug" }),
+    );
+    const u = findUpdate();
+    expect(u).not.toBeNull();
+    expect(u!.patch.description).toBe("Fix login bug");
+    expect(u!.patch).not.toHaveProperty("start_time");
+    expect(u!.patch).not.toHaveProperty("end_time");
+    expect(u!.patch).not.toHaveProperty("category_id");
+    expect(u!.patch).not.toHaveProperty("billable");
+  });
+
+  it("time-only submit (duration_min + entry_date) does NOT blank description / billable / category", async () => {
+    await updateTimeEntryAction(
+      fd({
+        id: "e-1",
+        duration_min: "60",
+        entry_date: "2026-04-15",
+        tz_offset_min: "0",
+      }),
+    );
+    const u = findUpdate();
+    expect(u).not.toBeNull();
+    expect(u!.patch).toHaveProperty("start_time");
+    expect(u!.patch).toHaveProperty("end_time");
+    expect(u!.patch).not.toHaveProperty("description");
+    expect(u!.patch).not.toHaveProperty("category_id");
+    expect(u!.patch).not.toHaveProperty("billable");
+  });
+
+  it("explicit start_time + end_time on the form is honored verbatim", async () => {
+    await updateTimeEntryAction(
+      fd({
+        id: "e-1",
+        start_time: "2026-04-15T09:00:00.000Z",
+        end_time: "2026-04-15T10:00:00.000Z",
+      }),
+    );
+    const u = findUpdate();
+    expect(u).not.toBeNull();
+    expect(u!.patch.start_time).toBe("2026-04-15T09:00:00.000Z");
+    expect(u!.patch.end_time).toBe("2026-04-15T10:00:00.000Z");
+  });
+
+  it("empty submit is a no-op (no UPDATE round-trip)", async () => {
+    await updateTimeEntryAction(fd({ id: "e-1" }));
+    expect(findUpdate()).toBeNull();
+  });
+
+  it("billable=on on a non-internal project sets billable=true", async () => {
+    state.existingTimeEntry = {
+      project_id: "p-1",
+      projects: { is_internal: false },
+    };
+    await updateTimeEntryAction(fd({ id: "e-1", billable: "on" }));
+    expect(findUpdate()?.patch.billable).toBe(true);
+  });
+
+  it("billable=on on an internal project is forced to billable=false", async () => {
+    state.existingTimeEntry = {
+      project_id: "p-1",
+      projects: { is_internal: true },
+    };
+    await updateTimeEntryAction(fd({ id: "e-1", billable: "on" }));
+    expect(findUpdate()?.patch.billable).toBe(false);
+  });
+
+  it("billable absent from the form is NOT written (preserves the existing value)", async () => {
+    await updateTimeEntryAction(
+      fd({ id: "e-1", duration_min: "30", entry_date: "2026-04-15" }),
+    );
+    expect(findUpdate()?.patch).not.toHaveProperty("billable");
+  });
+
+  it("empty description string is written as null (clears the description)", async () => {
+    state.existingTimeEntry = {
+      project_id: "p-1",
+      projects: { is_internal: false },
+    };
+    await updateTimeEntryAction(fd({ id: "e-1", description: "" }));
+    expect(findUpdate()?.patch.description).toBeNull();
   });
 });

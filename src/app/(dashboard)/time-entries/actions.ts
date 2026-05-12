@@ -122,73 +122,111 @@ export async function createTimeEntryAction(formData: FormData): Promise<void> {
 export async function updateTimeEntryAction(formData: FormData): Promise<void> {
   return runSafeAction(formData, async (formData, { supabase, userId }) => {
     const id = formData.get("id") as string;
-    const description = (formData.get("description") as string) || null;
-    const billableSubmitted = formData.has("billable")
-      ? formData.get("billable") === "on"
-      : null;
     // Same migration as create: ticket linking routes through
     // ticket_ref → linked_ticket_*. The legacy github_issue column
     // is no longer written.
     const ticketRef = (formData.get("ticket_ref") as string) || null;
-    const category_id = (formData.get("category_id") as string) || null;
 
     const durationMinStr = formData.get("duration_min") as string | null;
     const entryDate = formData.get("entry_date") as string | null;
     const tzOffsetMin = tzOffsetFromForm(formData);
 
-    let start_time: string | undefined;
-    let end_time: string | null | undefined;
+    // Field-selective update: only write what the form actually
+    // submitted. Different surfaces send different subsets — the
+    // week-view inline edit form only includes description / ticket
+    // / billable; the day-view edit form adds time + category. A
+    // blanket `update({ ...all_fields })` would coerce missing keys
+    // to null and either trip NOT NULL constraints (start_time) or
+    // silently blank out fields (category_id) that the user didn't
+    // intend to clear.
+    const patch: Record<string, unknown> = {};
+
+    if (formData.has("description")) {
+      patch.description = (formData.get("description") as string) || null;
+    }
+    if (formData.has("category_id")) {
+      patch.category_id = (formData.get("category_id") as string) || null;
+    }
+
+    let timeUpdated = false;
     if (durationMinStr && entryDate) {
       const durationMin = parseInt(durationMinStr, 10);
       const t = entryFromDuration(entryDate, durationMin, tzOffsetMin);
-      start_time = t.start_time;
-      end_time = t.end_time;
-    } else {
-      start_time = formData.get("start_time") as string;
-      end_time = (formData.get("end_time") as string) || null;
+      patch.start_time = t.start_time;
+      patch.end_time = t.end_time;
+      timeUpdated = true;
+    } else if (formData.has("start_time")) {
+      patch.start_time = formData.get("start_time") as string;
+      patch.end_time = (formData.get("end_time") as string) || null;
+      timeUpdated = true;
     }
 
     // Re-resolve the ticket attachment from the (possibly edited)
-    // description. Need the entry's project_id to drive short-ref
-    // resolution; fetch it in the same round trip we'd already
-    // make. Same fetch also surfaces the project's classification so
-    // we can enforce billable=false on internal projects.
-    const { data: existing } = await supabase
-      .from("time_entries")
-      .select("project_id, projects(is_internal)")
-      .eq("id", id)
-      .maybeSingle();
-    const projectIsInternal = ((): boolean => {
+    // description when description OR ticket_ref was submitted. The
+    // fetch also surfaces the project's classification so we can
+    // enforce billable=false on internal projects when billable was
+    // submitted.
+    const billableSubmitted = formData.has("billable")
+      ? formData.get("billable") === "on"
+      : null;
+    const needsExisting =
+      formData.has("billable") ||
+      formData.has("description") ||
+      formData.has("ticket_ref");
+    let projectId: string | null = null;
+    let projectIsInternal = false;
+    if (needsExisting) {
+      const { data: existing } = await supabase
+        .from("time_entries")
+        .select("project_id, projects(is_internal)")
+        .eq("id", id)
+        .maybeSingle();
+      projectId = (existing?.project_id as string | null) ?? null;
       const p = existing?.projects as
         | { is_internal?: boolean }
         | { is_internal?: boolean }[]
         | null
         | undefined;
       const proj = Array.isArray(p) ? (p[0] ?? null) : (p ?? null);
-      return proj?.is_internal === true;
-    })();
-    const billable = projectIsInternal
-      ? false
-      : (billableSubmitted ?? false);
-    const ticket = await buildTicketAttachment(
-      supabase,
-      userId,
-      description,
-      (existing?.project_id as string | null) ?? null,
-      ticketRef,
-    );
+      projectIsInternal = proj?.is_internal === true;
+    }
+
+    if (billableSubmitted !== null) {
+      patch.billable = projectIsInternal ? false : billableSubmitted;
+    }
+
+    // Ticket attachment is recomputed whenever description or
+    // ticket_ref was submitted — the ticket fields live on the
+    // entry row and would otherwise grow stale relative to the new
+    // description's auto-detect.
+    if (formData.has("description") || formData.has("ticket_ref")) {
+      const description =
+        formData.has("description")
+          ? ((formData.get("description") as string) || null)
+          : null;
+      const ticket = await buildTicketAttachment(
+        supabase,
+        userId,
+        description,
+        projectId,
+        ticketRef,
+      );
+      Object.assign(patch, ticket);
+    }
+
+    // Nothing to update — defensively short-circuit so we don't
+    // round-trip a no-op `UPDATE ... SET WHERE id = ?` (Postgres
+    // is fine with empty SET via PostgREST, but it's a silent no-op
+    // that obscures bad form wiring on the client).
+    if (Object.keys(patch).length === 0) {
+      void timeUpdated;
+      return;
+    }
 
     assertSupabaseOk(
       await supabase
         .from("time_entries")
-        .update({
-          description,
-          start_time,
-          end_time,
-          billable,
-          category_id,
-          ...ticket,
-        })
+        .update(patch)
         .eq("id", id)
         .eq("user_id", userId)
     );
