@@ -91,6 +91,11 @@ interface EntrySummaryRowProps {
    *  treatment lights up. */
   isRunning: boolean;
   liveElapsedMin: number;
+  /** Customer-color rail painted on the leading cell so the parent
+   *  row's customer band continues through its expanded sub-rows.
+   *  Undefined when the parent row doesn't carry a rail (groupings
+   *  other than Member). */
+  customerRail?: string;
 }
 
 export function EntrySummaryRow({
@@ -101,6 +106,7 @@ export function EntrySummaryRow({
   dayDateLong,
   isRunning,
   liveElapsedMin,
+  customerRail,
 }: EntrySummaryRowProps): React.JSX.Element {
   const t = useTranslations("time.entryRow");
   const tLock = useTranslations("time.lock");
@@ -159,7 +165,10 @@ export function EntrySummaryRow({
           authorship rule), ticket chip, description. The chip is
           the primary identifier; the description truncates and
           shows in full via Tooltip. */}
-      <td className="py-1.5 align-middle">
+      <td
+        className={`py-1.5 align-middle ${customerRail ? "border-l-4 pl-1.5" : ""}`}
+        style={customerRail ? { borderLeftColor: customerRail } : undefined}
+      >
         <div className="flex items-center gap-1.5 pl-6 min-w-0">
           <span aria-hidden="true" className="text-content-muted">↳</span>
           {/* Authorship per the mandatory rule — every surface that

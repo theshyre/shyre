@@ -60,7 +60,7 @@ import { Tooltip } from "@/components/Tooltip";
 import { useAutosaveStatus } from "@/hooks/useAutosaveStatus";
 import { useToast } from "@/components/Toast";
 import { EntryAuthor } from "@/components/EntryAuthor";
-import { CustomerChip } from "@/components/CustomerChip";
+import { CustomerChip, customerRailColor } from "@/components/CustomerChip";
 import { JumpToDate } from "./jump-to-date";
 import type { AuthorInfo, CategoryOption, ProjectOption, TimeEntry } from "./types";
 
@@ -1170,6 +1170,19 @@ function TimesheetRow({
   const hideProject = groupBy === "project";
   const showAuthorChip = groupBy !== "member";
 
+  // Customer-color rail on the row's leading cell. Visible only under
+  // Member grouping — Project grouping has one customer per group and
+  // Category grouping shatters customers across groups, so a rail
+  // there would imply a relationship that isn't real. The rail uses
+  // the same AVATAR_PRESETS hash as the CustomerChip so a customer's
+  // chip and any adjacent rail render in lock-step; internal projects
+  // and missing-customer rows fall back to a neutral edge color so
+  // the visual continuity still exists without hashing a phantom id.
+  const customerId = project?.customers?.id ?? null;
+  const customerRail = groupBy === "member"
+    ? (customerRailColor(customerId) ?? "var(--edge)")
+    : null;
+
   // Live tick for the running cell. Tick every second even though the
   // display is H:MM granularity — a 60s interval that fires on an
   // arbitrary mount-time offset leaves the cell showing a stale
@@ -1198,7 +1211,10 @@ function TimesheetRow({
         isRunningRow ? "ring-2 ring-inset ring-success/40" : ""
       }`}
     >
-      <td className="py-2 align-middle">
+      <td
+        className={`py-2 align-middle ${customerRail ? "border-l-4 pl-1.5" : ""}`}
+        style={customerRail ? { borderLeftColor: customerRail } : undefined}
+      >
         <div className="flex items-start gap-1">
           {/* Row-level expansion chevron. Visible whenever the row
               has at least one entry — clicking toggles the per-entry
@@ -1666,6 +1682,7 @@ function TimesheetRow({
               dayDateLong={dayLong}
               isRunning={isRowEntryRunning}
               liveElapsedMin={entryLiveElapsed}
+              customerRail={customerRail ?? undefined}
             />
             {editingEntryId === entry.id && (
               <EntryEditRow
@@ -2119,11 +2136,19 @@ function CustomerSubHeader({
     : subGroup.isInternal
       ? tSub("internal")
       : tSub("noCustomer");
+  // Hashed customer color — drives both the chip and the left rail
+  // so the sub-header and its rows below read as a single vertical
+  // customer band. Internal / no-customer use a neutral edge color
+  // (matches the Building chip's surface) so the rail is still
+  // visible without pretending to be a hashed identity.
+  const rail = customerRailColor(subGroup.customerId);
+  const railColor = rail ?? "var(--edge)";
   return (
-    <tr className="bg-surface-inset/40 border-b border-edge-muted">
+    <tr className="bg-surface-inset/70 border-y border-edge-muted">
       <th
         scope="rowgroup"
-        className="py-1 pl-8 pr-2 align-middle text-left font-normal"
+        className="py-1.5 pl-6 pr-2 align-middle text-left font-normal border-l-4"
+        style={{ borderLeftColor: railColor }}
       >
         <div className="flex items-center gap-2 min-w-0">
           {subGroup.customerName ? (

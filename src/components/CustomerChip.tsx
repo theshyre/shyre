@@ -95,6 +95,21 @@ function presetForCustomerId(
   return AVATAR_PRESETS.find((p) => p.key === "slate") ?? AVATAR_PRESETS[0]!;
 }
 
+/**
+ * Public helper — the customer's hashed background color, suitable
+ * for rails / connectors that need to match the CustomerChip
+ * visually. Same palette + hash, so a customer's chip and any
+ * adjacent rail render in lock-step. Returns null for the
+ * internal-project and no-customer cases — callers decide whether
+ * to render a neutral rail or no rail at all.
+ */
+export function customerRailColor(
+  customerId: string | null | undefined,
+): string | null {
+  if (!customerId) return null;
+  return presetForCustomerId(customerId).bg;
+}
+
 export function CustomerChip({
   customerId,
   customerName,
