@@ -3,19 +3,72 @@
 ## Current state (as of 2026-05-11)
 
 ```
-Tests:     2126 passing · 1 skipped (was 2068 last commit, 1810 pre-2026-05-05 audit)
-Coverage:  Statements 39.84% · Branches 33.19% · Functions 36.68% · Lines 39.88%
+Tests:     2258 passing · 1 skipped (was 2126 prev push, 1810 pre-2026-05-05 audit)
+Coverage:  Statements 42.52% · Branches 35.45% · Functions 38.62% · Lines 42.59%
 Target:    90% across the board (CLAUDE.md mandate)
 Gate:      CI runs `npm run test:coverage` with a ratcheted floor
            (see vitest.config.ts thresholds). PRs that drop below
            the floor fail CI. Every PR that raises coverage must
-           also raise the floor — this is how we get from 39% to 90%
+           also raise the floor — this is how we get from 42% to 90%
            without a week-long push.
 Build:     `npm run ci:local` now also runs `next build` to catch
            Next.js-only checks (`"use server"` async-export, server-
            closure-passed-across-boundary in build trace) that
            lint/typecheck/vitest miss.
 ```
+
+**2026-05-11 push #2 (priority items 10–19).** 132 new tests
+across 8 untested server-action files. Coverage gain ~3 pp; the
+remaining roadmap-listed action surfaces (other than partial sample-
+data + the projects bulk-categories sub-actions) are now defended.
+Floor ratcheted to 42 / 35 / 38 / 42.
+
+- ✅ Item 10 — `teams/[id]/relationships-actions.ts`: 13 cases
+  (propose/accept/remove team shares). RPC call shape, required-field
+  gates, error propagation, revalidation paths.
+- ✅ Item 11 — `teams/[id]/team-settings-actions.ts`: 24 cases.
+  Critical invariants: member rejection, default_payment_terms_days
+  clamping (0..365), rate-permission-delegation RPC gate (admins
+  can't write default_rate when the team setting forbids it),
+  admins_can_set_rate_permissions is owner-only even within
+  owner|admin, time_entries_visibility enum strictly enforced.
+- ✅ Item 12 — `customers/[id]/change-primary-actions.ts`: 5 cases.
+  RPC call shape, required-field gates, consent-rejection propagation.
+- ✅ Item 13 — `business/actions.ts`: 19 cases. Two destructive
+  actions: updateBusinessIdentity (role gate via validateBusinessAccess,
+  entity_type allow-list, fiscal_year_start MM-DD regex, no-op
+  short-circuit on the private table when nothing changed — bookkeeper
+  finding #5) + deleteBusiness (layered refusals: must own every team,
+  must own at least one OTHER business, typed-confirm matches
+  legal_name | seeded name, cascade teams first then business).
+- ✅ Item 16 — `projects/actions.ts`: 26 cases in a sibling
+  `actions-coverage.test.ts` (the existing `actions.test.ts` keeps
+  its tight rate-gating focus). createProject's customer-XOR-internal
+  rule, internal pinning of default_billable, Jira/invoice-code
+  validators, updateProject's skip-default_billable-on-internal,
+  rate/budget gating, budget threshold/period/carryover validation,
+  setProjectInternal's lock-on-invoiced-entries refusal + atomic
+  customer NULL, applyDefaultBillable's scoped UPDATE (project +
+  null invoice + null deleted_at), bulkArchive/bulkRestore IN()
+  scope + empty-input short-circuit.
+- ✅ Items 17 — `categories/actions.ts`: 16 cases across 7 actions
+  (create/clone/update/delete category sets + create/update/delete
+  individual categories). Source-set-not-found rejection on clone,
+  cross-team scoping defense on update/delete of category sets, name
+  trimming, color defaulting, sort_order parsing.
+- ✅ Item 18 — `templates/actions.ts`: 11 cases. Create/update/delete
+  scoped by (id, user_id) — per-user template defense. startFromTemplate
+  stops any running entry first then inserts the templated entry,
+  bumps last_used_at.
+- ✅ Item 19 — `profile/actions.ts`: 18 cases. updateUserSettings
+  enforces https-only Jira base URL (SAL-014 SSRF gate) + YYYY-MM-DD
+  token expiry. setAvatar refuses external URLs and other-user
+  folders. updatePreferences validates every enum field against
+  ALLOWED_* allow-lists.
+
+The original audit list (items 1–19) is now fully landed except
+the deep-helper portion of sample-data (loadSample / createSampleUsers
+/ deleteSampleRowsInOrg — those need their own fixture suite).
 
 **2026-05-11 push (priority items 6–9 from this doc).** 58 new tests
 across four untested server-action files. Coverage gain ~1 pp; the
@@ -121,16 +174,16 @@ Server actions are the highest-risk untested surface because they write to the D
 | 7 | ~~`system/sample-data/actions.ts`~~ | 1011 | ✅ **PARTIAL** (2026-05-11 — action-boundary contracts: sysadmin gate, team owner|admin gate, typed-confirm, /team-not-found). Deep helpers (`loadSample` / `deleteSampleRowsInOrg` / `createSampleUsers`) tunnel into admin client + auth admin API; their own fixture suite is the next push. | Bulk system mutation (seed/wipe) |
 | 8 | ~~`system/errors/actions.ts`~~ | 23 | ✅ **DONE** (2026-05-11) | Error-resolution admin |
 | 9 | ~~`teams/actions.ts`~~ | 136 | ✅ **DONE** (2026-05-11) | Team create / join — all three actions covered |
-| 10 | `teams/[id]/relationships-actions.ts` | ? | MED | Inter-team relationships |
-| 11 | `teams/[id]/team-settings-actions.ts` | ? | MED | Per-team config |
-| 12 | `customers/[id]/change-primary-actions.ts` | ? | MED | Primary-team transfer |
-| 13 | `business/actions.ts` | ? | MED | Business profile CRUD |
+| 10 | ~~`teams/[id]/relationships-actions.ts`~~ | 75 | ✅ **DONE** (2026-05-11) | Inter-team relationships |
+| 11 | ~~`teams/[id]/team-settings-actions.ts`~~ | 223 | ✅ **DONE** (2026-05-11) | Per-team config |
+| 12 | ~~`customers/[id]/change-primary-actions.ts`~~ | 28 | ✅ **DONE** (2026-05-11) | Primary-team transfer |
+| 13 | ~~`business/actions.ts`~~ | 345 | ✅ **DONE** (2026-05-11) | Business profile CRUD |
 | 14 | ~~`business/[id]/expenses/actions.ts`~~ | 850 | ✅ **DONE** (audit batches 5 + 8 — create / update / delete / restore + splitExpense) | Financial records |
 | 15 | ~~`time-entries/actions.ts`~~ | 850 | ✅ **PARTIAL** (audit batches 5 + 8 — trash invariants + createTimeEntryAction). startTimerAction / duplicateTimeEntryAction still need fixtures. | Core domain |
-| 16 | `projects/actions.ts` | ? | MED | Project CRUD |
-| 17 | `categories/actions.ts` | 50 | LOW | Categories |
-| 18 | `templates/actions.ts` | 50 | LOW | Templates |
-| 19 | `profile/actions.ts` | 30 | LOW | User preferences |
+| 16 | ~~`projects/actions.ts`~~ | 944 | ✅ **PARTIAL** (2026-05-11 — actions-coverage.test.ts covers create/update/setInternal/applyDefaultBillable/bulkArchive/bulkRestore. setProjectRate already covered by the original actions.test.ts. upsertProjectCategories / deleteProjectCategories / bulkSwitchCategorySet still need their own fixtures.) | Project CRUD |
+| 17 | ~~`categories/actions.ts`~~ | 170 | ✅ **DONE** (2026-05-11) | Categories |
+| 18 | ~~`templates/actions.ts`~~ | 142 | ✅ **DONE** (2026-05-11) | Templates |
+| 19 | ~~`profile/actions.ts`~~ | 274 | ✅ **DONE** (2026-05-11 — testGithubToken / testJiraCreds are integration-flavored and out of scope.) | User preferences |
 | 20 | ~~`auth/accept-invite/route.ts`~~ | 90 | ✅ **DONE** (audit batch 4) | Three independent invite gates |
 | 21 | ~~`messaging/send-invoice` + `send-invoice-action`~~ | 470 | ✅ **DONE** (audit batch 8) | sent_at stability across resends; To/Cc dedup; status flip semantics |
 | 22 | RLS suites — `invoices` + `message_outbox` | — | ✅ **DONE** (audit batch 16) | Auto-skip in CI until staging secrets configured |
