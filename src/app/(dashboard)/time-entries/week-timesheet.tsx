@@ -2021,26 +2021,23 @@ function renderGroupedRows(args: RenderGroupedRowsArgs): React.JSX.Element[] {
   }
   const subGroups = buildCustomerSubGroups(group.rows, projects, args.categories);
   const out: React.JSX.Element[] = [];
+  // Always emit a customer sub-header — even for single-row customers.
+  // Previously we auto-inlined 1-row customers to save vertical space,
+  // but that created two visual languages inside the same Member group
+  // (multi-row → header + nested rows; single-row → plain row with
+  // inline chip). Consistency wins: every customer reads the same.
   for (const sg of subGroups) {
     const headerKey = `cust:${sg.customerId ?? (sg.isInternal ? "__internal__" : "__none__")}`;
-    if (sg.rows.length > 1) {
-      // Multi-row customer → emit a sub-header + rows with hideCustomer.
-      out.push(
-        <CustomerSubHeader
-          key={`${headerKey}:header`}
-          subGroup={sg}
-          weekDays={weekDays}
-          todayStr={todayStr}
-        />,
-      );
-      for (const row of sg.rows) {
-        out.push(renderTimesheetRow(args, row, true));
-      }
-    } else {
-      // Single-row customer → render inline; the row keeps its chip+name.
-      for (const row of sg.rows) {
-        out.push(renderTimesheetRow(args, row, false));
-      }
+    out.push(
+      <CustomerSubHeader
+        key={`${headerKey}:header`}
+        subGroup={sg}
+        weekDays={weekDays}
+        todayStr={todayStr}
+      />,
+    );
+    for (const row of sg.rows) {
+      out.push(renderTimesheetRow(args, row, true));
     }
   }
   return out;

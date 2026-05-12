@@ -684,7 +684,10 @@ describe("WeekTimesheet", () => {
     expect(allCustomerMentions).toHaveLength(1);
   });
 
-  it("does NOT emit a customer sub-header when only one row belongs to the customer", () => {
+  it("emits a customer sub-header even for a single-row customer (consistency)", () => {
+    // Prior iteration auto-inlined 1-row customers; that produced two
+    // visual languages inside the same Member group. Now every customer
+    // reads the same — single-row customers also get a sub-header.
     const projWithCustomer: ProjectOption = {
       ...project,
       customers: { id: "cust-solo", name: "Solo Customer" },
@@ -703,11 +706,11 @@ describe("WeekTimesheet", () => {
         categories={[]}
       />,
     );
-    // No rowgroup sub-header for a 1-row customer — would be noise.
-    expect(
-      container.querySelector("th[scope='rowgroup']"),
-    ).toBeNull();
-    // Customer name stays inline on the row instead.
-    expect(screen.getByText("Solo Customer")).toBeInTheDocument();
+    const rowgroup = container.querySelector("th[scope='rowgroup']");
+    expect(rowgroup).not.toBeNull();
+    expect(rowgroup?.textContent).toMatch(/Solo Customer/);
+    // Customer name appears exactly once — in the sub-header, not
+    // also on the row beneath it.
+    expect(screen.getAllByText("Solo Customer")).toHaveLength(1);
   });
 });
