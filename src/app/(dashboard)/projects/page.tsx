@@ -198,18 +198,27 @@ export default async function ProjectsPage({
     teams.map((o) => [o.id as string, (o.name as string) ?? "—"]),
   );
 
-  // Period-burn % per row — only for projects with a recurring
-  // period configured. Cheap-but-not-free: one wide query for time
-  // entries on those projects within the last 90 days (covers
-  // every period type up to quarterly), grouped per-project in JS
-  // and run through the period-burn helper. Hidden cells render as
-  // "—" so projects without a period don't push a noisy column.
+  // Two-track signal for the Budget column:
+  //   1. Projects WITH a recurring period → compute burn % against
+  //      the period's cap (existing logic — drives the colored bar).
+  //   2. Projects WITHOUT a budget → sum trailing-90-day hours. Per
+  //      the 2026-05-12 persona-converged design, the no-budget cell
+  //      surfaces "Nh · 90d" so the column always carries signal,
+  //      not an empty em-dash.
+  //
+  // One wide query fetches the last 90 days of (project_id,
+  // start_time, duration_min) for every visible project; the same
+  // bucketed entries feed both code paths.
   const projectsWithPeriod = (projects ?? []).filter(
     (p) =>
       (p as { budget_period?: string | null }).budget_period != null,
   );
   const periodBurnByProject = new Map<string, number | null>();
-  if (projectsWithPeriod.length > 0) {
+  const noBudgetMinByProject = new Map<string, number>();
+  const allProjectIds = (projects ?? []).map(
+    (p) => (p as { id: string }).id,
+  );
+  if (allProjectIds.length > 0) {
     const cookieStore = await cookies();
     const cookieOffset = parseTzOffset(
       cookieStore.get(TZ_COOKIE_NAME)?.value,
@@ -223,13 +232,10 @@ export default async function ProjectsPage({
     const ninetyDaysAgo = new Date(
       new Date().getTime() - 90 * 24 * 3600 * 1000,
     ).toISOString();
-    const projectIdsWithPeriod = projectsWithPeriod.map(
-      (p) => (p as { id: string }).id,
-    );
     const { data: burnEntries } = await supabase
       .from("time_entries")
       .select("project_id, start_time, duration_min")
-      .in("project_id", projectIdsWithPeriod)
+      .in("project_id", allProjectIds)
       .is("deleted_at", null)
       .gte("start_time", ninetyDaysAgo);
     const entriesByProject = new Map<
@@ -253,6 +259,7 @@ export default async function ProjectsPage({
       budget_alert_threshold_pct?: number | null;
       hourly_rate?: number | string | null;
     };
+    // Track 1: period burn for budgeted rows.
     for (const p of projectsWithPeriod as ProjectRowShape[]) {
       const burn = computeProjectPeriodBurn({
         budget_period: p.budget_period as BudgetPeriod,
@@ -272,6 +279,20 @@ export default async function ProjectsPage({
         tzOffsetMin,
       });
       periodBurnByProject.set(p.id, burn?.pctHours ?? null);
+    }
+    // Track 2: trailing-90 minutes for no-budget rows. Computed for
+    // EVERY non-budgeted project (including ones with zero entries,
+    // which surface as `0` so the cell can render the "no recent
+    // activity" tooltip instead of vanishing into em-dash).
+    const budgetedIds = new Set(projectsWithPeriod.map((p) => (p as { id: string }).id));
+    for (const p of (projects ?? []) as ProjectRowShape[]) {
+      if (budgetedIds.has(p.id)) continue;
+      const entries = entriesByProject.get(p.id) ?? [];
+      const minutes = entries.reduce(
+        (s, e) => s + (e.duration_min ?? 0),
+        0,
+      );
+      noBudgetMinByProject.set(p.id, minutes);
     }
   }
 
@@ -333,6 +354,7 @@ export default async function ProjectsPage({
           is_system: s.is_system,
         }))}
         periodBurnPctById={Object.fromEntries(periodBurnByProject.entries())}
+        noBudgetMinById={Object.fromEntries(noBudgetMinByProject.entries())}
       />
       {(projects?.length ?? 0) === 0 && (
         <ProjectFiltersClearHint active={filtersActive} />

@@ -68,6 +68,14 @@ interface ProjectFixture {
   team_id: string;
   is_internal: boolean;
   default_billable: boolean;
+  /** Optional — used by updateTimeEntryAction's project-change probe
+   *  which reads `dest.id` to compare against the entry's current
+   *  project. Production always sets it (the column is selected); the
+   *  test default of `undefined` exercises legacy fixtures that don't
+   *  care about the project-change path. */
+  id?: string;
+  category_set_id?: string | null;
+  extension_category_set_id?: string | null;
 }
 
 const state: {
@@ -85,9 +93,15 @@ const state: {
   /** Row returned by `.from("time_entries").select("project_id,
    *  projects(is_internal)").eq("id", X).maybeSingle()` —
    *  updateTimeEntryAction consults this to enforce internal-only
-   *  rules. */
+   *  rules. The same fixture is also reused by the project-change
+   *  probe which expects team_id + category_id. */
   existingTimeEntry:
-    | { project_id: string | null; projects: { is_internal: boolean } | null }
+    | {
+        project_id: string | null;
+        projects: { is_internal: boolean } | null;
+        team_id?: string;
+        category_id?: string | null;
+      }
     | null;
 } = {
   updates: [],
@@ -111,6 +125,7 @@ function mockSupabase() {
 
 function projectChain() {
   // Production calls .from("projects").select("...").eq("id", x).single()
+  // OR .maybeSingle() (updateTimeEntryAction's project-change probe).
   // We ignore the filter args and return state.project.
   const q: Record<string, unknown> = {};
   q.select = () => q;
@@ -122,6 +137,10 @@ function projectChain() {
           data: null,
           error: { message: "no project", code: "PGRST116" },
         });
+  q.maybeSingle = () =>
+    state.project
+      ? Promise.resolve({ data: state.project, error: null })
+      : Promise.resolve({ data: null, error: null });
   return q;
 }
 
@@ -696,6 +715,66 @@ describe("updateTimeEntryAction (field-selective patch)", () => {
     if (!u) return null;
     return { patch: u.patch as Record<string, unknown> };
   }
+
+  it("project_id submit moves the entry to the destination project (same-team)", async () => {
+    state.project = {
+      id: "p-new",
+      team_id: "team-1",
+      is_internal: false,
+      default_billable: true,
+    };
+    state.existingTimeEntry = {
+      project_id: "p-original",
+      projects: { is_internal: false },
+      team_id: "team-1",
+      category_id: null,
+    };
+    await updateTimeEntryAction(
+      fd({ id: "e-1", project_id: "p-new" }),
+    );
+    const u = findUpdate();
+    expect(u).not.toBeNull();
+    expect(u!.patch.project_id).toBe("p-new");
+  });
+
+  it("project_id submit refuses cross-team move (defensive — RLS would also block)", async () => {
+    state.project = {
+      id: "p-other-team",
+      team_id: "team-OTHER",
+      is_internal: false,
+      default_billable: true,
+    };
+    state.existingTimeEntry = {
+      project_id: "p-original",
+      projects: { is_internal: false },
+      team_id: "team-1",
+      category_id: null,
+    };
+    await expect(
+      updateTimeEntryAction(fd({ id: "e-1", project_id: "p-other-team" })),
+    ).rejects.toThrow(/across teams/);
+  });
+
+  it("project_id same-as-existing → patch does NOT include project_id (no no-op write)", async () => {
+    state.project = {
+      id: "p-1",
+      team_id: "team-1",
+      is_internal: false,
+      default_billable: true,
+    };
+    state.existingTimeEntry = {
+      project_id: "p-1",
+      projects: { is_internal: false },
+      team_id: "team-1",
+      category_id: null,
+    };
+    await updateTimeEntryAction(
+      fd({ id: "e-1", project_id: "p-1", description: "edit" }),
+    );
+    const u = findUpdate();
+    expect(u).not.toBeNull();
+    expect(u!.patch).not.toHaveProperty("project_id");
+  });
 
   it("description-only submit does NOT blank start_time / category_id (regression: prior version coerced missing fields to null, tripping NOT NULL on start_time)", async () => {
     state.existingTimeEntry = {

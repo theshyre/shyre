@@ -68,10 +68,16 @@ interface Props {
   /** Category sets the caller can pick from in the bulk-switch
    *  toolbar action. Includes both system and team-shared sets. */
   categorySets?: CategorySetOption[];
-  /** Per-project current-period burn % — rendered as a column when
-   *  any visible project has a recurring period configured. Empty
-   *  object renders as "—" for every row. Computed server-side. */
+  /** Per-project current-period burn % — rendered as the colored
+   *  progress bar for budgeted projects. Computed server-side. */
   periodBurnPctById?: Record<string, number | null>;
+  /** Per-project trailing-90-day total in MINUTES — the no-budget
+   *  cell renders "Nh · 90d" when this is > 0 (and there's no period
+   *  burn for the project). The minutes-level granularity lives in
+   *  the wire format so the client can decide its own rounding
+   *  (currently nearest hour for visual density). Computed server-
+   *  side; absent map / undefined value renders an em-dash. */
+  noBudgetMinById?: Record<string, number>;
 }
 
 /**
@@ -95,6 +101,7 @@ export function ProjectsTable({
   limitParam,
   categorySets = [],
   periodBurnPctById = {},
+  noBudgetMinById = {},
 }: Props): React.JSX.Element {
   const t = useTranslations("projects");
   const tc = useTranslations("common");
@@ -539,6 +546,7 @@ export function ProjectsTable({
               showBurnColumn={showBurnColumn}
               teamNameById={teamNameById}
               periodBurnPctById={periodBurnPctById}
+              noBudgetMinById={noBudgetMinById}
               selected={selected}
               toggleOne={toggleOne}
               t={t}
@@ -574,6 +582,7 @@ function CustomerGroupRows({
   showBurnColumn,
   teamNameById,
   periodBurnPctById,
+  noBudgetMinById,
   selected,
   toggleOne,
   t,
@@ -591,6 +600,7 @@ function CustomerGroupRows({
   showBurnColumn: boolean;
   teamNameById: Map<string, string>;
   periodBurnPctById: Record<string, number | null>;
+  noBudgetMinById: Record<string, number>;
   selected: Set<string>;
   toggleOne: (id: string) => void;
   t: ReturnType<typeof useTranslations>;
@@ -705,6 +715,7 @@ function CustomerGroupRows({
                 <div className="flex justify-end">
                   <BurnCell
                     pct={periodBurnPctById[project.id] ?? null}
+                    noBudgetMin={noBudgetMinById[project.id] ?? null}
                     projectName={project.name}
                   />
                 </div>
@@ -725,13 +736,42 @@ function CustomerGroupRows({
 
 function BurnCell({
   pct,
+  noBudgetMin,
   projectName,
 }: {
   pct: number | null;
+  /** Trailing-90-day total in minutes for the no-budget case. Null
+   *  when the server didn't compute one (back-compat for the test
+   *  that mounts without the prop). Zero when the project simply
+   *  has no recent activity — rendered as an em-dash + tooltip so
+   *  the cell isn't visually loud about nothing. */
+  noBudgetMin?: number | null;
   projectName: string;
 }): React.JSX.Element {
+  // No budget configured → fall back to trailing-90-day hours
+  // (persona-converged 2026-05-12). Hours-only: no rate-drift trap,
+  // no currency-mixing, works for internal projects without a rate.
   if (pct === null) {
-    return <span className="text-content-muted">—</span>;
+    if (noBudgetMin == null) {
+      return <span className="text-content-muted">—</span>;
+    }
+    const hours = Math.round(noBudgetMin / 60);
+    if (hours === 0) {
+      return (
+        <Tooltip label={`${projectName} — no time logged in the last 90 days`}>
+          <span className="text-content-muted">—</span>
+        </Tooltip>
+      );
+    }
+    return (
+      <Tooltip
+        label={`${projectName} — ${hours}h logged in the last 90 days`}
+      >
+        <span className="font-mono tabular-nums text-caption text-content-secondary">
+          {hours}h · 90d
+        </span>
+      </Tooltip>
+    );
   }
   // 3-channel encoding: position (bar fill), color, and an icon at
   // the 80%/100% breakpoints. Two non-color channels survives

@@ -102,6 +102,38 @@ describe("InlineEditForm", () => {
     expect(save.disabled).toBe(true);
   });
 
+  it("submits the picked project_id when the user changes the project", async () => {
+    const p2 = {
+      id: "p2",
+      name: "Beta",
+      github_repo: null,
+      jira_project_key: null,
+      team_id: "o1",
+      category_set_id: null,
+      require_timestamps: true,
+    };
+    const { container } = renderWithIntl(
+      <InlineEditForm
+        entry={entry}
+        projects={[project, p2]}
+        categories={[]}
+        onDone={() => {}}
+      />,
+    );
+    const select = container.querySelector<HTMLSelectElement>(
+      'select[name="project_id"]',
+    )!;
+    expect(select).toBeTruthy();
+    expect(select.disabled).toBe(false);
+    expect(select.value).toBe("p1");
+    fireEvent.change(select, { target: { value: "p2" } });
+    expect(select.value).toBe("p2");
+    fireEvent.click(screen.getByRole("button", { name: /save changes/i }));
+    await waitFor(() => expect(updateMock).toHaveBeenCalled());
+    const fd = updateMock.mock.calls[0]?.[0];
+    expect(fd?.get("project_id")).toBe("p2");
+  });
+
   it("Escape key calls onDone", () => {
     const onDone = vi.fn();
     renderWithIntl(
