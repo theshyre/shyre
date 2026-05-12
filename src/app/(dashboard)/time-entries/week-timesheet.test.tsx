@@ -518,4 +518,80 @@ describe("WeekTimesheet", () => {
       screen.queryAllByRole("button", { name: /collapse group/i }),
     ).toHaveLength(0);
   });
+
+  // Persona-converged design: collapsed rows aren't mute on the
+  // most-identifying field. Single-entry rows surface the ticket
+  // chip + description inline; multi-entry rows show a count badge
+  // (the auto-expanded sub-rows below carry the per-entry detail).
+  it("single-entry row renders the ticket key + description inline on the summary", () => {
+    const e: TimeEntry = {
+      ...makeEntry("e1", { day: 0, durationMin: 60 }),
+      description: "Fix login flash on Safari",
+      linked_ticket_provider: "jira",
+      linked_ticket_key: "AE-642",
+      linked_ticket_url: "https://example.atlassian.net/browse/AE-642",
+    };
+    renderTimesheet(
+      <WeekTimesheet
+        weekStartStr={weekStartStr}
+        tzOffsetMin={tzOffsetMin}
+        entries={[e]}
+        projects={[project]}
+        categories={[]}
+      />,
+    );
+    expect(screen.getByText("AE-642")).toBeInTheDocument();
+    // Sr-only + visible spans both carry the description text.
+    expect(
+      screen.getAllByText(/Fix login flash on Safari/).length,
+    ).toBeGreaterThanOrEqual(1);
+  });
+
+  it("multi-entry row renders a count badge instead of sampling tickets", () => {
+    const entries: TimeEntry[] = [
+      {
+        ...makeEntry("e1", { day: 0, durationMin: 30 }),
+        description: "First",
+        linked_ticket_provider: "jira",
+        linked_ticket_key: "AE-642",
+      },
+      {
+        ...makeEntry("e2", { day: 0, durationMin: 30 }),
+        description: "Second",
+        linked_ticket_provider: "jira",
+        linked_ticket_key: "AE-643",
+      },
+      {
+        ...makeEntry("e3", { day: 1, durationMin: 45 }),
+        description: "Third",
+        linked_ticket_provider: "jira",
+        linked_ticket_key: "AE-644",
+      },
+    ];
+    renderTimesheet(
+      <WeekTimesheet
+        weekStartStr={weekStartStr}
+        tzOffsetMin={tzOffsetMin}
+        entries={entries}
+        projects={[project]}
+        categories={[]}
+      />,
+    );
+    // The summary badge names the count, not specific tickets.
+    expect(screen.getByText(/3 entries/i)).toBeInTheDocument();
+  });
+
+  it("row with zero entries does not render an entry detail line", () => {
+    renderTimesheet(
+      <WeekTimesheet
+        weekStartStr={weekStartStr}
+        tzOffsetMin={tzOffsetMin}
+        entries={[]}
+        projects={[project]}
+        categories={[]}
+      />,
+    );
+    // No "entries" count, no ticket chip — the empty state is intact.
+    expect(screen.queryByText(/entries/i)).toBeNull();
+  });
 });

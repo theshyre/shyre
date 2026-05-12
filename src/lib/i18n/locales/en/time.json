@@ -29,6 +29,7 @@
   },
   "entryRow": {
     "untitled": "Untitled",
+    "ticketLinkAria": "Open ticket {key} in a new tab",
     "editEntry": "Edit entry",
     "collapseEdit": "Close editor",
     "deleteEntry": "Delete entry",
@@ -206,6 +207,7 @@
     "keepEditing": "Keep editing",
     "actionsLabel": "Entry actions",
     "untitled": "Untitled entry",
+    "ticketLinkAria": "Open ticket {key} in a new tab",
     "noCategory": "No category"
   },
   "viewToggle": {
@@ -282,7 +284,8 @@
       "customerLabel": "Customer",
       "projectLabel": "Project",
       "noCustomer": "No customer",
-      "noProject": "No project"
+      "noProject": "No project",
+      "entryCount": "{count, plural, one {# entry} other {# entries}} — expand for detail"
     }
   },
   "rowDelete": {

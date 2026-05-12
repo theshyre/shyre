@@ -39,6 +39,8 @@ import {
   Save,
   Lock,
   X,
+  Link as LinkIcon,
+  ExternalLink,
 } from "lucide-react";
 import Link from "next/link";
 import { AlertBanner } from "@theshyre/ui";
@@ -171,18 +173,30 @@ export function EntrySummaryRow({
                 href={ticketUrl}
                 target="_blank"
                 rel="noopener noreferrer"
-                className="font-mono text-caption text-accent shrink-0 hover:underline"
+                aria-label={t("ticketLinkAria", { key: ticketKey })}
+                className="inline-flex items-center gap-1 font-mono text-caption text-accent shrink-0 hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent rounded"
               >
+                <ExternalLink size={11} aria-hidden="true" className="shrink-0" />
                 {ticketKey}
               </a>
             ) : (
-              <span className="font-mono text-caption text-accent shrink-0">
+              <span className="inline-flex items-center gap-1 font-mono text-caption text-accent shrink-0">
+                <LinkIcon size={11} aria-hidden="true" className="shrink-0" />
                 {ticketKey}
               </span>
             )
           ) : null}
+          {/* Truncated description with the full text reachable to
+              screen readers via an sr-only companion. The Tooltip
+              alone is insufficient — its aria-describedby fires only
+              while the trigger is focused, and the visual <span> is
+              not focusable, so SR users never hear the full
+              description. WCAG 1.4.13 / 4.1.2. */}
           <Tooltip label={description || t("untitled")}>
-            <span className="text-body text-content-secondary truncate min-w-0">
+            <span
+              className="text-body text-content-secondary truncate min-w-0"
+              aria-hidden="true"
+            >
               {description || (
                 <span className="italic text-content-muted">
                   {t("untitled")}
@@ -190,6 +204,9 @@ export function EntrySummaryRow({
               )}
             </span>
           </Tooltip>
+          <span className="sr-only">
+            {description || t("untitled")}
+          </span>
         </div>
       </td>
       {/* Day cells: blank except the entry's day, which shows the

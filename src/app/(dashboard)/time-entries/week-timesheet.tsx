@@ -23,6 +23,8 @@ import {
   Play,
   Plus,
   Square,
+  Link as LinkIcon,
+  ExternalLink,
 } from "lucide-react";
 import { Avatar, resolveAvatarUrl } from "@theshyre/ui";
 import {
@@ -1282,6 +1284,68 @@ function TimesheetRow({
               </div>
             </Tooltip>
           )}
+          {/* Identifying detail line — surfaces the entry's ticket
+              chip and description so single-entry rows (the dominant
+              case) aren't mute on the most-meaningful field while
+              collapsed. Multi-entry rows fall back to a count badge;
+              the auto-expanded sub-rows directly below carry the
+              per-entry detail. Persona-converged design (refined
+              Option B): visual treatment is a 1:1 copy of the
+              EntrySummaryRow leading-cell pattern so the row reads
+              the same expanded or collapsed. */}
+          {(() => {
+            const flat = flattenEntriesByDay(row.entriesByDay);
+            if (flat.length === 0) return null;
+            if (flat.length === 1) {
+              const e = flat[0]!.entry;
+              const ticketKey = e.linked_ticket_key;
+              const ticketUrl = e.linked_ticket_url;
+              const description = e.description ?? "";
+              return (
+                <div className="flex items-center gap-1.5 text-caption mt-0.5 min-w-0">
+                  {ticketKey ? (
+                    ticketUrl ? (
+                      <a
+                        href={ticketUrl}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        aria-label={tEntry("ticketLinkAria", { key: ticketKey })}
+                        className="inline-flex items-center gap-1 font-mono text-caption text-accent shrink-0 hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent rounded"
+                      >
+                        <ExternalLink size={11} aria-hidden="true" className="shrink-0" />
+                        {ticketKey}
+                      </a>
+                    ) : (
+                      <span className="inline-flex items-center gap-1 font-mono text-caption text-accent shrink-0">
+                        <LinkIcon size={11} aria-hidden="true" className="shrink-0" />
+                        {ticketKey}
+                      </span>
+                    )
+                  ) : null}
+                  <Tooltip label={description || tEntry("untitled")}>
+                    <span
+                      className="text-content-secondary truncate min-w-0"
+                      aria-hidden="true"
+                    >
+                      {description || (
+                        <span className="italic text-content-muted">
+                          {tEntry("untitled")}
+                        </span>
+                      )}
+                    </span>
+                  </Tooltip>
+                  <span className="sr-only">
+                    {description || tEntry("untitled")}
+                  </span>
+                </div>
+              );
+            }
+            return (
+              <div className="text-caption text-content-muted mt-0.5">
+                {t("row.entryCount", { count: flat.length })}
+              </div>
+            );
+          })()}
           {showAuthorChip && (
             <div className="mt-1">
               <EntryAuthor author={row.author} size={16} />

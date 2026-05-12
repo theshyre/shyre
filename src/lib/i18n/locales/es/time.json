@@ -29,6 +29,7 @@
   },
   "entryRow": {
     "untitled": "Sin título",
+    "ticketLinkAria": "Abrir el ticket {key} en una pestaña nueva",
     "editEntry": "Editar entrada",
     "collapseEdit": "Cerrar editor",
     "deleteEntry": "Eliminar entrada",
@@ -206,6 +207,7 @@
     "keepEditing": "Seguir editando",
     "actionsLabel": "Acciones de registro",
     "untitled": "Registro sin título",
+    "ticketLinkAria": "Abrir el ticket {key} en una pestaña nueva",
     "noCategory": "Sin categoría"
   },
   "viewToggle": {
@@ -282,7 +284,8 @@
       "customerLabel": "Cliente",
       "projectLabel": "Proyecto",
       "noCustomer": "Sin cliente",
-      "noProject": "Sin proyecto"
+      "noProject": "Sin proyecto",
+      "entryCount": "{count, plural, one {# registro} other {# registros}} — expande para ver el detalle"
     }
   },
   "rowDelete": {

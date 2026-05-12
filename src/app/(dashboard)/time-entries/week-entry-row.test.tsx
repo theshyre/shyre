@@ -149,7 +149,64 @@ describe("EntrySummaryRow", () => {
       ),
     );
     expect(screen.getByText("AE-640")).toBeInTheDocument();
-    expect(screen.getByText(/Fix login bug/)).toBeInTheDocument();
+    // Description appears twice: the visible truncated span and the
+    // sr-only companion so screen readers always reach the full
+    // text. Both are required by the WCAG 4.1.2 fix.
+    expect(screen.getAllByText(/Fix login bug/).length).toBeGreaterThanOrEqual(2);
+  });
+
+  it("renders a non-color signal next to the ticket chip (CLAUDE.md ≥2 channels)", () => {
+    const { container } = renderWithIntl(
+      wrapInTable(
+        <EntrySummaryRow
+          entry={makeEntry("e1", {
+            description: "Fix login bug",
+            linked_ticket_key: "AE-640",
+            linked_ticket_provider: "jira",
+            linked_ticket_url: "https://example.atlassian.net/browse/AE-640",
+          })}
+          dayIndex={1}
+          editing={false}
+          onEditToggle={() => {}}
+          dayDateLong="Tuesday, May 5"
+          isRunning={false}
+          liveElapsedMin={0}
+        />,
+      ),
+    );
+    // ExternalLink (or Link when no URL) is rendered as an svg
+    // alongside the ticket chip. Color-only differentiation was
+    // the pre-existing WCAG 1.4.1 violation the audit caught.
+    const ticketLink = container.querySelector(
+      'a[href="https://example.atlassian.net/browse/AE-640"]',
+    );
+    expect(ticketLink).not.toBeNull();
+    expect(ticketLink?.querySelector("svg")).not.toBeNull();
+  });
+
+  it("exposes the full description to screen readers when truncated", () => {
+    const longDescription =
+      "A very long description that the visible span will truncate but screen readers must still receive in full";
+    renderWithIntl(
+      wrapInTable(
+        <EntrySummaryRow
+          entry={makeEntry("e1", { description: longDescription })}
+          dayIndex={1}
+          editing={false}
+          onEditToggle={() => {}}
+          dayDateLong="Tuesday, May 5"
+          isRunning={false}
+          liveElapsedMin={0}
+        />,
+      ),
+    );
+    const matches = screen.getAllByText(longDescription);
+    // sr-only companion present.
+    expect(matches.some((el) => el.classList.contains("sr-only"))).toBe(true);
+    // Visible truncating span is aria-hidden so SRs don't double up.
+    expect(
+      matches.some((el) => el.getAttribute("aria-hidden") === "true"),
+    ).toBe(true);
   });
 
   it("renders the duration in the entry's day column only", () => {
