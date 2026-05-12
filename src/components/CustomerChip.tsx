@@ -22,6 +22,7 @@
  */
 
 import type { CSSProperties } from "react";
+import { Building2 } from "lucide-react";
 import { AVATAR_PRESETS, presetAvatarUrl } from "@theshyre/ui";
 
 interface Props {
@@ -32,6 +33,12 @@ interface Props {
    *  The accessible name is provided by the sibling text node;
    *  this chip is `aria-hidden`. */
   customerName: string | null | undefined;
+  /** When true, the chip renders the "internal project" treatment
+   *  (Building glyph on a neutral background) instead of the
+   *  question-mark "missing customer" fallback. Internal projects
+   *  don't have a customer by design — surfacing them with the
+   *  same `?` we use for missing data reads as broken. */
+  internal?: boolean;
   /** Pixel size. Default 16 for compact list contexts. */
   size?: number;
   /** Optional className for layout adjustments (margin, etc.). */
@@ -91,9 +98,31 @@ function presetForCustomerId(
 export function CustomerChip({
   customerId,
   customerName,
+  internal = false,
   size = 16,
   className = "",
 }: Props): React.JSX.Element {
+  // Internal-project branch: the project intentionally has no
+  // customer. Render a building glyph on a neutral background to
+  // signal "internal work," not the `?` we use for missing data.
+  if (internal && !customerId) {
+    const style: CSSProperties = {
+      width: size,
+      height: size,
+      backgroundColor: "var(--surface-inset, #e5e7eb)",
+      color: "var(--content-secondary, #4b5563)",
+    };
+    return (
+      <span
+        aria-hidden="true"
+        className={`inline-flex items-center justify-center rounded-[3px] shrink-0 border border-edge/60 ${className}`}
+        style={style}
+      >
+        <Building2 size={Math.max(10, Math.floor(size * 0.66))} />
+      </span>
+    );
+  }
+
   const initials = customerInitials(customerName);
   const preset = presetForCustomerId(customerId);
   const style: CSSProperties = {

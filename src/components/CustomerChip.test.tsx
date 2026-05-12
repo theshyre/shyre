@@ -86,6 +86,32 @@ describe("CustomerChip", () => {
     expect(chip?.textContent).toBe("?");
   });
 
+  it("internal projects render a Building glyph, not a ? fallback", () => {
+    const { container } = render(
+      <CustomerChip customerId={null} customerName={null} internal />,
+    );
+    const chip = container.querySelector("span[aria-hidden='true']");
+    expect(chip).not.toBeNull();
+    // No text content — the building glyph is the signal.
+    expect(chip?.textContent).toBe("");
+    // SVG glyph is present.
+    expect(chip?.querySelector("svg")).not.toBeNull();
+  });
+
+  it("internal flag is ignored when a customerId IS present (real customer wins)", () => {
+    const { container } = render(
+      <CustomerChip
+        customerId="cust-1"
+        customerName="Acme Corp"
+        internal
+      />,
+    );
+    const chip = container.querySelector("span[aria-hidden='true']");
+    // Initials, not the building glyph.
+    expect(chip?.textContent).toBe("AC");
+    expect(chip?.querySelector("svg")).toBeNull();
+  });
+
   it("two distinct ids can map to the same slot (collision allowed); shape stays consistent", () => {
     // Smoke check: this isn't a guarantee about specific ids, just
     // that the chip renders consistently regardless of palette slot.

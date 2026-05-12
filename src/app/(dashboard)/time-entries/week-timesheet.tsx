@@ -1288,7 +1288,11 @@ function TimesheetRow({
               on customer.id so the color is stable across renames.
               Replaces the all-caps "CUSTOMER" label — the chip
               itself signals the role (square = organization, paired
-              with a name) per the Entity Identity rule. */}
+              with a name) per the Entity Identity rule.
+              Internal projects (project.is_internal) get the
+              Building glyph + "Internal" label instead of the
+              missing-data treatment — the lack of a customer is
+              intentional design, not a gap. */}
           {!hideProject &&
             (project?.customers?.name ? (
               <div className="flex items-center gap-1.5 mt-0.5 min-w-0">
@@ -1301,6 +1305,17 @@ function TimesheetRow({
                     {project.customers.name}
                   </div>
                 </Tooltip>
+              </div>
+            ) : project?.is_internal ? (
+              <div className="flex items-center gap-1.5 mt-0.5 min-w-0">
+                <CustomerChip
+                  customerId={null}
+                  customerName={null}
+                  internal
+                />
+                <span className="text-caption text-content-secondary truncate">
+                  {t("row.internal")}
+                </span>
               </div>
             ) : (
               <div className="flex items-center gap-1.5 mt-0.5 min-w-0">
