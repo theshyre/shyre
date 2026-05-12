@@ -42,10 +42,21 @@ vi.mock("next/cache", () => ({
   revalidatePath: (p: string) => mockRevalidatePath(p),
 }));
 
-// Ticket builder is unrelated to delete/stop/restore paths.
-vi.mock("@/lib/tickets/attach", () => ({
-  buildTicketAttachment: vi.fn().mockResolvedValue({}),
-}));
+// Ticket builder is mocked so individual tests can dictate what the
+// attach helper "resolves" to. autoFillDescription is the real
+// implementation — tests that care about the description-auto-fill
+// behaviour drive it via the buildTicketAttachment fixture below.
+const ticketAttachmentMock = vi.fn();
+vi.mock("@/lib/tickets/attach", async () => {
+  const actual = await vi.importActual<
+    typeof import("@/lib/tickets/attach")
+  >("@/lib/tickets/attach");
+  return {
+    ...actual,
+    buildTicketAttachment: (...args: unknown[]) =>
+      ticketAttachmentMock(...args),
+  };
+});
 
 interface Filter {
   col: string;
@@ -243,6 +254,14 @@ import {
   updateTimeEntryAction,
 } from "./actions";
 
+const EMPTY_TICKET = {
+  linked_ticket_provider: null,
+  linked_ticket_key: null,
+  linked_ticket_url: null,
+  linked_ticket_title: null,
+  linked_ticket_refreshed_at: null,
+};
+
 function reset(): void {
   state.updates = [];
   state.deletes = [];
@@ -253,6 +272,8 @@ function reset(): void {
   state.existingTimeEntry = null;
   mockValidateTeamAccess.mockReset();
   mockRevalidatePath.mockReset();
+  ticketAttachmentMock.mockReset();
+  ticketAttachmentMock.mockResolvedValue(EMPTY_TICKET);
 }
 
 function fd(entries: Record<string, string | string[]>): FormData {
@@ -566,6 +587,105 @@ describe("createTimeEntryAction", () => {
     const row = state.inserts[0]?.rows as Record<string, unknown>;
     expect(row.start_time).toBe("2026-04-15T00:00:00.000Z");
   });
+
+  // Regression: a user who typed only a Jira/GitHub key into the
+  // ticket field of the new-entry form (no description) saw the row
+  // render as "Untitled" because createTimeEntryAction inserted the
+  // submitted (empty) description verbatim. Now: when the ticket
+  // resolves, the description defaults to "{key} {title}".
+  it("auto-fills description with `${key} ${title}` when ticket_ref resolves and description was empty", async () => {
+    state.project = {
+      team_id: "team-1",
+      is_internal: false,
+      default_billable: true,
+    };
+    mockValidateTeamAccess.mockResolvedValue({
+      userId: fakeUserId,
+      role: "member",
+    });
+    ticketAttachmentMock.mockResolvedValue({
+      linked_ticket_provider: "jira",
+      linked_ticket_key: "AE-644",
+      linked_ticket_url: "https://example.atlassian.net/browse/AE-644",
+      linked_ticket_title: "Amplify Gen 2 cutover",
+      linked_ticket_refreshed_at: "2026-05-12T15:00:00.000Z",
+    });
+
+    await createTimeEntryAction(
+      fd({
+        project_id: "p-1",
+        // Empty description — user typed only a ticket key.
+        description: "",
+        ticket_ref: "AE-644",
+        start_time: "2026-05-12T15:00:00.000Z",
+      }),
+    );
+
+    const row = state.inserts[0]?.rows as Record<string, unknown>;
+    expect(row.description).toBe("AE-644 Amplify Gen 2 cutover");
+    expect(row.linked_ticket_key).toBe("AE-644");
+  });
+
+  it("falls back to just the key when the title lookup failed", async () => {
+    state.project = {
+      team_id: "team-1",
+      is_internal: false,
+      default_billable: true,
+    };
+    mockValidateTeamAccess.mockResolvedValue({
+      userId: fakeUserId,
+      role: "member",
+    });
+    ticketAttachmentMock.mockResolvedValue({
+      linked_ticket_provider: "jira",
+      linked_ticket_key: "AE-644",
+      linked_ticket_url: null,
+      linked_ticket_title: null,
+      linked_ticket_refreshed_at: null,
+    });
+
+    await createTimeEntryAction(
+      fd({
+        project_id: "p-1",
+        ticket_ref: "AE-644",
+        start_time: "2026-05-12T15:00:00.000Z",
+      }),
+    );
+
+    const row = state.inserts[0]?.rows as Record<string, unknown>;
+    expect(row.description).toBe("AE-644");
+  });
+
+  it("does NOT overwrite a user-typed description even when a ticket resolves", async () => {
+    state.project = {
+      team_id: "team-1",
+      is_internal: false,
+      default_billable: true,
+    };
+    mockValidateTeamAccess.mockResolvedValue({
+      userId: fakeUserId,
+      role: "member",
+    });
+    ticketAttachmentMock.mockResolvedValue({
+      linked_ticket_provider: "jira",
+      linked_ticket_key: "AE-644",
+      linked_ticket_url: "https://example.atlassian.net/browse/AE-644",
+      linked_ticket_title: "Amplify Gen 2 cutover",
+      linked_ticket_refreshed_at: "2026-05-12T15:00:00.000Z",
+    });
+
+    await createTimeEntryAction(
+      fd({
+        project_id: "p-1",
+        description: "Pairing with QA on the smoke run",
+        ticket_ref: "AE-644",
+        start_time: "2026-05-12T15:00:00.000Z",
+      }),
+    );
+
+    const row = state.inserts[0]?.rows as Record<string, unknown>;
+    expect(row.description).toBe("Pairing with QA on the smoke run");
+  });
 });
 
 describe("updateTimeEntryAction (field-selective patch)", () => {
@@ -663,5 +783,51 @@ describe("updateTimeEntryAction (field-selective patch)", () => {
     };
     await updateTimeEntryAction(fd({ id: "e-1", description: "" }));
     expect(findUpdate()?.patch.description).toBeNull();
+  });
+
+  // Regression — sibling fix for createTimeEntryAction. If the user
+  // edits an entry's ticket field but leaves description empty, the
+  // inline-edit form posts description="" and ticket_ref="KEY". The
+  // resolved ticket title becomes the description so the row stops
+  // rendering as "Untitled".
+  it("empty description + resolving ticket_ref → patch.description becomes `${key} ${title}`", async () => {
+    state.existingTimeEntry = {
+      project_id: "p-1",
+      projects: { is_internal: false },
+    };
+    ticketAttachmentMock.mockResolvedValue({
+      linked_ticket_provider: "jira",
+      linked_ticket_key: "AE-644",
+      linked_ticket_url: "https://example.atlassian.net/browse/AE-644",
+      linked_ticket_title: "Amplify Gen 2 cutover",
+      linked_ticket_refreshed_at: "2026-05-12T15:00:00.000Z",
+    });
+    await updateTimeEntryAction(
+      fd({ id: "e-1", description: "", ticket_ref: "AE-644" }),
+    );
+    expect(findUpdate()?.patch.description).toBe(
+      "AE-644 Amplify Gen 2 cutover",
+    );
+  });
+
+  it("does NOT auto-fill description when ticket_ref is submitted but description field is absent (preserves whatever's already on the row)", async () => {
+    state.existingTimeEntry = {
+      project_id: "p-1",
+      projects: { is_internal: false },
+    };
+    ticketAttachmentMock.mockResolvedValue({
+      linked_ticket_provider: "jira",
+      linked_ticket_key: "AE-644",
+      linked_ticket_url: null,
+      linked_ticket_title: "Amplify Gen 2 cutover",
+      linked_ticket_refreshed_at: "2026-05-12T15:00:00.000Z",
+    });
+    // Only ticket_ref — no description field at all.
+    await updateTimeEntryAction(
+      fd({ id: "e-1", ticket_ref: "AE-644" }),
+    );
+    expect(findUpdate()?.patch).not.toHaveProperty("description");
+    // But ticket fields ARE recomputed and written.
+    expect(findUpdate()?.patch.linked_ticket_key).toBe("AE-644");
   });
 });

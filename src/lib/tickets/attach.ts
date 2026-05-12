@@ -103,3 +103,24 @@ export async function buildTicketAttachment(
     linked_ticket_refreshed_at: null,
   };
 }
+
+/**
+ * When the caller didn't supply a description but a ticket was
+ * attached, default the description to `"{key} {title}"` (or just
+ * `"{key}"` when the title lookup failed). Returns the original
+ * description otherwise.
+ *
+ * Used by every entry-mutation action — create, update, and the
+ * timer-start path — so a user who types only a Jira/GitHub key
+ * gets a readable row instead of an "Untitled" entry.
+ */
+export function autoFillDescription(
+  description: string | null,
+  ticket: TicketAttachment | null,
+): string | null {
+  if (description !== null && description.length > 0) return description;
+  if (!ticket?.linked_ticket_key) return description;
+  return ticket.linked_ticket_title
+    ? `${ticket.linked_ticket_key} ${ticket.linked_ticket_title}`
+    : ticket.linked_ticket_key;
+}

@@ -4,7 +4,10 @@ import { runSafeAction } from "@/lib/safe-action";
 import { assertSupabaseOk } from "@/lib/errors";
 import { validateTeamAccess } from "@/lib/team-context";
 import { localDateMidnightUtc } from "@/lib/time/tz";
-import { buildTicketAttachment } from "@/lib/tickets/attach";
+import {
+  autoFillDescription,
+  buildTicketAttachment,
+} from "@/lib/tickets/attach";
 import { isInLocalDay } from "@/lib/local-day-bounds";
 import { revalidatePath } from "next/cache";
 
@@ -100,13 +103,17 @@ export async function createTimeEntryAction(formData: FormData): Promise<void> {
       project_id,
       ticketRef,
     );
+    // If the user typed only a ticket key (no description), let the
+    // resolved "{key} {title}" become the row's description so the
+    // day-view row + week summary don't render as "Untitled".
+    const finalDescription = autoFillDescription(description, ticket);
 
     assertSupabaseOk(
       await supabase.from("time_entries").insert({
         team_id: teamId,
         user_id: userId,
         project_id,
-        description,
+        description: finalDescription,
         start_time,
         end_time,
         billable,
@@ -213,6 +220,16 @@ export async function updateTimeEntryAction(formData: FormData): Promise<void> {
         ticketRef,
       );
       Object.assign(patch, ticket);
+      // Symmetric with createTimeEntryAction / startTimerAction:
+      // if the user submitted an empty description but a ticket
+      // resolved, default the description to "{key} {title}".
+      // Only kicks in when description was actually submitted —
+      // otherwise we'd overwrite an unrelated existing description
+      // just because the user edited the ticket_ref field.
+      if (formData.has("description")) {
+        const filled = autoFillDescription(description, ticket);
+        if (filled !== description) patch.description = filled;
+      }
     }
 
     // Nothing to update — defensively short-circuit so we don't
@@ -731,19 +748,7 @@ export async function startTimerAction(formData: FormData): Promise<void> {
           )
         : null;
 
-    // When the user typed only a ticket key (no description), let
-    // the resolved "{key} {title}" become the description so the
-    // running-timer chip + the day-view row both read naturally.
-    // Falls back to just the key when the lookup couldn't fetch a
-    // title (no creds / 404 / network).
-    if (
-      description === null &&
-      ticket?.linked_ticket_key
-    ) {
-      description = ticket.linked_ticket_title
-        ? `${ticket.linked_ticket_key} ${ticket.linked_ticket_title}`
-        : ticket.linked_ticket_key;
-    }
+    description = autoFillDescription(description, ticket);
 
     if (existing) {
       const accumulatedMin = (existing.duration_min as number | null) ?? 0;

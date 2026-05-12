@@ -8,7 +8,8 @@ vi.mock("./lookup", () => ({
   lookupTicket: lookupTicketMock,
 }));
 
-import { buildTicketAttachment } from "./attach";
+import { autoFillDescription, buildTicketAttachment } from "./attach";
+import type { TicketAttachment } from "./attach";
 
 interface FakeProject {
   github_repo: string | null;
@@ -201,5 +202,63 @@ describe("buildTicketAttachment", () => {
     );
     expect(r.linked_ticket_provider).toBeNull();
     expect(lookupTicketMock).not.toHaveBeenCalled();
+  });
+});
+
+describe("autoFillDescription", () => {
+  const resolvedTicket: TicketAttachment = {
+    linked_ticket_provider: "jira",
+    linked_ticket_key: "AE-644",
+    linked_ticket_url: "https://example.atlassian.net/browse/AE-644",
+    linked_ticket_title: "Amplify Gen 2 cutover",
+    linked_ticket_refreshed_at: "2026-05-12T15:00:00.000Z",
+  };
+
+  const keyOnlyTicket: TicketAttachment = {
+    linked_ticket_provider: "jira",
+    linked_ticket_key: "AE-644",
+    linked_ticket_url: null,
+    linked_ticket_title: null,
+    linked_ticket_refreshed_at: null,
+  };
+
+  const emptyTicket: TicketAttachment = {
+    linked_ticket_provider: null,
+    linked_ticket_key: null,
+    linked_ticket_url: null,
+    linked_ticket_title: null,
+    linked_ticket_refreshed_at: null,
+  };
+
+  it("fills `${key} ${title}` when description is null and ticket fully resolved", () => {
+    expect(autoFillDescription(null, resolvedTicket)).toBe(
+      "AE-644 Amplify Gen 2 cutover",
+    );
+  });
+
+  it("falls back to just `${key}` when title lookup failed", () => {
+    expect(autoFillDescription(null, keyOnlyTicket)).toBe("AE-644");
+  });
+
+  it("treats an empty-string description like null and fills it", () => {
+    expect(autoFillDescription("", resolvedTicket)).toBe(
+      "AE-644 Amplify Gen 2 cutover",
+    );
+  });
+
+  it("does NOT overwrite a non-empty description", () => {
+    expect(
+      autoFillDescription("Fixing the login flow", resolvedTicket),
+    ).toBe("Fixing the login flow");
+  });
+
+  it("returns the original description when no ticket was attached", () => {
+    expect(autoFillDescription(null, emptyTicket)).toBeNull();
+    expect(autoFillDescription("", emptyTicket)).toBe("");
+  });
+
+  it("returns the original description when ticket is null", () => {
+    expect(autoFillDescription(null, null)).toBeNull();
+    expect(autoFillDescription("manual note", null)).toBe("manual note");
   });
 });
