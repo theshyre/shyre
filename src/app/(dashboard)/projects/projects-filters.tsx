@@ -17,6 +17,7 @@ import {
   Users,
 } from "lucide-react";
 import { kbdClass } from "@/lib/form-styles";
+import { CustomerChip } from "@/components/CustomerChip";
 
 interface CustomerOption {
   id: string;
@@ -266,6 +267,11 @@ export function CustomerFilter({
                   <CheckCircle size={12} aria-hidden="true" />
                 )}
               </span>
+              <CustomerChip
+                customerId={c.id}
+                customerName={c.name}
+                size={14}
+              />
               <span className="font-medium text-content truncate">
                 {c.name}
               </span>

@@ -11,6 +11,7 @@ import {
 } from "lucide-react";
 import { Tooltip } from "@/components/Tooltip";
 import { useToast } from "@/components/Toast";
+import { CustomerChip } from "@/components/CustomerChip";
 import { tableClass } from "@/lib/table-styles";
 import { ArchiveButton } from "./archive-button";
 import {
@@ -300,6 +301,10 @@ export function CustomersTable({
                 )}
                 <td className="px-4 py-3">
                   <div className="flex items-center gap-2 flex-wrap">
+                    <CustomerChip
+                      customerId={client.id}
+                      customerName={client.name}
+                    />
                     <Link
                       href={`/customers/${client.id}`}
                       className="text-accent hover:underline font-medium"

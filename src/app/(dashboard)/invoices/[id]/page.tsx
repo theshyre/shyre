@@ -39,6 +39,7 @@ import { InvoicePdfButton } from "./invoice-pdf-button";
 import { SendInvoiceButton } from "./send-invoice-button";
 import { InvoiceStatusBadge } from "../invoice-status-badge";
 import { PaidDateBlock } from "./paid-date-block";
+import { CustomerChip } from "@/components/CustomerChip";
 /**
  * Drop the country line from a multi-line formatted address unless
  * the caller wants to show it. `formatAddressMultiLine` returns
@@ -256,6 +257,7 @@ export default async function InvoiceDetailPage({
   const client =
     invoice.customers && typeof invoice.customers === "object"
       ? (invoice.customers as {
+          id: string;
           name: string;
           email: string | null;
           address: string | null;
@@ -409,7 +411,16 @@ export default async function InvoiceDetailPage({
           <h3 className="text-label font-semibold uppercase tracking-wider text-content-muted mb-2">
             {t("pdf.billTo")}
           </h3>
-          <p className="font-medium text-content">{client?.name ?? "—"}</p>
+          <div className="flex items-center gap-2">
+            {client?.id && client?.name ? (
+              <CustomerChip
+                customerId={client.id}
+                customerName={client.name}
+                size={20}
+              />
+            ) : null}
+            <p className="font-medium text-content">{client?.name ?? "—"}</p>
+          </div>
           {client?.email && (
             <p className="text-body text-content-secondary">{client.email}</p>
           )}

@@ -122,7 +122,7 @@ export default async function ProjectsPage({
   // ($-/hr) stay at the bottom regardless of asc/desc.
   let projectsQuery = supabase
     .from("projects_v")
-    .select("*, customers(name)", { count: "exact" })
+    .select("*, customers(id, name)", { count: "exact" })
     .order(sort, { ascending: dir === "asc", nullsFirst: false })
     .order("id", { ascending: false });
 

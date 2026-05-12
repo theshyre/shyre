@@ -6,6 +6,7 @@ import Link from "next/link";
 import { CheckCircle, Download } from "lucide-react";
 import { Tooltip } from "@/components/Tooltip";
 import { useToast } from "@/components/Toast";
+import { CustomerChip } from "@/components/CustomerChip";
 import { PaginationFooter } from "@/components/PaginationFooter";
 import { InvoiceStatusBadge } from "./invoice-status-badge";
 import { effectiveInvoiceStatus } from "@/lib/invoice-status";
@@ -22,7 +23,7 @@ export interface InvoiceRow {
   total: number | string | null;
   currency: string | null;
   imported_from: string | null;
-  customers: { name: string } | null;
+  customers: { id: string; name: string } | null;
 }
 
 interface Props {
@@ -334,7 +335,16 @@ export function InvoicesTable({
                   {teamNameById.get(inv.team_id) ?? "—"}
                 </td>
                 <td className="px-4 py-3 text-content-secondary">
-                  {customerName}
+                  <span className="inline-flex items-center gap-1.5 min-w-0">
+                    {inv.customers?.id ? (
+                      <CustomerChip
+                        customerId={inv.customers.id}
+                        customerName={inv.customers.name}
+                        size={14}
+                      />
+                    ) : null}
+                    <span className="truncate">{customerName}</span>
+                  </span>
                 </td>
                 <td className="px-4 py-3 text-content-secondary text-caption">
                   {inv.issued_date ?? "—"}

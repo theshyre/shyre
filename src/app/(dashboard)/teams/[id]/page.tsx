@@ -29,6 +29,7 @@ import {
   type LucideIcon,
 } from "lucide-react";
 import { LinkPendingSpinner } from "@/components/LinkPendingSpinner";
+import { CustomerChip } from "@/components/CustomerChip";
 
 /**
  * Team overview — the at-a-glance landing for a team.
@@ -127,7 +128,9 @@ export default async function TeamDetailPage({
   // Org's projects — top 6 non-archived.
   const { data: projects } = await supabase
     .from("projects_v")
-    .select("id, name, status, hourly_rate, customer_id, customers(name)")
+    .select(
+      "id, name, status, hourly_rate, customer_id, is_internal, customers(id, name)",
+    )
     .eq("team_id", id)
     .neq("status", "archived")
     .order("created_at", { ascending: false });
@@ -207,11 +210,17 @@ export default async function TeamDetailPage({
               <Link
                 key={client.id}
                 href={`/customers/${client.id}`}
-                className="rounded-lg border border-edge bg-surface-raised px-3 py-2 text-body-lg hover:bg-hover transition-colors"
+                className="flex items-center gap-2 rounded-lg border border-edge bg-surface-raised px-3 py-2 text-body-lg hover:bg-hover transition-colors"
               >
-                <span className="font-medium text-content">{client.name}</span>
+                <CustomerChip
+                  customerId={client.id}
+                  customerName={client.name}
+                />
+                <span className="font-medium text-content truncate">
+                  {client.name}
+                </span>
                 {client.default_rate && (
-                  <span className="ml-2 text-caption text-content-muted font-mono">
+                  <span className="ml-auto text-caption text-content-muted font-mono">
                     ${Number(client.default_rate).toFixed(0)}/hr
                   </span>
                 )}
@@ -251,16 +260,35 @@ export default async function TeamDetailPage({
                 "name" in project.customers
                   ? (project.customers as { name: string }).name
                   : null;
+              const customerId =
+                project.customers &&
+                typeof project.customers === "object" &&
+                "id" in project.customers
+                  ? (project.customers as { id: string }).id
+                  : null;
+              const projectIsInternal = project.is_internal === true;
               return (
                 <Link
                   key={project.id}
                   href={`/projects/${project.id}`}
-                  className="rounded-lg border border-edge bg-surface-raised px-3 py-2 text-body-lg hover:bg-hover transition-colors"
+                  className="flex items-center gap-2 rounded-lg border border-edge bg-surface-raised px-3 py-2 text-body-lg hover:bg-hover transition-colors"
                 >
-                  <span className="font-medium text-content">
+                  {customerName ? (
+                    <CustomerChip
+                      customerId={customerId}
+                      customerName={customerName}
+                    />
+                  ) : projectIsInternal ? (
+                    <CustomerChip
+                      customerId={null}
+                      customerName={null}
+                      internal
+                    />
+                  ) : null}
+                  <span className="font-medium text-content truncate">
                     {project.name}
                   </span>
-                  <span className="ml-2 text-caption text-content-muted">
+                  <span className="ml-auto text-caption text-content-muted truncate">
                     {customerName ?? tp("internal")}
                   </span>
                 </Link>

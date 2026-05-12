@@ -6,6 +6,7 @@ import Link from "next/link";
 import { Archive, Building2, FolderKanban, FolderTree } from "lucide-react";
 import { Tooltip } from "@/components/Tooltip";
 import { useToast } from "@/components/Toast";
+import { CustomerChip } from "@/components/CustomerChip";
 import { SortableTableHeader } from "@/components/SortableTableHeader";
 import { PaginationFooter } from "@/components/PaginationFooter";
 import {
@@ -33,7 +34,7 @@ export interface ProjectRow {
    *  immediately below its parent with an indented label so the
    *  hierarchy is visible at a glance. */
   parent_project_id: string | null;
-  customers: { name: string } | null;
+  customers: { id: string; name: string } | null;
 }
 
 interface CategorySetOption {
@@ -180,6 +181,9 @@ export function ProjectsTable({
      *  group header row. */
     key: string;
     label: string;
+    /** Customer id (null on the Internal and No-customer buckets) —
+     *  drives the CustomerChip's deterministic color slot. */
+    customerId: string | null;
     isInternal: boolean;
     rows: ProjectRow[];
   }
@@ -193,11 +197,12 @@ export function ProjectsTable({
       const label = isInternal
         ? t("groupInternal")
         : (p.customers?.name ?? t("groupNoCustomer"));
+      const customerId = isInternal ? null : (p.customers?.id ?? null);
       const existing = byKey.get(key);
       if (existing) {
         existing.rows.push(p);
       } else {
-        byKey.set(key, { key, label, isInternal, rows: [p] });
+        byKey.set(key, { key, label, customerId, isInternal, rows: [p] });
       }
     }
     const groups = Array.from(byKey.values());
@@ -569,6 +574,7 @@ function CustomerGroupRows({
   group: {
     key: string;
     label: string;
+    customerId: string | null;
     isInternal: boolean;
     rows: ProjectRow[];
   };
@@ -582,7 +588,6 @@ function CustomerGroupRows({
   t: ReturnType<typeof useTranslations>;
   tc: ReturnType<typeof useTranslations>;
 }): React.JSX.Element {
-  const HeaderIcon = group.isInternal ? Building2 : FolderKanban;
   return (
     <>
       <tr
@@ -596,10 +601,16 @@ function CustomerGroupRows({
       >
         <td colSpan={colSpan} className="px-4 py-2 bg-surface-inset">
           <div className="flex items-center gap-2">
-            <HeaderIcon
+            {/* Customer identity per the Entity Identity rule —
+                square initials chip from the AVATAR_PRESETS palette,
+                hashed on customer.id (or Building glyph for the
+                Internal bucket). Replaces the folder/building icon
+                that previously stood in for both. */}
+            <CustomerChip
+              customerId={group.customerId}
+              customerName={group.customerId ? group.label : null}
+              internal={group.isInternal}
               size={14}
-              className="text-content-muted shrink-0"
-              aria-hidden="true"
             />
             <span className="text-label uppercase tracking-wider font-semibold text-content">
               {group.label}

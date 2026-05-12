@@ -6,6 +6,7 @@ import Link from "next/link";
 import { Clock, Hash, ExternalLink, FolderKanban, History as HistoryIcon } from "lucide-react";
 import { tableClass } from "@/lib/table-styles";
 import { validateTeamAccess } from "@/lib/team-context";
+import { CustomerChip } from "@/components/CustomerChip";
 
 export async function generateMetadata({
   params,
@@ -75,7 +76,7 @@ export default async function ProjectDetailPage({
 
   const { data: project } = await supabase
     .from("projects_v")
-    .select("*, customers(name)")
+    .select("*, customers(id, name)")
     .eq("id", id)
     .single();
 
@@ -363,6 +364,13 @@ export default async function ProjectDetailPage({
     "name" in project.customers
       ? ((project.customers as { name: string | null }).name ?? null)
       : null;
+  const customerId =
+    project.customers &&
+    typeof project.customers === "object" &&
+    "id" in project.customers
+      ? ((project.customers as { id: string | null }).id ?? null)
+      : null;
+  const projectIsInternal = project.is_internal === true;
 
   return (
     <div>
@@ -392,11 +400,32 @@ export default async function ProjectDetailPage({
           </Link>
         )}
       </div>
-      <p className="mt-1 text-caption text-content-muted">
-        {customerName
-          ? t("editSubtitleWithCustomer", { customer: customerName })
-          : t("editSubtitle")}
-      </p>
+      <div className="mt-1 flex items-center gap-1.5 text-caption text-content-muted">
+        {customerName ? (
+          <>
+            <CustomerChip
+              customerId={customerId}
+              customerName={customerName}
+              size={14}
+            />
+            <span>
+              {t("editSubtitleWithCustomer", { customer: customerName })}
+            </span>
+          </>
+        ) : projectIsInternal ? (
+          <>
+            <CustomerChip
+              customerId={null}
+              customerName={null}
+              internal
+              size={14}
+            />
+            <span>{t("editSubtitle")}</span>
+          </>
+        ) : (
+          <span>{t("editSubtitle")}</span>
+        )}
+      </div>
 
       <div className="mt-4">
         <BudgetMasthead
