@@ -1,21 +1,29 @@
 # Testing roadmap
 
-## Current state (as of 2026-05-11)
+## Current state (as of 2026-05-12)
 
 ```
-Tests:     2258 passing · 1 skipped (was 2126 prev push, 1810 pre-2026-05-05 audit)
-Coverage:  Statements 42.52% · Branches 35.45% · Functions 38.62% · Lines 42.59%
+Tests:     2608 passing · 1 skipped (was 2497 pre-push)
+Coverage:  Statements 45.84% · Branches 38.79% · Functions 42.28% · Lines 45.97%
 Target:    90% across the board (CLAUDE.md mandate)
 Gate:      CI runs `npm run test:coverage` with a ratcheted floor
            (see vitest.config.ts thresholds). PRs that drop below
            the floor fail CI. Every PR that raises coverage must
-           also raise the floor — this is how we get from 42% to 90%
+           also raise the floor — this is how we get from 45% to 90%
            without a week-long push.
 Build:     `npm run ci:local` now also runs `next build` to catch
            Next.js-only checks (`"use server"` async-export, server-
            closure-passed-across-boundary in build trace) that
            lint/typecheck/vitest miss.
 ```
+
+**2026-05-12 push — coverage wave 1.** +104 new tests across 9 previously-untested files:
+schema validators (`customer.ts`, `project.ts`, `team-settings.ts`), messaging
+registry (`variables.ts`, `allow-lists.ts`, `providers/index.ts`), breadcrumb
+registry data invariants, table-style constant guardrails, table-density
+server action, and a focused `loadInvoiceSendBundle` mock-supabase suite.
+Floor ratcheted to 45 / 38 / 42 / 45. Established the time-views parity
+rule (week/day/log — see `memory/feedback_time_views_parity.md`).
 
 **2026-05-11 push #2 (priority items 10–19).** 132 new tests
 across 8 untested server-action files. Coverage gain ~3 pp; the
