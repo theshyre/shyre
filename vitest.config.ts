@@ -30,7 +30,7 @@ export default defineConfig({
         // build pass. Target (per CLAUDE.md) is 90%+; we'll get there
         // by ratcheting, not by wishing.
         statements: 43,
-        branches: 35,
+        branches: 36,
         functions: 39,
         lines: 43,
       },
