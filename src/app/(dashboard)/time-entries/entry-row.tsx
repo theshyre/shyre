@@ -28,6 +28,12 @@ interface Props {
   /** True when the viewer authored this entry — gates the chip's
    *  refresh button. The action checks the same on the server. */
   canRefresh?: boolean;
+  /** Customer-color left rail. Painted on the leading checkbox cell
+   *  so contiguous same-customer rows form a connected vertical
+   *  band that ties them to their CustomerSubHeader above. Falls
+   *  back to a neutral edge color for internal / no-customer rows
+   *  via the consumer; null/undefined skips the rail entirely. */
+  customerRail?: string | null;
 }
 
 /**
@@ -48,6 +54,7 @@ export function EntryRow({
   selected,
   onToggleSelect,
   canRefresh = false,
+  customerRail,
 }: Props): React.JSX.Element {
   const t = useTranslations("time");
   const isRunning = !entry.end_time;
@@ -95,9 +102,13 @@ export function EntryRow({
         onClick={() => onToggleExpand(entry.id)}
       >
         {/* Bulk-select checkbox — clicks here don't toggle the row
-            expansion; they mutate the parent's selectedIds set. */}
+            expansion; they mutate the parent's selectedIds set. The
+            optional customerRail draws a 4px band on the cell's left
+            edge so the row visually connects to its customer
+            sub-header above. */}
         <td
-          className="w-10 pl-4 align-middle"
+          className={`w-10 align-middle ${customerRail ? "border-l-4 pl-3" : "pl-4"}`}
+          style={customerRail ? { borderLeftColor: customerRail } : undefined}
           onClick={(e) => e.stopPropagation()}
         >
           <input

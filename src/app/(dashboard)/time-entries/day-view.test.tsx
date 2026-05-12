@@ -18,7 +18,7 @@ vi.mock("./actions", () => ({
 
 import { DayView } from "./day-view";
 import { ToastProvider } from "@/components/Toast";
-import type { TimeEntry } from "./types";
+import type { ProjectOption, TimeEntry } from "./types";
 
 function renderDay(ui: React.ReactElement): ReturnType<typeof renderWithIntl> {
   return renderWithIntl(<ToastProvider>{ui}</ToastProvider>);
@@ -151,5 +151,58 @@ describe("DayView", () => {
       />,
     );
     expect(screen.getByText("entry a")).toBeInTheDocument();
+  });
+
+  // Day-view customer sub-grouping (parity with the week view, 2026-05-12).
+  // Same visual language: each customer renders a <th scope="rowgroup">
+  // sub-header above its rows, regardless of row count.
+  it("groups the day's entries by customer with one sub-header per customer", () => {
+    const projAcme: ProjectOption = {
+      id: "p-acme",
+      name: "Acme Project",
+      github_repo: null,
+      jira_project_key: null,
+      team_id: "o1",
+      category_set_id: null,
+      require_timestamps: false,
+      customers: { id: "cust-acme", name: "Acme Corp" },
+    };
+    const projBeta: ProjectOption = {
+      id: "p-beta",
+      name: "Beta Project",
+      github_repo: null,
+      jira_project_key: null,
+      team_id: "o1",
+      category_set_id: null,
+      require_timestamps: false,
+      customers: { id: "cust-beta", name: "Beta LLC" },
+    };
+    const e1: TimeEntry = {
+      ...makeEntry("a", new Date(Date.UTC(2026, 3, 14, 9))),
+      project_id: "p-acme",
+      projects: { id: "p-acme", name: "Acme Project", github_repo: null },
+    };
+    const e2: TimeEntry = {
+      ...makeEntry("b", new Date(Date.UTC(2026, 3, 14, 11))),
+      project_id: "p-beta",
+      projects: { id: "p-beta", name: "Beta Project", github_repo: null },
+    };
+    const { container } = renderDay(
+      <DayView
+        viewerUserId={null}
+        dayStr="2026-04-14"
+        weekStartStr={weekStartStr}
+        tzOffsetMin={tzOffsetMin}
+        weekEntries={[]}
+        dayEntries={[e1, e2]}
+        projects={[projAcme, projBeta]}
+        categories={[]}
+      />,
+    );
+    const rowgroups = container.querySelectorAll("th[scope='rowgroup']");
+    expect(rowgroups).toHaveLength(2);
+    const labels = Array.from(rowgroups).map((el) => el.textContent ?? "");
+    expect(labels.some((l) => l.includes("Acme Corp"))).toBe(true);
+    expect(labels.some((l) => l.includes("Beta LLC"))).toBe(true);
   });
 });

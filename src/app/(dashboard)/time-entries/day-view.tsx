@@ -8,6 +8,7 @@ import { addLocalDays, utcToLocalDateStr } from "@/lib/time/tz";
 import { Spinner, useKeyboardShortcut } from "@theshyre/ui";
 import { EntryTable } from "./entry-table";
 import { JumpToDate } from "./jump-to-date";
+import { customerRailColor } from "@/components/CustomerChip";
 import type { CategoryOption, ProjectOption, TimeEntry } from "./types";
 import type { EntryGroup } from "@/lib/time/grouping";
 
@@ -130,27 +131,79 @@ export function DayView({
     );
   }, [dayEntries, visibleDay, tzOffsetMin]);
 
-  const groups: EntryGroup<TimeEntry>[] = useMemo(
-    () => [
-      {
-        id: "__day__",
-        label: titleLabel,
-        entries: [...trulyDayEntries].sort(
-          (a, b) =>
-            new Date(a.start_time).getTime() -
-            new Date(b.start_time).getTime(),
-        ),
-        totalMin: trulyDayEntries.reduce(
-          (s, e) => s + (e.duration_min ?? 0),
-          0,
-        ),
-        billableMin: trulyDayEntries
+  // Build customer-grouped EntryGroups from the day's entries — same
+  // pattern the week view's CustomerSubHeader uses, just routed
+  // through EntryTable's existing groups + GroupBlock infrastructure.
+  // Each customer's rows form a connected vertical band via the
+  // hashed rail color so day and week share one visual language.
+  const tTimesheet = useTranslations("time.timesheet.customerSubgroup");
+  const groups: EntryGroup<TimeEntry>[] = useMemo(() => {
+    if (trulyDayEntries.length === 0) return [];
+    interface CustomerBucket {
+      customerId: string | null;
+      customerName: string | null;
+      isInternal: boolean;
+      entries: TimeEntry[];
+    }
+    const byKey = new Map<string, CustomerBucket>();
+    for (const e of trulyDayEntries) {
+      const project = projects.find((p) => p.id === e.project_id);
+      const customer = project?.customers ?? null;
+      const isInternal = !customer && project?.is_internal === true;
+      const key =
+        customer?.id ?? (isInternal ? "__internal__" : "__no_customer__");
+      let bucket = byKey.get(key);
+      if (!bucket) {
+        bucket = {
+          customerId: customer?.id ?? null,
+          customerName: customer?.name ?? null,
+          isInternal,
+          entries: [],
+        };
+        byKey.set(key, bucket);
+      }
+      bucket.entries.push(e);
+    }
+    const buckets = Array.from(byKey.values()).sort((a, b) => {
+      const rank = (x: CustomerBucket): number => {
+        if (x.customerName) return 0;
+        if (x.isInternal) return 1;
+        return 2;
+      };
+      const ra = rank(a);
+      const rb = rank(b);
+      if (ra !== rb) return ra - rb;
+      return (a.customerName ?? "").localeCompare(b.customerName ?? "");
+    });
+    return buckets.map((b): EntryGroup<TimeEntry> => {
+      const sorted = [...b.entries].sort(
+        (a, c) =>
+          new Date(a.start_time).getTime() - new Date(c.start_time).getTime(),
+      );
+      const label = b.customerName
+        ? b.customerName
+        : b.isInternal
+          ? tTimesheet("internal")
+          : tTimesheet("noCustomer");
+      const rail = customerRailColor(b.customerId) ?? "var(--edge)";
+      return {
+        id: `cust:${b.customerId ?? (b.isInternal ? "__internal__" : "__no_customer__")}`,
+        label,
+        entries: sorted,
+        totalMin: sorted.reduce((s, e) => s + (e.duration_min ?? 0), 0),
+        billableMin: sorted
           .filter((e) => e.billable)
           .reduce((s, e) => s + (e.duration_min ?? 0), 0),
-      },
-    ],
-    [trulyDayEntries, titleLabel],
-  );
+        customerId: b.customerId,
+        isInternalCustomer: b.isInternal,
+        railColor: rail,
+      };
+    });
+  }, [trulyDayEntries, projects, tTimesheet]);
+  // titleLabel is no longer used as a group header — kept for future
+  // surfaces (e.g. screen-reader-only context). The 7-day strip
+  // already announces the visible day.
+  void titleLabel;
 
   return (
     <div className="space-y-4">
@@ -230,7 +283,6 @@ export function DayView({
           categories={categories}
           expandedEntryId={expandedEntryId}
           onToggleExpand={toggleExpanded}
-          hideGroupHeaders
           tzOffsetMin={tzOffsetMin}
           viewerUserId={viewerUserId}
         />

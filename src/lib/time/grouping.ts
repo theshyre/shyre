@@ -32,6 +32,16 @@ export interface EntryGroup<T extends GroupableEntry> {
   totalMin: number;
   /** Sum of `duration_min` for billable completed entries */
   billableMin: number;
+  /** Customer identity (optional) — when set, the group renders with
+   *  a customer-style header (CustomerChip + name + subtotal) and
+   *  the rows beneath inherit `railColor`. Drives the unified
+   *  customer-grouping visual across week / day views. */
+  customerId?: string | null;
+  isInternalCustomer?: boolean;
+  /** Hashed AVATAR_PRESETS bg color for the customer — applied as a
+   *  4px left rail on every row in the group so contiguous same-
+   *  customer rows read as a connected vertical band. */
+  railColor?: string | null;
 }
 
 export interface ProjectRef {

@@ -5,6 +5,7 @@ import { useTranslations } from "next-intl";
 import { formatDurationHM } from "@/lib/time/week";
 import type { EntryGroup } from "@/lib/time/grouping";
 import { EntryRow } from "./entry-row";
+import { CustomerChip } from "@/components/CustomerChip";
 import { InlineDeleteRowConfirm } from "@/components/InlineDeleteRowConfirm";
 import { Tooltip } from "@/components/Tooltip";
 import { useToast } from "@/components/Toast";
@@ -288,9 +289,70 @@ function GroupBlock({
   onToggleSelect: (id: string) => void;
   viewerUserId: string | null;
 }): React.JSX.Element {
+  // Customer-grouped variant: the group carries customer identity
+  // (id, name, internal flag, rail color) so the header renders the
+  // CustomerChip + name and each row inherits the rail. Mirrors the
+  // CustomerSubHeader pattern from the week view so day and week
+  // share one visual language for "this is a customer cluster."
+  const isCustomerGroup =
+    group.customerId !== undefined ||
+    group.isInternalCustomer === true;
+  const railColor = group.railColor ?? null;
+
   return (
     <>
-      {showHeader && (
+      {showHeader && isCustomerGroup && (
+        <tr className="bg-surface-inset/70 border-y border-edge-muted">
+          <td
+            className={`w-10 align-middle py-1.5 ${railColor ? "border-l-4 pl-3" : "pl-4"}`}
+            style={railColor ? { borderLeftColor: railColor } : undefined}
+            aria-hidden
+          />
+          <th
+            scope="rowgroup"
+            colSpan={4}
+            className="px-3 py-1.5 text-left font-normal"
+          >
+            <div className="flex items-center gap-2 min-w-0">
+              {group.customerId ? (
+                <CustomerChip
+                  customerId={group.customerId}
+                  customerName={group.label}
+                  size={18}
+                />
+              ) : group.isInternalCustomer ? (
+                <CustomerChip
+                  customerId={null}
+                  customerName={null}
+                  internal
+                  size={18}
+                />
+              ) : (
+                <CustomerChip
+                  customerId={null}
+                  customerName={null}
+                  size={18}
+                />
+              )}
+              <Tooltip label={group.label}>
+                <span className="text-body-lg font-semibold text-content truncate min-w-0">
+                  {group.label}
+                </span>
+              </Tooltip>
+              <span className="text-caption text-content-muted ml-1">
+                · {group.entries.length}
+              </span>
+            </div>
+          </th>
+          <td className="px-3 py-1.5 text-right">
+            <span className="font-mono text-body font-semibold text-content tabular-nums">
+              {formatDurationHM(group.totalMin)}
+            </span>
+          </td>
+          <td className="px-2 py-1.5" colSpan={2} />
+        </tr>
+      )}
+      {showHeader && !isCustomerGroup && (
         <tr className="bg-surface-inset/60 border-y border-edge">
           <td className="pl-4 py-1.5 w-10" aria-hidden />
           <td colSpan={4} className="px-3 py-1.5">
@@ -335,6 +397,7 @@ function GroupBlock({
           selected={selectedIds.has(entry.id)}
           onToggleSelect={onToggleSelect}
           canRefresh={!!viewerUserId && viewerUserId === entry.user_id}
+          customerRail={railColor}
         />
       ))}
     </>
