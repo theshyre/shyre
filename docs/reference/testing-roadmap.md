@@ -1,21 +1,50 @@
 # Testing roadmap
 
-## Current state (as of 2026-05-05)
+## Current state (as of 2026-05-11)
 
 ```
-Tests:     1810 passing · 1 skipped (was ~1530 pre-audit)
-Coverage:  ~38% across statements / branches / functions / lines
+Tests:     2126 passing · 1 skipped (was 2068 last commit, 1810 pre-2026-05-05 audit)
+Coverage:  Statements 39.84% · Branches 33.19% · Functions 36.68% · Lines 39.88%
 Target:    90% across the board (CLAUDE.md mandate)
 Gate:      CI runs `npm run test:coverage` with a ratcheted floor
            (see vitest.config.ts thresholds). PRs that drop below
            the floor fail CI. Every PR that raises coverage must
-           also raise the floor — this is how we get from 38% to 90%
+           also raise the floor — this is how we get from 39% to 90%
            without a week-long push.
 Build:     `npm run ci:local` now also runs `next build` to catch
            Next.js-only checks (`"use server"` async-export, server-
            closure-passed-across-boundary in build trace) that
            lint/typecheck/vitest miss.
 ```
+
+**2026-05-11 push (priority items 6–9 from this doc).** 58 new tests
+across four untested server-action files. Coverage gain ~1 pp; the
+load-bearing security-relevant surfaces (security-groups + sample-
+data + system-errors + teams) are now defended. Floor ratcheted to
+39 / 33 / 36 / 39.
+
+- ✅ Item 6 — `security-groups/actions.ts`: 22 cases covering all four
+  actions (createGroup / deleteGroup / addGroupMember / removeGroupMember).
+  Role gates, cross-team scoping, group-not-found rejection on add/remove,
+  description-null normalization, DB-error propagation.
+- ✅ Item 7 — `system/sample-data/actions.ts`: 14 cases (focused on
+  the action-boundary contract — sysadmin gate, team owner|admin
+  gate, typed-confirm name match on `clearAllTeamDataAction`, missing-
+  team_id rejection, /team-not-found rejection, revalidatePath fan-out
+  for `cleanupOrphanTeamsAction`). The internal seed/wipe helpers
+  (loadSample, deleteSampleRowsInOrg, createSampleUsers) tunnel into
+  the admin client + auth admin API; those need their own fixture
+  suite — out of scope here, noted as a follow-up below.
+- ✅ Item 8 — `system/errors/actions.ts`: 5 cases (resolveErrorAction —
+  happy path stamps resolved_at + resolved_by with the right actor and
+  a current timestamp; sysadmin-gate rejection; DB error propagation;
+  revalidatePath only on success).
+- ✅ Item 9 — `teams/actions.ts`: 17 cases covering createTeam /
+  leaveTeam / deleteTeam. Critical invariants: sole-owner-cannot-leave,
+  delete-refuses-last-team, typed-confirm-must-match-name, orphan-
+  business-cleanup-only-when-truly-orphaned. The `create_team` RPC
+  routing (SECURITY DEFINER for atomic create-team-and-membership) is
+  asserted as the only insert path.
 
 **2026-05-04 → 2026-05-05 audit campaign (16 batches).** ~280 new
 tests across the priority surfaces:
@@ -88,10 +117,10 @@ Server actions are the highest-risk untested surface because they write to the D
 | 3 | ~~`customers/[id]/sharing-actions.ts`~~ | 73 | ✅ **DONE** (2026-05-04) + audit batch 2 role-gate cases | Cross-team grants — any bug here is a data leak |
 | 4 | ~~`customers/[id]/permissions-actions.ts`~~ | 75 | ✅ **DONE** (2026-05-04) + audit batch 2 role-gate cases | Role + permission mutation |
 | 5 | ~~`teams/[id]/team-actions.ts`~~ | ~160 | ✅ **DONE** (audit batch 4) | Team destructive ops + transfer ownership + role change |
-| 6 | `security-groups/actions.ts` | ? | HIGH | ACL group membership |
-| 7 | `admin/sample-data/actions.ts` | ~200 | HIGH | Bulk system mutation (seed/wipe) |
-| 8 | `admin/errors/actions.ts` | ~100 | MED | Error-resolution admin |
-| 9 | `teams/actions.ts` | ? | MED | Team create / join |
+| 6 | ~~`security-groups/actions.ts`~~ | 107 | ✅ **DONE** (2026-05-11) | ACL group membership — all four actions covered |
+| 7 | ~~`system/sample-data/actions.ts`~~ | 1011 | ✅ **PARTIAL** (2026-05-11 — action-boundary contracts: sysadmin gate, team owner|admin gate, typed-confirm, /team-not-found). Deep helpers (`loadSample` / `deleteSampleRowsInOrg` / `createSampleUsers`) tunnel into admin client + auth admin API; their own fixture suite is the next push. | Bulk system mutation (seed/wipe) |
+| 8 | ~~`system/errors/actions.ts`~~ | 23 | ✅ **DONE** (2026-05-11) | Error-resolution admin |
+| 9 | ~~`teams/actions.ts`~~ | 136 | ✅ **DONE** (2026-05-11) | Team create / join — all three actions covered |
 | 10 | `teams/[id]/relationships-actions.ts` | ? | MED | Inter-team relationships |
 | 11 | `teams/[id]/team-settings-actions.ts` | ? | MED | Per-team config |
 | 12 | `customers/[id]/change-primary-actions.ts` | ? | MED | Primary-team transfer |

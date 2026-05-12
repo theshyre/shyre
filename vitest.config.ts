@@ -29,10 +29,10 @@ export default defineConfig({
         // floor here in the same PR. Never lower a floor to make a
         // build pass. Target (per CLAUDE.md) is 90%+; we'll get there
         // by ratcheting, not by wishing.
-        statements: 32,
-        branches: 25,
-        functions: 32,
-        lines: 32,
+        statements: 39,
+        branches: 33,
+        functions: 36,
+        lines: 39,
       },
     },
   },
