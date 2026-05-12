@@ -1,5 +1,6 @@
 "use client";
 
+import { useEffect, useState } from "react";
 import Link from "next/link";
 import { useTranslations } from "next-intl";
 import { Clock, Trash2 } from "lucide-react";
@@ -125,8 +126,32 @@ export function TimeHome({
       : view === "log"
         ? logEntries
         : weekEntries;
-  const totalMin = sumDurationMin(visibleEntries);
-  const billableMin = sumBillableMin(visibleEntries);
+  // Live-tick the running entry so the masthead total and the
+  // billable/non-billable caption fold in the in-progress minutes.
+  // Without this the running row's day cell shows e.g. "·2:49" but
+  // the masthead stays frozen at the last-committed total — the bug
+  // shown in the 2026-05-11 screenshot. Tick every second; the
+  // rounded-minute value only changes once a minute so dependent
+  // renders are cheap.
+  const [tickMs, setTickMs] = useState<number>(() => Date.now());
+  useEffect(() => {
+    if (!running?.start_time) return;
+    const id = setInterval(() => setTickMs(Date.now()), 1000);
+    return () => clearInterval(id);
+  }, [running?.start_time]);
+  const liveElapsedMin = running?.start_time
+    ? Math.max(
+        0,
+        Math.floor(
+          (tickMs - new Date(running.start_time).getTime()) / 60_000,
+        ),
+      )
+    : 0;
+
+  const totalMin = sumDurationMin(visibleEntries) + liveElapsedMin;
+  const billableMin =
+    sumBillableMin(visibleEntries) +
+    (running?.billable ? liveElapsedMin : 0);
   const nonBillableMin = totalMin - billableMin;
 
   return (

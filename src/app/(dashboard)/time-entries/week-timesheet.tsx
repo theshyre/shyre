@@ -470,7 +470,7 @@ export function WeekTimesheet({
     setCollapsed(overrides);
   }, [groups, collapseKey]);
 
-  const dailyTotals = useMemo<number[]>(() => {
+  const dailyTotalsBase = useMemo<number[]>(() => {
     const totals = Array.from({ length: DAYS_IN_WEEK }, () => 0);
     for (const row of rows) {
       for (let i = 0; i < DAYS_IN_WEEK; i++) {
@@ -479,8 +479,6 @@ export function WeekTimesheet({
     }
     return totals;
   }, [rows]);
-
-  const weekTotal = dailyTotals.reduce((s, n) => s + n, 0);
 
   const addRow = useCallback(
     (projectId: string, categoryId: string | null) => {
@@ -612,6 +610,41 @@ export function WeekTimesheet({
         utcToLocalDateStr(runningEntry.start_time, tzOffsetMin),
       )
     : -1;
+
+  // Parent-level tick so the daily totals + week total fold in the
+  // running entry's live elapsed minutes. Without this the running
+  // row's day cell shows e.g. "·2:49" but the footer's DAILY TOTALS
+  // and the masthead's week total stay frozen at last-committed
+  // minutes — visible bug in screenshots dated 2026-05-11. The tick
+  // fires every second so minute rollovers align with the row's
+  // per-second tick; the rounded-minute value only changes once a
+  // minute, so downstream re-renders are cheap.
+  const [parentTickMs, setParentTickMs] = useState<number>(() => Date.now());
+  useEffect(() => {
+    if (!runningEntry?.start_time) return;
+    const id = setInterval(() => setParentTickMs(Date.now()), 1000);
+    return () => clearInterval(id);
+  }, [runningEntry?.start_time]);
+  const parentLiveElapsedMin = runningEntry?.start_time
+    ? Math.max(
+        0,
+        Math.floor(
+          (parentTickMs - new Date(runningEntry.start_time).getTime()) /
+            60_000,
+        ),
+      )
+    : 0;
+
+  // Daily totals visible in the footer fold in the running entry's
+  // live minutes on the day the running entry started.
+  const dailyTotals =
+    runningDayIndex >= 0 && parentLiveElapsedMin > 0
+      ? dailyTotalsBase.map((t, i) =>
+          i === runningDayIndex ? t + parentLiveElapsedMin : t,
+        )
+      : dailyTotalsBase;
+
+  const weekTotal = dailyTotals.reduce((s, n) => s + n, 0);
 
   // Start a new timer seeded with this row's project + category. Fires
   // the shared `startTimerAction`, which server-side stops whatever the
@@ -1102,9 +1135,9 @@ function TimesheetRow({
       day: "numeric",
     });
   })();
-  const rowTotalActual = row.byDay.reduce((s, n) => s + n, 0);
+  const rowTotalSaved = row.byDay.reduce((s, n) => s + n, 0);
   const entryCount = row.byDay.filter((m) => m > 0).length;
-  const hasSavedData = rowTotalActual > 0 || entryCount > 0;
+  const hasSavedData = rowTotalSaved > 0 || entryCount > 0;
   // Other members' rows are read-only: the upsert action only touches
   // auth.uid()'s entries, so showing an editable input would be misleading.
   const editable = row.isOwn;
@@ -1475,11 +1508,20 @@ function TimesheetRow({
         );
       })}
       <td className="px-2 py-2 text-right font-mono text-title font-semibold tabular-nums text-content">
-        {rowTotalActual > 0 ? (
-          formatDurationHMZero(rowTotalActual)
-        ) : (
-          <span className="text-content-muted/50">—</span>
-        )}
+        {(() => {
+          // Row total folds in the running entry's live minutes when
+          // this row is the one hosting the running timer. Without
+          // this, a row whose only entry is currently running (so its
+          // saved duration_min is 0) renders as "—" while the day
+          // cell next to it ticks up — confusing.
+          const rowTotalDisplay =
+            rowTotalSaved + (isRunningRow ? liveElapsedMin : 0);
+          return rowTotalDisplay > 0 ? (
+            formatDurationHMZero(rowTotalDisplay)
+          ) : (
+            <span className="text-content-muted/50">—</span>
+          );
+        })()}
       </td>
       <td className="px-2 py-2 text-right">
         <div className="flex items-center justify-end gap-1">
