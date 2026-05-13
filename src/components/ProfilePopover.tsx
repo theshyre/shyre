@@ -58,7 +58,6 @@ export function ProfilePopover({
   const t = useTranslations("common");
   const [open, setOpen] = useState(false);
   const rootRef = useRef<HTMLDivElement>(null);
-  const triggerRef = useRef<HTMLButtonElement>(null);
 
   const close = useCallback(() => setOpen(false), []);
 
@@ -68,8 +67,15 @@ export function ProfilePopover({
       if (e.key === "Escape") {
         close();
         // Restore focus to the trigger so keyboard users don't lose
-        // their place in the tab order.
-        triggerRef.current?.focus();
+        // their place in the tab order. We look the button up via
+        // the root ref instead of holding a dedicated `ref` on the
+        // child — putting a ref on Tooltip's immediate child trips
+        // React 19's `element.ref` deprecation warning because the
+        // Tooltip primitive reads `child.ref` in cloneElement. Once
+        // @theshyre/ui's Tooltip migrates to ref-as-prop, this can
+        // go back to a dedicated triggerRef. See promotion-
+        // candidates.md.
+        rootRef.current?.querySelector("button")?.focus();
       }
     }
     function onClick(e: MouseEvent): void {
@@ -99,7 +105,6 @@ export function ProfilePopover({
           without taking up a second line of chrome. */}
       <Tooltip label={`${displayName} · ${email}`}>
         <button
-          ref={triggerRef}
           type="button"
           onClick={() => setOpen((p) => !p)}
           aria-haspopup="menu"
