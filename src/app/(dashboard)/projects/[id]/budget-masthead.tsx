@@ -169,6 +169,18 @@ function BudgetRow({
   const t = useTranslations("projects.budget");
   const hours = minutes / 60;
   const dollars = rate != null && rate > 0 ? hours * rate : null;
+  // Derived dollar cap = hours-cap × current rate. Used to surface
+  // "$X of $Y" alongside the hours line when the user only stored a
+  // lifetime hours budget (e.g. 60h) but a rate is set on the
+  // project. The "computed at current rate" caption admits that the
+  // value re-binds if the rate changes. Doesn't override an explicit
+  // capDollars when one is stored.
+  const derivedCapDollars =
+    capDollars == null && capHours != null && rate != null && rate > 0
+      ? capHours * rate
+      : null;
+  const effectiveCapDollars = capDollars ?? derivedCapDollars;
+  const capDollarsIsDerived = capDollars == null && derivedCapDollars != null;
 
   // Compute the bar's burn % from whichever cap is set. Hours cap
   // wins when both are set (it's the more concrete number for a
@@ -282,15 +294,15 @@ function BudgetRow({
         <p className="mt-2 text-caption text-content-muted italic">
           {hoursOnlyLabel}
         </p>
-      ) : capDollars != null && dollars != null ? (
+      ) : effectiveCapDollars != null && dollars != null ? (
         <>
           <p className="mt-2 text-caption text-content-muted font-mono tabular-nums">
             {t("dollarCaption", {
               used: dollars.toFixed(2),
-              cap: capDollars.toFixed(2),
+              cap: effectiveCapDollars.toFixed(2),
             })}
           </p>
-          {rate != null && rate > 0 && (
+          {rate != null && rate > 0 && capDollarsIsDerived && (
             <p className="mt-0.5 text-caption text-content-muted italic">
               {t("dollarsDerivedFromRate", {
                 rate: `$${rate.toFixed(2)}`,

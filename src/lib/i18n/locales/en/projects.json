@@ -60,7 +60,7 @@
     "githubRepoHint": "Use the short form (e.g. theshyre/shyre) or paste a full GitHub URL — both work. A bare #123 in a time-entry description then resolves to this repo.",
     "jiraProjectKey": "Jira project key",
     "jiraProjectKeyPlaceholder": "PROJ",
-    "jiraProjectKeyHint": "Used to build issue URLs like {base}/browse/{key}-123.",
+    "jiraProjectKeyHint": "Used to build issue URLs like example.atlassian.net/browse/PROJ-123.",
     "invoiceCode": "Invoice code",
     "invoiceCodePlaceholder": "PC-ITOPS",
     "invoiceCodeHint": "Short uppercase prefix shown in square brackets on each invoice line item — e.g. [PC-ITOPS]. Letters, digits, and hyphens; up to 16 chars.",

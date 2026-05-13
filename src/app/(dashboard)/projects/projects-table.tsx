@@ -796,9 +796,17 @@ function BurnCell({
         : "text-content-secondary";
   const Icon = pct >= 100 ? XCircle : pct >= 80 ? AlertTriangle : null;
   const rounded = Math.round(pct);
+  // Fixed-width slots so the column reads cleanly across rows that
+  // mix "5%" / "20%" / "100%" / over-budget icons:
+  //   [bar 64px] [icon 16px (reserved even when empty)] [% 4ch]
+  // tabular-nums on the % text keeps digit columns flush; the 4ch
+  // min-width accommodates "100%" without nudging the bar's right
+  // edge between rows. The icon slot reserves space even when the
+  // project is under 80% so the bar doesn't shift when one row
+  // crosses a threshold.
   return (
     <div
-      className="flex items-center gap-2 min-w-0"
+      className="inline-flex items-center gap-2 shrink-0"
       role="progressbar"
       aria-valuenow={rounded}
       aria-valuemin={0}
@@ -811,15 +819,14 @@ function BurnCell({
           style={{ width: `${fillPct}%` }}
         />
       </div>
-      {Icon && (
-        <Icon
-          size={12}
-          aria-hidden="true"
-          className={`shrink-0 ${textColorClass}`}
-        />
-      )}
       <span
-        className={`font-mono tabular-nums text-caption ${textColorClass}`}
+        aria-hidden="true"
+        className="inline-flex w-3 shrink-0 items-center justify-center"
+      >
+        {Icon && <Icon size={12} className={textColorClass} />}
+      </span>
+      <span
+        className={`font-mono tabular-nums text-caption text-right shrink-0 min-w-[3.5ch] ${textColorClass}`}
       >
         {rounded}%
       </span>
