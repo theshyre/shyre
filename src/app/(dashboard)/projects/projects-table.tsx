@@ -524,7 +524,7 @@ export function ProjectsTable({
                 scope="col"
                 className={`${tableHeaderCellClass} text-right`}
               >
-                {t("burnPctColumn")}
+                {t("fields.burnPctColumn")}
               </th>
             )}
             <SortableTableHeader

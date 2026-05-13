@@ -198,26 +198,44 @@ export default async function ProjectsPage({
     teams.map((o) => [o.id as string, (o.name as string) ?? "—"]),
   );
 
-  // Two-track signal for the Budget column:
-  //   1. Projects WITH a recurring period → compute burn % against
-  //      the period's cap (existing logic — drives the colored bar).
-  //   2. Projects WITHOUT a budget → sum trailing-90-day hours. Per
-  //      the 2026-05-12 persona-converged design, the no-budget cell
-  //      surfaces "Nh · 90d" so the column always carries signal,
-  //      not an empty em-dash.
+  // Three-track signal for the Budget column:
+  //   1. Projects WITH a recurring period → compute period burn %
+  //      against the period's cap (drives the colored bar).
+  //   2. Projects WITH a lifetime `budget_hours` cap but NO recurring
+  //      period → compute lifetime burn % (logged-hours-lifetime /
+  //      budget_hours). Bug fix 2026-05-12: previously these
+  //      projects showed em-dash because only recurring burn was
+  //      computed; users with lifetime SoW caps couldn't see budget
+  //      consumption on the list at all.
+  //   3. Projects with NO budget at all → sum trailing-90-day hours
+  //      for the "Nh · 90d" fallback.
   //
-  // One wide query fetches the last 90 days of (project_id,
-  // start_time, duration_min) for every visible project; the same
-  // bucketed entries feed both code paths.
-  const projectsWithPeriod = (projects ?? []).filter(
+  // Queries:
+  //   - Wide 90-day query covers tracks 1 + 3.
+  //   - Separate lifetime-totals query covers track 2 (only for
+  //     projects with budget_hours set — keeps payload bounded).
+  type ProjectRowShape = {
+    id: string;
+    budget_period?: string | null;
+    budget_hours_per_period?: number | string | null;
+    budget_dollars_per_period?: number | string | null;
+    budget_alert_threshold_pct?: number | null;
+    budget_hours?: number | string | null;
+    hourly_rate?: number | string | null;
+  };
+  const projectsAll = (projects ?? []) as ProjectRowShape[];
+  const projectsWithPeriod = projectsAll.filter(
+    (p) => p.budget_period != null,
+  );
+  const projectsWithLifetimeOnly = projectsAll.filter(
     (p) =>
-      (p as { budget_period?: string | null }).budget_period != null,
+      p.budget_period == null &&
+      p.budget_hours != null &&
+      Number(p.budget_hours) > 0,
   );
   const periodBurnByProject = new Map<string, number | null>();
   const noBudgetMinByProject = new Map<string, number>();
-  const allProjectIds = (projects ?? []).map(
-    (p) => (p as { id: string }).id,
-  );
+  const allProjectIds = projectsAll.map((p) => p.id);
   if (allProjectIds.length > 0) {
     const cookieStore = await cookies();
     const cookieOffset = parseTzOffset(
@@ -232,12 +250,26 @@ export default async function ProjectsPage({
     const ninetyDaysAgo = new Date(
       new Date().getTime() - 90 * 24 * 3600 * 1000,
     ).toISOString();
-    const { data: burnEntries } = await supabase
-      .from("time_entries")
-      .select("project_id, start_time, duration_min")
-      .in("project_id", allProjectIds)
-      .is("deleted_at", null)
-      .gte("start_time", ninetyDaysAgo);
+    // Lifetime totals only needed for projects with a lifetime cap
+    // and no recurring period — that's the gap track 2 fills.
+    const lifetimeProjectIds = projectsWithLifetimeOnly.map((p) => p.id);
+    const [burnEntriesResult, lifetimeEntriesResult] = await Promise.all([
+      supabase
+        .from("time_entries")
+        .select("project_id, start_time, duration_min")
+        .in("project_id", allProjectIds)
+        .is("deleted_at", null)
+        .gte("start_time", ninetyDaysAgo),
+      lifetimeProjectIds.length > 0
+        ? supabase
+            .from("time_entries")
+            .select("project_id, duration_min")
+            .in("project_id", lifetimeProjectIds)
+            .is("deleted_at", null)
+        : Promise.resolve({ data: [] as { project_id: string; duration_min: number | null }[] }),
+    ]);
+    const burnEntries = burnEntriesResult.data;
+    const lifetimeEntries = lifetimeEntriesResult.data;
     const entriesByProject = new Map<
       string,
       Array<{ start_time: string; duration_min: number | null }>
@@ -251,16 +283,17 @@ export default async function ProjectsPage({
       });
       entriesByProject.set(pid, list);
     }
-    type ProjectRowShape = {
-      id: string;
-      budget_period?: string | null;
-      budget_hours_per_period?: number | string | null;
-      budget_dollars_per_period?: number | string | null;
-      budget_alert_threshold_pct?: number | null;
-      hourly_rate?: number | string | null;
-    };
-    // Track 1: period burn for budgeted rows.
-    for (const p of projectsWithPeriod as ProjectRowShape[]) {
+    const lifetimeMinByProject = new Map<string, number>();
+    for (const e of lifetimeEntries ?? []) {
+      const pid = e.project_id as string;
+      const prior = lifetimeMinByProject.get(pid) ?? 0;
+      lifetimeMinByProject.set(
+        pid,
+        prior + ((e.duration_min as number | null) ?? 0),
+      );
+    }
+    // Track 1: period burn for recurring-budget rows.
+    for (const p of projectsWithPeriod) {
       const burn = computeProjectPeriodBurn({
         budget_period: p.budget_period as BudgetPeriod,
         budget_hours_per_period:
@@ -280,12 +313,25 @@ export default async function ProjectsPage({
       });
       periodBurnByProject.set(p.id, burn?.pctHours ?? null);
     }
-    // Track 2: trailing-90 minutes for no-budget rows. Computed for
+    // Track 2: lifetime burn for lifetime-only-budget rows. Cap at
+    // 999 so an extreme overrun still renders legibly (BurnCell
+    // displays the true number; the bar fill caps at 100 visually).
+    for (const p of projectsWithLifetimeOnly) {
+      const cap = Number(p.budget_hours);
+      const loggedMin = lifetimeMinByProject.get(p.id) ?? 0;
+      const loggedHours = loggedMin / 60;
+      const pct = cap > 0 ? Math.min(999, (loggedHours / cap) * 100) : null;
+      periodBurnByProject.set(p.id, pct);
+    }
+    // Track 3: trailing-90 minutes for no-budget rows. Computed for
     // EVERY non-budgeted project (including ones with zero entries,
     // which surface as `0` so the cell can render the "no recent
     // activity" tooltip instead of vanishing into em-dash).
-    const budgetedIds = new Set(projectsWithPeriod.map((p) => (p as { id: string }).id));
-    for (const p of (projects ?? []) as ProjectRowShape[]) {
+    const budgetedIds = new Set([
+      ...projectsWithPeriod.map((p) => p.id),
+      ...projectsWithLifetimeOnly.map((p) => p.id),
+    ]);
+    for (const p of projectsAll) {
       if (budgetedIds.has(p.id)) continue;
       const entries = entriesByProject.get(p.id) ?? [];
       const minutes = entries.reduce(

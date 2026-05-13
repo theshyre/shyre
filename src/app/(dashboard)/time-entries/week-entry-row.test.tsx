@@ -342,6 +342,36 @@ describe("EntryEditRow", () => {
     expect(save.disabled).toBe(true);
   });
 
+  it("project picker reflects the user's selection (regression: bug where pick reverted to original)", () => {
+    const p2: ProjectOption = {
+      id: "p2",
+      name: "Beta",
+      github_repo: null,
+      jira_project_key: null,
+      team_id: "o1",
+      category_set_id: null,
+      require_timestamps: false,
+    };
+    const { container } = renderWithIntl(
+      wrapInTable(
+        <EntryEditRow
+          entry={makeEntry("e1")}
+          project={project}
+          projects={[project, p2]}
+          dayDateLong="Tuesday, May 5"
+          onClose={() => {}}
+        />,
+      ),
+    );
+    const select = container.querySelector<HTMLSelectElement>(
+      'select[name="project_id"]',
+    );
+    expect(select).toBeTruthy();
+    expect(select!.value).toBe("p1");
+    fireEvent.change(select!, { target: { value: "p2" } });
+    expect(select!.value).toBe("p2");
+  });
+
   it("Escape closes the edit drawer", () => {
     const onClose = vi.fn();
     const { container } = renderWithIntl(
