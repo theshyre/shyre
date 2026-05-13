@@ -82,6 +82,17 @@ interface TimeHomeProps {
    *  team, single date otherwise). Null when no locks exist for
    *  the visible teams. */
   lockSummary: string | null;
+  /** Active rows for the viewer on the selected team — union of
+   *  recent entries, personal pins, and team defaults from the
+   *  stint_active_rows RPC. Drives the Week view's persistent-row
+   *  augmentation and the Day view's "From this week" ghost
+   *  section. Empty array when no team is selected or the RPC
+   *  fails (soft-fail; UI degrades to today's behavior). */
+  activeRows: ReadonlyArray<{
+    projectId: string;
+    categoryId: string | null;
+    source: string;
+  }>;
 }
 
 export function TimeHome({
@@ -112,6 +123,7 @@ export function TimeHome({
   memberOptions,
   memberSelection,
   lockSummary,
+  activeRows,
 }: TimeHomeProps): React.JSX.Element {
   const t = useTranslations("time");
 
@@ -287,9 +299,11 @@ export function TimeHome({
           projects={projects}
           categories={categories}
           viewerUserId={currentUserId}
+          activeRows={activeRows}
         />
       ) : (
         <WeekTimesheet
+          activeRows={activeRows}
           weekStartStr={weekStartStr}
           tzOffsetMin={tzOffsetMin}
           entries={weekEntries}

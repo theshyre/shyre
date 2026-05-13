@@ -773,6 +773,19 @@ export default async function TimeEntriesPage({
           )
           .join(" · ");
 
+  // Active rows for the viewer on the selected team — drives the
+  // Week view's persistent-row augmentation (pins + team defaults +
+  // recent-but-not-this-week activity) and the Day view's "From
+  // this week" ghost section. Soft-fails to [] when no team is
+  // selected or the RPC errors so the views degrade to today's
+  // entry-derived row set.
+  const activeRows = await (async () => {
+    const teamScope = selectedTeamId ?? teams[0]?.id ?? null;
+    if (!teamScope) return [];
+    const { getActiveRows } = await import("@/lib/time/active-rows");
+    return getActiveRows(supabase, teamScope, callerId);
+  })();
+
   return (
     <TimeHome
       teams={teams}
@@ -802,6 +815,7 @@ export default async function TimeEntriesPage({
       memberOptions={memberOptions}
       memberSelection={memberSelection}
       lockSummary={lockSummary}
+      activeRows={activeRows}
     />
   );
 }

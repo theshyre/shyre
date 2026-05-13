@@ -292,6 +292,16 @@
       "subtotalAria": "Subtotal de {customer}: {duration}",
       "internal": "Interno",
       "noCustomer": "Sin cliente"
+    },
+    "pin": {
+      "pin": "Fijar fila — visible entre semanas",
+      "unpin": "Desfijar fila — desaparece sin actividad reciente",
+      "teamDefault": "Fila predeterminada del equipo — visible para todos los miembros"
+    },
+    "newWeekBanner": {
+      "title": "{count, plural, one {1 fila traída de la semana pasada} other {# filas traídas de la semana pasada}}",
+      "body": "Fíjalas si quieres mantenerlas. Las filas sin actividad desaparecen tras 14 días.",
+      "dismiss": "Entendido"
     }
   },
   "rowDelete": {
@@ -356,6 +366,12 @@
     "weekTotal": "Total semanal",
     "prevDay": "Día anterior",
     "nextDay": "Día siguiente",
-    "jumpToToday": "Hoy"
+    "jumpToToday": "Hoy",
+    "ghost": {
+      "title": "De esta semana",
+      "regionLabel": "Filas disponibles de esta semana",
+      "startTimer": "Iniciar cronómetro",
+      "teamBadge": "Equipo"
+    }
   }
 }

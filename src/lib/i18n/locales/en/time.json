@@ -292,6 +292,16 @@
       "subtotalAria": "{customer} subtotal: {duration}",
       "internal": "Internal",
       "noCustomer": "No customer"
+    },
+    "pin": {
+      "pin": "Pin row — keep visible across weeks",
+      "unpin": "Unpin row — falls off when no recent entries",
+      "teamDefault": "Team default — every member sees this row"
+    },
+    "newWeekBanner": {
+      "title": "{count, plural, one {1 row carried from last week} other {# rows carried from last week}}",
+      "body": "Pin the ones you want to keep around. Unpinned rows fall off after 14 days of no activity.",
+      "dismiss": "Got it"
     }
   },
   "rowDelete": {
@@ -356,6 +366,12 @@
     "weekTotal": "Week total",
     "prevDay": "Previous day",
     "nextDay": "Next day",
-    "jumpToToday": "Today"
+    "jumpToToday": "Today",
+    "ghost": {
+      "title": "From this week",
+      "regionLabel": "Rows available from this week",
+      "startTimer": "Start timer",
+      "teamBadge": "Team"
+    }
   }
 }

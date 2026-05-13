@@ -3,12 +3,18 @@
 import { useCallback, useMemo, useState, useTransition } from "react";
 import { useRouter, usePathname, useSearchParams } from "next/navigation";
 import { useTranslations } from "next-intl";
+import { ChevronDown, ChevronRight, Play } from "lucide-react";
 import { formatDurationHMZero } from "@/lib/time/week";
 import { addLocalDays, utcToLocalDateStr } from "@/lib/time/tz";
+import { localDayBoundsIso } from "@/lib/local-day-bounds";
 import { Spinner, useKeyboardShortcut } from "@theshyre/ui";
 import { EntryTable } from "./entry-table";
 import { JumpToDate } from "./jump-to-date";
 import { groupEntriesByCustomer } from "./customer-grouping";
+import { CustomerChip } from "@/components/CustomerChip";
+import { Tooltip } from "@/components/Tooltip";
+import { startTimerAction } from "./actions";
+import { notifyTimerChanged } from "@/lib/timer-events";
 import type { CategoryOption, ProjectOption, TimeEntry } from "./types";
 import type { EntryGroup } from "@/lib/time/grouping";
 
@@ -27,6 +33,17 @@ interface Props {
    *  so the ticket-link chip's refresh button is gated to the
    *  entry's author. */
   viewerUserId: string | null;
+  /** Active rows for the viewer on this team (union of recent
+   *  entries, personal pins, team defaults). Drives the "From this
+   *  week" ghost section above the day's entries — each (project,
+   *  category) that doesn't have an entry on the visible day
+   *  surfaces as a ghost row with a Play button so the user can
+   *  start a timer without bouncing to Week view. */
+  activeRows?: ReadonlyArray<{
+    projectId: string;
+    categoryId: string | null;
+    source: string;
+  }>;
 }
 
 /**
@@ -55,6 +72,7 @@ export function DayView({
   projects,
   categories,
   viewerUserId,
+  activeRows = [],
 }: Props): React.JSX.Element {
   const t = useTranslations("time.dayView");
   const router = useRouter();
@@ -148,6 +166,21 @@ export function DayView({
   // already announces the visible day. Kept for future surfaces.
   void titleLabel;
 
+  // Ghost rows = active rows (pin / team-default / recent) that
+  // DON'T have an entry on the visible day. Lets the user start a
+  // timer or stub an entry on Wednesday without bouncing to Week
+  // view to find the right (project, category) combo.
+  const ghostRows = useMemo(() => {
+    const dayEntryKeys = new Set(
+      trulyDayEntries.map(
+        (e) => `${e.project_id}::${e.category_id ?? ""}`,
+      ),
+    );
+    return activeRows.filter(
+      (r) => !dayEntryKeys.has(`${r.projectId}::${r.categoryId ?? ""}`),
+    );
+  }, [activeRows, trulyDayEntries]);
+
   return (
     <div className="space-y-4">
       {/* Header: jump-to-date with prev / next arrows. The shared
@@ -218,6 +251,21 @@ export function DayView({
         </div>
       </div>
 
+      {/* "From this week" ghost section — active rows (pinned /
+          team-default / recent) that don't have an entry on the
+          visible day. Click Play on any to start a timer for that
+          (project, category) right now. Hidden when no ghost rows
+          exist; auto-collapsed when the day already has more than
+          two entries (less likely to need the shortcut). */}
+      {ghostRows.length > 0 && (
+        <GhostRowsSection
+          rows={ghostRows}
+          projects={projects}
+          categories={categories}
+          defaultExpanded={trulyDayEntries.length <= 2}
+        />
+      )}
+
       {/* Entries for this day */}
       <div className={isPending ? "opacity-60 transition-opacity" : ""}>
         <EntryTable
@@ -231,5 +279,177 @@ export function DayView({
         />
       </div>
     </div>
+  );
+}
+
+/**
+ * "From this week" ghost rows. Each row's Play button kicks off
+ * startTimerAction with (project_id, category_id) — a fresh timer
+ * for that combo. Doesn't carry an entry description (resume) since
+ * the ghost row's identity is "I haven't logged on this row today,
+ * start now"; if the user wants to resume a prior entry's identity,
+ * they can use that entry's own Play button in the Week view.
+ */
+function GhostRowsSection({
+  rows,
+  projects,
+  categories,
+  defaultExpanded,
+}: {
+  rows: ReadonlyArray<{
+    projectId: string;
+    categoryId: string | null;
+    source: string;
+  }>;
+  projects: ProjectOption[];
+  categories: CategoryOption[];
+  defaultExpanded: boolean;
+}): React.JSX.Element {
+  const t = useTranslations("time.dayView.ghost");
+  const tSubgroup = useTranslations("time.timesheet.customerSubgroup");
+  const [expanded, setExpanded] = useState<boolean>(defaultExpanded);
+  return (
+    <section
+      role="region"
+      aria-label={t("regionLabel")}
+      className="rounded-lg border border-edge bg-surface-raised"
+    >
+      <button
+        type="button"
+        onClick={() => setExpanded((v) => !v)}
+        aria-expanded={expanded}
+        className="flex w-full items-center gap-2 px-4 py-2 text-left hover:bg-hover transition-colors"
+      >
+        {expanded ? (
+          <ChevronDown size={14} className="text-content-muted" />
+        ) : (
+          <ChevronRight size={14} className="text-content-muted" />
+        )}
+        <span className="text-label font-semibold uppercase tracking-wider text-content-muted">
+          {t("title")}
+        </span>
+        <span className="text-caption text-content-muted">
+          · {rows.length}
+        </span>
+      </button>
+      {expanded && (
+        <ul className="divide-y divide-edge-muted/60 border-t border-edge-muted">
+          {rows.map((row) => (
+            <GhostRow
+              key={`${row.projectId}::${row.categoryId ?? ""}`}
+              row={row}
+              projects={projects}
+              categories={categories}
+              tSubgroup={tSubgroup}
+            />
+          ))}
+        </ul>
+      )}
+    </section>
+  );
+}
+
+function GhostRow({
+  row,
+  projects,
+  categories,
+  tSubgroup,
+}: {
+  row: { projectId: string; categoryId: string | null; source: string };
+  projects: ProjectOption[];
+  categories: CategoryOption[];
+  tSubgroup: ReturnType<typeof useTranslations>;
+}): React.JSX.Element {
+  const t = useTranslations("time.dayView.ghost");
+  const project = projects.find((p) => p.id === row.projectId);
+  const category = row.categoryId
+    ? categories.find((c) => c.id === row.categoryId)
+    : null;
+  const customer = project?.customers ?? null;
+  const isInternal = !customer && project?.is_internal === true;
+  const customerLabel = customer?.name
+    ? customer.name
+    : isInternal
+      ? tSubgroup("internal")
+      : tSubgroup("noCustomer");
+  const isTeamDefault = row.source.split(",").includes("team_default");
+
+  const [pending, setPending] = useState<boolean>(false);
+  const handleStart = useCallback(async () => {
+    if (pending) return;
+    setPending(true);
+    const fd = new FormData();
+    fd.set("project_id", row.projectId);
+    if (row.categoryId) fd.set("category_id", row.categoryId);
+    const [dayStart, dayEnd] = localDayBoundsIso();
+    fd.set("day_start_iso", dayStart);
+    fd.set("day_end_iso", dayEnd);
+    try {
+      await startTimerAction(fd);
+      notifyTimerChanged();
+    } finally {
+      setPending(false);
+    }
+  }, [pending, row.projectId, row.categoryId]);
+
+  return (
+    <li className="flex items-center gap-3 px-4 py-2">
+      {customer ? (
+        <CustomerChip
+          customerId={customer.id ?? null}
+          customerName={customer.name}
+          size={14}
+        />
+      ) : (
+        <CustomerChip
+          customerId={null}
+          customerName={null}
+          internal={isInternal}
+          size={14}
+        />
+      )}
+      <span className="text-caption text-content-muted truncate min-w-0">
+        {customerLabel}
+      </span>
+      <span className="text-content-muted text-caption" aria-hidden>
+        ·
+      </span>
+      <span className="text-body text-content truncate min-w-0">
+        {project?.name ?? "—"}
+      </span>
+      {category && (
+        <>
+          <span className="text-content-muted text-caption" aria-hidden>
+            ·
+          </span>
+          <span className="inline-flex items-center gap-1.5 text-caption text-content-secondary truncate min-w-0">
+            <span
+              className="h-2 w-2 rounded-full shrink-0"
+              style={{ backgroundColor: category.color }}
+              aria-hidden
+            />
+            {category.name}
+          </span>
+        </>
+      )}
+      {isTeamDefault && (
+        <span className="text-label uppercase tracking-wider text-content-muted rounded bg-surface-inset px-1.5 py-0.5">
+          {t("teamBadge")}
+        </span>
+      )}
+      <span className="ml-auto inline-flex items-center gap-2">
+        <Tooltip label={t("startTimer")}>
+          <button
+            type="button"
+            onClick={handleStart}
+            disabled={pending}
+            aria-label={t("startTimer")}
+            className="rounded p-1.5 text-content-muted hover:bg-hover hover:text-accent transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent disabled:opacity-50"
+          >
+            <Play size={14} />
+          </button>
+        </Tooltip>
+      </span>
+    </li>
   );
 }

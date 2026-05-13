@@ -20,6 +20,7 @@ import {
   ChevronsDown,
   ChevronsUp,
   Lock,
+  Pin,
   Play,
   Plus,
   Square,
@@ -46,6 +47,10 @@ import {
   startTimerAction,
   stopTimerAction,
 } from "./actions";
+import {
+  pinRowAction,
+  unpinRowAction,
+} from "./pinned-rows-actions";
 import {
   buttonGhostClass,
   buttonSecondaryClass,
@@ -79,6 +84,17 @@ interface Props {
    * every row is treated as the viewer's own (single-user legacy path).
    */
   currentUserId?: string;
+  /** Active rows for the viewer on this team — union of recent
+   *  entries, personal pins, and team defaults from the
+   *  stint_active_rows RPC. Used to populate empty rows for
+   *  (project, category) combos that don't have entries this week
+   *  but are still "live" via pin or recent activity. Each row's
+   *  `source` string identifies the bucket(s) it came from. */
+  activeRows?: ReadonlyArray<{
+    projectId: string;
+    categoryId: string | null;
+    source: string;
+  }>;
 }
 
 interface Row {
@@ -91,6 +107,12 @@ interface Row {
   isOwn: boolean;
   /** When this is a brand-new blank row, no entries exist yet */
   isNew?: boolean;
+  /** True when the viewer has personally pinned this row. Drives the
+   *  Pin button's filled-vs-outline rendering. */
+  isPinned?: boolean;
+  /** True when this row is a team-default (every member sees it).
+   *  Renders a small "Team" chip; admins can unset, members can't. */
+  isTeamDefault?: boolean;
   /** Per-day duration in minutes, length 7 (Mon..Sun) */
   byDay: number[];
   /** Per-day "any entry in this cell is invoiced" flag, length 7.
@@ -178,6 +200,7 @@ export function WeekTimesheet({
   categories,
   defaultTeamId,
   currentUserId,
+  activeRows = [],
 }: Props): React.JSX.Element {
   const t = useTranslations("time.timesheet");
   const tWeek = useTranslations("time.week");
@@ -318,6 +341,46 @@ export function WeekTimesheet({
       }
     }
 
+    // Fold in active rows from the stint_active_rows RPC — (project,
+    // category) combos the viewer has pinned, that have recent
+    // entries outside the visible week, or that the team has set as
+    // defaults. These render as empty rows the user can immediately
+    // log into without going through "+ Add row" first. Always
+    // attributed to the viewer.
+    for (const activeRow of activeRows) {
+      const key = rowKey(activeRow.projectId, activeRow.categoryId, selfId);
+      const sources = activeRow.source.split(",");
+      const isPinned = sources.includes("pinned");
+      const isTeamDefault = sources.includes("team_default");
+      const existing = byKey.get(key);
+      if (existing) {
+        // Row already has entries this week — just stamp the flags
+        // so the pin button + team chip render correctly.
+        existing.isPinned = isPinned;
+        existing.isTeamDefault = isTeamDefault;
+        continue;
+      }
+      byKey.set(key, {
+        projectId: activeRow.projectId,
+        categoryId: activeRow.categoryId,
+        userId: selfId,
+        author: null,
+        isOwn: true,
+        isPinned,
+        isTeamDefault,
+        byDay: Array.from({ length: DAYS_IN_WEEK }, () => 0),
+        invoicedByDay: Array.from({ length: DAYS_IN_WEEK }, () => false),
+        invoiceIdByDay: Array.from(
+          { length: DAYS_IN_WEEK },
+          () => null as string | null,
+        ),
+        entriesByDay: Array.from(
+          { length: DAYS_IN_WEEK },
+          () => [] as TimeEntry[],
+        ),
+      });
+    }
+
     return Array.from(byKey.values()).sort((a, b) => {
       // Own rows first so the editable work is always on top.
       if (a.isOwn !== b.isOwn) return a.isOwn ? -1 : 1;
@@ -329,7 +392,7 @@ export function WeekTimesheet({
       const nb = b.author?.display_name ?? "";
       return na.localeCompare(nb);
     });
-  }, [entries, projects, extraRows, weekDays, tzOffsetMin, currentUserId]);
+  }, [entries, projects, extraRows, weekDays, tzOffsetMin, currentUserId, activeRows]);
 
   // Row-grouping dimension backed by localStorage via `useSyncExternalStore`
   // — SSR renders the default ("member"), client reconciles to the stored
@@ -1271,6 +1334,23 @@ function TimesheetRow({
             // text rows shift left by 18px.
             <span className="mt-1 inline-block w-[22px]" aria-hidden="true" />
           )}
+        {/* Pin affordance. Visible only on the viewer's own rows
+            (row.isOwn) — pinning another member's row would have no
+            effect since the action is auth.uid-scoped. Filled pin =
+            personally pinned by the viewer; outline pin = available
+            to pin. Team-default rows render the same chevron / pin
+            controls but with an additional "Team" chip on the
+            customer line so members know they didn't pin it
+            themselves but can't make it disappear either.
+            Tooltip carries the explicit verb. */}
+        {row.isOwn && project && (
+          <PinRowButton
+            teamId={project.team_id}
+            projectId={row.projectId}
+            categoryId={row.categoryId}
+            isPinned={row.isPinned ?? false}
+          />
+        )}
         {/* Colored rail repeats the category color from the row's own
             category cell. When grouping by category the group header
             already carries that swatch + label, so the row drops the
@@ -2433,5 +2513,70 @@ function AddRowControl({
         </button>
       </div>
     </div>
+  );
+}
+
+/**
+ * Pin / unpin a row for the viewer. Tiny stateful component because
+ * the pin action toggles between two server-side mutations and we
+ * want to show a pending spinner during the call. Optimistic state
+ * is local so the icon flips immediately; on action error the
+ * useFormAction layer surfaces the toast and the page revalidate
+ * will reset the displayed pin state.
+ */
+function PinRowButton({
+  teamId,
+  projectId,
+  categoryId,
+  isPinned,
+}: {
+  teamId: string;
+  projectId: string;
+  categoryId: string | null;
+  isPinned: boolean;
+}): React.JSX.Element {
+  const t = useTranslations("time.timesheet.pin");
+  const [optimistic, setOptimistic] = useState<boolean>(isPinned);
+  const [pending, setPending] = useState<boolean>(false);
+  const handleClick = useCallback(async () => {
+    if (pending) return;
+    setPending(true);
+    const next = !optimistic;
+    setOptimistic(next);
+    const fd = new FormData();
+    fd.set("team_id", teamId);
+    fd.set("project_id", projectId);
+    if (categoryId) fd.set("category_id", categoryId);
+    try {
+      if (next) await pinRowAction(fd);
+      else await unpinRowAction(fd);
+    } catch {
+      // Roll back optimistic state on error. The action's runSafeAction
+      // wrapper logs server-side; the UI just snaps back.
+      setOptimistic(!next);
+    } finally {
+      setPending(false);
+    }
+  }, [pending, optimistic, teamId, projectId, categoryId]);
+  return (
+    <Tooltip label={optimistic ? t("unpin") : t("pin")}>
+      <button
+        type="button"
+        onClick={handleClick}
+        disabled={pending}
+        aria-pressed={optimistic}
+        aria-label={optimistic ? t("unpin") : t("pin")}
+        className={`mt-1 inline-flex shrink-0 items-center rounded p-0.5 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent disabled:opacity-50 ${
+          optimistic
+            ? "text-accent hover:bg-hover"
+            : "text-content-muted/60 hover:bg-hover hover:text-content"
+        }`}
+      >
+        <Pin
+          size={13}
+          className={optimistic ? "fill-current" : ""}
+        />
+      </button>
+    </Tooltip>
   );
 }
