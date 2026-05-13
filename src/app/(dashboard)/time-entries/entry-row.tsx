@@ -3,7 +3,7 @@
 import { useEffect, useState } from "react";
 import { useTranslations } from "next-intl";
 import Link from "next/link";
-import { DollarSign, Minus, Lock } from "lucide-react";
+import { DollarSign, Minus, Lock, Play, Square } from "lucide-react";
 import { formatDurationHM } from "@/lib/time/week";
 import { EntryAuthor } from "@/components/EntryAuthor";
 import { Tooltip } from "@/components/Tooltip";
@@ -11,6 +11,10 @@ import { TicketChip } from "@/components/TicketChip";
 import { CustomerChip } from "@/components/CustomerChip";
 import { EntryKebabMenu } from "./entry-kebab-menu";
 import { InlineEditForm } from "./inline-edit-form";
+import { useFormAction } from "@/hooks/use-form-action";
+import { localDayBoundsIso } from "@/lib/local-day-bounds";
+import { notifyTimerChanged } from "@/lib/timer-events";
+import { startTimerAction, stopTimerAction } from "./actions";
 import type { CategoryOption, ProjectOption, TimeEntry } from "./types";
 
 interface Props {
@@ -58,11 +62,39 @@ export function EntryRow({
 }: Props): React.JSX.Element {
   const t = useTranslations("time");
   const isRunning = !entry.end_time;
+  const locked = entry.invoiced && entry.invoice_id != null;
   const projectName = entry.projects?.name ?? "—";
   const customerName = entry.projects?.customers?.name ?? null;
   const customerId = entry.projects?.customers?.id ?? null;
   const projectIsInternal = entry.projects?.is_internal === true;
   const startDate = new Date(entry.start_time);
+
+  // Per-entry start/stop. "Start" resumes from this entry —
+  // identity (description, ticket, billable) carries forward to a
+  // new running entry for today. Mirrors the per-entry Play button
+  // in the Week view's expanded sub-rows so the affordance is
+  // consistent across views (time-views parity rule).
+  const start = useFormAction({ action: startTimerAction });
+  const stop = useFormAction({ action: stopTimerAction });
+  const handleStart = (): void => {
+    const fd = new FormData();
+    fd.set("resume_entry_id", entry.id);
+    const [dayStart, dayEnd] = localDayBoundsIso();
+    fd.set("day_start_iso", dayStart);
+    fd.set("day_end_iso", dayEnd);
+    void (async () => {
+      await start.handleSubmit(fd);
+      notifyTimerChanged();
+    })();
+  };
+  const handleStop = (): void => {
+    const fd = new FormData();
+    fd.set("id", entry.id);
+    void (async () => {
+      await stop.handleSubmit(fd);
+      notifyTimerChanged();
+    })();
+  };
   const startTime = startDate.toLocaleTimeString(undefined, {
     hour: "numeric",
     minute: "2-digit",
@@ -295,7 +327,41 @@ export function EntryRow({
           className="px-2 py-2.5 align-middle text-right"
           onClick={(e) => e.stopPropagation()}
         >
-          <EntryKebabMenu entry={entry} onEdit={() => onToggleExpand(entry.id)} />
+          <div className="inline-flex items-center gap-1">
+            {/* Per-entry Start/Stop — Play resumes this entry's
+                identity (description, ticket, billable) into a new
+                running entry for today; Stop ends the running
+                entry. Hidden when the entry is invoice-locked since
+                the DB trigger refuses writes anyway. Same affordance
+                the Week view's expanded sub-rows already have. */}
+            {!locked &&
+              (isRunning ? (
+                <Tooltip label={t("entry.stopTimer")}>
+                  <button
+                    type="button"
+                    onClick={handleStop}
+                    disabled={stop.pending}
+                    aria-label={t("entry.stopTimer")}
+                    className="rounded p-1 text-error-text hover:bg-error-soft transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-error disabled:opacity-50"
+                  >
+                    <Square size={14} className="fill-current" />
+                  </button>
+                </Tooltip>
+              ) : (
+                <Tooltip label={t("entry.startTimer")}>
+                  <button
+                    type="button"
+                    onClick={handleStart}
+                    disabled={start.pending}
+                    aria-label={t("entry.startTimer")}
+                    className="rounded p-1 text-content-muted hover:bg-hover hover:text-accent transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent disabled:opacity-50"
+                  >
+                    <Play size={14} />
+                  </button>
+                </Tooltip>
+              ))}
+            <EntryKebabMenu entry={entry} onEdit={() => onToggleExpand(entry.id)} />
+          </div>
         </td>
       </tr>
 

@@ -12,6 +12,7 @@ vi.mock("./actions", () => ({
   deleteTimeEntryAction: vi.fn(),
   duplicateTimeEntryAction: vi.fn(),
   startTimerAction: vi.fn(),
+  stopTimerAction: vi.fn(),
   deleteTimeEntriesAction: deleteManyMock,
   restoreTimeEntriesAction: restoreManyMock,
 }));
