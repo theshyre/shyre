@@ -1231,32 +1231,97 @@ export async function upsertTimesheetCellAction(
     const t = entryFromDuration(entry_date, durationMin, tzOffsetMin);
 
     if (!existing || existing.length === 0) {
-      // Insert new — inherit project's billable policy. Internal
-      // projects pin to false; external projects use the project's
-      // default_billable. The timesheet cell has no per-cell billable
-      // override (it's a duration-only quick-entry surface).
-      const { data: projectClass } = await supabase
-        .from("projects")
-        .select("is_internal, default_billable")
-        .eq("id", project_id)
-        .maybeSingle();
-      const cellInternal =
-        (projectClass as { is_internal?: boolean } | null)?.is_internal === true;
-      const cellDefault =
-        (projectClass as { default_billable?: boolean } | null)
-          ?.default_billable !== false;
-      assertSupabaseOk(
-        await supabase.from("time_entries").insert({
-          team_id: teamId,
-          user_id: userId,
-          project_id,
-          category_id,
-          description: null,
-          start_time: t.start_time,
-          end_time: t.end_time,
-          billable: cellInternal ? false : cellDefault,
-        }),
-      );
+      // Insert new. Two paths:
+      //   (a) The row has at least one entry on another day → inherit
+      //       description + ticket + billable from the most-recent
+      //       one. Matches the Play-button resume behavior: a new
+      //       cell in an existing row carries the row's identity,
+      //       not a blank "Untitled" placeholder.
+      //   (b) Brand-new row with no entries anywhere → blank
+      //       description, billable from project's default_billable
+      //       (or false for internal). The timesheet cell has no
+      //       per-cell billable override.
+      let inheritedRow:
+        | {
+            description: string | null;
+            billable: boolean;
+            linked_ticket_provider: string | null;
+            linked_ticket_key: string | null;
+            linked_ticket_url: string | null;
+            linked_ticket_title: string | null;
+            linked_ticket_refreshed_at: string | null;
+          }
+        | null = null;
+      {
+        let rowQuery = supabase
+          .from("time_entries")
+          .select(
+            "description, billable, linked_ticket_provider, linked_ticket_key, linked_ticket_url, linked_ticket_title, linked_ticket_refreshed_at, start_time",
+          )
+          .eq("project_id", project_id)
+          .eq("user_id", userId)
+          .is("deleted_at", null)
+          .order("start_time", { ascending: false })
+          .limit(1);
+        if (category_id) rowQuery = rowQuery.eq("category_id", category_id);
+        else rowQuery = rowQuery.is("category_id", null);
+        const { data: rowSeed } = await rowQuery;
+        const seed = (rowSeed ?? [])[0] as
+          | {
+              description: string | null;
+              billable: boolean;
+              linked_ticket_provider: string | null;
+              linked_ticket_key: string | null;
+              linked_ticket_url: string | null;
+              linked_ticket_title: string | null;
+              linked_ticket_refreshed_at: string | null;
+            }
+          | undefined;
+        if (seed) inheritedRow = seed;
+      }
+      if (inheritedRow) {
+        assertSupabaseOk(
+          await supabase.from("time_entries").insert({
+            team_id: teamId,
+            user_id: userId,
+            project_id,
+            category_id,
+            description: inheritedRow.description,
+            start_time: t.start_time,
+            end_time: t.end_time,
+            billable: inheritedRow.billable,
+            linked_ticket_provider: inheritedRow.linked_ticket_provider,
+            linked_ticket_key: inheritedRow.linked_ticket_key,
+            linked_ticket_url: inheritedRow.linked_ticket_url,
+            linked_ticket_title: inheritedRow.linked_ticket_title,
+            linked_ticket_refreshed_at: inheritedRow.linked_ticket_refreshed_at,
+          }),
+        );
+      } else {
+        // No prior row entries — fall back to project defaults.
+        const { data: projectClass } = await supabase
+          .from("projects")
+          .select("is_internal, default_billable")
+          .eq("id", project_id)
+          .maybeSingle();
+        const cellInternal =
+          (projectClass as { is_internal?: boolean } | null)?.is_internal === true;
+        const cellDefault =
+          (projectClass as { default_billable?: boolean } | null)
+            ?.default_billable !== false;
+        assertSupabaseOk(
+          await supabase.from("time_entries").insert({
+            team_id: teamId,
+            user_id: userId,
+            project_id,
+            category_id,
+            description: null,
+            start_time: t.start_time,
+            end_time: t.end_time,
+            billable: cellInternal ? false : cellDefault,
+          }),
+        );
+      }
     } else if (existing.length === 1) {
       // Update the single existing row
       assertSupabaseOk(
