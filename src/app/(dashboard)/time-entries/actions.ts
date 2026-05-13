@@ -178,10 +178,20 @@ export async function updateTimeEntryAction(formData: FormData): Promise<void> {
       newProjectId = (formData.get("project_id") as string) || null;
       if (newProjectId) {
         // Look up the destination project + the entry's current team.
+        // `extension_category_set_id` is NOT a column on `projects` —
+        // it's derived client-side via a join against `category_sets`
+        // (which has a `project_id` FK). Including it here would 400
+        // the PostgREST request and dest would come back null, which
+        // showed up as "Project or entry not found." Look up the
+        // extension separately if/when we need to honor extension-set
+        // categories on the destination — for now the form's
+        // CategoryPicker already offers the destination's valid
+        // categories on a project change, so the action's category-
+        // clear path only needs the base set.
         const [destResult, entryResult] = await Promise.all([
           supabase
             .from("projects")
-            .select("id, team_id, is_internal, category_set_id, extension_category_set_id")
+            .select("id, team_id, is_internal, category_set_id")
             .eq("id", newProjectId)
             .maybeSingle(),
           supabase
@@ -209,10 +219,16 @@ export async function updateTimeEntryAction(formData: FormData): Promise<void> {
           // verify the existing category belongs to the destination's
           // category set(s); clear if it doesn't.
           if (!formData.has("category_id") && entry.category_id) {
-            const allowedSetIds = [
-              dest.category_set_id,
-              dest.extension_category_set_id,
-            ].filter((s): s is string => typeof s === "string");
+            // Only the base category_set_id is on the projects row;
+            // extension sets live in `category_sets` with a project_id
+            // FK and would require a second lookup. Skip extension
+            // consideration here — the form's CategoryPicker is the
+            // primary place that filters by destination, and a falsely
+            // cleared category is easily picked back up by the user
+            // if it was actually valid.
+            const allowedSetIds = [dest.category_set_id].filter(
+              (s): s is string => typeof s === "string",
+            );
             if (allowedSetIds.length > 0) {
               const { data: cat } = await supabase
                 .from("categories")
