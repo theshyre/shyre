@@ -62,7 +62,14 @@ export function ThemePickerPopover(): React.JSX.Element {
   const tCommon = useTranslations("common");
   const { theme, setTheme } = useTheme();
   const [open, setOpen] = useState(false);
-  const triggerRef = useRef<HTMLButtonElement>(null);
+  // Wrap-span ref instead of a direct ref on the button — Tooltip's
+  // cloneElement reads `child.ref`, which trips React 19's
+  // `element.ref` deprecation when the child has a ref. The span's
+  // bounding rect matches the button (`inline-flex` wrapping a
+  // single button), so getBoundingClientRect still gives the right
+  // anchor for panel positioning. Same pattern as ProfilePopover /
+  // jump-to-date.
+  const triggerRef = useRef<HTMLSpanElement>(null);
   const panelRef = useRef<HTMLDivElement>(null);
   const [panelPos, setPanelPos] = useState<{
     top: number;
@@ -169,26 +176,27 @@ export function ThemePickerPopover(): React.JSX.Element {
 
   return (
     <>
-      <Tooltip label={t("title")}>
-        <button
-          ref={triggerRef}
-          type="button"
-          onClick={() => {
-            if (!open) {
-              const pos = computePanelPos();
-              if (pos) setPanelPos(pos);
-            } else {
-              setPanelPos(null);
-            }
-            setOpen((p) => !p);
-          }}
-          aria-label={`${t("title")}: ${currentLabel}`}
-          aria-expanded={open}
-          className="inline-flex h-8 w-8 items-center justify-center rounded-md border border-edge text-content-secondary hover:bg-hover transition-colors"
-        >
-          <Palette size={14} />
-        </button>
-      </Tooltip>
+      <span ref={triggerRef} className="inline-flex">
+        <Tooltip label={t("title")}>
+          <button
+            type="button"
+            onClick={() => {
+              if (!open) {
+                const pos = computePanelPos();
+                if (pos) setPanelPos(pos);
+              } else {
+                setPanelPos(null);
+              }
+              setOpen((p) => !p);
+            }}
+            aria-label={`${t("title")}: ${currentLabel}`}
+            aria-expanded={open}
+            className="inline-flex h-8 w-8 items-center justify-center rounded-md border border-edge text-content-secondary hover:bg-hover transition-colors"
+          >
+            <Palette size={14} />
+          </button>
+        </Tooltip>
+      </span>
       {typeof document !== "undefined" && panel
         ? createPortal(panel, document.body)
         : null}

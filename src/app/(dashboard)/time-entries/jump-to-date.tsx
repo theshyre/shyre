@@ -95,7 +95,12 @@ export function JumpToDate({
   const router = useRouter();
   const pathname = usePathname();
   const searchParams = useSearchParams();
-  const triggerRef = useRef<HTMLButtonElement>(null);
+  // Wrap-span ref instead of a direct ref on the button — putting a
+  // ref on Tooltip's immediate child trips React 19's `element.ref`
+  // deprecation because Tooltip's cloneElement reads `child.ref`. The
+  // wrap-span hosts the ref; focus / contains checks query the
+  // button through it. See ProfilePopover for the same pattern.
+  const triggerWrapRef = useRef<HTMLSpanElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
   const popoverRef = useRef<HTMLDivElement>(null);
   const [open, setOpen] = useState(false);
@@ -131,8 +136,8 @@ export function JumpToDate({
     setText("");
     setError(null);
     // Restore focus to the trigger so keyboard users don't end up
-    // on document body.
-    triggerRef.current?.focus();
+    // on document body. Look it up via the wrap-span (see ref note).
+    triggerWrapRef.current?.querySelector("button")?.focus();
   }, []);
 
   const onSubmit = useCallback(
@@ -188,7 +193,7 @@ export function JumpToDate({
       const target = e.target as Node | null;
       if (!target) return;
       if (popoverRef.current?.contains(target)) return;
-      if (triggerRef.current?.contains(target)) return;
+      if (triggerWrapRef.current?.contains(target)) return;
       close();
     }
     document.addEventListener("keydown", onDocKey);
@@ -248,29 +253,30 @@ export function JumpToDate({
           </button>
         </Tooltip>
       )}
-      <Tooltip label={t("triggerTooltip")} shortcut="G">
-        <button
-          ref={triggerRef}
-          type="button"
-          onClick={() => {
-            setOpen((o) => !o);
-            if (!open) {
-              setTimeout(() => inputRef.current?.focus(), 0);
-            }
-          }}
-          className="inline-flex items-center gap-1.5 rounded-md border border-edge bg-surface px-3 py-1 text-body font-semibold text-content hover:bg-hover transition-colors"
-          aria-haspopup="dialog"
-          aria-expanded={open}
-          aria-controls={popoverId}
-        >
-          <Calendar size={14} className="text-accent" aria-hidden />
-          <span className="font-mono tabular-nums">{triggerLabel}</span>
-          <ChevronDown size={12} className="text-content-muted" aria-hidden />
-          <kbd className={kbdClass} aria-hidden>
-            G
-          </kbd>
-        </button>
-      </Tooltip>
+      <span ref={triggerWrapRef} className="inline-flex">
+        <Tooltip label={t("triggerTooltip")} shortcut="G">
+          <button
+            type="button"
+            onClick={() => {
+              setOpen((o) => !o);
+              if (!open) {
+                setTimeout(() => inputRef.current?.focus(), 0);
+              }
+            }}
+            className="inline-flex items-center gap-1.5 rounded-md border border-edge bg-surface px-3 py-1 text-body font-semibold text-content hover:bg-hover transition-colors"
+            aria-haspopup="dialog"
+            aria-expanded={open}
+            aria-controls={popoverId}
+          >
+            <Calendar size={14} className="text-accent" aria-hidden />
+            <span className="font-mono tabular-nums">{triggerLabel}</span>
+            <ChevronDown size={12} className="text-content-muted" aria-hidden />
+            <kbd className={kbdClass} aria-hidden>
+              G
+            </kbd>
+          </button>
+        </Tooltip>
+      </span>
       {onNext && (
         <Tooltip label={nextLabel ?? t("next")} shortcut="→">
           <button
