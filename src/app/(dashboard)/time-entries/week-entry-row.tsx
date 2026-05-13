@@ -97,6 +97,16 @@ interface EntrySummaryRowProps {
    *  Undefined when the parent row doesn't carry a rail (groupings
    *  other than Member). */
   customerRail?: string;
+  /** Per-day cell-commit handler — same callback the parent row uses.
+   *  When provided, the non-entry-day cells become editable: typing a
+   *  duration upserts a NEW entry on that day for the same (project,
+   *  category, user). Without this prop, those cells stay read-only
+   *  `·` placeholders. */
+  onCellCommit?: (dayIndex: number, minutes: number) => void | Promise<void>;
+  /** Pre-formatted long-form date string per visible day, used in the
+   *  empty-cell DurationInput aria-label so AT users hear the day
+   *  they're committing into. Length 7; entry-day index doubles up. */
+  dayDatesLong?: string[];
 }
 
 export function EntrySummaryRow({
@@ -108,6 +118,8 @@ export function EntrySummaryRow({
   isRunning,
   liveElapsedMin,
   customerRail,
+  onCellCommit,
+  dayDatesLong,
 }: EntrySummaryRowProps): React.JSX.Element {
   const t = useTranslations("time.entryRow");
   const tLock = useTranslations("time.lock");
@@ -228,6 +240,39 @@ export function EntrySummaryRow({
           would refuse anyway). Type 0 to soft-delete the entry. */}
       {Array.from({ length: DAYS_IN_WEEK }, (_, i) => {
         if (i !== dayIndex) {
+          // Other days — editable when the parent passes a cell-commit
+          // handler AND the entry isn't locked (invoiced rows are
+          // off-limits per the DB trigger). Typing a duration here
+          // creates a new entry on (project, category, user, that day)
+          // via the same upsert path the parent row uses. Without a
+          // cell-commit handler, the cell stays a read-only `·`
+          // placeholder. Locked / running entries never get this
+          // affordance — the parent row already handles those cases.
+          if (onCellCommit && !locked) {
+            const cellDate = dayDatesLong?.[i];
+            return (
+              <td key={i} className="px-2 py-1.5 align-middle">
+                <label className="flex justify-end cursor-text">
+                  <DurationInput
+                    name={`entry-${entry.id}-day-${i}`}
+                    defaultMinutes={0}
+                    ariaLabel={
+                      cellDate
+                        ? t("durationOnDay", { date: cellDate, duration: "" })
+                        : undefined
+                    }
+                    onCommit={(committed) => {
+                      if (committed === null) return;
+                      if (committed === 0) return;
+                      void onCellCommit(i, committed);
+                    }}
+                    placeholder="·"
+                    className="w-20 -mr-1.5 rounded-md border border-transparent bg-transparent px-1.5 py-1 text-body font-mono text-right outline-none transition-colors hover:border-edge-muted focus:border-focus-ring focus:bg-surface-raised focus:ring-2 focus:ring-focus-ring/30 placeholder:text-content-muted"
+                  />
+                </label>
+              </td>
+            );
+          }
           return (
             <td key={i} className="px-2 py-1.5 align-middle text-right">
               <span className="text-content-muted" aria-hidden="true">

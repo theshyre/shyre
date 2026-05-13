@@ -1649,7 +1649,13 @@ function TimesheetRow({
         other members' entries display in their own row in the
         groupBy="member" view, no need to inline them here. */}
     {expanded && editable &&
-      flattenEntriesByDay(row.entriesByDay).map(({ entry, dayIndex: dIdx }) => {
+      (() => {
+        // Pre-format every visible day's long-form date once per
+        // expand so the editable non-entry-day cells in
+        // EntrySummaryRow can stamp aria-labels without re-parsing
+        // for each cell.
+        const dayDatesLong = weekDays.map((d) => formatDayLong(d));
+        return flattenEntriesByDay(row.entriesByDay).map(({ entry, dayIndex: dIdx }) => {
         const dayStr = weekDays[dIdx];
         const dayLong = dayStr ? formatDayLong(dayStr) : "";
         const isRowEntryRunning =
@@ -1683,6 +1689,8 @@ function TimesheetRow({
               isRunning={isRowEntryRunning}
               liveElapsedMin={entryLiveElapsed}
               customerRail={customerRail ?? undefined}
+              onCellCommit={onCellCommit}
+              dayDatesLong={dayDatesLong}
             />
             {editingEntryId === entry.id && (
               <EntryEditRow
@@ -1696,7 +1704,8 @@ function TimesheetRow({
             )}
           </Fragment>
         );
-      })}
+        });
+      })()}
     {expanded && editable && (
       <tr>
         <td colSpan={DAYS_IN_WEEK + 3} className="px-3 py-1.5">
