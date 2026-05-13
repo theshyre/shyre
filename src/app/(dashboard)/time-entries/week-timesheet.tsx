@@ -647,17 +647,30 @@ export function WeekTimesheet({
 
   const weekTotal = dailyTotals.reduce((s, n) => s + n, 0);
 
-  // Start a new timer seeded with this row's project + category. Fires
-  // the shared `startTimerAction`, which server-side stops whatever the
-  // viewer had running before inserting the new entry — so the user can
-  // never end up with two concurrently-running timers.
+  // Start a timer for a row. Two paths:
+  //   - resumeEntryId provided → resume that entry (description,
+  //     ticket attachment, category all preserved). Used when the row
+  //     has at least one existing entry — picking the most-recent one
+  //     is the right default since the row's Play button is asking
+  //     "start the work this row represents," not "create a brand new
+  //     blank entry just like this row."
+  //   - resumeEntryId null → seed a new entry from (project, category)
+  //     only. Used for brand-new rows (typed-add via "+ Add row") that
+  //     have no entries yet.
+  // Both paths route through startTimerAction which stops the running
+  // timer first so the viewer never ends up with two concurrent timers.
   async function startTimerFromRow(
     projectId: string,
     categoryId: string | null,
+    resumeEntryId: string | null,
   ): Promise<void> {
     const fd = new FormData();
-    fd.set("project_id", projectId);
-    if (categoryId) fd.set("category_id", categoryId);
+    if (resumeEntryId) {
+      fd.set("resume_entry_id", resumeEntryId);
+    } else {
+      fd.set("project_id", projectId);
+      if (categoryId) fd.set("category_id", categoryId);
+    }
     const [dayStart, dayEnd] = localDayBoundsIso();
     fd.set("day_start_iso", dayStart);
     fd.set("day_end_iso", dayEnd);
@@ -1809,6 +1822,7 @@ function GroupBlock({
   onStartTimer: (
     projectId: string,
     categoryId: string | null,
+    resumeEntryId: string | null,
   ) => void | Promise<void>;
   runningEntry: TimeEntry | null;
   /** Day-column (0–6) that `runningEntry` falls on in this week, or -1. */
@@ -2014,6 +2028,10 @@ interface RenderGroupedRowsArgs {
   onStartTimer: (
     projectId: string,
     categoryId: string | null,
+    /** Latest entry id on the row to resume from. Null when the row
+     *  has no entries yet (brand-new typed-add row) — then a new
+     *  blank entry seeds from project + category. */
+    resumeEntryId: string | null,
   ) => void | Promise<void>;
   runningEntry: TimeEntry | null;
   runningDayIndex: number;
@@ -2099,7 +2117,22 @@ function renderTimesheetRow(
       }}
       onDiscardEmpty={() => onDiscardEmpty(row.projectId, row.categoryId)}
       onStartTimer={() => {
-        void onStartTimer(row.projectId, row.categoryId);
+        // Resume the row's most-recent entry instead of creating a
+        // brand-new untitled one. Across all visible days, pick the
+        // entry with the latest start_time. Null when the row has no
+        // entries yet — startTimerAction then seeds a new entry from
+        // (project, category) only.
+        const flat = row.entriesByDay.flat();
+        const latest = flat.reduce<{ id: string; t: number } | null>(
+          (acc, e) => {
+            const t = new Date(e.start_time).getTime();
+            if (Number.isNaN(t)) return acc;
+            if (acc === null || t > acc.t) return { id: e.id, t };
+            return acc;
+          },
+          null,
+        );
+        void onStartTimer(row.projectId, row.categoryId, latest?.id ?? null);
       }}
       isRunningRow={isRunningRow}
       runningStartIso={isRunningRow ? runningEntry.start_time : null}
