@@ -503,10 +503,22 @@ export function EntryEditRow({
               >
                 {t("fields.project")}
               </label>
+              {/* Uncontrolled select with defaultValue + onChange,
+                  NOT a controlled `value={...}`. The parent
+                  WeekTimesheet ticks every second when a timer is
+                  running; controlled selects forced the DOM value
+                  back to the React-state value on each render, and
+                  if the user's pick raced the tick the picked value
+                  was lost before React's setState committed. Going
+                  uncontrolled means the browser owns the chosen
+                  value (Safari + native `appearance:none` are
+                  especially affected). State still tracks via
+                  onChange for the move-hint + the form's dirty
+                  check; on submit, FormData reads the DOM directly. */}
               <select
                 id={`entry-edit-project-${entry.id}`}
                 name="project_id"
-                value={selectedProjectId}
+                defaultValue={entry.project_id}
                 onChange={(e) => setSelectedProjectId(e.target.value)}
                 disabled={locked}
                 className={selectClass}

@@ -167,10 +167,15 @@ export function InlineEditForm({
           <label htmlFor={`ie-project-${entry.id}`} className={labelClass}>
             {t("fields.project")}
           </label>
+          {/* Uncontrolled select — see the matching block in
+              week-entry-row.tsx for the rationale. Short version:
+              controlled selects re-asserted the React-state value
+              on parent re-renders, losing the user's pick to a
+              render race in Safari with appearance:none. */}
           <select
             id={`ie-project-${entry.id}`}
             name="project_id"
-            value={selectedProjectId}
+            defaultValue={entry.project_id}
             onChange={(e) => setSelectedProjectId(e.target.value)}
             disabled={locked}
             className={selectClass}
