@@ -779,12 +779,18 @@ export default async function TimeEntriesPage({
   // this week" ghost section. Soft-fails to [] when no team is
   // selected or the RPC errors so the views degrade to today's
   // entry-derived row set.
+  const activeRowsTeamScope = selectedTeamId ?? teams[0]?.id ?? null;
   const activeRows = await (async () => {
-    const teamScope = selectedTeamId ?? teams[0]?.id ?? null;
-    if (!teamScope) return [];
+    if (!activeRowsTeamScope) return [];
     const { getActiveRows } = await import("@/lib/time/active-rows");
-    return getActiveRows(supabase, teamScope, callerId);
+    return getActiveRows(supabase, activeRowsTeamScope, callerId);
   })();
+  // Viewer's role on the team active rows are scoped to — gates the
+  // team-default admin button on each row. Defaults to "member"
+  // when the team isn't in the user's membership list (shouldn't
+  // happen given the RLS scoping above, but defensive).
+  const currentTeamRole: "owner" | "admin" | "member" =
+    teams.find((tm) => tm.id === activeRowsTeamScope)?.role ?? "member";
 
   return (
     <TimeHome
@@ -816,6 +822,7 @@ export default async function TimeEntriesPage({
       memberSelection={memberSelection}
       lockSummary={lockSummary}
       activeRows={activeRows}
+      currentTeamRole={currentTeamRole}
     />
   );
 }

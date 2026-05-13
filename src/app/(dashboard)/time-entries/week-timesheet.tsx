@@ -24,6 +24,7 @@ import {
   Play,
   Plus,
   Square,
+  Users,
   Link as LinkIcon,
   ExternalLink,
 } from "lucide-react";
@@ -50,7 +51,10 @@ import {
 import {
   pinRowAction,
   unpinRowAction,
+  setTeamDefaultRowAction,
+  unsetTeamDefaultRowAction,
 } from "./pinned-rows-actions";
+import { isTeamAdmin } from "@/lib/team-roles";
 import {
   buttonGhostClass,
   buttonSecondaryClass,
@@ -95,6 +99,11 @@ interface Props {
     categoryId: string | null;
     source: string;
   }>;
+  /** Viewer's role on the active-rows team. When owner / admin, the
+   *  per-row team-default button renders alongside the personal pin
+   *  button. Members see only their personal pin and the read-only
+   *  team-default chip on rows other admins have already defaulted. */
+  currentTeamRole?: "owner" | "admin" | "member";
 }
 
 interface Row {
@@ -201,6 +210,7 @@ export function WeekTimesheet({
   defaultTeamId,
   currentUserId,
   activeRows = [],
+  currentTeamRole = "member",
 }: Props): React.JSX.Element {
   const t = useTranslations("time.timesheet");
   const tWeek = useTranslations("time.week");
@@ -828,8 +838,29 @@ export function WeekTimesheet({
   useKeyboardShortcut({ key: "ArrowLeft", onTrigger: prevWeek });
   useKeyboardShortcut({ key: "ArrowRight", onTrigger: nextWeek });
 
+  // Count rows the user is seeing this week ONLY because of pin /
+  // team-default / recent-activity inference (no entries this week
+  // yet). Drives the first-render-of-new-week banner — when the user
+  // opens a fresh Monday view, telegraph "your rows are still here,
+  // pin the ones you want to keep" instead of letting the silence
+  // imply "you forgot to set up the week."
+  const carriedRowsCount = rows.filter(
+    (r) =>
+      r.isOwn &&
+      r.byDay.every((m) => m === 0) &&
+      (r.isPinned || r.isTeamDefault || activeRows.some(
+        (a) => a.projectId === r.projectId && a.categoryId === r.categoryId,
+      )),
+  ).length;
+
   return (
     <div className="space-y-4">
+      {carriedRowsCount > 0 && (
+        <NewWeekRolloverBanner
+          weekStartStr={weekStartStr}
+          carriedRowsCount={carriedRowsCount}
+        />
+      )}
       <div className="rounded-lg border border-edge bg-surface-raised overflow-x-auto">
       {/* Frame top bar — week nav lives here instead of a separate row
           above the frame, and the redundant "WEEKLY TIMESHEET" label
@@ -1070,6 +1101,7 @@ export function WeekTimesheet({
               runningEntry={runningEntry}
               runningDayIndex={runningDayIndex}
               onStopTimer={stopRunningTimer}
+              currentTeamRole={currentTeamRole}
             />
           );
         })}
@@ -1155,6 +1187,7 @@ function TimesheetRow({
   tzOffsetMin,
   setCellRef,
   onArrowNav,
+  currentTeamRole = "member",
 }: {
   rowIndex: number;
   row: Row;
@@ -1192,6 +1225,9 @@ function TimesheetRow({
   tzOffsetMin: number | undefined;
   setCellRef: (row: number, day: number, el: HTMLInputElement | null) => void;
   onArrowNav: (dir: "up" | "down" | "left" | "right", dayIndex: number) => void;
+  /** Viewer's role on the active-rows team. Admin / owner sees the
+   *  per-row team-default button alongside their personal pin. */
+  currentTeamRole?: "owner" | "admin" | "member";
 }): React.JSX.Element {
   const t = useTranslations("time.timesheet");
   const tc = useTranslations("common.actions");
@@ -1349,6 +1385,14 @@ function TimesheetRow({
             projectId={row.projectId}
             categoryId={row.categoryId}
             isPinned={row.isPinned ?? false}
+          />
+        )}
+        {project && isTeamAdmin(currentTeamRole) && (
+          <TeamDefaultRowButton
+            teamId={project.team_id}
+            projectId={row.projectId}
+            categoryId={row.categoryId}
+            isTeamDefault={row.isTeamDefault ?? false}
           />
         )}
         {/* Colored rail repeats the category color from the row's own
@@ -1868,6 +1912,7 @@ function GroupBlock({
   runningEntry,
   runningDayIndex,
   onStopTimer,
+  currentTeamRole,
 }: {
   group: RowGroup;
   groupBy: GroupBy;
@@ -1908,6 +1953,7 @@ function GroupBlock({
   /** Day-column (0–6) that `runningEntry` falls on in this week, or -1. */
   runningDayIndex: number;
   onStopTimer: (entryId: string) => void | Promise<void>;
+  currentTeamRole: "owner" | "admin" | "member";
 }): React.JSX.Element {
   const tHeader = useTranslations("time.timesheet.groupHeader");
 
@@ -1988,6 +2034,7 @@ function GroupBlock({
           runningEntry,
           runningDayIndex,
           onStopTimer,
+          currentTeamRole,
         })}
     </tbody>
   );
@@ -2116,6 +2163,7 @@ interface RenderGroupedRowsArgs {
   runningEntry: TimeEntry | null;
   runningDayIndex: number;
   onStopTimer: (entryId: string) => void | Promise<void>;
+  currentTeamRole: "owner" | "admin" | "member";
 }
 
 function renderGroupedRows(args: RenderGroupedRowsArgs): React.JSX.Element[] {
@@ -2173,6 +2221,7 @@ function renderTimesheetRow(
     runningEntry,
     runningDayIndex,
     onStopTimer,
+    currentTeamRole,
   } = args;
   const rowIdx = rowsFlat.indexOf(row);
   const isRunningRow =
@@ -2230,6 +2279,7 @@ function renderTimesheetRow(
         else if (dir === "left") focusCell(rowIdx, dayIdx - 1);
         else focusCell(rowIdx, dayIdx + 1);
       }}
+      currentTeamRole={currentTeamRole}
     />
   );
 }
@@ -2573,6 +2623,153 @@ function PinRowButton({
         }`}
       >
         <Pin
+          size={13}
+          className={optimistic ? "fill-current" : ""}
+        />
+      </button>
+    </Tooltip>
+  );
+}
+
+/**
+ * First-render-of-new-week banner. Shows once per weekStartStr —
+ * the dismiss writes the weekStartStr to localStorage so future
+ * mounts of the same week stay quiet. Counts carried-forward rows
+ * (active rows without entries this week yet) so the user knows
+ * the count is meaningful, not a generic prompt.
+ */
+const NEW_WEEK_DISMISS_KEY = "shyre.timesheet.newWeekBannerDismissed";
+const NEW_WEEK_DISMISS_EVENT = "shyre:timesheet:newWeekBannerDismissed";
+
+function subscribeNewWeekDismiss(cb: () => void): () => void {
+  if (typeof window === "undefined") return () => {};
+  window.addEventListener("storage", cb);
+  window.addEventListener(NEW_WEEK_DISMISS_EVENT, cb);
+  return () => {
+    window.removeEventListener("storage", cb);
+    window.removeEventListener(NEW_WEEK_DISMISS_EVENT, cb);
+  };
+}
+
+function getNewWeekDismissSnapshot(): string {
+  if (typeof window === "undefined") return "";
+  return window.localStorage.getItem(NEW_WEEK_DISMISS_KEY) ?? "";
+}
+
+function getServerNewWeekDismissSnapshot(): string {
+  return "";
+}
+
+function NewWeekRolloverBanner({
+  weekStartStr,
+  carriedRowsCount,
+}: {
+  weekStartStr: string;
+  carriedRowsCount: number;
+}): React.JSX.Element | null {
+  const t = useTranslations("time.timesheet.newWeekBanner");
+  // useSyncExternalStore subscribes to the localStorage key without
+  // setState-in-effect — server renders default-not-dismissed, client
+  // reconciles to the stored value post-hydration cleanly.
+  const dismissedFor = useSyncExternalStore(
+    subscribeNewWeekDismiss,
+    getNewWeekDismissSnapshot,
+    getServerNewWeekDismissSnapshot,
+  );
+  const dismissed = dismissedFor === weekStartStr;
+  const onDismiss = useCallback(() => {
+    if (typeof window !== "undefined") {
+      window.localStorage.setItem(NEW_WEEK_DISMISS_KEY, weekStartStr);
+      window.dispatchEvent(new Event(NEW_WEEK_DISMISS_EVENT));
+    }
+  }, [weekStartStr]);
+  if (dismissed) return null;
+  return (
+    <div
+      role="status"
+      className="rounded-lg border border-accent/40 bg-accent-soft/30 px-4 py-3 flex items-start gap-3"
+    >
+      <Pin size={16} className="mt-0.5 shrink-0 text-accent" aria-hidden />
+      <div className="flex-1 min-w-0">
+        <p className="text-body-lg font-semibold text-content">
+          {t("title", { count: carriedRowsCount })}
+        </p>
+        <p className="text-caption text-content-secondary mt-0.5">
+          {t("body")}
+        </p>
+      </div>
+      <button
+        type="button"
+        onClick={onDismiss}
+        className="text-caption text-accent hover:underline shrink-0"
+      >
+        {t("dismiss")}
+      </button>
+    </div>
+  );
+}
+
+/**
+ * Set / unset a row as a team default. Admin- and owner-only —
+ * gated upstream (the button only renders when isTeamAdmin). The
+ * action also enforces requireTeamAdmin server-side so a tampered
+ * client can't sneak past. Members see only the read-only "Team"
+ * chip on rows already defaulted; the chip lives on the customer
+ * line (see TimesheetRow's customer block render).
+ */
+function TeamDefaultRowButton({
+  teamId,
+  projectId,
+  categoryId,
+  isTeamDefault,
+}: {
+  teamId: string;
+  projectId: string;
+  categoryId: string | null;
+  isTeamDefault: boolean;
+}): React.JSX.Element {
+  const t = useTranslations("time.timesheet.pin");
+  const [optimistic, setOptimistic] = useState<boolean>(isTeamDefault);
+  const [pending, setPending] = useState<boolean>(false);
+  const handleClick = useCallback(async () => {
+    if (pending) return;
+    setPending(true);
+    const next = !optimistic;
+    setOptimistic(next);
+    const fd = new FormData();
+    fd.set("team_id", teamId);
+    fd.set("project_id", projectId);
+    if (categoryId) fd.set("category_id", categoryId);
+    try {
+      if (next) await setTeamDefaultRowAction(fd);
+      else await unsetTeamDefaultRowAction(fd);
+    } catch {
+      setOptimistic(!next);
+    } finally {
+      setPending(false);
+    }
+  }, [pending, optimistic, teamId, projectId, categoryId]);
+  return (
+    <Tooltip
+      label={
+        optimistic ? t("teamDefaultUnset") : t("teamDefaultSet")
+      }
+    >
+      <button
+        type="button"
+        onClick={handleClick}
+        disabled={pending}
+        aria-pressed={optimistic}
+        aria-label={
+          optimistic ? t("teamDefaultUnset") : t("teamDefaultSet")
+        }
+        className={`mt-1 inline-flex shrink-0 items-center rounded p-0.5 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent disabled:opacity-50 ${
+          optimistic
+            ? "text-accent hover:bg-hover"
+            : "text-content-muted/60 hover:bg-hover hover:text-content"
+        }`}
+      >
+        <Users
           size={13}
           className={optimistic ? "fill-current" : ""}
         />

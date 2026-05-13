@@ -384,6 +384,46 @@ Smaller items pulled out of the audit campaign that closed on
   rule that flags `<label className={labelClass}>` without
   `htmlFor` so future regressions catch at lint time.
 
+## Persistent timesheet rows — Phase 2 follow-ups
+
+Phase 1 landed 2026-05-13 (`dc7db2d`): `time_pinned_rows` + `time_team_default_rows`
+schema, `stint_active_rows` RPC, Week-view Pin button, Day-view "From
+this week" ghost section, team-default admin button, first-render-of-
+new-week banner. Open items:
+
+- **Configurable active-row window per user.** Hardcoded to 14 days
+  in `src/lib/time/active-rows.ts` (`DEFAULT_ACTIVE_WINDOW_DAYS`).
+  Add `user_settings.timesheet_active_window_days` (int, default 14,
+  range 7–60) + a Settings → Time tracking control. Plumb through
+  `getActiveRows()` and page.tsx's call site. Solo's persona review
+  asked for "current OR previous calendar month" as a third option —
+  worth exploring once the simpler N-day version is in use.
+- **Month-boundary window option.** Variant of the above where the
+  window is "this calendar month + previous calendar month." Maps
+  to solo billing cadence better than fixed N. Probably belongs as
+  a `mode: 'sliding' | 'month'` enum on the user setting rather
+  than a second knob.
+- **Onboarding affordance for new team members.** Agency-owner
+  flagged that a new hire on Tuesday lands on an empty Week view if
+  the team has no defaults set. Either: (a) a "Use team defaults"
+  step in the invite-accept flow, or (b) a "Copy from [member]"
+  one-shot import.
+- **Pin × Delete two-step interaction.** Per UX persona review:
+  deleting a pinned row should not unpin it — the pin is the
+  "I want this slot" signal independent of the entries. Add a
+  secondary "Unpin and delete entries" action inside the existing
+  `InlineDeleteRowConfirm` for pinned rows.
+- **Bulk pin/unpin from Pattern-A overlay strip.** Pinning multiple
+  rows at once when the user has just landed on a fresh week.
+- **Audit logging.** Team-default pin/unpin should write to the
+  team audit log so an owner can see "Alice set Acme Redesign as
+  team default on May 3" weeks later. Personal pins are
+  per-user-private and don't need audit.
+- **Sub-project pin inheritance.** Today pinning a parent project
+  doesn't auto-pin its sub-projects. Decide whether the
+  `include_descendants` semantics are worth adding (additive
+  column on `time_pinned_rows`).
+
 ## WIP report (work-in-progress, blocked on rate-at-entry snapshots)
 
 **What it answers:** "How much logged-but-unbilled labor do I have on the

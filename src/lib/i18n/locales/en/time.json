@@ -296,7 +296,9 @@
     "pin": {
       "pin": "Pin row — keep visible across weeks",
       "unpin": "Unpin row — falls off when no recent entries",
-      "teamDefault": "Team default — every member sees this row"
+      "teamDefault": "Team default — every member sees this row",
+      "teamDefaultSet": "Make team default — show this row to every member",
+      "teamDefaultUnset": "Remove team default"
     },
     "newWeekBanner": {
       "title": "{count, plural, one {1 row carried from last week} other {# rows carried from last week}}",

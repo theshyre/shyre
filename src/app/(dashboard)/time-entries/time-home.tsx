@@ -93,6 +93,9 @@ interface TimeHomeProps {
     categoryId: string | null;
     source: string;
   }>;
+  /** Viewer's role on the team active rows are scoped to. Gates
+   *  the team-default admin button on each Week-view row. */
+  currentTeamRole: "owner" | "admin" | "member";
 }
 
 export function TimeHome({
@@ -124,6 +127,7 @@ export function TimeHome({
   memberSelection,
   lockSummary,
   activeRows,
+  currentTeamRole,
 }: TimeHomeProps): React.JSX.Element {
   const t = useTranslations("time");
 
@@ -304,6 +308,7 @@ export function TimeHome({
       ) : (
         <WeekTimesheet
           activeRows={activeRows}
+          currentTeamRole={currentTeamRole}
           weekStartStr={weekStartStr}
           tzOffsetMin={tzOffsetMin}
           entries={weekEntries}

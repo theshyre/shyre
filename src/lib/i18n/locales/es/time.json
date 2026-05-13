@@ -296,7 +296,9 @@
     "pin": {
       "pin": "Fijar fila — visible entre semanas",
       "unpin": "Desfijar fila — desaparece sin actividad reciente",
-      "teamDefault": "Fila predeterminada del equipo — visible para todos los miembros"
+      "teamDefault": "Fila predeterminada del equipo — visible para todos los miembros",
+      "teamDefaultSet": "Marcar como predeterminada del equipo",
+      "teamDefaultUnset": "Quitar predeterminada del equipo"
     },
     "newWeekBanner": {
       "title": "{count, plural, one {1 fila traída de la semana pasada} other {# filas traídas de la semana pasada}}",
