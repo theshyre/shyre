@@ -50,10 +50,6 @@ interface Props {
    *  table renders a "truncated — narrow the range" notice so the
    *  user understands they're not seeing the full set. */
   rowLimit: number;
-  /** Max allowed date span — drives the "snap to max" behavior in the
-   *  date-range picker when the user widens beyond this. Display-only;
-   *  the server is the authority on actual clamping. */
-  maxRangeDays: number;
   projects: ProjectOption[];
   categories: CategoryOption[];
   /** auth.uid() of the viewer — forwarded to EntryRow for the ticket
@@ -79,7 +75,6 @@ export function TableView({
   searchQuery,
   invoicedFilter,
   rowLimit,
-  maxRangeDays,
   projects,
   categories,
   viewerUserId,
@@ -304,7 +299,6 @@ export function TableView({
         </span>
         <span className="text-caption text-content-muted ml-auto">
           {t("rangeCaption", { from: fromStr, to: toStr })}
-          {maxRangeDays > 0 ? "" : ""}
         </span>
       </div>
 

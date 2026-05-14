@@ -68,7 +68,6 @@ function renderTable(
         searchQuery={null}
         invoicedFilter="all"
         rowLimit={500}
-        maxRangeDays={365}
         projects={[]}
         categories={[]}
         viewerUserId="u1"

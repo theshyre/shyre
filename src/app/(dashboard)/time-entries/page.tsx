@@ -160,11 +160,14 @@ function parseWindowDays(raw: string | undefined): number {
 }
 
 const TABLE_DEFAULT_RANGE_DAYS = 30;
-const TABLE_MAX_RANGE_DAYS = 365;
 /** Server-side row cap for the Table view. The view is designed for
  *  filtered review, not exhaustive export — push that to the CSV
  *  export. Hit-the-cap is communicated to the user as a notice so
- *  they can narrow the range. */
+ *  they can narrow the range. This (not the date span) is the
+ *  protection against runaway queries — historical reconciliation
+ *  legitimately spans many years, and silently clamping the user's
+ *  typed range was actively harmful (a typed "2018-01-01" reverted
+ *  to "12 months ago" with no feedback). */
 const TABLE_ROW_LIMIT = 500;
 const TABLE_SEARCH_MAX_LEN = 80;
 
@@ -190,9 +193,12 @@ function parseTableSearch(raw: string | undefined): string | null {
 }
 
 /** Resolve the Table view's date range. Defaults are (today - 30, today)
- *  in the user's TZ; explicit bounds win when valid ISO strings; the
- *  range is then clamped to TABLE_MAX_RANGE_DAYS by walking the `from`
- *  forward from `to` when the user requested a longer window. */
+ *  in the user's TZ; explicit bounds win when valid ISO strings.
+ *  Intentionally unclamped on the lower bound — bookkeeping
+ *  reconciliation and imported-history cleanup legitimately span
+ *  many years (the EyeReg 2019-import case is the canonical
+ *  example). The row-limit cap (TABLE_ROW_LIMIT) is what protects
+ *  the server / browser from runaway queries. */
 function resolveTableRange(
   fromRaw: string | undefined,
   toRaw: string | undefined,
@@ -202,15 +208,13 @@ function resolveTableRange(
   const fromCandidate =
     validateLocalDateStr(fromRaw) ??
     addLocalDays(toCandidate, -(TABLE_DEFAULT_RANGE_DAYS - 1));
-  // Clamp: if the resolved span exceeds the max, pull `from` forward
-  // so `to` is honored (more useful in practice — users usually anchor
-  // on "now" and look back).
-  const minFrom = addLocalDays(toCandidate, -(TABLE_MAX_RANGE_DAYS - 1));
-  const from = fromCandidate < minFrom ? minFrom : fromCandidate;
   // Defensive: if from > to (user typed an inverted range), snap `from`
   // to `to` so the resulting query returns rows from a single day rather
   // than a guaranteed empty set.
-  return { from: from > toCandidate ? toCandidate : from, to: toCandidate };
+  return {
+    from: fromCandidate > toCandidate ? toCandidate : fromCandidate,
+    to: toCandidate,
+  };
 }
 
 /** URL-param serialization for the members filter. */
@@ -999,7 +1003,6 @@ export default async function TimeEntriesPage({
       tableSearch={tableSearch}
       tableInvoiced={tableInvoiced}
       tableRowLimit={TABLE_ROW_LIMIT}
-      tableMaxRangeDays={TABLE_MAX_RANGE_DAYS}
       running={running as unknown as TimeEntry | null}
       projects={projects}
       filterPickerProjects={filterPickerProjects}

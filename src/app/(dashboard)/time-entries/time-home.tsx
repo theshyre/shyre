@@ -75,9 +75,6 @@ interface TimeHomeProps {
   /** Server-side row cap — TableView surfaces a "narrow the range"
    *  banner when `tableEntries.length` hits this. */
   tableRowLimit: number;
-  /** Max permitted date span, in days. Surfaced to TableView for
-   *  display only (the server is the authority on clamping). */
-  tableMaxRangeDays: number;
   running: TimeEntry | null;
   /** ALL projects (parents AND leaves). Used for both entry-creation
    *  pickers and the rendering map for existing entries. The earlier
@@ -150,7 +147,6 @@ export function TimeHome({
   tableSearch,
   tableInvoiced,
   tableRowLimit,
-  tableMaxRangeDays,
   running,
   projects,
   filterPickerProjects,
@@ -332,7 +328,6 @@ export function TimeHome({
           searchQuery={tableSearch}
           invoicedFilter={tableInvoiced}
           rowLimit={tableRowLimit}
-          maxRangeDays={tableMaxRangeDays}
           projects={projects}
           categories={categories}
           viewerUserId={currentUserId}

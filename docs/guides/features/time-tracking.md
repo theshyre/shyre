@@ -135,7 +135,7 @@ Sidebar → **Time** → toggle to **Table**.
 
 Filters available on this view only:
 
-- **From / To** — pick an explicit date range. Defaults to the last 30 days; capped at 1 year. Use the calendar popovers on each `DateField`.
+- **From / To** — pick an explicit date range. Defaults to the last 30 days. No upper bound on the span — the 500-row cap is the safety net, so legitimate multi-year history sweeps (audit, imported-history cleanup) work without surprise clamping. Use the calendar popovers on each `DateField`.
 - **Search descriptions** — case-insensitive substring match on `description`. Debounced 300ms after the last keystroke, or commits immediately on Enter. Escape clears the search.
 - **Invoice status** — four chips:
   - **All** — every entry in range
