@@ -110,10 +110,13 @@ This is great for retrospective logging where the exact wall-clock time doesn't 
 | `W` | Switch to Week view |
 | `D` | Switch to Day view |
 | `L` | Switch to Log view |
-| `T` | Switch to Table view (admin / review) |
+| `T` | Jump to today (Week / Day / Log) |
+| `G` | Open the jump-to-date popover |
 | `←` / `→` | Previous / next week (in Week view) |
 | `Esc` | Collapse an inline edit, close a kebab menu |
 | `Cmd+Enter` | Submit an open inline form |
+
+Table view has no single-letter shortcut — click the toggle. `T` is reserved for the higher-frequency "jump to today" action shared by Week / Day / Log.
 
 ## Views
 
@@ -128,7 +131,7 @@ The first three share the time-views parity rule: a UX change to one is evaluate
 
 ### Table view (admin / review)
 
-Sidebar → **Time** → toggle to **Table** (or press `T`).
+Sidebar → **Time** → toggle to **Table**.
 
 Filters available on this view only:
 

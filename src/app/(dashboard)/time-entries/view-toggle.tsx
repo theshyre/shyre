@@ -83,10 +83,12 @@ export function ViewToggle({ view }: Props): React.JSX.Element {
       } else if (k === "l") {
         e.preventDefault();
         setView("log");
-      } else if (k === "t") {
-        e.preventDefault();
-        setView("table");
       }
+      // Table view has no single-letter shortcut. `T` is already
+      // claimed by JumpToDate's "jump to Today" pill, which fires
+      // many times a day; the Table view is bursty admin work (6-10×
+      // a year per the persona reviews) so it doesn't earn the same
+      // tier of accelerator. Click the toggle to enter Table view.
     }
     window.addEventListener("keydown", handleKey);
     return () => window.removeEventListener("keydown", handleKey);
@@ -135,7 +137,6 @@ export function ViewToggle({ view }: Props): React.JSX.Element {
         aria-pressed={view === "table"}
       >
         {t("table")}
-        <kbd className={kbdClass}>T</kbd>
       </button>
     </div>
   );

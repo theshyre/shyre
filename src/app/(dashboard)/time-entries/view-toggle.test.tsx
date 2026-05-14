@@ -96,11 +96,11 @@ describe("ViewToggle", () => {
     expect(pushMock).not.toHaveBeenCalled();
   });
 
-  it("pressing T switches to table view", () => {
+  it("does NOT bind T to Table view (T is reserved for JumpToDate's Today pill)", () => {
     renderWithIntl(<ViewToggle view="week" />);
     fireEvent.keyDown(document.body, { key: "t" });
-    const call = pushMock.mock.calls[0]?.[0] as string;
-    expect(call).toMatch(/view=table/);
+    // ViewToggle ignores T. JumpToDate's keydown listener owns it.
+    expect(pushMock).not.toHaveBeenCalled();
   });
 
   it("leaving table strips table-only params from the URL", () => {
