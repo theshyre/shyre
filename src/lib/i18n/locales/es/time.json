@@ -189,7 +189,12 @@
     "selectAll": "Seleccionar todo lo visible",
     "selectedCount": "{count, plural, one {# seleccionado} other {# seleccionados}}",
     "clear": "Limpiar selección",
-    "delete": "Eliminar seleccionados"
+    "delete": "Eliminar seleccionados",
+    "markBilledElsewhere": "Marcar como facturado en otro sitio",
+    "markBilledElsewhereTooltip": "Marca estas entradas como ya facturadas (pagadas en otro sistema, historia importada, etc.) para que dejen de aparecer en la vista previa de Crear factura. Los datos no se eliminan — puedes deshacerlo.",
+    "markBilledElsewhereConfirm": "Confirmar: ¿marcar {count, plural, one {1 entrada} other {# entradas}} como facturadas en otro sitio?",
+    "markBilledElsewhereConfirmCta": "Marcar como facturado",
+    "markBilledElsewhereCancel": "Cancelar"
   },
   "entry": {
     "edit": "Editar",
@@ -215,7 +220,29 @@
   "viewToggle": {
     "log": "Registro",
     "day": "Día",
-    "week": "Semana"
+    "week": "Semana",
+    "table": "Tabla"
+  },
+  "table": {
+    "groupLabel": "Todas las entradas",
+    "filterRegion": "Filtrar entradas de tiempo",
+    "from": "Desde",
+    "to": "Hasta",
+    "search": "Buscar descripciones",
+    "searchPlaceholder": "Programación, SHY-1234, …",
+    "clearSearch": "Limpiar búsqueda",
+    "clearAll": "Limpiar filtros",
+    "invoicedFilter": {
+      "label": "Estado de facturación",
+      "all": "Todas",
+      "uninvoiced": "Sin facturar",
+      "invoiced": "Facturadas",
+      "billed_elsewhere": "Facturadas en otro sitio"
+    },
+    "resultCount": "{count, plural, =0 {Sin entradas} one {# entrada} other {# entradas}}",
+    "totals": "{total} total · {billable} facturable · {nonBillable} no facturable",
+    "rangeCaption": "{from} → {to}",
+    "truncated": "Mostrando las {limit, number} entradas más recientes — reduce el rango de fechas o usa la búsqueda para ver registros más antiguos."
   },
   "jumpToDate": {
     "popoverTitle": "Saltar a fecha",
@@ -328,7 +355,8 @@
     "duplicateFailed": "No se pudo duplicar la entrada.",
     "timerStartFailed": "No se pudo iniciar el cronómetro.",
     "timerStopFailed": "No se pudo detener el cronómetro.",
-    "deleteFailed": "No se pudo eliminar la entrada."
+    "deleteFailed": "No se pudo eliminar la entrada.",
+    "entriesMarkedBilledElsewhere": "{count, plural, one {# entrada marcada como facturada en otro sitio} other {# entradas marcadas como facturadas en otro sitio}}"
   },
   "trash": {
     "title": "Papelera",

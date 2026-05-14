@@ -266,10 +266,12 @@ import {
   createTimeEntryAction,
   deleteTimeEntriesAction,
   deleteTimeEntryAction,
+  markBilledElsewhereEntriesAction,
   permanentlyDeleteTimeEntryAction,
   restoreTimeEntriesAction,
   restoreTimeEntryAction,
   stopTimerAction,
+  unmarkBilledElsewhereEntriesAction,
   updateTimeEntryAction,
 } from "./actions";
 
@@ -427,6 +429,79 @@ describe("restoreTimeEntriesAction", () => {
   it("is a no-op when no ids are submitted", async () => {
     await restoreTimeEntriesAction(fd({}));
     expect(state.updates).toEqual([]);
+  });
+});
+
+describe("markBilledElsewhereEntriesAction", () => {
+  beforeEach(reset);
+
+  it("sets invoiced=true on the given ids, scoped to user + currently-uninvoiced + unlinked + not-trashed", async () => {
+    await markBilledElsewhereEntriesAction(fd({ id: ["e-1", "e-2"] }));
+
+    expect(state.updates).toHaveLength(1);
+    const u = state.updates[0]!;
+    expect(u.patch).toEqual({ invoiced: true });
+    // The id filter is an .in() over the submitted ids — bulk path.
+    expect(findFilter(u.filters, "id")?.op).toBe("in");
+    expect(findFilter(u.filters, "id")?.value).toEqual(["e-1", "e-2"]);
+    // user_id scoping is defense-in-depth alongside RLS; an RLS-less
+    // test bench would still respect the explicit filter.
+    expect(findFilter(u.filters, "user_id")?.value).toBe(fakeUserId);
+    // Hard guard: invoiced=false ensures we never clobber a row that's
+    // already on a real invoice (those carry invoiced=true) — the
+    // lock-guard trigger would refuse the UPDATE anyway but the
+    // double-filter keeps the action self-documenting.
+    expect(findFilter(u.filters, "invoiced")?.value).toBe(false);
+    // invoice_id IS NULL is the second half of the same guard — a row
+    // attached to an existing invoice must never silently become
+    // "billed elsewhere."
+    const invIdFilter = findFilter(u.filters, "invoice_id");
+    expect(invIdFilter?.op).toBe("is");
+    expect(invIdFilter?.value).toBeNull();
+    // Trashed rows are out of scope — they shouldn't appear on the
+    // Create-invoice preview to begin with.
+    const deletedFilter = findFilter(u.filters, "deleted_at");
+    expect(deletedFilter?.op).toBe("is");
+    expect(deletedFilter?.value).toBeNull();
+    // Invoice-preview caches are stale after this flip — revalidate.
+    expect(mockRevalidatePath).toHaveBeenCalledWith("/time-entries");
+    expect(mockRevalidatePath).toHaveBeenCalledWith("/invoices/new");
+  });
+
+  it("is a no-op when no ids are submitted (no UPDATE, no revalidate)", async () => {
+    await markBilledElsewhereEntriesAction(fd({}));
+
+    expect(state.updates).toEqual([]);
+    expect(mockRevalidatePath).not.toHaveBeenCalled();
+  });
+});
+
+describe("unmarkBilledElsewhereEntriesAction", () => {
+  beforeEach(reset);
+
+  it("flips invoiced back to false, only on rows still detached from an invoice", async () => {
+    await unmarkBilledElsewhereEntriesAction(fd({ id: ["e-1", "e-2"] }));
+
+    expect(state.updates).toHaveLength(1);
+    const u = state.updates[0]!;
+    expect(u.patch).toEqual({ invoiced: false });
+    expect(findFilter(u.filters, "id")?.value).toEqual(["e-1", "e-2"]);
+    expect(findFilter(u.filters, "user_id")?.value).toBe(fakeUserId);
+    // Only undo on rows that haven't been pulled onto a real invoice
+    // since the original mark — otherwise the lock-guard trigger
+    // would reject anyway, and the user's intent has moved on.
+    expect(findFilter(u.filters, "invoiced")?.value).toBe(true);
+    const invIdFilter = findFilter(u.filters, "invoice_id");
+    expect(invIdFilter?.op).toBe("is");
+    expect(invIdFilter?.value).toBeNull();
+    expect(mockRevalidatePath).toHaveBeenCalledWith("/time-entries");
+    expect(mockRevalidatePath).toHaveBeenCalledWith("/invoices/new");
+  });
+
+  it("is a no-op on empty input", async () => {
+    await unmarkBilledElsewhereEntriesAction(fd({}));
+    expect(state.updates).toEqual([]);
+    expect(mockRevalidatePath).not.toHaveBeenCalled();
   });
 });
 

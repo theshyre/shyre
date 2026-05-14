@@ -4,21 +4,27 @@ import { renderWithIntl } from "@/test/intl";
 
 const pushMock = vi.fn();
 
+let currentSearchParams = "org=o1&interval=month";
 vi.mock("next/navigation", () => ({
   useRouter: () => ({ push: pushMock }),
   usePathname: () => "/time-entries",
-  useSearchParams: () => new URLSearchParams("org=o1&interval=month"),
+  useSearchParams: () => new URLSearchParams(currentSearchParams),
 }));
 
 import { ViewToggle } from "./view-toggle";
 
 describe("ViewToggle", () => {
-  beforeEach(() => pushMock.mockClear());
+  beforeEach(() => {
+    pushMock.mockClear();
+    currentSearchParams = "org=o1&interval=month";
+  });
 
-  it("renders Day and Week buttons", () => {
+  it("renders Log / Day / Week / Table buttons", () => {
     renderWithIntl(<ViewToggle view="week" />);
+    expect(screen.getByRole("button", { name: /log/i })).toBeInTheDocument();
     expect(screen.getByRole("button", { name: /day/i })).toBeInTheDocument();
     expect(screen.getByRole("button", { name: /week/i })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: /table/i })).toBeInTheDocument();
   });
 
   it("marks the active view aria-pressed=true", () => {
@@ -88,5 +94,38 @@ describe("ViewToggle", () => {
     fireEvent.keyDown(document.body, { key: "d", metaKey: true });
     fireEvent.keyDown(document.body, { key: "d", ctrlKey: true });
     expect(pushMock).not.toHaveBeenCalled();
+  });
+
+  it("pressing T switches to table view", () => {
+    renderWithIntl(<ViewToggle view="week" />);
+    fireEvent.keyDown(document.body, { key: "t" });
+    const call = pushMock.mock.calls[0]?.[0] as string;
+    expect(call).toMatch(/view=table/);
+  });
+
+  it("leaving table strips table-only params from the URL", () => {
+    // User on Table view with active filters → switching to Week
+    // must not carry ?from / ?to / ?q / ?invoiced over — those
+    // would silently scope the Week view's query.
+    currentSearchParams = "view=table&from=2026-01-01&to=2026-03-01&q=foo&invoiced=uninvoiced";
+    renderWithIntl(<ViewToggle view="table" />);
+    fireEvent.click(screen.getByRole("button", { name: /week/i }));
+    const call = pushMock.mock.calls[0]?.[0] as string;
+    expect(call).not.toMatch(/from=/);
+    expect(call).not.toMatch(/to=/);
+    expect(call).not.toMatch(/q=/);
+    expect(call).not.toMatch(/invoiced=/);
+    expect(call).not.toMatch(/view=/);
+  });
+
+  it("entering table preserves the user-set filters that table cares about", () => {
+    // No carry-in case (URL has none of the table params) — just
+    // verify the switch lands on the table view cleanly.
+    currentSearchParams = "org=o1";
+    renderWithIntl(<ViewToggle view="day" />);
+    fireEvent.click(screen.getByRole("button", { name: /table/i }));
+    const call = pushMock.mock.calls[0]?.[0] as string;
+    expect(call).toMatch(/view=table/);
+    expect(call).toMatch(/org=o1/);
   });
 });

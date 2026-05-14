@@ -10,6 +10,10 @@ import {
   ProjectFilter,
   type ProjectFilterOption,
 } from "@/components/ProjectFilter";
+import {
+  CustomerFilter,
+  type CustomerFilterOption,
+} from "@/components/CustomerFilter";
 import type { MemberSelection } from "./page";
 import type { TeamListItem } from "@/lib/team-context";
 import {
@@ -26,6 +30,7 @@ import { ViewToggle, type TimeView } from "./view-toggle";
 import { WeekTimesheet } from "./week-timesheet";
 import { DayView } from "./day-view";
 import { LogView } from "./log-view";
+import { TableView, type TableInvoicedFilter } from "./table-view";
 import { NewTimeEntryForm } from "./new-time-entry-form";
 import type { CategoryOption, ProjectOption, TimeEntry } from "./types";
 
@@ -57,6 +62,22 @@ interface TimeHomeProps {
   logWindowDays: number;
   logDefaultWindowDays: number;
   logMaxWindowDays: number;
+  /** Table view — flat result set, sorted start_time DESC. Empty
+   *  when the active view isn't `table`. */
+  tableEntries: TimeEntry[];
+  /** Resolved date-range bounds for the table view in the user's TZ.
+   *  Always set, even when view !== "table", so the TableView
+   *  component can render against them when toggled on. */
+  tableFromStr: string;
+  tableToStr: string;
+  tableSearch: string | null;
+  tableInvoiced: TableInvoicedFilter;
+  /** Server-side row cap — TableView surfaces a "narrow the range"
+   *  banner when `tableEntries.length` hits this. */
+  tableRowLimit: number;
+  /** Max permitted date span, in days. Surfaced to TableView for
+   *  display only (the server is the authority on clamping). */
+  tableMaxRangeDays: number;
   running: TimeEntry | null;
   /** ALL projects (parents AND leaves). Used for both entry-creation
    *  pickers and the rendering map for existing entries. The earlier
@@ -71,6 +92,14 @@ interface TimeHomeProps {
    *  is off). The server has already resolved this to an `.in()` on
    *  the entry queries — this prop just drives the picker UI. */
   selectedProjectId: string | null;
+  /** Customer list for the toolbar's customer filter — derived
+   *  server-side from the active team's projects. De-duped + sorted
+   *  by name. */
+  filterPickerCustomers: CustomerFilterOption[];
+  /** Selected customer id from `?customer=`, or null when the filter
+   *  is off. The server has already intersected this with the project
+   *  filter — this prop only drives the picker UI. */
+  selectedCustomerId: string | null;
   recentProjects: ProjectOption[];
   categories: CategoryOption[];
   templates: TimeTemplate[];
@@ -115,10 +144,19 @@ export function TimeHome({
   logWindowDays,
   logDefaultWindowDays,
   logMaxWindowDays,
+  tableEntries,
+  tableFromStr,
+  tableToStr,
+  tableSearch,
+  tableInvoiced,
+  tableRowLimit,
+  tableMaxRangeDays,
   running,
   projects,
   filterPickerProjects,
   selectedProjectId,
+  filterPickerCustomers,
+  selectedCustomerId,
   recentProjects,
   categories,
   templates,
@@ -141,7 +179,9 @@ export function TimeHome({
       ? dayEntries
       : view === "log"
         ? logEntries
-        : weekEntries;
+        : view === "table"
+          ? tableEntries
+          : weekEntries;
   // Live-tick the running entry so the masthead total and the
   // billable/non-billable caption fold in the in-progress minutes.
   // Without this the running row's day cell shows e.g. "·2:49" but
@@ -241,6 +281,10 @@ export function TimeHome({
                 : memberSelection
           }
         />
+        <CustomerFilter
+          customers={filterPickerCustomers}
+          selectedId={selectedCustomerId}
+        />
         <ProjectFilter
           projects={filterPickerProjects}
           selectedId={selectedProjectId}
@@ -280,7 +324,20 @@ export function TimeHome({
         </div>
       )}
 
-      {view === "log" ? (
+      {view === "table" ? (
+        <TableView
+          entries={tableEntries}
+          fromStr={tableFromStr}
+          toStr={tableToStr}
+          searchQuery={tableSearch}
+          invoicedFilter={tableInvoiced}
+          rowLimit={tableRowLimit}
+          maxRangeDays={tableMaxRangeDays}
+          projects={projects}
+          categories={categories}
+          viewerUserId={currentUserId}
+        />
+      ) : view === "log" ? (
         <LogView
           anchorStr={anchorStr}
           todayStr={todayStr}

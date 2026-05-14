@@ -11,6 +11,30 @@ Generate and send invoices from tracked time. This surface is early — the basi
 5. Review line items. Amount = hours × rate per entry. Manual override per line is possible.
 6. Save as **draft**, or send directly.
 
+### Date-range presets
+
+The **Billable hours to include** chips control which entries the preview pulls in:
+
+- **Since last invoice** *(default once a customer has at least one invoice)* — anchors to the day after the previous invoice's service period. Imported or historical entries from before that anchor stay out of the preview.
+- **All uninvoiced** — every entry with `invoiced = false`. Useful for a true catch-up bill, but watch out for legacy / imported entries you don't actually want to bill. See **Excluding imported entries** below.
+- **This month / Last month / Last 30 days / Custom** — deliberate window choices, used when you bill on a regular cadence regardless of prior invoices.
+
+When you switch customers, Shyre auto-flips **All uninvoiced** back to **Since last invoice** if the new customer has prior invoices — a safety net against pulling years of imported time into a single bill by accident.
+
+### Excluding imported entries
+
+If you imported historical time (Harvest, CSV, etc.) for work that was already billed in another system, those entries land in Shyre with `invoiced = false` and would otherwise sit in the **All uninvoiced** bucket forever.
+
+To clean them up:
+
+1. Go to **Time entries**
+2. Filter / sort to the imported rows
+3. Select them via the row checkboxes
+4. In the bulk-action toolbar, click the **Mark as billed elsewhere** badge button → confirm
+5. The entries flip to `invoiced = true` (but stay detached from any actual invoice). They drop out of the Create-invoice preview. Undo toast lets you reverse within a few seconds if you mis-clicked.
+
+Marked rows can still be edited (description, duration) — the "billed elsewhere" state hides them from invoicing without freezing them. To un-mark later, select them again and the same flow reverses (currently surfaces only via the Undo toast — a permanent un-mark affordance is on the roadmap).
+
 ## Statuses
 
 - **Draft** — editable, not sent, not counted in AR

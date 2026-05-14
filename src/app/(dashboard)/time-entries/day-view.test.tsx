@@ -15,6 +15,10 @@ vi.mock("./actions", () => ({
   duplicateTimeEntryAction: vi.fn(),
   startTimerAction: vi.fn(),
   stopTimerAction: vi.fn(),
+  deleteTimeEntriesAction: vi.fn(),
+  restoreTimeEntriesAction: vi.fn(),
+  markBilledElsewhereEntriesAction: vi.fn(),
+  unmarkBilledElsewhereEntriesAction: vi.fn(),
 }));
 
 import { DayView } from "./day-view";

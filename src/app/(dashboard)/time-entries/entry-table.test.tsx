@@ -2,9 +2,16 @@ import { describe, it, expect, vi } from "vitest";
 import { screen, fireEvent } from "@testing-library/react";
 import { renderWithIntl } from "@/test/intl";
 
-const { deleteManyMock, restoreManyMock } = vi.hoisted(() => ({
+const {
+  deleteManyMock,
+  restoreManyMock,
+  markBilledMock,
+  unmarkBilledMock,
+} = vi.hoisted(() => ({
   deleteManyMock: vi.fn(async (_fd: FormData) => {}),
   restoreManyMock: vi.fn(async (_fd: FormData) => {}),
+  markBilledMock: vi.fn(async (_fd: FormData) => {}),
+  unmarkBilledMock: vi.fn(async (_fd: FormData) => {}),
 }));
 
 vi.mock("./actions", () => ({
@@ -15,6 +22,8 @@ vi.mock("./actions", () => ({
   stopTimerAction: vi.fn(),
   deleteTimeEntriesAction: deleteManyMock,
   restoreTimeEntriesAction: restoreManyMock,
+  markBilledElsewhereEntriesAction: markBilledMock,
+  unmarkBilledElsewhereEntriesAction: unmarkBilledMock,
 }));
 
 import { EntryTable } from "./entry-table";
@@ -208,6 +217,71 @@ describe("EntryTable", () => {
     await vi.waitFor(() => expect(deleteManyMock).toHaveBeenCalled());
     const fd = deleteManyMock.mock.calls[0]?.[0];
     expect(fd?.getAll("id").sort()).toEqual(["a", "b"]);
+  });
+
+  it("marks selected rows as billed elsewhere via the inline two-step confirm", async () => {
+    markBilledMock.mockClear();
+    const { container } = renderTable(
+      <EntryTable
+        groups={[
+          group("g1", "T", [makeEntry("a"), makeEntry("b"), makeEntry("c")]),
+        ]}
+        projects={[]}
+        categories={[]}
+        expandedEntryId={null}
+        onToggleExpand={() => {}}
+        hideGroupHeaders
+      />,
+    );
+    const rowCheckboxes = container.querySelectorAll<HTMLInputElement>(
+      "tbody input[type='checkbox']",
+    );
+    rowCheckboxes[0]!.click();
+    rowCheckboxes[2]!.click();
+    // Idle state: icon-only Trigger button with the action label.
+    const idle = screen.getByRole("button", {
+      name: /mark as billed elsewhere/i,
+    });
+    fireEvent.click(idle);
+    // Expanded state: confirm CTA appears + count phrase.
+    expect(
+      screen.getByText(/mark 2 entries as billed elsewhere\?/i),
+    ).toBeInTheDocument();
+    const confirmCta = screen.getByRole("button", {
+      name: /mark as billed$/i,
+    });
+    fireEvent.click(confirmCta);
+    await vi.waitFor(() => expect(markBilledMock).toHaveBeenCalled());
+    const fd = markBilledMock.mock.calls[0]?.[0];
+    expect(fd?.getAll("id").sort()).toEqual(["a", "c"]);
+  });
+
+  it("cancels the bulk-mark confirm without calling the action", () => {
+    markBilledMock.mockClear();
+    const { container } = renderTable(
+      <EntryTable
+        groups={[group("g1", "T", [makeEntry("a"), makeEntry("b")])]}
+        projects={[]}
+        categories={[]}
+        expandedEntryId={null}
+        onToggleExpand={() => {}}
+        hideGroupHeaders
+      />,
+    );
+    const rowCheckboxes = container.querySelectorAll<HTMLInputElement>(
+      "tbody input[type='checkbox']",
+    );
+    rowCheckboxes[0]!.click();
+    fireEvent.click(
+      screen.getByRole("button", { name: /mark as billed elsewhere/i }),
+    );
+    // The Cancel "X" button — aria-label matches the i18n key.
+    fireEvent.click(screen.getByRole("button", { name: /cancel/i }));
+    expect(markBilledMock).not.toHaveBeenCalled();
+    // Confirm phrase is gone; we collapsed back to the idle state.
+    expect(
+      screen.queryByText(/as billed elsewhere\?/i),
+    ).not.toBeInTheDocument();
   });
 
   it("keeps column headers mounted and stable when selection is active", () => {

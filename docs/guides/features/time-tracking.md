@@ -107,13 +107,46 @@ This is great for retrospective logging where the exact wall-clock time doesn't 
 |---|---|
 | `Space` | Start or stop the timer (when no input is focused) |
 | `N` | Add past entry |
-| `W` | Focus the week date picker |
-| `←` / `→` | Previous / next week |
-| `T` | Jump to this week |
+| `W` | Switch to Week view |
+| `D` | Switch to Day view |
+| `L` | Switch to Log view |
+| `T` | Switch to Table view (admin / review) |
+| `←` / `→` | Previous / next week (in Week view) |
 | `Esc` | Collapse an inline edit, close a kebab menu |
 | `Cmd+Enter` | Submit an open inline form |
+
+## Views
+
+Four views live at `/time-entries`, switched via the toggle in the page header or the keyboard shortcuts above:
+
+- **Week** *(default)* — Mon–Sun grid, rows = (project, category, author), cells = day cells. Best surface for authoring time.
+- **Day** — single day, vertical list grouped by customer. Best for "what did I do today / yesterday."
+- **Log** — chronological scroll across a bounded window (14 days default, 90 max), grouped by day with customer sub-headers. Best for "did I forget anything recently?"
+- **Table** — flat list across an arbitrary date range, with description search and invoice-status filter. Designed for admin / bulk operations, not for authoring.
+
+The first three share the time-views parity rule: a UX change to one is evaluated against all three. Table is intentionally exempt — date-range picking and free-text search only make sense on a flat surface.
+
+### Table view (admin / review)
+
+Sidebar → **Time** → toggle to **Table** (or press `T`).
+
+Filters available on this view only:
+
+- **From / To** — pick an explicit date range. Defaults to the last 30 days; capped at 1 year. Use the calendar popovers on each `DateField`.
+- **Search descriptions** — case-insensitive substring match on `description`. Debounced 300ms after the last keystroke, or commits immediately on Enter. Escape clears the search.
+- **Invoice status** — four chips:
+  - **All** — every entry in range
+  - **Uninvoiced** — `invoiced = false` (will appear in the Create-invoice preview)
+  - **Invoiced** — attached to a Shyre invoice (`invoiced = true` AND `invoice_id` set)
+  - **Billed elsewhere** — manually marked as billed in another system (`invoiced = true` AND `invoice_id` is null)
+
+The toolbar filters above the view (Team / Member / Project / Billable) still apply.
+
+A result-count + total-hours strip sits above the table so you know what you're about to bulk-act on. The view caps at 500 rows server-side — if you hit the cap, narrow the date range or add a search term.
+
+Bulk actions on selected rows: **Delete** (typed-`delete` confirm) and **Mark as billed elsewhere** (inline confirm). Both push an Undo toast.
 
 ## Limits and known work
 
 - No offline mode yet — if you're on a spotty network, the timer keeps ticking locally but saves won't land until you're back.
-- No bulk edit across multiple entries yet.
+- Table view is Phase 1: no sortable columns, no filtered CSV export, no bulk reassign-project yet. See `docs/reference/roadmap.md` for the Phase 2 list.

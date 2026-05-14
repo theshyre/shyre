@@ -189,7 +189,12 @@
     "selectAll": "Select all visible",
     "selectedCount": "{count, plural, one {# selected} other {# selected}}",
     "clear": "Clear selection",
-    "delete": "Delete selected"
+    "delete": "Delete selected",
+    "markBilledElsewhere": "Mark as billed elsewhere",
+    "markBilledElsewhereTooltip": "Mark these entries as already billed (paid in another system, imported history, etc.) so they stop appearing in the Create-invoice preview. Their data isn't deleted — you can undo this.",
+    "markBilledElsewhereConfirm": "Confirm: mark {count, plural, one {1 entry} other {# entries}} as billed elsewhere?",
+    "markBilledElsewhereConfirmCta": "Mark as billed",
+    "markBilledElsewhereCancel": "Cancel"
   },
   "entry": {
     "edit": "Edit",
@@ -215,7 +220,29 @@
   "viewToggle": {
     "log": "Log",
     "day": "Day",
-    "week": "Week"
+    "week": "Week",
+    "table": "Table"
+  },
+  "table": {
+    "groupLabel": "All entries",
+    "filterRegion": "Filter time entries",
+    "from": "From",
+    "to": "To",
+    "search": "Search descriptions",
+    "searchPlaceholder": "Programming, SHY-1234, …",
+    "clearSearch": "Clear search",
+    "clearAll": "Clear filters",
+    "invoicedFilter": {
+      "label": "Invoice status",
+      "all": "All",
+      "uninvoiced": "Uninvoiced",
+      "invoiced": "Invoiced",
+      "billed_elsewhere": "Billed elsewhere"
+    },
+    "resultCount": "{count, plural, =0 {No entries} one {# entry} other {# entries}}",
+    "totals": "{total} total · {billable} billable · {nonBillable} non-billable",
+    "rangeCaption": "{from} → {to}",
+    "truncated": "Showing the most recent {limit, number} entries — narrow the date range or use search to see older rows."
   },
   "jumpToDate": {
     "popoverTitle": "Jump to date",
@@ -328,7 +355,8 @@
     "duplicateFailed": "Couldn't duplicate the entry.",
     "timerStartFailed": "Couldn't start the timer.",
     "timerStopFailed": "Couldn't stop the timer.",
-    "deleteFailed": "Couldn't delete the entry."
+    "deleteFailed": "Couldn't delete the entry.",
+    "entriesMarkedBilledElsewhere": "{count, plural, one {# entry marked as billed elsewhere} other {# entries marked as billed elsewhere}}"
   },
   "trash": {
     "title": "Trash",

@@ -38,6 +38,13 @@ interface Props {
    *  back to a neutral edge color for internal / no-customer rows
    *  via the consumer; null/undefined skips the rail entirely. */
   customerRail?: string | null;
+  /** When true, render the entry's date alongside its start-of-day
+   *  time in the Time column. Week / Day / Log views already convey
+   *  the date through their structure (grid columns, page header,
+   *  day-grouped sub-headers) so the per-row date would be visual
+   *  noise. Table view is flat across an arbitrary range — without
+   *  this prop, "1:00 AM" is unmoored from any day. Default false. */
+  showDate?: boolean;
 }
 
 /**
@@ -59,6 +66,7 @@ export function EntryRow({
   onToggleSelect,
   canRefresh = false,
   customerRail,
+  showDate = false,
 }: Props): React.JSX.Element {
   const t = useTranslations("time");
   const isRunning = !entry.end_time;
@@ -99,6 +107,25 @@ export function EntryRow({
     hour: "numeric",
     minute: "2-digit",
   });
+  // Short date for the Table view's flat list — locale-aware so a
+  // user in en-GB sees "14/05/26" while en-US sees "5/14/26". The
+  // tooltip on the date carries the long-form ("Thursday, May 14,
+  // 2026") so the abbreviated form never strands the user.
+  const startDateShort = showDate
+    ? startDate.toLocaleDateString(undefined, {
+        year: "2-digit",
+        month: "numeric",
+        day: "numeric",
+      })
+    : null;
+  const startDateLong = showDate
+    ? startDate.toLocaleDateString(undefined, {
+        weekday: "long",
+        year: "numeric",
+        month: "long",
+        day: "numeric",
+      })
+    : null;
   const category = entry.category_id
     ? categories.find((c) => c.id === entry.category_id)
     : null;
@@ -292,11 +319,24 @@ export function EntryRow({
           <EntryAuthor author={entry.author} size={20} />
         </td>
 
-        {/* Start time (small, muted) */}
+        {/* Start time (small, muted). In the flat Table view the
+            date is stacked above the time-of-day so each row stands
+            alone across an arbitrary date range. Other views skip
+            the date since their structure already conveys it
+            (grid column / page header / day-grouped sub-headers). */}
         <td className="px-3 py-2.5 align-middle whitespace-nowrap text-right">
-          <span className="font-mono text-caption text-content-muted">
-            {startTime}
-          </span>
+          {showDate && startDateShort ? (
+            <Tooltip label={startDateLong ?? ""}>
+              <span className="inline-flex flex-col items-end leading-tight font-mono text-caption text-content-muted">
+                <span className="text-content">{startDateShort}</span>
+                <span>{startTime}</span>
+              </span>
+            </Tooltip>
+          ) : (
+            <span className="font-mono text-caption text-content-muted">
+              {startTime}
+            </span>
+          )}
         </td>
 
         {/* Duration — live-ticks every second for running entries so the

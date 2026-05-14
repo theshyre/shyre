@@ -5,19 +5,21 @@ import { useRouter, usePathname, useSearchParams } from "next/navigation";
 import { useTranslations } from "next-intl";
 import { kbdClass } from "@/lib/form-styles";
 
-export type TimeView = "day" | "week" | "log";
+export type TimeView = "day" | "week" | "log" | "table";
 
 interface Props {
   view: TimeView;
 }
 
 /**
- * Segmented control: Log | Day | Week. Updates `?view=` in URL.
+ * Segmented control: Log | Day | Week | Table. Updates `?view=` in URL.
  *
- * Log is the new running-log preview (date-banded vertical scroll).
- * Day and Week stay in place — Log doesn't replace either yet, per
- * the unified-time.md phasing (Phase 3 retires Day; we're in Phase 2
- * preview-quality territory).
+ * Week / Day / Log are the **authoring + scanning** triad (time-horizon
+ * lens). Table is the **admin / review** view (task lens) — flat list
+ * with rich filters (date range, description search, invoiced status)
+ * for bulk operations. The three time-horizon views stay in parity;
+ * Table is deliberately the exception (date-range + search only make
+ * sense here).
  */
 export function ViewToggle({ view }: Props): React.JSX.Element {
   const router = useRouter();
@@ -40,6 +42,15 @@ export function ViewToggle({ view }: Props): React.JSX.Element {
       // too so we always start at the default 14-day window.
       if (next !== "log") {
         params.delete("windowDays");
+      }
+      // Table-only params don't survive leaving the Table view —
+      // they'd silently scope an unrelated view if left in the URL
+      // (e.g. an invoiced filter on Week would over-fetch).
+      if (next !== "table") {
+        params.delete("from");
+        params.delete("to");
+        params.delete("q");
+        params.delete("invoiced");
       }
       router.push(`${pathname}?${params.toString()}`);
     },
@@ -72,6 +83,9 @@ export function ViewToggle({ view }: Props): React.JSX.Element {
       } else if (k === "l") {
         e.preventDefault();
         setView("log");
+      } else if (k === "t") {
+        e.preventDefault();
+        setView("table");
       }
     }
     window.addEventListener("keydown", handleKey);
@@ -113,6 +127,15 @@ export function ViewToggle({ view }: Props): React.JSX.Element {
       >
         {t("week")}
         <kbd className={kbdClass}>W</kbd>
+      </button>
+      <button
+        type="button"
+        onClick={() => setView("table")}
+        className={btnClass(view === "table")}
+        aria-pressed={view === "table"}
+      >
+        {t("table")}
+        <kbd className={kbdClass}>T</kbd>
       </button>
     </div>
   );

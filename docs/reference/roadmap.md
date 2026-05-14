@@ -469,6 +469,65 @@ invoice rendering of hierarchy, deeper-than-1-level nesting, and
 rate cascade are explicitly deferred. Full breakdown:
 [`sub-projects-roadmap.md`](./sub-projects-roadmap.md).
 
+## Table view — Phase 2 follow-ups
+
+Phase 1 landed 2026-05-14: 4th view on `/time-entries`, flat list
+sorted `start_time` DESC, date-range + description search +
+tri-state invoiced filter, server cap at 500 rows, reuses the
+existing multi-select strip (delete + mark-billed-elsewhere).
+
+Open items from the persona reviews (bookkeeper / agency-owner /
+solo-consultant on 2026-05-14):
+
+- **Sortable columns.** Today rows are server-ordered DESC by
+  `start_time`. Add client-side toggleable sort on duration, billable,
+  invoice number, customer. UX persona's recommendation: only enable
+  sort in flat mode; once a group-by-day toggle exists (see below),
+  sort gets scoped to the active grouping.
+- **Customer as a first-class column.** Currently rendered inside
+  the project cell via CustomerChip. Promote to its own sortable /
+  filterable column. Needed for "all entries on Acme regardless of
+  sub-project" review.
+- **Filtered CSV export.** Existing global Export button is "dump
+  everything in your scope." Add an "Export filtered" button on the
+  Table view that respects the active filters, with row count + total
+  hours + total $ printed on the button itself. Bookkeeper's gate
+  for trust ("if the screen says 47 entries / 38.5h, the export
+  produces the same.").
+- **Tri-state invoiced filter disambiguation.** Today's chips work
+  but `Invoiced` vs `Billed elsewhere` share an icon; bookkeeper
+  asked for visually distinct row-level affordances too (an icon
+  next to invoice number when present; a different chip for
+  manually-marked).
+- **Bulk reassign project.** Highest agency-owner ask. Destructive
+  semantics (rewrites which customer / project the entry rolls
+  into); needs typed-name confirm + Undo toast that restores the
+  original project_id. Server action must enforce same-team between
+  source and dest.
+- **Bulk set billable.** Lower-risk version of the above — flips
+  the billable flag on selected rows. Same Undo pattern.
+- **Period-lock interaction.** When a selection includes rows
+  inside a locked period, bulk actions must skip them and report
+  the skip count in the result toast. Server enforces; UI surfaces.
+- **Rate snapshot column.** Blocked on the `rate_at_entry`
+  migration noted under "WIP / rate-realization." Once rates are
+  snapshotted on entries, expose as a column + sort + filter
+  ("entries logged at rates > $X"). Until then, deriving from
+  `project.hourly_rate × duration` is dishonest and we don't
+  render it.
+- **Edited-after-invoiced badge.** Surface a chip on rows whose
+  `updated_at > invoiced_at`. Audit-trail signal for the
+  bookkeeper. Requires `invoiced_at` column (today only `invoice_id`
+  is stored).
+- **Member role gating.** Today the view is visible to every team
+  member. Agency-owner persona argued for `isTeamAdmin` gating so
+  members can't see all-team entries via this surface. Reasonable
+  but not urgent in the solo / small-agency reality; revisit when
+  multi-member teams become common.
+- **Group-by toggle.** UX persona's pivot — would let the same
+  view serve both "flat sortable" and "grouped by day / customer /
+  member" mental models without forking into a separate route.
+
 ## Other deferred work
 
 Smaller items surfaced by persona reviews but not yet promoted to their

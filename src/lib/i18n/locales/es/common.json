@@ -221,6 +221,10 @@
     "internal": "Interno",
     "includesSub": "(+{count, plural, =1 {# subproyecto} other {# subproyectos}})"
   },
+  "customerFilter": {
+    "all": "Todos los clientes",
+    "listboxLabel": "Filtrar por cliente"
+  },
   "projectPicker": {
     "placeholder": "Selecciona un proyecto",
     "searchPlaceholder": "Buscar proyectos",

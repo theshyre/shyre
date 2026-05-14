@@ -113,6 +113,22 @@ function nextDay(ymd: string): string {
   return `${d.getUTCFullYear()}-${String(d.getUTCMonth() + 1).padStart(2, "0")}-${String(d.getUTCDate()).padStart(2, "0")}`;
 }
 
+/** When a customer with a prior invoice is selected, the `all`
+ *  preset is dangerous — it indiscriminately includes any imported
+ *  / legacy entries that were never marked `invoiced=true`. This
+ *  predicate decides whether to auto-flip to `sinceLastInvoice` so
+ *  the user sees only entries after their most recent invoice. Other
+ *  presets (`thisMonth`, `lastMonth`, `last30Days`, `custom`) are
+ *  deliberate user choices and are NOT overridden. Exported for
+ *  unit testing — keeps the form's render closure free of branching
+ *  state-flip logic that would otherwise be awkward to cover. */
+export function shouldFlipPresetToSinceLast(
+  currentPreset: RangePreset,
+  customerHasLastInvoice: boolean,
+): boolean {
+  return currentPreset === "all" && customerHasLastInvoice;
+}
+
 /** Compute (start, end) in YYYY-MM-DD for a preset. `custom` returns
  *  the inputs untouched so the date inputs win. `all` returns null/null
  *  so the preview pulls every uninvoiced entry. `sinceLastInvoice`
@@ -287,6 +303,17 @@ export function NewInvoiceForm({
     setDueDate(
       nextDays != null ? computeDueDate(todayYmd, nextDays) : "",
     );
+    // Guardrail: when the new customer has prior invoices, force the
+    // preset to "sinceLastInvoice" if it's currently "all". Imported /
+    // legacy entries with invoiced=false can otherwise surface years-
+    // old line items that the user never intended to bill. See
+    // shouldFlipPresetToSinceLast() above for the policy.
+    const hasLastInvoice =
+      nextCustomerId !== "" &&
+      Boolean(lastInvoiceEndByCustomer[nextCustomerId]);
+    if (shouldFlipPresetToSinceLast(preset, hasLastInvoice)) {
+      setPreset("sinceLastInvoice");
+    }
   }
 
   // Restore the user's last choices on mount. Reading localStorage

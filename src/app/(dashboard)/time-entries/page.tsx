@@ -116,12 +116,36 @@ interface PageProps {
      *  leaf children before applying the `.in()` filter
      *  (`expandProjectFilter`). Unset = no project filter. */
     project?: string;
+    /** Selected customer id to scope entries to. Expanded server-side
+     *  to that customer's project ids and intersected with `project`
+     *  when both are set. Unset = no customer filter. Internal
+     *  projects sit outside the customer namespace and are not
+     *  surfaced via this filter. */
+    customer?: string;
+    /** Table view only — inclusive lower bound for start_time, in
+     *  the user's local TZ. Empty defaults to (today - 30 days). */
+    from?: string;
+    /** Table view only — inclusive upper bound for start_time. Empty
+     *  defaults to today. Range is clamped to TABLE_MAX_RANGE_DAYS
+     *  end-back from `to`. */
+    to?: string;
+    /** Table view only — case-insensitive ILIKE on description.
+     *  Server-side substring match; trims to TABLE_SEARCH_MAX_LEN
+     *  before hitting the DB. */
+    q?: string;
+    /** Table view only — invoiced filter. One of:
+     *  - "uninvoiced"      : invoiced=false
+     *  - "invoiced"        : invoiced=true AND invoice_id IS NOT NULL
+     *  - "billed_elsewhere": invoiced=true AND invoice_id IS NULL
+     *  Unset / "all" = no filter. */
+    invoiced?: string;
   }>;
 }
 
 function asView(v: string | undefined): TimeView {
   if (v === "day") return "day";
   if (v === "log") return "log";
+  if (v === "table") return "table";
   return "week";
 }
 
@@ -133,6 +157,60 @@ function parseWindowDays(raw: string | undefined): number {
   const n = parseInt(raw, 10);
   if (!Number.isFinite(n) || n <= 0) return LOG_DEFAULT_WINDOW_DAYS;
   return Math.min(n, LOG_MAX_WINDOW_DAYS);
+}
+
+const TABLE_DEFAULT_RANGE_DAYS = 30;
+const TABLE_MAX_RANGE_DAYS = 365;
+/** Server-side row cap for the Table view. The view is designed for
+ *  filtered review, not exhaustive export — push that to the CSV
+ *  export. Hit-the-cap is communicated to the user as a notice so
+ *  they can narrow the range. */
+const TABLE_ROW_LIMIT = 500;
+const TABLE_SEARCH_MAX_LEN = 80;
+
+export type TableInvoicedFilter =
+  | "all"
+  | "uninvoiced"
+  | "invoiced"
+  | "billed_elsewhere";
+
+function parseTableInvoiced(raw: string | undefined): TableInvoicedFilter {
+  if (raw === "uninvoiced") return "uninvoiced";
+  if (raw === "invoiced") return "invoiced";
+  if (raw === "billed_elsewhere") return "billed_elsewhere";
+  return "all";
+}
+
+/** Trim + clamp the description-search input. Returns null when the
+ *  trimmed value is empty so callers can branch cleanly on "no search". */
+function parseTableSearch(raw: string | undefined): string | null {
+  if (!raw) return null;
+  const trimmed = raw.trim().slice(0, TABLE_SEARCH_MAX_LEN);
+  return trimmed.length > 0 ? trimmed : null;
+}
+
+/** Resolve the Table view's date range. Defaults are (today - 30, today)
+ *  in the user's TZ; explicit bounds win when valid ISO strings; the
+ *  range is then clamped to TABLE_MAX_RANGE_DAYS by walking the `from`
+ *  forward from `to` when the user requested a longer window. */
+function resolveTableRange(
+  fromRaw: string | undefined,
+  toRaw: string | undefined,
+  todayLocal: string,
+): { from: string; to: string } {
+  const toCandidate = validateLocalDateStr(toRaw) ?? todayLocal;
+  const fromCandidate =
+    validateLocalDateStr(fromRaw) ??
+    addLocalDays(toCandidate, -(TABLE_DEFAULT_RANGE_DAYS - 1));
+  // Clamp: if the resolved span exceeds the max, pull `from` forward
+  // so `to` is honored (more useful in practice — users usually anchor
+  // on "now" and look back).
+  const minFrom = addLocalDays(toCandidate, -(TABLE_MAX_RANGE_DAYS - 1));
+  const from = fromCandidate < minFrom ? minFrom : fromCandidate;
+  // Defensive: if from > to (user typed an inverted range), snap `from`
+  // to `to` so the resulting query returns rows from a single day rather
+  // than a guaranteed empty set.
+  return { from: from > toCandidate ? toCandidate : from, to: toCandidate };
 }
 
 /** URL-param serialization for the members filter. */
@@ -252,9 +330,39 @@ export default async function TimeEntriesPage({
   // children when the selected id is a parent, or just `[id]` for a
   // leaf or a non-existent id). null = no project filter.
   const projectFilterId = sp.project?.trim() || null;
-  const expandedProjectIds = projectFilterId
+  const projectFilterIds = projectFilterId
     ? expandProjectFilter(projectsRawForFilter, projectFilterId)
     : null;
+
+  // Resolve `?customer=` to the list of project ids owned by that
+  // customer (across all teams the user has access to in the
+  // current project scope). null = no customer filter. We compute
+  // this against the same `projectsRawForFilter` list so RLS still
+  // does the team scoping.
+  const customerFilterId = sp.customer?.trim() || null;
+  const customerProjectIds = customerFilterId
+    ? projectsRawForFilter
+        .filter(
+          (p) =>
+            (p.customers as { id?: string | null } | null)?.id ===
+            customerFilterId,
+        )
+        .map((p) => p.id as string)
+    : null;
+
+  // Combine project + customer filters with AND semantics. When both
+  // are set we intersect — entries must be on a project that's BOTH
+  // in the project rollup AND owned by the selected customer. The
+  // result can be empty (e.g. selected project belongs to a
+  // different customer), which renders as the standard
+  // "no entries match" empty state, not as an error.
+  const expandedProjectIds: string[] | null = (() => {
+    if (projectFilterIds === null && customerProjectIds === null) return null;
+    if (projectFilterIds === null) return customerProjectIds;
+    if (customerProjectIds === null) return projectFilterIds;
+    const customerSet = new Set(customerProjectIds);
+    return projectFilterIds.filter((id) => customerSet.has(id));
+  })();
 
   const tzOffsetMin = userSettings.timezone
     ? getOffsetForZone(userSettings.timezone, new Date())
@@ -493,6 +601,55 @@ export default async function TimeEntriesPage({
         })()
       : Promise.resolve({ data: null });
 
+  // Table view — flat list, sorted start_time DESC, bounded by the
+  // user-controlled date range. Same shape as the log query except:
+  //   - DESC order (newest first; matches admin/review mental model)
+  //   - Server-side description search via ILIKE
+  //   - Server-side invoiced-state filter (tri-state, see TableInvoicedFilter)
+  //   - Larger row cap (TABLE_ROW_LIMIT) to support bulk-action scans
+  //
+  // Gated on view==='table' so non-Table loads pay zero cost.
+  const tableRange = resolveTableRange(sp.from, sp.to, today);
+  const tableSearch = parseTableSearch(sp.q);
+  const tableInvoiced = parseTableInvoiced(sp.invoiced);
+  const tableStartUtc = localDateMidnightUtc(tableRange.from, tzOffsetMin);
+  const tableEndUtc = localDateMidnightUtc(
+    addLocalDays(tableRange.to, 1),
+    tzOffsetMin,
+  );
+  const tableFloorUtc = applyMembershipFloor(tableStartUtc);
+  const tableEntriesPromise =
+    view === "table"
+      ? (() => {
+          let q = supabase
+            .from("time_entries")
+            .select(ENTRY_SELECT)
+            .is("deleted_at", null)
+            .gte("start_time", tableFloorUtc.toISOString())
+            .lt("start_time", tableEndUtc.toISOString())
+            .order("start_time", { ascending: false })
+            .limit(TABLE_ROW_LIMIT);
+          if (selectedTeamId) q = q.eq("team_id", selectedTeamId);
+          if (billableOnly) q = q.eq("billable", true);
+          // Description search — ILIKE with %wrapping%. PostgREST
+          // requires %-escaping for any literal `%`/`_` in the user
+          // input; we escape both before wrapping so a user typing
+          // "50%" doesn't accidentally match everything.
+          if (tableSearch) {
+            const escaped = tableSearch.replace(/[\\%_]/g, "\\$&");
+            q = q.ilike("description", `%${escaped}%`);
+          }
+          if (tableInvoiced === "uninvoiced") {
+            q = q.eq("invoiced", false);
+          } else if (tableInvoiced === "invoiced") {
+            q = q.eq("invoiced", true).not("invoice_id", "is", null);
+          } else if (tableInvoiced === "billed_elsewhere") {
+            q = q.eq("invoiced", true).is("invoice_id", null);
+          }
+          return applyProjectFilter(applyMemberFilter(q));
+        })()
+      : Promise.resolve({ data: null });
+
   const extensionSetsPromise = projectIds.length
     ? supabase
         .from("category_sets")
@@ -518,10 +675,12 @@ export default async function TimeEntriesPage({
 
   const [
     { data: rawLogEntries },
+    { data: rawTableEntries },
     { data: extensionSets },
     { data: memberProfilesRaw },
   ] = await Promise.all([
     logEntriesPromise,
+    tableEntriesPromise,
     extensionSetsPromise,
     memberProfilesPromise,
   ]);
@@ -570,6 +729,21 @@ export default async function TimeEntriesPage({
       is_internal: Boolean(p.is_internal),
     }),
   );
+
+  // Customer-filter source — derived from the project list (every
+  // project carries its `customers(id, name)` join), de-duped, sorted
+  // by name. No separate `customers` round-trip needed. Internal
+  // projects have no customer FK so they don't contribute a row here.
+  const customerById = new Map<string, { id: string; name: string }>();
+  for (const p of projectsRaw) {
+    const c = p.customers as { id?: string | null; name?: string | null } | null;
+    if (c && c.id && c.name) {
+      customerById.set(c.id, { id: c.id, name: c.name });
+    }
+  }
+  const filterPickerCustomers = Array.from(customerById.values()).sort(
+    (a, b) => a.name.localeCompare(b.name),
+  );
   const setIds = Array.from(
     new Set(
       projects
@@ -611,6 +785,7 @@ export default async function TimeEntriesPage({
         ...((rawWeekEntries ?? []) as Array<{ category_id?: string | null }>),
         ...((rawDayEntries ?? []) as Array<{ category_id?: string | null }>),
         ...((rawLogEntries ?? []) as Array<{ category_id?: string | null }>),
+        ...((rawTableEntries ?? []) as Array<{ category_id?: string | null }>),
       ]
         .map((r) => r.category_id ?? null)
         .filter((v): v is string => !!v),
@@ -651,6 +826,12 @@ export default async function TimeEntriesPage({
         ((rawLogEntries ?? []) as RawEntryRow[]).map(normalizeEntry),
       )
     : Promise.resolve([] as Awaited<ReturnType<typeof attachAuthors>>);
+  const tableEntriesP = view === "table"
+    ? attachAuthors(
+        supabase,
+        ((rawTableEntries ?? []) as RawEntryRow[]).map(normalizeEntry),
+      )
+    : Promise.resolve([] as Awaited<ReturnType<typeof attachAuthors>>);
   const runningP = runningEntries?.[0]
     ? attachAuthors(supabase, [
         normalizeEntry(runningEntries[0] as RawEntryRow),
@@ -663,6 +844,7 @@ export default async function TimeEntriesPage({
     weekEntries,
     dayEntries,
     logEntries,
+    tableEntries,
     running,
   ] = await Promise.all([
     categoriesPromise,
@@ -670,6 +852,7 @@ export default async function TimeEntriesPage({
     weekEntriesPromise,
     dayEntriesPromise,
     logEntriesP,
+    tableEntriesP,
     runningP,
   ]);
 
@@ -810,10 +993,19 @@ export default async function TimeEntriesPage({
       logWindowDays={logWindowDays}
       logDefaultWindowDays={LOG_DEFAULT_WINDOW_DAYS}
       logMaxWindowDays={LOG_MAX_WINDOW_DAYS}
+      tableEntries={tableEntries as unknown as TimeEntry[]}
+      tableFromStr={tableRange.from}
+      tableToStr={tableRange.to}
+      tableSearch={tableSearch}
+      tableInvoiced={tableInvoiced}
+      tableRowLimit={TABLE_ROW_LIMIT}
+      tableMaxRangeDays={TABLE_MAX_RANGE_DAYS}
       running={running as unknown as TimeEntry | null}
       projects={projects}
       filterPickerProjects={filterPickerProjects}
       selectedProjectId={projectFilterId}
+      filterPickerCustomers={filterPickerCustomers}
+      selectedCustomerId={customerFilterId}
       recentProjects={recentProjects}
       categories={categories as unknown as CategoryOption[]}
       templates={templates}

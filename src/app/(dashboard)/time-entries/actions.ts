@@ -591,6 +591,77 @@ export async function permanentlyDeleteTimeEntriesAction(
   }, "permanentlyDeleteTimeEntriesAction") as unknown as void;
 }
 
+/**
+ * Bulk "mark as billed elsewhere" — sets `invoiced = true` while
+ * leaving `invoice_id NULL`. Used when imported / legacy entries
+ * shouldn't surface in the "Create invoice" preview but the user
+ * doesn't want to actually generate an invoice for them (paid years
+ * ago in another system, etc.).
+ *
+ * Guard: only rows currently `invoiced = false` AND `invoice_id IS
+ * NULL` are touched, so a stray call can never overwrite a row that's
+ * legitimately attached to an existing invoice. The lock-guard
+ * trigger lets this UPDATE through because OLD.invoice_id IS NULL.
+ *
+ * Pair with `unmarkBilledElsewhereEntriesAction` (the Undo flow),
+ * which only flips rows back when `invoice_id IS NULL` — preserving
+ * the invariant that an `invoice_id`-bearing row is never quietly
+ * un-invoiced from a UI affordance.
+ */
+export async function markBilledElsewhereEntriesAction(
+  formData: FormData,
+): Promise<void> {
+  return runSafeAction(formData, async (formData, { supabase, userId }) => {
+    const ids = formData.getAll("id").map((v) => String(v));
+    if (ids.length === 0) return;
+
+    assertSupabaseOk(
+      await supabase
+        .from("time_entries")
+        .update({ invoiced: true })
+        .in("id", ids)
+        .eq("user_id", userId)
+        .eq("invoiced", false)
+        .is("invoice_id", null)
+        .is("deleted_at", null),
+    );
+
+    revalidatePath("/time-entries");
+    revalidatePath("/invoices/new");
+  }, "markBilledElsewhereEntriesAction") as unknown as void;
+}
+
+/**
+ * Reverse of `markBilledElsewhereEntriesAction` — the Undo toast's
+ * action. Flips `invoiced = false` only on rows still detached from
+ * an invoice (`invoice_id IS NULL`); we never touch a row that's
+ * been pulled onto a real invoice in the meantime, since the
+ * lock-guard trigger would reject the UPDATE anyway and the user's
+ * intent for those rows is no longer "billed elsewhere".
+ */
+export async function unmarkBilledElsewhereEntriesAction(
+  formData: FormData,
+): Promise<void> {
+  return runSafeAction(formData, async (formData, { supabase, userId }) => {
+    const ids = formData.getAll("id").map((v) => String(v));
+    if (ids.length === 0) return;
+
+    assertSupabaseOk(
+      await supabase
+        .from("time_entries")
+        .update({ invoiced: false })
+        .in("id", ids)
+        .eq("user_id", userId)
+        .eq("invoiced", true)
+        .is("invoice_id", null)
+        .is("deleted_at", null),
+    );
+
+    revalidatePath("/time-entries");
+    revalidatePath("/invoices/new");
+  }, "unmarkBilledElsewhereEntriesAction") as unknown as void;
+}
+
 export async function startTimerAction(formData: FormData): Promise<void> {
   return runSafeAction(formData, async (formData, { supabase }) => {
     const project_id = formData.get("project_id") as string;

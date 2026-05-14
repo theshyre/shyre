@@ -2,16 +2,18 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useTranslations } from "next-intl";
+import { BadgeCheck, Trash2, X } from "lucide-react";
 import { formatDurationHM } from "@/lib/time/week";
 import type { EntryGroup } from "@/lib/time/grouping";
 import { EntryRow } from "./entry-row";
 import { CustomerChip } from "@/components/CustomerChip";
-import { InlineDeleteRowConfirm } from "@/components/InlineDeleteRowConfirm";
 import { Tooltip } from "@/components/Tooltip";
 import { useToast } from "@/components/Toast";
 import {
   deleteTimeEntriesAction,
+  markBilledElsewhereEntriesAction,
   restoreTimeEntriesAction,
+  unmarkBilledElsewhereEntriesAction,
 } from "./actions";
 import type { CategoryOption, ProjectOption, TimeEntry } from "./types";
 
@@ -28,6 +30,10 @@ interface Props {
    *  EntryRow can show the chip's refresh button only on the
    *  viewer's own entries (the action enforces this server-side). */
   viewerUserId?: string | null;
+  /** Forwarded to every EntryRow. Enable in views that don't convey
+   *  a row's date through structure (i.e. the flat Table view).
+   *  Default false. */
+  showDate?: boolean;
 }
 
 // Leading select column + 6 content columns + kebab column.
@@ -42,9 +48,9 @@ export function EntryTable({
   hideGroupHeaders,
   tzOffsetMin,
   viewerUserId = null,
+  showDate = false,
 }: Props): React.JSX.Element {
   const t = useTranslations("time");
-  const tc = useTranslations("common.actions");
   const tToast = useTranslations("time.toast");
   const toast = useToast();
 
@@ -125,6 +131,25 @@ export function EntryTable({
         const restoreFd = new FormData();
         for (const id of ids) restoreFd.append("id", id);
         await restoreTimeEntriesAction(restoreFd);
+      },
+    });
+  }, [selectedIds, toast, tToast]);
+
+  const bulkMarkBilledElsewhere = useCallback(async () => {
+    const ids = Array.from(selectedIds);
+    if (ids.length === 0) return;
+    const fd = new FormData();
+    for (const id of ids) fd.append("id", id);
+    await markBilledElsewhereEntriesAction(fd);
+    setSelectedIds(new Set());
+    toast.push({
+      kind: "info",
+      message: tToast("entriesMarkedBilledElsewhere", { count: ids.length }),
+      actionLabel: tToast("undo"),
+      onAction: async () => {
+        const undoFd = new FormData();
+        for (const id of ids) undoFd.append("id", id);
+        await unmarkBilledElsewhereEntriesAction(undoFd);
       },
     });
   }, [selectedIds, toast, tToast]);
@@ -212,6 +237,7 @@ export function EntryTable({
               selectedIds={selectedIds}
               onToggleSelect={toggleOne}
               viewerUserId={viewerUserId}
+              showDate={showDate}
             />
           ))}
         </tbody>
@@ -249,16 +275,15 @@ export function EntryTable({
           >
             {t("bulk.clear")}
           </button>
-          <div className="ml-auto">
-            <Tooltip label={t("bulk.delete")}>
-              <span style={{ display: "inline-flex" }}>
-                <InlineDeleteRowConfirm
-                  ariaLabel={t("bulk.delete")}
-                  onConfirm={bulkDelete}
-                  summary={tc("deleteCount", { count: selectedIds.size })}
-                />
-              </span>
-            </Tooltip>
+          <div className="ml-auto flex items-center gap-2">
+            <InlineMarkBilledElsewhereButton
+              count={selectedIds.size}
+              onConfirm={bulkMarkBilledElsewhere}
+            />
+            <InlineBulkDeleteButton
+              count={selectedIds.size}
+              onConfirm={bulkDelete}
+            />
           </div>
         </div>
       )}
@@ -277,6 +302,7 @@ function GroupBlock({
   selectedIds,
   onToggleSelect,
   viewerUserId,
+  showDate = false,
 }: {
   group: EntryGroup<TimeEntry>;
   projects: ProjectOption[];
@@ -288,6 +314,7 @@ function GroupBlock({
   selectedIds: Set<string>;
   onToggleSelect: (id: string) => void;
   viewerUserId: string | null;
+  showDate?: boolean;
 }): React.JSX.Element {
   // Customer-grouped variant: the group carries customer identity
   // (id, name, internal flag, rail color) so the header renders the
@@ -398,8 +425,228 @@ function GroupBlock({
           onToggleSelect={onToggleSelect}
           canRefresh={!!viewerUserId && viewerUserId === entry.user_id}
           customerRail={railColor}
+          showDate={showDate}
         />
       ))}
     </>
+  );
+}
+
+/**
+ * Inline two-step confirm for "Mark as billed elsewhere." Sits in the
+ * bulk-action strip alongside the typed-delete control. Tier-1 inline
+ * confirm (no typed word) because the operation is fully reversible
+ * via the Undo toast and doesn't destroy data — typed-delete would be
+ * over-protection. Two-state UI: idle icon button → expanded
+ * "Confirm? [Mark][X]" cluster. Escape collapses while focus is
+ * inside the cluster.
+ */
+function InlineMarkBilledElsewhereButton({
+  count,
+  onConfirm,
+}: {
+  count: number;
+  onConfirm: () => void | Promise<void>;
+}): React.JSX.Element {
+  const t = useTranslations("time.bulk");
+  const [open, setOpen] = useState(false);
+  const [pending, setPending] = useState(false);
+
+  useEffect(() => {
+    if (!open) return;
+    function onKey(e: KeyboardEvent): void {
+      if (e.key === "Escape") setOpen(false);
+    }
+    document.addEventListener("keydown", onKey);
+    return () => document.removeEventListener("keydown", onKey);
+  }, [open]);
+
+  async function fire(): Promise<void> {
+    if (pending) return;
+    setPending(true);
+    try {
+      await onConfirm();
+    } finally {
+      setPending(false);
+      setOpen(false);
+    }
+  }
+
+  if (!open) {
+    return (
+      <Tooltip label={t("markBilledElsewhereTooltip")}>
+        <button
+          type="button"
+          onClick={() => setOpen(true)}
+          aria-label={t("markBilledElsewhere")}
+          className="inline-flex items-center gap-1.5 rounded-md border border-edge bg-surface-raised px-3 py-1 text-caption font-medium text-content hover:bg-hover transition-colors"
+        >
+          <BadgeCheck size={14} aria-hidden="true" />
+          <span>{t("markBilledElsewhere")}</span>
+        </button>
+      </Tooltip>
+    );
+  }
+
+  return (
+    <div
+      role="group"
+      aria-label={t("markBilledElsewhere")}
+      className="inline-flex items-center gap-2 rounded-md border border-edge bg-surface-raised px-2 py-1"
+    >
+      <span className="text-caption text-content whitespace-nowrap">
+        {t("markBilledElsewhereConfirm", { count })}
+      </span>
+      <button
+        type="button"
+        onClick={() => void fire()}
+        disabled={pending}
+        className="inline-flex items-center gap-1 rounded bg-accent px-2.5 py-0.5 text-caption font-semibold text-content-inverse hover:opacity-90 disabled:opacity-40 disabled:cursor-not-allowed transition-opacity"
+      >
+        <BadgeCheck size={12} aria-hidden="true" />
+        {t("markBilledElsewhereConfirmCta")}
+      </button>
+      <button
+        type="button"
+        onClick={() => setOpen(false)}
+        disabled={pending}
+        aria-label={t("markBilledElsewhereCancel")}
+        className="rounded p-0.5 text-content-muted hover:bg-hover transition-colors"
+      >
+        <X size={12} />
+      </button>
+    </div>
+  );
+}
+
+/**
+ * Inline typed-delete confirm for the bulk-action strip. A labeled
+ * variant of `InlineDeleteRowConfirm` — the @theshyre/ui primitive's
+ * icon-only idle state is right for row-level deletes (visual weight
+ * matches the action scope: one row) but reads as too quiet for a
+ * bulk strip on N entries. This wraps the typed-delete escalation
+ * (text input + armed red button) behind a labeled trigger button
+ * so the destructive affordance is proportional to the impact.
+ *
+ * Two-state UI:
+ *   idle    → [Trash] Delete (labeled button)
+ *   armed   → "Type delete to delete N entries [input] [Delete] [X]"
+ *
+ * `delete` typed into the input arms the red CTA. Escape collapses.
+ */
+function InlineBulkDeleteButton({
+  count,
+  onConfirm,
+}: {
+  count: number;
+  onConfirm: () => void | Promise<void>;
+}): React.JSX.Element {
+  const t = useTranslations("time.bulk");
+  const tCommon = useTranslations("common.actions");
+  const tRow = useTranslations("time.rowDelete");
+  const [open, setOpen] = useState(false);
+  const [typed, setTyped] = useState("");
+  const [pending, setPending] = useState(false);
+  const inputRef = useRef<HTMLInputElement>(null);
+
+  useEffect(() => {
+    if (!open) return;
+    inputRef.current?.focus();
+  }, [open]);
+
+  useEffect(() => {
+    if (!open) return;
+    function onKey(e: KeyboardEvent): void {
+      if (e.key === "Escape") {
+        setOpen(false);
+        setTyped("");
+      }
+    }
+    document.addEventListener("keydown", onKey);
+    return () => document.removeEventListener("keydown", onKey);
+  }, [open]);
+
+  const canConfirm = typed.trim().toLowerCase() === "delete";
+
+  async function fire(): Promise<void> {
+    if (!canConfirm || pending) return;
+    setPending(true);
+    try {
+      await onConfirm();
+    } finally {
+      setPending(false);
+      setOpen(false);
+      setTyped("");
+    }
+  }
+
+  function handleInputKey(e: React.KeyboardEvent<HTMLInputElement>): void {
+    if (e.key === "Enter" && canConfirm && !pending) {
+      e.preventDefault();
+      void fire();
+    }
+  }
+
+  if (!open) {
+    return (
+      <button
+        type="button"
+        onClick={() => setOpen(true)}
+        aria-label={t("delete")}
+        className="inline-flex items-center gap-1.5 rounded-md border border-edge bg-surface-raised px-3 py-1 text-caption font-medium text-error hover:bg-hover hover:text-error-text transition-colors"
+      >
+        <Trash2 size={14} aria-hidden="true" />
+        <span>{tCommon("delete")}</span>
+      </button>
+    );
+  }
+
+  return (
+    <div
+      role="group"
+      aria-label={t("delete")}
+      className="inline-flex items-center gap-2 rounded-md border border-error/40 bg-error-soft px-2 py-1"
+    >
+      <span className="text-caption text-content whitespace-nowrap">
+        {tRow("promptWithSummary", {
+          word: "delete",
+          summary: tCommon("deleteCount", { count }),
+        })}
+      </span>
+      <input
+        ref={inputRef}
+        type="text"
+        value={typed}
+        onChange={(e) => setTyped(e.target.value)}
+        onKeyDown={handleInputKey}
+        aria-label={tRow("inputLabel")}
+        autoCapitalize="none"
+        autoCorrect="off"
+        spellCheck={false}
+        className="w-20 rounded border border-edge bg-surface-raised px-1.5 py-0.5 text-caption font-mono outline-none focus:border-focus-ring focus:ring-2 focus:ring-focus-ring/30"
+      />
+      <button
+        type="button"
+        onClick={() => void fire()}
+        disabled={!canConfirm || pending}
+        aria-label={tCommon("confirmDelete")}
+        className="inline-flex items-center gap-1 rounded bg-error px-2.5 py-0.5 text-caption font-semibold text-content-inverse hover:opacity-90 disabled:opacity-40 disabled:cursor-not-allowed transition-opacity"
+      >
+        <Trash2 size={12} aria-hidden="true" />
+        {tCommon("delete")}
+      </button>
+      <button
+        type="button"
+        onClick={() => {
+          setOpen(false);
+          setTyped("");
+        }}
+        disabled={pending}
+        aria-label={tCommon("cancel")}
+        className="rounded p-0.5 text-content-muted hover:bg-hover transition-colors"
+      >
+        <X size={12} />
+      </button>
+    </div>
   );
 }
