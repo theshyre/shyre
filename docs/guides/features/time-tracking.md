@@ -143,7 +143,7 @@ Filters available on this view only:
   - **Invoiced** — attached to a Shyre invoice (`invoiced = true` AND `invoice_id` set)
   - **Billed elsewhere** — manually marked as billed in another system (`invoiced = true` AND `invoice_id` is null)
 
-The toolbar filters above the view (Team / Member / Project / Billable) still apply.
+The toolbar filters above the view (Team / Member / **Customer** / Project / Billable) still apply. Customer + Project compose — pick a customer to scope to "everything on EyeReg," then add a project to narrow further; the intersection is what gets shown.
 
 A result-count + total-hours strip sits above the table so you know what you're about to bulk-act on. The view caps at 500 rows server-side — if you hit the cap, narrow the date range or add a search term.
 

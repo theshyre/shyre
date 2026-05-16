@@ -14,11 +14,17 @@ Every primary action has a shortcut with a visible `<kbd>` badge next to the tri
 |---|---|
 | `Space` | Start or stop the timer (when no input is focused) |
 | `N` | Add a past time entry |
-| `W` | Focus the week date picker |
-| `←` / `→` | Previous / next week |
-| `T` | Jump to this week |
+| `W` | Switch to Week view |
+| `D` | Switch to Day view |
+| `L` | Switch to Log view |
+| `T` | Jump to today (in Week / Day / Log) |
+| `G` | Open the jump-to-date popover |
+| `←` / `→` | Previous / next week (Week view) |
+| `Shift+E` / `Shift+C` | Expand / collapse all rows (Week view) |
 | `Esc` | Collapse inline edit; close the kebab menu |
 | `Cmd+Enter` | Submit any open inline form |
+
+The Table view (admin / review) has no single-letter shortcut — click the toggle. `T` is reserved for the higher-frequency "jump to today" action shared by the three time-horizon views.
 
 ## Lists with add-new
 

@@ -27,13 +27,18 @@ If you imported historical time (Harvest, CSV, etc.) for work that was already b
 
 To clean them up:
 
-1. Go to **Time entries**
-2. Filter / sort to the imported rows
-3. Select them via the row checkboxes
-4. In the bulk-action toolbar, click the **Mark as billed elsewhere** badge button → confirm
-5. The entries flip to `invoiced = true` (but stay detached from any actual invoice). They drop out of the Create-invoice preview. Undo toast lets you reverse within a few seconds if you mis-clicked.
+1. **Time** sidebar → switch to **Table** view (top-right toggle).
+2. Pick the customer via the **Customer** chip in the toolbar (e.g. "EyeReg Consulting").
+3. Set **From** to before the earliest imported entry (e.g. `01/01/2018`) and **To** to today. No upper cap on the span — the 500-row server cap is the safety net.
+4. Set **Invoice status** to **Uninvoiced**.
+5. Use the master checkbox in the table header to select all matching rows.
+6. In the bulk-action strip, click **Mark as billed elsewhere** → confirm.
 
-Marked rows can still be edited (description, duration) — the "billed elsewhere" state hides them from invoicing without freezing them. To un-mark later, select them again and the same flow reverses (currently surfaces only via the Undo toast — a permanent un-mark affordance is on the roadmap).
+The entries flip to `invoiced = true` while staying detached from any actual invoice. They drop out of the Create-invoice preview immediately. The Undo toast at the bottom of the screen lets you reverse the flip for a few seconds if you mis-clicked.
+
+Marked rows can still be edited (description, duration) — the "billed elsewhere" state hides them from invoicing without freezing them.
+
+To un-mark later: today the only path is the Undo toast that appears right after the bulk action — click "Undo" within a few seconds and the flip is reversed. A persistent "un-mark as billed elsewhere" affordance is on the Phase 2 roadmap; filter the Table view's **Invoice status** chip to **Billed elsewhere** to find rows in that state for now.
 
 ## Statuses
 
