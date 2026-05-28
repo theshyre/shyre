@@ -5,7 +5,7 @@ import { assertSupabaseOk } from "@/lib/errors";
 import { validateTeamAccess } from "@/lib/team-context";
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
-import { humanizeExpenseCategory } from "@/app/(dashboard)/business/[businessId]/expenses/format-helpers";
+import { humanizeExpenseCategory } from "@/lib/expenses/format-helpers";
 import {
   calculateInvoiceTotals,
   generateInvoiceNumber,

@@ -22,7 +22,7 @@ import {
 import { updateProjectAction } from "../actions";
 import { BudgetHoursWithDollars } from "../budget-hours-with-dollars";
 
-interface Project {
+export interface Project {
   id: string;
   name: string;
   description: string | null;

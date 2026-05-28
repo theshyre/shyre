@@ -2,6 +2,23 @@
 
 Work you track time against. Projects belong to an team and optionally to a customer.
 
+## Project detail page (`/projects/[id]`)
+
+The project detail page is organized as a tabbed surface with a
+shared identity header (parent breadcrumb, project name, customer
+chip) on top and per-section content below.
+
+| Tab | Route | What's there |
+|---|---|---|
+| **Overview** | `/projects/[id]` | Budget masthead (period + lifetime + expense totals), sub-projects rollup (when present), recent activity strip (last 5 time entries + last 3 expenses with author chips, each linking out). |
+| **Time** | `/projects/[id]/time` | Full time-entry list for the project, time-by-ticket rollup (GitHub / Jira), masthead at the top. |
+| **Expenses** | `/projects/[id]/expenses` | Read + add + delete expenses scoped to this project. Edit deep-links to `/business/[id]/expenses?project=<id>` for the full inline editor. |
+| **Settings** | `/projects/[id]/settings` | Project details form (name, rate, budget, GitHub, Jira, invoice code, etc.), classification (internal vs client), categories (project-scoped extensions). |
+| **History** | `/projects/[id]/history` | Audit trail (owner/admin only). |
+
+The tab strip lives in the layout, so every route shares the same
+identity chrome and the tab key cycles through them naturally.
+
 ## Creating a project
 
 1. Sidebar → **Projects**

@@ -1,8 +1,6 @@
 import type { Metadata } from "next";
 import { getTranslations } from "next-intl/server";
-import Link from "next/link";
-import { ArrowLeft, History as HistoryIcon } from "lucide-react";
-import { LinkPendingSpinner } from "@/components/LinkPendingSpinner";
+import { History as HistoryIcon } from "lucide-react";
 import { createClient } from "@/lib/supabase/server";
 import { validateTeamAccess } from "@/lib/team-context";
 import { getProjectHistoryAction } from "../../actions";
@@ -49,17 +47,13 @@ export default async function ProjectHistoryPage({
 
   return (
     <div className="space-y-4">
+      {/* Identity (breadcrumb + project name) lives in the
+          /projects/[id]/layout.tsx chrome — the section nav strip
+          handles "back to project" with the Overview tab. Section
+          content here is just the title + count + description. */}
       <div>
-        <Link
-          href={`/projects/${id}`}
-          className="inline-flex items-center gap-1 text-caption text-content-muted hover:text-content"
-        >
-          <ArrowLeft size={12} />
-          {t("backToProject", { name: project.name as string })}
-          <LinkPendingSpinner size={10} className="" />
-        </Link>
-        <div className="mt-1 flex items-center gap-2 flex-wrap">
-          <HistoryIcon size={20} className="text-accent" />
+        <div className="flex items-center gap-2 flex-wrap">
+          <HistoryIcon size={20} className="text-accent" aria-hidden="true" />
           <h2 className="text-title font-semibold text-content">
             {t("title")}
           </h2>

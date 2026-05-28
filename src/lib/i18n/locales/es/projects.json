@@ -166,6 +166,48 @@
     "noEntries": "Aún no hay registros de tiempo para este proyecto.",
     "totalHours": "Total: {hours}h"
   },
+  "sectionNav": {
+    "ariaLabel": "Secciones del proyecto",
+    "overview": "Resumen",
+    "time": "Tiempo",
+    "expenses": "Gastos",
+    "settings": "Configuración",
+    "history": "Historial"
+  },
+  "overview": {
+    "recentTime": {
+      "title": "Tiempo reciente",
+      "viewAll": "Ver todo ({count})",
+      "empty": "Aún no hay tiempo registrado en este proyecto.",
+      "noDescription": "(sin descripción)"
+    },
+    "recentExpenses": {
+      "title": "Gastos recientes",
+      "viewAll": "Ver todo ({count})",
+      "empty": "Aún no hay gastos registrados en este proyecto."
+    }
+  },
+  "time": {
+    "byTicket": {
+      "heading": "Tiempo por ticket",
+      "ticket": "Ticket",
+      "entries": "Entradas",
+      "totalTime": "Tiempo total"
+    },
+    "openInTimeEntries": "Abrir en Registros de tiempo →"
+  },
+  "settings": {
+    "navAriaLabel": "Secciones de configuración del proyecto",
+    "details": {
+      "heading": "Detalles del proyecto"
+    },
+    "classification": {
+      "heading": "Clasificación"
+    },
+    "categories": {
+      "heading": "Categorías"
+    }
+  },
   "expenses": {
     "title": "Gastos",
     "count": "{count, plural, one {1 gasto} other {# gastos}}",

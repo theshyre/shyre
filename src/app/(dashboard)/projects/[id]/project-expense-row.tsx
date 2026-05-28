@@ -23,7 +23,7 @@ import {
 import {
   formatExpenseAmount,
   formatExpenseDateDisplay,
-} from "@/app/(dashboard)/business/[businessId]/expenses/format-helpers";
+} from "@/lib/expenses/format-helpers";
 
 export interface ProjectExpenseRowExpense {
   id: string;

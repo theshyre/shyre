@@ -166,6 +166,48 @@
     "noEntries": "No time entries yet for this project.",
     "totalHours": "Total: {hours}h"
   },
+  "sectionNav": {
+    "ariaLabel": "Project sections",
+    "overview": "Overview",
+    "time": "Time",
+    "expenses": "Expenses",
+    "settings": "Settings",
+    "history": "History"
+  },
+  "overview": {
+    "recentTime": {
+      "title": "Recent time",
+      "viewAll": "View all ({count})",
+      "empty": "No time logged on this project yet.",
+      "noDescription": "(no description)"
+    },
+    "recentExpenses": {
+      "title": "Recent expenses",
+      "viewAll": "View all ({count})",
+      "empty": "No expenses logged on this project yet."
+    }
+  },
+  "time": {
+    "byTicket": {
+      "heading": "Time by ticket",
+      "ticket": "Ticket",
+      "entries": "Entries",
+      "totalTime": "Total Time"
+    },
+    "openInTimeEntries": "Open in Time Entries →"
+  },
+  "settings": {
+    "navAriaLabel": "Project settings sections",
+    "details": {
+      "heading": "Project details"
+    },
+    "classification": {
+      "heading": "Classification"
+    },
+    "categories": {
+      "heading": "Categories"
+    }
+  },
   "expenses": {
     "title": "Expenses",
     "count": "{count, plural, one {1 expense} other {# expenses}}",
