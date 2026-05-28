@@ -181,6 +181,14 @@ stacked **Budget masthead** at the top:
   optional dollar caption and a "Last period: 28h" sub-line for
   context after a fresh rollover.
 - **Lifetime** — overall hours-vs-budget ceiling.
+- **Expenses footer** — when the project has any expenses logged
+  against it, a small per-currency caption (`$X in expenses`) sits
+  at the bottom of the masthead card. Per the money-UI rule no
+  cross-currency sums, so multi-currency projects stack one line
+  per currency. The footer is hidden when there are no expenses;
+  the masthead itself only renders when there's a budget signal to
+  show, so a budget-less project surfaces its expenses purely
+  through the Expenses section below.
 
 Each bar is icon + text + numeric + colored fill (three channels).
 A tick mark on the bar indicates the alert threshold when set.
@@ -230,6 +238,53 @@ Two-stage confirm: click → review the warning → **Apply**. Cancel
 at any time. The button is hidden until you save the project (so
 you don't accidentally apply settings from a parent you've just
 selected but not committed to).
+
+## Expenses on a project
+
+Below the budget masthead, the project detail page hosts an
+**Expenses** section — read + add + delete in place, with a deep
+link out to the main expenses surface for everything else.
+
+- **Add expense** — the same form as
+  `/business/[id]/expenses`, but the **Project** picker is hidden
+  and the new row is pinned to the current project's id. The team
+  is also locked to the project's team (the FK on `expenses.team_id`
+  wouldn't accept a cross-team write anyway). All other fields —
+  date, amount, category, vendor, description, notes, billable —
+  behave exactly as on the main page; see
+  [Expenses → Adding an expense](expenses.md#adding-an-expense)
+  for the field reference.
+
+- **Display** — date, author (avatar + name, per the
+  time-entry-authorship rule), category chip, vendor, amount,
+  Billable badge. Sorted newest-first by `incurred_on`. The author
+  column is non-conditional — every expense shows who logged it,
+  same as time entries.
+
+- **Edit** — each row has an external-link icon that opens
+  `/business/[id]/expenses?project=<projectId>` so you land on the
+  main expenses surface filtered to this project. Inline editing
+  lives on that surface to keep this page focused on adding and
+  scanning. Delete is inline on the project page (same confirm +
+  Undo-toast flow as the main page).
+
+- **Permissions** — the existing expense RLS still applies:
+  - **Owners and admins** see every expense logged against the
+    project's team. They can delete any row.
+  - **Members** see only the expenses they authored. The section
+    shows a small "showing expenses you can see" hint when the
+    viewer is a non-admin, so a thinned list doesn't read as
+    broken. They can delete only their own rows.
+
+- **Masthead integration** — the lifetime expense total per
+  currency is summarized in the budget masthead's footer (see
+  [Reading the masthead](#reading-the-masthead)).
+
+The section is **out of scope for invoicing** in this phase — the
+`billable` checkbox marks intent, but expenses don't yet land on
+invoices automatically. Invoice generation still pulls only time
+entries; a follow-up phase will extend `invoice_line_items` and
+`createInvoiceAction` to include billable expenses too.
 
 ## GitHub integration
 

@@ -40,6 +40,50 @@ Marked rows can still be edited (description, duration) — the "billed elsewher
 
 To un-mark later: today the only path is the Undo toast that appears right after the bulk action — click "Undo" within a few seconds and the flip is reversed. A persistent "un-mark as billed elsewhere" affordance is on the Phase 2 roadmap; filter the Table view's **Invoice status** chip to **Billed elsewhere** to find rows in that state for now.
 
+## Including billable expenses (phase 2)
+
+When you create an invoice for a specific customer, Shyre also pulls
+in **uninvoiced billable expenses** logged against that customer's
+projects. They land as discrete line items alongside the time
+entries — each expense is one line (expenses aren't grouped the way
+time entries are).
+
+- **Toggle**: in the new-invoice form, the **Include billable
+  expenses** checkbox controls this. On by default. Toggle off for
+  a time-only invoice when you want to bill expenses separately or
+  on a different cycle.
+- **Scope**: only expenses where `billable = true`, `invoiced = false`,
+  `currency = 'USD'`, and whose linked project's `customer_id`
+  matches the invoice's customer. Internal-project expenses are
+  excluded.
+- **Date range**: the same range chips that filter time entries also
+  filter expenses by `incurred_on`.
+- **Preview rail**: shows expense count + total beneath the hours
+  block when expenses are folded in. The grand total includes them
+  to the cent (matches the posted invoice).
+- **Description format**: `[CODE] <vendor> (<category> · <YYYY-MM-DD>)`
+  when the project has an invoice code, falls back to `<vendor>
+  (<category> · <YYYY-MM-DD>)` when not. If no vendor is set, the
+  category becomes the headline.
+- **On the invoice detail page**, expense-sourced lines carry a
+  small **Receipt** icon prefix on the description and an
+  **Expense** badge in the "Logged by" column so they read
+  distinctly from hours-derived lines.
+- **Org-wide invoices** (no customer selected) don't include
+  expenses — phase 2 has no "non-project" expense bucket.
+
+### Invoiced expenses are locked
+
+Once an expense lands on an invoice (`expenses.invoiced = true`),
+the action layer refuses to update, delete, or split it. The
+project-page expense row renders an **Invoiced #INV-XXXX** chip
+(link to the invoice) and the row's delete affordance hides. To
+edit the expense, **void the invoice first** — same pattern as
+invoiced time entries.
+
+Restoring a soft-deleted invoiced expense is still allowed:
+recovery never affects the invoice it's already on.
+
 ## Statuses
 
 - **Draft** — editable, not sent, not counted in AR

@@ -65,8 +65,30 @@ Categories map to the IRS schedule-C-ish buckets most bookkeepers use. Fixed enu
 
 Currently USD-only (stored but not user-changeable). Multi-currency is planned but not shipped.
 
+## On an invoice
+
+When you create an invoice for a customer, billable + uninvoiced
+expenses linked to that customer's projects flow onto the invoice
+as discrete line items — see
+[Invoicing → Including billable expenses](invoicing.md#including-billable-expenses-phase-2).
+
+Once an expense lands on an invoice, the row is locked:
+
+- The project-page expense row renders an **Invoiced #INV-XXXX**
+  chip (links to the invoice) instead of edit/delete affordances.
+- Update, delete, and split actions throw a "void the invoice
+  first" error at the action layer.
+- Restore (recover from soft-delete) is still allowed — recovery
+  never affects the invoice that already references the row.
+
+To edit a locked expense, **void the invoice first** through the
+invoice detail page's actions menu. Voiding releases every
+expense (and time entry) on that invoice for further edits.
+
 ## Related
 
 - [Business identity](business-identity.md)
 - [Projects](projects.md) — link billable expenses to projects
+- [Project page → Expenses section](projects.md#expenses-on-a-project) — read + add + delete project-scoped expenses inline on the project detail page
+- [Invoicing → Including billable expenses](invoicing.md#including-billable-expenses-phase-2) — the new-invoice flow folds billable expenses in alongside time entries
 - Bookkeeper's [exports guide](../bookkeeper/exports.md)

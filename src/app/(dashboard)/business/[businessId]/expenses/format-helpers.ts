@@ -57,3 +57,15 @@ export function formatExpenseAmount(
     return `${currency} ${amount.toFixed(2)}`;
   }
 }
+
+/** Human-readable label for an expense category slug — for
+ *  customer-facing surfaces where i18n lookup isn't available
+ *  (server-side line-item description generation). The slug
+ *  "professional_services" becomes "Professional services" — title
+ *  case on the first word, the rest stays lowercased so
+ *  "Software" reads natural alongside "Professional services". */
+export function humanizeExpenseCategory(slug: string): string {
+  const spaced = slug.replace(/_/g, " ");
+  if (spaced.length === 0) return spaced;
+  return spaced.charAt(0).toUpperCase() + spaced.slice(1);
+}

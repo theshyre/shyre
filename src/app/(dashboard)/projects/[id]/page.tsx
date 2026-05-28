@@ -47,6 +47,11 @@ import { ProjectEditForm } from "./project-edit-form";
 import { ProjectClassification } from "./project-classification";
 import { SubProjectsSection } from "./sub-projects-section";
 import { ProjectCategoriesEditor } from "./project-categories-editor";
+import {
+  ExpensesSection,
+  type ExpensesSectionExpense,
+} from "./expenses-section";
+import type { ProjectExpenseRowAuthor } from "./project-expense-row";
 
 interface IssueTimeSummary {
   /** Display key. For new entries this is the unified
@@ -85,11 +90,24 @@ export default async function ProjectDetailPage({
   // Resolve the caller's role on this project's team — drives the
   // "View edit history" link visibility (owner/admin only, matching
   // the RLS gate on projects_history). Members see the rest of the
-  // detail page normally.
-  const { role: callerRole } = await validateTeamAccess(
+  // detail page normally. viewerUserId additionally powers the per-
+  // row delete gate on the expenses section below (author OR owner/
+  // admin can delete).
+  const { userId: viewerUserId, role: callerRole } = await validateTeamAccess(
     project.team_id as string,
   );
   const callerIsAdmin = callerRole === "owner" || callerRole === "admin";
+
+  // Team + business — the expenses section needs both: teamName for
+  // the hidden-form's team field, businessId for the per-row deep-
+  // link to /business/<id>/expenses. One query, both values.
+  const { data: teamInfo } = await supabase
+    .from("teams")
+    .select("name, business_id")
+    .eq("id", project.team_id)
+    .single();
+  const teamName = (teamInfo?.name as string | null) ?? "";
+  const businessId = (teamInfo?.business_id as string | null) ?? "";
 
   // Customers on the same team — drives the "Make client work" picker
   // in ProjectClassification. Scoped to the project's team and to
@@ -239,6 +257,83 @@ export default async function ProjectDetailPage({
     .order("start_time", { ascending: false });
 
   const allEntries = timeEntries ?? [];
+
+  // Active (non-soft-deleted) expenses on this project. RLS narrows
+  // to rows the viewer can see (SAL-013: author + owner/admin only);
+  // the section renders a "showing what you can see" hint when the
+  // viewer is a non-admin so a thinned list doesn't read as broken.
+  // Phase 2: also pull invoiced/invoice_id + join the invoice's
+  // invoice_number so each row can render an "Invoiced #INV-…" chip
+  // when it's landed on an invoice.
+  const { data: expenseRows } = await supabase
+    .from("expenses")
+    .select(
+      "id, user_id, incurred_on, amount, currency, vendor, category, billable, invoiced, invoice_id, invoices(invoice_number)",
+    )
+    .eq("project_id", id)
+    .is("deleted_at", null)
+    .order("incurred_on", { ascending: false })
+    .order("created_at", { ascending: false })
+    .order("id", { ascending: false });
+
+  const projectExpenses: ExpensesSectionExpense[] = (expenseRows ?? []).map(
+    (r) => {
+      const invoiceJoin = (r as { invoices: unknown }).invoices;
+      const invoiceNumber =
+        invoiceJoin && typeof invoiceJoin === "object" && "invoice_number" in invoiceJoin
+          ? ((invoiceJoin as { invoice_number: string | null }).invoice_number ?? null)
+          : null;
+      return {
+        id: r.id as string,
+        user_id: r.user_id as string,
+        incurred_on: r.incurred_on as string,
+        amount: Number(r.amount),
+        currency: (r.currency as string | null) ?? "USD",
+        vendor: (r.vendor as string | null) ?? null,
+        category: r.category as string,
+        billable: r.billable === true,
+        invoiced: r.invoiced === true,
+        invoiceId: (r.invoice_id as string | null) ?? null,
+        invoiceNumber,
+      };
+    },
+  );
+
+  // Per-currency totals — money-UI rule forbids cross-currency
+  // sums, so the masthead caption stacks one line per currency
+  // present. Typically there's just one (the team's default), but
+  // CSV-imported rows can carry foreign currencies and the
+  // breakdown keeps that honest.
+  const expenseTotalsRecord: Record<string, number> = {};
+  for (const e of projectExpenses) {
+    expenseTotalsRecord[e.currency] =
+      (expenseTotalsRecord[e.currency] ?? 0) + e.amount;
+  }
+  const expenseTotalsByCurrency =
+    Object.keys(expenseTotalsRecord).length === 0
+      ? null
+      : expenseTotalsRecord;
+
+  // Authors for the visible expense rows — keyed by user_id to feed
+  // the avatar + display-name chip on each row, per the time-entry-
+  // authorship rule. One query for the whole section.
+  const expenseAuthorIds = Array.from(
+    new Set(projectExpenses.map((e) => e.user_id)),
+  );
+  const expenseAuthorById = new Map<string, ProjectExpenseRowAuthor>();
+  if (expenseAuthorIds.length > 0) {
+    const { data: profiles } = await supabase
+      .from("user_profiles")
+      .select("user_id, display_name, avatar_url")
+      .in("user_id", expenseAuthorIds);
+    for (const p of profiles ?? []) {
+      expenseAuthorById.set(p.user_id as string, {
+        userId: p.user_id as string,
+        displayName: (p.display_name as string | null) ?? null,
+        avatarUrl: (p.avatar_url as string | null) ?? null,
+      });
+    }
+  }
 
   const totalMinutes = allEntries.reduce(
     (sum, e) => sum + (e.duration_min ?? 0),
@@ -454,6 +549,7 @@ export default async function ProjectDetailPage({
                 }
               : null
           }
+          expenseTotalsByCurrency={expenseTotalsByCurrency}
         />
       </div>
 
@@ -519,6 +615,24 @@ export default async function ProjectDetailPage({
           }))}
         />
       </div>
+
+      {/* Expenses — activity section grouped with time-related
+          rollups below. Placed above Time-by-ticket because expenses
+          are a sparser signal that scans faster at the top of the
+          activity block; time entries (more numerous) sink below. */}
+      {businessId && (
+        <ExpensesSection
+          projectId={id}
+          teamId={project.team_id as string}
+          teamName={teamName}
+          businessId={businessId}
+          expenses={projectExpenses}
+          authorById={expenseAuthorById}
+          viewerUserId={viewerUserId}
+          viewerIsTeamAdmin={callerIsAdmin}
+          showScopedHint={!callerIsAdmin}
+        />
+      )}
 
       {/* Time by linked ticket — provider-agnostic. Renders for any
           project with at least one linked entry; shows whether the

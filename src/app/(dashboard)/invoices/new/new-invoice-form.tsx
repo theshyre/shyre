@@ -70,6 +70,24 @@ export interface PreviewCandidate extends EntryCandidate {
   teamId: string;
 }
 
+/** Phase-2 expense candidate streamed alongside time entries so the
+ *  preview rail can fold billable expenses into the same live total
+ *  the server action will post. Project / customer / currency are
+ *  resolved server-side so the rail just filters by current selection.
+ *  Internal-project + non-USD rows are pre-excluded by page.tsx. */
+export interface PreviewExpenseCandidate {
+  id: string;
+  customerId: string | null;
+  projectId: string | null;
+  date: string;
+  amount: number;
+  currency: string;
+  vendor: string | null;
+  category: string;
+  projectName: string;
+  projectInvoiceCode: string | null;
+}
+
 type RangePreset =
   | "sinceLastInvoice"
   | "all"
@@ -189,6 +207,7 @@ const GROUPING_OPTIONS: {
 export function NewInvoiceForm({
   customers,
   candidates,
+  expenseCandidates,
   lastInvoiceEndByCustomer,
   defaultTaxRate,
   teamDefaultTermsDays,
@@ -198,6 +217,11 @@ export function NewInvoiceForm({
 }: {
   customers: CustomerOption[];
   candidates: PreviewCandidate[];
+  /** Phase-2 expense candidates. Defaulted to [] for callers that
+   *  haven't been updated yet (the page wraps it). When the
+   *  includeExpenses toggle is on, these fold into the rail's total
+   *  alongside the time-entry lines so preview === posted. */
+  expenseCandidates?: PreviewExpenseCandidate[];
   /** Map of customer_id → most-recent non-void / non-draft invoice's
    *  period_end (or issued_date fallback). Drives the
    *  "Since last invoice" preset. Empty when the customer hasn't
@@ -383,6 +407,103 @@ export function NewInvoiceForm({
     [filtered, grouping],
   );
 
+  // Phase 2: include billable expenses by default. Customer scope is
+  // required — expenses without a customer have no invoice target,
+  // and the server-action mirrors this guard. The toggle lets the
+  // user fall back to a time-only invoice when they want to bill
+  // expenses separately.
+  const [includeExpenses, setIncludeExpenses] = useState(true);
+  const filteredExpenses = useMemo(() => {
+    if (!includeExpenses) return [];
+    if (!customerId) return [];
+    const projectFilterSet =
+      selectedProjectIds.length > 0 ? new Set(selectedProjectIds) : null;
+    return (expenseCandidates ?? []).filter((e) => {
+      if (e.currency !== "USD") return false;
+      if (e.customerId !== customerId) return false;
+      if (!e.projectId) return false;
+      if (projectFilterSet && !projectFilterSet.has(e.projectId)) return false;
+      if (range.start && e.date && e.date < range.start) return false;
+      if (range.end && e.date && e.date > range.end) return false;
+      return true;
+    });
+  }, [
+    includeExpenses,
+    customerId,
+    selectedProjectIds,
+    range.start,
+    range.end,
+    expenseCandidates,
+  ]);
+
+  // One line per expense — they're discrete outlays, not hours.
+  // Matches the server-action's expense → line shape so the rail
+  // total === posted total. Description format mirrors actions.ts
+  // line ~415 — category omitted when a vendor is present
+  // (vendor is the customer-facing identifier), humanized
+  // category as fallback.
+  const expenseLines = useMemo(
+    () =>
+      filteredExpenses.map((e) => {
+        const amount = Math.round(e.amount * 100) / 100;
+        const codePrefix = e.projectInvoiceCode
+          ? `[${e.projectInvoiceCode}] `
+          : "";
+        const headline =
+          e.vendor ??
+          // Inline humanization to avoid pulling the server-only
+          // format-helper into a client component. Same transform:
+          // "professional_services" → "Professional services".
+          (() => {
+            const spaced = e.category.replace(/_/g, " ");
+            return spaced.length > 0
+              ? spaced.charAt(0).toUpperCase() + spaced.slice(1)
+              : spaced;
+          })();
+        return {
+          description: `${codePrefix}${headline} (${e.date})`.trim(),
+          quantity: 1,
+          unitPrice: amount,
+          amount,
+        };
+      }),
+    [filteredExpenses],
+  );
+
+  const expensesTotal = useMemo(
+    () => expenseLines.reduce((sum, l) => sum + l.amount, 0),
+    [expenseLines],
+  );
+
+  // Bookkeeper-review safety net: count expenses that would have
+  // matched the customer + project + date filter EXCEPT for the
+  // USD-only currency gate. Without surfacing this number, a user
+  // with EUR / GBP receipts would see a confidently empty rail and
+  // a confidently posted USD invoice — money missing with no UI
+  // explanation. Only counts when includeExpenses is on AND a
+  // customer is picked (otherwise expenses are out of scope anyway).
+  const excludedNonUsdExpenseCount = useMemo(() => {
+    if (!includeExpenses || !customerId) return 0;
+    const projectFilterSet =
+      selectedProjectIds.length > 0 ? new Set(selectedProjectIds) : null;
+    return (expenseCandidates ?? []).filter((e) => {
+      if (e.currency === "USD") return false;
+      if (e.customerId !== customerId) return false;
+      if (!e.projectId) return false;
+      if (projectFilterSet && !projectFilterSet.has(e.projectId)) return false;
+      if (range.start && e.date && e.date < range.start) return false;
+      if (range.end && e.date && e.date > range.end) return false;
+      return true;
+    }).length;
+  }, [
+    includeExpenses,
+    customerId,
+    selectedProjectIds,
+    range.start,
+    range.end,
+    expenseCandidates,
+  ]);
+
   const discountForCalc = useMemo(() => {
     const amt = parseFloat(discountAmount);
     if (Number.isFinite(amt) && amt > 0) return { amount: amt };
@@ -392,8 +513,13 @@ export function NewInvoiceForm({
   }, [discountAmount, discountRate]);
 
   const totals = useMemo(
-    () => calculateInvoiceTotals(lines, taxRate, discountForCalc),
-    [lines, taxRate, discountForCalc],
+    () =>
+      calculateInvoiceTotals(
+        [...lines, ...expenseLines],
+        taxRate,
+        discountForCalc,
+      ),
+    [lines, expenseLines, taxRate, discountForCalc],
   );
 
   // Inferred period bounds for display — even when "All" is picked,
@@ -468,6 +594,13 @@ export function NewInvoiceForm({
       <input type="hidden" name="grouping_mode" value={grouping} />
       <input type="hidden" name="range_start" value={range.start ?? ""} />
       <input type="hidden" name="range_end" value={range.end ?? ""} />
+      {/* Phase 2: expense inclusion. Default true; explicit string
+          values match the server action's `"false"` opt-out check. */}
+      <input
+        type="hidden"
+        name="include_expenses"
+        value={includeExpenses ? "true" : "false"}
+      />
 
       <div className="grid gap-4 lg:grid-cols-[1fr_320px]">
         {/* Left column — configuration */}
@@ -798,6 +931,30 @@ export function NewInvoiceForm({
             )}
           </section>
 
+          <section className="rounded-lg border border-edge bg-surface-raised p-4">
+            <label className="flex items-start gap-2 cursor-pointer">
+              <input
+                type="checkbox"
+                checked={includeExpenses}
+                onChange={(e) => {
+                  setIncludeExpenses(e.target.checked);
+                  if (!dirty) setDirty(true);
+                }}
+                className="mt-0.5 h-4 w-4 rounded border-edge text-accent focus:ring-focus-ring"
+              />
+              <span>
+                <span className="block text-body font-medium text-content">
+                  {tNew("expenses.includeLabel")}
+                </span>
+                <span className="block text-caption text-content-muted">
+                  {customerId
+                    ? tNew("expenses.includeHelp")
+                    : tNew("expenses.includeHelpNoCustomer")}
+                </span>
+              </span>
+            </label>
+          </section>
+
           <section className="rounded-lg border border-edge bg-surface-raised p-4 space-y-3">
             <div className="flex items-center gap-2">
               <ListTree size={16} className="text-accent" />
@@ -921,7 +1078,7 @@ export function NewInvoiceForm({
           <h2 className="text-label font-semibold uppercase tracking-wider text-content-muted">
             {tNew("preview.heading")}
           </h2>
-          {lines.length === 0 ? (
+          {lines.length === 0 && expenseLines.length === 0 ? (
             <div
               role="status"
               aria-live="polite"
@@ -992,6 +1149,23 @@ export function NewInvoiceForm({
                     {lines.length}
                   </span>
                 </div>
+                {expenseLines.length > 0 && (
+                  <div className="flex justify-between border-t border-edge-muted pt-1.5">
+                    <span className="text-content-muted">
+                      {tNew("preview.expenses", { count: expenseLines.length })}
+                    </span>
+                    <span className="font-mono tabular-nums">
+                      {formatCurrency(expensesTotal)}
+                    </span>
+                  </div>
+                )}
+                {excludedNonUsdExpenseCount > 0 && (
+                  <p className="text-caption text-warning-text">
+                    {tNew("preview.expensesNonUsdExcluded", {
+                      count: excludedNonUsdExpenseCount,
+                    })}
+                  </p>
+                )}
                 {inferredPeriod && (
                   <div className="flex justify-between text-caption">
                     <span className="text-content-muted">

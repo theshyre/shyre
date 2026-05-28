@@ -43,11 +43,18 @@
         "help": "One line per time entry — full transparency."
       }
     },
+    "expenses": {
+      "includeLabel": "Include billable expenses",
+      "includeHelp": "Add unbilled billable expenses (vendor charges, subscriptions, fees) for the selected customer + date range as separate invoice lines.",
+      "includeHelpNoCustomer": "Pick a customer first — billable expenses are scoped per-customer through their project."
+    },
     "preview": {
       "heading": "Preview",
       "entries": "Time entries",
       "hours": "Total hours",
       "lines": "Invoice lines",
+      "expenses": "{count, plural, one {1 expense} other {# expenses}}",
+      "expensesNonUsdExcluded": "{count, plural, one {1 non-USD expense excluded — phase 2 invoices USD only.} other {# non-USD expenses excluded — phase 2 invoices USD only.}}",
       "period": "Period",
       "linesSample": "Sample lines",
       "moreLines": "+ {count} more",
@@ -122,7 +129,9 @@
     "author": "Logged by",
     "hours": "Hours",
     "rate": "Rate",
-    "amount": "Amount"
+    "amount": "Amount",
+    "expenseSourceLabel": "Expense",
+    "expenseSourceTooltip": "Sourced from a billable expense"
   },
   "actions": {
     "downloadPdf": "Download PDF",

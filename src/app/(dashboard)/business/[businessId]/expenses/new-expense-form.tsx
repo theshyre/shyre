@@ -41,6 +41,11 @@ interface Props {
    *  hanging off its top-right corner. Used today for the "Import
    *  CSV" link on /business/[businessId]/expenses. */
   secondaryAction?: React.ReactNode;
+  /** When set, the project picker is hidden and `project_id` is
+   *  submitted as a fixed hidden field. Used by the project-page
+   *  surface where "this expense belongs to this project" is the
+   *  whole point — no reason to expose the picker. */
+  lockedProjectId?: string;
 }
 
 function todayStr(): string {
@@ -53,6 +58,7 @@ export function NewExpenseForm({
   teamOptions,
   projects,
   secondaryAction,
+  lockedProjectId,
 }: Props): React.JSX.Element {
   const [open, setOpen] = useState(false);
   const [selectedTeamId, setSelectedTeamId] = useState(defaultTeamId);
@@ -181,24 +187,28 @@ export function NewExpenseForm({
             className={inputClass}
           />
         </div>
-        <div className={formSpanThird}>
-          <label htmlFor="ne-project" className={labelClass}>
-            {t("fields.project")}
-          </label>
-          <select
-            id="ne-project"
-            name="project_id"
-            defaultValue="none"
-            className={selectClass}
-          >
-            <option value="none">{t("noProject")}</option>
-            {projectsForTeam.map((p) => (
-              <option key={p.id} value={p.id}>
-                {p.name}
-              </option>
-            ))}
-          </select>
-        </div>
+        {lockedProjectId ? (
+          <input type="hidden" name="project_id" value={lockedProjectId} />
+        ) : (
+          <div className={formSpanThird}>
+            <label htmlFor="ne-project" className={labelClass}>
+              {t("fields.project")}
+            </label>
+            <select
+              id="ne-project"
+              name="project_id"
+              defaultValue="none"
+              className={selectClass}
+            >
+              <option value="none">{t("noProject")}</option>
+              {projectsForTeam.map((p) => (
+                <option key={p.id} value={p.id}>
+                  {p.name}
+                </option>
+              ))}
+            </select>
+          </div>
+        )}
         {showTeamPicker && (
           <div className={formSpanThird}>
             <label htmlFor="ne-team" className={labelClass}>

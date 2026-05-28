@@ -81,7 +81,7 @@ A handful of tables are **business-scoped** (a Business owns 1+ Teams) — see "
 |---|---|
 | `invoices` | Issued documents. Status enum: `draft|sent|paid|void|overdue` (overdue is a read-time projection). Carries `team_id`, `customer_id`, denormalized `business_id` (frozen at creation), `invoice_number`, money columns (`subtotal`, `discount_amount`, `discount_rate`, `tax_rate`, `tax_amount`, `total`, `currency`), audit timestamps (`sent_at`, `paid_at`, `voided_at`), payment terms, layout options, sent-to-email summary, import-from markers. |
 | `invoices_history` | Append-only event log; SAL-006/010/011 hardened the audit chain. |
-| `invoice_line_items` | Per-line breakdown of a single invoice. |
+| `invoice_line_items` | Per-line breakdown of a single invoice. Source FKs: `time_entry_id` (1:1 when a line collapses one entry; null for grouped lines), `expense_id` (1:1 to `expenses` when the line came from a billable expense — phase 2). CHECK `invoice_line_items_source_mutex` enforces at most one of the two FKs is non-null. |
 | `invoice_line_items_history` | Append-only |
 | `invoice_payments` | Recorded payments (manual or imported). `amount` + `currency` + `paid_on` + `paid_at` + `method` + `reference`. Currency-aware aggregation in batch-3 (bookkeeper #13). |
 
@@ -99,7 +99,7 @@ A handful of tables are **business-scoped** (a Business owns 1+ Teams) — see "
 
 | Table | Purpose |
 |---|---|
-| `expenses` | Team-scoped expense rows. Inline-edited via `EditableCell`. Soft-delete via `deleted_at`. Imported-from markers. Period-lock trigger applies. |
+| `expenses` | Team-scoped expense rows. Inline-edited via `EditableCell`. Soft-delete via `deleted_at`. Imported-from markers. Period-lock trigger applies. Phase 2: `invoiced` (bool), `invoice_id` (FK to `invoices`, ON DELETE SET NULL), `invoiced_at` (timestamptz) carry the same invoiced-lock pattern as `time_entries` — action layer refuses update/delete/split when `invoiced=true`. |
 
 ## Imports
 

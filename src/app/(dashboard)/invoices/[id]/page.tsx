@@ -2,7 +2,7 @@ import type { Metadata } from "next";
 import { createClient } from "@/lib/supabase/server";
 import { getTranslations } from "next-intl/server";
 import { notFound } from "next/navigation";
-import { FileText, Download } from "lucide-react";
+import { FileText, Download, Receipt } from "lucide-react";
 import { Tooltip } from "@/components/Tooltip";
 import { InvoiceActivity } from "./invoice-activity";
 
@@ -106,7 +106,7 @@ export default async function InvoiceDetailPage({
   ] = await Promise.all([
     supabase
       .from("invoice_line_items")
-      .select("*, time_entries(user_id)")
+      .select("*, time_entries(user_id), expense_id")
       .eq("invoice_id", id)
       .order("id"),
     supabase
@@ -270,15 +270,37 @@ export default async function InvoiceDetailPage({
   // [code] / per-line-date format landed) automatically reflects
   // the new shape. Falls back to the stored `lineItems` when no
   // source entries are linked (legacy Harvest-import edge case).
+  // Phase 2: expense-sourced lines (expense_id IS NOT NULL) are
+  // always rendered from their stored description — they were
+  // formatted at insert by createInvoiceAction and don't need to
+  // be re-derived through groupEntriesIntoLineItems (which would
+  // drop them because the source-entry pool is time-only).
+  const expenseLineItems = (lineItems ?? [])
+    .filter((li) => li.expense_id != null)
+    .map((li) => ({
+      description: (li.description as string) ?? "",
+      quantity: Number(li.quantity ?? 0),
+      unit_price: Number(li.unit_price ?? 0),
+      amount: Number(li.amount ?? 0),
+      source: "expense" as const,
+    }));
+
   const resolvedLineItems = (() => {
     const sourceEntries = invoicedEntries ?? [];
     if (sourceEntries.length === 0) {
-      return (lineItems ?? []).map((li) => ({
-        description: (li.description as string) ?? "",
-        quantity: Number(li.quantity ?? 0),
-        unit_price: Number(li.unit_price ?? 0),
-        amount: Number(li.amount ?? 0),
-      }));
+      // Legacy / Harvest path: every stored line is rendered as-is.
+      // Expense lines are tagged here so the visual distinguisher
+      // still fires even in this branch.
+      const nonExpenseLines = (lineItems ?? [])
+        .filter((li) => li.expense_id == null)
+        .map((li) => ({
+          description: (li.description as string) ?? "",
+          quantity: Number(li.quantity ?? 0),
+          unit_price: Number(li.unit_price ?? 0),
+          amount: Number(li.amount ?? 0),
+          source: "time" as const,
+        }));
+      return [...nonExpenseLines, ...expenseLineItems];
     }
     type SrcRow = {
       id: string;
@@ -330,12 +352,14 @@ export default async function InvoiceDetailPage({
       | "detailed"
       | null) ?? "by_project";
     const grouped = groupEntriesIntoLineItems(candidates, groupingMode);
-    return grouped.map((line) => ({
+    const timeLines = grouped.map((line) => ({
       description: line.description,
       quantity: line.quantity,
       unit_price: line.unitPrice,
       amount: line.amount,
+      source: "time" as const,
     }));
+    return [...timeLines, ...expenseLineItems];
   })();
 
   // Currency-aware payments total. Mismatched-currency payments are
@@ -377,7 +401,10 @@ export default async function InvoiceDetailPage({
           />
           <InvoicePdfButton
             invoice={invoice}
-            lineItems={resolvedLineItems}
+            lineItems={resolvedLineItems.map(({ source: _s, ...rest }) => {
+              void _s;
+              return rest;
+            })}
             client={client}
             business={settings}
             paymentsTotal={paymentsTotal}
@@ -553,9 +580,39 @@ export default async function InvoiceDetailPage({
                     idx % 2 === 1 ? "bg-surface-inset/40" : ""
                   }`}
                 >
-                  <td className="px-4 py-3 text-content">{item.description}</td>
+                  <td className="px-4 py-3 text-content">
+                    {item.source === "expense" && (
+                      <Tooltip
+                        label={t("lineItem.expenseSourceTooltip")}
+                        labelMode="label"
+                      >
+                        <span className="mr-1.5 inline-flex items-center align-middle text-content-muted">
+                          <Receipt size={14} aria-hidden="true" />
+                          <span className="sr-only">
+                            {t("lineItem.expenseSourceLabel")}
+                          </span>
+                        </span>
+                      </Tooltip>
+                    )}
+                    {item.description}
+                  </td>
                   <td className="px-4 py-3">
-                    {profile ? (
+                    {item.source === "expense" ? (
+                      // Expense lines don't carry a time-entry author —
+                      // the author is on the source expense row, which
+                      // isn't joined into this query. Render an explicit
+                      // "Expense" chip so the column doesn't misread as
+                      // "we don't know who logged this."
+                      <Tooltip
+                        label={t("lineItem.expenseSourceTooltip")}
+                        labelMode="label"
+                      >
+                        <span className="inline-flex items-center gap-1.5 text-caption text-content-muted">
+                          <Receipt size={12} aria-hidden="true" />
+                          <span>{t("lineItem.expenseSourceLabel")}</span>
+                        </span>
+                      </Tooltip>
+                    ) : profile ? (
                       <span className="inline-flex items-center gap-2 text-body text-content-secondary">
                         <Avatar
                           avatarUrl={resolveAvatarUrl(

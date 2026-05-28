@@ -64,6 +64,27 @@ interface TeamMemberRate {
   default_rate: number | null;
 }
 
+/** Mirrors the columns the phase-2 expense fetch selects:
+ *    "id, project_id, vendor, category, incurred_on, amount,
+ *     currency, projects(name, invoice_code, customer_id, is_internal)"
+ *  Tests opt in by populating state.expenses; default [] keeps the
+ *  legacy time-only flow as the baseline. */
+interface ExpenseRow {
+  id: string;
+  project_id: string | null;
+  vendor: string | null;
+  category: string;
+  incurred_on: string;
+  amount: number;
+  currency: string;
+  projects: {
+    name: string | null;
+    invoice_code: string | null;
+    customer_id: string | null;
+    is_internal: boolean | null;
+  } | null;
+}
+
 interface FetchedInvoice {
   team_id: string;
   status: string;
@@ -73,6 +94,7 @@ interface FetchedInvoice {
 
 const state: {
   timeEntries: TimeEntry[];
+  expenses: ExpenseRow[];
   settings: Settings | null;
   memberRates: TeamMemberRate[];
   invoiceIdToInsert: string;
@@ -100,6 +122,7 @@ const state: {
   rpcError: { message: string; code: string } | null;
 } = {
   timeEntries: [],
+  expenses: [],
   settings: null,
   memberRates: [],
   invoiceIdToInsert: "inv-1",
@@ -138,7 +161,67 @@ function mockSupabase() {
     if (table === "user_profiles") {
       return userProfilesChain();
     }
+    if (table === "expenses") {
+      return expensesChain();
+    }
     throw new Error(`unexpected table ${table}`);
+  }
+
+  /** Phase-2 expense candidate fetch + writeback chain. Records
+   *  every `.eq` predicate so the resolved data set actually honors
+   *  the filter — security review flagged that the earlier "ignore
+   *  args" pattern would silently miss a regression dropping
+   *  `.eq("currency", "USD")` or `.eq("team_id", teamId)`. Mock now
+   *  applies the equality filters to state.expenses on the way out.
+   *
+   *  `.is/.gte/.lte` are still ignored — those would need richer
+   *  comparators and aren't load-bearing for the current tests.
+   *  Update path records the patch + id list as before. */
+  function expensesChain() {
+    const eqFilters: Array<{ col: string; val: unknown }> = [];
+    const q: {
+      select: () => typeof q;
+      eq: (col: string, val: unknown) => typeof q;
+      is: () => typeof q;
+      gte: () => typeof q;
+      lte: () => typeof q;
+      update: (patch: unknown) => { in: (col: string, vals: string[]) => Promise<{ data: null; error: null }> };
+      then: (resolve: (v: { data: ExpenseRow[] }) => void) => void;
+    } = {
+      select: () => q,
+      eq: (col: string, val: unknown) => {
+        eqFilters.push({ col, val });
+        return q;
+      },
+      is: () => q,
+      gte: () => q,
+      lte: () => q,
+      update: (patch: unknown) => ({
+        in: (col: string, vals: string[]) => {
+          state.updates.push({
+            table: "expenses",
+            patch,
+            where: { [col]: vals },
+          });
+          return Promise.resolve({ data: null, error: null });
+        },
+      }),
+      then: (resolve: (v: { data: ExpenseRow[] }) => void) => {
+        const filtered = state.expenses.filter((row) =>
+          eqFilters.every(({ col, val }) => {
+            // ExpenseRow doesn't carry every column the action filters
+            // on (e.g. `billable`, `invoiced`) — those are assumed
+            // matching because the test seeds only billable=true,
+            // invoiced=false rows. Skip cols not on ExpenseRow so
+            // the present filters (currency, team_id) still apply.
+            if (!(col in row)) return true;
+            return (row as unknown as Record<string, unknown>)[col] === val;
+          }),
+        );
+        resolve({ data: filtered });
+      },
+    };
+    return q;
   }
 
   // Two production callers:
@@ -333,6 +416,7 @@ import {
 
 function resetState() {
   state.timeEntries = [];
+  state.expenses = [];
   state.settings = null;
   state.memberRates = [];
   state.invoiceIdToInsert = "inv-1";
@@ -1729,5 +1813,270 @@ describe("editInvoicePaidDateAction", () => {
         }),
       ),
     ).rejects.toThrow(/2 payments dated/);
+  });
+});
+
+describe("createInvoiceAction — phase 2 expense inclusion", () => {
+  beforeEach(resetState);
+
+  // Helpers — minimum seeds for the action to reach the line-item
+  // insert. Owner role, prefix, next_num. Tests opt into specific
+  // time-entry / expense fixtures.
+  function seedHappyPath() {
+    mockValidateTeamAccess.mockResolvedValue({
+      userId: fakeUserId,
+      role: "owner",
+    });
+    state.settings = {
+      invoice_prefix: "INV",
+      invoice_next_num: 7,
+      default_rate: 100,
+    };
+  }
+
+  function expenseRow(
+    overrides: Partial<ExpenseRow> & { id: string },
+  ): ExpenseRow {
+    return {
+      id: overrides.id,
+      project_id: overrides.project_id ?? "p-1",
+      vendor: overrides.vendor ?? "Linear",
+      category: overrides.category ?? "software",
+      incurred_on: overrides.incurred_on ?? "2026-04-15",
+      amount: overrides.amount ?? 49.99,
+      currency: overrides.currency ?? "USD",
+      projects: overrides.projects ?? {
+        name: "Acme work",
+        invoice_code: null,
+        customer_id: "cust-1",
+        is_internal: false,
+      },
+    };
+  }
+
+  it("includes a billable expense as a 1:1 line item and writes back invoiced=true", async () => {
+    seedHappyPath();
+    state.expenses = [expenseRow({ id: "e1", amount: 50 })];
+
+    try {
+      await createInvoiceAction(
+        fd({ team_id: "team-1", customer_id: "cust-1" }),
+      );
+    } catch {
+      // redirect throws; expected
+    }
+
+    const lineInsert = state.inserts.find(
+      (i) => i.table === "invoice_line_items",
+    );
+    const rows = lineInsert?.rows as Array<{
+      time_entry_id: string | null;
+      expense_id: string | null;
+      amount: number;
+    }>;
+    expect(rows).toHaveLength(1);
+    expect(rows[0]?.expense_id).toBe("e1");
+    expect(rows[0]?.time_entry_id).toBeNull();
+    expect(rows[0]?.amount).toBe(50);
+
+    // Writeback marks the expense invoiced + carries the invoice id.
+    // invoiced_at is intentionally NOT sent from the app — the
+    // tg_expenses_stamp_invoiced_at trigger (migration
+    // 20260528160000) stamps it with `now()` server-side to avoid
+    // Vercel↔Supabase clock skew on the audit timestamp.
+    const expenseUpdate = state.updates.find((u) => u.table === "expenses");
+    expect(expenseUpdate).toBeDefined();
+    expect(expenseUpdate?.where).toEqual({ id: ["e1"] });
+    expect(expenseUpdate?.patch).toEqual({
+      invoiced: true,
+      invoice_id: "inv-1",
+    });
+  });
+
+  it("omits expenses entirely when include_expenses=false (opt-out)", async () => {
+    seedHappyPath();
+    state.timeEntries = [
+      {
+        id: "t1",
+        duration_min: 60,
+        description: "work",
+        projects: {
+          name: "Proj",
+          hourly_rate: 100,
+          customer_id: "cust-1",
+          customers: null,
+        },
+      },
+    ];
+    state.expenses = [expenseRow({ id: "e1" })];
+
+    try {
+      await createInvoiceAction(
+        fd({
+          team_id: "team-1",
+          customer_id: "cust-1",
+          include_expenses: "false",
+        }),
+      );
+    } catch {
+      // redirect throws; expected
+    }
+
+    const lineInsert = state.inserts.find(
+      (i) => i.table === "invoice_line_items",
+    );
+    const rows = lineInsert?.rows as Array<{
+      time_entry_id: string | null;
+      expense_id: string | null;
+    }>;
+    expect(rows).toHaveLength(1);
+    expect(rows[0]?.expense_id).toBeNull();
+    expect(rows[0]?.time_entry_id).toBe("t1");
+    // No writeback to expenses since none were included.
+    expect(state.updates.find((u) => u.table === "expenses")).toBeUndefined();
+  });
+
+  it("succeeds with expense-only invoice (no time entries, just expenses)", async () => {
+    // The previous "no entries" guard threw; phase 2 relaxes it so
+    // an expense-only invoice is valid. Bookkeeper rule: every
+    // category of billable work should reach the invoice.
+    seedHappyPath();
+    state.timeEntries = [];
+    state.expenses = [
+      expenseRow({ id: "e1", amount: 100 }),
+      expenseRow({ id: "e2", amount: 25 }),
+    ];
+
+    try {
+      await createInvoiceAction(
+        fd({ team_id: "team-1", customer_id: "cust-1" }),
+      );
+    } catch {
+      // redirect throws; expected
+    }
+
+    const lineInsert = state.inserts.find(
+      (i) => i.table === "invoice_line_items",
+    );
+    const rows = lineInsert?.rows as Array<{ expense_id: string | null }>;
+    expect(rows).toHaveLength(2);
+    expect(rows.map((r) => r.expense_id).sort()).toEqual(["e1", "e2"]);
+
+    // Invoice row totals to 125.
+    const invInsert = state.inserts.find((i) => i.table === "invoices");
+    expect((invInsert?.rows as { total: number }).total).toBe(125);
+  });
+
+  it("throws when neither time entries nor expenses match (combined empty)", async () => {
+    seedHappyPath();
+    state.timeEntries = [];
+    state.expenses = [];
+
+    await expect(
+      createInvoiceAction(fd({ team_id: "team-1", customer_id: "cust-1" })),
+    ).rejects.toThrow(/No unbilled time entries or billable expenses/);
+    expect(state.inserts.find((i) => i.table === "invoices")).toBeUndefined();
+  });
+
+  it("excludes expenses entirely when no customer_id is specified (org-wide invoice)", async () => {
+    // Org-wide invoices target no specific customer. An expense
+    // can't be pinned to a "no customer" line — phase 2 conservatively
+    // excludes them. Surfaces a future need for "non-project" or
+    // "internal" expense buckets, out of scope here.
+    seedHappyPath();
+    state.timeEntries = [
+      {
+        id: "t1",
+        duration_min: 60,
+        description: "work",
+        projects: {
+          name: "Proj",
+          hourly_rate: 100,
+          customer_id: null,
+          customers: null,
+        },
+      },
+    ];
+    state.expenses = [
+      expenseRow({
+        id: "e1",
+        projects: {
+          name: "Proj",
+          invoice_code: null,
+          customer_id: null,
+          is_internal: false,
+        },
+      }),
+    ];
+
+    try {
+      await createInvoiceAction(fd({ team_id: "team-1" }));
+    } catch {
+      // redirect throws; expected
+    }
+
+    const lineInsert = state.inserts.find(
+      (i) => i.table === "invoice_line_items",
+    );
+    const rows = lineInsert?.rows as Array<{ expense_id: string | null }>;
+    expect(rows.every((r) => r.expense_id === null)).toBe(true);
+    expect(state.updates.find((u) => u.table === "expenses")).toBeUndefined();
+  });
+
+  it("silently excludes non-USD expenses (single-currency invoice — phase 2 scope)", async () => {
+    // Bookkeeper-grade revenue risk: if the currency filter regresses,
+    // EUR/GBP expenses either land on a USD invoice (over-billing in
+    // mixed numerals) or — current correct behavior — stay billable
+    // for a later run. Pin the "stays billable" branch so a future
+    // change can't accidentally fold them in.
+    seedHappyPath();
+    state.expenses = [
+      expenseRow({ id: "e-usd", currency: "USD", amount: 50 }),
+      expenseRow({ id: "e-eur", currency: "EUR", amount: 50 }),
+      expenseRow({ id: "e-gbp", currency: "GBP", amount: 50 }),
+    ];
+
+    try {
+      await createInvoiceAction(
+        fd({ team_id: "team-1", customer_id: "cust-1" }),
+      );
+    } catch {
+      // redirect throws; expected
+    }
+
+    const lineInsert = state.inserts.find(
+      (i) => i.table === "invoice_line_items",
+    );
+    const rows = lineInsert?.rows as Array<{ expense_id: string | null }>;
+    expect(rows).toHaveLength(1);
+    expect(rows[0]?.expense_id).toBe("e-usd");
+
+    // Writeback only touches the USD row — EUR / GBP stay invoiced=false.
+    const expenseUpdate = state.updates.find((u) => u.table === "expenses");
+    expect(expenseUpdate?.where).toEqual({ id: ["e-usd"] });
+  });
+
+  it("revalidates each affected project's detail page so the Invoiced badge appears", async () => {
+    // The project-page expense row renders an "Invoiced #INV-…" chip
+    // when the row carries invoice_id. Without this revalidate, the
+    // page would stay stale and the chip wouldn't appear until the
+    // user manually reloaded.
+    seedHappyPath();
+    state.expenses = [
+      expenseRow({ id: "e1", project_id: "proj-a" }),
+      expenseRow({ id: "e2", project_id: "proj-b" }),
+      expenseRow({ id: "e3", project_id: "proj-a" }),
+    ];
+
+    try {
+      await createInvoiceAction(
+        fd({ team_id: "team-1", customer_id: "cust-1" }),
+      );
+    } catch {
+      // redirect throws; expected
+    }
+
+    expect(mockRevalidatePath).toHaveBeenCalledWith("/projects/proj-a");
+    expect(mockRevalidatePath).toHaveBeenCalledWith("/projects/proj-b");
   });
 });

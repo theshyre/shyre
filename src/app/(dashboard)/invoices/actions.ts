@@ -5,6 +5,7 @@ import { assertSupabaseOk } from "@/lib/errors";
 import { validateTeamAccess } from "@/lib/team-context";
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
+import { humanizeExpenseCategory } from "@/app/(dashboard)/business/[businessId]/expenses/format-helpers";
 import {
   calculateInvoiceTotals,
   generateInvoiceNumber,
@@ -102,6 +103,14 @@ export async function createInvoiceAction(formData: FormData): Promise<void> {
     const range_start =
       (formData.get("range_start") as string)?.trim() || null;
     const range_end = (formData.get("range_end") as string)?.trim() || null;
+
+    // Phase 2: billable expenses can ride alongside time entries on
+    // the same invoice. Default on; the form lets the user toggle
+    // it off when they want a time-only invoice. Sent as the
+    // literal string "false" to opt out, since FormData passes
+    // unchecked checkboxes as absent (not "false").
+    const include_expenses =
+      (formData.get("include_expenses") as string | null) !== "false";
 
     // Grouping mode — defaults to by_project (US small-business norm
     // per the bookkeeper review). Validated against the allow-list
@@ -238,8 +247,95 @@ export async function createInvoiceAction(formData: FormData): Promise<void> {
       });
     }
 
-    if (filteredEntries.length === 0) {
-      throw new Error("No unbilled time entries found.");
+    // Phase 2 expense candidates — fetched alongside time entries
+    // so the same range / customer / project scope applies. Filter
+    // chain mirrors the time-entry query: billable, uninvoiced,
+    // active row, currency matches the invoice's (defaulted USD
+    // until the new-invoice form gains a currency picker). Customer
+    // scoping joins through projects.customer_id; an org-wide
+    // invoice (null customer_id) is treated as no-customer, so
+    // expenses are excluded — pinning them to a non-customer
+    // invoice has no obvious bookkeeping target.
+    const INVOICE_CURRENCY = "USD";
+    interface ExpenseCandidate {
+      id: string;
+      project_id: string | null;
+      vendor: string | null;
+      category: string;
+      incurred_on: string;
+      amount: number;
+      projectName: string | null;
+      projectInvoiceCode: string | null;
+    }
+    let expenseCandidates: ExpenseCandidate[] = [];
+    if (include_expenses && customer_id) {
+      let expenseQuery = supabase
+        .from("expenses")
+        .select(
+          "id, project_id, vendor, category, incurred_on, amount, currency, projects(name, invoice_code, customer_id, is_internal)",
+        )
+        .eq("team_id", teamId)
+        .eq("billable", true)
+        .eq("invoiced", false)
+        .eq("currency", INVOICE_CURRENCY)
+        .is("deleted_at", null);
+      if (range_start) {
+        expenseQuery = expenseQuery.gte("incurred_on", range_start);
+      }
+      if (range_end) {
+        expenseQuery = expenseQuery.lte("incurred_on", range_end);
+      }
+      const { data: expRows } = await expenseQuery;
+      expenseCandidates = (expRows ?? [])
+        .map((r) => {
+          const projRaw = (r as { projects: unknown }).projects;
+          const proj =
+            projRaw && typeof projRaw === "object" && "name" in projRaw
+              ? (projRaw as {
+                  name: string | null;
+                  invoice_code: string | null;
+                  customer_id: string | null;
+                  is_internal: boolean | null;
+                })
+              : null;
+          return {
+            id: (r as { id: string }).id,
+            project_id: (r as { project_id: string | null }).project_id,
+            vendor: (r as { vendor: string | null }).vendor,
+            category: (r as { category: string }).category,
+            incurred_on: (r as { incurred_on: string }).incurred_on,
+            amount: Number((r as { amount: number | string }).amount),
+            projectName: proj?.name ?? null,
+            projectInvoiceCode: proj?.invoice_code ?? null,
+            _customerId: proj?.customer_id ?? null,
+            _isInternal: proj?.is_internal === true,
+          };
+        })
+        // Customer scope: the expense's linked project must belong
+        // to this customer and must not be internal. An expense with
+        // no project_id can't be tied to a customer at all, so it's
+        // excluded — phase 2 only invoices project-bound expenses.
+        .filter((e) => {
+          if (e._isInternal) return false;
+          if (!e.project_id) return false;
+          if (e._customerId !== customer_id) return false;
+          if (projectIdSet && !projectIdSet.has(e.project_id)) return false;
+          return true;
+        })
+        // Strip the internal scratch fields before downstream code
+        // sees the rows — _customerId / _isInternal were only used
+        // for filtering and shouldn't leak into description format.
+        .map(({ _customerId: _c, _isInternal: _i, ...rest }) => {
+          void _c;
+          void _i;
+          return rest;
+        });
+    }
+
+    if (filteredEntries.length === 0 && expenseCandidates.length === 0) {
+      // Friendlier message — covers both sources so the user knows
+      // why an expense-only attempt that turned up nothing also fails.
+      throw new Error("No unbilled time entries or billable expenses found.");
     }
 
     // Build per-entry candidates with the rate cascade resolved.
@@ -288,20 +384,61 @@ export async function createInvoiceAction(formData: FormData): Promise<void> {
       };
     });
 
-    // Group + line-item the candidates. Same logic the live preview
-    // runs in the browser, so the user's pre-submit total matches
-    // the posted invoice to the cent.
+    // Group + line-item the time-entry candidates. Same logic the
+    // live preview runs in the browser, so the user's pre-submit
+    // total matches the posted invoice to the cent.
     const groupedLines = groupEntriesIntoLineItems(candidates, grouping_mode);
-    const totals = calculateInvoiceTotals(groupedLines, taxRate, discount);
+
+    // Phase 2: each expense becomes its own line — they're discrete
+    // outlays, not hours to roll up. Description format mirrors the
+    // time-entry style: bracketed invoice_code (when present) +
+    // vendor + category + ISO date. Quantity is 1, unit_price = the
+    // full amount; rounding consistency with the time-entry path
+    // because amount stays at the same 2-decimal precision the
+    // expense row was stored at.
+    interface ExpenseLine {
+      description: string;
+      quantity: number;
+      unitPrice: number;
+      amount: number;
+      sourceExpenseId: string;
+    }
+    // Customer-facing description. Internal category slugs
+    // ("software", "professional_services") used to leak into the
+    // line text — bookkeeper review caught this. The new format
+    // omits category from the description entirely when a vendor
+    // is present (vendor IS the customer-facing identifier), and
+    // falls back to a humanized category label only when there's
+    // no vendor to anchor the line. The category remains queryable
+    // via the `expense_id` FK on the line item for audit purposes.
+    const expenseLines: ExpenseLine[] = expenseCandidates.map((e) => {
+      const codePrefix = e.projectInvoiceCode ? `[${e.projectInvoiceCode}] ` : "";
+      const headline = e.vendor ?? humanizeExpenseCategory(e.category);
+      return {
+        description: `${codePrefix}${headline} (${e.incurred_on})`.trim(),
+        quantity: 1,
+        unitPrice: Math.round(e.amount * 100) / 100,
+        amount: Math.round(e.amount * 100) / 100,
+        sourceExpenseId: e.id,
+      };
+    });
+
+    const totals = calculateInvoiceTotals(
+      [...groupedLines, ...expenseLines],
+      taxRate,
+      discount,
+    );
     const invoiceNumber = generateInvoiceNumber(prefix, nextNum);
 
     // period_start / period_end: prefer the form-supplied bounds when
-    // set; else fall back to the actual min/max of included entry
-    // dates. Stored explicitly on the invoice row so the PDF + detail
-    // page don't have to re-derive on every render.
-    const dates = candidates
-      .map((c) => c.date)
-      .filter((d): d is string => d.length > 0)
+    // set; else fall back to the actual min/max of included row
+    // dates. Expense incurred_on dates count too — an expense-only
+    // invoice still needs accurate period bounds on the row.
+    const dates = [
+      ...candidates.map((c) => c.date),
+      ...expenseCandidates.map((e) => e.incurred_on),
+    ]
+      .filter((d): d is string => typeof d === "string" && d.length > 0)
       .sort();
     const period_start = range_start ?? dates[0] ?? null;
     const period_end = range_end ?? dates[dates.length - 1] ?? null;
@@ -335,12 +472,16 @@ export async function createInvoiceAction(formData: FormData): Promise<void> {
         .single()
     )!;
 
-    // Create line items. time_entry_id is set only when the line
-    // collapses exactly one source entry — for grouped lines (one
-    // line covering many entries) the FK has nowhere meaningful to
-    // point. The full set of source entry ids lives in the
-    // time_entries.invoice_id writeback below.
-    const lineItemRows = groupedLines.map((line) => ({
+    // Create line items. For time-entry-sourced lines, time_entry_id
+    // is set only when the line collapses exactly one source entry —
+    // for grouped lines (one line covering many entries) the FK has
+    // nowhere meaningful to point; the full set of source entry ids
+    // lives in the time_entries.invoice_id writeback below.
+    // For expense-sourced lines, expense_id is set 1:1 (expenses
+    // aren't grouped — each is its own line). The DB CHECK
+    // `invoice_line_items_source_mutex` enforces these two FKs
+    // never co-occur on a row.
+    const timeLineRows = groupedLines.map((line) => ({
       invoice_id: invoice.id,
       description: line.description,
       quantity: line.quantity,
@@ -348,22 +489,70 @@ export async function createInvoiceAction(formData: FormData): Promise<void> {
       amount: line.amount,
       time_entry_id:
         line.sourceEntryIds.length === 1 ? line.sourceEntryIds[0] : null,
+      expense_id: null,
     }));
+    const expenseLineRows = expenseLines.map((line) => ({
+      invoice_id: invoice.id,
+      description: line.description,
+      quantity: line.quantity,
+      unit_price: line.unitPrice,
+      amount: line.amount,
+      time_entry_id: null,
+      expense_id: line.sourceExpenseId,
+    }));
+    const lineItemRows = [...timeLineRows, ...expenseLineRows];
 
-    assertSupabaseOk(
-      await supabase
-        .from("invoice_line_items")
-        .insert(lineItemRows)
-    );
+    if (lineItemRows.length > 0) {
+      assertSupabaseOk(
+        await supabase
+          .from("invoice_line_items")
+          .insert(lineItemRows)
+      );
+    }
 
     // Mark every source entry as invoiced — even ones that rolled
     // up into a multi-entry line. That's how the lock chip + the
     // entries-by-invoice-id query find them.
     const entryIds = groupedLines.flatMap((l) => l.sourceEntryIds);
-    await supabase
-      .from("time_entries")
-      .update({ invoiced: true, invoice_id: invoice.id })
-      .in("id", entryIds);
+    if (entryIds.length > 0) {
+      await supabase
+        .from("time_entries")
+        .update({ invoiced: true, invoice_id: invoice.id })
+        .in("id", entryIds);
+    }
+
+    // Same writeback shape for expenses — invoiced flag + invoice_id
+    // + invoiced_at so the project-page row can render an "Invoiced
+    // #INV-xxxx" chip and the action layer can refuse mutations
+    // until the invoice is voided. Wrapped in assertSupabaseOk so a
+    // failed UPDATE surfaces as an error rather than silently leaving
+    // the expenses un-locked (which would let the user re-include
+    // them on a second invoice — the platform-architect review at
+    // phase 2 caught this exact double-billing hole).
+    const invoicedExpenseIds = expenseLines.map((l) => l.sourceExpenseId);
+    const affectedExpenseProjectIds = Array.from(
+      new Set(
+        expenseCandidates
+          .map((e) => e.project_id)
+          .filter((p): p is string => !!p),
+      ),
+    );
+    if (invoicedExpenseIds.length > 0) {
+      // invoiced_at is intentionally NOT set here — the
+      // tg_expenses_stamp_invoiced_at trigger (migration
+      // 20260528160000) stamps it server-side with `now()` on the
+      // false→true transition, killing the Vercel↔Supabase clock-
+      // skew audit-trail drift that bookkeeper review flagged.
+      assertSupabaseOk(
+        await supabase
+          .from("expenses")
+          .update({
+            invoiced: true,
+            invoice_id: invoice.id,
+          })
+          .in("id", invoicedExpenseIds),
+      );
+    }
 
     // Increment invoice number
     await supabase
@@ -373,6 +562,11 @@ export async function createInvoiceAction(formData: FormData): Promise<void> {
 
     revalidatePath("/invoices");
     revalidatePath("/time-entries");
+    // Every project that lost an expense to this invoice needs its
+    // detail page re-rendered so the new "Invoiced" badge appears.
+    for (const projectId of affectedExpenseProjectIds) {
+      revalidatePath(`/projects/${projectId}`);
+    }
     redirect(`/invoices/${invoice.id}`);
   }, "createInvoiceAction") as unknown as void;
 }

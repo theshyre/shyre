@@ -58,6 +58,9 @@ interface ExpenseRow {
   notes?: string | null;
   project_id?: string | null;
   billable?: boolean;
+  /** Phase 2 lock — when true, every mutation other than restore
+   *  throws the "on an invoice and is locked" error. */
+  invoiced?: boolean;
 }
 
 const state: {
@@ -112,6 +115,7 @@ import {
   restoreExpenseAction,
   splitExpenseAction,
   updateExpenseAction,
+  updateExpenseFieldAction,
 } from "./actions";
 import { validateSplits } from "./split-helpers";
 
@@ -722,5 +726,118 @@ describe("splitExpenseAction", () => {
     expect(patch.amount).toBe(33.33);
     const inserted = state.inserts[0]?.rows as Array<Record<string, unknown>>;
     expect(inserted[0]?.amount).toBe(66.67);
+  });
+});
+
+describe("phase-2 invoiced lock", () => {
+  beforeEach(reset);
+
+  it("updateExpenseAction refuses an invoiced row even for the author", async () => {
+    state.fetchedExpense = {
+      team_id: "team-1",
+      user_id: fakeUserId,
+      invoiced: true,
+    };
+    mockValidateTeamAccess.mockResolvedValue({
+      userId: fakeUserId,
+      role: "member",
+    });
+
+    await expect(
+      updateExpenseAction(fd({ id: "e-1", ...VALID_CREATE })),
+    ).rejects.toThrow(/on an invoice and is locked/);
+    expect(state.updates).toEqual([]);
+  });
+
+  it("updateExpenseFieldAction refuses an invoiced row even for an owner", async () => {
+    state.fetchedExpense = {
+      team_id: "team-1",
+      user_id: "u-other",
+      invoiced: true,
+    };
+    mockValidateTeamAccess.mockResolvedValue({
+      userId: fakeUserId,
+      role: "owner",
+    });
+
+    await expect(
+      updateExpenseFieldAction(
+        fd({ id: "e-1", field: "vendor", value: "new vendor" }),
+      ),
+    ).rejects.toThrow(/on an invoice and is locked/);
+    expect(state.updates).toEqual([]);
+  });
+
+  it("deleteExpenseAction refuses an invoiced row", async () => {
+    state.fetchedExpense = {
+      team_id: "team-1",
+      user_id: fakeUserId,
+      invoiced: true,
+    };
+    mockValidateTeamAccess.mockResolvedValue({
+      userId: fakeUserId,
+      role: "member",
+    });
+
+    await expect(deleteExpenseAction(fd({ id: "e-1" }))).rejects.toThrow(
+      /on an invoice and is locked/,
+    );
+    expect(state.updates).toEqual([]);
+  });
+
+  it("splitExpenseAction refuses an invoiced row (would re-write accounting)", async () => {
+    state.fetchedExpense = {
+      team_id: "team-1",
+      user_id: fakeUserId,
+      amount: 100,
+      currency: "USD",
+      vendor: null,
+      description: null,
+      notes: null,
+      project_id: null,
+      billable: true,
+      incurred_on: "2026-04-15",
+      invoiced: true,
+    };
+    mockValidateTeamAccess.mockResolvedValue({
+      userId: fakeUserId,
+      role: "member",
+    });
+
+    await expect(
+      splitExpenseAction(
+        fd({
+          id: "e-1",
+          splits: JSON.stringify([
+            { amount: 60, category: "software" },
+            { amount: 40, category: "subscriptions" },
+          ]),
+        }),
+      ),
+    ).rejects.toThrow(/on an invoice and is locked/);
+    expect(state.updates).toEqual([]);
+    expect(state.inserts).toEqual([]);
+  });
+
+  it("restoreExpenseAction does NOT apply the lock — recovery is always allowed", async () => {
+    // Restoring a soft-deleted, invoiced row simply flips deleted_at
+    // back to null — it doesn't change anything the invoice references.
+    // Locking restore would trap users in a state where they can't
+    // even recover a row that was deleted by mistake.
+    state.fetchedExpense = {
+      team_id: "team-1",
+      user_id: fakeUserId,
+      deleted_at: "2026-04-15T00:00:00Z",
+      invoiced: true,
+    };
+    mockValidateTeamAccess.mockResolvedValue({
+      userId: fakeUserId,
+      role: "member",
+    });
+
+    await restoreExpenseAction(fd({ id: "e-1" }));
+
+    expect(state.updates).toHaveLength(1);
+    expect(state.updates[0]?.patch).toEqual({ deleted_at: null });
   });
 });

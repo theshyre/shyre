@@ -10,11 +10,31 @@ import { validateSplits, type ExpenseSplit } from "./split-helpers";
 import { parseExpenseFilters } from "./filter-params";
 import { applyExpenseFilters } from "./query-filters";
 import { readFilterParamsFromFormData } from "./filter-formdata";
+import { filterUninvoicedExpenseIds } from "./expense-lock-helpers";
 
 function blankToNull(v: FormDataEntryValue | null): string | null {
   if (v == null) return null;
   const s = String(v).trim();
   return s === "" ? null : s;
+}
+
+/** Revalidate the project detail page(s) for the affected expense
+ *  rows. Project page renders its own expenses section sourced from
+ *  the same table, so a mutation on the main /business/[id]/expenses
+ *  surface would leave the project page stale without this. Pass the
+ *  full list of project_ids that may have been touched (old + new for
+ *  field updates that move an expense between projects); duplicates
+ *  and nulls are filtered. */
+function revalidateProjectsForExpense(
+  projectIds: ReadonlyArray<string | null | undefined>,
+): void {
+  const distinct = new Set<string>();
+  for (const id of projectIds) {
+    if (id) distinct.add(id);
+  }
+  for (const id of distinct) {
+    revalidatePath(`/projects/${id}`);
+  }
 }
 
 interface ExpenseInput {
@@ -86,6 +106,7 @@ export async function createExpenseAction(formData: FormData): Promise<
 
       revalidatePath("/business");
       revalidatePath("/business/expenses");
+      revalidateProjectsForExpense([expense.project_id]);
     },
     "createExpenseAction",
   );
@@ -105,9 +126,14 @@ export async function updateExpenseAction(formData: FormData): Promise<
       // before relying on RLS. Same pattern used by SAL-011 invoice
       // status updates — verify role at the action layer so the user
       // gets a friendly error instead of an opaque RLS denial.
+      // Also captures the existing project_id so the revalidate step
+      // can flush both the old and new project detail pages on a
+      // re-parenting update. `invoiced` is read here so a row that
+      // has landed on an invoice can be locked from further edits
+      // (mirrors the time_entries invoiced lock at SAL-008).
       const { data: row } = await supabase
         .from("expenses")
-        .select("team_id, user_id")
+        .select("team_id, user_id, project_id, invoiced")
         .eq("id", id)
         .maybeSingle();
       if (!row) throw new Error("Expense not found.");
@@ -115,6 +141,11 @@ export async function updateExpenseAction(formData: FormData): Promise<
       const isAuthor = (row.user_id as string) === userId;
       if (!isAuthor && role !== "owner" && role !== "admin") {
         throw new Error("Only the author or an owner/admin can edit.");
+      }
+      if (row.invoiced === true) {
+        throw new Error(
+          "This expense is on an invoice and is locked. Void the invoice first, or remove the expense from it.",
+        );
       }
 
       const expense = readExpense(fd);
@@ -125,6 +156,10 @@ export async function updateExpenseAction(formData: FormData): Promise<
 
       revalidatePath("/business");
       revalidatePath("/business/expenses");
+      revalidateProjectsForExpense([
+        row.project_id as string | null,
+        expense.project_id,
+      ]);
     },
     "updateExpenseAction",
   );
@@ -172,10 +207,13 @@ export async function updateExpenseFieldAction(formData: FormData): Promise<
 
       // Same defense-in-depth as the full update: read the row,
       // confirm the caller is author or owner|admin on its team
-      // before letting RLS take over.
+      // before letting RLS take over. project_id is read here too so
+      // a project_id transition can revalidate both the old and the
+      // new project detail pages below. `invoiced` is read so the
+      // same lock as updateExpenseAction applies to per-field edits.
       const { data: row } = await supabase
         .from("expenses")
-        .select("team_id, user_id")
+        .select("team_id, user_id, project_id, invoiced")
         .eq("id", id)
         .maybeSingle();
       if (!row) throw new Error("Expense not found.");
@@ -183,6 +221,11 @@ export async function updateExpenseFieldAction(formData: FormData): Promise<
       const isAuthor = (row.user_id as string) === userId;
       if (!isAuthor && role !== "owner" && role !== "admin") {
         throw new Error("Only the author or an owner/admin can edit.");
+      }
+      if (row.invoiced === true) {
+        throw new Error(
+          "This expense is on an invoice and is locked. Void the invoice first, or remove the expense from it.",
+        );
       }
 
       const update: Record<string, unknown> = {};
@@ -240,6 +283,17 @@ export async function updateExpenseFieldAction(formData: FormData): Promise<
 
       revalidatePath("/business");
       revalidatePath("/business/expenses");
+      // Touch both the old and the (possibly-new) project page —
+      // project_id is the only field whose update can land an
+      // expense on a different project's surface than where it was
+      // before. For non-project_id fields the second entry will
+      // dedupe against the first inside the helper.
+      revalidateProjectsForExpense([
+        row.project_id as string | null,
+        field === "project_id"
+          ? (update.project_id as string | null | undefined)
+          : (row.project_id as string | null),
+      ]);
     },
     "updateExpenseFieldAction",
   );
@@ -310,13 +364,18 @@ export async function splitExpenseAction(formData: FormData): Promise<
       const { data: original } = await supabase
         .from("expenses")
         .select(
-          "id, team_id, user_id, incurred_on, amount, currency, vendor, description, notes, project_id, billable, deleted_at",
+          "id, team_id, user_id, incurred_on, amount, currency, vendor, description, notes, project_id, billable, deleted_at, invoiced",
         )
         .eq("id", id)
         .maybeSingle();
       if (!original) throw new Error("Expense not found.");
       if (original.deleted_at) {
         throw new Error("Cannot split a deleted expense.");
+      }
+      if (original.invoiced === true) {
+        throw new Error(
+          "This expense is on an invoice and is locked. Void the invoice first, or remove the expense from it.",
+        );
       }
       const teamId = original.team_id as string;
       const { role } = await validateTeamAccess(teamId);
@@ -379,6 +438,9 @@ export async function splitExpenseAction(formData: FormData): Promise<
 
       revalidatePath("/business");
       revalidatePath("/business/expenses");
+      // Splits inherit the original's project_id, so a single
+      // revalidation covers every row produced by this action.
+      revalidateProjectsForExpense([original.project_id as string | null]);
     },
     "splitExpenseAction",
   );
@@ -396,7 +458,7 @@ export async function deleteExpenseAction(formData: FormData): Promise<
 
       const { data: row } = await supabase
         .from("expenses")
-        .select("team_id, user_id")
+        .select("team_id, user_id, project_id, invoiced")
         .eq("id", id)
         .maybeSingle();
       if (!row) throw new Error("Expense not found.");
@@ -404,6 +466,15 @@ export async function deleteExpenseAction(formData: FormData): Promise<
       const isAuthor = (row.user_id as string) === userId;
       if (!isAuthor && role !== "owner" && role !== "admin") {
         throw new Error("Only the author or an owner/admin can delete.");
+      }
+      if (row.invoiced === true) {
+        // Deleting an invoiced expense would silently null its FK on
+        // the invoice line item (ON DELETE SET NULL) and leave the
+        // line orphaned. Force the user through the void-invoice
+        // path so the reconciliation trail stays honest.
+        throw new Error(
+          "This expense is on an invoice and is locked. Void the invoice first, or remove the expense from it.",
+        );
       }
 
       // Soft-delete: time_entries pattern. Period-lock trigger
@@ -418,6 +489,7 @@ export async function deleteExpenseAction(formData: FormData): Promise<
 
       revalidatePath("/business");
       revalidatePath("/business/expenses");
+      revalidateProjectsForExpense([row.project_id as string | null]);
     },
     "deleteExpenseAction",
   );
@@ -440,7 +512,7 @@ export async function restoreExpenseAction(formData: FormData): Promise<
 
       const { data: row } = await supabase
         .from("expenses")
-        .select("team_id, user_id, deleted_at")
+        .select("team_id, user_id, deleted_at, project_id")
         .eq("id", id)
         .maybeSingle();
       if (!row) throw new Error("Expense not found.");
@@ -463,6 +535,7 @@ export async function restoreExpenseAction(formData: FormData): Promise<
 
       revalidatePath("/business");
       revalidatePath("/business/expenses");
+      revalidateProjectsForExpense([row.project_id as string | null]);
     },
     "restoreExpenseAction",
   );
@@ -548,6 +621,29 @@ async function resolveAuthorizedExpenseIds(
   return authorizeExpenseBulk(supabase, ids, callerUserId);
 }
 
+/** Fetch the project_ids for a list of expense ids. Used by the
+ *  bulk action revalidate step so every project page that hosts at
+ *  least one of the affected expenses gets flushed. Returns only
+ *  non-null project_ids — expenses without a project link can't
+ *  appear on any /projects/* page. */
+async function projectIdsForExpenses(
+  supabase: import("@supabase/supabase-js").SupabaseClient,
+  ids: readonly string[],
+): Promise<string[]> {
+  if (ids.length === 0) return [];
+  const { data } = await supabase
+    .from("expenses")
+    .select("project_id")
+    .in("id", ids);
+  return (data ?? [])
+    .map((r) => r.project_id as string | null)
+    .filter((id): id is string => !!id);
+}
+
+// `filterUninvoicedExpenseIds` lives in expense-lock-helpers.ts so
+// it can be unit-tested without the "use server" network boundary.
+// Imported at top of file.
+
 async function authorizeExpenseBulk(
   supabase: import("@supabase/supabase-js").SupabaseClient,
   ids: readonly string[],
@@ -607,15 +703,25 @@ export async function bulkUpdateExpenseCategoryAction(
         throw new Error("None of the selected rows are editable.");
       }
 
+      const writable = await filterUninvoicedExpenseIds(supabase, authorized);
+      if (writable.length === 0) {
+        throw new Error(
+          "All selected rows are locked because they're on an invoice. Void the invoice first.",
+        );
+      }
+
+      const projectIds = await projectIdsForExpenses(supabase, writable);
+
       assertSupabaseOk(
         await supabase
           .from("expenses")
           .update({ category })
-          .in("id", authorized),
+          .in("id", writable),
       );
 
       revalidatePath("/business");
       revalidatePath("/business/expenses");
+      revalidateProjectsForExpense(projectIds);
     },
     "bulkUpdateExpenseCategoryAction",
   );
@@ -645,15 +751,29 @@ export async function bulkUpdateExpenseProjectAction(
         throw new Error("None of the selected rows are editable.");
       }
 
+      const writable = await filterUninvoicedExpenseIds(supabase, authorized);
+      if (writable.length === 0) {
+        throw new Error(
+          "All selected rows are locked because they're on an invoice. Void the invoice first.",
+        );
+      }
+
+      // Capture every project_id BEFORE the update so we can flush
+      // the project pages the affected rows are about to leave. The
+      // new projectId (if any) is added below so its page picks up
+      // the row right away.
+      const oldProjectIds = await projectIdsForExpenses(supabase, writable);
+
       assertSupabaseOk(
         await supabase
           .from("expenses")
           .update({ project_id: projectId })
-          .in("id", authorized),
+          .in("id", writable),
       );
 
       revalidatePath("/business");
       revalidatePath("/business/expenses");
+      revalidateProjectsForExpense([...oldProjectIds, projectId]);
     },
     "bulkUpdateExpenseProjectAction",
   );
@@ -697,15 +817,25 @@ export async function bulkUpdateExpenseBillableAction(
         throw new Error("None of the selected rows are editable.");
       }
 
+      const writable = await filterUninvoicedExpenseIds(supabase, authorized);
+      if (writable.length === 0) {
+        throw new Error(
+          "All selected rows are locked because they're on an invoice. Void the invoice first.",
+        );
+      }
+
+      const projectIds = await projectIdsForExpenses(supabase, writable);
+
       assertSupabaseOk(
         await supabase
           .from("expenses")
           .update({ billable })
-          .in("id", authorized),
+          .in("id", writable),
       );
 
       revalidatePath("/business");
       revalidatePath("/business/expenses");
+      revalidateProjectsForExpense(projectIds);
     },
     "bulkUpdateExpenseBillableAction",
   );
@@ -731,15 +861,25 @@ export async function bulkDeleteExpensesAction(
         throw new Error("None of the selected rows are deletable.");
       }
 
+      const writable = await filterUninvoicedExpenseIds(supabase, authorized);
+      if (writable.length === 0) {
+        throw new Error(
+          "All selected rows are on an invoice and cannot be deleted. Void the invoice first.",
+        );
+      }
+
+      const projectIds = await projectIdsForExpenses(supabase, writable);
+
       assertSupabaseOk(
         await supabase
           .from("expenses")
           .update({ deleted_at: new Date().toISOString() })
-          .in("id", authorized),
+          .in("id", writable),
       );
 
       revalidatePath("/business");
       revalidatePath("/business/expenses");
+      revalidateProjectsForExpense(projectIds);
     },
     "bulkDeleteExpensesAction",
   );
@@ -761,6 +901,8 @@ export async function bulkRestoreExpensesAction(
       const authorized = await authorizeExpenseBulk(supabase, ids, userId);
       if (authorized.length === 0) return;
 
+      const projectIds = await projectIdsForExpenses(supabase, authorized);
+
       assertSupabaseOk(
         await supabase
           .from("expenses")
@@ -770,6 +912,7 @@ export async function bulkRestoreExpensesAction(
 
       revalidatePath("/business");
       revalidatePath("/business/expenses");
+      revalidateProjectsForExpense(projectIds);
     },
     "bulkRestoreExpensesAction",
   );

@@ -43,11 +43,18 @@
         "help": "Una línea por registro — transparencia completa."
       }
     },
+    "expenses": {
+      "includeLabel": "Incluir gastos facturables",
+      "includeHelp": "Agrega los gastos facturables sin facturar (cargos de proveedores, suscripciones, comisiones) del cliente y rango de fechas seleccionados como líneas separadas de la factura.",
+      "includeHelpNoCustomer": "Elige primero un cliente — los gastos facturables se asignan por cliente a través de su proyecto."
+    },
     "preview": {
       "heading": "Vista previa",
       "entries": "Registros de tiempo",
       "hours": "Horas totales",
       "lines": "Líneas de factura",
+      "expenses": "{count, plural, one {1 gasto} other {# gastos}}",
+      "expensesNonUsdExcluded": "{count, plural, one {1 gasto en moneda distinta a USD excluido — la fase 2 solo factura en USD.} other {# gastos en moneda distinta a USD excluidos — la fase 2 solo factura en USD.}}",
       "period": "Período",
       "linesSample": "Líneas de muestra",
       "moreLines": "+ {count} más",
@@ -122,7 +129,9 @@
     "author": "Registrado por",
     "hours": "Horas",
     "rate": "Tarifa",
-    "amount": "Monto"
+    "amount": "Monto",
+    "expenseSourceLabel": "Gasto",
+    "expenseSourceTooltip": "Proviene de un gasto facturable"
   },
   "actions": {
     "downloadPdf": "Descargar PDF",

@@ -166,6 +166,35 @@
     "noEntries": "Aún no hay registros de tiempo para este proyecto.",
     "totalHours": "Total: {hours}h"
   },
+  "expenses": {
+    "title": "Gastos",
+    "count": "{count, plural, one {1 gasto} other {# gastos}}",
+    "noExpenses": "Aún no hay gastos registrados para este proyecto.",
+    "scopedHint": "Mostrando los gastos que registraste. Propietarios y administradores ven todos los gastos del equipo.",
+    "unknownAuthor": "Usuario desconocido",
+    "addButton": "Agregar gasto",
+    "editOnMain": "Editar en la página de Gastos",
+    "editOnMainAria": "Abrir {vendor} en la página de Gastos",
+    "columns": {
+      "date": "Fecha",
+      "author": "Autor",
+      "category": "Categoría",
+      "vendor": "Proveedor",
+      "amount": "Monto",
+      "billable": "Facturable"
+    },
+    "billableBadge": "Facturable",
+    "notBillable": "No facturable",
+    "invoicedBadge": "Facturado {number}",
+    "invoicedBadgeUnknown": "Facturado",
+    "invoicedTooltip": "Bloqueado — en la factura {number}. Anula la factura para desbloquear.",
+    "ariaDelete": "Eliminar {vendor}",
+    "confirmDelete": "Confirmar eliminación",
+    "deletedToast": "Gasto eliminado",
+    "undo": "Deshacer",
+    "mastheadCaption": "{amount} en gastos",
+    "mastheadCaptionMulti": "{lines} (por moneda)"
+  },
   "projectCategories": {
     "title": "Categorías",
     "baseSetLabel": "Conjunto base de categorías",

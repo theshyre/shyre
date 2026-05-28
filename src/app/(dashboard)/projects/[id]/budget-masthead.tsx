@@ -39,6 +39,14 @@ export interface BudgetMastheadProps {
     /** Optional last-period burn in minutes. */
     previousMinutes: number | null;
   } | null;
+  /** Per-currency lifetime expense totals for this project. Renders
+   *  as a footer caption inside the bordered card so project P&L is
+   *  visible without leaving the masthead. One line per currency —
+   *  money-UI rule forbids cross-currency sums. Null / empty hides
+   *  the footer entirely; the masthead's existing hide-guard is
+   *  unchanged (no budget signal still hides the whole card, since
+   *  the raw expense list lives in its own section below). */
+  expenseTotalsByCurrency?: Record<string, number> | null;
 }
 
 /**
@@ -72,8 +80,10 @@ export function BudgetMasthead({
   lifetimeRate,
   lifetimeBudgetDollars,
   period,
+  expenseTotalsByCurrency,
 }: BudgetMastheadProps): React.JSX.Element | null {
   const t = useTranslations("projects.budget");
+  const te = useTranslations("projects.expenses");
 
   // Hide the entire masthead when there's no budget signal to show.
   if (!period && lifetimeBudgetHours == null) {
@@ -129,7 +139,57 @@ export function BudgetMasthead({
           hoursOnlyLabel={t("hoursOnlyLabel")}
           ariaLabelKey="lifetimeBurnAria"
         />
+        {expenseTotalsByCurrency &&
+          Object.keys(expenseTotalsByCurrency).length > 0 && (
+            <ExpenseTotalsFooter
+              totalsByCurrency={expenseTotalsByCurrency}
+              renderCaption={(amount) => te("mastheadCaption", { amount })}
+            />
+          )}
       </div>
+    </div>
+  );
+}
+
+/**
+ * Per-currency expense totals rendered as a slim footer at the
+ * bottom of the masthead card. Stacks one line per currency — the
+ * money-UI rule forbids cross-currency sums, so `$1,200 USD + €300`
+ * never collapses into a single number. Hidden by the parent when
+ * the totals map is empty / null, so the card itself stays sized to
+ * its existing rows under the common no-expense case.
+ */
+function ExpenseTotalsFooter({
+  totalsByCurrency,
+  renderCaption,
+}: {
+  totalsByCurrency: Record<string, number>;
+  renderCaption: (amount: string) => string;
+}): React.JSX.Element {
+  const entries = Object.entries(totalsByCurrency).sort(([a], [b]) =>
+    a.localeCompare(b),
+  );
+  return (
+    <div className="px-4 py-3 space-y-0.5">
+      {entries.map(([currency, total]) => {
+        let formatted: string;
+        try {
+          formatted = new Intl.NumberFormat("en-US", {
+            style: "currency",
+            currency,
+          }).format(total);
+        } catch {
+          formatted = `${currency} ${total.toFixed(2)}`;
+        }
+        return (
+          <p
+            key={currency}
+            className="text-caption text-content-secondary font-mono tabular-nums"
+          >
+            {renderCaption(formatted)}
+          </p>
+        );
+      })}
     </div>
   );
 }

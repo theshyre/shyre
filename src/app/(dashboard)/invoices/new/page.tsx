@@ -28,6 +28,23 @@ interface RawEntryRow {
   categories?: { name: string | null } | null;
 }
 
+interface RawExpenseRow {
+  id: string;
+  team_id: string;
+  project_id: string | null;
+  vendor: string | null;
+  category: string;
+  incurred_on: string;
+  amount: number | string;
+  currency: string;
+  projects: {
+    name: string | null;
+    invoice_code: string | null;
+    customer_id: string | null;
+    is_internal: boolean | null;
+  } | null;
+}
+
 export default async function NewInvoicePage(): Promise<React.JSX.Element> {
   const supabase = await createClient();
   const teams = await getUserTeams();
@@ -192,6 +209,44 @@ export default async function NewInvoicePage(): Promise<React.JSX.Element> {
     };
   });
 
+  // Phase 2: expense candidates for the same preview rail. Scoped
+  // to teams the viewer can see; uninvoiced + billable + USD + non-
+  // internal-project, matching the server-action filter so the live
+  // total === posted total. Customer scoping happens client-side
+  // (project.customer_id check) — same shape as the time-entry path.
+  const { data: rawExpenses } = teamIds.length
+    ? await supabase
+        .from("expenses")
+        .select(
+          "id, team_id, project_id, vendor, category, incurred_on, amount, currency, projects!inner(name, invoice_code, customer_id, is_internal)",
+        )
+        .in("team_id", teamIds)
+        .eq("billable", true)
+        .eq("invoiced", false)
+        .eq("currency", "USD")
+        .eq("projects.is_internal", false)
+        .is("deleted_at", null)
+        .order("incurred_on", { ascending: true })
+        .limit(5000)
+    : { data: [] as RawExpenseRow[] };
+
+  const expenseCandidates = (rawExpenses ?? []).map((row) => {
+    const r = row as unknown as RawExpenseRow;
+    const proj = r.projects ?? null;
+    return {
+      id: r.id,
+      customerId: (proj?.customer_id as string | null) ?? null,
+      projectId: r.project_id,
+      date: r.incurred_on,
+      amount: Number(r.amount),
+      currency: r.currency,
+      vendor: r.vendor,
+      category: r.category,
+      projectName: proj?.name ?? "Project",
+      projectInvoiceCode: (proj?.invoice_code as string | null) ?? null,
+    };
+  });
+
   return (
     <div>
       <div className="flex items-center gap-3">
@@ -202,6 +257,7 @@ export default async function NewInvoicePage(): Promise<React.JSX.Element> {
       <NewInvoiceForm
         customers={customers ?? []}
         candidates={candidates}
+        expenseCandidates={expenseCandidates}
         lastInvoiceEndByCustomer={lastInvoiceEndByCustomer}
         defaultTaxRate={settings?.tax_rate ? Number(settings.tax_rate) : 0}
         teamDefaultTermsDays={

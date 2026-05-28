@@ -166,6 +166,35 @@
     "noEntries": "No time entries yet for this project.",
     "totalHours": "Total: {hours}h"
   },
+  "expenses": {
+    "title": "Expenses",
+    "count": "{count, plural, one {1 expense} other {# expenses}}",
+    "noExpenses": "No expenses logged for this project yet.",
+    "scopedHint": "Showing expenses you logged. Owners and admins see all team expenses.",
+    "unknownAuthor": "Unknown user",
+    "addButton": "Add expense",
+    "editOnMain": "Edit on Expenses page",
+    "editOnMainAria": "Open {vendor} on the Expenses page",
+    "columns": {
+      "date": "Date",
+      "author": "Author",
+      "category": "Category",
+      "vendor": "Vendor",
+      "amount": "Amount",
+      "billable": "Billable"
+    },
+    "billableBadge": "Billable",
+    "notBillable": "Not billable",
+    "invoicedBadge": "Invoiced {number}",
+    "invoicedBadgeUnknown": "Invoiced",
+    "invoicedTooltip": "Locked — on invoice {number}. Void the invoice to unlock.",
+    "ariaDelete": "Delete {vendor}",
+    "confirmDelete": "Confirm delete",
+    "deletedToast": "Expense deleted",
+    "undo": "Undo",
+    "mastheadCaption": "{amount} in expenses",
+    "mastheadCaptionMulti": "{lines} (per currency)"
+  },
   "projectCategories": {
     "title": "Categories",
     "baseSetLabel": "Base category set",
