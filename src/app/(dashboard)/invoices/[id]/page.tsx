@@ -401,10 +401,18 @@ export default async function InvoiceDetailPage({
           />
           <InvoicePdfButton
             invoice={invoice}
-            lineItems={resolvedLineItems.map(({ source: _s, ...rest }) => {
-              void _s;
-              return rest;
-            })}
+            lineItems={resolvedLineItems
+              .filter((li) => li.source !== "expense")
+              .map(({ source: _s, ...rest }) => {
+                void _s;
+                return rest;
+              })}
+            expenseLineItems={resolvedLineItems
+              .filter((li) => li.source === "expense")
+              .map((li) => ({
+                description: li.description,
+                amount: li.amount,
+              }))}
             client={client}
             business={settings}
             paymentsTotal={paymentsTotal}
@@ -682,10 +690,10 @@ export default async function InvoiceDetailPage({
                           idx % 2 === 1 ? "bg-surface-inset/40" : ""
                         }`}
                       >
-                        <td className="px-4 py-3 text-content">
+                        <td className="px-4 py-3 text-content whitespace-pre-line align-top">
                           {item.description}
                         </td>
-                        <td className="px-4 py-3 text-right font-mono tabular-nums text-content">
+                        <td className="px-4 py-3 text-right font-mono tabular-nums text-content align-top">
                           {formatCurrency(Number(item.amount), currency)}
                         </td>
                       </tr>

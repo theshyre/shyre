@@ -5,8 +5,9 @@ import { loadProject } from "../load-project";
 import {
   ExpensesSection,
   type ExpensesSectionExpense,
+  type ProjectExpenseRowAuthor,
 } from "../expenses-section";
-import type { ProjectExpenseRowAuthor } from "../project-expense-row";
+import type { ProjectOption } from "@/app/(dashboard)/business/[businessId]/expenses/page";
 
 export async function generateMetadata({
   params,
@@ -40,10 +41,16 @@ export default async function ProjectExpensesPage({
   const project = await loadProject(id);
   const supabase = await createClient();
 
+  // Phase-4: full inline-edit table needs every column the
+  // EditableCell variants commit on (description, notes,
+  // project_id, billable) PLUS the invoiced/invoice_number plumb
+  // for the row's locked-state chip. The projects join provides
+  // the row's current project name; the team-wide projects list
+  // (below) drives the per-row picker for re-linking.
   const { data: expenseRows } = await supabase
     .from("expenses")
     .select(
-      "id, user_id, incurred_on, amount, currency, vendor, category, billable, invoiced, invoice_id, invoices(invoice_number)",
+      "id, team_id, user_id, incurred_on, amount, currency, vendor, category, description, notes, project_id, billable, is_sample, invoiced, invoice_id, projects(id, name, invoice_number)",
     )
     .eq("project_id", id)
     .is("deleted_at", null)
@@ -51,31 +58,75 @@ export default async function ProjectExpensesPage({
     .order("created_at", { ascending: false })
     .order("id", { ascending: false });
 
+  // Separate invoice number lookup — the `projects(invoice_number)`
+  // join above is bogus (projects has no invoice_number column). Fetch
+  // distinct invoice_ids in one shot and map back per row.
+  const distinctInvoiceIds = Array.from(
+    new Set(
+      (expenseRows ?? [])
+        .map((r) => (r as { invoice_id: string | null }).invoice_id)
+        .filter((id): id is string => !!id),
+    ),
+  );
+  const invoiceNumberById = new Map<string, string>();
+  if (distinctInvoiceIds.length > 0) {
+    const { data: invs } = await supabase
+      .from("invoices")
+      .select("id, invoice_number")
+      .in("id", distinctInvoiceIds);
+    for (const inv of invs ?? []) {
+      invoiceNumberById.set(
+        inv.id as string,
+        (inv.invoice_number as string | null) ?? "",
+      );
+    }
+  }
+
   const projectExpenses: ExpensesSectionExpense[] = (expenseRows ?? []).map(
     (r) => {
-      const invoiceJoin = (r as { invoices: unknown }).invoices;
-      const invoiceNumber =
-        invoiceJoin &&
-        typeof invoiceJoin === "object" &&
-        "invoice_number" in invoiceJoin
-          ? ((invoiceJoin as { invoice_number: string | null })
-              .invoice_number ?? null)
+      const projJoin = (r as { projects: unknown }).projects;
+      const projObj =
+        projJoin && typeof projJoin === "object" && "id" in projJoin
+          ? (projJoin as { id: string | null; name: string | null })
           : null;
+      const invoiceId = (r.invoice_id as string | null) ?? null;
       return {
         id: r.id as string,
+        team_id: r.team_id as string,
         user_id: r.user_id as string,
         incurred_on: r.incurred_on as string,
         amount: Number(r.amount),
         currency: (r.currency as string | null) ?? "USD",
         vendor: (r.vendor as string | null) ?? null,
         category: r.category as string,
+        description: (r.description as string | null) ?? null,
+        notes: (r.notes as string | null) ?? null,
+        project_id: (r.project_id as string | null) ?? null,
         billable: r.billable === true,
+        is_sample: (r as { is_sample: boolean | null }).is_sample === true,
+        projects: projObj?.id && projObj.name
+          ? { id: projObj.id, name: projObj.name }
+          : null,
         invoiced: r.invoiced === true,
-        invoiceId: (r.invoice_id as string | null) ?? null,
-        invoiceNumber,
+        invoice_id: invoiceId,
+        invoice_number: invoiceId
+          ? (invoiceNumberById.get(invoiceId) ?? null)
+          : null,
       };
     },
   );
+
+  // Active projects on the project's team — drives the per-row
+  // project picker so the user can re-link an expense from this
+  // surface (rare but useful). Filtered by team to match the
+  // ExpenseRow's internal filter.
+  const { data: teamProjectRows } = await supabase
+    .from("projects")
+    .select("id, name, team_id")
+    .eq("team_id", project.teamId)
+    .eq("status", "active")
+    .order("name");
+  const teamProjects: ProjectOption[] = (teamProjectRows ?? []) as ProjectOption[];
 
   const expenseAuthorIds = Array.from(
     new Set(projectExpenses.map((e) => e.user_id)),
@@ -103,6 +154,7 @@ export default async function ProjectExpensesPage({
       businessId={project.businessId}
       expenses={projectExpenses}
       authorById={expenseAuthorById}
+      projects={teamProjects}
       viewerUserId={project.callerUserId}
       viewerIsTeamAdmin={project.callerIsAdmin}
       showScopedHint={!project.callerIsAdmin}

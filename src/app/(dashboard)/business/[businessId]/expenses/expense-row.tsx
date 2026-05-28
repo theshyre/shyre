@@ -1,8 +1,17 @@
 "use client";
 
 import { useState } from "react";
+import Link from "next/link";
 import { useTranslations } from "next-intl";
-import { Trash2, Check, X, Split, ChevronDown, ChevronUp } from "lucide-react";
+import {
+  Trash2,
+  Check,
+  X,
+  Split,
+  ChevronDown,
+  ChevronUp,
+  FileText,
+} from "lucide-react";
 import { Spinner, Avatar, resolveAvatarUrl } from "@theshyre/ui";
 import { Tooltip } from "@/components/Tooltip";
 import { useFormAction } from "@/hooks/use-form-action";
@@ -40,6 +49,14 @@ interface ExpenseRecord {
   billable: boolean;
   is_sample: boolean;
   projects: { id: string; name: string } | null;
+  /** Phase-2 invoiced state — present when the row has landed on
+   *  an invoice. When set, the actions column renders an "Invoiced
+   *  #INV-…" chip (link to /invoices/<id>) in addition to / in
+   *  place of the per-row buttons. Optional so older call sites
+   *  that don't fetch these columns keep working unchanged. */
+  invoiced?: boolean;
+  invoice_id?: string | null;
+  invoice_number?: string | null;
 }
 
 export interface ExpenseAuthor {
@@ -62,6 +79,7 @@ export function ExpenseRow({
   onToggleSelect,
   isExpanded,
   onToggleExpand,
+  hideSelection = false,
 }: {
   expense: ExpenseRecord;
   /** The submitter (avatar + name). Per CLAUDE.md "time-entry
@@ -78,6 +96,13 @@ export function ExpenseRow({
   /** Number of columns in the parent table; the inline expansion
    *  uses it for `colSpan` so the panel stretches the full row. */
   columnCount: number;
+  /** When true, the bulk-select checkbox cell is skipped. Project-
+   *  page expense surface uses this — there's no bulk strip there,
+   *  so the always-empty checkbox would be misleading. The parent's
+   *  thead must omit the matching selection column header AND the
+   *  caller should subtract 1 from columnCount so the expanded row's
+   *  colSpan still matches. */
+  hideSelection?: boolean;
   /** True when the viewer authored this expense OR is owner|admin
    *  on its team. Hides the Trash icon for non-authors and disables
    *  every editable cell so the UI matches the action-layer role
@@ -99,6 +124,13 @@ export function ExpenseRow({
   const toast = useToast();
   const [confirmingDelete, setConfirmingDelete] = useState(false);
   const [splitOpen, setSplitOpen] = useState(false);
+  // Phase-2 lock: an invoiced row's per-cell edits would throw at
+  // the action layer (and the DB trigger backstop). Disable
+  // EditableCell across the board for invoiced rows so users don't
+  // try and watch the cell error out. Lock the action buttons too
+  // via the actions-column branch below (chip-only render).
+  const isInvoiced = expense.invoiced === true;
+  const cellEditable = canEdit && !isInvoiced;
 
   function toggleExpand(): void {
     onToggleExpand(expense.id);
@@ -166,18 +198,22 @@ export function ExpenseRow({
           as the EditableCell button next to it (which has the
           same min-h). Without this the checkbox hugs the td's
           padding-top while the cell text sits ~6px lower inside
-          its button's line-box, leaving a visible vertical gap. */}
-      <td className="w-10">
-        <span className="flex min-h-[1.75rem] items-center">
-          <input
-            type="checkbox"
-            checked={selected}
-            onChange={() => onToggleSelect(expense.id)}
-            aria-label={t("bulk.selectRow", { vendor: ariaIdent })}
-            className="h-4 w-4 rounded border-edge text-accent focus:ring-focus-ring"
-          />
-        </span>
-      </td>
+          its button's line-box, leaving a visible vertical gap.
+          Skipped entirely when hideSelection is set (project page
+          surface — no bulk strip there). */}
+      {!hideSelection && (
+        <td className="w-10">
+          <span className="flex min-h-[1.75rem] items-center">
+            <input
+              type="checkbox"
+              checked={selected}
+              onChange={() => onToggleSelect(expense.id)}
+              aria-label={t("bulk.selectRow", { vendor: ariaIdent })}
+              className="h-4 w-4 rounded border-edge text-accent focus:ring-focus-ring"
+            />
+          </span>
+        </td>
+      )}
 
       {/* Date */}
       <td className="text-content-secondary tabular-nums">
@@ -190,7 +226,7 @@ export function ExpenseRow({
             field: t("fields.incurredOn"),
           })}
           onCommit={(v) => commitField("incurred_on", v)}
-          disabled={!canEdit}
+          disabled={!cellEditable}
         />
       </td>
 
@@ -206,7 +242,7 @@ export function ExpenseRow({
             field: t("fields.amount"),
           })}
           onCommit={(v) => commitField("amount", v)}
-          disabled={!canEdit}
+          disabled={!cellEditable}
           min={0}
           step={0.01}
         />
@@ -238,7 +274,7 @@ export function ExpenseRow({
               field: t("fields.category"),
             })}
             onCommit={(v) => commitField("category", v)}
-            disabled={!canEdit}
+            disabled={!cellEditable}
           />
           {expense.is_sample && (
             <span className="inline-flex items-center rounded-full bg-accent-soft px-2 py-0.5 text-label font-medium text-accent">
@@ -268,7 +304,7 @@ export function ExpenseRow({
             field: t("fields.vendor"),
           })}
           onCommit={(v) => commitField("vendor", v)}
-          disabled={!canEdit}
+          disabled={!cellEditable}
           placeholder="—"
           className="truncate"
         />
@@ -287,7 +323,7 @@ export function ExpenseRow({
             field: t("fields.description"),
           })}
           onCommit={(v) => commitField("description", v)}
-          disabled={!canEdit}
+          disabled={!cellEditable}
           placeholder="—"
           displayNode={
             expense.description ? (
@@ -311,7 +347,7 @@ export function ExpenseRow({
             field: t("fields.notes"),
           })}
           onCommit={(v) => commitField("notes", v)}
-          disabled={!canEdit}
+          disabled={!cellEditable}
           placeholder="—"
           displayNode={
             expense.notes ? (
@@ -344,7 +380,7 @@ export function ExpenseRow({
               field: t("fields.project"),
             })}
             onCommit={(v) => commitField("project_id", v)}
-            disabled={!canEdit}
+            disabled={!cellEditable}
             className="truncate"
           />
           {expense.billable && (
@@ -377,9 +413,35 @@ export function ExpenseRow({
         )}
       </td>
 
-      {/* Actions (split + delete; edit is per-cell) */}
+      {/* Actions (split + delete; edit is per-cell). When the row
+          is invoiced (phase-2 lock), the action cluster collapses
+          to a single "Invoiced #INV-…" chip linking to the parent
+          invoice — every other affordance is suppressed because
+          the action layer + DB trigger would refuse the write. */}
       <td className="text-left">
-        {!canEdit ? (
+        {expense.invoiced && expense.invoice_id ? (
+          <Tooltip
+            label={t("ariaActions.invoicedTooltip", {
+              number: expense.invoice_number ?? "",
+            })}
+            labelMode="label"
+          >
+            <Link
+              href={`/invoices/${expense.invoice_id}`}
+              className="inline-flex items-center gap-1 rounded-full bg-accent-soft px-2 py-0.5 text-label font-semibold uppercase tracking-wider text-accent-text hover:opacity-90"
+              aria-label={t("ariaActions.invoicedTooltip", {
+                number: expense.invoice_number ?? "",
+              })}
+            >
+              <FileText size={12} aria-hidden="true" />
+              {expense.invoice_number
+                ? t("ariaActions.invoicedBadge", {
+                    number: expense.invoice_number,
+                  })
+                : t("ariaActions.invoicedBadgeUnknown")}
+            </Link>
+          </Tooltip>
+        ) : !canEdit ? (
           <span aria-hidden="true" />
         ) : confirmingDelete ? (
           <form

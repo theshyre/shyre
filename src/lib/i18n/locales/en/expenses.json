@@ -47,7 +47,10 @@
     "editField": "Edit {field} for {vendor}",
     "split": "Split {vendor} into multiple categories",
     "expandDetail": "Expand details for {vendor}",
-    "collapseDetail": "Collapse details for {vendor}"
+    "collapseDetail": "Collapse details for {vendor}",
+    "invoicedBadge": "Invoiced {number}",
+    "invoicedBadgeUnknown": "Invoiced",
+    "invoicedTooltip": "Locked — on invoice {number}. Void the invoice to unlock."
   },
   "drawer": {
     "collapse": "Collapse",

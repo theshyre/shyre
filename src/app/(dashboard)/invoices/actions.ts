@@ -264,6 +264,14 @@ export async function createInvoiceAction(formData: FormData): Promise<void> {
       category: string;
       incurred_on: string;
       amount: number;
+      /** User-typed description on the expense row (e.g. "Windows
+       *  10/11 Pro"). Folded into the customer-facing line text
+       *  when present so the line says more than just "Vendor". */
+      description: string | null;
+      /** User-typed notes (e.g. order number, license key, ticket).
+       *  Folded as a separate line below description for the same
+       *  reason. */
+      notes: string | null;
       projectName: string | null;
       projectInvoiceCode: string | null;
     }
@@ -272,7 +280,7 @@ export async function createInvoiceAction(formData: FormData): Promise<void> {
       let expenseQuery = supabase
         .from("expenses")
         .select(
-          "id, project_id, vendor, category, incurred_on, amount, currency, projects(name, invoice_code, customer_id, is_internal)",
+          "id, project_id, vendor, category, incurred_on, amount, currency, description, notes, projects(name, invoice_code, customer_id, is_internal)",
         )
         .eq("team_id", teamId)
         .eq("billable", true)
@@ -305,6 +313,9 @@ export async function createInvoiceAction(formData: FormData): Promise<void> {
             category: (r as { category: string }).category,
             incurred_on: (r as { incurred_on: string }).incurred_on,
             amount: Number((r as { amount: number | string }).amount),
+            description:
+              (r as { description: string | null }).description ?? null,
+            notes: (r as { notes: string | null }).notes ?? null,
             projectName: proj?.name ?? null,
             projectInvoiceCode: proj?.invoice_code ?? null,
             _customerId: proj?.customer_id ?? null,
@@ -403,19 +414,30 @@ export async function createInvoiceAction(formData: FormData): Promise<void> {
       amount: number;
       sourceExpenseId: string;
     }
-    // Customer-facing description. Internal category slugs
-    // ("software", "professional_services") used to leak into the
-    // line text — bookkeeper review caught this. The new format
-    // omits category from the description entirely when a vendor
-    // is present (vendor IS the customer-facing identifier), and
-    // falls back to a humanized category label only when there's
-    // no vendor to anchor the line. The category remains queryable
-    // via the `expense_id` FK on the line item for audit purposes.
+    // Customer-facing description. Multi-line so the line text
+    // carries every customer-meaningful field from the expense row:
+    //   1. [CODE] Vendor (or humanized category as fallback)
+    //   2. Description (when present)
+    //   3. Notes (when present — e.g. order number, ticket)
+    //   4. (YYYY-MM-DD)
+    // Rendered via `whitespace-pre-line` on the modal + detail page
+    // tds and `\n`-split into separate <Text> blocks on the PDF.
+    // Internal category slug intentionally NOT included in the
+    // line text (bookkeeper review) — it's queryable via the
+    // expense_id FK on the line item for audit purposes.
     const expenseLines: ExpenseLine[] = expenseCandidates.map((e) => {
       const codePrefix = e.projectInvoiceCode ? `[${e.projectInvoiceCode}] ` : "";
       const headline = e.vendor ?? humanizeExpenseCategory(e.category);
+      const parts: string[] = [`${codePrefix}${headline}`];
+      if (e.description && e.description.trim() !== "") {
+        parts.push(e.description.trim());
+      }
+      if (e.notes && e.notes.trim() !== "") {
+        parts.push(e.notes.trim());
+      }
+      parts.push(`(${e.incurred_on})`);
       return {
-        description: `${codePrefix}${headline} (${e.incurred_on})`.trim(),
+        description: parts.join("\n"),
         quantity: 1,
         unitPrice: Math.round(e.amount * 100) / 100,
         amount: Math.round(e.amount * 100) / 100,

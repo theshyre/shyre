@@ -31,6 +31,7 @@ import type { PdfBundle } from "@/lib/invoices/send-bundle";
 const pdfBundle: PdfBundle = {
   invoice: {},
   lineItems: [],
+  expenseLineItems: [],
   client: null,
   business: null,
   paymentsTotal: 0,

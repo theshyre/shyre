@@ -178,6 +178,10 @@ export function SendInvoiceForm(props: Props): React.JSX.Element {
           unitPrice: li.unit_price,
           amount: li.amount,
         }))}
+        expenseLineItems={b.expenseLineItems.map((li) => ({
+          description: li.description,
+          amount: li.amount,
+        }))}
       />
     );
     return await pdf(doc).toBlob();

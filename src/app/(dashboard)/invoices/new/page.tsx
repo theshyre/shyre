@@ -37,6 +37,8 @@ interface RawExpenseRow {
   incurred_on: string;
   amount: number | string;
   currency: string;
+  description: string | null;
+  notes: string | null;
   projects: {
     name: string | null;
     invoice_code: string | null;
@@ -218,7 +220,7 @@ export default async function NewInvoicePage(): Promise<React.JSX.Element> {
     ? await supabase
         .from("expenses")
         .select(
-          "id, team_id, project_id, vendor, category, incurred_on, amount, currency, projects!inner(name, invoice_code, customer_id, is_internal)",
+          "id, team_id, project_id, vendor, category, incurred_on, amount, currency, description, notes, projects!inner(name, invoice_code, customer_id, is_internal)",
         )
         .in("team_id", teamIds)
         .eq("billable", true)
@@ -242,6 +244,8 @@ export default async function NewInvoicePage(): Promise<React.JSX.Element> {
       currency: r.currency,
       vendor: r.vendor,
       category: r.category,
+      description: r.description ?? null,
+      notes: r.notes ?? null,
       projectName: proj?.name ?? "Project",
       projectInvoiceCode: (proj?.invoice_code as string | null) ?? null,
     };

@@ -53,6 +53,14 @@ export interface PdfBundle {
     unit_price: number;
     amount: number;
   }>;
+  /** Phase-2 expense-sourced lines, kept separate from `lineItems`
+   *  so the PDF can render them in their own Expenses section
+   *  (bookkeeper-standard layout). Empty array when no expenses on
+   *  this invoice. */
+  expenseLineItems: Array<{
+    description: string;
+    amount: number;
+  }>;
   client: {
     name: string;
     email: string | null;
@@ -128,7 +136,7 @@ export async function loadInvoiceSendBundle(
       : Promise.resolve({ data: [] as { email: string | null }[] }),
     supabase
       .from("invoice_line_items")
-      .select("*")
+      .select("*, expense_id")
       .eq("invoice_id", invoiceId)
       .order("id"),
     supabase
@@ -181,18 +189,32 @@ export async function loadInvoiceSendBundle(
       ? recipientEmails.join(", ")
       : (customerEmail ?? "");
 
+  // Phase-2 expense-sourced lines: rendered from their stored
+  // description (already formatted at insert by createInvoiceAction)
+  // — they don't go through groupEntriesIntoLineItems, which is
+  // time-entry-shaped. Kept separate so the PDF can render them in
+  // their own Expenses section.
+  const resolvedExpenseLineItems = (lineItems ?? [])
+    .filter((li) => li.expense_id != null)
+    .map((li) => ({
+      description: (li.description as string) ?? "",
+      amount: Number(li.amount ?? 0),
+    }));
+
   // Re-derive line items from source time entries (same logic the
   // invoice detail page uses) so the PDF reflects the [code] /
   // per-line-date format whether or not the row was migrated.
   const resolvedLineItems = (() => {
     const sourceEntries = invoicedEntries ?? [];
     if (sourceEntries.length === 0) {
-      return (lineItems ?? []).map((li) => ({
-        description: (li.description as string) ?? "",
-        quantity: Number(li.quantity ?? 0),
-        unit_price: Number(li.unit_price ?? 0),
-        amount: Number(li.amount ?? 0),
-      }));
+      return (lineItems ?? [])
+        .filter((li) => li.expense_id == null)
+        .map((li) => ({
+          description: (li.description as string) ?? "",
+          quantity: Number(li.quantity ?? 0),
+          unit_price: Number(li.unit_price ?? 0),
+          amount: Number(li.amount ?? 0),
+        }));
     }
     interface SrcRow {
       id: string;
@@ -332,6 +354,7 @@ export async function loadInvoiceSendBundle(
     replyTo: (emailConfig?.reply_to_email as string | null) ?? null,
     signature: (emailConfig?.signature as string | null) ?? "",
     pdfBundle: {
+      expenseLineItems: resolvedExpenseLineItems,
       invoice: invoice as Record<string, unknown>,
       lineItems: resolvedLineItems,
       client,

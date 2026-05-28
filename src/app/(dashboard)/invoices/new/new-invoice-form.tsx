@@ -84,6 +84,12 @@ export interface PreviewExpenseCandidate {
   currency: string;
   vendor: string | null;
   category: string;
+  /** User-typed description (optional) — folded into the line text
+   *  on a separate line below the vendor when present. */
+  description: string | null;
+  /** User-typed notes (optional) — folded as another line. Common
+   *  bookkeeper-grade content: order numbers, license keys. */
+  notes: string | null;
   projectName: string;
   projectInvoiceCode: string | null;
 }
@@ -437,11 +443,12 @@ export function NewInvoiceForm({
   ]);
 
   // One line per expense — they're discrete outlays, not hours.
-  // Matches the server-action's expense → line shape so the rail
-  // total === posted total. Description format mirrors actions.ts
-  // line ~415 — category omitted when a vendor is present
-  // (vendor is the customer-facing identifier), humanized
-  // category as fallback.
+  // Multi-line description mirrors actions.ts server-side builder
+  // so preview === posted to the line. Order of parts:
+  //   1. [CODE] Vendor (or humanized category as fallback)
+  //   2. Description (when present)
+  //   3. Notes (when present)
+  //   4. (YYYY-MM-DD)
   const expenseLines = useMemo(
     () =>
       filteredExpenses.map((e) => {
@@ -460,8 +467,16 @@ export function NewInvoiceForm({
               ? spaced.charAt(0).toUpperCase() + spaced.slice(1)
               : spaced;
           })();
+        const parts: string[] = [`${codePrefix}${headline}`];
+        if (e.description && e.description.trim() !== "") {
+          parts.push(e.description.trim());
+        }
+        if (e.notes && e.notes.trim() !== "") {
+          parts.push(e.notes.trim());
+        }
+        parts.push(`(${e.date})`);
         return {
-          description: `${codePrefix}${headline} (${e.date})`.trim(),
+          description: parts.join("\n"),
           quantity: 1,
           unitPrice: amount,
           amount,

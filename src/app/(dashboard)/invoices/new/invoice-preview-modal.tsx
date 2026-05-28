@@ -287,7 +287,9 @@ export function InvoicePreviewModal({
                           key={i}
                           className="border-b border-edge last:border-0"
                         >
-                          <td className="py-2 align-top">{line.description}</td>
+                          <td className="py-2 align-top whitespace-pre-line">
+                            {line.description}
+                          </td>
                           <td className="py-2 text-right font-mono tabular-nums align-top">
                             {formatCurrency(line.amount)}
                           </td>

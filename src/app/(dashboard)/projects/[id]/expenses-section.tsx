@@ -1,76 +1,78 @@
 import { getTranslations } from "next-intl/server";
 import { Receipt } from "lucide-react";
-import {
-  tableClass,
-  tableHeaderCellClass,
-  tableHeaderRowClass,
-  tableWrapperClass,
-} from "@/lib/table-styles";
 import { ProjectExpenseForm } from "./project-expense-form";
 import {
-  ProjectExpenseRow,
-  type ProjectExpenseRowAuthor,
-  type ProjectExpenseRowExpense,
-} from "./project-expense-row";
+  ProjectExpensesTable,
+  type ProjectExpensesTableExpense,
+} from "./project-expenses-table";
+import type { ExpenseAuthor } from "@/app/(dashboard)/business/[businessId]/expenses/expense-row";
+import type { ProjectOption } from "@/app/(dashboard)/business/[businessId]/expenses/page";
 
-export interface ExpensesSectionExpense extends ProjectExpenseRowExpense {
-  user_id: string;
-}
+/** Re-export with the legacy name so consumers (the project page,
+ *  the /projects/[id]/expenses route) don't need to be re-pointed. */
+export type ExpensesSectionExpense = ProjectExpensesTableExpense;
+
+/** Re-export the row-author shape under its phase-1 name for
+ *  backward compatibility with the project page's existing typing. */
+export type { ExpenseAuthor as ProjectExpenseRowAuthor };
 
 interface Props {
   projectId: string;
   teamId: string;
   teamName: string;
-  /** Business that hosts the project's team — used to build the
-   *  deep-link to /business/<id>/expenses on each row's edit
-   *  affordance. */
+  /** Business that hosts the project's team — kept on the interface
+   *  for backward compat with the project page even though the
+   *  full inline-editing table no longer deep-links out for edits
+   *  (it edits in place). Future surfaces (e.g. a "manage all
+   *  expenses" overflow link) may still want it. */
   businessId: string;
   expenses: ExpensesSectionExpense[];
-  /** Display-name + avatar per user_id of every expense in scope.
-   *  Pre-resolved by the page so this section stays presentational. */
-  authorById: Map<string, ProjectExpenseRowAuthor>;
+  authorById: Map<string, ExpenseAuthor>;
+  /** Active projects on the team — drives the in-row project picker
+   *  so the user can re-link an expense to a different project from
+   *  the project page. */
+  projects: ProjectOption[];
   viewerUserId: string;
-  /** True when the viewer is owner or admin on the project's team.
-   *  Drives the per-row delete affordance: owner/admin can delete
-   *  any row in their team; everyone else can only delete rows they
-   *  authored. Matches the action-layer + RLS gates. */
   viewerIsTeamAdmin: boolean;
   /** True when expenses RLS may be filtering out rows the viewer
-   *  can't see (member-on-team, where SAL-013 narrowed SELECT to
-   *  author + owner/admin). The hint banner reads better than a
-   *  silent empty list when a teammate "knows there's an expense
-   *  on this project." */
+   *  can't see (SAL-013: SELECT narrowed to author + owner/admin).
+   *  The hint banner reads better than a silent empty list. */
   showScopedHint: boolean;
 }
 
 /**
- * Expenses on a project — read + add + delete. Edit lives on the
- * main /business/[id]/expenses page (deep-linked per row) so this
- * surface stays single-purpose: log a project-scoped expense in
- * the same context you're already viewing.
+ * Expenses on a project — full inline-edit table reusing the
+ * business module's ExpenseRow + ExpenseExpandedRow (chevron expand
+ * → full-width Description / Notes textareas + every field editable
+ * via EditableCell). Bulk-select machinery is suppressed via
+ * `hideSelection` on the row; bulk lives only on /business/[id]/
+ * expenses.
  *
- * The form is rendered ABOVE the table so the primary action is
- * always one tab away from the header, even on a long table. Empty
- * state still renders the form: no expenses ≠ no path forward.
- *
- * RLS hint: expenses SELECT is gated to author + owner/admin per
- * SAL-013 (bookkeeper audit concerns). A member viewing a
- * teammate's project may see fewer rows than actually exist —
- * `showScopedHint` opts into a small disclaimer so the empty / short
- * list is explained instead of confusing.
+ * Cross-module note: this surface imports row + expanded-row
+ * components from the business module. Platform-architect flagged
+ * this as a layer violation in the phase-1 review; the user
+ * explicitly chose the cross-module reuse over duplicating the
+ * editable-row logic. Documented in
+ * [[project-phase2-followups]] memory.
  */
 export async function ExpensesSection({
   projectId,
   teamId,
   teamName,
-  businessId,
+  // businessId is preserved on the interface for forward compat
+  // even though full inline editing no longer needs it for a
+  // deep-link out — the row's invoiced chip uses /invoices/<id>
+  // directly. Suppress the unused-arg lint by referencing it.
+  businessId: _businessId,
   expenses,
   authorById,
+  projects,
   viewerUserId,
   viewerIsTeamAdmin,
   showScopedHint,
 }: Props): Promise<React.JSX.Element> {
   const t = await getTranslations("projects.expenses");
+  void _businessId;
   const count = expenses.length;
 
   return (
@@ -109,50 +111,14 @@ export async function ExpensesSection({
       {count === 0 ? (
         <p className="mt-4 text-body text-content-muted">{t("noExpenses")}</p>
       ) : (
-        <div className={`mt-4 ${tableWrapperClass}`}>
-          <table className={tableClass}>
-            <thead>
-              <tr className={tableHeaderRowClass}>
-                <th className={`${tableHeaderCellClass} text-left`}>
-                  {t("columns.date")}
-                </th>
-                <th className={`${tableHeaderCellClass} text-left`}>
-                  {t("columns.author")}
-                </th>
-                <th className={`${tableHeaderCellClass} text-left`}>
-                  {t("columns.category")}
-                </th>
-                <th className={`${tableHeaderCellClass} text-left`}>
-                  {t("columns.vendor")}
-                </th>
-                <th className={`${tableHeaderCellClass} text-right`}>
-                  {t("columns.amount")}
-                </th>
-                <th className={`${tableHeaderCellClass} text-left`}>
-                  {t("columns.billable")}
-                </th>
-                <th className={`${tableHeaderCellClass} text-right`}>
-                  <span className="sr-only">{t("editOnMain")}</span>
-                </th>
-              </tr>
-            </thead>
-            <tbody>
-              {expenses.map((expense) => {
-                const canEdit =
-                  viewerIsTeamAdmin || expense.user_id === viewerUserId;
-                return (
-                  <ProjectExpenseRow
-                    key={expense.id}
-                    expense={expense}
-                    author={authorById.get(expense.user_id) ?? null}
-                    canEdit={canEdit}
-                    businessId={businessId}
-                    projectId={projectId}
-                  />
-                );
-              })}
-            </tbody>
-          </table>
+        <div className="mt-4">
+          <ProjectExpensesTable
+            expenses={expenses}
+            authorById={authorById}
+            projects={projects}
+            viewerUserId={viewerUserId}
+            viewerIsTeamAdmin={viewerIsTeamAdmin}
+          />
         </div>
       )}
     </section>

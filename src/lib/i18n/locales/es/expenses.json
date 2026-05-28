@@ -47,7 +47,10 @@
     "editField": "Editar {field} de {vendor}",
     "split": "Dividir {vendor} en varias categorías",
     "expandDetail": "Mostrar detalles de {vendor}",
-    "collapseDetail": "Ocultar detalles de {vendor}"
+    "collapseDetail": "Ocultar detalles de {vendor}",
+    "invoicedBadge": "Facturado {number}",
+    "invoicedBadgeUnknown": "Facturado",
+    "invoicedTooltip": "Bloqueado — en la factura {number}. Anula la factura para desbloquear."
   },
   "drawer": {
     "collapse": "Cerrar",

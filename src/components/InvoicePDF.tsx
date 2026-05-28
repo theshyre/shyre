@@ -158,6 +158,25 @@ const styles = StyleSheet.create({
     fontFamily: "Courier",
   },
 
+  // Section labels (SERVICES / EXPENSES) — shown only when both
+  // sources are present, so a time-only invoice doesn't get an
+  // awkward solo banner. Sits above the column header row.
+  sectionLabel: {
+    fontSize: 9,
+    fontFamily: "Helvetica-Bold",
+    color: inkMuted,
+    letterSpacing: 0.6,
+    textTransform: "uppercase" as const,
+    marginTop: 12,
+    marginBottom: 4,
+    paddingHorizontal: 4,
+  },
+  // Expenses table uses a 2-column shape (Description + Amount only)
+  // — Qty/Rate are time-specific concepts and read awkwardly when
+  // every row is Qty 1 / Rate = full Amount. Bookkeeper convention.
+  expColDescription: { flex: 4, paddingRight: 8 },
+  expColAmount: { flex: 1.2, textAlign: "right" as const },
+
   // Totals — right-aligned column with label/value pairs.
   totalsBlock: {
     alignSelf: "flex-end",
@@ -293,6 +312,15 @@ export interface InvoicePDFProps {
     unitPrice: number;
     amount: number;
   }>;
+  /** Phase-2 expense-sourced lines render in their own section
+   *  ("Expenses") below the Services table, mirroring the modal +
+   *  invoice-detail layout. Bookkeeper convention: 2 columns only
+   *  (Description + Amount) since Qty / Rate are time-specific
+   *  concepts. Optional / empty → no Expenses block rendered. */
+  expenseLineItems?: Array<{
+    description: string;
+    amount: number;
+  }>;
 }
 
 function makeFmt(currency: string): (amount: number) => string {
@@ -417,6 +445,7 @@ export function InvoicePDF(props: InvoicePDFProps): React.JSX.Element {
     business,
     client,
     lineItems,
+    expenseLineItems = [],
   } = props;
   const fmt = makeFmt(currency ?? "USD");
   const businessAddressLines = addressLinesForBlock(
@@ -528,45 +557,90 @@ export function InvoicePDF(props: InvoicePDFProps): React.JSX.Element {
           </View>
         </View>
 
-        {/* Line items */}
-        <View style={styles.table}>
-          <View style={styles.tableHeader}>
-            <Text style={[styles.headerText, styles.colDescription]}>
-              Description
-            </Text>
-            <Text style={[styles.headerText, styles.colHours]}>Hours</Text>
-            <Text style={[styles.headerText, styles.colRate]}>Rate</Text>
-            <Text style={[styles.headerText, styles.colAmount]}>Amount</Text>
+        {/* Line items — bookkeeper-standard layout: services and
+            expenses live in their own sections. SERVICES / EXPENSES
+            section labels render only when both sections are present,
+            so a time-only invoice doesn't get an awkward solo banner.
+            Description text on expense rows can contain newlines —
+            @react-pdf/renderer's <Text> renders them as line breaks
+            natively. */}
+        {lineItems.length > 0 && (
+          <View style={styles.table}>
+            {expenseLineItems.length > 0 && (
+              <Text style={styles.sectionLabel}>Services</Text>
+            )}
+            <View style={styles.tableHeader}>
+              <Text style={[styles.headerText, styles.colDescription]}>
+                Description
+              </Text>
+              <Text style={[styles.headerText, styles.colHours]}>Hours</Text>
+              <Text style={[styles.headerText, styles.colRate]}>Rate</Text>
+              <Text style={[styles.headerText, styles.colAmount]}>Amount</Text>
+            </View>
+            {lineItems.map((item, i) => (
+              <View
+                key={i}
+                style={[
+                  styles.tableRow,
+                  i % 2 === 1 ? styles.tableRowZebra : {},
+                ]}
+              >
+                <Text style={[styles.cellText, styles.colDescription]}>
+                  {item.description}
+                </Text>
+                <Text
+                  style={[styles.cellMuted, styles.colHours, styles.cellMono]}
+                >
+                  {item.quantity.toFixed(2)}
+                </Text>
+                <Text
+                  style={[styles.cellMuted, styles.colRate, styles.cellMono]}
+                >
+                  {fmt(item.unitPrice)}
+                </Text>
+                <Text
+                  style={[styles.cellText, styles.colAmount, styles.cellMono]}
+                >
+                  {fmt(item.amount)}
+                </Text>
+              </View>
+            ))}
           </View>
-          {lineItems.map((item, i) => (
-            <View
-              key={i}
-              style={[
-                styles.tableRow,
-                i % 2 === 1 ? styles.tableRowZebra : {},
-              ]}
-            >
-              <Text style={[styles.cellText, styles.colDescription]}>
-                {item.description}
+        )}
+
+        {expenseLineItems.length > 0 && (
+          <View style={styles.table}>
+            {lineItems.length > 0 && (
+              <Text style={styles.sectionLabel}>Expenses</Text>
+            )}
+            <View style={styles.tableHeader}>
+              <Text style={[styles.headerText, styles.expColDescription]}>
+                Description
               </Text>
-              <Text
-                style={[styles.cellMuted, styles.colHours, styles.cellMono]}
-              >
-                {item.quantity.toFixed(2)}
-              </Text>
-              <Text
-                style={[styles.cellMuted, styles.colRate, styles.cellMono]}
-              >
-                {fmt(item.unitPrice)}
-              </Text>
-              <Text
-                style={[styles.cellText, styles.colAmount, styles.cellMono]}
-              >
-                {fmt(item.amount)}
+              <Text style={[styles.headerText, styles.expColAmount]}>
+                Amount
               </Text>
             </View>
-          ))}
-        </View>
+            {expenseLineItems.map((item, i) => (
+              <View
+                key={i}
+                style={[
+                  styles.tableRow,
+                  i % 2 === 1 ? styles.tableRowZebra : {},
+                ]}
+              >
+                <Text style={[styles.cellText, styles.expColDescription]}>
+                  {item.description}
+                </Text>
+                <Text
+                  style={[styles.cellText, styles.expColAmount, styles.cellMono]}
+                >
+                  {fmt(item.amount)}
+                </Text>
+              </View>
+            ))}
+          </View>
+        )}
 
         {/* Totals.
             Order: Subtotal / Discount? / Tax? / Payments? / grand total.

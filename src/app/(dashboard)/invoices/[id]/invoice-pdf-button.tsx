@@ -28,6 +28,13 @@ interface InvoicePdfButtonProps {
     unit_price: number;
     amount: number;
   }>;
+  /** Phase-2 expense-sourced lines. Render in their own Expenses
+   *  section on the PDF (Description + Amount, 2 columns). Optional /
+   *  empty → time-only invoice, no Expenses block. */
+  expenseLineItems?: Array<{
+    description: string;
+    amount: number;
+  }>;
   client: {
     name: string;
     email: string | null;
@@ -52,6 +59,7 @@ interface InvoicePdfButtonProps {
 export function InvoicePdfButton({
   invoice,
   lineItems,
+  expenseLineItems = [],
   client,
   business,
   paymentsTotal,
@@ -99,6 +107,10 @@ export function InvoicePdfButton({
           description: li.description,
           quantity: Number(li.quantity),
           unitPrice: Number(li.unit_price),
+          amount: Number(li.amount),
+        }))}
+        expenseLineItems={expenseLineItems.map((li) => ({
+          description: li.description,
           amount: Number(li.amount),
         }))}
       />
