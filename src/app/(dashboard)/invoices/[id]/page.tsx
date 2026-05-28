@@ -544,125 +544,158 @@ export default async function InvoiceDetailPage({
             </span>
           </div>
         )}
-        <table className="w-full text-body">
-          <thead>
-            <tr className="border-b border-edge bg-surface-inset">
-              <th className="px-4 py-3 text-left text-label font-semibold uppercase tracking-wider text-content-muted">
-                {t("lineItem.description")}
-              </th>
-              <th className="px-4 py-3 text-left text-label font-semibold uppercase tracking-wider text-content-muted">
-                {t("lineItem.author")}
-              </th>
-              <th className="px-4 py-3 text-right text-label font-semibold uppercase tracking-wider text-content-muted">
-                {t("lineItem.hours")}
-              </th>
-              <th className="px-4 py-3 text-right text-label font-semibold uppercase tracking-wider text-content-muted">
-                {t("lineItem.rate")}
-              </th>
-              <th className="px-4 py-3 text-right text-label font-semibold uppercase tracking-wider text-content-muted">
-                {t("lineItem.amount")}
-              </th>
-            </tr>
-          </thead>
-          <tbody>
-            {resolvedLineItems.map((item, idx) => {
-              // Author for the row. Re-derived lines roll up multiple
-              // entries; per-line author resolution is replaced by
-              // the invoice-level implicit author (single-author
-              // invoices, the dominant case). Multi-author falls
-              // through to the Harvest-import / em-dash branches.
-              const userId = implicitAuthorUserId;
-              const profile = userId ? profileById.get(userId) : null;
-              return (
-                <tr
-                  key={idx}
-                  className={`border-b border-edge last:border-0 ${
-                    idx % 2 === 1 ? "bg-surface-inset/40" : ""
-                  }`}
-                >
-                  <td className="px-4 py-3 text-content">
-                    {item.source === "expense" && (
-                      <Tooltip
-                        label={t("lineItem.expenseSourceTooltip")}
-                        labelMode="label"
+        {/* Bookkeeper-standard layout: services (time-derived +
+            manual lines) and expenses live in separate sections.
+            When only one source is present, the section header is
+            omitted so a time-only invoice doesn't get an awkward
+            single-section "Services" banner. Both inside the same
+            card so the PAID/VOID watermark covers both. */}
+        {(() => {
+          const serviceItems = resolvedLineItems.filter(
+            (it) => it.source !== "expense",
+          );
+          const expenseItems = resolvedLineItems.filter(
+            (it) => it.source === "expense",
+          );
+          const showSectionHeaders =
+            serviceItems.length > 0 && expenseItems.length > 0;
+          const userId = implicitAuthorUserId;
+          const profile = userId ? profileById.get(userId) : null;
+          const currency =
+            (invoice.currency as string | null) ?? undefined;
+
+          return (
+            <>
+              {serviceItems.length > 0 && (
+                <table className="w-full text-body">
+                  {showSectionHeaders && (
+                    <caption className="px-4 py-2 text-left text-label font-semibold uppercase tracking-wider text-content-muted bg-surface-inset border-b border-edge caption-top">
+                      {t("lineItem.servicesSection")}
+                    </caption>
+                  )}
+                  <thead>
+                    <tr className="border-b border-edge bg-surface-inset">
+                      <th className="px-4 py-3 text-left text-label font-semibold uppercase tracking-wider text-content-muted">
+                        {t("lineItem.description")}
+                      </th>
+                      <th className="px-4 py-3 text-left text-label font-semibold uppercase tracking-wider text-content-muted">
+                        {t("lineItem.author")}
+                      </th>
+                      <th className="px-4 py-3 text-right text-label font-semibold uppercase tracking-wider text-content-muted">
+                        {t("lineItem.hours")}
+                      </th>
+                      <th className="px-4 py-3 text-right text-label font-semibold uppercase tracking-wider text-content-muted">
+                        {t("lineItem.rate")}
+                      </th>
+                      <th className="px-4 py-3 text-right text-label font-semibold uppercase tracking-wider text-content-muted">
+                        {t("lineItem.amount")}
+                      </th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {serviceItems.map((item, idx) => (
+                      <tr
+                        key={idx}
+                        className={`border-b border-edge last:border-0 ${
+                          idx % 2 === 1 ? "bg-surface-inset/40" : ""
+                        }`}
                       >
-                        <span className="mr-1.5 inline-flex items-center align-middle text-content-muted">
-                          <Receipt size={14} aria-hidden="true" />
-                          <span className="sr-only">
-                            {t("lineItem.expenseSourceLabel")}
-                          </span>
-                        </span>
-                      </Tooltip>
-                    )}
-                    {item.description}
-                  </td>
-                  <td className="px-4 py-3">
-                    {item.source === "expense" ? (
-                      // Expense lines don't carry a time-entry author —
-                      // the author is on the source expense row, which
-                      // isn't joined into this query. Render an explicit
-                      // "Expense" chip so the column doesn't misread as
-                      // "we don't know who logged this."
-                      <Tooltip
-                        label={t("lineItem.expenseSourceTooltip")}
-                        labelMode="label"
-                      >
-                        <span className="inline-flex items-center gap-1.5 text-caption text-content-muted">
-                          <Receipt size={12} aria-hidden="true" />
-                          <span>{t("lineItem.expenseSourceLabel")}</span>
-                        </span>
-                      </Tooltip>
-                    ) : profile ? (
-                      <span className="inline-flex items-center gap-2 text-body text-content-secondary">
-                        <Avatar
-                          avatarUrl={resolveAvatarUrl(
-                            profile.avatarUrl,
-                            userId ?? "",
+                        <td className="px-4 py-3 text-content">
+                          {item.description}
+                        </td>
+                        <td className="px-4 py-3">
+                          {profile ? (
+                            <span className="inline-flex items-center gap-2 text-body text-content-secondary">
+                              <Avatar
+                                avatarUrl={resolveAvatarUrl(
+                                  profile.avatarUrl,
+                                  userId ?? "",
+                                )}
+                                displayName={profile.displayName}
+                                size={20}
+                              />
+                              <span className="truncate">
+                                {profile.displayName}
+                              </span>
+                            </span>
+                          ) : invoice.imported_from === "harvest" ? (
+                            <Tooltip label={t("table.importedFromHarvest")}>
+                              <span className="inline-flex items-center gap-1.5 text-caption text-content-muted">
+                                <Download
+                                  size={12}
+                                  aria-hidden="true"
+                                />
+                                <span>{t("table.importedFromHarvest")}</span>
+                              </span>
+                            </Tooltip>
+                          ) : (
+                            <span className="text-caption text-content-muted">
+                              —
+                            </span>
                           )}
-                          displayName={profile.displayName}
-                          size={20}
-                        />
-                        <span className="truncate">{profile.displayName}</span>
+                        </td>
+                        <td className="px-4 py-3 text-right font-mono tabular-nums text-content-secondary">
+                          {Number(item.quantity).toFixed(2)}
+                        </td>
+                        <td className="px-4 py-3 text-right font-mono tabular-nums text-content-secondary">
+                          {formatCurrency(Number(item.unit_price), currency)}
+                        </td>
+                        <td className="px-4 py-3 text-right font-mono tabular-nums text-content">
+                          {formatCurrency(Number(item.amount), currency)}
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              )}
+
+              {expenseItems.length > 0 && (
+                // Expenses get a leaner 2-column table — Qty / Rate /
+                // Author are time-specific concepts that read awkwardly
+                // when every row is Qty 1 / Rate = full Amount and
+                // the author is on the source expense row, not joined.
+                // Bookkeeper convention: Description + Amount only.
+                <table className="w-full text-body">
+                  {showSectionHeaders && (
+                    <caption className="px-4 py-2 text-left text-label font-semibold uppercase tracking-wider text-content-muted bg-surface-inset border-y border-edge caption-top">
+                      <span className="inline-flex items-center gap-1.5">
+                        <Receipt size={12} aria-hidden="true" />
+                        {t("lineItem.expensesSection")}
                       </span>
-                    ) : invoice.imported_from === "harvest" ? (
-                      // Imported invoice line items don't link back to
-                      // individual time entries (Harvest's invoice
-                      // payload returns aggregated description lines, no
-                      // entry-level mapping). Show an explicit
-                      // "Imported from Harvest" so the column doesn't
-                      // misread as "we don't know who logged this."
-                      <Tooltip label={t("table.importedFromHarvest")}>
-                        <span className="inline-flex items-center gap-1.5 text-caption text-content-muted">
-                          <Download size={12} aria-hidden="true" />
-                          <span>{t("table.importedFromHarvest")}</span>
-                        </span>
-                      </Tooltip>
-                    ) : (
-                      <span className="text-caption text-content-muted">
-                        —
-                      </span>
-                    )}
-                  </td>
-                  <td className="px-4 py-3 text-right font-mono tabular-nums text-content-secondary">
-                    {Number(item.quantity).toFixed(2)}
-                  </td>
-                  <td className="px-4 py-3 text-right font-mono tabular-nums text-content-secondary">
-                    {formatCurrency(
-                      Number(item.unit_price),
-                      (invoice.currency as string | null) ?? undefined,
-                    )}
-                  </td>
-                  <td className="px-4 py-3 text-right font-mono tabular-nums text-content">
-                    {formatCurrency(
-                      Number(item.amount),
-                      (invoice.currency as string | null) ?? undefined,
-                    )}
-                  </td>
-                </tr>
-              );
-            })}
-          </tbody>
-        </table>
+                    </caption>
+                  )}
+                  <thead>
+                    <tr className="border-b border-edge bg-surface-inset">
+                      <th className="px-4 py-3 text-left text-label font-semibold uppercase tracking-wider text-content-muted">
+                        {t("lineItem.description")}
+                      </th>
+                      <th className="px-4 py-3 text-right text-label font-semibold uppercase tracking-wider text-content-muted">
+                        {t("lineItem.amount")}
+                      </th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {expenseItems.map((item, idx) => (
+                      <tr
+                        key={idx}
+                        className={`border-b border-edge last:border-0 ${
+                          idx % 2 === 1 ? "bg-surface-inset/40" : ""
+                        }`}
+                      >
+                        <td className="px-4 py-3 text-content">
+                          {item.description}
+                        </td>
+                        <td className="px-4 py-3 text-right font-mono tabular-nums text-content">
+                          {formatCurrency(Number(item.amount), currency)}
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              )}
+            </>
+          );
+        })()}
 
         {/* Totals — Subtotal / Discount? / Tax? / Payments? / Amount Due
             shape mirrors what bookkeepers expect and matches the PDF.

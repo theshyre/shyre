@@ -77,6 +77,8 @@
       "fullBusinessFallback": "Your business",
       "fullCustomerFallback": "(No customer selected)",
       "fullNoLines": "No line items in the current selection.",
+      "fullServicesSection": "Services",
+      "fullExpensesSection": "Expenses",
       "fullColDescription": "Description",
       "fullColQty": "Qty",
       "fullColRate": "Rate",
@@ -131,7 +133,9 @@
     "rate": "Rate",
     "amount": "Amount",
     "expenseSourceLabel": "Expense",
-    "expenseSourceTooltip": "Sourced from a billable expense"
+    "expenseSourceTooltip": "Sourced from a billable expense",
+    "servicesSection": "Services",
+    "expensesSection": "Expenses"
   },
   "actions": {
     "downloadPdf": "Download PDF",

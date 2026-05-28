@@ -77,6 +77,8 @@
       "fullBusinessFallback": "Tu negocio",
       "fullCustomerFallback": "(Sin cliente seleccionado)",
       "fullNoLines": "Sin líneas en la selección actual.",
+      "fullServicesSection": "Servicios",
+      "fullExpensesSection": "Gastos",
       "fullColDescription": "Descripción",
       "fullColQty": "Cant.",
       "fullColRate": "Tarifa",
@@ -131,7 +133,9 @@
     "rate": "Tarifa",
     "amount": "Monto",
     "expenseSourceLabel": "Gasto",
-    "expenseSourceTooltip": "Proviene de un gasto facturable"
+    "expenseSourceTooltip": "Proviene de un gasto facturable",
+    "servicesSection": "Servicios",
+    "expensesSection": "Gastos"
   },
   "actions": {
     "downloadPdf": "Descargar PDF",

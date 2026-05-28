@@ -25,6 +25,12 @@ interface Props {
   periodStart: string | null;
   periodEnd: string | null;
   lines: LineItem[];
+  /** Phase 2: expense-sourced lines render in their own section
+   *  below Services. Bookkeeper standard separates time + expenses
+   *  visually so reconciliation against a corp card statement
+   *  reads naturally. Optional — empty / unset = no Expenses
+   *  section rendered (back-compat for time-only invoices). */
+  expenseLines?: LineItem[];
   subtotal: number;
   discountAmount: number;
   discountRate: number | null;
@@ -67,6 +73,7 @@ export function InvoicePreviewModal({
   periodStart,
   periodEnd,
   lines,
+  expenseLines = [],
   subtotal,
   discountAmount,
   discountRate,
@@ -194,54 +201,111 @@ export function InvoicePreviewModal({
             </div>
           </div>
 
-          {/* Line items */}
-          <div>
-            {lines.length === 0 ? (
+          {/* Line items — bookkeeper standard separates time + expense
+              lines into their own sections. The Services header is
+              omitted when there are no services (expense-only invoice);
+              the Expenses section is omitted when none were folded in.
+              Both empty → the "no lines" empty state. */}
+          <div className="space-y-4">
+            {lines.length === 0 && expenseLines.length === 0 ? (
               <p className="text-body text-content-muted italic py-6 text-center">
                 {tNew("preview.fullNoLines")}
               </p>
             ) : (
-              <table className="w-full text-body">
-                <thead>
-                  <tr className="border-b border-edge text-label uppercase tracking-wider text-content-muted">
-                    <th className="text-left py-2">
-                      {tNew("preview.fullColDescription")}
-                    </th>
-                    <th className="text-right py-2 w-20">
-                      {tNew("preview.fullColQty")}
-                    </th>
-                    <th className="text-right py-2 w-24">
-                      {tNew("preview.fullColRate")}
-                    </th>
-                    <th className="text-right py-2 w-28">
-                      {tNew("preview.fullColAmount")}
-                    </th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {lines.map((line, i) => (
-                    <tr key={i} className="border-b border-edge last:border-0">
-                      <td className="py-2 align-top">{line.description}</td>
-                      <td className="py-2 text-right font-mono tabular-nums align-top">
-                        {line.quantity.toFixed(2)}
-                      </td>
-                      <td className="py-2 text-right font-mono tabular-nums align-top">
-                        {formatCurrency(line.unitPrice)}
-                      </td>
-                      <td className="py-2 text-right font-mono tabular-nums align-top">
-                        {formatCurrency(line.amount)}
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
+              <>
+                {lines.length > 0 && (
+                  <table className="w-full text-body">
+                    <thead>
+                      <tr className="border-b border-edge text-label uppercase tracking-wider text-content-muted">
+                        <th className="text-left py-2" colSpan={4}>
+                          {expenseLines.length > 0
+                            ? tNew("preview.fullServicesSection")
+                            : tNew("preview.fullColDescription")}
+                        </th>
+                      </tr>
+                      <tr className="border-b border-edge text-label uppercase tracking-wider text-content-muted">
+                        <th className="text-left py-2 font-normal">
+                          {tNew("preview.fullColDescription")}
+                        </th>
+                        <th className="text-right py-2 w-20 font-normal">
+                          {tNew("preview.fullColQty")}
+                        </th>
+                        <th className="text-right py-2 w-24 font-normal">
+                          {tNew("preview.fullColRate")}
+                        </th>
+                        <th className="text-right py-2 w-28 font-normal">
+                          {tNew("preview.fullColAmount")}
+                        </th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {lines.map((line, i) => (
+                        <tr
+                          key={i}
+                          className="border-b border-edge last:border-0"
+                        >
+                          <td className="py-2 align-top">{line.description}</td>
+                          <td className="py-2 text-right font-mono tabular-nums align-top">
+                            {line.quantity.toFixed(2)}
+                          </td>
+                          <td className="py-2 text-right font-mono tabular-nums align-top">
+                            {formatCurrency(line.unitPrice)}
+                          </td>
+                          <td className="py-2 text-right font-mono tabular-nums align-top">
+                            {formatCurrency(line.amount)}
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                )}
+
+                {expenseLines.length > 0 && (
+                  // Expenses get a leaner two-column shape: Qty / Rate
+                  // are time-specific concepts and read awkwardly when
+                  // every row is Qty 1 / Rate = full Amount. Bookkeeper
+                  // convention is Description + Amount only.
+                  <table className="w-full text-body">
+                    <thead>
+                      <tr className="border-b border-edge text-label uppercase tracking-wider text-content-muted">
+                        <th className="text-left py-2" colSpan={2}>
+                          {tNew("preview.fullExpensesSection")}
+                        </th>
+                      </tr>
+                      <tr className="border-b border-edge text-label uppercase tracking-wider text-content-muted">
+                        <th className="text-left py-2 font-normal">
+                          {tNew("preview.fullColDescription")}
+                        </th>
+                        <th className="text-right py-2 w-28 font-normal">
+                          {tNew("preview.fullColAmount")}
+                        </th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {expenseLines.map((line, i) => (
+                        <tr
+                          key={i}
+                          className="border-b border-edge last:border-0"
+                        >
+                          <td className="py-2 align-top">{line.description}</td>
+                          <td className="py-2 text-right font-mono tabular-nums align-top">
+                            {formatCurrency(line.amount)}
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                )}
+              </>
             )}
           </div>
 
           {/* Totals — flush right, sized to match the PDF totals
               block. Discount + tax rows render conditionally so a
-              simple invoice doesn't show empty zero rows. */}
-          {lines.length > 0 && (
+              simple invoice doesn't show empty zero rows. Show
+              whenever ANY lines exist (services OR expenses) so
+              expense-only invoices still see their total. */}
+          {(lines.length > 0 || expenseLines.length > 0) && (
             <div className="flex justify-end">
               <div className="w-full max-w-[320px] space-y-1.5 text-body">
                 <div className="flex justify-between">

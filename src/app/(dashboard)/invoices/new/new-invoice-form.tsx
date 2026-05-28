@@ -1056,26 +1056,18 @@ export function NewInvoiceForm({
             paymentTermsDays={termsDays}
             periodStart={inferredPeriod?.start ?? null}
             periodEnd={inferredPeriod?.end ?? null}
-            lines={[
-              ...lines.map((line) => ({
-                description: line.description,
-                quantity: line.quantity,
-                unitPrice: line.unitPrice,
-                amount: line.amount,
-              })),
-              // Phase 2 expense lines fold into the modal preview
-              // alongside time-derived lines so what the user sees
-              // before clicking "Create" matches the posted invoice
-              // to the line — the bookkeeper "preview === posted"
-              // rule. Rail already includes them in the count +
-              // total; the modal was the last surface lagging.
-              ...expenseLines.map((line) => ({
-                description: line.description,
-                quantity: line.quantity,
-                unitPrice: line.unitPrice,
-                amount: line.amount,
-              })),
-            ]}
+            lines={lines.map((line) => ({
+              description: line.description,
+              quantity: line.quantity,
+              unitPrice: line.unitPrice,
+              amount: line.amount,
+            }))}
+            expenseLines={expenseLines.map((line) => ({
+              description: line.description,
+              quantity: line.quantity,
+              unitPrice: line.unitPrice,
+              amount: line.amount,
+            }))}
             subtotal={totals.subtotal}
             discountAmount={totals.discountAmount}
             discountRate={totals.discountRate}
