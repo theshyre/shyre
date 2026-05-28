@@ -47,16 +47,33 @@ export default async function ProjectExpensesPage({
   // for the row's locked-state chip. The projects join provides
   // the row's current project name; the team-wide projects list
   // (below) drives the per-row picker for re-linking.
-  const { data: expenseRows } = await supabase
+  // NOTE: `projects(id, name)` — NOT `projects(id, name, invoice_number)`.
+  // invoice_number lives on `invoices`, not `projects`; PostgREST
+  // returns a 400 on the unknown column and the whole select silently
+  // resolves to `null`, which presented as "the expense disappeared."
+  // The per-row invoice_number is resolved via the separate
+  // `invoicesNumberById` lookup below.
+  const { data: expenseRows, error: expensesError } = await supabase
     .from("expenses")
     .select(
-      "id, team_id, user_id, incurred_on, amount, currency, vendor, category, description, notes, project_id, billable, is_sample, invoiced, invoice_id, projects(id, name, invoice_number)",
+      "id, team_id, user_id, incurred_on, amount, currency, vendor, category, description, notes, project_id, billable, is_sample, invoiced, invoice_id, projects(id, name)",
     )
     .eq("project_id", id)
     .is("deleted_at", null)
     .order("incurred_on", { ascending: false })
     .order("created_at", { ascending: false })
     .order("id", { ascending: false });
+  if (expensesError) {
+    // Surface in the admin error log so a future similar regression
+    // is visible rather than presenting as a silently-empty list.
+    const { logError } = await import("@/lib/logger");
+    void logError(expensesError, {
+      url: `/projects/${id}/expenses`,
+      action: "fetchProjectExpenses",
+      userId: project.callerUserId,
+      teamId: project.teamId,
+    });
+  }
 
   // Separate invoice number lookup — the `projects(invoice_number)`
   // join above is bogus (projects has no invoice_number column). Fetch
