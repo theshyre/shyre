@@ -258,50 +258,62 @@ selected but not committed to).
 
 ## Expenses on a project
 
-Below the budget masthead, the project detail page hosts an
-**Expenses** section — read + add + delete in place, with a deep
-link out to the main expenses surface for everything else.
+The project detail page's **Expenses** tab
+(`/projects/[id]/expenses`) is the same full inline-edit table
+that ships on `/business/[id]/expenses` — every field commits in
+place, the chevron expands the row to full-width Description /
+Notes textareas, and the soft-delete + Undo-toast flow matches.
+Bulk-select is intentionally suppressed here (no bulk strip);
+bulk operations live only on the main `/business/[id]/expenses`
+page.
 
-- **Add expense** — the same form as
-  `/business/[id]/expenses`, but the **Project** picker is hidden
-  and the new row is pinned to the current project's id. The team
-  is also locked to the project's team (the FK on `expenses.team_id`
-  wouldn't accept a cross-team write anyway). All other fields —
-  date, amount, category, vendor, description, notes, billable —
-  behave exactly as on the main page; see
+- **Add expense** — the same form as `/business/[id]/expenses`,
+  but the **Project** picker is hidden and the new row is pinned
+  to the current project's id. The team is also locked to the
+  project's team (the FK on `expenses.team_id` wouldn't accept a
+  cross-team write anyway). All other fields — date, amount,
+  category, vendor, description, notes, billable — behave exactly
+  as on the main page; see
   [Expenses → Adding an expense](expenses.md#adding-an-expense)
   for the field reference.
 
-- **Display** — date, author (avatar + name, per the
-  time-entry-authorship rule), category chip, vendor, amount,
-  Billable badge. Sorted newest-first by `incurred_on`. The author
-  column is non-conditional — every expense shows who logged it,
-  same as time entries.
+- **Inline editing** — click any cell (date, amount, category,
+  vendor, description, notes, project, billable) to edit. Date
+  cells open a calendar widget; everything else commits on blur
+  (Tab or click out). `Cmd+Enter` also commits, `Esc` cancels.
+  Same EditableCell semantics as the main expenses surface.
 
-- **Edit** — each row has an external-link icon that opens
-  `/business/[id]/expenses?project=<projectId>` so you land on the
-  main expenses surface filtered to this project. Inline editing
-  lives on that surface to keep this page focused on adding and
-  scanning. Delete is inline on the project page (same confirm +
-  Undo-toast flow as the main page).
+- **Expand row** — click the chevron in the row's actions column
+  to open the row "between its neighbors" with full-width
+  Description / Notes textareas. Click the chevron again or press
+  `Esc` to collapse. Author chip is rendered alongside every row
+  (time-entry-authorship rule).
+
+- **Invoiced rows are locked** — when an expense has landed on an
+  invoice, the actions column collapses to a single **Invoiced
+  #INV-XXXX** chip that links to the parent invoice. All
+  EditableCells on that row go read-only and the delete affordance
+  disappears. To edit a locked row, **void the invoice first**
+  (`/invoices/[id]` → actions menu). The DB-level
+  `tg_expenses_invoice_lock_guard` trigger backstops the
+  action-layer check.
 
 - **Permissions** — the existing expense RLS still applies:
   - **Owners and admins** see every expense logged against the
-    project's team. They can delete any row.
+    project's team. They can edit / delete any row.
   - **Members** see only the expenses they authored. The section
     shows a small "showing expenses you can see" hint when the
     viewer is a non-admin, so a thinned list doesn't read as
-    broken. They can delete only their own rows.
+    broken. They can edit / delete only their own rows.
 
 - **Masthead integration** — the lifetime expense total per
-  currency is summarized in the budget masthead's footer (see
-  [Reading the masthead](#reading-the-masthead)).
+  currency is summarized in the budget masthead's footer on
+  Overview + Time (see [Reading the masthead](#reading-the-masthead)).
 
-The section is **out of scope for invoicing** in this phase — the
-`billable` checkbox marks intent, but expenses don't yet land on
-invoices automatically. Invoice generation still pulls only time
-entries; a follow-up phase will extend `invoice_line_items` and
-`createInvoiceAction` to include billable expenses too.
+Billable expenses on this project automatically flow onto the
+customer's next invoice — see
+[Invoicing → Including billable expenses](invoicing.md#including-billable-expenses-phase-2)
+for the rules, scope, and line description format.
 
 ## GitHub integration
 

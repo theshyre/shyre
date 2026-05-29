@@ -32,6 +32,17 @@ Two ways to edit:
 
 Delete with the trash icon — a small inline confirm appears (no modal).
 
+**Invoiced rows are locked.** When an expense has landed on an
+invoice (`expenses.invoiced = true`), the actions column collapses
+to a single **Invoiced #INV-XXXX** chip that links to the parent
+invoice. All EditableCells on that row go read-only and the delete
+affordance disappears. To edit, **void the invoice first** —
+the same surface lives on `/projects/[id]/expenses`, and the
+DB-level `tg_expenses_invoice_lock_guard` trigger backstops the
+action-layer refusal so direct supabase-js writes are also
+blocked. Soft-delete restore is still allowed (recovery never
+affects the invoice the row is on).
+
 ## Bulk actions
 
 Select multiple rows via the checkboxes; a strip appears above the table:

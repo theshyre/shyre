@@ -60,15 +60,26 @@ time entries are).
   filter expenses by `incurred_on`.
 - **Preview rail**: shows expense count + total beneath the hours
   block when expenses are folded in. The grand total includes them
-  to the cent (matches the posted invoice).
-- **Description format**: `[CODE] <vendor> (<category> · <YYYY-MM-DD>)`
-  when the project has an invoice code, falls back to `<vendor>
-  (<category> · <YYYY-MM-DD>)` when not. If no vendor is set, the
-  category becomes the headline.
-- **On the invoice detail page**, expense-sourced lines carry a
-  small **Receipt** icon prefix on the description and an
-  **Expense** badge in the "Logged by" column so they read
-  distinctly from hours-derived lines.
+  to the cent (matches the posted invoice). When non-USD expenses
+  exist that would have matched (currency mismatch), a small
+  "N non-USD expense(s) excluded — phase 2 invoices USD only"
+  warning surfaces in the rail so silently-dropped money is visible.
+- **Description format**: multi-line so every customer-meaningful
+  field from the expense row carries through. Order of parts:
+    1. `[CODE] <vendor>` (or humanized category as a fallback when no vendor)
+    2. The expense's **description** (when present)
+    3. The expense's **notes** (when present — typically the order number, invoice reference, license key)
+    4. `(YYYY-MM-DD)`
+  Example for a Microsoft Windows 10/11 Pro purchase: `[PC-ITOPS] Microsoft\nWindows 10/11 Pro\nOrder Number: 4170476167 LAP-PF4C0CKG\n(2026-05-28)` — four lines in the preview, the detail page, and the PDF.
+- **Services and Expenses are visually separated** on every render
+  surface (preview rail's full modal, invoice detail page, and the
+  customer-facing PDF). Two stacked tables: **Services** with
+  Description / Hours / Rate / Amount, **Expenses** with just
+  Description / Amount (Qty / Rate are time-specific concepts that
+  read awkwardly when every row is Qty 1 / Rate = full Amount).
+  Section headers ("SERVICES" / "EXPENSES") render only when both
+  sections are present — a time-only or expense-only invoice keeps
+  a single table with no awkward solo banner.
 - **Org-wide invoices** (no customer selected) don't include
   expenses — phase 2 has no "non-project" expense bucket.
 
