@@ -2,13 +2,15 @@ import { describe, it, expect, vi, beforeEach } from "vitest";
 import { screen, fireEvent } from "@testing-library/react";
 import { renderWithIntl } from "@/test/intl";
 
-const { updateMock, createMock, deleteMock, startMock, stopMock } = vi.hoisted(() => ({
-  updateMock: vi.fn(async () => undefined),
-  createMock: vi.fn(async () => undefined),
-  deleteMock: vi.fn(async () => undefined),
-  startMock: vi.fn(async () => undefined),
-  stopMock: vi.fn(async () => undefined),
-}));
+const { updateMock, createMock, deleteMock, startMock, stopMock, updateDurationMock } =
+  vi.hoisted(() => ({
+    updateMock: vi.fn(async () => undefined),
+    createMock: vi.fn(async () => undefined),
+    deleteMock: vi.fn(async () => undefined),
+    startMock: vi.fn(async () => undefined),
+    stopMock: vi.fn(async () => undefined),
+    updateDurationMock: vi.fn(async () => undefined),
+  }));
 
 vi.mock("./actions", () => ({
   updateTimeEntryAction: updateMock,
@@ -16,6 +18,7 @@ vi.mock("./actions", () => ({
   deleteTimeEntryAction: deleteMock,
   startTimerAction: startMock,
   stopTimerAction: stopMock,
+  updateTimeEntryDurationAction: updateDurationMock,
 }));
 
 vi.mock("@/components/TicketField", () => ({
@@ -27,10 +30,21 @@ import {
   AddEntryRow,
   EntryEditRow,
   EntrySummaryRow,
+  TitleLineRow,
   flattenEntriesByDay,
   shouldAutoExpand,
 } from "./week-entry-row";
+import { groupEntriesByTitle } from "./group-entries-by-title";
 import type { ProjectOption, TimeEntry } from "./types";
+
+const WEEK_DAYS_LONG = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];
+
+/** Build a length-7 entriesByDay matrix from a day→entries map. */
+function dayGrid(
+  byDay: Partial<Record<number, TimeEntry[]>>,
+): TimeEntry[][] {
+  return Array.from({ length: 7 }, (_, d) => byDay[d] ?? []);
+}
 
 const project: ProjectOption = {
   id: "p1",
@@ -437,5 +451,164 @@ describe("AddEntryRow", () => {
       name: /add entry/i,
     })[0] as HTMLButtonElement;
     expect(add.disabled).toBe(true);
+  });
+});
+
+describe("TitleLineRow", () => {
+  beforeEach(() => {
+    updateDurationMock.mockClear();
+  });
+
+  const ticket = {
+    linked_ticket_key: "AE-644",
+    linked_ticket_provider: "jira" as const,
+    linked_ticket_url: "https://x/AE-644",
+    description: "cutover implementation",
+  };
+
+  /** A distinct-day merged line: AE-644 on Mon/Tue/Wed (1:00, 3:30, 1:30). */
+  function distinctDayLine() {
+    return groupEntriesByTitle(
+      dayGrid({
+        0: [makeEntry("e1", { ...ticket, duration_min: 60 })],
+        1: [makeEntry("e2", { ...ticket, duration_min: 210 })],
+        2: [makeEntry("e3", { ...ticket, duration_min: 90 })],
+      }),
+    )[0]!;
+  }
+
+  function renderLine(
+    line = distinctDayLine(),
+    props: Partial<React.ComponentProps<typeof TitleLineRow>> = {},
+  ) {
+    return renderWithIntl(
+      wrapInTable(
+        <TitleLineRow
+          line={line}
+          expanded={false}
+          onToggle={() => {}}
+          controlsId="title-0-0"
+          dayDatesLong={WEEK_DAYS_LONG}
+          runningStartIso={null}
+          runningNowMs={0}
+          {...props}
+        />,
+      ),
+    );
+  }
+
+  it("folds same-title entries onto one line with per-day durations and a summed total", () => {
+    const { container } = renderLine();
+    expect(screen.getByText("AE-644")).toBeInTheDocument();
+    // Per-day durations spread across the matrix — single-entry cells are
+    // editable inputs, so the value lives in the input, not textContent.
+    expect((screen.getByLabelText("Mon — 1:00") as HTMLInputElement).value).toBe(
+      "1:00",
+    );
+    expect((screen.getByLabelText("Tue — 3:30") as HTMLInputElement).value).toBe(
+      "3:30",
+    );
+    expect((screen.getByLabelText("Wed — 1:30") as HTMLInputElement).value).toBe(
+      "1:30",
+    );
+    // Summed total (6:00) is plain text in the total column.
+    expect(container).toHaveTextContent("6:00");
+  });
+
+  it("shows an entry-count badge of folded entries", () => {
+    renderLine();
+    expect(screen.getByText("3")).toBeInTheDocument();
+  });
+
+  it("edits a single-entry cell by entry id (never the cell upsert)", () => {
+    renderLine();
+    // The Tuesday cell holds exactly one entry (e2, 3:30) → editable.
+    const input = screen.getByLabelText("Tue — 3:30") as HTMLInputElement;
+    fireEvent.change(input, { target: { value: "4:00" } });
+    fireEvent.blur(input);
+    expect(updateDurationMock).toHaveBeenCalledTimes(1);
+    const fdArg = updateDurationMock.mock.calls[0]![0] as FormData;
+    expect(fdArg.get("id")).toBe("e2");
+    expect(fdArg.get("duration_min")).toBe("240");
+  });
+
+  it("renders a read-only sum as a button (not an input) for a same-day collision cell, and expands on click", () => {
+    const line = groupEntriesByTitle(
+      dayGrid({
+        4: [
+          makeEntry("c1", { description: "Testing framework", duration_min: 30 }),
+          makeEntry("c2", { description: "Testing framework", duration_min: 45 }),
+        ],
+      }),
+    )[0]!;
+    const onToggle = vi.fn();
+    renderLine(line, { onToggle });
+    // The collision cell is a button, not a textbox — a summed cell has
+    // no single edit target.
+    const summed = screen.getByRole("button", {
+      name: /total across 2 entries/i,
+    });
+    fireEvent.click(summed);
+    expect(onToggle).toHaveBeenCalled();
+    // And it shows the summed duration (0:75 → 1:15).
+    expect(summed).toHaveTextContent("1:15");
+  });
+
+  it("leaves empty days read-only when no cell-commit handler is provided", () => {
+    const { container } = renderLine();
+    // Thursday..Sunday have no entries and no create affordance — they
+    // render the muted `·` placeholder, never a DurationInput.
+    const placeholders = container.querySelectorAll("td span[aria-hidden='true']");
+    const dots = Array.from(placeholders).filter((el) => el.textContent === "·");
+    expect(dots.length).toBeGreaterThan(0);
+  });
+
+  it("clicking the line chevron toggles the per-entry disclosure", () => {
+    const onToggle = vi.fn();
+    renderLine(distinctDayLine(), { onToggle });
+    fireEvent.click(
+      screen.getByRole("button", { name: /behind this task/i }),
+    );
+    expect(onToggle).toHaveBeenCalled();
+  });
+
+  it("signals partial vs full invoiced state in text (not color alone)", () => {
+    const partial = groupEntriesByTitle(
+      dayGrid({
+        0: [
+          makeEntry("p1", {
+            description: "AE-9",
+            invoiced: true,
+            invoice_id: "inv-1",
+          }),
+        ],
+        1: [makeEntry("p2", { description: "AE-9" })],
+      }),
+    )[0]!;
+    const { unmount } = renderLine(partial);
+    expect(screen.getByText(/partially invoiced/i)).toBeInTheDocument();
+    unmount();
+
+    const all = groupEntriesByTitle(
+      dayGrid({
+        0: [
+          makeEntry("a1", {
+            description: "AE-9",
+            invoiced: true,
+            invoice_id: "inv-1",
+          }),
+        ],
+        1: [
+          makeEntry("a2", {
+            description: "AE-9",
+            invoiced: true,
+            invoice_id: "inv-1",
+          }),
+        ],
+      }),
+    )[0]!;
+    renderLine(all);
+    // tLock("locked") === "Invoiced"
+    expect(screen.getAllByText(/invoiced/i).length).toBeGreaterThan(0);
   });
 });

@@ -28,6 +28,17 @@ Week navigation:
 
 Pick billable-only with the filter chip at the top. Choose a category filter if your projects use them.
 
+### Merge same task
+
+Expanding a row normally shows one sub-row per time entry, so the same task logged on three days shows as three rows. Tick **Merge same task** (top of the grid, next to **Group by**) and entries that share a title fold onto **one line**, with their durations spread across the day columns — `AE-644` logged Mon/Tue/Wed reads as a single line `1:00 │ 3:30 │ 1:30`, total `6:00`.
+
+- **What counts as "the same task":** same linked ticket **and** the same description **and** the same billable flag. Only lines that would look identical merge — a billable entry and a written-off (non-billable) one on the same ticket stay on separate lines so the billing boundary stays visible.
+- **Editing still works inline:** a day cell that holds exactly one entry is editable just like before (it edits *that* entry). An empty day is read-only on a merged line. A day that holds **two or more** of the same task shows the read-only sum — click it (or the line's ▾ chevron) to reveal the individual entries, where you edit, delete, resume, or open each one.
+- **Invoiced state is shown, never hidden:** if some of a task's entries are already on an invoice, the line shows **Partially invoiced** (or **Invoiced** when all are); the invoiced day cells stay locked.
+- The setting is **per-user and remembered** (off by default). It only changes how the grid *reads* — nothing about your entries changes, and exports still list every entry individually.
+
+This is a **Week-view-only** scanning aid. The Day view (a single day, no columns) and the Log view (a chronological record) deliberately keep one row per entry.
+
 ## Editing an entry
 
 Click a card. It expands in place into an edit form.
@@ -127,7 +138,7 @@ Four views live at `/time-entries`, switched via the toggle in the page header o
 - **Log** — chronological scroll across a bounded window (14 days default, 90 max), grouped by day with customer sub-headers. Best for "did I forget anything recently?"
 - **Table** — flat list across an arbitrary date range, with description search and invoice-status filter. Designed for admin / bulk operations, not for authoring.
 
-The first three share the time-views parity rule: a UX change to one is evaluated against all three. Table is intentionally exempt — date-range picking and free-text search only make sense on a flat surface.
+The first three share the time-views parity rule: a UX change to one is evaluated against all three. Table is intentionally exempt — date-range picking and free-text search only make sense on a flat surface. **Merge same task** is a second documented exception: it folds entries across day *columns*, which only exist in Week, so Day and Log keep one row per entry.
 
 ### Table view (admin / review)
 

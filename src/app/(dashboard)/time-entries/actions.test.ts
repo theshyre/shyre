@@ -103,6 +103,21 @@ const state: {
         category_id?: string | null;
       }
     | null;
+  /** Entries returned by upsertTimesheetCellAction's "existing entries
+   *  in this (project, category, day) cell" select. When set, the
+   *  awaited time_entries select resolves to this list instead of the
+   *  resume shape. */
+  cellEntries:
+    | Array<{
+        id: string;
+        description: string | null;
+        billable: boolean;
+        github_issue: number | null;
+        duration_min: number | null;
+        invoiced: boolean;
+        invoice_id: string | null;
+      }>
+    | null;
 } = {
   updates: [],
   deletes: [],
@@ -111,6 +126,7 @@ const state: {
   project: null,
   resumeEntry: null,
   existingTimeEntry: null,
+  cellEntries: null,
 };
 
 function mockSupabase() {
@@ -245,10 +261,15 @@ function tableChain(table: string) {
       } else if (op.current?.kind === "delete") {
         state.deletes.push({ table, filters: [...op.filters] });
       } else if (op.current?.kind === "select") {
-        // Treat the awaited select as the "resume lookup" path —
-        // returns either the seeded resumeEntry (wrapped in an
-        // array per Supabase's list shape) or an empty array.
-        const data = state.resumeEntry ? [state.resumeEntry] : [];
+        // Awaited select. `cellEntries` (upsertTimesheetCellAction's
+        // existing-cell query) wins when seeded; otherwise fall back to
+        // the resume-lookup shape (startTimerAction). Both return a
+        // list per Supabase's select shape.
+        const data = state.cellEntries
+          ? state.cellEntries
+          : state.resumeEntry
+            ? [state.resumeEntry]
+            : [];
         resolve({ data, error: null });
         return;
       }
@@ -273,6 +294,7 @@ import {
   stopTimerAction,
   unmarkBilledElsewhereEntriesAction,
   updateTimeEntryAction,
+  upsertTimesheetCellAction,
 } from "./actions";
 
 const EMPTY_TICKET = {
@@ -291,6 +313,7 @@ function reset(): void {
   state.project = null;
   state.resumeEntry = null;
   state.existingTimeEntry = null;
+  state.cellEntries = null;
   mockValidateTeamAccess.mockReset();
   mockRevalidatePath.mockReset();
   ticketAttachmentMock.mockReset();
@@ -983,5 +1006,99 @@ describe("updateTimeEntryAction (field-selective patch)", () => {
     expect(findUpdate()?.patch).not.toHaveProperty("description");
     // But ticket fields ARE recomputed and written.
     expect(findUpdate()?.patch.linked_ticket_key).toBe("AE-644");
+  });
+});
+
+describe("upsertTimesheetCellAction — multi-entry cell collapse", () => {
+  beforeEach(reset);
+
+  it("SOFT-deletes the dropped entries (deleted_at) rather than hard-deleting them", async () => {
+    // A (project, category, day) cell already holds two entries. Setting
+    // a new total keeps the first and removes the rest — and that removal
+    // must be recoverable via /trash, not a silent hard delete.
+    state.cellEntries = [
+      {
+        id: "keep",
+        description: "x",
+        billable: true,
+        github_issue: null,
+        duration_min: 60,
+        invoiced: false,
+        invoice_id: null,
+      },
+      {
+        id: "drop",
+        description: "x",
+        billable: true,
+        github_issue: null,
+        duration_min: 30,
+        invoiced: false,
+        invoice_id: null,
+      },
+    ];
+
+    await upsertTimesheetCellAction(
+      fd({
+        project_id: "p-1",
+        team_id: "t-1",
+        entry_date: "2026-05-05",
+        duration_min: "120",
+        tz_offset_min: "0",
+      }),
+    );
+
+    // No raw delete on time_entries — recovery depends on it.
+    expect(
+      state.deletes.filter((d) => d.table === "time_entries"),
+    ).toHaveLength(0);
+
+    // The dropped entry is soft-deleted via deleted_at, scoped by id IN.
+    const softDelete = state.updates.find((u) => {
+      const patch = u.patch as Record<string, unknown>;
+      return Object.prototype.hasOwnProperty.call(patch, "deleted_at");
+    });
+    expect(softDelete).toBeDefined();
+    expect((softDelete!.patch as Record<string, unknown>).deleted_at).toBeTypeOf(
+      "string",
+    );
+    expect(findFilter(softDelete!.filters, "id")?.op).toBe("in");
+    expect(findFilter(softDelete!.filters, "id")?.value).toEqual(["drop"]);
+
+    // The kept entry is updated to the new total, and /trash is revalidated.
+    const keepUpdate = state.updates.find(
+      (u) => findFilter(u.filters, "id")?.value === "keep",
+    );
+    expect(keepUpdate).toBeDefined();
+    expect(mockRevalidatePath).toHaveBeenCalledWith("/time-entries/trash");
+  });
+
+  it("refuses early when the cell contains an invoiced entry", async () => {
+    state.cellEntries = [
+      {
+        id: "locked",
+        description: "x",
+        billable: true,
+        github_issue: null,
+        duration_min: 60,
+        invoiced: true,
+        invoice_id: "inv-1",
+      },
+    ];
+
+    await expect(
+      upsertTimesheetCellAction(
+        fd({
+          project_id: "p-1",
+          team_id: "t-1",
+          entry_date: "2026-05-05",
+          duration_min: "120",
+          tz_offset_min: "0",
+        }),
+      ),
+    ).rejects.toThrow(/invoiced/i);
+
+    // Nothing mutated.
+    expect(state.updates).toHaveLength(0);
+    expect(state.deletes).toHaveLength(0);
   });
 });

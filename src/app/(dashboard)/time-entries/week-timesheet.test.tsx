@@ -82,6 +82,9 @@ describe("WeekTimesheet", () => {
     upsertCellMock.mockClear();
     deleteMock.mockClear();
     restoreBatchMock.mockClear();
+    // groupBy + mergeSameTitle persist in localStorage; clear so each
+    // test starts from the defaults (member / merge-off) deterministically.
+    window.localStorage.clear();
   });
 
   it("renders Mon..Sun headers with day numbers", () => {
@@ -712,5 +715,38 @@ describe("WeekTimesheet", () => {
     // Customer name appears exactly once — in the sub-header, not
     // also on the row beneath it.
     expect(screen.getAllByText("Solo Customer")).toHaveLength(1);
+  });
+
+  it("folds same-title entries into one line only when 'Merge same task' is on", () => {
+    // Two entries with the same title on different days in one row.
+    const shared = (id: string, day: number, durationMin: number): TimeEntry => ({
+      ...makeEntry(id, { day, durationMin }),
+      description: "Shared task",
+    });
+    renderTimesheet(
+      <WeekTimesheet
+        weekStartStr={weekStartStr}
+        tzOffsetMin={tzOffsetMin}
+        entries={[shared("e1", 0, 60), shared("e2", 2, 90)]}
+        projects={[project]}
+        categories={[]}
+      />,
+    );
+
+    // Expand the row to reveal its detail.
+    fireEvent.click(screen.getByRole("button", { name: /on this row/i }));
+
+    // Merge is off by default → two separate per-entry rows, no merged
+    // "behind this task" disclosure.
+    expect(
+      screen.queryByRole("button", { name: /behind this task/i }),
+    ).toBeNull();
+
+    // Flip the toggle on → the two entries collapse to one merged line
+    // with its own per-entry disclosure control.
+    fireEvent.click(screen.getByLabelText(/merge same task/i));
+    expect(
+      screen.getByRole("button", { name: /behind this task/i }),
+    ).toBeInTheDocument();
   });
 });

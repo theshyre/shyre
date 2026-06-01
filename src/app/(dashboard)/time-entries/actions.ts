@@ -1406,12 +1406,18 @@ export async function upsertTimesheetCellAction(
           .eq("user_id", userId),
       );
     } else {
-      // Multiple rows → keep first, delete rest, then set total on the first
+      // Multiple rows → keep first, soft-delete the rest, then set the
+      // total on the first. SOFT-delete (deleted_at), never a hard
+      // `.delete()`: collapsing a multi-entry cell to a single total
+      // must stay recoverable via /trash + the Undo pattern, exactly
+      // like the zero-duration path above and every other row-level
+      // delete. A raw delete here silently destroyed entries with no
+      // recovery — caught in the same-title-merge review (2026-05-31).
       const [keep, ...drop] = existing;
       assertSupabaseOk(
         await supabase
           .from("time_entries")
-          .delete()
+          .update({ deleted_at: new Date().toISOString() })
           .in(
             "id",
             drop.map((e) => e.id),
@@ -1427,6 +1433,7 @@ export async function upsertTimesheetCellAction(
           .eq("id", keep!.id)
           .eq("user_id", userId),
       );
+      revalidatePath("/time-entries/trash");
     }
 
     revalidatePath("/time-entries");

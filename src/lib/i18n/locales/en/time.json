@@ -72,6 +72,17 @@
     "lockedOn": "Locked — invoice {invoice}",
     "editBlocked": "This entry is part of an invoice and is locked. Void the invoice to edit, or remove the entry from it."
   },
+  "titleLine": {
+    "expandLine": "Show entries",
+    "collapseLine": "Hide entries",
+    "expandLineAria": "Show the {count, plural, one {# entry} other {# entries}} behind this task",
+    "entriesBadge": "{count, plural, one {# entry} other {# entries}}",
+    "summedTooltip": "{count, plural, one {# entry} other {# entries}} this day — expand to edit",
+    "summedAria": "{date} — {duration} total across {count, plural, one {# entry} other {# entries}}, expand to edit",
+    "lockedCellAria": "{date} — {duration}, invoiced",
+    "partialInvoiced": "Partially invoiced",
+    "invoicedDetail": "{invoiced} of {count} entries invoiced"
+  },
   "saveEntry": "Save Entry",
   "saveChanges": "Save Changes",
   "editTitle": "Edit entry",
@@ -300,6 +311,10 @@
       "member": "Member",
       "project": "Project",
       "category": "Category"
+    },
+    "mergeSameTitle": {
+      "label": "Merge same task",
+      "hint": "Collapse entries with the same title onto one line, spread across the week"
     },
     "groupHeader": {
       "you": "You",

@@ -33,9 +33,11 @@ import {
   AddEntryRow,
   EntryEditRow,
   EntrySummaryRow,
+  TitleLineRow,
   flattenEntriesByDay,
   shouldAutoExpand,
 } from "./week-entry-row";
+import { groupEntriesByTitle } from "./group-entries-by-title";
 import { formatDurationHMZero } from "@/lib/time/week";
 import { notifyTimerChanged } from "@/lib/timer-events";
 import { localDayBoundsIso } from "@/lib/local-day-bounds";
@@ -177,6 +179,40 @@ function writeGroupBy(next: GroupBy): void {
   if (typeof window === "undefined") return;
   window.localStorage.setItem(GROUP_BY_STORAGE_KEY, next);
   window.dispatchEvent(new Event(GROUP_BY_EVENT));
+}
+
+// "Merge same task" preference — collapses same-title entries onto one
+// line inside an expanded row. Persisted per-user like `groupBy`, same
+// localStorage + custom-event store so SSR renders the default (off)
+// and the client reconciles post-hydration without a setState effect.
+// Default OFF so first load is unchanged; the user flips it on and it
+// sticks. Week-only by deliberate parity exception (see groupEntriesByTitle).
+const MERGE_TITLE_STORAGE_KEY = "shyre.weekTimesheet.mergeSameTitle";
+const MERGE_TITLE_EVENT = "shyre:weekTimesheet:mergeSameTitle";
+
+function subscribeMergeTitle(cb: () => void): () => void {
+  if (typeof window === "undefined") return () => {};
+  window.addEventListener("storage", cb);
+  window.addEventListener(MERGE_TITLE_EVENT, cb);
+  return () => {
+    window.removeEventListener("storage", cb);
+    window.removeEventListener(MERGE_TITLE_EVENT, cb);
+  };
+}
+
+function getMergeTitleSnapshot(): boolean {
+  if (typeof window === "undefined") return false;
+  return window.localStorage.getItem(MERGE_TITLE_STORAGE_KEY) === "1";
+}
+
+function getServerMergeTitleSnapshot(): boolean {
+  return false;
+}
+
+function writeMergeTitle(next: boolean): void {
+  if (typeof window === "undefined") return;
+  window.localStorage.setItem(MERGE_TITLE_STORAGE_KEY, next ? "1" : "0");
+  window.dispatchEvent(new Event(MERGE_TITLE_EVENT));
 }
 
 interface RowGroup {
@@ -413,6 +449,17 @@ export function WeekTimesheet({
     getServerGroupBySnapshot,
   );
   const setGroupBy = useCallback((next: GroupBy) => writeGroupBy(next), []);
+
+  // "Merge same task" — same localStorage-backed external store.
+  const mergeSameTitle = useSyncExternalStore(
+    subscribeMergeTitle,
+    getMergeTitleSnapshot,
+    getServerMergeTitleSnapshot,
+  );
+  const setMergeSameTitle = useCallback(
+    (next: boolean) => writeMergeTitle(next),
+    [],
+  );
 
   // Collapse state is two-layered:
   //   - `collapsed`: the literal "these keys are collapsed" set.
@@ -900,6 +947,20 @@ export function WeekTimesheet({
               ))}
             </select>
           </label>
+          {/* Merge same-title entries onto one line inside an expanded
+              row. Default off; persisted per-user. Tooltip carries the
+              "what" since the label is terse. */}
+          <Tooltip label={t("mergeSameTitle.hint")}>
+            <label className="flex items-center gap-1.5 text-caption text-content-muted whitespace-nowrap cursor-pointer">
+              <input
+                type="checkbox"
+                checked={mergeSameTitle}
+                onChange={(e) => setMergeSameTitle(e.target.checked)}
+                className="h-3.5 w-3.5 rounded border-edge text-accent focus:ring-focus-ring"
+              />
+              <span>{t("mergeSameTitle.label")}</span>
+            </label>
+          </Tooltip>
           <div className="flex items-center gap-1">
             <button
               type="button"
@@ -1084,6 +1145,7 @@ export function WeekTimesheet({
               key={`${groupBy}:${group.key}`}
               group={group}
               groupBy={groupBy}
+              mergeSameTitle={mergeSameTitle}
               collapsed={groupCollapsed}
               onToggleCollapsed={() => toggleCollapsed(group.key)}
               rowsFlat={rows}
@@ -1188,11 +1250,15 @@ function TimesheetRow({
   setCellRef,
   onArrowNav,
   currentTeamRole = "member",
+  mergeSameTitle = false,
 }: {
   rowIndex: number;
   row: Row;
   projects: ProjectOption[];
   categories: CategoryOption[];
+  /** When true, this row's expanded detail folds same-title entries
+   *  onto one line via TitleLineRow instead of one row per entry. */
+  mergeSameTitle?: boolean;
   /** Controls which dimensions are redundant (shown in the group header)
    *  and therefore hidden from the row itself. Also drives author-chip
    *  placement — the chip appears on non-member groupings so the viewer
@@ -1277,6 +1343,13 @@ function TimesheetRow({
   const [editingEntryId, setEditingEntryId] = useState<string | null>(null);
   // Whether the row's "+ Add entry" form is currently open.
   const [addingEntry, setAddingEntry] = useState<boolean>(false);
+  // Per-title disclosure overrides (merge view only), keyed by the
+  // TitleLine key. A line's effective open state is the user's explicit
+  // choice if set, else its `hasCollision` default — a collision cell is
+  // read-only, so its entries auto-reveal so they stay editable.
+  const [titleOpenOverride, setTitleOpenOverride] = useState<
+    Record<string, boolean>
+  >({});
 
   const hideCategory = groupBy === "category";
   const hideProject = groupBy === "project";
@@ -1315,6 +1388,64 @@ function TimesheetRow({
         ),
       )
     : 0;
+
+  // Long-form date per visible day, formatted once — feeds the editable
+  // non-entry-day cells' aria-labels in EntrySummaryRow / TitleLineRow.
+  // Memoized so the per-second running tick doesn't re-format 7 dates.
+  const dayDatesLong = useMemo(
+    () => weekDays.map((d) => formatDayLong(d)),
+    [weekDays],
+  );
+
+  // Render one underlying entry as its summary <tr> (+ inline edit
+  // drawer when open). Shared by the flat expansion, the merge view's
+  // single-entry lines, and a merged line's revealed entries so the
+  // three paths can never drift.
+  const renderEntryRow = (
+    entry: TimeEntry,
+    dIdx: number,
+  ): React.JSX.Element => {
+    const dayStr = weekDays[dIdx];
+    const dayLong = dayStr ? formatDayLong(dayStr) : "";
+    const isRowEntryRunning =
+      entry.end_time === null && runningStartIso !== null;
+    const entryLiveElapsed = isRowEntryRunning
+      ? Math.max(
+          0,
+          Math.floor(
+            (runningNowMs - new Date(entry.start_time).getTime()) / 60_000,
+          ),
+        )
+      : 0;
+    return (
+      <Fragment key={entry.id}>
+        <EntrySummaryRow
+          entry={entry}
+          dayIndex={dIdx}
+          editing={editingEntryId === entry.id}
+          onEditToggle={() =>
+            setEditingEntryId((cur) => (cur === entry.id ? null : entry.id))
+          }
+          dayDateLong={dayLong}
+          isRunning={isRowEntryRunning}
+          liveElapsedMin={entryLiveElapsed}
+          customerRail={customerRail ?? undefined}
+          onCellCommit={onCellCommit}
+          dayDatesLong={dayDatesLong}
+        />
+        {editingEntryId === entry.id && (
+          <EntryEditRow
+            entry={entry}
+            project={project}
+            projects={projects}
+            tzOffsetMin={tzOffsetMin}
+            dayDateLong={dayLong}
+            onClose={() => setEditingEntryId(null)}
+          />
+        )}
+      </Fragment>
+    );
+  };
 
   return (
     <>
@@ -1785,64 +1916,51 @@ function TimesheetRow({
         Sub-rows are only rendered for editable rows (own entries) —
         other members' entries display in their own row in the
         groupBy="member" view, no need to inline them here. */}
-    {expanded && editable &&
-      (() => {
-        // Pre-format every visible day's long-form date once per
-        // expand so the editable non-entry-day cells in
-        // EntrySummaryRow can stamp aria-labels without re-parsing
-        // for each cell.
-        const dayDatesLong = weekDays.map((d) => formatDayLong(d));
-        return flattenEntriesByDay(row.entriesByDay).map(({ entry, dayIndex: dIdx }) => {
-        const dayStr = weekDays[dIdx];
-        const dayLong = dayStr ? formatDayLong(dayStr) : "";
-        const isRowEntryRunning =
-          entry.end_time === null && runningStartIso !== null;
-        // Reuse the running ticker the parent row already runs at
-        // 1Hz (`runningNowMs` from setInterval) so we don't call
-        // Date.now() inside render — pure-render lint rule and
-        // also prevents drift between the parent cell's elapsed
-        // and the sub-row's elapsed.
-        const entryLiveElapsed = isRowEntryRunning
-          ? Math.max(
-              0,
-              Math.floor(
-                (runningNowMs - new Date(entry.start_time).getTime()) /
-                  60_000,
-              ),
-            )
-          : 0;
+    {expanded && editable && !mergeSameTitle &&
+      flattenEntriesByDay(row.entriesByDay).map(({ entry, dayIndex: dIdx }) =>
+        renderEntryRow(entry, dIdx),
+      )}
+    {/* Merge view: fold same-title entries onto one TitleLineRow.
+        Single-entry titles render as a plain EntrySummaryRow (identical
+        to the flat view). Multi-entry titles render the merged matrix +,
+        when the line is open, its underlying entries beneath it. Empty
+        cells on a merged line are read-only: the cell-upsert inherits
+        the ROW's most-recent identity, not the title's, so offering a
+        create affordance there would silently make a wrong-title entry.
+        Adding more of a title is done by expanding to the entry rows. */}
+    {expanded && editable && mergeSameTitle &&
+      groupEntriesByTitle(row.entriesByDay).map((line, li) => {
+        const flat = flattenEntriesByDay(line.entriesByDay);
+        if (line.entryCount <= 1) {
+          const only = flat[0];
+          return only ? renderEntryRow(only.entry, only.dayIndex) : null;
+        }
+        const controlsId = `title-${rowIndex}-${li}`;
+        const titleOpen = titleOpenOverride[line.key] ?? line.hasCollision;
         return (
-          <Fragment key={entry.id}>
-            <EntrySummaryRow
-              entry={entry}
-              dayIndex={dIdx}
-              editing={editingEntryId === entry.id}
-              onEditToggle={() =>
-                setEditingEntryId((cur) =>
-                  cur === entry.id ? null : entry.id,
-                )
+          <Fragment key={line.key}>
+            <TitleLineRow
+              line={line}
+              expanded={titleOpen}
+              onToggle={() =>
+                setTitleOpenOverride((m) => ({
+                  ...m,
+                  [line.key]: !(m[line.key] ?? line.hasCollision),
+                }))
               }
-              dayDateLong={dayLong}
-              isRunning={isRowEntryRunning}
-              liveElapsedMin={entryLiveElapsed}
-              customerRail={customerRail ?? undefined}
-              onCellCommit={onCellCommit}
+              controlsId={controlsId}
               dayDatesLong={dayDatesLong}
+              runningStartIso={runningStartIso}
+              runningNowMs={runningNowMs}
+              customerRail={customerRail ?? undefined}
             />
-            {editingEntryId === entry.id && (
-              <EntryEditRow
-                entry={entry}
-                project={project}
-                projects={projects}
-                tzOffsetMin={tzOffsetMin}
-                dayDateLong={dayLong}
-                onClose={() => setEditingEntryId(null)}
-              />
-            )}
+            {titleOpen &&
+              flat.map(({ entry, dayIndex: dIdx }) =>
+                renderEntryRow(entry, dIdx),
+              )}
           </Fragment>
         );
-        });
-      })()}
+      })}
     {expanded && editable && (
       <tr>
         <td colSpan={DAYS_IN_WEEK + 3} className="px-3 py-1.5">
@@ -1913,9 +2031,12 @@ function GroupBlock({
   runningDayIndex,
   onStopTimer,
   currentTeamRole,
+  mergeSameTitle,
 }: {
   group: RowGroup;
   groupBy: GroupBy;
+  /** When true, expanded rows fold same-title entries onto one line. */
+  mergeSameTitle: boolean;
   collapsed: boolean;
   onToggleCollapsed: () => void;
   /** Flat row list — used to derive each row's absolute index for
@@ -2035,6 +2156,7 @@ function GroupBlock({
           runningDayIndex,
           onStopTimer,
           currentTeamRole,
+          mergeSameTitle,
         })}
     </tbody>
   );
@@ -2164,6 +2286,7 @@ interface RenderGroupedRowsArgs {
   runningDayIndex: number;
   onStopTimer: (entryId: string) => void | Promise<void>;
   currentTeamRole: "owner" | "admin" | "member";
+  mergeSameTitle: boolean;
 }
 
 function renderGroupedRows(args: RenderGroupedRowsArgs): React.JSX.Element[] {
@@ -2222,6 +2345,7 @@ function renderTimesheetRow(
     runningDayIndex,
     onStopTimer,
     currentTeamRole,
+    mergeSameTitle,
   } = args;
   const rowIdx = rowsFlat.indexOf(row);
   const isRunningRow =
@@ -2280,6 +2404,7 @@ function renderTimesheetRow(
         else focusCell(rowIdx, dayIdx + 1);
       }}
       currentTeamRole={currentTeamRole}
+      mergeSameTitle={mergeSameTitle}
     />
   );
 }

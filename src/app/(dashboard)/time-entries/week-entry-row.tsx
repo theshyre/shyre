@@ -31,6 +31,7 @@
 import { useEffect, useRef, useState } from "react";
 import { useTranslations } from "next-intl";
 import {
+  ChevronDown,
   Play,
   Plus,
   Square,
@@ -68,9 +69,19 @@ import {
   updateTimeEntryDurationAction,
 } from "./actions";
 import { DurationInput } from "./duration-input";
+import type { TitleLine } from "./group-entries-by-title";
 import type { ProjectOption, TimeEntry } from "./types";
 
 const DAYS_IN_WEEK = 7;
+
+/** Per-day cell input class — empty (create) variant. Shared by
+ *  EntrySummaryRow and TitleLineRow so the two never drift. */
+const EMPTY_CELL_INPUT_CLASS =
+  "w-20 -mr-1.5 rounded-md border border-transparent bg-transparent px-1.5 py-1 text-body font-mono text-right outline-none transition-colors hover:border-edge-muted focus:border-focus-ring focus:bg-surface-raised focus:ring-2 focus:ring-focus-ring/30 placeholder:text-content-muted";
+
+/** Per-day cell input class — edit (existing duration) variant. */
+const EDIT_CELL_INPUT_CLASS =
+  "w-20 -mr-1.5 rounded-md border border-transparent bg-transparent px-1.5 py-1 text-body font-mono outline-none transition-colors hover:border-edge-muted focus:border-focus-ring focus:bg-surface-raised focus:ring-2 focus:ring-focus-ring/30";
 
 /** Cell column count used for colSpan on edit / add drawers. */
 const TOTAL_COLS = DAYS_IN_WEEK + 3; // lead + 7 days + total + actions
@@ -418,6 +429,328 @@ export function EntrySummaryRow({
           )}
         </div>
       </td>
+    </tr>
+  );
+}
+
+interface TitleLineRowProps {
+  /** The merged title aggregation — its 7-day matrix and underlying
+   *  entries. Only rendered for lines with >1 entry; a single-entry
+   *  line renders as a plain EntrySummaryRow (it IS today's row). */
+  line: TitleLine;
+  /** True when the per-entry disclosure beneath this line is open. The
+   *  parent renders the underlying EntrySummaryRows when so. */
+  expanded: boolean;
+  onToggle: () => void;
+  /** Stable id linking the chevron's aria-controls to the revealed
+   *  entry rows. */
+  controlsId: string;
+  /** Long-form date per visible day (length 7) for cell aria-labels. */
+  dayDatesLong: string[];
+  /** ISO start of the row's running entry, or null. Drives the live
+   *  tick on a running cell. */
+  runningStartIso: string | null;
+  /** Shared 1 Hz ticker from the parent row — reused so render stays
+   *  pure (no Date.now() in render) and the tick can't drift. */
+  runningNowMs: number;
+  customerRail?: string;
+  /** Create-on-empty-day handler — typing into a 0-entry cell upserts a
+   *  new entry on (project, category, user, that day). Single-entry
+   *  cells edit by entry id directly (never the upsert path), and 2+
+   *  cells are read-only. */
+  onCellCommit?: (dayIndex: number, minutes: number) => void | Promise<void>;
+}
+
+/**
+ * One merged "task" line: entries that share a title (ticket +
+ * description + billable) folded onto a single 7-day matrix row. This
+ * is the "same title on one line" view — `AE-644` logged Mon/Tue/Wed
+ * reads as one line `1:00 | 3:30 | 1:30` instead of three sub-rows.
+ *
+ * Cell edit model (the safety contract from the design review):
+ *   - 0 entries  → editable, creates a new same-title entry on that day.
+ *   - 1 entry    → editable, edits THAT entry by id (never the cell
+ *                  upsert, which could hard-collapse a sibling).
+ *   - 1 invoiced → read-only with a lock mark.
+ *   - 1 running  → read-only live tick.
+ *   - 2+ entries → read-only sum; the cell is a button that opens the
+ *                  per-entry disclosure, because a sum has no single
+ *                  edit target. Such a line auto-expands on first paint.
+ *
+ * Single author by construction (the parent row is per-user), so the
+ * one avatar satisfies the authorship rule.
+ */
+export function TitleLineRow({
+  line,
+  expanded,
+  onToggle,
+  controlsId,
+  dayDatesLong,
+  runningStartIso,
+  runningNowMs,
+  customerRail,
+  onCellCommit,
+}: TitleLineRowProps): React.JSX.Element {
+  const t = useTranslations("time.entryRow");
+  const tTitle = useTranslations("time.titleLine");
+  const tLock = useTranslations("time.lock");
+
+  const ticketKey = line.ticketKey;
+  const ticketUrl = line.ticketUrl;
+  const description = line.description ?? "";
+  const allEntries = line.entriesByDay.flat();
+  const author = allEntries[0]?.author ?? null;
+
+  /** Live-elapsed minutes for a running entry, 0 otherwise. Uses the
+   *  parent's shared ticker so it never drifts from the parent cell. */
+  const liveFor = (e: TimeEntry): number =>
+    e.end_time === null && runningStartIso !== null
+      ? Math.max(
+          0,
+          Math.floor(
+            (runningNowMs - new Date(e.start_time).getTime()) / 60_000,
+          ),
+        )
+      : 0;
+
+  const liveTotalMin =
+    line.totalMin + allEntries.reduce((s, e) => s + liveFor(e), 0);
+
+  const renderDayCell = (d: number): React.JSX.Element => {
+    const entries = line.entriesByDay[d] ?? [];
+    const count = entries.length;
+    const cellDate = dayDatesLong[d];
+
+    if (count === 0) {
+      if (onCellCommit) {
+        return (
+          <td key={d} className="px-2 py-1.5 align-middle">
+            <label className="flex justify-end cursor-text">
+              <DurationInput
+                name={`title-${controlsId}-day-${d}`}
+                defaultMinutes={0}
+                ariaLabel={
+                  cellDate
+                    ? t("durationOnDay", { date: cellDate, duration: "" })
+                    : undefined
+                }
+                onCommit={(committed) => {
+                  if (committed === null || committed === 0) return;
+                  void onCellCommit(d, committed);
+                }}
+                placeholder="·"
+                className={EMPTY_CELL_INPUT_CLASS}
+              />
+            </label>
+          </td>
+        );
+      }
+      return (
+        <td key={d} className="px-2 py-1.5 align-middle text-right">
+          <span className="text-content-muted" aria-hidden="true">
+            ·
+          </span>
+        </td>
+      );
+    }
+
+    if (count === 1) {
+      const e = entries[0]!;
+      const running = e.end_time === null && runningStartIso !== null;
+      const locked = e.invoiced && e.invoice_id != null;
+      const display = formatDurationHMZero(
+        (e.duration_min ?? 0) + liveFor(e),
+      );
+      if (running || locked) {
+        return (
+          <td
+            key={d}
+            className="px-2 py-1.5 align-middle text-right"
+            aria-label={
+              locked
+                ? tTitle("lockedCellAria", {
+                    date: cellDate ?? "",
+                    duration: display,
+                  })
+                : t("durationOnDay", {
+                    date: cellDate ?? "",
+                    duration: display,
+                  })
+            }
+          >
+            <span className="inline-flex items-center justify-end gap-1.5 font-mono text-body tabular-nums text-content">
+              {running && (
+                <span
+                  className="h-1.5 w-1.5 rounded-full bg-success animate-pulse"
+                  aria-hidden="true"
+                />
+              )}
+              {locked && (
+                <Lock size={11} className="text-warning" aria-hidden="true" />
+              )}
+              {display}
+            </span>
+          </td>
+        );
+      }
+      // Editable — routes to the entry by id, NOT the cell upsert.
+      return (
+        <td key={d} className="px-2 py-1.5 align-middle">
+          <label className="flex justify-end cursor-text">
+            <DurationInput
+              name={`title-entry-${e.id}-duration`}
+              defaultMinutes={e.duration_min ?? 0}
+              ariaLabel={t("durationOnDay", {
+                date: cellDate ?? "",
+                duration: display,
+              })}
+              onCommit={(committed) => {
+                if (committed === null) return;
+                if (committed === (e.duration_min ?? 0)) return;
+                const fd = new FormData();
+                fd.set("id", e.id);
+                fd.set("duration_min", String(committed));
+                void updateTimeEntryDurationAction(fd);
+              }}
+              className={EDIT_CELL_INPUT_CLASS}
+            />
+          </label>
+        </td>
+      );
+    }
+
+    // 2+ entries on one day — the ambiguous cell. Read-only sum; the
+    // button opens the per-entry disclosure so each can be edited.
+    const cellLive = entries.reduce((s, e) => s + liveFor(e), 0);
+    const display = formatDurationHMZero((line.byDay[d] ?? 0) + cellLive);
+    return (
+      <td key={d} className="px-2 py-1.5 align-middle text-right">
+        <Tooltip label={tTitle("summedTooltip", { count })}>
+          <button
+            type="button"
+            onClick={onToggle}
+            aria-expanded={expanded}
+            aria-controls={controlsId}
+            aria-label={tTitle("summedAria", {
+              date: cellDate ?? "",
+              duration: display,
+              count,
+            })}
+            className="font-mono text-body tabular-nums text-content underline decoration-dotted decoration-content-muted underline-offset-2 hover:text-accent focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent rounded px-0.5"
+          >
+            {display}
+          </button>
+        </Tooltip>
+      </td>
+    );
+  };
+
+  return (
+    <tr className="bg-surface border-b border-edge-muted/60">
+      {/* Leading cell: expand chevron, author, ticket chip, truncated
+          description, entry-count badge, and the line-level invoiced
+          indicator (none/partial/all). The chevron replaces the ↳ glyph
+          — this line IS a parent for its entries. */}
+      <td
+        className={`py-1.5 align-middle ${customerRail ? "border-l-4 pl-1.5" : ""}`}
+        style={customerRail ? { borderLeftColor: customerRail } : undefined}
+      >
+        <div className="flex items-center gap-1.5 pl-6 min-w-0">
+          <Tooltip
+            label={expanded ? tTitle("collapseLine") : tTitle("expandLine")}
+          >
+            <button
+              type="button"
+              onClick={onToggle}
+              aria-expanded={expanded}
+              aria-controls={controlsId}
+              aria-label={tTitle("expandLineAria", { count: line.entryCount })}
+              className="inline-flex shrink-0 items-center rounded p-0.5 text-content-muted hover:bg-hover hover:text-accent transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent"
+            >
+              <ChevronDown
+                size={14}
+                aria-hidden="true"
+                className={`transition-transform ${expanded ? "rotate-180" : ""}`}
+              />
+            </button>
+          </Tooltip>
+          <EntryAuthor author={author} size={16} compact />
+          {ticketKey ? (
+            ticketUrl ? (
+              <a
+                href={ticketUrl}
+                target="_blank"
+                rel="noopener noreferrer"
+                aria-label={t("ticketLinkAria", { key: ticketKey })}
+                className="inline-flex items-center gap-1 font-mono text-body text-accent shrink-0 hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent rounded"
+              >
+                <ExternalLink size={12} aria-hidden="true" className="shrink-0" />
+                {ticketKey}
+              </a>
+            ) : (
+              <span className="inline-flex items-center gap-1 font-mono text-body text-accent shrink-0">
+                <LinkIcon size={12} aria-hidden="true" className="shrink-0" />
+                {ticketKey}
+              </span>
+            )
+          ) : null}
+          <Tooltip label={description || t("untitled")}>
+            <span
+              className="text-body text-content-secondary truncate min-w-0"
+              aria-hidden="true"
+            >
+              {description || (
+                <span className="italic text-content-muted">
+                  {t("untitled")}
+                </span>
+              )}
+            </span>
+          </Tooltip>
+          <span className="sr-only">{description || t("untitled")}</span>
+          {/* Entry-count badge — text channel telling the user there's
+              per-entry detail folded behind this line. */}
+          <Tooltip label={tTitle("entriesBadge", { count: line.entryCount })}>
+            <span
+              className="shrink-0 rounded-full bg-surface-inset px-1.5 text-caption font-medium tabular-nums text-content-muted"
+              aria-hidden="true"
+            >
+              {line.entryCount}
+            </span>
+          </Tooltip>
+          {line.invoicedState !== "none" && (
+            <Tooltip
+              label={tTitle("invoicedDetail", {
+                invoiced: line.invoicedCount,
+                count: line.entryCount,
+              })}
+            >
+              <span
+                className={`inline-flex shrink-0 items-center gap-1 rounded px-1 text-caption font-medium ${
+                  line.invoicedState === "all"
+                    ? "text-warning"
+                    : "text-warning/80"
+                }`}
+              >
+                <Lock size={11} aria-hidden="true" />
+                {line.invoicedState === "all"
+                  ? tLock("locked")
+                  : tTitle("partialInvoiced")}
+              </span>
+            </Tooltip>
+          )}
+        </div>
+      </td>
+      {Array.from({ length: DAYS_IN_WEEK }, (_, d) => renderDayCell(d))}
+      {/* Total — sum across the line's days, the number the user asked
+          to see on one line. */}
+      <td className="px-2 py-1.5 align-middle text-right font-mono text-body tabular-nums text-content">
+        {formatDurationHMZero(liveTotalMin)}
+      </td>
+      {/* Actions: intentionally empty. Per-entry play / edit / delete
+          live on the revealed EntrySummaryRows — a merged line has no
+          single action target. The chevron in the leading cell is the
+          only control. */}
+      <td className="px-2 py-1.5" aria-hidden="true" />
     </tr>
   );
 }
