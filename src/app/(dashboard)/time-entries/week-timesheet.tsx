@@ -38,7 +38,7 @@ import {
   flattenEntriesByDay,
   shouldAutoExpand,
 } from "./week-entry-row";
-import { groupEntriesByTitle } from "./group-entries-by-title";
+import { groupEntriesByTitle, type TitleLine } from "./group-entries-by-title";
 import { formatDurationHMZero } from "@/lib/time/week";
 import { notifyTimerChanged } from "@/lib/timer-events";
 import { localDayBoundsIso } from "@/lib/local-day-bounds";
@@ -46,6 +46,7 @@ import { addLocalDays, utcToLocalDateStr } from "@/lib/time/tz";
 import { DurationInput } from "./duration-input";
 import {
   upsertTimesheetCellAction,
+  createTitleCellEntryAction,
   deleteTimeEntryAction,
   restoreTimeEntriesAction,
   startTimerAction,
@@ -1398,6 +1399,40 @@ function TimesheetRow({
     [weekDays],
   );
 
+  // Create a new entry carrying a merged title line's identity on an
+  // empty day. Copies the identity (description + ticket + billable)
+  // verbatim from a representative entry so the new one folds back onto
+  // the same line; team is re-derived server-side from the project.
+  const createTitleEntry = (
+    line: TitleLine,
+    dayIndex: number,
+    minutes: number,
+  ): void => {
+    const dayStr = weekDays[dayIndex];
+    const rep = line.entriesByDay.flat()[0];
+    if (!dayStr || !rep || minutes <= 0) return;
+    const fd = new FormData();
+    fd.set("project_id", row.projectId);
+    if (row.categoryId) fd.set("category_id", row.categoryId);
+    if (line.description) fd.set("description", line.description);
+    fd.set("billable", line.billable ? "on" : "off");
+    if (rep.linked_ticket_provider) {
+      fd.set("linked_ticket_provider", rep.linked_ticket_provider);
+      if (rep.linked_ticket_key)
+        fd.set("linked_ticket_key", rep.linked_ticket_key);
+      if (rep.linked_ticket_url)
+        fd.set("linked_ticket_url", rep.linked_ticket_url);
+      if (rep.linked_ticket_title)
+        fd.set("linked_ticket_title", rep.linked_ticket_title);
+    }
+    fd.set("entry_date", dayStr);
+    fd.set("duration_min", String(minutes));
+    if (tzOffsetMin !== undefined) {
+      fd.set("tz_offset_min", String(tzOffsetMin));
+    }
+    void createTitleCellEntryAction(fd);
+  };
+
   // Render one underlying entry as its summary <tr> (+ inline edit
   // drawer when open). Shared by the flat expansion, the merge view's
   // single-entry lines, and a merged line's revealed entries so the
@@ -1479,7 +1514,10 @@ function TimesheetRow({
                 type="button"
                 onClick={() => setExpanded((v) => !v)}
                 aria-expanded={expanded}
-                aria-controls={`row-entries-${rowIndex}`}
+                // No aria-controls: the expanded sub-rows are sibling
+                // <tr>s with no single container id to point at, so a
+                // fixed id here never resolved (dead reference). The
+                // aria-expanded state is the meaningful relationship.
                 aria-label={tCell("expandAriaRow", {
                   count: row.entriesByDay.reduce(
                     (s, d) => s + d.length,
@@ -1959,6 +1997,9 @@ function TimesheetRow({
               runningStartIso={runningStartIso}
               runningNowMs={runningNowMs}
               customerRail={customerRail ?? undefined}
+              onCellCreate={(dayIndex, minutes) =>
+                createTitleEntry(line, dayIndex, minutes)
+              }
             />
             {titleOpen && (
               <TitleLineDrawer

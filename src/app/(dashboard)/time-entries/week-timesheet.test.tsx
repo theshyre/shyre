@@ -737,16 +737,17 @@ describe("WeekTimesheet", () => {
     fireEvent.click(screen.getByRole("button", { name: /on this row/i }));
 
     // Merge is off by default → two separate per-entry rows, no merged
-    // "behind this task" disclosure.
+    // task-line disclosure. (Match the chevron's "entries on …" label,
+    // not the per-entry "Resume timer on …" buttons.)
     expect(
-      screen.queryByRole("button", { name: /behind this task/i }),
+      screen.queryByRole("button", { name: /entries on Shared task/i }),
     ).toBeNull();
 
     // Flip the toggle on → the two entries collapse to one merged line
     // with its own per-entry disclosure control.
     fireEvent.click(screen.getByLabelText(/merge same task/i));
     expect(
-      screen.getByRole("button", { name: /behind this task/i }),
+      screen.getByRole("button", { name: /entries on Shared task/i }),
     ).toBeInTheDocument();
   });
 });

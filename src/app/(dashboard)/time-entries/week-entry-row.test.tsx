@@ -555,7 +555,7 @@ describe("TitleLineRow", () => {
     expect(summed).toHaveTextContent("1:15");
   });
 
-  it("leaves empty days read-only when no cell-commit handler is provided", () => {
+  it("leaves empty days read-only when no create handler is provided", () => {
     const { container } = renderLine();
     // Thursday..Sunday have no entries and no create affordance — they
     // render the muted `·` placeholder, never a DurationInput.
@@ -564,11 +564,22 @@ describe("TitleLineRow", () => {
     expect(dots.length).toBeGreaterThan(0);
   });
 
+  it("creates a same-title entry when an empty day is typed into", () => {
+    const onCellCreate = vi.fn();
+    renderLine(distinctDayLine(), { onCellCreate });
+    // Thursday (index 3) is empty for the AE-644 line → an editable
+    // input whose aria-label is the date with an empty duration.
+    const input = screen.getByLabelText(/^Thu —/) as HTMLInputElement;
+    fireEvent.change(input, { target: { value: "0:45" } });
+    fireEvent.blur(input);
+    expect(onCellCreate).toHaveBeenCalledWith(3, 45);
+  });
+
   it("clicking the line chevron toggles the per-entry disclosure", () => {
     const onToggle = vi.fn();
     renderLine(distinctDayLine(), { onToggle });
     fireEvent.click(
-      screen.getByRole("button", { name: /behind this task/i }),
+      screen.getByRole("button", { name: /on AE-644/i }),
     );
     expect(onToggle).toHaveBeenCalled();
   });

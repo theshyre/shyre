@@ -127,6 +127,82 @@ export async function createTimeEntryAction(formData: FormData): Promise<void> {
   }, "createTimeEntryAction") as unknown as void;
 }
 
+/**
+ * Create a time entry that reproduces an explicit title identity
+ * (description + linked-ticket fields + billable) on a given day. Backs
+ * "type a duration into an empty cell of a merged title line": the new
+ * entry must carry the line's identity verbatim so it folds back onto
+ * the SAME merged line. The (project, category, day)-keyed
+ * `upsertTimesheetCellAction` can't do this (it would edit a different
+ * title's entry sharing that cell), and re-resolving the ticket from a
+ * ref could drift — so identity is copied, only date + duration are new.
+ *
+ * Security mirrors createTimeEntryAction: team is derived from the
+ * project (never trusted from the form), access is validated, and
+ * user_id is the authenticated caller.
+ */
+export async function createTitleCellEntryAction(
+  formData: FormData,
+): Promise<void> {
+  return runSafeAction(formData, async (formData, { supabase, userId }) => {
+    const project_id = formData.get("project_id") as string;
+    const category_id = (formData.get("category_id") as string) || null;
+    const entry_date = formData.get("entry_date") as string;
+    const durationMin = parseInt((formData.get("duration_min") as string) ?? "", 10);
+    const tzOffsetMin = tzOffsetFromForm(formData);
+    if (!project_id || !entry_date) {
+      throw new Error("project_id and entry_date are required");
+    }
+    // Nothing to create for a non-positive duration — bail quietly.
+    if (!Number.isFinite(durationMin) || durationMin <= 0) return;
+
+    const { data: project, error: projErr } = await supabase
+      .from("projects")
+      .select("team_id, is_internal")
+      .eq("id", project_id)
+      .single();
+    if (projErr || !project) {
+      throw new Error("Project not found or not accessible");
+    }
+    const teamId = project.team_id as string;
+    const isInternal = (project as { is_internal?: boolean }).is_internal === true;
+    // Access check (throws if the caller isn't on the project's team);
+    // user_id comes from the authenticated runSafeAction context.
+    await validateTeamAccess(teamId);
+
+    const description = (formData.get("description") as string) || null;
+    // Internal projects are pinned non-billable (defense in depth).
+    const billable = isInternal ? false : formData.get("billable") === "on";
+    const provider = (formData.get("linked_ticket_provider") as string) || null;
+    const t = entryFromDuration(entry_date, durationMin, tzOffsetMin);
+
+    assertSupabaseOk(
+      await supabase.from("time_entries").insert({
+        team_id: teamId,
+        user_id: userId,
+        project_id,
+        category_id,
+        description,
+        start_time: t.start_time,
+        end_time: t.end_time,
+        billable,
+        linked_ticket_provider: provider,
+        linked_ticket_key: provider
+          ? (formData.get("linked_ticket_key") as string) || null
+          : null,
+        linked_ticket_url: provider
+          ? (formData.get("linked_ticket_url") as string) || null
+          : null,
+        linked_ticket_title: provider
+          ? (formData.get("linked_ticket_title") as string) || null
+          : null,
+      }),
+    );
+    revalidatePath("/time-entries");
+    revalidatePath(`/projects/${project_id}`);
+  }, "createTitleCellEntryAction") as unknown as void;
+}
+
 export async function updateTimeEntryAction(formData: FormData): Promise<void> {
   return runSafeAction(formData, async (formData, { supabase, userId }) => {
     const id = formData.get("id") as string;

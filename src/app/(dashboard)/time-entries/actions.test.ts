@@ -285,6 +285,7 @@ vi.mock("@/lib/supabase/server", () => ({
 
 import {
   createTimeEntryAction,
+  createTitleCellEntryAction,
   deleteTimeEntriesAction,
   deleteTimeEntryAction,
   markBilledElsewhereEntriesAction,
@@ -1100,5 +1101,74 @@ describe("upsertTimesheetCellAction — multi-entry cell collapse", () => {
     // Nothing mutated.
     expect(state.updates).toHaveLength(0);
     expect(state.deletes).toHaveLength(0);
+  });
+});
+
+describe("createTitleCellEntryAction", () => {
+  beforeEach(reset);
+
+  it("inserts an entry copying the title identity, team derived from the project", async () => {
+    state.project = { team_id: "t-1", is_internal: false, default_billable: true };
+    await createTitleCellEntryAction(
+      fd({
+        project_id: "p-1",
+        category_id: "c-1",
+        entry_date: "2026-05-05",
+        duration_min: "90",
+        tz_offset_min: "0",
+        description: "AE-644 cutover",
+        billable: "on",
+        linked_ticket_provider: "jira",
+        linked_ticket_key: "AE-644",
+        linked_ticket_url: "https://x/AE-644",
+        linked_ticket_title: "Cutover",
+      }),
+    );
+    expect(state.inserts).toHaveLength(1);
+    const rows = state.inserts[0]!.rows as Record<string, unknown>;
+    expect(rows.team_id).toBe("t-1"); // derived from project, not the form
+    expect(rows.user_id).toBe(fakeUserId);
+    expect(rows.project_id).toBe("p-1");
+    expect(rows.category_id).toBe("c-1");
+    expect(rows.description).toBe("AE-644 cutover");
+    expect(rows.billable).toBe(true);
+    expect(rows.linked_ticket_key).toBe("AE-644");
+    expect(rows.linked_ticket_provider).toBe("jira");
+  });
+
+  it("forces non-billable for internal projects", async () => {
+    state.project = { team_id: "t-1", is_internal: true, default_billable: true };
+    await createTitleCellEntryAction(
+      fd({
+        project_id: "p-1",
+        entry_date: "2026-05-05",
+        duration_min: "60",
+        billable: "on",
+      }),
+    );
+    const rows = state.inserts[0]!.rows as Record<string, unknown>;
+    expect(rows.billable).toBe(false);
+  });
+
+  it("does not write linked-ticket fields when no provider is given", async () => {
+    state.project = { team_id: "t-1", is_internal: false, default_billable: true };
+    await createTitleCellEntryAction(
+      fd({
+        project_id: "p-1",
+        entry_date: "2026-05-05",
+        duration_min: "30",
+        description: "Testing framework",
+      }),
+    );
+    const rows = state.inserts[0]!.rows as Record<string, unknown>;
+    expect(rows.linked_ticket_key).toBeNull();
+    expect(rows.linked_ticket_provider).toBeNull();
+  });
+
+  it("no-ops on a non-positive duration (no insert)", async () => {
+    await createTitleCellEntryAction(
+      fd({ project_id: "p-1", entry_date: "2026-05-05", duration_min: "0" }),
+    );
+    expect(state.inserts).toHaveLength(0);
   });
 });

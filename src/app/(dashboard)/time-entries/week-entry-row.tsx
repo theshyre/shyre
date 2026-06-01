@@ -465,11 +465,13 @@ interface TitleLineRowProps {
    *  pure (no Date.now() in render) and the tick can't drift. */
   runningNowMs: number;
   customerRail?: string;
-  /** Create-on-empty-day handler — typing into a 0-entry cell upserts a
-   *  new entry on (project, category, user, that day). Single-entry
-   *  cells edit by entry id directly (never the upsert path), and 2+
-   *  cells are read-only. */
-  onCellCommit?: (dayIndex: number, minutes: number) => void | Promise<void>;
+  /** Create-on-empty-day handler — typing into a 0-entry cell creates a
+   *  NEW entry carrying THIS title's identity (ticket + description +
+   *  billable) on that day. Distinct from the row-level upsert, which is
+   *  keyed only on (project, category, day) and would hit a different
+   *  title's entry sharing the cell. Single-entry cells edit by entry id
+   *  directly; 2+ cells are read-only. */
+  onCellCreate?: (dayIndex: number, minutes: number) => void | Promise<void>;
 }
 
 /**
@@ -500,7 +502,7 @@ export function TitleLineRow({
   runningStartIso,
   runningNowMs,
   customerRail,
-  onCellCommit,
+  onCellCreate,
 }: TitleLineRowProps): React.JSX.Element {
   const t = useTranslations("time.entryRow");
   const tTitle = useTranslations("time.titleLine");
@@ -509,6 +511,10 @@ export function TitleLineRow({
   const ticketKey = line.ticketKey;
   const ticketUrl = line.ticketUrl;
   const desc = displayDescription(ticketKey, line.description);
+  // Names the task in the expand control's accessible name so SR users
+  // hear "Show 3 entries on AE-644" rather than a context-free "this
+  // task" — the scoped a11y win in lieu of a full treegrid migration.
+  const taskName = ticketKey ?? (desc || t("untitled"));
   const allEntries = line.entriesByDay.flat();
   const author = allEntries[0]?.author ?? null;
   const invoicedLabel =
@@ -540,7 +546,7 @@ export function TitleLineRow({
     const cellDate = dayDatesLong[d];
 
     if (count === 0) {
-      if (onCellCommit) {
+      if (onCellCreate) {
         return (
           <td key={d} className="px-2 py-1.5 align-middle">
             <label className="flex justify-end cursor-text">
@@ -554,7 +560,7 @@ export function TitleLineRow({
                 }
                 onCommit={(committed) => {
                   if (committed === null || committed === 0) return;
-                  void onCellCommit(d, committed);
+                  void onCellCreate(d, committed);
                 }}
                 placeholder="·"
                 className={EMPTY_CELL_INPUT_CLASS}
@@ -685,7 +691,10 @@ export function TitleLineRow({
                 onClick={onToggle}
                 aria-expanded={expanded}
                 aria-controls={controlsId}
-                aria-label={tTitle("expandLineAria", { count: line.entryCount })}
+                aria-label={tTitle("expandLineAria", {
+                  count: line.entryCount,
+                  task: taskName,
+                })}
                 className="inline-flex shrink-0 items-center rounded p-1 text-content-muted hover:bg-hover hover:text-accent transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent"
               >
                 <ChevronDown

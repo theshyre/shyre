@@ -75,7 +75,7 @@
   "titleLine": {
     "expandLine": "Show entries",
     "collapseLine": "Hide entries",
-    "expandLineAria": "Show the {count, plural, one {# entry} other {# entries}} behind this task",
+    "expandLineAria": "Show the {count, plural, one {# entry} other {# entries}} on {task}",
     "entriesBadge": "{count, plural, one {# entry} other {# entries}}",
     "summedTooltip": "{count, plural, one {# entry} other {# entries}} this day — expand to edit",
     "summedAria": "{date} — {duration} total across {count, plural, one {# entry} other {# entries}}, expand to edit",

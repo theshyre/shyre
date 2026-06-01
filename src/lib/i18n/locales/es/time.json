@@ -75,7 +75,7 @@
   "titleLine": {
     "expandLine": "Mostrar entradas",
     "collapseLine": "Ocultar entradas",
-    "expandLineAria": "Mostrar las {count, plural, one {# entrada} other {# entradas}} de esta tarea",
+    "expandLineAria": "Mostrar las {count, plural, one {# entrada} other {# entradas}} de {task}",
     "entriesBadge": "{count, plural, one {# entrada} other {# entradas}}",
     "summedTooltip": "{count, plural, one {# entrada} other {# entradas}} este día — expande para editar",
     "summedAria": "{date} — {duration} en total de {count, plural, one {# entrada} other {# entradas}}, expande para editar",
