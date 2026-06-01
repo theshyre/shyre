@@ -86,7 +86,8 @@
     "drawerResumeEntry": "Resume timer on the {date} entry",
     "drawerStopEntry": "Stop timer on the {date} entry",
     "drawerEditEntry": "Edit the {date} entry",
-    "drawerDeleteEntry": "Delete the {date} entry"
+    "drawerDeleteEntry": "Delete the {date} entry",
+    "viewInvoiceAria": "View invoice {invoice} — the {date} entry"
   },
   "saveEntry": "Save Entry",
   "saveChanges": "Save Changes",

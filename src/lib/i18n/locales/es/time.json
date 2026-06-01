@@ -86,7 +86,8 @@
     "drawerResumeEntry": "Reanudar el temporizador de la entrada del {date}",
     "drawerStopEntry": "Detener el temporizador de la entrada del {date}",
     "drawerEditEntry": "Editar la entrada del {date}",
-    "drawerDeleteEntry": "Eliminar la entrada del {date}"
+    "drawerDeleteEntry": "Eliminar la entrada del {date}",
+    "viewInvoiceAria": "Ver factura {invoice} — la entrada del {date}"
   },
   "saveEntry": "Guardar Registro",
   "saveChanges": "Guardar Cambios",

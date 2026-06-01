@@ -745,8 +745,30 @@ describe("TitleLineDrawer", () => {
     });
     const link = screen.getByRole("link", { name: /invoiced/i });
     expect(link).toHaveAttribute("href", "/invoices/inv-99");
+    // The "Invoiced" word is visible (not icon-only).
+    expect(link).toHaveTextContent(/invoiced/i);
     expect(
       screen.queryByRole("button", { name: /delete the/i }),
     ).toBeNull();
+  });
+
+  it("shows the invoice number on a locked entry and links to it", () => {
+    renderDrawer({
+      rows: [
+        {
+          entry: makeEntry("locked", {
+            description: "AE-9",
+            invoiced: true,
+            invoice_id: "inv-99",
+            invoice_number: "1042",
+            duration_min: 60,
+          }),
+          dayIndex: 0,
+        },
+      ],
+    });
+    const link = screen.getByRole("link", { name: /view invoice 1042/i });
+    expect(link).toHaveAttribute("href", "/invoices/inv-99");
+    expect(link).toHaveTextContent("1042");
   });
 });

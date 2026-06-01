@@ -949,16 +949,35 @@ function DrawerEntryItem({
       </span>
       <span className="flex shrink-0 items-center justify-end gap-1">
         {locked ? (
-          <Tooltip label={tLock("locked")}>
+          // Invoiced entries are immutable — the only affordance is a
+          // labelled link to the invoice (icon + "Invoiced" word + the
+          // invoice number when known), so the row reads as "billed,
+          // view invoice" rather than an inert dead row.
+          <Tooltip
+            label={tLock("lockedOn", {
+              invoice: entry.invoice_number ?? "—",
+            })}
+          >
             <Link
               href={`/invoices/${entry.invoice_id}`}
-              aria-label={tTitle("lockedCellAria", {
-                date: dayDateLong,
-                duration: durationDisplay,
-              })}
-              className="inline-flex items-center gap-1 rounded p-1 text-warning hover:bg-warning-soft transition-colors"
+              aria-label={
+                entry.invoice_number
+                  ? tTitle("viewInvoiceAria", {
+                      invoice: entry.invoice_number,
+                      date: dayDateLong,
+                    })
+                  : tTitle("lockedCellAria", {
+                      date: dayDateLong,
+                      duration: durationDisplay,
+                    })
+              }
+              className="inline-flex items-center gap-1 rounded px-1.5 py-1 text-caption font-medium text-warning hover:bg-warning-soft hover:underline transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent"
             >
-              <Lock size={14} aria-hidden="true" />
+              <Lock size={12} aria-hidden="true" className="shrink-0" />
+              {tLock("locked")}
+              {entry.invoice_number && (
+                <span className="tabular-nums">· {entry.invoice_number}</span>
+              )}
             </Link>
           </Tooltip>
         ) : (
