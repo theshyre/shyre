@@ -9,7 +9,7 @@ const { updateMock, createMock, deleteMock, startMock, stopMock, updateDurationM
     deleteMock: vi.fn(async () => undefined),
     startMock: vi.fn(async () => undefined),
     stopMock: vi.fn(async () => undefined),
-    updateDurationMock: vi.fn(async () => undefined),
+    updateDurationMock: vi.fn(async (_fd: FormData) => undefined),
   }));
 
 vi.mock("./actions", () => ({
@@ -527,7 +527,7 @@ describe("TitleLineRow", () => {
     fireEvent.change(input, { target: { value: "4:00" } });
     fireEvent.blur(input);
     expect(updateDurationMock).toHaveBeenCalledTimes(1);
-    const fdArg = updateDurationMock.mock.calls[0]![0] as FormData;
+    const fdArg = updateDurationMock.mock.calls[0]![0];
     expect(fdArg.get("id")).toBe("e2");
     expect(fdArg.get("duration_min")).toBe("240");
   });
