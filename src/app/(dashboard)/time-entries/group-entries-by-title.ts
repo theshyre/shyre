@@ -60,6 +60,34 @@ function titleKey(
   return JSON.stringify([ticketKey ?? "", description, billable]);
 }
 
+/**
+ * Description for display next to a ticket chip. When the description
+ * begins with the ticket key (the auto-fill prefixes it, e.g.
+ * "AE-644 Amplify Gen 2 cutover" for ticket AE-644), strip that leading
+ * key so the line doesn't read "AE-644 AE-644 Amplify Gen 2 cutover" —
+ * the chip already shows the key.
+ *
+ * Anchored to the start and only stripped when a separator/whitespace
+ * follows, so an inline mention ("see AE-644 for context") is never
+ * touched, and never returns empty (an entry described as literally
+ * just the key keeps showing the key rather than going blank).
+ * Case-insensitive on the key only. Used for the *visible* + sr-only
+ * text; the play/stop action label keeps the full original so it stays
+ * self-describing.
+ */
+export function displayDescription(
+  ticketKey: string | null,
+  description: string | null,
+): string {
+  const desc = (description ?? "").trim();
+  if (!ticketKey || desc === "") return desc;
+  const escaped = ticketKey.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+  // key, optional separator (: - en-dash em-dash), then required whitespace.
+  const prefix = new RegExp(`^${escaped}\\s*[:\\u2013\\u2014-]?\\s+`, "i");
+  const stripped = desc.replace(prefix, "").trim();
+  return stripped.length > 0 ? stripped : desc;
+}
+
 /** How much of a merged line is already invoiced. Drives the line-level
  *  lock indicator: `partial` is its own state (>=2-channel glyph + word)
  *  because a single "fully billed" lock over partly-billed minutes would

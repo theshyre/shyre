@@ -34,6 +34,7 @@ import {
   EntryEditRow,
   EntrySummaryRow,
   TitleLineRow,
+  TitleLineDrawer,
   flattenEntriesByDay,
   shouldAutoExpand,
 } from "./week-entry-row";
@@ -1937,6 +1938,11 @@ function TimesheetRow({
         }
         const controlsId = `title-${rowIndex}-${li}`;
         const titleOpen = titleOpenOverride[line.key] ?? line.hasCollision;
+        // The entry (if any) whose inline edit form is open under this
+        // line — its EntryEditRow renders below the compact drawer.
+        const editedRow = titleOpen
+          ? flat.find(({ entry }) => entry.id === editingEntryId)
+          : undefined;
         return (
           <Fragment key={line.key}>
             <TitleLineRow
@@ -1954,10 +1960,33 @@ function TimesheetRow({
               runningNowMs={runningNowMs}
               customerRail={customerRail ?? undefined}
             />
-            {titleOpen &&
-              flat.map(({ entry, dayIndex: dIdx }) =>
-                renderEntryRow(entry, dIdx),
-              )}
+            {titleOpen && (
+              <TitleLineDrawer
+                rows={flat}
+                controlsId={controlsId}
+                dayDatesLong={dayDatesLong}
+                taskLabel={line.ticketKey ?? line.description ?? ""}
+                runningStartIso={runningStartIso}
+                runningNowMs={runningNowMs}
+                editingEntryId={editingEntryId}
+                onEditToggle={(id) =>
+                  setEditingEntryId((cur) => (cur === id ? null : id))
+                }
+                onClose={() =>
+                  setTitleOpenOverride((m) => ({ ...m, [line.key]: false }))
+                }
+              />
+            )}
+            {editedRow && (
+              <EntryEditRow
+                entry={editedRow.entry}
+                project={project}
+                projects={projects}
+                tzOffsetMin={tzOffsetMin}
+                dayDateLong={dayDatesLong[editedRow.dayIndex] ?? ""}
+                onClose={() => setEditingEntryId(null)}
+              />
+            )}
           </Fragment>
         );
       })}

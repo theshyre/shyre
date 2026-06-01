@@ -80,8 +80,13 @@
     "summedTooltip": "{count, plural, one {# entry} other {# entries}} this day — expand to edit",
     "summedAria": "{date} — {duration} total across {count, plural, one {# entry} other {# entries}}, expand to edit",
     "lockedCellAria": "{date} — {duration}, invoiced",
-    "partialInvoiced": "Partially invoiced",
-    "invoicedDetail": "{invoiced} of {count} entries invoiced"
+    "invoicedDetail": "{invoiced} of {count} entries invoiced",
+    "drawerLabel": "Entries behind {task}",
+    "drawerHeader": "{count, plural, one {# entry} other {# entries}}",
+    "drawerResumeEntry": "Resume timer on the {date} entry",
+    "drawerStopEntry": "Stop timer on the {date} entry",
+    "drawerEditEntry": "Edit the {date} entry",
+    "drawerDeleteEntry": "Delete the {date} entry"
   },
   "saveEntry": "Save Entry",
   "saveChanges": "Save Changes",

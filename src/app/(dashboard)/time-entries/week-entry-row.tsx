@@ -69,7 +69,7 @@ import {
   updateTimeEntryDurationAction,
 } from "./actions";
 import { DurationInput } from "./duration-input";
-import type { TitleLine } from "./group-entries-by-title";
+import { displayDescription, type TitleLine } from "./group-entries-by-title";
 import type { ProjectOption, TimeEntry } from "./types";
 
 const DAYS_IN_WEEK = 7;
@@ -142,6 +142,9 @@ export function EntrySummaryRow({
   const ticketKey = entry.linked_ticket_key;
   const ticketUrl = entry.linked_ticket_url;
   const description = entry.description ?? "";
+  // Visible/sr-only text drops a leading ticket-key prefix (the chip
+  // already shows the key); entryLabel below keeps the full text.
+  const descDisplay = displayDescription(ticketKey, entry.description);
   const durationDisplay = formatDurationHMZero(
     isRunning
       ? (entry.duration_min ?? 0) + liveElapsedMin
@@ -194,7 +197,15 @@ export function EntrySummaryRow({
         style={customerRail ? { borderLeftColor: customerRail } : undefined}
       >
         <div className="flex items-center gap-1.5 pl-6 min-w-0">
-          <span aria-hidden="true" className="text-content-muted">↳</span>
+          {/* Fixed-width leading slot so the ↳ glyph aligns with the
+              TitleLineRow chevron — avatars/chips form one column across
+              merged and single task lines. */}
+          <span
+            aria-hidden="true"
+            className="flex w-[22px] shrink-0 justify-center text-content-muted"
+          >
+            ↳
+          </span>
           {/* Authorship per the mandatory rule — every surface that
               surfaces a time_entries row renders the author. Compact
               mode shows just the avatar with name on hover so the
@@ -225,12 +236,12 @@ export function EntrySummaryRow({
               while the trigger is focused, and the visual <span> is
               not focusable, so SR users never hear the full
               description. WCAG 1.4.13 / 4.1.2. */}
-          <Tooltip label={description || t("untitled")}>
+          <Tooltip label={descDisplay || t("untitled")}>
             <span
               className="text-body text-content-secondary truncate min-w-0"
               aria-hidden="true"
             >
-              {description || (
+              {descDisplay || (
                 <span className="italic text-content-muted">
                   {t("untitled")}
                 </span>
@@ -238,7 +249,7 @@ export function EntrySummaryRow({
             </span>
           </Tooltip>
           <span className="sr-only">
-            {description || t("untitled")}
+            {descDisplay || t("untitled")}
           </span>
         </div>
       </td>
@@ -497,9 +508,16 @@ export function TitleLineRow({
 
   const ticketKey = line.ticketKey;
   const ticketUrl = line.ticketUrl;
-  const description = line.description ?? "";
+  const desc = displayDescription(ticketKey, line.description);
   const allEntries = line.entriesByDay.flat();
   const author = allEntries[0]?.author ?? null;
+  const invoicedLabel =
+    line.invoicedState === "all"
+      ? tLock("locked")
+      : tTitle("invoicedDetail", {
+          invoiced: line.invoicedCount,
+          count: line.entryCount,
+        });
 
   /** Live-elapsed minutes for a running entry, 0 otherwise. Uses the
    *  parent's shared ticker so it never drifts from the parent cell. */
@@ -656,24 +674,28 @@ export function TitleLineRow({
         style={customerRail ? { borderLeftColor: customerRail } : undefined}
       >
         <div className="flex items-center gap-1.5 pl-6 min-w-0">
-          <Tooltip
-            label={expanded ? tTitle("collapseLine") : tTitle("expandLine")}
-          >
-            <button
-              type="button"
-              onClick={onToggle}
-              aria-expanded={expanded}
-              aria-controls={controlsId}
-              aria-label={tTitle("expandLineAria", { count: line.entryCount })}
-              className="inline-flex shrink-0 items-center rounded p-0.5 text-content-muted hover:bg-hover hover:text-accent transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent"
+          {/* Fixed-width leading slot — same width as EntrySummaryRow's
+              ↳ slot so avatars/chips align into one column. */}
+          <span className="flex w-[22px] shrink-0 justify-center">
+            <Tooltip
+              label={expanded ? tTitle("collapseLine") : tTitle("expandLine")}
             >
-              <ChevronDown
-                size={14}
-                aria-hidden="true"
-                className={`transition-transform ${expanded ? "rotate-180" : ""}`}
-              />
-            </button>
-          </Tooltip>
+              <button
+                type="button"
+                onClick={onToggle}
+                aria-expanded={expanded}
+                aria-controls={controlsId}
+                aria-label={tTitle("expandLineAria", { count: line.entryCount })}
+                className="inline-flex shrink-0 items-center rounded p-1 text-content-muted hover:bg-hover hover:text-accent transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent"
+              >
+                <ChevronDown
+                  size={14}
+                  aria-hidden="true"
+                  className={`transition-transform ${expanded ? "rotate-180" : ""}`}
+                />
+              </button>
+            </Tooltip>
+          </span>
           <EntryAuthor author={author} size={16} compact />
           {ticketKey ? (
             ticketUrl ? (
@@ -694,19 +716,19 @@ export function TitleLineRow({
               </span>
             )
           ) : null}
-          <Tooltip label={description || t("untitled")}>
+          <Tooltip label={desc || t("untitled")}>
             <span
               className="text-body text-content-secondary truncate min-w-0"
               aria-hidden="true"
             >
-              {description || (
+              {desc || (
                 <span className="italic text-content-muted">
                   {t("untitled")}
                 </span>
               )}
             </span>
           </Tooltip>
-          <span className="sr-only">{description || t("untitled")}</span>
+          <span className="sr-only">{desc || t("untitled")}</span>
           {/* Entry-count badge — text channel telling the user there's
               per-entry detail folded behind this line. */}
           <Tooltip label={tTitle("entriesBadge", { count: line.entryCount })}>
@@ -717,24 +739,26 @@ export function TitleLineRow({
               {line.entryCount}
             </span>
           </Tooltip>
+          {/* Invoiced indicator — icon-only to spare the description.
+              `all` = lock alone (icon + color, 2 channels); `partial`
+              adds an invoiced/total fraction (3rd channel) so it's
+              distinguishable from `all` without relying on color. The
+              per-day cells already carry their own lock glyphs. */}
           {line.invoicedState !== "none" && (
-            <Tooltip
-              label={tTitle("invoicedDetail", {
-                invoiced: line.invoicedCount,
-                count: line.entryCount,
-              })}
-            >
+            <Tooltip label={invoicedLabel}>
               <span
-                className={`inline-flex shrink-0 items-center gap-1 rounded px-1 text-caption font-medium ${
-                  line.invoicedState === "all"
-                    ? "text-warning"
-                    : "text-warning/80"
-                }`}
+                className="inline-flex shrink-0 items-center gap-0.5 text-warning"
+                aria-label={invoicedLabel}
               >
                 <Lock size={11} aria-hidden="true" />
-                {line.invoicedState === "all"
-                  ? tLock("locked")
-                  : tTitle("partialInvoiced")}
+                {line.invoicedState === "partial" && (
+                  <span
+                    className="text-caption font-medium tabular-nums"
+                    aria-hidden="true"
+                  >
+                    {line.invoicedCount}/{line.entryCount}
+                  </span>
+                )}
               </span>
             </Tooltip>
           )}
@@ -752,6 +776,253 @@ export function TitleLineRow({
           only control. */}
       <td className="px-2 py-1.5" aria-hidden="true" />
     </tr>
+  );
+}
+
+interface TitleLineDrawerProps {
+  /** Underlying entries with their day index, in render order. */
+  rows: Array<{ entry: TimeEntry; dayIndex: number }>;
+  /** Matches the TitleLineRow chevron's `aria-controls`. */
+  controlsId: string;
+  /** Long-form date per visible day (length 7) for each entry's label. */
+  dayDatesLong: string[];
+  /** Identifying label for the merged task (region aria-label). */
+  taskLabel: string;
+  runningStartIso: string | null;
+  runningNowMs: number;
+  /** Which entry (if any) currently has its inline edit form open. */
+  editingEntryId: string | null;
+  onEditToggle: (entryId: string) => void;
+  /** Collapse the disclosure (Escape). */
+  onClose: () => void;
+}
+
+/**
+ * Compact disclosure for a merged TitleLineRow's underlying entries. A
+ * single colSpan `<tr>` (so the table stays at two expand levels and the
+ * <col> grid still owns widths) holding a list where each entry shows
+ * only what distinguishes it — its day, duration, and per-entry actions.
+ * The ticket + description + 7-day matrix are NOT repeated; the title
+ * line above already carries them. Author is shown once at the header.
+ */
+export function TitleLineDrawer({
+  rows,
+  controlsId,
+  dayDatesLong,
+  taskLabel,
+  runningStartIso,
+  runningNowMs,
+  editingEntryId,
+  onEditToggle,
+  onClose,
+}: TitleLineDrawerProps): React.JSX.Element {
+  const tTitle = useTranslations("time.titleLine");
+  const author = rows[0]?.entry.author ?? null;
+
+  const handleKeyDown = (e: React.KeyboardEvent<HTMLDivElement>): void => {
+    if (e.key === "Escape") {
+      e.preventDefault();
+      e.stopPropagation();
+      onClose();
+    }
+  };
+
+  return (
+    <tr id={controlsId}>
+      <td
+        colSpan={TOTAL_COLS}
+        className="bg-surface-raised border-b border-edge-muted/60"
+      >
+        {/* Inline disclosure (not a modal): Escape-dismissible, focus not
+            trapped — Tab flows on through to the next row. */}
+        <div
+          role="group"
+          aria-label={tTitle("drawerLabel", { task: taskLabel })}
+          onKeyDown={handleKeyDown}
+          className="py-1.5 pl-12 pr-3"
+        >
+          {/* Author once, per the authorship rule — the merged line is
+              single-author by construction. */}
+          <div className="flex items-center gap-1.5 pb-1 text-caption text-content-muted">
+            <EntryAuthor author={author} size={14} compact />
+            <span>{tTitle("drawerHeader", { count: rows.length })}</span>
+          </div>
+          <ul className="space-y-px">
+            {rows.map(({ entry, dayIndex }) => (
+              <DrawerEntryItem
+                key={entry.id}
+                entry={entry}
+                dayDateLong={dayDatesLong[dayIndex] ?? ""}
+                runningStartIso={runningStartIso}
+                runningNowMs={runningNowMs}
+                editing={editingEntryId === entry.id}
+                onEditToggle={() => onEditToggle(entry.id)}
+              />
+            ))}
+          </ul>
+        </div>
+      </td>
+    </tr>
+  );
+}
+
+interface DrawerEntryItemProps {
+  entry: TimeEntry;
+  dayDateLong: string;
+  runningStartIso: string | null;
+  runningNowMs: number;
+  editing: boolean;
+  onEditToggle: () => void;
+}
+
+/** One entry inside a TitleLineDrawer: `date · duration · actions`. No
+ *  identity (the title line owns it); date is the distinguisher so every
+ *  action's aria-label names the date. */
+function DrawerEntryItem({
+  entry,
+  dayDateLong,
+  runningStartIso,
+  runningNowMs,
+  editing,
+  onEditToggle,
+}: DrawerEntryItemProps): React.JSX.Element {
+  const tTitle = useTranslations("time.titleLine");
+  const tLock = useTranslations("time.lock");
+  const tRunning = useTranslations("time.cellExpansion");
+  const del = useFormAction({ action: deleteTimeEntryAction });
+  const start = useFormAction({ action: startTimerAction });
+  const stop = useFormAction({ action: stopTimerAction });
+
+  const locked = entry.invoiced && entry.invoice_id != null;
+  const isRunning = entry.end_time === null && runningStartIso !== null;
+  const liveElapsed = isRunning
+    ? Math.max(
+        0,
+        Math.floor((runningNowMs - new Date(entry.start_time).getTime()) / 60_000),
+      )
+    : 0;
+  const durationDisplay = formatDurationHMZero(
+    (entry.duration_min ?? 0) + liveElapsed,
+  );
+
+  const handleStart = (): void => {
+    const fd = new FormData();
+    fd.set("resume_entry_id", entry.id);
+    const [dayStart, dayEnd] = localDayBoundsIso();
+    fd.set("day_start_iso", dayStart);
+    fd.set("day_end_iso", dayEnd);
+    void (async () => {
+      await start.handleSubmit(fd);
+      notifyTimerChanged();
+    })();
+  };
+
+  const handleStop = (): void => {
+    const fd = new FormData();
+    fd.set("id", entry.id);
+    void (async () => {
+      await stop.handleSubmit(fd);
+      notifyTimerChanged();
+    })();
+  };
+
+  return (
+    <li
+      className={`flex items-center gap-2 rounded px-2 py-1 ${
+        isRunning ? "bg-success-soft/20" : ""
+      }`}
+    >
+      <span className="min-w-0 flex-1 truncate text-body text-content-secondary">
+        {dayDateLong}
+      </span>
+      <span className="inline-flex shrink-0 items-center gap-1.5 font-mono text-body tabular-nums text-content">
+        {isRunning && (
+          <span className="inline-flex items-center gap-1 text-caption font-medium uppercase tracking-wider text-success">
+            <span
+              className="h-1.5 w-1.5 rounded-full bg-success motion-safe:animate-pulse"
+              aria-hidden="true"
+            />
+            {tRunning("runningBadge")}
+          </span>
+        )}
+        {durationDisplay}
+      </span>
+      <span className="flex shrink-0 items-center justify-end gap-1">
+        {locked ? (
+          <Tooltip label={tLock("locked")}>
+            <Link
+              href={`/invoices/${entry.invoice_id}`}
+              aria-label={tTitle("lockedCellAria", {
+                date: dayDateLong,
+                duration: durationDisplay,
+              })}
+              className="inline-flex items-center gap-1 rounded p-1 text-warning hover:bg-warning-soft transition-colors"
+            >
+              <Lock size={14} aria-hidden="true" />
+            </Link>
+          </Tooltip>
+        ) : (
+          <>
+            {isRunning ? (
+              <Tooltip label={tTitle("drawerStopEntry", { date: dayDateLong })}>
+                <button
+                  type="button"
+                  onClick={handleStop}
+                  disabled={stop.pending}
+                  aria-label={tTitle("drawerStopEntry", { date: dayDateLong })}
+                  className="rounded p-1 text-error-text hover:bg-error-soft transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-error disabled:opacity-50"
+                >
+                  <Square size={14} className="fill-current" />
+                </button>
+              </Tooltip>
+            ) : (
+              <Tooltip label={tTitle("drawerResumeEntry", { date: dayDateLong })}>
+                <button
+                  type="button"
+                  onClick={handleStart}
+                  disabled={start.pending}
+                  aria-label={tTitle("drawerResumeEntry", { date: dayDateLong })}
+                  className="rounded p-1 text-content-muted hover:bg-hover hover:text-accent transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent disabled:opacity-50"
+                >
+                  <Play size={14} />
+                </button>
+              </Tooltip>
+            )}
+            <Tooltip label={tTitle("drawerEditEntry", { date: dayDateLong })}>
+              <button
+                type="button"
+                onClick={onEditToggle}
+                aria-expanded={editing}
+                aria-controls={`entry-edit-${entry.id}`}
+                aria-label={tTitle("drawerEditEntry", { date: dayDateLong })}
+                className={`rounded p-1 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent ${
+                  editing
+                    ? "bg-accent-soft text-accent"
+                    : "text-content-muted hover:bg-hover hover:text-accent"
+                }`}
+              >
+                <Pencil size={14} />
+              </button>
+            </Tooltip>
+            <Tooltip label={tTitle("drawerDeleteEntry", { date: dayDateLong })}>
+              <button
+                type="button"
+                onClick={() => {
+                  const fd = new FormData();
+                  fd.set("id", entry.id);
+                  void del.handleSubmit(fd);
+                }}
+                disabled={del.pending}
+                aria-label={tTitle("drawerDeleteEntry", { date: dayDateLong })}
+                className="rounded p-1 text-content-muted hover:bg-error-soft hover:text-error transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-error disabled:opacity-50"
+              >
+                <Trash2 size={14} />
+              </button>
+            </Tooltip>
+          </>
+        )}
+      </span>
+    </li>
   );
 }
 

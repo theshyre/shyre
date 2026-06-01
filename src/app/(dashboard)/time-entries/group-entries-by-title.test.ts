@@ -1,6 +1,48 @@
 import { describe, it, expect } from "vitest";
-import { groupEntriesByTitle } from "./group-entries-by-title";
+import {
+  groupEntriesByTitle,
+  displayDescription,
+} from "./group-entries-by-title";
 import type { TimeEntry } from "./types";
+
+describe("displayDescription", () => {
+  it("strips a leading ticket-key prefix", () => {
+    expect(displayDescription("AE-644", "AE-644 Amplify Gen 2 cutover")).toBe(
+      "Amplify Gen 2 cutover",
+    );
+  });
+
+  it("strips the key with a separator", () => {
+    expect(displayDescription("AE-1", "AE-1: fix login")).toBe("fix login");
+    expect(displayDescription("AE-1", "AE-1 - fix login")).toBe("fix login");
+  });
+
+  it("is case-insensitive on the key", () => {
+    expect(displayDescription("ae-1", "AE-1 fix login")).toBe("fix login");
+  });
+
+  it("never empties the description (key-only stays as the key)", () => {
+    expect(displayDescription("AE-644", "AE-644")).toBe("AE-644");
+  });
+
+  it("does not strip an inline mention or a non-matching prefix", () => {
+    expect(displayDescription("AE-644", "see AE-644 for context")).toBe(
+      "see AE-644 for context",
+    );
+    expect(displayDescription("AE-6", "AE-644 cutover")).toBe("AE-644 cutover");
+  });
+
+  it("leaves the description untouched when there is no ticket key", () => {
+    expect(displayDescription(null, "Testing framework")).toBe(
+      "Testing framework",
+    );
+  });
+
+  it("handles null/empty description", () => {
+    expect(displayDescription("AE-1", null)).toBe("");
+    expect(displayDescription("AE-1", "   ")).toBe("");
+  });
+});
 
 /** Minimal entry factory. Unlike the week-entry-row test's helper this
  *  one defaults `description` to a *fixed* value so the null/empty cases

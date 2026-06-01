@@ -80,8 +80,13 @@
     "summedTooltip": "{count, plural, one {# entrada} other {# entradas}} este día — expande para editar",
     "summedAria": "{date} — {duration} en total de {count, plural, one {# entrada} other {# entradas}}, expande para editar",
     "lockedCellAria": "{date} — {duration}, facturado",
-    "partialInvoiced": "Facturado parcialmente",
-    "invoicedDetail": "{invoiced} de {count} entradas facturadas"
+    "invoicedDetail": "{invoiced} de {count} entradas facturadas",
+    "drawerLabel": "Entradas de {task}",
+    "drawerHeader": "{count, plural, one {# entrada} other {# entradas}}",
+    "drawerResumeEntry": "Reanudar el temporizador de la entrada del {date}",
+    "drawerStopEntry": "Detener el temporizador de la entrada del {date}",
+    "drawerEditEntry": "Editar la entrada del {date}",
+    "drawerDeleteEntry": "Eliminar la entrada del {date}"
   },
   "saveEntry": "Guardar Registro",
   "saveChanges": "Guardar Cambios",

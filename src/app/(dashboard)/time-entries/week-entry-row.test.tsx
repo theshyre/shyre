@@ -31,6 +31,7 @@ import {
   EntryEditRow,
   EntrySummaryRow,
   TitleLineRow,
+  TitleLineDrawer,
   flattenEntriesByDay,
   shouldAutoExpand,
 } from "./week-entry-row";
@@ -572,7 +573,9 @@ describe("TitleLineRow", () => {
     expect(onToggle).toHaveBeenCalled();
   });
 
-  it("signals partial vs full invoiced state in text (not color alone)", () => {
+  it("distinguishes partial from full invoiced state without relying on color", () => {
+    // Partial: one of two entries invoiced → an invoiced/total fraction
+    // is the distinguishing channel (beyond the lock icon + warning color).
     const partial = groupEntriesByTitle(
       dayGrid({
         0: [
@@ -586,9 +589,14 @@ describe("TitleLineRow", () => {
       }),
     )[0]!;
     const { unmount } = renderLine(partial);
-    expect(screen.getByText(/partially invoiced/i)).toBeInTheDocument();
+    expect(screen.getByText("1/2")).toBeInTheDocument();
+    // The indicator carries an accessible label even though it's icon-only.
+    expect(
+      screen.getByLabelText(/1 of 2 entries invoiced/i),
+    ).toBeInTheDocument();
     unmount();
 
+    // All invoiced: lock indicator labelled "Invoiced", and NO fraction.
     const all = groupEntriesByTitle(
       dayGrid({
         0: [
@@ -608,7 +616,137 @@ describe("TitleLineRow", () => {
       }),
     )[0]!;
     renderLine(all);
-    // tLock("locked") === "Invoiced"
-    expect(screen.getAllByText(/invoiced/i).length).toBeGreaterThan(0);
+    expect(screen.queryByText("2/2")).toBeNull();
+    expect(screen.getByLabelText("Invoiced")).toBeInTheDocument();
+  });
+
+  it("strips the leading ticket key from the merged line's description", () => {
+    const line = groupEntriesByTitle(
+      dayGrid({
+        0: [
+          makeEntry("a", {
+            linked_ticket_key: "AE-644",
+            linked_ticket_provider: "jira",
+            description: "AE-644 Amplify Gen 2 cutover",
+            duration_min: 60,
+          }),
+        ],
+        1: [
+          makeEntry("b", {
+            linked_ticket_key: "AE-644",
+            linked_ticket_provider: "jira",
+            description: "AE-644 Amplify Gen 2 cutover",
+            duration_min: 90,
+          }),
+        ],
+      }),
+    )[0]!;
+    renderLine(line);
+    // Chip shows the key once; the description no longer repeats it.
+    expect(screen.getByText("AE-644")).toBeInTheDocument();
+    expect(screen.getAllByText("Amplify Gen 2 cutover").length).toBeGreaterThan(0);
+    expect(screen.queryByText(/AE-644 Amplify Gen 2 cutover/)).toBeNull();
+  });
+});
+
+describe("TitleLineDrawer", () => {
+  beforeEach(() => {
+    deleteMock.mockClear();
+  });
+
+  const rows = [
+    {
+      entry: makeEntry("d1", {
+        linked_ticket_key: "AE-644",
+        description: "AE-644 cutover",
+        duration_min: 60,
+      }),
+      dayIndex: 0,
+    },
+    {
+      entry: makeEntry("d2", {
+        linked_ticket_key: "AE-644",
+        description: "AE-644 cutover",
+        duration_min: 90,
+      }),
+      dayIndex: 1,
+    },
+  ];
+
+  function renderDrawer(
+    props: Partial<React.ComponentProps<typeof TitleLineDrawer>> = {},
+  ) {
+    return renderWithIntl(
+      wrapInTable(
+        <TitleLineDrawer
+          rows={rows}
+          controlsId="title-0-0"
+          dayDatesLong={WEEK_DAYS_LONG}
+          taskLabel="AE-644"
+          runningStartIso={null}
+          runningNowMs={0}
+          editingEntryId={null}
+          onEditToggle={() => {}}
+          onClose={() => {}}
+          {...props}
+        />,
+      ),
+    );
+  }
+
+  it("shows date + duration per entry without repeating the identity", () => {
+    renderDrawer();
+    // Distinguisher = the day, shown as visible text.
+    expect(screen.getByText("Mon")).toBeInTheDocument();
+    expect(screen.getByText("Tue")).toBeInTheDocument();
+    expect(screen.getByText("1:00")).toBeInTheDocument();
+    expect(screen.getByText("1:30")).toBeInTheDocument();
+    // The ticket + description are NOT repeated per entry — the title
+    // line above already carries them. No ticket chip in the drawer.
+    expect(screen.queryByText("AE-644")).toBeNull();
+    expect(screen.queryByText(/cutover/)).toBeNull();
+  });
+
+  it("gives each entry's actions a date-scoped accessible name", () => {
+    renderDrawer();
+    expect(
+      screen.getByRole("button", { name: /edit the mon entry/i }),
+    ).toBeInTheDocument();
+    expect(
+      screen.getByRole("button", { name: /delete the tue entry/i }),
+    ).toBeInTheDocument();
+  });
+
+  it("is associated with its trigger via the controlsId on the row", () => {
+    const { container } = renderDrawer({ controlsId: "title-7-2" });
+    expect(container.querySelector("#title-7-2")).not.toBeNull();
+  });
+
+  it("closes on Escape", () => {
+    const onClose = vi.fn();
+    renderDrawer({ onClose });
+    fireEvent.keyDown(screen.getByRole("group"), { key: "Escape" });
+    expect(onClose).toHaveBeenCalled();
+  });
+
+  it("renders a locked entry as an invoice link, not edit/delete", () => {
+    renderDrawer({
+      rows: [
+        {
+          entry: makeEntry("locked", {
+            description: "AE-9",
+            invoiced: true,
+            invoice_id: "inv-99",
+            duration_min: 60,
+          }),
+          dayIndex: 0,
+        },
+      ],
+    });
+    const link = screen.getByRole("link", { name: /invoiced/i });
+    expect(link).toHaveAttribute("href", "/invoices/inv-99");
+    expect(
+      screen.queryByRole("button", { name: /delete the/i }),
+    ).toBeNull();
   });
 });
