@@ -13,6 +13,10 @@ interface Props {
    *  NewExpenseForm's `lockedProjectId` prop and project_id is
    *  emitted as a hidden field. */
   projectId: string;
+  /** Distinct prior vendors across the project's team → native
+   *  <datalist> suggestions on the vendor input. Free text still
+   *  accepted. */
+  vendorOptions: string[];
 }
 
 /**
@@ -28,12 +32,14 @@ export function ProjectExpenseForm({
   teamId,
   teamName,
   projectId,
+  vendorOptions,
 }: Props): React.JSX.Element {
   return (
     <NewExpenseForm
       defaultTeamId={teamId}
       teamOptions={[{ id: teamId, name: teamName }]}
       projects={[]}
+      vendorOptions={vendorOptions}
       lockedProjectId={projectId}
     />
   );

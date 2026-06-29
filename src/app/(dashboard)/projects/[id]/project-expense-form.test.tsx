@@ -16,7 +16,12 @@ import { ProjectExpenseForm } from "./project-expense-form";
 describe("ProjectExpenseForm", () => {
   it("renders the collapsed 'Add expense' trigger", () => {
     renderWithIntl(
-      <ProjectExpenseForm teamId="t1" teamName="Acme" projectId="p1" />,
+      <ProjectExpenseForm
+        teamId="t1"
+        teamName="Acme"
+        projectId="p1"
+        vendorOptions={[]}
+      />,
     );
     expect(
       screen.getByRole("button", { name: /Add expense/i }),
@@ -25,7 +30,12 @@ describe("ProjectExpenseForm", () => {
 
   it("hides the project picker when expanded (lockedProjectId path)", () => {
     renderWithIntl(
-      <ProjectExpenseForm teamId="t1" teamName="Acme" projectId="p1" />,
+      <ProjectExpenseForm
+        teamId="t1"
+        teamName="Acme"
+        projectId="p1"
+        vendorOptions={[]}
+      />,
     );
     fireEvent.click(screen.getByRole("button", { name: /Add expense/i }));
 
@@ -37,7 +47,12 @@ describe("ProjectExpenseForm", () => {
 
   it("submits a hidden project_id pinned to the locked project", () => {
     const { container } = renderWithIntl(
-      <ProjectExpenseForm teamId="t1" teamName="Acme" projectId="p1" />,
+      <ProjectExpenseForm
+        teamId="t1"
+        teamName="Acme"
+        projectId="p1"
+        vendorOptions={[]}
+      />,
     );
     fireEvent.click(screen.getByRole("button", { name: /Add expense/i }));
 
@@ -50,7 +65,12 @@ describe("ProjectExpenseForm", () => {
 
   it("does NOT render the team picker when only one team is in scope", () => {
     renderWithIntl(
-      <ProjectExpenseForm teamId="t1" teamName="Acme" projectId="p1" />,
+      <ProjectExpenseForm
+        teamId="t1"
+        teamName="Acme"
+        projectId="p1"
+        vendorOptions={[]}
+      />,
     );
     fireEvent.click(screen.getByRole("button", { name: /Add expense/i }));
     // Team picker shows only when teamOptions.length > 1, and the

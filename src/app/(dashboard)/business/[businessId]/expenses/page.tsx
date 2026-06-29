@@ -17,6 +17,7 @@ import {
 } from "./expense-summary-tiles";
 import { parseExpenseFilters, hasActiveFilters } from "./filter-params";
 import { applyExpenseFilters } from "./query-filters";
+import { dedupeVendors } from "./vendor-options";
 import { parseListPagination } from "@/lib/pagination/list-pagination";
 import { PaginationFooter } from "@/components/PaginationFooter";
 
@@ -34,6 +35,7 @@ interface ExpenseRecord {
   amount: number;
   currency: string;
   vendor: string | null;
+  external_reference: string | null;
   category: string;
   description: string | null;
   notes: string | null;
@@ -132,9 +134,13 @@ export default async function ExpensesPage({
   // filtered query for the rendered list. Two queries instead of
   // one because the year dropdown needs the full data set's date
   // range — filtering it would hide other available years.
+  //
+  // `vendor` is selected in the same pass so we can derive the
+  // distinct-vendor suggestion list (for the create-form +
+  // inline-cell <datalist>) without a second full-table scan.
   const { data: allYearsRows } = await supabase
     .from("expenses")
-    .select("incurred_on")
+    .select("incurred_on, vendor")
     .in("team_id", teamIds)
     .is("deleted_at", null);
   const availableYears = Array.from(
@@ -146,6 +152,15 @@ export default async function ExpensesPage({
       }),
     ),
   ).sort((a, b) => b.localeCompare(a)); // newest first
+
+  // Distinct prior vendors → native <datalist> suggestions on every
+  // vendor input. Case-insensitively de-duped (so "AWS" and "aws"
+  // collapse to the first-seen spelling) and alphabetised. Free text
+  // is still accepted everywhere — this is a convenience, not a
+  // constraint.
+  const vendorOptions = dedupeVendors(
+    (allYearsRows ?? []).map((r) => r.vendor as string | null),
+  );
 
   // count: "exact" piggybacks on the same RLS pass — one query
   // returns both the page rows AND the full match count, so the
@@ -164,7 +179,7 @@ export default async function ExpensesPage({
   const baseExpensesQuery = supabase
     .from("expenses")
     .select(
-      "id, team_id, user_id, incurred_on, amount, currency, vendor, category, description, notes, project_id, billable, is_sample, projects(id, name)",
+      "id, team_id, user_id, incurred_on, amount, currency, vendor, external_reference, category, description, notes, project_id, billable, is_sample, projects(id, name)",
       { count: "exact" },
     )
     .in("team_id", teamIds)
@@ -427,6 +442,7 @@ export default async function ExpensesPage({
         defaultTeamId={representativeTeamId}
         teamOptions={teamOptions}
         projects={projects}
+        vendorOptions={vendorOptions}
         secondaryAction={
           <div className="flex items-center gap-2">
             <a
@@ -461,6 +477,7 @@ export default async function ExpensesPage({
       <ExpensesTable
         expenses={expenses}
         projects={projects}
+        vendorOptions={vendorOptions}
         authorById={authorById}
         teamRoleById={teamRoleById}
         teamNameById={teamNameById}

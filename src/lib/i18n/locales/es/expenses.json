@@ -56,8 +56,9 @@
     "collapse": "Cerrar",
     "savedHint": "Los cambios se guardan automáticamente al salir de cada campo.",
     "placeholderVendor": "Nombre del proveedor (p. ej. Apple, AWS)",
+    "placeholderExternalReference": "N.º de factura, N.º de pedido o recibo…",
     "placeholderDescription": "Qué se compró, con el detalle que querrías tener a la hora de auditar.",
-    "placeholderNotes": "N.º de pedido, N.º de factura, detalles del recibo — cualquier cosa que quieras encontrar después."
+    "placeholderNotes": "Datos de confirmación del proveedor, notas de aprobación — cualquier cosa que no quepa arriba."
   },
   "split": {
     "title": "Dividir este gasto",
@@ -74,10 +75,12 @@
     "amount": "Importe",
     "category": "Categoría",
     "vendor": "Proveedor",
+    "externalReference": "Referencia",
+    "externalReferencePlaceholder": "N.º de factura, N.º de pedido, ID de recibo…",
     "description": "Descripción",
     "notes": "Notas",
-    "notesPlaceholder": "N.º factura, n.º pedido, n.º expediente, detalles del recibo…",
-    "notesHint": "Metadatos de auditoría. Números de recibo o pedido, ID de confirmación, cualquier cosa que quieras encontrar después.",
+    "notesPlaceholder": "Datos de confirmación del proveedor, notas de aprobación…",
+    "notesHint": "Contexto libre — ID de confirmación del proveedor, notas de aprobación, cualquier cosa que no quepa en los campos anteriores. Los números de recibo y pedido ahora van en Referencia.",
     "project": "Proyecto",
     "team": "Equipo",
     "billable": "Facturable al cliente",
@@ -86,7 +89,7 @@
   "billableShort": "Fact",
   "filters": {
     "search": "Buscar gastos",
-    "searchPlaceholder": "Proveedor, descripción o notas…",
+    "searchPlaceholder": "Proveedor, referencia, descripción o notas…",
     "year": "Año",
     "allYears": "Todos los años",
     "allProjects": "Todos los proyectos",

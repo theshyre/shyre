@@ -1,6 +1,7 @@
 import { createClient } from "@/lib/supabase/server";
 import { escapeCsvField } from "@/lib/time/csv";
 import { logError } from "@/lib/logger";
+import { expenseSearchOrClause } from "@/app/(dashboard)/business/[businessId]/expenses/query-filters";
 
 /**
  * GET /api/business/[businessId]/expenses/csv
@@ -67,7 +68,7 @@ export async function GET(
   let query = supabase
     .from("expenses")
     .select(
-      "id, team_id, user_id, incurred_on, amount, currency, vendor, category, description, notes, project_id, billable, imported_from, imported_at, created_at, deleted_at, projects(name, customer_id, customers(name))",
+      "id, team_id, user_id, incurred_on, amount, currency, vendor, external_reference, category, description, notes, project_id, billable, imported_from, imported_at, created_at, deleted_at, projects(name, customer_id, customers(name))",
     )
     .in("team_id", teamIds)
     .order("incurred_on", { ascending: false })
@@ -100,15 +101,14 @@ export async function GET(
     query = query.eq("project_id", projectParam);
   }
   // Free-text search — case-insensitive substring on vendor /
-  // description / notes (same shape as applyExpenseFilters in
-  // query-filters.ts). Escape PostgreSQL ILIKE wildcards so a
-  // user typing "100%" doesn't wildcard-match every row.
+  // external_reference / description / notes (same shape as
+  // applyExpenseFilters in query-filters.ts; keep the column list in
+  // lockstep or a filtered export under-returns vs. the page).
+  // Escape PostgreSQL ILIKE wildcards so a user typing "100%"
+  // doesn't wildcard-match every row.
   if (qParam && qParam.trim().length > 0) {
     const escaped = qParam.trim().replace(/[\\%_]/g, "\\$&");
-    const pattern = `%${escaped}%`;
-    query = query.or(
-      `vendor.ilike.${pattern},description.ilike.${pattern},notes.ilike.${pattern}`,
-    );
+    query = query.or(expenseSearchOrClause(`%${escaped}%`));
   }
 
   const { data: rows, error } = await query;
@@ -140,6 +140,7 @@ export async function GET(
     "customer_id",
     "description",
     "notes",
+    "external_reference",
     "imported_from",
     "imported_at",
     "created_at",
@@ -175,6 +176,7 @@ export async function GET(
         (project?.customer_id as string | null) ?? "",
         (row.description as string | null) ?? "",
         (row.notes as string | null) ?? "",
+        (row.external_reference as string | null) ?? "",
         (row.imported_from as string | null) ?? "",
         (row.imported_at as string | null) ?? "",
         (row.created_at as string | null) ?? "",

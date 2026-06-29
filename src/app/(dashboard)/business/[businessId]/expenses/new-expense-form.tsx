@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useState } from "react";
+import { useCallback, useId, useState } from "react";
 import { useTranslations } from "next-intl";
 import { Plus } from "lucide-react";
 import { AlertBanner, useKeyboardShortcut } from "@theshyre/ui";
@@ -35,6 +35,10 @@ interface Props {
    *  shows so multi-team agencies can target the right team. */
   teamOptions: { id: string; name: string }[];
   projects: ProjectOption[];
+  /** Distinct prior vendors → native <datalist> suggestions on the
+   *  vendor input. Free text is still accepted. Optional (defaults
+   *  to []) so callers that don't source it render a plain input. */
+  vendorOptions?: string[];
   /** Optional secondary action rendered next to the "Add expense"
    *  button when the form is collapsed. Hidden when the form
    *  expands so a tall form panel doesn't end up with a button
@@ -57,6 +61,7 @@ export function NewExpenseForm({
   defaultTeamId,
   teamOptions,
   projects,
+  vendorOptions = [],
   secondaryAction,
   lockedProjectId,
 }: Props): React.JSX.Element {
@@ -66,6 +71,8 @@ export function NewExpenseForm({
   const [incurredOn, setIncurredOn] = useState<string>(() => todayStr());
   const t = useTranslations("expenses");
   const tc = useTranslations("common");
+  const vendorListId = useId();
+  const hasVendorSuggestions = vendorOptions.length > 0;
   const showTeamPicker = teamOptions.length > 1;
   // When a team is selected, scope the project dropdown to projects
   // owned by that team — a project from Team A can't accept an
@@ -175,7 +182,9 @@ export function NewExpenseForm({
           <CategoryHint category={selectedCategory} />
         </div>
 
-        {/* Row 2: Vendor + Project + (optional) Team. */}
+        {/* Row 2: Vendor + Reference + Project + (optional) Team.
+            Each formSpanThird; Team (when shown) wraps to the next
+            grid line. */}
         <div className={formSpanThird}>
           <label htmlFor="ne-vendor" className={labelClass}>
             {t("fields.vendor")}
@@ -185,6 +194,26 @@ export function NewExpenseForm({
             name="vendor"
             type="text"
             className={inputClass}
+            list={hasVendorSuggestions ? vendorListId : undefined}
+          />
+          {hasVendorSuggestions && (
+            <datalist id={vendorListId}>
+              {vendorOptions.map((v) => (
+                <option key={v} value={v} />
+              ))}
+            </datalist>
+          )}
+        </div>
+        <div className={formSpanThird}>
+          <label htmlFor="ne-external-reference" className={labelClass}>
+            {t("fields.externalReference")}
+          </label>
+          <input
+            id="ne-external-reference"
+            name="external_reference"
+            type="text"
+            className={inputClass}
+            placeholder={t("fields.externalReferencePlaceholder")}
           />
         </div>
         {lockedProjectId ? (

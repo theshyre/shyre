@@ -23,6 +23,7 @@ export interface ProjectExpensesTableExpense {
   amount: number;
   currency: string;
   vendor: string | null;
+  external_reference: string | null;
   category: string;
   description: string | null;
   notes: string | null;
@@ -42,6 +43,9 @@ interface Props {
    *  so the user can re-link an expense to a different project from
    *  this surface. Empty array = picker shows only "no project". */
   projects: ProjectOption[];
+  /** Distinct prior vendors across the team → native <datalist>
+   *  suggestions on each row's inline vendor cell + expanded row. */
+  vendorOptions: string[];
   viewerUserId: string;
   /** True when the viewer is owner/admin on the project's team —
    *  drives the per-row delete affordance and EditableCell enable.
@@ -68,6 +72,7 @@ export function ProjectExpensesTable({
   expenses,
   authorById,
   projects,
+  vendorOptions,
   viewerUserId,
   viewerIsTeamAdmin,
 }: Props): React.JSX.Element {
@@ -139,6 +144,7 @@ export function ProjectExpensesTable({
                 expense={expense}
                 author={authorById.get(expense.user_id) ?? null}
                 projects={projects}
+                vendorOptions={vendorOptions}
                 teamName={null}
                 columnCount={9}
                 canEdit={canEdit}

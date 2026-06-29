@@ -7,7 +7,7 @@ Every entity that matters for reconciliation has a CSV export. Totals on the exp
 - **Time entries** — Time page → **Export** button (top right). Respects current filters (org, week, billable, category).
 - **Customers** — Customers page → **Export** (planned — currently manual via DB if needed; tell the admin).
 - **Invoices** — Invoices page → **Export** (in progress).
-- **Expenses** — Expenses page → **Export** (planned).
+- **Expenses** — Expenses page → **Export CSV** button. Respects current filters (team, date range, category, project, billable, and the free-text search).
 
 ## Time entries CSV format
 
@@ -34,6 +34,15 @@ Columns:
 - `invoice_id`
 
 Downloaded as `time-entries-YYYY-MM-DD.csv`.
+
+## Expenses CSV format
+
+Columns: `expense_id`, `incurred_on`, `team`, `team_id`, `vendor`, `amount`, `currency`, `category`, `billable`, `project`, `project_id`, `customer`, `customer_id`, `description`, `notes`, `external_reference`, `imported_from`, `imported_at`, `created_at`, `deleted_at`, `user_id`, `business_id`.
+
+Downloaded as `shyre-expenses-YYYY-MM-DD.csv`.
+
+- **`external_reference`** is the expense's external identifier (vendor invoice #, PO #, order/receipt #). It exports verbatim. `notes` is exported too — for older rows the identifier may still live there (see the Expenses feature guide's cutover note), and the export search matches both, so a filtered export returns exactly the rows the page shows.
+- **Excel / Sheets caveat:** a reference like `0012345` (leading zeros) or a long all-digit confirmation number can be re-formatted by a spreadsheet on open (leading zeros dropped, long digit strings shown as `1.2E+15`). The CSV *bytes* are correct and match the UI exactly; to preserve the display, import the column as **Text** rather than letting the spreadsheet auto-detect the type.
 
 ## Invariants
 

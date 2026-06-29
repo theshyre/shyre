@@ -38,6 +38,7 @@ interface ExpenseRecord {
   amount: number;
   currency: string;
   vendor: string | null;
+  external_reference: string | null;
   category: string;
   description: string | null;
   notes: string | null;
@@ -50,6 +51,9 @@ interface ExpenseRecord {
 interface Props {
   expenses: ExpenseRecord[];
   projects: ProjectOption[];
+  /** Distinct prior vendors → native <datalist> suggestions on each
+   *  row's inline vendor cell. Free text still accepted. */
+  vendorOptions: string[];
   /** Maps each expense's user_id → author for avatar / name rendering. */
   authorById: Map<string, ExpenseAuthor>;
   teamRoleById: Map<string, string>;
@@ -96,6 +100,7 @@ interface Props {
 export function ExpensesTable({
   expenses,
   projects,
+  vendorOptions,
   authorById,
   teamRoleById,
   teamNameById,
@@ -642,6 +647,7 @@ export function ExpensesTable({
                 expense={e}
                 author={authorById.get(e.user_id) ?? null}
                 projects={projects}
+                vendorOptions={vendorOptions}
                 teamName={
                   showTeamColumn
                     ? (teamNameById.get(e.team_id) ?? null)

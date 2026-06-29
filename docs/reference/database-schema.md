@@ -99,7 +99,9 @@ A handful of tables are **business-scoped** (a Business owns 1+ Teams) — see "
 
 | Table | Purpose |
 |---|---|
-| `expenses` | Team-scoped expense rows. Inline-edited via `EditableCell`. Soft-delete via `deleted_at`. Imported-from markers. Period-lock trigger applies. Phase 2: `invoiced` (bool), `invoice_id` (FK to `invoices`, ON DELETE SET NULL), `invoiced_at` (timestamptz) carry the same invoiced-lock pattern as `time_entries` — action layer refuses update/delete/split when `invoiced=true`. |
+| `expenses` | Team-scoped expense rows. Inline-edited via `EditableCell`. Soft-delete via `deleted_at`. Imported-from markers. Period-lock trigger applies. `external_reference` (text, nullable) is the expense's **external** identifier — vendor invoice #, PO #, order/receipt/confirmation number; free text, not unique (split receipts share one), distinct from the internal `invoice_id` linkage. Phase 2: `invoiced` (bool), `invoice_id` (FK to `invoices`, ON DELETE SET NULL), `invoiced_at` (timestamptz) carry the same invoiced-lock pattern as `time_entries` — action layer refuses update/delete/split when `invoiced=true`. |
+
+**Naming convention — `external_reference`.** The "an outside party's identifier for this record" concept is named `external_reference` (not `reference` / `ext_ref` / `reference_no`). It currently lives only on `expenses`; if a future column carries the same idea on `time_entries` or `invoices`, reuse this exact name rather than inventing a synonym. Free text, no CHECK / allow-list — it is a vendor-defined namespace, not a Shyre taxonomy.
 
 ## Imports
 

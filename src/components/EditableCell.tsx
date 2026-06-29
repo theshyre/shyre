@@ -3,6 +3,7 @@
 import {
   useCallback,
   useEffect,
+  useId,
   useRef,
   useState,
   type KeyboardEvent,
@@ -58,6 +59,12 @@ interface CommonProps {
 
 interface TextProps extends CommonProps {
   variant: "text";
+  /** Optional free-text autocomplete suggestions. When non-empty,
+   *  the edit input renders a native `<datalist>` of these values
+   *  (e.g. previously-entered vendors). Free text is still accepted —
+   *  the list is a convenience, not a constraint — so commit-on-blur
+   *  and Enter behave exactly as without it. */
+  suggestions?: string[];
 }
 
 interface NumberProps extends CommonProps {
@@ -120,8 +127,19 @@ export function EditableCell(props: EditableCellProps): React.JSX.Element {
   // there typing mutates `draft` until commit/cancel resets to null.
   const [draft, setDraft] = useState<string | null>(null);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
+  // Stable id for the optional <datalist> (text variant only). Hook
+  // must run unconditionally even when no suggestions are passed.
+  const datalistId = useId();
 
   const effectiveDraft = draft ?? value;
+  // Native autocomplete suggestions for the text variant. De-dupe +
+  // drop blanks defensively so a stray "" doesn't render an empty
+  // <option>. Free text is always still accepted — see TextProps.
+  const textSuggestions =
+    props.variant === "text" && props.suggestions
+      ? Array.from(new Set(props.suggestions.filter((s) => s.trim() !== "")))
+      : [];
+  const hasSuggestions = textSuggestions.length > 0;
 
   // Focus the input when entering edit mode. select() puts the
   // cursor at the end + selects all so typing replaces wholesale.
@@ -316,26 +334,36 @@ export function EditableCell(props: EditableCellProps): React.JSX.Element {
           autoFocus
         />
       ) : (
-        <input
-          ref={(el) => {
-            inputRef.current = el;
-          }}
-          aria-label={ariaLabel}
-          type={props.variant === "number" ? "number" : "text"}
-          value={effectiveDraft}
-          onChange={(e) => setDraft(e.target.value)}
-          onKeyDown={handleKey}
-          onBlur={() => void commit()}
-          disabled={showSpinner}
-          placeholder={placeholder}
-          {...(props.variant === "number" && {
-            min: (props as NumberProps).min,
-            step: (props as NumberProps).step,
-          })}
-          className={`block w-full min-w-0 max-w-full rounded-sm border bg-surface py-0.5 text-inherit ${
-            errorBorder ? "border-error" : "border-accent"
-          } focus:outline-none focus:ring-1 focus:ring-accent`}
-        />
+        <>
+          <input
+            ref={(el) => {
+              inputRef.current = el;
+            }}
+            aria-label={ariaLabel}
+            type={props.variant === "number" ? "number" : "text"}
+            value={effectiveDraft}
+            onChange={(e) => setDraft(e.target.value)}
+            onKeyDown={handleKey}
+            onBlur={() => void commit()}
+            disabled={showSpinner}
+            placeholder={placeholder}
+            list={hasSuggestions ? datalistId : undefined}
+            {...(props.variant === "number" && {
+              min: (props as NumberProps).min,
+              step: (props as NumberProps).step,
+            })}
+            className={`block w-full min-w-0 max-w-full rounded-sm border bg-surface py-0.5 text-inherit ${
+              errorBorder ? "border-error" : "border-accent"
+            } focus:outline-none focus:ring-1 focus:ring-accent`}
+          />
+          {hasSuggestions && (
+            <datalist id={datalistId}>
+              {textSuggestions.map((s) => (
+                <option key={s} value={s} />
+              ))}
+            </datalist>
+          )}
+        </>
       )}
 
       {showSpinner && (

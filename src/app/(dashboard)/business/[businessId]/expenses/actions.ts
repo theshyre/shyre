@@ -42,6 +42,7 @@ interface ExpenseInput {
   amount: number;
   currency: string;
   vendor: string | null;
+  external_reference: string | null;
   category: string;
   description: string | null;
   notes: string | null;
@@ -66,6 +67,7 @@ function readExpense(formData: FormData): ExpenseInput {
   }
   const currency = blankToNull(formData.get("currency")) ?? "USD";
   const vendor = blankToNull(formData.get("vendor"));
+  const external_reference = blankToNull(formData.get("external_reference"));
   const description = blankToNull(formData.get("description"));
   const notes = blankToNull(formData.get("notes"));
   const rawProjectId = blankToNull(formData.get("project_id"));
@@ -77,6 +79,7 @@ function readExpense(formData: FormData): ExpenseInput {
     amount: Math.round(amount * 100) / 100,
     currency,
     vendor,
+    external_reference,
     category,
     description,
     notes,
@@ -172,6 +175,7 @@ const EDITABLE_EXPENSE_FIELDS = new Set([
   "incurred_on",
   "amount",
   "vendor",
+  "external_reference",
   "category",
   "description",
   "notes",
@@ -255,6 +259,7 @@ export async function updateExpenseFieldAction(formData: FormData): Promise<
           break;
         }
         case "vendor":
+        case "external_reference":
         case "description":
         case "notes": {
           update[field] = valueStr === "" ? null : valueStr;
@@ -364,7 +369,7 @@ export async function splitExpenseAction(formData: FormData): Promise<
       const { data: original } = await supabase
         .from("expenses")
         .select(
-          "id, team_id, user_id, incurred_on, amount, currency, vendor, description, notes, project_id, billable, deleted_at, invoiced",
+          "id, team_id, user_id, incurred_on, amount, currency, vendor, external_reference, description, notes, project_id, billable, deleted_at, invoiced",
         )
         .eq("id", id)
         .maybeSingle();
@@ -414,9 +419,9 @@ export async function splitExpenseAction(formData: FormData): Promise<
       );
 
       // Insert the remaining splits as new rows. Inherit the
-      // original's date, vendor, description, project, billable,
-      // currency, team, user — only amount + category + notes
-      // are split-specific.
+      // original's date, vendor, external_reference, description,
+      // project, billable, currency, team, user — only amount +
+      // category + notes are split-specific.
       if (splits.length > 1) {
         const newRows = splits.slice(1).map((s) => ({
           team_id: teamId,
@@ -425,6 +430,7 @@ export async function splitExpenseAction(formData: FormData): Promise<
           amount: Math.round(s.amount * 100) / 100,
           currency: (original.currency as string | null) ?? "USD",
           vendor: original.vendor as string | null,
+          external_reference: original.external_reference as string | null,
           category: s.category,
           description: original.description as string | null,
           notes: s.notes ?? null,

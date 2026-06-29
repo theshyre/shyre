@@ -32,6 +32,9 @@ interface Props {
    *  so the user can re-link an expense to a different project from
    *  the project page. */
   projects: ProjectOption[];
+  /** Distinct prior vendors across the project's team → native
+   *  <datalist> suggestions on the add-form + inline vendor cells. */
+  vendorOptions: string[];
   viewerUserId: string;
   viewerIsTeamAdmin: boolean;
   /** True when expenses RLS may be filtering out rows the viewer
@@ -67,6 +70,7 @@ export async function ExpensesSection({
   expenses,
   authorById,
   projects,
+  vendorOptions,
   viewerUserId,
   viewerIsTeamAdmin,
   showScopedHint,
@@ -105,6 +109,7 @@ export async function ExpensesSection({
           teamId={teamId}
           teamName={teamName}
           projectId={projectId}
+          vendorOptions={vendorOptions}
         />
       </div>
 
@@ -116,6 +121,7 @@ export async function ExpensesSection({
             expenses={expenses}
             authorById={authorById}
             projects={projects}
+            vendorOptions={vendorOptions}
             viewerUserId={viewerUserId}
             viewerIsTeamAdmin={viewerIsTeamAdmin}
           />

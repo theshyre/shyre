@@ -8,6 +8,7 @@ import {
   type ProjectExpenseRowAuthor,
 } from "../expenses-section";
 import type { ProjectOption } from "@/app/(dashboard)/business/[businessId]/expenses/page";
+import { dedupeVendors } from "@/app/(dashboard)/business/[businessId]/expenses/vendor-options";
 
 export async function generateMetadata({
   params,
@@ -56,7 +57,7 @@ export default async function ProjectExpensesPage({
   const { data: expenseRows, error: expensesError } = await supabase
     .from("expenses")
     .select(
-      "id, team_id, user_id, incurred_on, amount, currency, vendor, category, description, notes, project_id, billable, is_sample, invoiced, invoice_id, projects(id, name)",
+      "id, team_id, user_id, incurred_on, amount, currency, vendor, external_reference, category, description, notes, project_id, billable, is_sample, invoiced, invoice_id, projects(id, name)",
     )
     .eq("project_id", id)
     .is("deleted_at", null)
@@ -115,6 +116,7 @@ export default async function ProjectExpensesPage({
         amount: Number(r.amount),
         currency: (r.currency as string | null) ?? "USD",
         vendor: (r.vendor as string | null) ?? null,
+        external_reference: (r.external_reference as string | null) ?? null,
         category: r.category as string,
         description: (r.description as string | null) ?? null,
         notes: (r.notes as string | null) ?? null,
@@ -145,6 +147,20 @@ export default async function ProjectExpensesPage({
     .order("name");
   const teamProjects: ProjectOption[] = (teamProjectRows ?? []) as ProjectOption[];
 
+  // Distinct prior vendors across the project's team → native
+  // <datalist> suggestions on the add-form + inline vendor cells.
+  // Team-scoped (not project-scoped) so vendors used on the team's
+  // other projects still suggest here. RLS gates the read; free text
+  // is always still accepted.
+  const { data: teamVendorRows } = await supabase
+    .from("expenses")
+    .select("vendor")
+    .eq("team_id", project.teamId)
+    .is("deleted_at", null);
+  const vendorOptions = dedupeVendors(
+    (teamVendorRows ?? []).map((r) => r.vendor as string | null),
+  );
+
   const expenseAuthorIds = Array.from(
     new Set(projectExpenses.map((e) => e.user_id)),
   );
@@ -172,6 +188,7 @@ export default async function ProjectExpensesPage({
       expenses={projectExpenses}
       authorById={expenseAuthorById}
       projects={teamProjects}
+      vendorOptions={vendorOptions}
       viewerUserId={project.callerUserId}
       viewerIsTeamAdmin={project.callerIsAdmin}
       showScopedHint={!project.callerIsAdmin}

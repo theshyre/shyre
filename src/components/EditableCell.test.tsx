@@ -175,6 +175,84 @@ describe("EditableCell — text variant", () => {
   });
 });
 
+describe("EditableCell — text variant suggestions (datalist)", () => {
+  it("renders a <datalist> wired to the input via list= when suggestions are passed", () => {
+    const { getByRole, getByLabelText, container } = render(
+      <EditableCell
+        variant="text"
+        value=""
+        ariaLabel="Edit vendor"
+        suggestions={["Apple", "AWS", "Notion"]}
+        onCommit={async () => {}}
+      />,
+    );
+    fireEvent.click(getByRole("button"));
+    const input = getByLabelText("Edit vendor") as HTMLInputElement;
+    const datalist = container.querySelector("datalist");
+    expect(datalist).not.toBeNull();
+    // The input's list attribute points at the datalist's id.
+    expect(input.getAttribute("list")).toBe(datalist?.id);
+    const options = Array.from(
+      datalist?.querySelectorAll("option") ?? [],
+    ).map((o) => o.getAttribute("value"));
+    expect(options).toEqual(["Apple", "AWS", "Notion"]);
+  });
+
+  it("de-dupes and drops blank suggestions", () => {
+    const { getByRole, container } = render(
+      <EditableCell
+        variant="text"
+        value=""
+        ariaLabel="Edit vendor"
+        suggestions={["Apple", "Apple", "  ", ""]}
+        onCommit={async () => {}}
+      />,
+    );
+    fireEvent.click(getByRole("button"));
+    const options = Array.from(
+      container.querySelectorAll("datalist option"),
+    ).map((o) => o.getAttribute("value"));
+    expect(options).toEqual(["Apple"]);
+  });
+
+  it("renders no datalist and no list attribute when suggestions are empty", () => {
+    const { getByRole, getByLabelText, container } = render(
+      <EditableCell
+        variant="text"
+        value=""
+        ariaLabel="Edit vendor"
+        suggestions={[]}
+        onCommit={async () => {}}
+      />,
+    );
+    fireEvent.click(getByRole("button"));
+    expect(container.querySelector("datalist")).toBeNull();
+    expect(
+      (getByLabelText("Edit vendor") as HTMLInputElement).getAttribute("list"),
+    ).toBeNull();
+  });
+
+  it("still commits free text that is not in the suggestion list", async () => {
+    const onCommit = vi.fn(async () => {});
+    const { getByRole, getByLabelText } = render(
+      <EditableCell
+        variant="text"
+        value=""
+        ariaLabel="Edit vendor"
+        suggestions={["Apple", "AWS"]}
+        onCommit={onCommit}
+      />,
+    );
+    fireEvent.click(getByRole("button"));
+    const input = getByLabelText("Edit vendor") as HTMLInputElement;
+    fireEvent.change(input, { target: { value: "Some New Vendor" } });
+    fireEvent.keyDown(input, { key: "Enter" });
+    await waitFor(() => {
+      expect(onCommit).toHaveBeenCalledWith("Some New Vendor");
+    });
+  });
+});
+
 describe("EditableCell — select variant", () => {
   it("renders options and commits on change + blur", async () => {
     const onCommit = vi.fn(async () => {});

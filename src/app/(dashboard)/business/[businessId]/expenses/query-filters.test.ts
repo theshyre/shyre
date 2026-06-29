@@ -1,5 +1,9 @@
 import { describe, it, expect } from "vitest";
-import { applyExpenseFilters } from "./query-filters";
+import {
+  applyExpenseFilters,
+  expenseSearchOrClause,
+  EXPENSE_SEARCH_COLUMNS,
+} from "./query-filters";
 import { emptyExpenseFilters } from "./filter-params";
 import type { ExpenseFilters } from "./filter-params";
 
@@ -59,6 +63,24 @@ function makeRecorder(): { builder: RecorderBuilder; calls: Call[] } {
   return { builder, calls };
 }
 
+describe("expenseSearchOrClause / EXPENSE_SEARCH_COLUMNS", () => {
+  it("covers vendor, external_reference, description, and notes — the shared search universe", () => {
+    // This is the single source of truth both the page filter AND
+    // the CSV export route consume; a column dropped here silently
+    // de-syncs the filtered export from the page.
+    expect(EXPENSE_SEARCH_COLUMNS).toContain("vendor");
+    expect(EXPENSE_SEARCH_COLUMNS).toContain("external_reference");
+    expect(EXPENSE_SEARCH_COLUMNS).toContain("description");
+    expect(EXPENSE_SEARCH_COLUMNS).toContain("notes");
+  });
+
+  it("builds one ilike clause per column for the given pattern", () => {
+    expect(expenseSearchOrClause("%INV-4471%")).toBe(
+      "vendor.ilike.%INV-4471%,external_reference.ilike.%INV-4471%,description.ilike.%INV-4471%,notes.ilike.%INV-4471%",
+    );
+  });
+});
+
 describe("applyExpenseFilters", () => {
   it("makes no calls when filters are empty", () => {
     const { builder, calls } = makeRecorder();
@@ -67,16 +89,25 @@ describe("applyExpenseFilters", () => {
     expect(out).toBe(builder); // returns same builder for chaining
   });
 
-  it("applies a free-text query as an `or` ilike across vendor / description / notes", () => {
+  it("applies a free-text query as an `or` ilike across vendor / external_reference / description / notes", () => {
     const { builder, calls } = makeRecorder();
     applyExpenseFilters(builder, { ...emptyExpenseFilters(), q: "jira" });
     expect(calls).toHaveLength(1);
     expect(calls[0]).toEqual({
       method: "or",
       args: [
-        "vendor.ilike.%jira%,description.ilike.%jira%,notes.ilike.%jira%",
+        "vendor.ilike.%jira%,external_reference.ilike.%jira%,description.ilike.%jira%,notes.ilike.%jira%",
       ],
     });
+  });
+
+  it("includes external_reference in the search clause so a reference number is findable (parity with the CSV export route's q clause)", () => {
+    const { builder, calls } = makeRecorder();
+    applyExpenseFilters(builder, { ...emptyExpenseFilters(), q: "INV-4471" });
+    expect(calls).toHaveLength(1);
+    expect(calls[0]?.args?.[0] as string).toContain(
+      "external_reference.ilike.%INV-4471%",
+    );
   });
 
   it("strips parens and commas from free-text search to keep the or-builder honest", () => {

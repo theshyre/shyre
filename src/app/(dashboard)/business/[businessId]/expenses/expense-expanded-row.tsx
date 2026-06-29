@@ -24,6 +24,7 @@ export interface ExpandedRowExpense {
   amount: number;
   currency: string;
   vendor: string | null;
+  external_reference: string | null;
   category: string;
   description: string | null;
   notes: string | null;
@@ -34,6 +35,9 @@ export interface ExpandedRowExpense {
 interface Props {
   expense: ExpandedRowExpense;
   projects: ProjectOption[];
+  /** Distinct prior vendors → native <datalist> on the vendor field.
+   *  Optional (defaults to []) so non-suggesting callers still work. */
+  vendorOptions?: string[];
   /** Number of columns the parent <table> renders, so the expansion's
    *  single <td> spans the full row width without disturbing the
    *  fixed layout. */
@@ -66,6 +70,7 @@ interface Props {
 export function ExpenseExpandedRow({
   expense,
   projects,
+  vendorOptions = [],
   columnCount,
   canEdit,
   onClose,
@@ -165,15 +170,35 @@ export function ExpenseExpandedRow({
           </Field>
         </div>
 
-        <div className="mt-3">
+        <div className="mt-3 grid gap-3 md:grid-cols-2">
           <Field label={t("fields.vendor")}>
             <EditableCell
               variant="text"
               value={expense.vendor ?? ""}
+              suggestions={vendorOptions}
               ariaLabel={t("fields.vendor")}
               onCommit={(v) => commitField("vendor", v)}
               disabled={!canEdit}
               placeholder={t("drawer.placeholderVendor")}
+            />
+          </Field>
+          <Field label={t("fields.externalReference")}>
+            <EditableCell
+              variant="text"
+              value={expense.external_reference ?? ""}
+              ariaLabel={t("fields.externalReference")}
+              onCommit={(v) => commitField("external_reference", v)}
+              disabled={!canEdit}
+              placeholder={t("drawer.placeholderExternalReference")}
+              // Reference numbers are IDs — render in mono tabular so
+              // digits align and a transposed character is obvious.
+              displayNode={
+                expense.external_reference ? (
+                  <span className="font-mono tabular-nums">
+                    {expense.external_reference}
+                  </span>
+                ) : undefined
+              }
             />
           </Field>
         </div>

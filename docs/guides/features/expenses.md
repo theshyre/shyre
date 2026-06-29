@@ -17,11 +17,26 @@ Above the Add-expense form, four KPI tiles show totals for: **Year to date**, **
    - **Date** — defaults to today
    - **Amount**
    - **Category** — one of: Software, Hardware, Subscriptions, Travel, Meals, Office, Professional services, Fees, Other
-   - **Vendor** — optional (e.g. "AWS", "Chipotle")
+   - **Vendor** — optional (e.g. "AWS", "Chipotle"). As you type, vendors you've used before suggest in a dropdown — pick one to keep spelling consistent, or just keep typing a new name.
+   - **Reference #** — optional. Any unique identifier the expense carries: a vendor invoice number, a PO number, an order or receipt number. Stored exactly as typed (prefixes and leading zeros preserved) so it matches a search of your card or bank statement.
    - **Description** — optional
    - **Project** — optional; link to a project for billable-to-customer expenses
    - **Billable** — checkbox; marks this as billable back to a customer
 3. Save.
+
+## Vendor suggestions
+
+The Vendor field suggests vendors you've entered before (scoped to the team — or, on a project page, the project's team). It's a convenience, not a constraint: free text is always accepted, so a vendor that isn't in the list yet just gets typed in. Suggestions de-dupe case-insensitively, so picking "AWS" consistently keeps it from fragmenting into "aws" / "Amazon Web Services" across rows — which keeps reports and search clean.
+
+## Reference # (invoice / order / receipt number)
+
+Each expense has a single, free-text **Reference #** for its external identifier — whatever number the vendor's document carries (invoice #, PO #, order #, receipt #, confirmation code). One generic field on purpose: at reconciliation time you match on the *number*, not on what kind of number it is.
+
+- It's **searchable** — type the number into the expenses search box to jump straight to the row (handy when a card statement shows a charge and you want the matching expense).
+- It's editable everywhere the row is: the add form, the inline expanded row.
+- It rounds-trips to **CSV export** as its own `external_reference` column.
+
+> **Cutover note.** Before this field existed, people often put these numbers in **Notes**. Existing notes were left untouched (no automatic migration), so for older expenses the number may still be in Notes — both Notes and Reference # are searched, so either way you can still find it. New expenses should use Reference #; Notes is now for free-form context (vendor confirmation details, approval notes).
 
 ## Editing / deleting
 

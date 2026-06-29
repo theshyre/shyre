@@ -54,6 +54,7 @@ interface ExpenseRow {
   amount?: number;
   currency?: string;
   vendor?: string | null;
+  external_reference?: string | null;
   description?: string | null;
   notes?: string | null;
   project_id?: string | null;
@@ -261,6 +262,41 @@ describe("createExpenseAction", () => {
     const inserted = state.inserts[0]?.rows as Record<string, unknown>;
     expect(inserted.project_id).toBeNull();
   });
+
+  it("stores external_reference verbatim (prefix preserved)", async () => {
+    mockValidateTeamAccess.mockResolvedValue({
+      userId: fakeUserId,
+      role: "member",
+    });
+
+    await createExpenseAction(
+      fd({ ...VALID_CREATE, external_reference: "INV-2024-0098" }),
+    );
+    const inserted = state.inserts[0]?.rows as Record<string, unknown>;
+    expect(inserted.external_reference).toBe("INV-2024-0098");
+  });
+
+  it("blank external_reference is normalized to null", async () => {
+    mockValidateTeamAccess.mockResolvedValue({
+      userId: fakeUserId,
+      role: "member",
+    });
+
+    // Absent entirely.
+    await createExpenseAction(fd(VALID_CREATE));
+    expect(
+      (state.inserts[0]?.rows as Record<string, unknown>).external_reference,
+    ).toBeNull();
+
+    // Present but whitespace-only.
+    state.inserts = [];
+    await createExpenseAction(
+      fd({ ...VALID_CREATE, external_reference: "   " }),
+    );
+    expect(
+      (state.inserts[0]?.rows as Record<string, unknown>).external_reference,
+    ).toBeNull();
+  });
 });
 
 describe("updateExpenseAction", () => {
@@ -463,6 +499,7 @@ describe("splitExpenseAction", () => {
       amount: 100,
       currency: "USD",
       vendor: "GitHub",
+      external_reference: "INV-9000",
       description: "subscription",
       notes: "annual",
       project_id: null,
@@ -524,6 +561,9 @@ describe("splitExpenseAction", () => {
       category: "subscriptions",
       currency: "USD",
       vendor: "GitHub",
+      // external_reference is inherited from the original onto every
+      // split row (the document number applies to all the pieces).
+      external_reference: "INV-9000",
       description: "subscription",
       notes: null,
       billable: false,
@@ -726,6 +766,48 @@ describe("splitExpenseAction", () => {
     expect(patch.amount).toBe(33.33);
     const inserted = state.inserts[0]?.rows as Array<Record<string, unknown>>;
     expect(inserted[0]?.amount).toBe(66.67);
+  });
+});
+
+describe("updateExpenseFieldAction — external_reference", () => {
+  beforeEach(reset);
+
+  it("writes a single external_reference value verbatim", async () => {
+    state.fetchedExpense = { team_id: "team-1", user_id: fakeUserId };
+    mockValidateTeamAccess.mockResolvedValue({
+      userId: fakeUserId,
+      role: "member",
+    });
+
+    await updateExpenseFieldAction(
+      fd({ id: "e-1", field: "external_reference", value: "PO-2231" }),
+    );
+
+    expect(state.updates).toHaveLength(1);
+    expect(state.updates[0]?.patch).toEqual({ external_reference: "PO-2231" });
+  });
+
+  it("clears external_reference to null when the value is blank", async () => {
+    state.fetchedExpense = { team_id: "team-1", user_id: fakeUserId };
+    mockValidateTeamAccess.mockResolvedValue({
+      userId: fakeUserId,
+      role: "member",
+    });
+
+    await updateExpenseFieldAction(
+      fd({ id: "e-1", field: "external_reference", value: "   " }),
+    );
+
+    expect(state.updates[0]?.patch).toEqual({ external_reference: null });
+  });
+
+  it("rejects an unknown field name (allow-list gate)", async () => {
+    await expect(
+      updateExpenseFieldAction(
+        fd({ id: "e-1", field: "reference", value: "x" }),
+      ),
+    ).rejects.toThrow(/cannot be edited/);
+    expect(state.updates).toEqual([]);
   });
 });
 

@@ -56,8 +56,9 @@
     "collapse": "Collapse",
     "savedHint": "Changes save automatically when you leave each field.",
     "placeholderVendor": "Vendor name (e.g. Apple, AWS)",
+    "placeholderExternalReference": "Invoice #, PO #, order or receipt number…",
     "placeholderDescription": "What was bought, with as much detail as you'd want at audit time.",
-    "placeholderNotes": "Order #, invoice #, receipt details — anything you'd want to find later."
+    "placeholderNotes": "Vendor confirmation details, approval notes — anything not captured above."
   },
   "split": {
     "title": "Split this expense",
@@ -74,10 +75,12 @@
     "amount": "Amount",
     "category": "Category",
     "vendor": "Vendor",
+    "externalReference": "Reference #",
+    "externalReferencePlaceholder": "Invoice #, PO #, receipt ID…",
     "description": "Description",
     "notes": "Notes",
-    "notesPlaceholder": "Invoice #, order #, matter #, receipt details…",
-    "notesHint": "Audit-trail metadata. Receipt or order numbers, vendor confirmation IDs, anything you'd want to find later.",
+    "notesPlaceholder": "Vendor confirmation details, approval notes…",
+    "notesHint": "Free-form context — vendor confirmation IDs, approval notes, anything not captured in the fields above. Receipt and order numbers now belong in Reference #.",
     "project": "Project",
     "team": "Team",
     "billable": "Billable back to a customer",
@@ -86,7 +89,7 @@
   "billableShort": "Bill",
   "filters": {
     "search": "Search expenses",
-    "searchPlaceholder": "Vendor, description, or notes…",
+    "searchPlaceholder": "Vendor, reference, description, or notes…",
     "year": "Year",
     "allYears": "All years",
     "allProjects": "All projects",

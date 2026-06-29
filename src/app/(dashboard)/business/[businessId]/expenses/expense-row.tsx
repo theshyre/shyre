@@ -42,6 +42,7 @@ interface ExpenseRecord {
   amount: number;
   currency: string;
   vendor: string | null;
+  external_reference: string | null;
   category: string;
   description: string | null;
   notes: string | null;
@@ -72,6 +73,7 @@ export function ExpenseRow({
   expense,
   author,
   projects,
+  vendorOptions = [],
   teamName,
   columnCount,
   canEdit,
@@ -88,6 +90,11 @@ export function ExpenseRow({
    *  a tooltip to keep rows single-line. */
   author: ExpenseAuthor | null;
   projects: ProjectOption[];
+  /** Distinct prior vendors → native <datalist> suggestions on the
+   *  inline vendor cell and the expanded-row vendor field. Optional
+   *  (defaults to []) so callers that don't source it still render a
+   *  plain free-text cell. */
+  vendorOptions?: string[];
   /** Set when the parent table is showing a team column (multi-team
    *  business). Null when there's only one team in scope and the
    *  column is hidden — the row drops the cell entirely so column
@@ -299,6 +306,7 @@ export function ExpenseRow({
         <EditableCell
           variant="text"
           value={vendorLabel}
+          suggestions={vendorOptions}
           ariaLabel={t("ariaActions.editField", {
             vendor: ariaIdent,
             field: t("fields.vendor"),
@@ -550,6 +558,7 @@ export function ExpenseRow({
       <ExpenseExpandedRow
         expense={expense}
         projects={projects}
+        vendorOptions={vendorOptions}
         columnCount={columnCount}
         canEdit={canEdit}
         onClose={toggleExpand}
