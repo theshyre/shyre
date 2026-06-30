@@ -294,6 +294,10 @@
   "closeOutUnbilledTime": "{hours} h de tiempo sin facturar en {entries, plural, one {1 entrada} other {# entradas}} aún sin facturar.",
   "closeOutUnbilledExpenses": "{count, plural, one {1 gasto sin facturar} other {# gastos sin facturar}} aún sin facturar.",
   "closeOutInvoiceLink": "Crear una factura primero",
+  "closeOutReviewTime": "Revisar tiempo sin facturar →",
+  "closeOutReviewExpenses": "Revisar gastos sin facturar →",
+  "closeOutMoreEntries": "+{count} más",
+  "closeOutUntitledEntry": "(sin descripción)",
   "closedToast": "Proyecto cerrado.",
   "reopenedToast": "Proyecto reabierto.",
   "history": {

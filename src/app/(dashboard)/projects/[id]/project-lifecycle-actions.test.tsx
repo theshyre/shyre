@@ -61,6 +61,10 @@ describe("ProjectLifecycleActions", () => {
       timeMinutes: 120,
       timeCount: 2,
       expenseCount: 0,
+      timeEntries: [
+        { id: "t1", startTime: "2026-06-09T10:00:00Z", description: "Entry A", minutes: 90 },
+        { id: "t2", startTime: "2026-06-08T10:00:00Z", description: "Entry B", minutes: 30 },
+      ],
     });
     renderWithIntl(
       <ProjectLifecycleActions projectId="p-1" status="active" isAdmin />,
@@ -68,10 +72,15 @@ describe("ProjectLifecycleActions", () => {
 
     fireEvent.click(screen.getByRole("button", { name: /close out/i }));
 
-    // The unbilled prompt appears after the summary resolves.
+    // The prompt lists the actual unbilled entries (not just a count the
+    // user can't verify) once the summary resolves.
     await waitFor(() =>
-      expect(screen.getByText(/unbilled time/i)).toBeInTheDocument(),
+      expect(screen.getByText("Entry A")).toBeInTheDocument(),
     );
+    expect(screen.getByText("Entry B")).toBeInTheDocument();
+    expect(
+      screen.getByRole("link", { name: /review unbilled time/i }),
+    ).toBeInTheDocument();
     expect(getSummary).toHaveBeenCalledWith("p-1");
   });
 
