@@ -301,19 +301,18 @@ export async function updateExpenseFieldAction(formData: FormData): Promise<
         await supabase.from("expenses").update(update).eq("id", id),
       );
 
-      revalidatePath("/business");
-      revalidatePath("/business/expenses");
-      // Touch both the old and the (possibly-new) project page —
-      // project_id is the only field whose update can land an
-      // expense on a different project's surface than where it was
-      // before. For non-project_id fields the second entry will
-      // dedupe against the first inside the helper.
-      revalidateProjectsForExpense([
-        row.project_id as string | null,
-        field === "project_id"
-          ? (update.project_id as string | null | undefined)
-          : (row.project_id as string | null),
-      ]);
+      // NO revalidatePath here, deliberately. This is the single-field
+      // inline-cell autosave; the client applies the change optimistically
+      // (ExpenseRow holds per-field overrides) so the cell updates in
+      // place. revalidatePath in a Server Action re-renders the current
+      // route, which remounts the list and yanks the viewport back to the
+      // top mid-scroll — a jarring experience on every keystroke-commit.
+      // All affected surfaces (the expenses list, the project expense
+      // sub-route, summary tiles) are dynamic/auth-gated routes that
+      // re-render fresh on the next real navigation, so correctness is
+      // preserved without forcing a refresh now. Bulk / full-row / create
+      // / delete actions DO still revalidate — those are deliberate saves
+      // where a refresh is expected.
     },
     "updateExpenseFieldAction",
   );

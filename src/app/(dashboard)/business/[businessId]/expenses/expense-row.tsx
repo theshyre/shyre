@@ -71,7 +71,7 @@ export interface ExpenseAuthor {
 // pure functions so they can be unit-tested without rendering React.
 
 export function ExpenseRow({
-  expense,
+  expense: expenseProp,
   author,
   projects,
   vendorOptions = [],
@@ -132,6 +132,62 @@ export function ExpenseRow({
   const toast = useToast();
   const [confirmingDelete, setConfirmingDelete] = useState(false);
   const [splitOpen, setSplitOpen] = useState(false);
+
+  // Optimistic overrides for inline-cell edits. updateExpenseFieldAction
+  // deliberately skips revalidatePath (which re-renders the route and
+  // yanks scroll to the top mid-list), so a committed value won't arrive
+  // via a fresh `expense` prop — apply it locally so the cell updates in
+  // place. Reset whenever a genuinely-new prop arrives (a server refetch
+  // from a create / delete / bulk action that DOES revalidate), via
+  // React's "adjust state during render" pattern, not a syncing effect.
+  const [overrides, setOverrides] = useState<Partial<ExpenseRecord>>({});
+  const [lastExpenseProp, setLastExpenseProp] = useState(expenseProp);
+  if (expenseProp !== lastExpenseProp) {
+    setLastExpenseProp(expenseProp);
+    setOverrides({});
+  }
+  const expense: ExpenseRecord = { ...expenseProp, ...overrides };
+
+  function applyOverride(field: string, value: string): void {
+    setOverrides((prev) => {
+      const next: Partial<ExpenseRecord> = { ...prev };
+      switch (field) {
+        case "amount":
+          next.amount = Number(value);
+          break;
+        case "billable":
+          next.billable = value === "true" || value === "on";
+          break;
+        case "incurred_on":
+          next.incurred_on = value;
+          break;
+        case "vendor":
+          next.vendor = value.trim() || null;
+          break;
+        case "external_reference":
+          next.external_reference = value.trim() || null;
+          break;
+        case "category":
+          next.category = value;
+          break;
+        case "description":
+          next.description = value.trim() || null;
+          break;
+        case "notes":
+          next.notes = value.trim() || null;
+          break;
+        case "project_id": {
+          const pid = value || null;
+          next.project_id = pid;
+          const proj = pid ? projects.find((p) => p.id === pid) : null;
+          next.projects = proj ? { id: proj.id, name: proj.name } : null;
+          break;
+        }
+      }
+      return next;
+    });
+  }
+
   // Field-level invoice lock: an invoiced expense keeps its metadata
   // (external_reference / description / notes / vendor / category)
   // editable — the invoice snapshots the expense, so these can't
@@ -189,6 +245,9 @@ export function ExpenseRow({
     if (result && "success" in result && !result.success) {
       throw new Error(result.error.userMessageKey);
     }
+    // Reflect the saved value locally (no route revalidation) so the
+    // cell stays on the new value instead of reverting to the stale prop.
+    applyOverride(field, value);
   };
 
   const categoryOptions: EditableCellSelectOption[] = EXPENSE_CATEGORIES.map(
@@ -600,6 +659,7 @@ export function ExpenseRow({
         columnCount={columnCount}
         canEdit={canEdit}
         onClose={toggleExpand}
+        onFieldCommitted={applyOverride}
       />
     )}
     </>

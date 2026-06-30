@@ -52,6 +52,10 @@ interface Props {
    *  "Collapse" button). Owned by the parent so URL syncing and
    *  the chevron's `aria-expanded` state stay consistent. */
   onClose: () => void;
+  /** Called after a field saves so the parent row can apply the value
+   *  optimistically (the inline action skips revalidatePath to avoid a
+   *  scroll-resetting route refresh). */
+  onFieldCommitted?: (field: string, value: string) => void;
 }
 
 /**
@@ -79,6 +83,7 @@ export function ExpenseExpandedRow({
   columnCount,
   canEdit,
   onClose,
+  onFieldCommitted,
 }: Props): React.JSX.Element {
   const t = useTranslations("expenses");
 
@@ -107,6 +112,10 @@ export function ExpenseExpandedRow({
     if (result && "success" in result && !result.success) {
       throw new Error(result.error.userMessageKey);
     }
+    // Let the parent row reflect the saved value optimistically — the
+    // inline action skips revalidatePath to avoid a scroll-resetting
+    // route refresh.
+    onFieldCommitted?.(field, value);
   };
 
   // Field-level invoice lock — mirrors expense-row. Financial fields
