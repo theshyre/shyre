@@ -294,6 +294,10 @@
   "closeOutUnbilledTime": "{hours}h of unbilled time across {entries, plural, one {1 entry} other {# entries}} not yet invoiced.",
   "closeOutUnbilledExpenses": "{count, plural, one {1 unbilled expense} other {# unbilled expenses}} not yet invoiced.",
   "closeOutInvoiceLink": "Create an invoice first",
+  "closeOutReviewTime": "Review unbilled time →",
+  "closeOutReviewExpenses": "Review unbilled expenses →",
+  "closeOutMoreEntries": "+{count} more",
+  "closeOutUntitledEntry": "(no description)",
   "closedToast": "Project closed out.",
   "reopenedToast": "Project reopened.",
   "history": {

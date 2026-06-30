@@ -85,6 +85,9 @@ function mockSupabase(): unknown {
       not() {
         return b;
       },
+      order() {
+        return b;
+      },
       single() {
         return Promise.resolve(resolve(table, columns));
       },
@@ -266,9 +269,13 @@ describe("bulkReopenProjectsAction", () => {
 });
 
 describe("getProjectUnbilledSummaryAction", () => {
-  it("sums unbilled billable minutes and counts time + expenses", async () => {
-    state.selects["time_entries:duration_min"] = {
-      data: [{ duration_min: 90 }, { duration_min: 30 }, { duration_min: null }],
+  it("sums unbilled billable minutes, counts time + expenses, returns entries", async () => {
+    state.selects["time_entries:id, start_time, description, duration_min"] = {
+      data: [
+        { id: "t1", start_time: "2026-06-09T10:00:00Z", description: "A", duration_min: 90 },
+        { id: "t2", start_time: "2026-06-08T10:00:00Z", description: "B", duration_min: 30 },
+        { id: "t3", start_time: null, description: null, duration_min: null },
+      ],
       error: null,
     };
     state.selects["expenses:id"] = {
@@ -282,6 +289,11 @@ describe("getProjectUnbilledSummaryAction", () => {
       timeMinutes: 120,
       timeCount: 3,
       expenseCount: 2,
+      timeEntries: [
+        { id: "t1", startTime: "2026-06-09T10:00:00Z", description: "A", minutes: 90 },
+        { id: "t2", startTime: "2026-06-08T10:00:00Z", description: "B", minutes: 30 },
+        { id: "t3", startTime: null, description: null, minutes: 0 },
+      ],
     });
   });
 

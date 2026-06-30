@@ -1144,7 +1144,20 @@ export async function bulkReopenProjectsAction(
  */
 export async function getProjectUnbilledSummaryAction(
   projectId: string,
-): Promise<{ timeMinutes: number; timeCount: number; expenseCount: number }> {
+): Promise<{
+  timeMinutes: number;
+  timeCount: number;
+  expenseCount: number;
+  /** The actual unbilled time entries (newest first) so the close-out
+   *  prompt can SHOW which entries it's counting — not just a total the
+   *  user can't verify. */
+  timeEntries: Array<{
+    id: string;
+    startTime: string | null;
+    description: string | null;
+    minutes: number;
+  }>;
+}> {
   const supabase = await createClient();
   const {
     data: { user },
@@ -1153,14 +1166,20 @@ export async function getProjectUnbilledSummaryAction(
 
   const { data: timeRows, error: timeError } = await supabase
     .from("time_entries")
-    .select("duration_min")
+    .select("id, start_time, description, duration_min")
     .eq("project_id", projectId)
     .eq("invoiced", false)
     .eq("billable", true)
     .not("end_time", "is", null)
-    .is("deleted_at", null);
+    .is("deleted_at", null)
+    .order("start_time", { ascending: false });
   if (timeError) throw timeError;
-  const times = (timeRows ?? []) as Array<{ duration_min: number | null }>;
+  const times = (timeRows ?? []) as Array<{
+    id: string;
+    start_time: string | null;
+    description: string | null;
+    duration_min: number | null;
+  }>;
   const timeMinutes = times.reduce((sum, r) => sum + (r.duration_min ?? 0), 0);
 
   const { data: expenseRows, error: expenseError } = await supabase
@@ -1176,6 +1195,12 @@ export async function getProjectUnbilledSummaryAction(
     timeMinutes,
     timeCount: times.length,
     expenseCount: (expenseRows ?? []).length,
+    timeEntries: times.map((r) => ({
+      id: r.id,
+      startTime: r.start_time,
+      description: r.description,
+      minutes: r.duration_min ?? 0,
+    })),
   };
 }
 

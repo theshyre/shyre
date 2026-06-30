@@ -4,7 +4,8 @@ import type React from "react";
 import { useState, useTransition } from "react";
 import { useTranslations } from "next-intl";
 import Link from "next/link";
-import { CircleCheck, Receipt, RotateCcw, X } from "lucide-react";
+import { Clock, CircleCheck, Receipt, RotateCcw, X } from "lucide-react";
+import { formatDate } from "@theshyre/ui";
 import { useToast } from "@/components/Toast";
 import { buttonSecondaryClass, buttonGhostClass } from "@/lib/form-styles";
 import {
@@ -13,10 +14,22 @@ import {
   getProjectUnbilledSummaryAction,
 } from "../actions";
 
+/** Cap the inline list of unbilled entries; the rest collapse into a
+ *  "+N more" line with the full set behind the "review" link. */
+const MAX_UNBILLED_ENTRIES = 6;
+
+interface UnbilledTimeEntry {
+  id: string;
+  startTime: string | null;
+  description: string | null;
+  minutes: number;
+}
+
 interface UnbilledSummary {
   timeMinutes: number;
   timeCount: number;
   expenseCount: number;
+  timeEntries: UnbilledTimeEntry[];
 }
 
 /**
@@ -144,29 +157,66 @@ export function ProjectLifecycleActions({
         {t("closeOutConfirm")}
       </p>
       {summary && (summary.timeCount > 0 || summary.expenseCount > 0) && (
-        <div className="flex items-start gap-1.5 rounded-md border border-warning/30 bg-warning-soft/50 p-2 text-caption text-warning-text">
-          <Receipt size={14} aria-hidden="true" className="mt-0.5 shrink-0" />
-          <div className="space-y-0.5">
-            {summary.timeCount > 0 && (
-              <p>
-                {t("closeOutUnbilledTime", {
-                  hours: (summary.timeMinutes / 60).toFixed(1),
-                  entries: summary.timeCount,
-                })}
-              </p>
-            )}
-            {summary.expenseCount > 0 && (
-              <p>
-                {t("closeOutUnbilledExpenses", { count: summary.expenseCount })}
-              </p>
-            )}
-            <Link
-              href="/invoices/new"
-              className="underline text-accent-text hover:text-accent"
-            >
-              {t("closeOutInvoiceLink")}
-            </Link>
-          </div>
+        <div className="rounded-md border border-warning/30 bg-warning-soft/50 p-2 text-caption text-warning-text space-y-2">
+          {summary.timeCount > 0 && (
+            <div className="flex items-start gap-1.5">
+              <Clock size={14} aria-hidden="true" className="mt-0.5 shrink-0" />
+              <div className="min-w-0 flex-1 space-y-1">
+                <p>
+                  {t("closeOutUnbilledTime", {
+                    hours: (summary.timeMinutes / 60).toFixed(1),
+                    entries: summary.timeCount,
+                  })}
+                </p>
+                <ul className="space-y-0.5">
+                  {summary.timeEntries
+                    .slice(0, MAX_UNBILLED_ENTRIES)
+                    .map((e) => (
+                      <li key={e.id} className="flex items-baseline gap-2">
+                        <span className="shrink-0 tabular-nums text-content-muted">
+                          {formatDate(e.startTime)}
+                        </span>
+                        <span className="min-w-0 flex-1 truncate text-content-secondary">
+                          {e.description || t("closeOutUntitledEntry")}
+                        </span>
+                        <span className="shrink-0 tabular-nums font-medium">
+                          {(e.minutes / 60).toFixed(1)}h
+                        </span>
+                      </li>
+                    ))}
+                </ul>
+                {summary.timeCount > MAX_UNBILLED_ENTRIES && (
+                  <p className="text-content-muted">
+                    {t("closeOutMoreEntries", {
+                      count: summary.timeCount - MAX_UNBILLED_ENTRIES,
+                    })}
+                  </p>
+                )}
+                <Link
+                  href={`/time-entries?view=table&project=${projectId}&invoiced=uninvoiced`}
+                  className="inline-block underline text-accent-text hover:text-accent"
+                >
+                  {t("closeOutReviewTime")}
+                </Link>
+              </div>
+            </div>
+          )}
+          {summary.expenseCount > 0 && (
+            <div className="flex items-start gap-1.5">
+              <Receipt size={14} aria-hidden="true" className="mt-0.5 shrink-0" />
+              <div className="min-w-0 flex-1 space-y-0.5">
+                <p>
+                  {t("closeOutUnbilledExpenses", { count: summary.expenseCount })}
+                </p>
+                <Link
+                  href={`/projects/${projectId}/expenses`}
+                  className="inline-block underline text-accent-text hover:text-accent"
+                >
+                  {t("closeOutReviewExpenses")}
+                </Link>
+              </div>
+            </div>
+          )}
         </div>
       )}
       <div className="flex items-center gap-2">
