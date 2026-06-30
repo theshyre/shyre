@@ -42,12 +42,34 @@ Switch per project; you can mix in one org.
 
 ## Status lifecycle
 
-- `active` — shows in project pickers, dashboard, reports
-- `paused` — hidden from pickers; existing entries still visible
-- `completed` — hidden from pickers; reportable
-- `archived` — hidden from pickers and default reports
+Two axes share the one `status` column:
 
-Status is advisory; time entries already tied to the project stay intact.
+- **Lifecycle:** `active` → `paused` → `completed`
+- **Soft-delete:** `archived`
+
+States:
+
+- `active` — shows in project pickers, dashboard, reports
+- `paused` — hidden from time-entry pickers; existing entries still visible; still reportable
+- `completed` — **the "closed out" state.** Hidden from time-entry pickers but **fully reportable** — a closed project's time, revenue, and unbilled WIP stay in every total and it remains selectable in the reports project filter. Stamped with `closed_at` + `closed_by_user_id`.
+- `archived` — hidden from pickers and default lists (the soft-delete / trash layer)
+
+Status is advisory for existing data; time entries already tied to the project stay intact.
+
+### Closing out a project
+
+"Close out" = transition `active`/`paused` → `completed`, stamped with `closed_at` (the close moment) and `closed_by_user_id`. There is **no separate `closed` status** — close-out reuses `completed`.
+
+- **Owner/admin only.** `closeOutProjectAction` / `reopenProjectAction` are role-gated, separate from the generic edit form (which only sets `active` ⇄ `paused`).
+- **Soft lock.** A closed project drops out of time-entry pickers, but new time is not hard-blocked at the DB — reopening is a one-click `reopenProjectAction` (clears `closed_at`). A hard period freeze is `team_period_locks`' job, not the project's — see `docs/guides/bookkeeper/period-close.md`.
+- **Blocked on open sub-projects.** Closing a parent with still-open phases is rejected (DB trigger `tg_projects_block_close_with_open_children`) — close or archive the phases first.
+- **Unbilled prompt.** The close-out control surfaces a non-blocking count of unbilled billable time + expenses with an "invoice first" link. Closing is never blocked on it.
+- Close / reopen are audited automatically in `projects_history`.
+- **Bulk close** is available from the `/projects` multi-select strip (owner/admin per team; parents with open children are skipped) with an Undo toast.
+
+### Projected end date
+
+`projected_end_date` (optional) is planning-only — it never feeds a financial total. A still-live project (`active`/`paused`) past its projected end shows an amber **Overdue** badge on the list status cell and the detail header. Leave it blank for ongoing / retainer work.
 
 ## Sub-projects (phases under an engagement)
 

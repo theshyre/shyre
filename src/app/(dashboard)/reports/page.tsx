@@ -82,13 +82,20 @@ export default async function ReportsPage({
   // Project list for the picker — includes BOTH parents and leaves
   // so a user can pick "the engagement" and roll up to children.
   // Scoped by team selection when set, else all the user's teams.
+  //
+  // Status filter is `!= archived`, NOT `= active`: a closed-out
+  // (`completed`) project's time, revenue, and unbilled WIP stay in
+  // every report total (the entries query below is date-scoped, not
+  // status-scoped), so the picker must let you SELECT a closed
+  // engagement to isolate it — e.g. "everything we closed in Q2" at
+  // tax time. Only `archived` (soft-deleted / trash) is excluded.
   const projectsQuery = (() => {
     let q = supabase
       .from("projects")
       .select(
         "id, name, parent_project_id, is_internal, customers(id, name)",
       )
-      .eq("status", "active")
+      .neq("status", "archived")
       .order("name");
     if (selectedTeamId) {
       q = q.eq("team_id", selectedTeamId);

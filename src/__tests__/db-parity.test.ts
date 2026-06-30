@@ -47,6 +47,7 @@ import { ALLOWED_INVOICE_GROUPING_MODES } from "@/app/(dashboard)/invoices/allow
 import {
   ALLOWED_BUDGET_PERIODS,
   ALLOWED_BUDGET_CARRYOVER,
+  ALLOWED_PROJECT_STATUSES,
 } from "@/app/(dashboard)/projects/allow-lists";
 import {
   ALLOWED_OUTBOX_STATUS,
@@ -235,6 +236,16 @@ const PAIRS: Pair[] = [
     name: "budgetCarryover",
     appSet: ALLOWED_BUDGET_CARRYOVER,
     column: "budget_carryover",
+  },
+  // `status` is shared across projects/invoices/import_runs/etc., so
+  // table-scope to the projects CREATE TABLE body. Catches drift on the
+  // lifecycle enum the close-out feature relies on (active/paused/
+  // completed/archived) — previously unguarded.
+  {
+    name: "projectStatuses",
+    appSet: ALLOWED_PROJECT_STATUSES,
+    column: "status",
+    table: "projects",
   },
 ];
 
