@@ -43,20 +43,37 @@ Each expense has a single, free-text **Reference #** for its external identifier
 Two ways to edit:
 
 - **In-table cells** — click any cell (date, amount, category, vendor, description, notes, project, billable). Date cells open a calendar widget; everything else commits on blur (Tab or click out). Cmd+Enter also commits, Esc cancels.
-- **Expand row** — click the chevron in the row's actions column. The row expands inline (between its neighbors) to reveal full-width Description and Notes textareas plus all other fields with breathing room. Click the chevron again or press Esc to collapse. Same commit-on-blur semantics. The expansion is deep-linkable: `/business/.../expenses?edit=<expense-id>` opens that row already expanded.
+- **Expand row** — **double-click anywhere on the row** (except a cell you're editing or an action button), or click the chevron in the actions column. The row expands inline (between its neighbors) to reveal full-width Description and Notes textareas plus all other fields with breathing room. Click the chevron again or press Esc to collapse. Same commit-on-blur semantics. The expansion is deep-linkable: `/business/.../expenses?edit=<expense-id>` opens that row already expanded.
 
 Delete with the trash icon — a small inline confirm appears (no modal).
 
-**Invoiced rows are locked.** When an expense has landed on an
-invoice (`expenses.invoiced = true`), the actions column collapses
-to a single **Invoiced #INV-XXXX** chip that links to the parent
-invoice. All EditableCells on that row go read-only and the delete
-affordance disappears. To edit, **void the invoice first** —
-the same surface lives on `/projects/[id]/expenses`, and the
-DB-level `tg_expenses_invoice_lock_guard` trigger backstops the
-action-layer refusal so direct supabase-js writes are also
-blocked. Soft-delete restore is still allowed (recovery never
-affects the invoice the row is on).
+**Invoiced rows are FIELD-level locked.** Once an expense lands on a
+live invoice (`expenses.invoiced = true`), the invoice has *snapshotted*
+it — the invoice's line text and amount are frozen, so they don't
+change if you edit the expense afterward. Accordingly:
+
+- **Editable** while invoiced (internal metadata the invoice doesn't
+  render): Reference #, Description, Notes, Vendor, Category. Edit them
+  inline or in the expanded row exactly as usual.
+- **Locked** while invoiced (the financial facts the invoice billed):
+  Amount, Currency, Project, Billable, and **Date** (`incurred_on`).
+  These cells render read-only with a **lock icon + "Locked — on
+  invoice #INV-XXXX"** reason. Delete and split are still fully blocked.
+
+`Date` is locked with the financial fields on purpose: it's baked into
+the invoice line and a date change can silently shift a billed expense
+across an accounting period. To change any locked field, **void the
+invoice first** (releases every expense + time entry on it for editing).
+
+Enforcement is in three layers that must agree: the per-field UI lock,
+the `updateExpenseFieldAction` allow-list, and the DB trigger
+`tg_expenses_invoice_lock_guard` (default-deny — only the metadata
+columns may differ on an invoiced row; the trigger backstops direct
+supabase-js writes). The TS allow-list and the trigger are pinned
+together by `expense-lock-parity.test.ts`. Every edit to an invoiced
+row is captured in the `expenses_history` audit trail (owner/admin
+only). Soft-delete restore is still allowed (recovery never affects
+the invoice the row is on).
 
 ## Bulk actions
 
@@ -98,18 +115,20 @@ expenses linked to that customer's projects flow onto the invoice
 as discrete line items — see
 [Invoicing → Including billable expenses](invoicing.md#including-billable-expenses-phase-2).
 
-Once an expense lands on an invoice, the row is locked:
+Once an expense lands on an invoice, the row is **field-level** locked
+(see [Editing / deleting](#editing--deleting) for the full split):
 
-- The project-page expense row renders an **Invoiced #INV-XXXX**
-  chip (links to the invoice) instead of edit/delete affordances.
-- Update, delete, and split actions throw a "void the invoice
-  first" error at the action layer.
-- Restore (recover from soft-delete) is still allowed — recovery
-  never affects the invoice that already references the row.
+- The expense row keeps its **Invoiced #INV-XXXX** chip (links to the
+  invoice) AND its expand control, so you can still open it to edit the
+  unlocked metadata (Reference #, Description, Notes, Vendor, Category).
+- The financial fields (Amount, Currency, Project, Billable, Date) are
+  read-only with a lock reason; delete and split stay fully blocked.
+- Restore (recover from soft-delete) is still allowed — recovery never
+  affects the invoice that already references the row.
 
-To edit a locked expense, **void the invoice first** through the
-invoice detail page's actions menu. Voiding releases every
-expense (and time entry) on that invoice for further edits.
+To change a *locked* field, **void the invoice first** through the
+invoice detail page's actions menu. Voiding releases every expense
+(and time entry) on that invoice for further edits.
 
 ## Related
 

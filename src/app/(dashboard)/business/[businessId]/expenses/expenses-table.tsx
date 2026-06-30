@@ -621,7 +621,7 @@ export function ExpensesTable({
               {t("fields.description")}
             </th>
             <th className="text-left text-label font-semibold uppercase tracking-wider text-content-muted">
-              {t("fields.notes")}
+              {t("fields.externalReference")}
             </th>
             <th className="text-left text-label font-semibold uppercase tracking-wider text-content-muted">
               {t("fields.project")}

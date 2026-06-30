@@ -33,10 +33,14 @@ vi.mock("next/cache", () => ({
 // tests can assert on what actually hit the DB.
 const state: {
   canSetProjectRate: boolean;
+  /** Current persisted status, read back by updateProjectAction's
+   *  reopen-backdoor guard. Live by default so status writes apply. */
+  currentStatus: string;
   updates: { table: string; patch: Record<string, unknown>; where: Record<string, string> }[];
   inserts: { table: string; rows: unknown }[];
 } = {
   canSetProjectRate: true,
+  currentStatus: "active",
   updates: [],
   inserts: [],
 };
@@ -53,6 +57,22 @@ function mockSupabase() {
         state.inserts.push({ table, rows });
         return Promise.resolve({ data: null, error: null });
       },
+      // Read-back used by updateProjectAction's status guard (and the
+      // is_internal lookup). Returns the configured current status.
+      select: (_cols: string) => ({
+        eq: (_col: string, _val: string) => ({
+          maybeSingle: () =>
+            Promise.resolve({
+              data: { status: state.currentStatus, is_internal: false },
+              error: null,
+            }),
+          single: () =>
+            Promise.resolve({
+              data: { status: state.currentStatus, is_internal: false },
+              error: null,
+            }),
+        }),
+      }),
       update: (patch: Record<string, unknown>) => ({
         eq: (col: string, val: string) => {
           state.updates.push({ table, patch, where: { [col]: val } });
@@ -74,6 +94,7 @@ import {
 
 function resetState() {
   state.canSetProjectRate = true;
+  state.currentStatus = "active";
   state.updates = [];
   state.inserts = [];
   mockValidateTeamAccess.mockReset();
@@ -167,5 +188,31 @@ describe("setProjectRateAction", () => {
       setProjectRateAction(fd({ hourly_rate: "100" })),
     ).rejects.toThrow(/Project id is required/);
     expect(state.updates).toHaveLength(0);
+  });
+});
+
+describe("updateProjectAction — status guard", () => {
+  beforeEach(resetState);
+
+  it("rejects a terminal status submitted through the generic edit form", async () => {
+    await expect(
+      updateProjectAction(fd({ id: "p1", name: "A", status: "completed" })),
+    ).rejects.toThrow(/Close out \/ Reopen \/ Archive/);
+    expect(state.updates).toHaveLength(0);
+  });
+
+  it("blocks reopening a closed project via a live-status write (backdoor)", async () => {
+    state.currentStatus = "completed";
+    await expect(
+      updateProjectAction(fd({ id: "p1", name: "A", status: "active" })),
+    ).rejects.toThrow(/Use Reopen/);
+    expect(state.updates).toHaveLength(0);
+  });
+
+  it("applies an active⇄paused change on a live project", async () => {
+    state.currentStatus = "active";
+    await updateProjectAction(fd({ id: "p1", name: "A", status: "paused" }));
+    const patch = state.updates.find((u) => u.table === "projects")?.patch;
+    expect(patch?.status).toBe("paused");
   });
 });

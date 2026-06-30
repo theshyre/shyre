@@ -5,8 +5,11 @@ import { useTranslations } from "next-intl";
 import { Building2, Sparkles, X } from "lucide-react";
 import { AlertBanner } from "@theshyre/ui";
 import { useFormAction } from "@/hooks/use-form-action";
+import { useUnsavedChanges } from "@/hooks/use-unsaved-changes";
 import { SubmitButton } from "@/components/SubmitButton";
 import { FieldError } from "@/components/FieldError";
+import { DateField } from "@/components/DateField";
+import { StatusBadge } from "@/components/StatusBadge";
 import {
   inputClass,
   textareaClass,
@@ -19,6 +22,10 @@ import {
   applyParentDefaults,
   readParentInheritableFields,
 } from "@/lib/projects/parent-defaults";
+import {
+  SELECTABLE_PROJECT_STATUSES,
+  TERMINAL_PROJECT_STATUSES,
+} from "../allow-lists";
 import { updateProjectAction } from "../actions";
 import { BudgetHoursWithDollars } from "../budget-hours-with-dollars";
 
@@ -45,6 +52,12 @@ export interface Project {
   jira_project_key: string | null;
   invoice_code: string | null;
   status: string | null;
+  /** Projected end date (ISO YYYY-MM-DD) or null — planning metadata. */
+  projected_end_date: string | null;
+  /** Close-out timestamp (timestamptz) or null. Non-null only when the
+   *  project is terminal (completed/archived); set by the close-out
+   *  verb, displayed read-only — never edited inline. */
+  closed_at: string | null;
   category_set_id: string | null;
   require_timestamps: boolean;
   is_internal: boolean;
@@ -71,7 +84,6 @@ interface ParentInheritable {
   require_timestamps: boolean | null;
 }
 
-const STATUSES = ["active", "paused", "completed", "archived"] as const;
 
 export function ProjectEditForm({
   project,
@@ -123,6 +135,14 @@ export function ProjectEditForm({
   const [parentSelection, setParentSelection] = useState<string>(
     project.parent_project_id ?? "",
   );
+  const [projectedEndDate, setProjectedEndDate] = useState<string>(
+    project.projected_end_date ?? "",
+  );
+  // Dirty flag for the unsaved-changes guard. Set by the form-level
+  // onChange (bubbles from every native control, including DateField's
+  // inputs); reset after a successful save so navigating away
+  // post-save doesn't prompt.
+  const [dirty, setDirty] = useState(false);
 
   // Inline confirm pattern for the parent-settings overwrite — first
   // click arms, second click within the same render commits. Avoids
@@ -182,10 +202,25 @@ export function ProjectEditForm({
 
   const { pending, success, serverError, fieldErrors, handleSubmit } = useFormAction({
     action: updateProjectAction,
+    // Clear the dirty flag once a save lands so the unsaved-changes
+    // guard stops prompting (no setState-in-effect).
+    onSuccess: () => setDirty(false),
   });
+  useUnsavedChanges(dirty);
+
+  // Terminal lifecycle (completed / archived) is owned by the Close out
+  // / Reopen verbs in the project header, not this generic edit form —
+  // render status read-only so a stray save can't flip it.
+  const statusIsTerminal = TERMINAL_PROJECT_STATUSES.has(
+    project.status ?? "active",
+  );
 
   return (
-    <form action={handleSubmit} className="space-y-4">
+    <form
+      action={handleSubmit}
+      onChange={() => setDirty(true)}
+      className="space-y-4"
+    >
       {serverError && (
         <AlertBanner tone="error">{serverError}</AlertBanner>
       )}
@@ -238,18 +273,47 @@ export function ProjectEditForm({
             <label htmlFor="project-edit-status" className={labelClass}>
               {t("fields.status")}
             </label>
-            <select
-              id="project-edit-status"
-              name="status"
-              defaultValue={project.status ?? "active"}
-              className={selectClass}
+            {statusIsTerminal ? (
+              <div className="flex items-center gap-2 py-1.5">
+                <StatusBadge
+                  status={project.status ?? "active"}
+                  label={tc(`status.${project.status ?? "active"}`)}
+                />
+                <span className="text-caption text-content-muted">
+                  {t("fields.statusManagedHint")}
+                </span>
+              </div>
+            ) : (
+              <select
+                id="project-edit-status"
+                name="status"
+                defaultValue={project.status ?? "active"}
+                className={selectClass}
+              >
+                {SELECTABLE_PROJECT_STATUSES.map((s) => (
+                  <option key={s} value={s}>
+                    {tc(`status.${s}`)}
+                  </option>
+                ))}
+              </select>
+            )}
+          </div>
+          <div>
+            <label
+              htmlFor="project-edit-projected-end"
+              className={labelClass}
             >
-              {STATUSES.map((s) => (
-                <option key={s} value={s}>
-                  {tc(`status.${s}`)}
-                </option>
-              ))}
-            </select>
+              {t("fields.projectedEndDate")}
+            </label>
+            <DateField
+              id="project-edit-projected-end"
+              name="projected_end_date"
+              value={projectedEndDate}
+              onChange={setProjectedEndDate}
+            />
+            <p className="mt-1 text-caption text-content-muted">
+              {t("fields.projectedEndDateHint")}
+            </p>
           </div>
           {/* Parent project — opt-in nesting. Hidden for internal
               projects (mixed internal/external nesting is not a

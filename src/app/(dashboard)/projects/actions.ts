@@ -2,7 +2,8 @@
 
 import { runSafeAction } from "@/lib/safe-action";
 import { assertSupabaseOk } from "@/lib/errors";
-import { validateTeamAccess } from "@/lib/team-context";
+import { validateTeamAccess, requireTeamAdmin } from "@/lib/team-context";
+import { isTeamAdmin } from "@/lib/team-roles";
 import { revalidatePath } from "next/cache";
 import { createClient } from "@/lib/supabase/server";
 import { normalizeGithubRepo } from "@/lib/projects/normalize";
@@ -10,6 +11,7 @@ import type { ProjectHistoryEntry } from "./[id]/history/project-history-types";
 import {
   ALLOWED_BUDGET_PERIODS,
   ALLOWED_BUDGET_CARRYOVER,
+  TERMINAL_PROJECT_STATUSES,
 } from "./allow-lists";
 
 /** Atlassian project keys are uppercase 2+ chars, letters/digits.
@@ -40,6 +42,21 @@ function normalizeInvoiceCode(value: FormDataEntryValue | null): string | null {
     throw new Error(
       "Invoice code must be uppercase letters / digits / hyphens, 2–16 chars (e.g. PC-ITOPS).",
     );
+  }
+  return s;
+}
+
+/** Planning dates submitted by `<DateField>` arrive as ISO `YYYY-MM-DD`
+ *  via its hidden input (or empty → no date). Validate the shape so a
+ *  forged POST can't write a malformed DATE; empty → null. */
+function normalizeProjectedEndDate(
+  value: FormDataEntryValue | null,
+): string | null {
+  if (value == null) return null;
+  const s = String(value).trim();
+  if (!s) return null;
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(s)) {
+    throw new Error("Projected end date must be a valid date (YYYY-MM-DD).");
   }
   return s;
 }
@@ -142,7 +159,6 @@ export async function updateProjectAction(formData: FormData): Promise<void> {
     const github_repo = normalizeGithubRepo(formData.get("github_repo"));
     const jira_project_key = normalizeJiraKey(formData.get("jira_project_key"));
     const invoice_code = normalizeInvoiceCode(formData.get("invoice_code"));
-    const status = formData.get("status") as string;
     const category_set_id = (formData.get("category_set_id") as string) || null;
     const require_timestamps = formData.get("require_timestamps") === "on";
 
@@ -152,10 +168,37 @@ export async function updateProjectAction(formData: FormData): Promise<void> {
       github_repo,
       jira_project_key,
       invoice_code,
-      status,
       category_set_id,
       require_timestamps,
     };
+
+    // Status: only the two live states are settable through the generic
+    // edit form. Terminal transitions (close-out / reopen / archive) go
+    // through their own owner/admin-gated verbs, so this path can't be a
+    // backdoor around the role gate + lifecycle triggers.
+    const rawStatus = formData.get("status");
+    if (rawStatus != null && String(rawStatus) !== "") {
+      const s = String(rawStatus);
+      if (s !== "active" && s !== "paused") {
+        throw new Error(
+          "Use Close out / Reopen / Archive to set a terminal project status.",
+        );
+      }
+      // A live-status write must not silently reopen a closed-out or
+      // archived project — reopening is an admin-gated verb.
+      const { data: current } = await supabase
+        .from("projects")
+        .select("status")
+        .eq("id", id)
+        .maybeSingle();
+      const currentStatus = (current as { status?: string } | null)?.status;
+      if (currentStatus && TERMINAL_PROJECT_STATUSES.has(currentStatus)) {
+        throw new Error(
+          "This project is closed or archived. Use Reopen to make it active again.",
+        );
+      }
+      patch.status = s;
+    }
 
     // Parent project re-parenting — only when the field is present on
     // the form (otherwise we leave the existing relationship alone).
@@ -165,6 +208,16 @@ export async function updateProjectAction(formData: FormData): Promise<void> {
     if (formData.has("parent_project_id")) {
       const raw = formData.get("parent_project_id") as string;
       patch.parent_project_id = raw === "" ? null : raw;
+    }
+
+    // Projected end date — planning metadata, not commercial info, so
+    // it is NOT rate-gated. Guarded by presence so a partial caller
+    // can't wipe it; the edit form's Schedule subsection always submits
+    // it (empty string clears the date).
+    if (formData.has("projected_end_date")) {
+      patch.projected_end_date = normalizeProjectedEndDate(
+        formData.get("projected_end_date"),
+      );
     }
 
     // default_billable is editable on external projects only — internal
@@ -860,6 +913,270 @@ export async function bulkRestoreProjectsAction(
     revalidatePath("/projects");
     revalidatePath("/time-entries");
   }, "bulkRestoreProjectsAction") as unknown as void;
+}
+
+/**
+ * Close out a project — transition to the existing `completed`
+ * lifecycle status. The DB does the rest: `tg_projects_stamp_closed_at`
+ * stamps `closed_at` + `closed_by_user_id`, and
+ * `tg_projects_block_close_with_open_children` rejects the close when a
+ * sub-project is still open (surfaced here as the trigger's friendly
+ * message via the runSafeAction error envelope).
+ *
+ * Owner/admin only. Close-out is a billing-adjacent, state-finalizing
+ * action — it deliberately does NOT ride the generic project-edit RLS
+ * gate, which a per-customer `admin` (who can be a plain team member)
+ * satisfies. Reversible via `reopenProjectAction`.
+ */
+export async function closeOutProjectAction(
+  formData: FormData,
+): Promise<void> {
+  return runSafeAction(formData, async (formData, { supabase }) => {
+    const id = formData.get("id") as string;
+    if (!id) throw new Error("Project id is required.");
+
+    const { data: project } = await supabase
+      .from("projects")
+      .select("team_id, status")
+      .eq("id", id)
+      .single();
+    const proj = project as { team_id?: string; status?: string } | null;
+    if (!proj?.team_id) throw new Error("Project not found.");
+
+    await requireTeamAdmin(proj.team_id);
+
+    // Already closed out — idempotent no-op (don't re-stamp closed_at).
+    if (proj.status === "completed") return;
+
+    assertSupabaseOk(
+      await supabase
+        .from("projects")
+        .update({ status: "completed" })
+        .eq("id", id),
+    );
+
+    revalidatePath("/projects");
+    revalidatePath(`/projects/${id}`);
+    revalidatePath("/time-entries");
+  }, "closeOutProjectAction") as unknown as void;
+}
+
+/**
+ * Reopen a closed-out project — transition back to `active`. The
+ * stamping trigger clears `closed_at` + `closed_by_user_id` (the CHECK
+ * forbids a close date on a live project). Owner/admin only, symmetric
+ * with close-out. `projects_history` audits both transitions.
+ */
+export async function reopenProjectAction(
+  formData: FormData,
+): Promise<void> {
+  return runSafeAction(formData, async (formData, { supabase }) => {
+    const id = formData.get("id") as string;
+    if (!id) throw new Error("Project id is required.");
+
+    const { data: project } = await supabase
+      .from("projects")
+      .select("team_id")
+      .eq("id", id)
+      .single();
+    const teamId = (project as { team_id?: string } | null)?.team_id;
+    if (!teamId) throw new Error("Project not found.");
+
+    await requireTeamAdmin(teamId);
+
+    assertSupabaseOk(
+      await supabase
+        .from("projects")
+        .update({ status: "active" })
+        .eq("id", id),
+    );
+
+    revalidatePath("/projects");
+    revalidatePath(`/projects/${id}`);
+    revalidatePath("/time-entries");
+  }, "reopenProjectAction") as unknown as void;
+}
+
+/**
+ * Resolve which of the given teams the caller is an owner/admin of.
+ * Used by the bulk close/reopen actions to gate per team — a forged
+ * POST mixing in teams the caller doesn't administer silently drops
+ * those rows rather than throwing the whole batch.
+ */
+async function resolveAdminTeamIds(teamIds: string[]): Promise<Set<string>> {
+  const adminTeamIds = new Set<string>();
+  for (const tid of [...new Set(teamIds)]) {
+    try {
+      const { role } = await validateTeamAccess(tid);
+      if (isTeamAdmin(role)) adminTeamIds.add(tid);
+    } catch {
+      // Not a member of this team (forged id) → not an admin; skip it.
+      continue;
+    }
+  }
+  return adminTeamIds;
+}
+
+/**
+ * Bulk close-out — Pattern B selection toolbar on /projects. Closes
+ * every eligible selected project in one statement.
+ *
+ * Eligibility is pre-filtered so the single batch UPDATE never trips
+ * the block-open-children trigger (which would abort the whole batch):
+ *   - caller must be owner/admin of the project's team,
+ *   - project must not already be terminal (completed/archived),
+ *   - project must have NO open sub-projects.
+ * A parent with open phases is therefore skipped — close the phases
+ * first (one gesture), then the parent. Skips are silent; the list
+ * revalidates so the outcome is visible. Pair with
+ * `bulkReopenProjectsAction` for the Undo toast.
+ */
+export async function bulkCloseProjectsAction(
+  formData: FormData,
+): Promise<void> {
+  return runSafeAction(formData, async (formData, { supabase }) => {
+    const ids = formData.getAll("id").map(String).filter(Boolean);
+    if (ids.length === 0) return;
+
+    const { data: rows } = await supabase
+      .from("projects")
+      .select("id, team_id, status")
+      .in("id", ids);
+    const projects = (rows ?? []) as Array<{
+      id: string;
+      team_id: string;
+      status: string;
+    }>;
+    if (projects.length === 0) return;
+
+    const adminTeamIds = await resolveAdminTeamIds(
+      projects.map((p) => p.team_id),
+    );
+
+    // Parents with at least one still-open child can't be closed yet —
+    // pre-filter them out so the batch UPDATE stays single-statement.
+    const { data: childRows } = await supabase
+      .from("projects")
+      .select("parent_project_id, status")
+      .in(
+        "parent_project_id",
+        projects.map((p) => p.id),
+      );
+    const parentsWithOpenChildren = new Set<string>();
+    for (const c of (childRows ?? []) as Array<{
+      parent_project_id: string | null;
+      status: string;
+    }>) {
+      if (c.parent_project_id && !TERMINAL_PROJECT_STATUSES.has(c.status)) {
+        parentsWithOpenChildren.add(c.parent_project_id);
+      }
+    }
+
+    const closable = projects
+      .filter((p) => adminTeamIds.has(p.team_id))
+      .filter((p) => !TERMINAL_PROJECT_STATUSES.has(p.status))
+      .filter((p) => !parentsWithOpenChildren.has(p.id))
+      .map((p) => p.id);
+
+    if (closable.length === 0) return;
+
+    assertSupabaseOk(
+      await supabase
+        .from("projects")
+        .update({ status: "completed" })
+        .in("id", closable),
+    );
+
+    revalidatePath("/projects");
+    revalidatePath("/time-entries");
+  }, "bulkCloseProjectsAction") as unknown as void;
+}
+
+/**
+ * Bulk reopen — Undo from the bulk-close toast. Resets the given ids to
+ * `active` (the stamping trigger clears their close stamps). Owner/admin
+ * gated per team, mirroring `bulkCloseProjectsAction`. Like bulk
+ * restore, this reopens to `active` rather than a captured pre-close
+ * status — the same trade-off the archive Undo makes.
+ */
+export async function bulkReopenProjectsAction(
+  formData: FormData,
+): Promise<void> {
+  return runSafeAction(formData, async (formData, { supabase }) => {
+    const ids = formData.getAll("id").map(String).filter(Boolean);
+    if (ids.length === 0) return;
+
+    const { data: rows } = await supabase
+      .from("projects")
+      .select("id, team_id")
+      .in("id", ids);
+    const projects = (rows ?? []) as Array<{ id: string; team_id: string }>;
+    if (projects.length === 0) return;
+
+    const adminTeamIds = await resolveAdminTeamIds(
+      projects.map((p) => p.team_id),
+    );
+    const reopenable = projects
+      .filter((p) => adminTeamIds.has(p.team_id))
+      .map((p) => p.id);
+    if (reopenable.length === 0) return;
+
+    assertSupabaseOk(
+      await supabase
+        .from("projects")
+        .update({ status: "active" })
+        .in("id", reopenable),
+    );
+
+    revalidatePath("/projects");
+    revalidatePath("/time-entries");
+  }, "bulkReopenProjectsAction") as unknown as void;
+}
+
+/**
+ * Unbilled, billable work still sitting on a project — surfaced in the
+ * close-out prompt ("X unbilled — invoice before closing?"). Purely
+ * informational; closing is never blocked on it (legitimate write-offs
+ * and next-cycle billing exist). Hours + counts only, no dollar total,
+ * to stay clear of the no-cross-currency-sum rule (time bills in the
+ * team currency; expenses carry their own). RLS scopes both reads to
+ * what the caller can see.
+ */
+export async function getProjectUnbilledSummaryAction(
+  projectId: string,
+): Promise<{ timeMinutes: number; timeCount: number; expenseCount: number }> {
+  const supabase = await createClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+  if (!user) throw new Error("Unauthorized");
+
+  const { data: timeRows, error: timeError } = await supabase
+    .from("time_entries")
+    .select("duration_min")
+    .eq("project_id", projectId)
+    .eq("invoiced", false)
+    .eq("billable", true)
+    .not("end_time", "is", null)
+    .is("deleted_at", null);
+  if (timeError) throw timeError;
+  const times = (timeRows ?? []) as Array<{ duration_min: number | null }>;
+  const timeMinutes = times.reduce((sum, r) => sum + (r.duration_min ?? 0), 0);
+
+  const { data: expenseRows, error: expenseError } = await supabase
+    .from("expenses")
+    .select("id")
+    .eq("project_id", projectId)
+    .eq("invoiced", false)
+    .eq("billable", true)
+    .is("deleted_at", null);
+  if (expenseError) throw expenseError;
+
+  return {
+    timeMinutes,
+    timeCount: times.length,
+    expenseCount: (expenseRows ?? []).length,
+  };
 }
 
 /**

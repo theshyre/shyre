@@ -1,5 +1,9 @@
 import { describe, it, expect, vi } from "vitest";
-import { filterUninvoicedExpenseIds } from "./expense-lock-helpers";
+import {
+  filterUninvoicedExpenseIds,
+  INVOICED_EDITABLE_EXPENSE_FIELDS,
+  isExpenseFieldLockedWhenInvoiced,
+} from "./expense-lock-helpers";
 
 // Tiny supabase fake — only the chain the helper actually uses.
 // Captures the .in() arg list so the "filter actually queried these
@@ -79,5 +83,37 @@ describe("filterUninvoicedExpenseIds", () => {
     ]);
     await filterUninvoicedExpenseIds(client, ["x", "y", "z"]);
     expect(inSpy).toHaveBeenCalledWith("id", ["x", "y", "z"]);
+  });
+});
+
+describe("field-level invoice lock set", () => {
+  it("lets metadata fields stay editable while invoiced", () => {
+    for (const f of [
+      "external_reference",
+      "description",
+      "notes",
+      "vendor",
+      "category",
+    ]) {
+      expect(INVOICED_EDITABLE_EXPENSE_FIELDS.has(f)).toBe(true);
+      expect(isExpenseFieldLockedWhenInvoiced(f)).toBe(false);
+    }
+  });
+
+  it("locks the financial fields the invoice depends on", () => {
+    for (const f of [
+      "amount",
+      "currency",
+      "incurred_on",
+      "project_id",
+      "billable",
+    ]) {
+      expect(INVOICED_EDITABLE_EXPENSE_FIELDS.has(f)).toBe(false);
+      expect(isExpenseFieldLockedWhenInvoiced(f)).toBe(true);
+    }
+  });
+
+  it("locks unknown columns by default (mirrors the trigger's default-deny)", () => {
+    expect(isExpenseFieldLockedWhenInvoiced("some_future_column")).toBe(true);
   });
 });

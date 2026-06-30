@@ -25,9 +25,21 @@ BEGIN
 END;
 $$ LANGUAGE plpgsql SECURITY DEFINER STABLE;
 
--- Seed Marcus as first system admin
+-- Seed Marcus as first system admin.
+--
+-- Guarded with WHERE EXISTS so a from-scratch reset against an empty
+-- auth.users (the db-verify CI workflow's ephemeral `supabase start`,
+-- and local `supabase db reset`) doesn't FK-fail on this seed and abort
+-- before the rest of the migrations apply. In prod this migration is
+-- already applied — `supabase db push` skips it by version, so the
+-- guard never re-runs there and the original seed (which succeeded when
+-- the user existed) stands.
 INSERT INTO system_admins (user_id)
-VALUES ('912ff593-25c3-4d50-bbce-610b55225c5f')
+SELECT '912ff593-25c3-4d50-bbce-610b55225c5f'::uuid
+WHERE EXISTS (
+  SELECT 1 FROM auth.users
+  WHERE id = '912ff593-25c3-4d50-bbce-610b55225c5f'
+)
 ON CONFLICT DO NOTHING;
 
 -- ============================================================

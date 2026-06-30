@@ -10,6 +10,38 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
 
 /**
+ * Expense fields that stay editable while the expense is on a live
+ * invoice. The invoice SNAPSHOTS the expense (its line description +
+ * amount are frozen at creation; the detail page and PDF render from
+ * the snapshot, not live from the expense), so editing this internal
+ * metadata cannot alter the issued invoice. The fields the invoice
+ * depends on — amount, currency, incurred_on (date), project_id,
+ * billable — stay LOCKED.
+ *
+ * MUST stay byte-identical to the `meta` array in
+ * `tg_expenses_invoice_lock_guard` (migration 20260630130000) — pinned
+ * by `expense-lock-parity.test.ts`. The DB trigger is the real
+ * enforcement boundary (a forged POST bypasses the action); this set
+ * mirrors it for the action-layer gate and the per-field UI lock.
+ */
+export const INVOICED_EDITABLE_EXPENSE_FIELDS = new Set<string>([
+  "external_reference",
+  "description",
+  "notes",
+  "vendor",
+  "category",
+]);
+
+/**
+ * True when `field` is locked because the expense is on a live invoice.
+ * Used by the UI to render the cell read-only (with a reason) instead
+ * of letting the user attempt an edit that the action + trigger reject.
+ */
+export function isExpenseFieldLockedWhenInvoiced(field: string): boolean {
+  return !INVOICED_EDITABLE_EXPENSE_FIELDS.has(field);
+}
+
+/**
  * Strip rows already on an invoice from a list of authorized ids.
  *
  * Returns the subset of `ids` whose `expenses.invoiced` is not `true`.

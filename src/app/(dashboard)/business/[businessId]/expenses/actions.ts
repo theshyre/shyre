@@ -10,7 +10,10 @@ import { validateSplits, type ExpenseSplit } from "./split-helpers";
 import { parseExpenseFilters } from "./filter-params";
 import { applyExpenseFilters } from "./query-filters";
 import { readFilterParamsFromFormData } from "./filter-formdata";
-import { filterUninvoicedExpenseIds } from "./expense-lock-helpers";
+import {
+  filterUninvoicedExpenseIds,
+  INVOICED_EDITABLE_EXPENSE_FIELDS,
+} from "./expense-lock-helpers";
 
 function blankToNull(v: FormDataEntryValue | null): string | null {
   if (v == null) return null;
@@ -226,9 +229,21 @@ export async function updateExpenseFieldAction(formData: FormData): Promise<
       if (!isAuthor && role !== "owner" && role !== "admin") {
         throw new Error("Only the author or an owner/admin can edit.");
       }
-      if (row.invoiced === true) {
+      // Field-level lock: an invoiced expense's metadata
+      // (external_reference / description / notes / vendor / category)
+      // stays editable — the invoice snapshots the expense, so these
+      // can't mutate the issued invoice. The financial fields it
+      // depends on (amount, currency, incurred_on, project_id,
+      // billable) stay locked. Mirrors the DB trigger's `meta`
+      // strip-list (pinned by expense-lock-parity.test.ts); the trigger
+      // is the authoritative boundary, this is defense-in-depth + a
+      // clearer message.
+      if (
+        row.invoiced === true &&
+        !INVOICED_EDITABLE_EXPENSE_FIELDS.has(field)
+      ) {
         throw new Error(
-          "This expense is on an invoice and is locked. Void the invoice first, or remove the expense from it.",
+          `"${field}" is locked while this expense is on an invoice. Void the invoice first, or remove the expense from it. Reference #, description, notes, vendor, and category stay editable.`,
         );
       }
 

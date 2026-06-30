@@ -2,9 +2,14 @@ import type { ReactNode } from "react";
 import Link from "next/link";
 import { getTranslations } from "next-intl/server";
 import { FolderKanban } from "lucide-react";
+import { formatDate } from "@theshyre/ui";
 import { CustomerChip } from "@/components/CustomerChip";
+import { StatusBadge } from "@/components/StatusBadge";
+import { OverdueBadge } from "@/components/OverdueBadge";
+import { isProjectOverdue } from "@/lib/projects/lifecycle";
 import { loadProject } from "./load-project";
 import { ProjectSectionNav } from "./project-section-nav";
+import { ProjectLifecycleActions } from "./project-lifecycle-actions";
 
 /**
  * Shared chrome for every /projects/[id]/* route: identity header
@@ -31,8 +36,14 @@ export default async function ProjectDetailLayout({
   const { id } = await params;
   const project = await loadProject(id);
   const t = await getTranslations("projects");
+  const tc = await getTranslations("common");
 
   const projectName = (project.row.name as string | null) ?? t("untitled");
+  const status = (project.row.status as string | null) ?? "active";
+  const projectedEndDate =
+    (project.row.projected_end_date as string | null) ?? null;
+  const closedAt = (project.row.closed_at as string | null) ?? null;
+  const overdue = isProjectOverdue(projectedEndDate, status);
 
   return (
     <div>
@@ -83,6 +94,32 @@ export default async function ProjectDetailLayout({
         ) : (
           <span>{t("editSubtitle")}</span>
         )}
+      </div>
+
+      <div className="mt-3 flex items-start gap-3 flex-wrap">
+        <div className="flex items-center gap-2 flex-wrap">
+          <StatusBadge status={status} label={tc(`status.${status}`)} />
+          {overdue && projectedEndDate && (
+            <OverdueBadge
+              label={t("overdue")}
+              tooltip={t("overdueTooltip", {
+                date: formatDate(projectedEndDate),
+              })}
+            />
+          )}
+          {status === "completed" && closedAt && (
+            <span className="text-caption text-content-muted">
+              {t("closedOn", { date: formatDate(closedAt) })}
+            </span>
+          )}
+        </div>
+        <div className="ml-auto">
+          <ProjectLifecycleActions
+            projectId={id}
+            status={status}
+            isAdmin={project.callerIsAdmin}
+          />
+        </div>
       </div>
 
       <ProjectSectionNav

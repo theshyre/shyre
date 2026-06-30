@@ -831,7 +831,7 @@ describe("phase-2 invoiced lock", () => {
     expect(state.updates).toEqual([]);
   });
 
-  it("updateExpenseFieldAction refuses an invoiced row even for an owner", async () => {
+  it("updateExpenseFieldAction refuses a LOCKED financial field on an invoiced row", async () => {
     state.fetchedExpense = {
       team_id: "team-1",
       user_id: "u-other",
@@ -843,11 +843,30 @@ describe("phase-2 invoiced lock", () => {
     });
 
     await expect(
-      updateExpenseFieldAction(
-        fd({ id: "e-1", field: "vendor", value: "new vendor" }),
-      ),
-    ).rejects.toThrow(/on an invoice and is locked/);
+      updateExpenseFieldAction(fd({ id: "e-1", field: "amount", value: "999" })),
+    ).rejects.toThrow(/locked while this expense is on an invoice/);
     expect(state.updates).toEqual([]);
+  });
+
+  it("updateExpenseFieldAction ALLOWS editing metadata (vendor) on an invoiced row", async () => {
+    // Field-level lock: the invoice snapshots the expense, so editing
+    // vendor/reference/description/notes/category can't mutate it.
+    state.fetchedExpense = {
+      team_id: "team-1",
+      user_id: "u-other",
+      invoiced: true,
+    };
+    mockValidateTeamAccess.mockResolvedValue({
+      userId: fakeUserId,
+      role: "owner",
+    });
+
+    await updateExpenseFieldAction(
+      fd({ id: "e-1", field: "vendor", value: "new vendor" }),
+    );
+
+    expect(state.updates).toHaveLength(1);
+    expect(state.updates[0]?.patch).toMatchObject({ vendor: "new vendor" });
   });
 
   it("deleteExpenseAction refuses an invoiced row", async () => {

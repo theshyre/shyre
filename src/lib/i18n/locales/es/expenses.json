@@ -55,11 +55,15 @@
   "drawer": {
     "collapse": "Cerrar",
     "savedHint": "Los cambios se guardan automáticamente al salir de cada campo.",
+    "saving": "Guardando…",
+    "saved": "Guardado",
+    "saveFailed": "No se pudo guardar — inténtalo de nuevo.",
     "placeholderVendor": "Nombre del proveedor (p. ej. Apple, AWS)",
     "placeholderExternalReference": "N.º de factura, N.º de pedido o recibo…",
     "placeholderDescription": "Qué se compró, con el detalle que querrías tener a la hora de auditar.",
     "placeholderNotes": "Datos de confirmación del proveedor, notas de aprobación — cualquier cosa que no quepa arriba."
   },
+  "lockedFieldReason": "Bloqueado — en la factura {number}. Anula la factura para cambiarlo.",
   "split": {
     "title": "Dividir este gasto",
     "subtitle": "Las divisiones deben sumar el importe original ({amount}). Cada fila tiene su propia categoría.",

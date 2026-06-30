@@ -7,6 +7,7 @@ import {
   AlertTriangle,
   Archive,
   Building2,
+  CircleCheck,
   FolderKanban,
   FolderTree,
   XCircle,
@@ -14,8 +15,11 @@ import {
 import { Tooltip } from "@/components/Tooltip";
 import { useToast } from "@/components/Toast";
 import { CustomerChip } from "@/components/CustomerChip";
+import { StatusBadge } from "@/components/StatusBadge";
+import { OverdueBadge } from "@/components/OverdueBadge";
 import { SortableTableHeader } from "@/components/SortableTableHeader";
 import { PaginationFooter } from "@/components/PaginationFooter";
+import { isProjectOverdue } from "@/lib/projects/lifecycle";
 import {
   tableClass,
   tableHeaderCellClass,
@@ -28,6 +32,8 @@ import {
   bulkArchiveProjectsAction,
   bulkRestoreProjectsAction,
   bulkSwitchCategorySetAction,
+  bulkCloseProjectsAction,
+  bulkReopenProjectsAction,
 } from "./actions";
 
 export interface ProjectRow {
@@ -36,6 +42,10 @@ export interface ProjectRow {
   name: string;
   hourly_rate: number | null;
   status: string | null;
+  /** Projected end date (ISO YYYY-MM-DD) or null. Drives the inline
+   *  "overdue" badge in the status cell when the project is still live
+   *  (active/paused) and the date has passed. */
+  projected_end_date: string | null;
   is_internal: boolean;
   /** When set, this row is a sub-project. The list renders it
    *  immediately below its parent with an indented label so the
@@ -342,6 +352,38 @@ export function ProjectsTable({
     });
   }, [selected, startTransition, toast, t, tc]);
 
+  const onBulkClose = useCallback((): void => {
+    const ids = Array.from(selected);
+    if (ids.length === 0) return;
+    startTransition(async () => {
+      const fd = new FormData();
+      for (const id of ids) fd.append("id", id);
+      try {
+        await bulkCloseProjectsAction(fd);
+        setSelected(new Set());
+        toast.push({
+          kind: "success",
+          message: t("bulkClosedToast", { count: ids.length }),
+          actionLabel: tc("actions.undo"),
+          onAction: async () => {
+            const undoFd = new FormData();
+            for (const id of ids) undoFd.append("id", id);
+            await bulkReopenProjectsAction(undoFd);
+            toast.push({
+              kind: "success",
+              message: t("bulkReopenedToast", { count: ids.length }),
+            });
+          },
+        });
+      } catch (err) {
+        toast.push({
+          kind: "error",
+          message: err instanceof Error ? err.message : t("closeFailed"),
+        });
+      }
+    });
+  }, [selected, startTransition, toast, t, tc]);
+
   const masterRef = useCallback(
     (node: HTMLInputElement | null) => {
       if (node) node.indeterminate = someSelected;
@@ -453,6 +495,14 @@ export function ProjectsTable({
                   )}
                 </>
               )}
+              <button
+                type="button"
+                onClick={onBulkClose}
+                className="inline-flex items-center gap-1.5 rounded-md border border-edge bg-surface px-3 py-1.5 text-caption font-medium text-content-secondary hover:bg-hover"
+              >
+                <CircleCheck size={14} />
+                {t("bulkClose", { count: selectedCount })}
+              </button>
               <button
                 type="button"
                 onClick={onBulkArchive}
@@ -722,10 +772,23 @@ function CustomerGroupRows({
               </td>
             )}
             <td className={tableBodyCellClass}>
-              <StatusBadge
-                status={project.status ?? "active"}
-                label={tc(`status.${project.status ?? "active"}`)}
-              />
+              <div className="inline-flex items-center gap-1.5">
+                <StatusBadge
+                  status={project.status ?? "active"}
+                  label={tc(`status.${project.status ?? "active"}`)}
+                />
+                {isProjectOverdue(
+                  project.projected_end_date,
+                  project.status,
+                ) && (
+                  <OverdueBadge
+                    label={t("overdue")}
+                    tooltip={t("overdueTooltip", {
+                      date: project.projected_end_date ?? "",
+                    })}
+                  />
+                )}
+              </div>
             </td>
           </tr>
         );
@@ -834,27 +897,3 @@ function BurnCell({
   );
 }
 
-function StatusBadge({
-  status,
-  label,
-}: {
-  status: string;
-  label: string;
-}): React.JSX.Element {
-  const colorMap: Record<string, string> = {
-    active: "bg-success-soft text-success-text",
-    paused: "bg-warning-soft text-warning-text",
-    completed: "bg-info-soft text-info-text",
-    archived: "bg-surface-inset text-content-muted",
-  };
-  const classes = colorMap[status] ?? "bg-surface-inset text-content-muted";
-
-  return (
-    <span
-      className={`inline-flex items-center gap-1.5 rounded-full px-2.5 py-0.5 text-caption font-medium ${classes}`}
-    >
-      <span className="h-1.5 w-1.5 rounded-full bg-current" />
-      {label}
-    </span>
-  );
-}

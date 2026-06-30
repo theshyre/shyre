@@ -9,7 +9,7 @@ import {
   type KeyboardEvent,
   type ReactNode,
 } from "react";
-import { Loader2, AlertTriangle } from "lucide-react";
+import { Loader2, AlertTriangle, Lock } from "lucide-react";
 import { Tooltip } from "@/components/Tooltip";
 import { DateField } from "@/components/DateField";
 
@@ -415,7 +415,18 @@ function renderDisplay({
         : value;
 
   if (disabled) {
-    const inner = (
+    // A reason → render a Lock icon next to the value so "why is this
+    // read-only?" reads in ≥2 channels (icon + tooltip), not a
+    // cursor/color-only hint. No reason → plain muted, non-interactive.
+    const inner = disabledReason ? (
+      <span
+        className={`inline-flex w-full items-center gap-1 cursor-not-allowed text-content-muted ${className ?? ""}`}
+        aria-disabled
+      >
+        <span className="min-w-0 flex-1">{content}</span>
+        <Lock size={11} className="shrink-0 text-content-muted" aria-hidden="true" />
+      </span>
+    ) : (
       <span
         className={`inline-block w-full cursor-not-allowed text-content-muted ${className ?? ""}`}
         aria-disabled
