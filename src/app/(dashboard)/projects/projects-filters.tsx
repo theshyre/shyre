@@ -34,9 +34,9 @@ const STATUS_KEYS = [
 type StatusKey = (typeof STATUS_KEYS)[number];
 
 /**
- * URL-driven status filter chip. "All" relaxes the default
- * archived-hidden behavior; the named statuses pin to a single
- * value. Default = "active" (matches the page's default).
+ * URL-driven status filter chip. Each named status pins to exactly
+ * that status (Active = active, Completed = completed, …); "All" shows
+ * every status. Default = "active" (matches the page's default).
  */
 export function StatusFilter({
   selected,

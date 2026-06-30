@@ -50,9 +50,9 @@ function parseDir(raw: string | undefined): "asc" | "desc" {
   return raw === "desc" ? "desc" : "asc";
 }
 
-// `?status=` whitelist. "all" relaxes the default-archived-hidden
-// filter and shows every status; "active" (the default) hides
-// archived. Anything outside the set falls back to the default.
+// `?status=` whitelist. Each named status pins to exactly that status;
+// "all" shows every status (archived included). "active" is the default.
+// Anything outside the set falls back to the default.
 const ALLOWED_STATUS_FILTERS = [
   "active",
   "paused",
@@ -126,12 +126,15 @@ export default async function ProjectsPage({
     .order(sort, { ascending: dir === "asc", nullsFirst: false })
     .order("id", { ascending: false });
 
-  // Status filter — "active" hides archived (the original default
-  // behavior); the four named statuses pin to a single value;
-  // "all" applies no status filter.
-  if (statusFilter === "active") {
-    projectsQuery = projectsQuery.neq("status", "archived");
-  } else if (statusFilter !== "all") {
+  // Status filter — each named status pins to exactly that status
+  // (Active = active, Paused = paused, Completed = completed, Archived
+  // = archived); "all" shows every status, archived included. The
+  // default is "active", so a closed-out (completed) or archived
+  // project doesn't clutter the working view — pick Completed /
+  // Archived / All to see them. (Previously "active" meant "not
+  // archived", which silently surfaced completed projects under the
+  // "Active" chip once close-out made `completed` a real state.)
+  if (statusFilter !== "all") {
     projectsQuery = projectsQuery.eq("status", statusFilter);
   }
 
