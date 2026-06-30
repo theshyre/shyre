@@ -55,11 +55,15 @@
   "drawer": {
     "collapse": "Collapse",
     "savedHint": "Changes save automatically when you leave each field.",
+    "saving": "Saving…",
+    "saved": "Saved",
+    "saveFailed": "Couldn't save — try again.",
     "placeholderVendor": "Vendor name (e.g. Apple, AWS)",
     "placeholderExternalReference": "Invoice #, PO #, order or receipt number…",
     "placeholderDescription": "What was bought, with as much detail as you'd want at audit time.",
     "placeholderNotes": "Vendor confirmation details, approval notes — anything not captured above."
   },
+  "lockedFieldReason": "Locked — on invoice {number}. Void the invoice to change this.",
   "split": {
     "title": "Split this expense",
     "subtitle": "Splits sum to the original amount ({amount}). Each row gets its own category.",

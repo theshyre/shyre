@@ -25,6 +25,7 @@ import {
   deleteExpenseAction,
   restoreExpenseAction,
 } from "./actions";
+import { INVOICED_EDITABLE_EXPENSE_FIELDS } from "./expense-lock-helpers";
 import { EXPENSE_CATEGORIES } from "./categories";
 import {
   formatExpenseAmount,
@@ -131,13 +132,24 @@ export function ExpenseRow({
   const toast = useToast();
   const [confirmingDelete, setConfirmingDelete] = useState(false);
   const [splitOpen, setSplitOpen] = useState(false);
-  // Phase-2 lock: an invoiced row's per-cell edits would throw at
-  // the action layer (and the DB trigger backstop). Disable
-  // EditableCell across the board for invoiced rows so users don't
-  // try and watch the cell error out. Lock the action buttons too
-  // via the actions-column branch below (chip-only render).
+  // Field-level invoice lock: an invoiced expense keeps its metadata
+  // (external_reference / description / notes / vendor / category)
+  // editable — the invoice snapshots the expense, so these can't
+  // mutate it — but the financial fields it depends on (amount,
+  // currency, incurred_on, project_id, billable) are read-only. A
+  // locked cell renders read-only with a Lock icon + "on invoice #X"
+  // reason (via EditableCell's disabledReason) instead of silently
+  // erroring on edit. Mirrors the action + DB-trigger boundary.
   const isInvoiced = expense.invoiced === true;
-  const cellEditable = canEdit && !isInvoiced;
+  const lockedReason = t("lockedFieldReason", {
+    number: expense.invoice_number ?? "—",
+  });
+  const fieldEditable = (field: string): boolean =>
+    canEdit && (!isInvoiced || INVOICED_EDITABLE_EXPENSE_FIELDS.has(field));
+  const fieldLockReason = (field: string): string | undefined =>
+    isInvoiced && !INVOICED_EDITABLE_EXPENSE_FIELDS.has(field)
+      ? lockedReason
+      : undefined;
 
   function toggleExpand(): void {
     onToggleExpand(expense.id);
@@ -193,9 +205,46 @@ export function ExpenseRow({
   const vendorLabel = expense.vendor ?? "";
   const ariaIdent = vendorLabel || t(`categories.${expense.category}`);
 
+  const expandLabel = isExpanded
+    ? t("ariaActions.collapseDetail", { vendor: ariaIdent })
+    : t("ariaActions.expandDetail", { vendor: ariaIdent });
+
+  // Shared expand/collapse control — rendered for normal rows AND
+  // invoiced rows (an invoiced row is now partially editable, so the
+  // user must be able to open its editor to change metadata).
+  const expandButton = (
+    <Tooltip label={expandLabel} labelMode="label">
+      <button
+        type="button"
+        onClick={toggleExpand}
+        aria-expanded={isExpanded}
+        className="inline-flex items-center rounded-md p-1 text-content-secondary hover:bg-hover hover:text-content"
+        aria-label={expandLabel}
+      >
+        {isExpanded ? <ChevronUp size={14} /> : <ChevronDown size={14} />}
+      </button>
+    </Tooltip>
+  );
+
+  // Double-click anywhere on the row (except an interactive control or
+  // an editable cell) opens the inline editor — a more discoverable
+  // path than hunting for the chevron. The guard keeps a double-click
+  // on a cell/checkbox/button doing its own thing.
+  function handleRowDoubleClick(e: React.MouseEvent<HTMLTableRowElement>): void {
+    if (
+      (e.target as HTMLElement).closest(
+        'button, a, input, textarea, select, label, [role="button"]',
+      )
+    ) {
+      return;
+    }
+    toggleExpand();
+  }
+
   return (
     <>
     <tr
+      onDoubleClick={handleRowDoubleClick}
       className={`border-b border-edge last:border-0 hover:bg-hover transition-colors ${
         selected ? "bg-accent-soft/30" : ""
       } ${isExpanded ? "bg-accent-soft/40 hover:bg-accent-soft/40" : ""}`}
@@ -233,7 +282,8 @@ export function ExpenseRow({
             field: t("fields.incurredOn"),
           })}
           onCommit={(v) => commitField("incurred_on", v)}
-          disabled={!cellEditable}
+          disabled={!fieldEditable("incurred_on")}
+          disabledReason={fieldLockReason("incurred_on")}
         />
       </td>
 
@@ -249,7 +299,8 @@ export function ExpenseRow({
             field: t("fields.amount"),
           })}
           onCommit={(v) => commitField("amount", v)}
-          disabled={!cellEditable}
+          disabled={!fieldEditable("amount")}
+          disabledReason={fieldLockReason("amount")}
           min={0}
           step={0.01}
         />
@@ -281,7 +332,8 @@ export function ExpenseRow({
               field: t("fields.category"),
             })}
             onCommit={(v) => commitField("category", v)}
-            disabled={!cellEditable}
+            disabled={!fieldEditable("category")}
+            disabledReason={fieldLockReason("category")}
           />
           {expense.is_sample && (
             <span className="inline-flex items-center rounded-full bg-accent-soft px-2 py-0.5 text-label font-medium text-accent">
@@ -312,7 +364,8 @@ export function ExpenseRow({
             field: t("fields.vendor"),
           })}
           onCommit={(v) => commitField("vendor", v)}
-          disabled={!cellEditable}
+          disabled={!fieldEditable("vendor")}
+          disabledReason={fieldLockReason("vendor")}
           placeholder="—"
           className="truncate"
         />
@@ -331,7 +384,8 @@ export function ExpenseRow({
             field: t("fields.description"),
           })}
           onCommit={(v) => commitField("description", v)}
-          disabled={!cellEditable}
+          disabled={!fieldEditable("description")}
+          disabledReason={fieldLockReason("description")}
           placeholder="—"
           displayNode={
             expense.description ? (
@@ -345,22 +399,27 @@ export function ExpenseRow({
         />
       </td>
 
-      {/* Notes — same line-clamp-2 treatment as Description. */}
-      <td className="text-content-muted italic">
+      {/* Reference # (external_reference) — replaces the Notes column
+          in the dense table; Notes stays in the expanded editor and in
+          free-text search. Metadata: editable even on an invoiced row. */}
+      <td className="text-content-secondary">
         <EditableCell
-          variant="textarea"
-          value={expense.notes ?? ""}
+          variant="text"
+          value={expense.external_reference ?? ""}
+          suggestions={[]}
           ariaLabel={t("ariaActions.editField", {
             vendor: ariaIdent,
-            field: t("fields.notes"),
+            field: t("fields.externalReference"),
           })}
-          onCommit={(v) => commitField("notes", v)}
-          disabled={!cellEditable}
+          onCommit={(v) => commitField("external_reference", v)}
+          disabled={!fieldEditable("external_reference")}
+          disabledReason={fieldLockReason("external_reference")}
           placeholder="—"
+          className="truncate"
           displayNode={
-            expense.notes ? (
-              <span className="block line-clamp-2 break-words">
-                {expense.notes}
+            expense.external_reference ? (
+              <span className="block truncate font-mono text-caption">
+                {expense.external_reference}
               </span>
             ) : (
               <span className="text-content-muted">—</span>
@@ -388,7 +447,8 @@ export function ExpenseRow({
               field: t("fields.project"),
             })}
             onCommit={(v) => commitField("project_id", v)}
-            disabled={!cellEditable}
+            disabled={!fieldEditable("project_id")}
+            disabledReason={fieldLockReason("project_id")}
             className="truncate"
           />
           {expense.billable && (
@@ -428,27 +488,30 @@ export function ExpenseRow({
           the action layer + DB trigger would refuse the write. */}
       <td className="text-left">
         {expense.invoiced && expense.invoice_id ? (
-          <Tooltip
-            label={t("ariaActions.invoicedTooltip", {
-              number: expense.invoice_number ?? "",
-            })}
-            labelMode="label"
-          >
-            <Link
-              href={`/invoices/${expense.invoice_id}`}
-              className="inline-flex items-center gap-1 rounded-full bg-accent-soft px-2 py-0.5 text-label font-semibold uppercase tracking-wider text-accent-text hover:opacity-90"
-              aria-label={t("ariaActions.invoicedTooltip", {
+          <div className="inline-flex items-center gap-1">
+            <Tooltip
+              label={t("ariaActions.invoicedTooltip", {
                 number: expense.invoice_number ?? "",
               })}
+              labelMode="label"
             >
-              <FileText size={12} aria-hidden="true" />
-              {expense.invoice_number
-                ? t("ariaActions.invoicedBadge", {
-                    number: expense.invoice_number,
-                  })
-                : t("ariaActions.invoicedBadgeUnknown")}
-            </Link>
-          </Tooltip>
+              <Link
+                href={`/invoices/${expense.invoice_id}`}
+                className="inline-flex items-center gap-1 rounded-full bg-accent-soft px-2 py-0.5 text-label font-semibold uppercase tracking-wider text-accent-text hover:opacity-90"
+                aria-label={t("ariaActions.invoicedTooltip", {
+                  number: expense.invoice_number ?? "",
+                })}
+              >
+                <FileText size={12} aria-hidden="true" />
+                {expense.invoice_number
+                  ? t("ariaActions.invoicedBadge", {
+                      number: expense.invoice_number,
+                    })
+                  : t("ariaActions.invoicedBadgeUnknown")}
+              </Link>
+            </Tooltip>
+            {expandButton}
+          </div>
         ) : !canEdit ? (
           <span aria-hidden="true" />
         ) : confirmingDelete ? (
@@ -485,32 +548,7 @@ export function ExpenseRow({
           </form>
         ) : (
           <div className="inline-flex items-center gap-0.5">
-            <Tooltip
-              label={
-                isExpanded
-                  ? t("ariaActions.collapseDetail", { vendor: ariaIdent })
-                  : t("ariaActions.expandDetail", { vendor: ariaIdent })
-              }
-              labelMode="label"
-            >
-              <button
-                type="button"
-                onClick={toggleExpand}
-                aria-expanded={isExpanded}
-                className="inline-flex items-center rounded-md p-1 text-content-secondary hover:bg-hover hover:text-content"
-                aria-label={
-                  isExpanded
-                    ? t("ariaActions.collapseDetail", { vendor: ariaIdent })
-                    : t("ariaActions.expandDetail", { vendor: ariaIdent })
-                }
-              >
-                {isExpanded ? (
-                  <ChevronUp size={14} />
-                ) : (
-                  <ChevronDown size={14} />
-                )}
-              </button>
-            </Tooltip>
+            {expandButton}
             <Tooltip
               label={t("ariaActions.split", { vendor: ariaIdent })}
               labelMode="label"
