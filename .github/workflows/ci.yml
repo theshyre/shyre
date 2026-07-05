@@ -42,7 +42,7 @@ jobs:
 
       - uses: actions/setup-node@v4
         with:
-          node-version: "22"
+          node-version: "24"
           cache: "npm"
           # Writes a .npmrc auth line reading ${NODE_AUTH_TOKEN} so npm
           # can pull @theshyre/* from the org's private GH Packages.
@@ -95,7 +95,7 @@ jobs:
       - uses: actions/setup-node@v4
         if: steps.secrets.outputs.have == 'true'
         with:
-          node-version: "22"
+          node-version: "24"
           cache: "npm"
           registry-url: "https://npm.pkg.github.com"
 
@@ -135,7 +135,7 @@ jobs:
       - uses: actions/setup-node@v4
         if: steps.secrets.outputs.have == 'true'
         with:
-          node-version: "22"
+          node-version: "24"
           cache: "npm"
           registry-url: "https://npm.pkg.github.com"
 
