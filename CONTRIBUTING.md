@@ -2,7 +2,7 @@
 
 ## Prerequisites
 
-- Node.js 22+
+- Node.js 24 (`>=24 <25`, per `package.json` `engines`)
 - npm
 - A Supabase project (free tier)
 - GitHub account with **read access to the `theshyre` org** (ask Marcus). Needed to install `@theshyre/*` private packages from GitHub Packages.

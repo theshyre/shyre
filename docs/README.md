@@ -28,4 +28,4 @@ Technical documentation.
 
 ## Personas
 
-AI review personas used by Claude Code and Cursor. See [personas/README.md](personas/README.md).
+AI review personas used by Claude Code. See [personas/README.md](personas/README.md).

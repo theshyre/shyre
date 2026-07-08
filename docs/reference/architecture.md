@@ -193,4 +193,4 @@ Every list page with bulk actions follows the sibling-strip pattern documented i
 
 ## Persona reviewers
 
-`docs/personas/*.md` — 8 personas (4 craft reviewers auto-fire on file-pattern, 4 stakeholders are manual-invoke). Editing any persona requires editing the matching `.claude/agents/*.md` (and historically `.cursor/rules/*.mdc`, but Cursor support was dropped 2026-04-29 per memory).
+`docs/personas/*.md` — 8 personas (4 craft reviewers auto-fire on file-pattern, 4 stakeholders are manual-invoke). Editing any persona requires editing the matching `.claude/agents/*.md` in the same commit. (The `.cursor/rules/*.mdc` mirrors are legacy — Shyre has been Claude-Code-only since 2026-04-29 — and are no longer kept in sync.)

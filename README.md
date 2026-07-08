@@ -1,36 +1,92 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# Shyre
 
-## Getting Started
+**Shyre is a platform for running a consulting business** — time tracking, customers, projects, invoicing, and expenses under one roof. The time-and-invoicing surface ships as the **Stint** module inside the platform shell.
 
-First, run the development server:
+- 🌐 **Production:** https://shyre.malcom.io
+- 📚 **Docs:** [`docs/`](docs/) (also served in-app at [`/docs`](https://shyre.malcom.io/docs))
+- 🤝 **Contributing / full setup:** [`CONTRIBUTING.md`](CONTRIBUTING.md)
+
+## Stack
+
+| Layer | Technology |
+|-------|-----------|
+| Framework | Next.js 16 (App Router), React 19 |
+| Database / Auth | Supabase — Postgres, Auth (TOTP MFA), RLS |
+| Styling | Tailwind CSS 4 + `@theshyre/design-tokens` |
+| Shared UI | `@theshyre/ui` (private GitHub Packages) |
+| i18n | next-intl (`en`, `es`) |
+| PDF | `@react-pdf/renderer` (client-side invoices) |
+| Email | Resend (per-team, envelope-encrypted keys) |
+| Testing | Vitest + Testing Library, Playwright (E2E) |
+| Deploy | Vercel + Supabase Cloud, auto-deploy on push to `main` |
+
+See [`docs/reference/architecture.md`](docs/reference/architecture.md) for the module layout and data flow.
+
+## Quick start
+
+> **Requires Node 24** (`>=24 <25`) and read access to the `theshyre` GitHub org for the private `@theshyre/*` packages. See [`CONTRIBUTING.md`](CONTRIBUTING.md) for the one-time GitHub Packages and Supabase CLI setup.
 
 ```bash
+git clone git@github.com:theshyre/shyre.git
+cd shyre
+
+# NODE_AUTH_TOKEN (read:packages) must be exported — see CONTRIBUTING.md
+npm install
+
+cp .env.example .env.local   # then fill in Supabase credentials
 npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+Open [http://localhost:3000](http://localhost:3000).
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+## Scripts
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+| Command | What it does |
+|---------|-------------|
+| `npm run dev` | Start the dev server |
+| `npm run build` | Production build |
+| `npm run lint` | ESLint (`--max-warnings=0` — warnings are errors) |
+| `npm run typecheck` | `tsc --noEmit` (strict, zero `any`) |
+| `npm run test` | Vitest unit/integration run |
+| `npm run test:coverage` | Vitest with the >90% coverage gate |
+| `npm run test:e2e` | Playwright critical-flow specs |
+| **`npm run ci:local`** | **Pre-commit gate:** lint → typecheck → coverage → build |
+| `npm run db:push` | Apply migrations to the linked Supabase project |
+| `npm run db:new <name>` | Scaffold a new migration file |
 
-## Learn More
+Run **`npm run ci:local`** before every commit that adds production code — it mirrors the CI `check` job that blocks merge.
 
-To learn more about Next.js, take a look at the following resources:
+## Project structure
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+```
+src/
+├── app/
+│   ├── (dashboard)/    — authenticated route group (clients, projects,
+│   │                     time-entries, timer, invoices, reports, settings)
+│   ├── login/          — auth
+│   └── docs/           — in-app documentation
+├── components/         — shared UI primitives
+├── hooks/              — shared React hooks
+├── lib/
+│   ├── supabase/       — browser / server / admin / middleware clients
+│   ├── modules/        — module registry (Stint, Customers, Invoicing, …)
+│   ├── messaging/      — email outbox / encryption / providers
+│   └── i18n/           — next-intl config + locale files
+└── __tests__/          — integration tests
+supabase/migrations/    — SQL migrations
+docs/                   — project documentation (also served at /docs)
+```
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+## Documentation
 
-## Deploy on Vercel
+- **[Getting started](docs/guides/getting-started.md)** — first login to first invoice
+- **[Feature guides](docs/guides/features/)** — time tracking, customers, projects, invoicing, expenses
+- **[Architecture](docs/reference/architecture.md)** · **[Database schema](docs/reference/database-schema.md)** · **[Modules](docs/reference/modules.md)**
+- **[Admin guides](docs/guides/admin/)** — [env configuration](docs/guides/admin/env-configuration.md), error log, sample data
+- **[Security audit log](docs/security/SECURITY_AUDIT_LOG.md)** — append-only findings + resolutions
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
+Conventions and mandatory rules (TypeScript strict, forms/buttons, i18n, migrations, testing) live in [`CLAUDE.md`](CLAUDE.md) and [`docs/reference/`](docs/reference/).
 
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+## Deployment
+
+Pushes to `main` trigger a Vercel deploy and the `db-migrate` GitHub Action **in parallel** — there is no ordering between them. Migrations must be backward-compatible with the currently-deployed code; destructive changes are split across two PRs. See [`docs/reference/migrations.md`](docs/reference/migrations.md) before writing a migration.
