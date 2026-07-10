@@ -11,6 +11,7 @@ export const BUSINESS_FIELD_LABELS: Record<string, string> = {
   tax_id: "Tax ID (EIN)",
   date_incorporated: "Date incorporated",
   fiscal_year_start: "Fiscal year start",
+  duns_number: "D-U-N-S Number",
 };
 
 export const REGISTRATION_FIELD_LABELS: Record<string, string> = {

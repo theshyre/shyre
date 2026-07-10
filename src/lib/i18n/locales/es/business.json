@@ -123,6 +123,8 @@
       "entityTypeAny": "— Selecciona —",
       "taxId": "ID Fiscal (EIN)",
       "taxIdHelp": "Se guarda tal cual. Maneja con cuidado.",
+      "dunsNumber": "Número D-U-N-S",
+      "dunsNumberHelp": "Identificador Dun & Bradstreet de 9 dígitos. Los guiones son opcionales — se guarda como 9 dígitos.",
       "dateIncorporated": "Fecha de constitución",
       "fiscalYearStart": "Inicio del año fiscal (MM-DD)",
       "fiscalYearStartHelp": "Usa 01-01 para año calendario, 07-01 para año fiscal julio-junio, etc."

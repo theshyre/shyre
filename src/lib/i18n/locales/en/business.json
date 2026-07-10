@@ -123,6 +123,8 @@
       "entityTypeAny": "— Select —",
       "taxId": "Tax ID (EIN)",
       "taxIdHelp": "Stored as entered. Handle with care.",
+      "dunsNumber": "D-U-N-S Number",
+      "dunsNumberHelp": "9-digit Dun & Bradstreet identifier. Dashes optional — stored as 9 digits.",
       "dateIncorporated": "Date of incorporation",
       "fiscalYearStart": "Fiscal year start (MM-DD)",
       "fiscalYearStartHelp": "Use 01-01 for calendar-year businesses, 07-01 for July-June fiscal year, etc."

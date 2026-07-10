@@ -63,6 +63,20 @@ export async function updateBusinessIdentityAction(
       throw new Error("fiscal_year_start must be MM-DD");
     }
 
+    // A D-U-N-S Number is exactly 9 digits. Accept the user's incidental
+    // formatting (spaces / hyphens they may paste from D&B), then store
+    // the canonical 9-digit form so it round-trips cleanly and satisfies
+    // the DB CHECK. Reject anything that isn't 9 digits rather than
+    // silently truncating.
+    let duns_number = blankToNull(formData.get("duns_number"));
+    if (duns_number) {
+      const digits = duns_number.replace(/[\s-]/g, "");
+      if (!/^\d{9}$/.test(digits)) {
+        throw new Error("D-U-N-S Number must be 9 digits.");
+      }
+      duns_number = digits;
+    }
+
     // Display fields stay on businesses; sensitive identity goes to
     // the role-gated child table per SAL-012.
     assertSupabaseOk(
@@ -80,20 +94,21 @@ export async function updateBusinessIdentityAction(
     // phantom changes that diff to nothing.
     const { data: existingPrivate } = await supabase
       .from("business_identity_private")
-      .select("tax_id, date_incorporated, fiscal_year_start")
+      .select("tax_id, date_incorporated, fiscal_year_start, duns_number")
       .eq("business_id", businessId)
       .maybeSingle();
     const privateChanged =
       !existingPrivate ||
       (existingPrivate.tax_id ?? null) !== tax_id ||
       (existingPrivate.date_incorporated ?? null) !== date_incorporated ||
-      (existingPrivate.fiscal_year_start ?? null) !== fiscal_year_start;
+      (existingPrivate.fiscal_year_start ?? null) !== fiscal_year_start ||
+      (existingPrivate.duns_number ?? null) !== duns_number;
 
     if (privateChanged) {
       assertSupabaseOk(
         await supabase
           .from("business_identity_private")
-          .update({ tax_id, date_incorporated, fiscal_year_start })
+          .update({ tax_id, date_incorporated, fiscal_year_start, duns_number })
           .eq("business_id", businessId),
       );
     }
