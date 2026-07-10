@@ -17,6 +17,7 @@ The identity card shows:
 - **Legal name** — the formal registered name. Leave blank to fall back to the business's display name.
 - **Entity type** — Sole prop, LLC, S-Corp, C-Corp, Partnership, Nonprofit, Other.
 - **Tax ID (EIN)** — stored as-entered. Handle with care; don't screenshot.
+- **D-U-N-S Number** — the 9-digit Dun & Bradstreet identifier registries ask for (e.g. Apple's Developer Program for organizations, SAM.gov). Dashes are optional on entry; stored canonically as 9 digits.
 - **Date of incorporation**
 - **Fiscal year start** — MM-DD. Defaults to 01-01 (calendar year). `07-01` for July–June fiscal year, etc.
 
@@ -37,7 +38,7 @@ Click a field → edit → **Save business identity**. Owners and admins only (r
 
 ## Privacy
 
-The EIN is sensitive. It lives in the `businesses` table, gated by team-role-derived RLS — only owners and admins of a team in the business can read or write it. There's no endpoint that returns it in a list query.
+The EIN and D-U-N-S Number are sensitive. They live on the `business_identity_private` child table (split off `businesses` in SAL-012), gated by team-role-derived RLS — only owners and admins of a team in the business can read or write them. There's no endpoint that returns them in a list query.
 
 ## Related
 

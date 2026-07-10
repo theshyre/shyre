@@ -81,6 +81,7 @@ const state: {
         tax_id: string | null;
         date_incorporated: string | null;
         fiscal_year_start: string | null;
+        duns_number: string | null;
       }
     | null;
   updates: { table: string; patch: unknown; filters: Filter[] }[];
@@ -308,6 +309,7 @@ describe("updateBusinessIdentityAction", () => {
       tax_id: "12-3456789",
       date_incorporated: "2020-01-01",
       fiscal_year_start: "01-01",
+      duns_number: "123456789",
     };
     await updateBusinessIdentityAction(
       fd({
@@ -315,6 +317,7 @@ describe("updateBusinessIdentityAction", () => {
         tax_id: "12-3456789",
         date_incorporated: "2020-01-01",
         fiscal_year_start: "01-01",
+        duns_number: "123456789",
       }),
     );
     expect(
@@ -331,6 +334,7 @@ describe("updateBusinessIdentityAction", () => {
       tax_id: "old-tax-id",
       date_incorporated: "2020-01-01",
       fiscal_year_start: "01-01",
+      duns_number: "123456789",
     };
     await updateBusinessIdentityAction(
       fd({
@@ -338,11 +342,67 @@ describe("updateBusinessIdentityAction", () => {
         tax_id: "new-tax-id",
         date_incorporated: "2020-01-01",
         fiscal_year_start: "01-01",
+        duns_number: "123456789",
       }),
     );
     expect(
       state.updates.find((u) => u.table === "business_identity_private"),
     ).toBeDefined();
+  });
+
+  it("rejects a D-U-N-S Number that isn't 9 digits", async () => {
+    mockValidateBusinessAccess.mockResolvedValue({ role: "owner" });
+    await expect(
+      updateBusinessIdentityAction(
+        fd({ business_id: "b-1", duns_number: "12345" }),
+      ),
+    ).rejects.toThrow(/9 digits/);
+    await expect(
+      updateBusinessIdentityAction(
+        fd({ business_id: "b-1", duns_number: "abcdefghi" }),
+      ),
+    ).rejects.toThrow(/9 digits/);
+    // Reject before any write lands.
+    expect(state.updates).toHaveLength(0);
+  });
+
+  it("normalizes a dashed/spaced D-U-N-S to canonical 9 digits", async () => {
+    mockValidateBusinessAccess.mockResolvedValue({ role: "owner" });
+    state.existingPrivate = null; // ensure the private-table write fires
+    await updateBusinessIdentityAction(
+      fd({ business_id: "b-1", duns_number: "08-036 1234" }),
+    );
+    const pvtUpdate = state.updates.find(
+      (u) => u.table === "business_identity_private",
+    );
+    expect((pvtUpdate?.patch as Record<string, unknown>).duns_number).toBe(
+      "080361234",
+    );
+  });
+
+  it("writes the private table when only the D-U-N-S changed", async () => {
+    mockValidateBusinessAccess.mockResolvedValue({ role: "owner" });
+    state.existingPrivate = {
+      tax_id: "12-3456789",
+      date_incorporated: "2020-01-01",
+      fiscal_year_start: "01-01",
+      duns_number: "111111111",
+    };
+    await updateBusinessIdentityAction(
+      fd({
+        business_id: "b-1",
+        tax_id: "12-3456789",
+        date_incorporated: "2020-01-01",
+        fiscal_year_start: "01-01",
+        duns_number: "222222222",
+      }),
+    );
+    const pvtUpdate = state.updates.find(
+      (u) => u.table === "business_identity_private",
+    );
+    expect((pvtUpdate?.patch as Record<string, unknown>).duns_number).toBe(
+      "222222222",
+    );
   });
 
   it("revalidates /business and /business/<id> on success", async () => {

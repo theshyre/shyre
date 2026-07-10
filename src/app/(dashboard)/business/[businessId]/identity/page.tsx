@@ -50,7 +50,7 @@ export default async function BusinessIdentityPage({
     canEdit
       ? supabase
           .from("business_identity_private")
-          .select("tax_id, date_incorporated, fiscal_year_start")
+          .select("tax_id, date_incorporated, fiscal_year_start, duns_number")
           .eq("business_id", businessId)
           .maybeSingle()
       : Promise.resolve({ data: null }),
@@ -95,6 +95,7 @@ export default async function BusinessIdentityPage({
         fiscalYearStart={
           (privateIdentity?.fiscal_year_start as string | null) ?? ""
         }
+        dunsNumber={(privateIdentity?.duns_number as string | null) ?? ""}
         canEditPrivate={canEdit}
       />
       <StateRegistrationsSection

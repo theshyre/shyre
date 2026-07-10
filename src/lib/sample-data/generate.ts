@@ -161,6 +161,7 @@ export interface SampleBusinessIdentity {
   tax_id: string;
   date_incorporated: string;
   fiscal_year_start: string;
+  duns_number: string;
   display_name: string;
 }
 
@@ -709,6 +710,7 @@ const BUSINESS_IDENTITY_SEED: SampleBusinessIdentity = {
   tax_id: "85-1234567",
   date_incorporated: "2023-06-15",
   fiscal_year_start: "01-01",
+  duns_number: "080361234",
 };
 
 const REGISTERED_AGENTS_SEED: SampleRegisteredAgent[] = [

@@ -358,6 +358,7 @@ async function loadSample(
           tax_id: data.businessIdentity.tax_id,
           date_incorporated: data.businessIdentity.date_incorporated,
           fiscal_year_start: data.businessIdentity.fiscal_year_start,
+          duns_number: data.businessIdentity.duns_number,
         })
         .eq("business_id", businessId),
     );

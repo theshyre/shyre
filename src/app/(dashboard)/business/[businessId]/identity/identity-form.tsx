@@ -21,9 +21,11 @@ interface Props {
   taxId: string;
   dateIncorporated: string;
   fiscalYearStart: string;
+  dunsNumber: string;
   /** Whether the viewer is owner|admin and may see/edit the
    *  sensitive identity fields (tax_id / incorporation date / fiscal
-   *  year start). Defaults to false so a forgotten prop fails closed. */
+   *  year start / D-U-N-S). Defaults to false so a forgotten prop
+   *  fails closed. */
   canEditPrivate?: boolean;
 }
 
@@ -54,6 +56,7 @@ export function IdentityForm({
   taxId,
   dateIncorporated,
   fiscalYearStart,
+  dunsNumber,
   canEditPrivate = false,
 }: Props): React.JSX.Element {
   const t = useTranslations("business.info");
@@ -80,6 +83,7 @@ export function IdentityForm({
     taxId,
     dateIncorporated,
     fiscalYearStart,
+    dunsNumber,
   ].join("|");
 
   return (
@@ -136,6 +140,21 @@ export function IdentityForm({
               />
               <p className="mt-1 text-caption text-content-muted">
                 {t("fields.taxIdHelp")}
+              </p>
+            </div>
+
+            <div>
+              <label htmlFor="identity-form-dunsNumber" className={labelClass}>{t("fields.dunsNumber")}</label>
+              <input id="identity-form-dunsNumber"
+                name="duns_number"
+                defaultValue={dunsNumber}
+                inputMode="numeric"
+                autoComplete="off"
+                placeholder="123456789"
+                className={`${inputClass} font-mono`}
+              />
+              <p className="mt-1 text-caption text-content-muted">
+                {t("fields.dunsNumberHelp")}
               </p>
             </div>
 

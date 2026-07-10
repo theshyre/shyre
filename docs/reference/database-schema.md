@@ -41,7 +41,7 @@ A handful of tables are **business-scoped** (a Business owns 1+ Teams) — see "
 |---|---|
 | `businesses` | The legal entity invoices are sent under. SAL-026 locks INSERT to SECURITY DEFINER paths. |
 | `businesses_history` | Append-only |
-| `business_identity_private` | Tax IDs / EIN / SSN / fiscal year start. SAL-012 narrowed read access. |
+| `business_identity_private` | Tax IDs / EIN / SSN / D-U-N-S Number / fiscal year start. SAL-012 narrowed read access. |
 | `business_identity_private_history` | Append-only |
 | `business_state_registrations` | Per-state DBA / sales-tax / employer registrations. |
 | `business_state_registrations_history` | Append-only |
