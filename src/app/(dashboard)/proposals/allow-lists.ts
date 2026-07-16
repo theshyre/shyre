@@ -56,3 +56,37 @@ export const DEPOSIT_TYPES = ["none", "percent", "amount"] as const;
 export type DepositType = (typeof DEPOSIT_TYPES)[number];
 
 export const ALLOWED_DEPOSIT_TYPES = new Set<string>(DEPOSIT_TYPES);
+
+/**
+ * Forward lifecycle events (`proposal_events.event_type`). Signer-side events
+ * (viewed / otp_* / accepted / declined) carry a NULL actor_user_id — the
+ * client is not a Shyre user. Mirrored by the CHECK in the P2 migration.
+ */
+export const PROPOSAL_EVENT_TYPES = [
+  "created",
+  "sent",
+  "viewed",
+  "otp_sent",
+  "otp_verified",
+  "otp_failed",
+  "accepted",
+  "declined",
+  "countersigned",
+  "converted",
+  "superseded",
+] as const;
+
+export type ProposalEventType = (typeof PROPOSAL_EVENT_TYPES)[number];
+
+export const ALLOWED_PROPOSAL_EVENT_TYPES = new Set<string>(
+  PROPOSAL_EVENT_TYPES,
+);
+
+/** `proposal_acceptances.decision` — the two recordable outcomes. */
+export const ACCEPTANCE_DECISIONS = ["accepted", "declined"] as const;
+
+export type AcceptanceDecision = (typeof ACCEPTANCE_DECISIONS)[number];
+
+export const ALLOWED_ACCEPTANCE_DECISIONS = new Set<string>(
+  ACCEPTANCE_DECISIONS,
+);

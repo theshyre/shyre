@@ -94,7 +94,11 @@ A handful of tables are **business-scoped** (a Business owns 1+ Teams) — see "
 | `proposal_line_items` | A line item = a proposed project with a `fixed_price`. `parent_line_item_id` self-ref (one level) models phases — phase prices sum to the parent's price, `is_capped` marks the total as a hard cap (action-layer enforced; DB guard is a P4 hardening). `converted_project_id` + `invoiced_at` land with the convert/billing phases. Only top-level rows are client-selectable at sign-off. |
 | `proposal_line_items_history` | Append-only |
 
-Sign-off tables (`proposal_events`, `proposal_acceptances`, `proposal_access_tokens`) arrive with the P2 public-signing migration — see SAL-036 when it lands.
+| `proposal_access_tokens` | The public sign-link identity (SAL-036): sha256 `token_hash` (raw only in the emailed URL), frozen `signer_email`/`signer_name`, 30-day `expires_at`, `consumed_at` (one decision per link), `first_viewed_at`, and OTP state (`otp_code_hash` bound to the token row, `otp_expires_at`, `otp_attempts` with 5-try lockout, `otp_verified_at`). Owner/admin SELECT; writes only via the server-side admin client. |
+| `proposal_events` | Append-only forward lifecycle log (`created\|sent\|viewed\|otp_sent\|otp_verified\|otp_failed\|accepted\|declined\|countersigned\|converted\|superseded`). Signer-side events carry NULL `actor_user_id` + an `actor_label`. Owner/admin SELECT; admin-client writes only. |
+| `proposal_acceptances` | Immutable decision record: signer name/title/email, `signature_typed`, `selected_line_item_ids`, full `content_snapshot` + `content_sha256` ("what exactly was accepted"), server-computed `accepted_total`, IP/UA, `otp_verified_at`, provider counter-signature columns. No client write policies at all. |
+
+Send-locks: `trg_guard_proposals_send_lock` / `trg_guard_pli_send_lock` freeze content (default-deny jsonb strip-list) once a proposal leaves `draft`; lifecycle columns and P3's convert/billing stamps stay writable. The `/sign/<token>` route is exempted from the auth middleware — see SAL-036 for the full public-surface posture.
 
 ## Messaging / outbox (per-team email pipeline)
 

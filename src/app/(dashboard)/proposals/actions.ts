@@ -9,6 +9,10 @@ import { AppError, assertSupabaseOk } from "@/lib/errors";
 import { generateInvoiceNumber } from "@/lib/invoice-utils";
 import { paymentTermsLabel } from "@/lib/payment-terms";
 import { proposalSchema, type ProposalInput } from "@/lib/schemas/proposal";
+import { createAdminClient } from "@/lib/supabase/admin";
+import { generateSignToken, TOKEN_TTL_DAYS } from "@/lib/proposals/tokens";
+import { isValidProposalStatusTransition } from "@/lib/proposals/status";
+import { sendProposalEmail } from "@/lib/messaging/send-proposal";
 import { isProposalEditable } from "./allow-lists";
 
 /**
@@ -248,6 +252,178 @@ export async function updateProposalAction(formData: FormData): Promise<void> {
       redirect(`/proposals/${proposalId}`);
     },
     "updateProposalAction",
+  ) as unknown as void;
+}
+
+/**
+ * Send a draft proposal for sign-off: freeze it (`draft → sent`), mint the
+ * public access token (hash stored, raw only in the emailed URL), and email
+ * the sign link to the signer contact through the outbox pipeline (SAL-036).
+ */
+export async function sendProposalAction(formData: FormData): Promise<void> {
+  return runSafeAction(
+    formData,
+    async (formData, { supabase, userId }) => {
+      const proposalId = formData.get("id") as string;
+      if (!proposalId) throw new Error("Missing proposal id.");
+
+      const { data: proposal } = await supabase
+        .from("proposals")
+        .select(
+          "id, team_id, status, proposal_number, title, customer_id, signer_contact_id",
+        )
+        .eq("id", proposalId)
+        .single();
+      if (!proposal) throw new Error("Proposal not found.");
+      await requireTeamAdmin(proposal.team_id as string);
+
+      if (
+        !isValidProposalStatusTransition(
+          (proposal.status as string) ?? "",
+          "sent",
+        )
+      ) {
+        throw AppError.refusal(
+          "Only a draft proposal can be sent. To revise a sent proposal, create a new version.",
+        );
+      }
+      if (!proposal.signer_contact_id) {
+        throw AppError.refusal(
+          "Pick a signer contact before sending — the sign-off link and one-time code go to their email.",
+        );
+      }
+      const { data: contact } = await supabase
+        .from("customer_contacts")
+        .select("id, name, email, customer_id")
+        .eq("id", proposal.signer_contact_id as string)
+        .single();
+      if (!contact || contact.customer_id !== proposal.customer_id) {
+        throw AppError.refusal("Signer contact does not belong to this customer.");
+      }
+
+      const baseUrl = process.env.NEXT_PUBLIC_APP_URL ?? "";
+      if (!baseUrl) {
+        throw new Error(
+          "NEXT_PUBLIC_APP_URL is not configured — the sign link cannot be built.",
+        );
+      }
+
+      // Token rows have no INSERT policy — the admin client is the only
+      // writer, keeping the hash out of any RLS-governed surface.
+      const admin = createAdminClient();
+      const { raw, hash } = generateSignToken();
+      const expiresAt = new Date(
+        Date.now() + TOKEN_TTL_DAYS * 24 * 60 * 60 * 1000,
+      );
+      const { error: tokenError } = await admin
+        .from("proposal_access_tokens")
+        .insert({
+          proposal_id: proposalId,
+          team_id: proposal.team_id,
+          token_hash: hash,
+          signer_email: contact.email as string,
+          signer_name: (contact.name as string | null) ?? null,
+          expires_at: expiresAt.toISOString(),
+          created_by_user_id: userId,
+        });
+      assertSupabaseOk({ data: null, error: tokenError });
+
+      const signUrl = `${baseUrl}/sign/${raw}`;
+      const number = proposal.proposal_number as string;
+      const title = proposal.title as string;
+      await sendProposalEmail(admin, {
+        teamId: proposal.team_id as string,
+        userId,
+        proposalId,
+        kind: "proposal",
+        toEmail: contact.email as string,
+        subject: `Proposal ${number}: ${title}`,
+        bodyHtml: `<p>Hello ${contact.name ?? ""},</p><p>You have a proposal to review and sign off on: <strong>${title}</strong> (${number}).</p><p><a href="${signUrl}">Review &amp; sign the proposal</a></p><p>You can accept any combination of the line items — the link walks you through it. Before accepting, we'll email you a one-time code to confirm it's you.</p><p>This link expires on ${expiresAt.toISOString().slice(0, 10)}.</p>`,
+        bodyText: `You have a proposal to review and sign off on: ${title} (${number}).\n\nReview & sign: ${signUrl}\n\nYou can accept any combination of the line items. Before accepting, we'll email you a one-time code to confirm it's you.\n\nThis link expires on ${expiresAt.toISOString().slice(0, 10)}.`,
+      });
+
+      // Status flip AFTER the email leaves — a failed send keeps the draft
+      // editable. The trigger stamps sent_at; the send-lock allows the
+      // transition (draft rows are freely mutable).
+      assertSupabaseOk(
+        await supabase
+          .from("proposals")
+          .update({ status: "sent" })
+          .eq("id", proposalId),
+      );
+      await admin.from("proposal_events").insert({
+        proposal_id: proposalId,
+        team_id: proposal.team_id,
+        event_type: "sent",
+        actor_user_id: userId,
+        actor_label: null,
+        metadata: { to: contact.email },
+      });
+
+      revalidatePath("/proposals");
+      revalidatePath(`/proposals/${proposalId}`);
+    },
+    "sendProposalAction",
+  ) as unknown as void;
+}
+
+/** Provider counter-signature — both parties on the acceptance record. */
+export async function counterSignProposalAction(
+  formData: FormData,
+): Promise<void> {
+  return runSafeAction(
+    formData,
+    async (formData, { supabase, userId }) => {
+      const proposalId = formData.get("id") as string;
+      if (!proposalId) throw new Error("Missing proposal id.");
+
+      const { data: proposal } = await supabase
+        .from("proposals")
+        .select("id, team_id, status")
+        .eq("id", proposalId)
+        .single();
+      if (!proposal) throw new Error("Proposal not found.");
+      await requireTeamAdmin(proposal.team_id as string);
+
+      const admin = createAdminClient();
+      const { data: acceptance } = await admin
+        .from("proposal_acceptances")
+        .select("id, decision, provider_signed_at")
+        .eq("proposal_id", proposalId)
+        .eq("decision", "accepted")
+        .order("occurred_at", { ascending: false })
+        .limit(1)
+        .single();
+      if (!acceptance) {
+        throw AppError.refusal("No accepted sign-off to counter-sign yet.");
+      }
+      if (acceptance.provider_signed_at) {
+        throw AppError.refusal("This acceptance is already counter-signed.");
+      }
+
+      // Acceptances have no UPDATE policy — only this admin-client path may
+      // stamp the provider signature, and only into the two empty columns.
+      const { error } = await admin
+        .from("proposal_acceptances")
+        .update({
+          provider_signed_by_user_id: userId,
+          provider_signed_at: new Date().toISOString(),
+        })
+        .eq("id", acceptance.id as string);
+      assertSupabaseOk({ data: null, error });
+
+      await admin.from("proposal_events").insert({
+        proposal_id: proposalId,
+        team_id: proposal.team_id,
+        event_type: "countersigned",
+        actor_user_id: userId,
+        actor_label: null,
+        metadata: {},
+      });
+
+      revalidatePath(`/proposals/${proposalId}`);
+    },
+    "counterSignProposalAction",
   ) as unknown as void;
 }
 

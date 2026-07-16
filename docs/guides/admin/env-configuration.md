@@ -33,7 +33,7 @@ Both can be provisioned automatically from `/system/deploy` if you've connected 
 
 ## Optional
 
-- `NEXT_PUBLIC_APP_URL` — base URL of this Shyre deployment (e.g. `https://shyre.malcom.io`). Used by the messaging renderer to build the `%invoice_url%` link in invoice email bodies. When unset, the placeholder renders as empty.
+- `NEXT_PUBLIC_APP_URL` — base URL of this Shyre deployment (e.g. `https://shyre.malcom.io`). Used by the messaging renderer to build the `%invoice_url%` link in invoice email bodies (renders empty when unset), and by the proposal send action to build the public `/sign/<token>` link (sending a proposal FAILS with a clear error when unset).
 - `GITHUB_TOKEN` — at the user level (stored in `user_settings.github_token`). Not a process env var.
 
 ## Where to set them

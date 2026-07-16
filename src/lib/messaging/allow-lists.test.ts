@@ -23,11 +23,14 @@ describe("messaging allow-lists", () => {
     expect(ALLOWED_OUTBOX_STATUS.has("")).toBe(false);
   });
 
-  it("ALLOWED_RELATED_KINDS matches the three documented message-kind buckets", () => {
+  it("ALLOWED_RELATED_KINDS matches the documented message-kind buckets", () => {
     expect(ALLOWED_RELATED_KINDS.has("invoice")).toBe(true);
     expect(ALLOWED_RELATED_KINDS.has("invoice_reminder")).toBe(true);
     expect(ALLOWED_RELATED_KINDS.has("payment_thanks")).toBe(true);
-    expect(ALLOWED_RELATED_KINDS.size).toBe(3);
+    // Proposals P2 (SAL-036): the sign-link email + the one-time code.
+    expect(ALLOWED_RELATED_KINDS.has("proposal")).toBe(true);
+    expect(ALLOWED_RELATED_KINDS.has("proposal_otp")).toBe(true);
+    expect(ALLOWED_RELATED_KINDS.size).toBe(5);
   });
 
   it("ALLOWED_DOMAIN_STATUS mirrors Resend's three-state domain machine", () => {
