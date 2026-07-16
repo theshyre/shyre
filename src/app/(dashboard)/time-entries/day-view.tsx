@@ -23,6 +23,11 @@ interface Props {
   dayStr: string;
   /** Local date of the Monday of the visible week (YYYY-MM-DD) */
   weekStartStr: string;
+  /** The viewer's current local date (YYYY-MM-DD), kept live across midnight
+   *  rollover by <CurrentDateProvider>. Drives the "Today:" prefix + strip
+   *  highlight — sourced from context, never recomputed here, so all three
+   *  time views agree on "today" at the rollover boundary. */
+  todayStr: string;
   /** User's TZ offset, minutes west of UTC */
   tzOffsetMin: number;
   weekEntries: TimeEntry[];
@@ -66,6 +71,7 @@ function formatDayTitle(dateStr: string, todayStr: string): string {
 export function DayView({
   dayStr,
   weekStartStr,
+  todayStr,
   tzOffsetMin,
   weekEntries,
   dayEntries,
@@ -90,12 +96,6 @@ export function DayView({
   // value either way. The next click replaces optimisticDay in place.
   const [optimisticDay, setOptimisticDay] = useState<string | null>(null);
   const visibleDay = optimisticDay ?? dayStr;
-
-  // Today's local-date string (for "Today:" prefix and strip highlight)
-  const todayStr = useMemo(
-    () => utcToLocalDateStr(new Date(), tzOffsetMin),
-    [tzOffsetMin],
-  );
 
   // Precompute the 7 day-strings for the week strip
   const weekDays = useMemo(

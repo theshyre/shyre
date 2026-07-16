@@ -59,6 +59,19 @@ export interface ModuleManifest {
   section: SidebarSection;
   /** Nav entries contributed by this module */
   navItems: ModuleNavItem[];
+  /**
+   * Team-scoped tables this module owns that emit a live "changed" Broadcast
+   * (see the `realtime_team_broadcast` migration + SAL-035). The shell's
+   * `<RealtimeTeamSignal>` subscribes to the union of these across modules so
+   * background edits surface as a user-controlled refresh. The payload is
+   * table-name-only — never row data.
+   *
+   * Every table listed here MUST have the `broadcast_change` trigger in the
+   * migration, and vice-versa — enforced by `realtime-parity.test.ts`. Keep
+   * the shell generic: table ownership stays with the module, not hardcoded
+   * in the subscriber.
+   */
+  realtimeTables?: readonly string[];
 }
 
 /**
@@ -77,6 +90,7 @@ export const MODULES: ModuleManifest[] = [
     navItems: [
       { labelKey: "time", href: "/time-entries", icon: Clock },
     ],
+    realtimeTables: ["time_entries"],
   },
   {
     id: "customers",
@@ -104,6 +118,7 @@ export const MODULES: ModuleManifest[] = [
     navItems: [
       { labelKey: "invoices", href: "/invoices", icon: FileText },
     ],
+    realtimeTables: ["invoices"],
   },
   {
     id: "reports",
@@ -122,6 +137,7 @@ export const MODULES: ModuleManifest[] = [
     navItems: [
       { labelKey: "business", href: "/business", icon: Briefcase },
     ],
+    realtimeTables: ["expenses"],
   },
   {
     id: "teams",
@@ -174,6 +190,17 @@ export const PLATFORM_TOOLS: Array<{
  */
 export function getModule(id: string): ModuleManifest | undefined {
   return MODULES.find((m) => m.id === id);
+}
+
+/**
+ * Every team-scoped table across all modules that emits a live-change
+ * Broadcast. The shell's `<RealtimeTeamSignal>` uses this to know what to
+ * listen for without reaching into any module's schema; the DB triggers that
+ * back it are kept in parity by `realtime-parity.test.ts`. Sorted + de-duped
+ * for stable comparisons.
+ */
+export function realtimeWatchedTables(): string[] {
+  return [...new Set(MODULES.flatMap((m) => m.realtimeTables ?? []))].sort();
 }
 
 /**

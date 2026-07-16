@@ -234,5 +234,9 @@
     "groupNoCustomer": "Sin cliente",
     "noResults": "Ningún proyecto coincide con \"{query}\"",
     "clear": "Limpiar selección"
+  },
+  "freshness": {
+    "dayChanged": "La fecha ha cambiado; ahora se muestra {date}.",
+    "updatesAvailable": "{count, plural, =1 {1 actualización nueva} other {# actualizaciones nuevas}} · Actualizar"
   }
 }

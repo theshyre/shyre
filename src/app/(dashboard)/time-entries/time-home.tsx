@@ -33,6 +33,7 @@ import { LogView } from "./log-view";
 import { TableView, type TableInvoicedFilter } from "./table-view";
 import { NewTimeEntryForm } from "./new-time-entry-form";
 import type { CategoryOption, ProjectOption, TimeEntry } from "./types";
+import { useCurrentDate } from "@/components/current-date-provider";
 
 interface TimeHomeProps {
   teams: TeamListItem[];
@@ -46,10 +47,6 @@ interface TimeHomeProps {
   /** Newest day visible in the Log view (YYYY-MM-DD, user's TZ).
    *  Defaults to today when `?anchor=` isn't set. */
   anchorStr: string;
-  /** Today (YYYY-MM-DD, user's TZ). Drives the Log view's Today
-   *  marker — separated from `anchorStr` so jumping back doesn't
-   *  also un-mark today. */
-  todayStr: string;
   /** User's TZ offset in minutes west of UTC */
   tzOffsetMin: number;
   /** Viewer's own user_id — used by week-timesheet to separate own vs. other-member rows */
@@ -132,7 +129,6 @@ export function TimeHome({
   dayStr,
   weekStartStr,
   anchorStr,
-  todayStr,
   tzOffsetMin,
   currentUserId,
   weekEntries,
@@ -164,6 +160,10 @@ export function TimeHome({
   currentTeamRole,
 }: TimeHomeProps): React.JSX.Element {
   const t = useTranslations("time");
+  // Single reactive source of "today" for all three views — kept live across
+  // midnight rollover by <CurrentDateProvider> so the day/week/log Today
+  // markers move together instead of freezing at page-load time.
+  const todayStr = useCurrentDate();
 
   // Totals for the currently-visible data. Log view sums across the
   // bounded window so the masthead reflects "what you're looking at"
@@ -349,6 +349,7 @@ export function TimeHome({
         <DayView
           dayStr={dayStr}
           weekStartStr={weekStartStr}
+          todayStr={todayStr}
           tzOffsetMin={tzOffsetMin}
           weekEntries={weekEntries}
           dayEntries={dayEntries}
@@ -362,6 +363,7 @@ export function TimeHome({
           activeRows={activeRows}
           currentTeamRole={currentTeamRole}
           weekStartStr={weekStartStr}
+          todayStr={todayStr}
           tzOffsetMin={tzOffsetMin}
           entries={weekEntries}
           projects={projects}
