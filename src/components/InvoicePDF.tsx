@@ -8,9 +8,12 @@ import {
   StyleSheet,
 } from "@react-pdf/renderer";
 import {
-  deserializeAddress,
-  formatAddressMultiLine,
-} from "@/lib/schemas/address";
+  makeFmt,
+  safeHex,
+  parseDateOnly,
+  formatPdfDate,
+  addressLinesForBlock,
+} from "@/lib/pdf/format";
 
 // Color palette. Hex (not CSS vars) because @react-pdf/renderer
 // runs in a worker and can't read the document's custom properties.
@@ -323,34 +326,6 @@ export interface InvoicePDFProps {
   }>;
 }
 
-function makeFmt(currency: string): (amount: number) => string {
-  const code = (currency || "USD").toUpperCase();
-  let formatter: Intl.NumberFormat | null;
-  try {
-    formatter = new Intl.NumberFormat("en-US", {
-      style: "currency",
-      currency: code,
-      minimumFractionDigits: 2,
-      maximumFractionDigits: 2,
-    });
-  } catch {
-    formatter = null;
-  }
-  return (amount: number): string =>
-    formatter ? formatter.format(amount) : `${code} ${amount.toFixed(2)}`;
-}
-
-/**
- * Validate hex color string for @react-pdf/renderer. The DB CHECK
- * constraint already filters at write time, but defending here keeps
- * a hand-built test fixture or a stale cached value from blowing up
- * a worker thread at PDF time.
- */
-function safeHex(color: string | null | undefined): string | null {
-  if (!color) return null;
-  return /^#[0-9A-Fa-f]{3}([0-9A-Fa-f]{3})?$/.test(color) ? color : null;
-}
-
 /**
  * Days between two YYYY-MM-DD strings (or ISO timestamps), used to
  * show "(Net 30)" alongside the due date when the gap is a familiar
@@ -369,61 +344,6 @@ function netLabelForDateRange(
   const diff = Math.round((b.getTime() - a.getTime()) / 86_400_000);
   const NET_TERMS = new Set([7, 14, 15, 30, 45, 60, 90]);
   return NET_TERMS.has(diff) ? `Net ${diff}` : null;
-}
-
-function parseDateOnly(iso: string): Date | null {
-  const dateOnly = iso.match(/^(\d{4})-(\d{2})-(\d{2})$/);
-  if (dateOnly) {
-    return new Date(
-      Date.UTC(Number(dateOnly[1]), Number(dateOnly[2]) - 1, Number(dateOnly[3])),
-    );
-  }
-  const d = new Date(iso);
-  return Number.isNaN(d.getTime()) ? null : d;
-}
-
-function formatPdfDate(iso: string | null): string {
-  if (!iso) return "—";
-  // Date-only strings ("YYYY-MM-DD") parse as UTC midnight, which
-  // can render as the previous day in negative-offset locales. The
-  // value is a calendar date, not an instant — split the parts and
-  // print them straight.
-  const dateOnly = iso.match(/^(\d{4})-(\d{2})-(\d{2})$/);
-  if (dateOnly) {
-    return `${dateOnly[2]}/${dateOnly[3]}/${dateOnly[1]}`;
-  }
-  const d = new Date(iso);
-  if (Number.isNaN(d.getTime())) return "—";
-  const mm = String(d.getMonth() + 1).padStart(2, "0");
-  const dd = String(d.getDate()).padStart(2, "0");
-  const yyyy = d.getFullYear();
-  return `${mm}/${dd}/${yyyy}`;
-}
-
-/**
- * Filter the country line out of an address's display lines unless
- * the caller explicitly wants it. `formatAddressMultiLine` returns
- * `[street, "city, state zip", country]` with country at the tail
- * when present. Hide it by default — the country line reads as
- * noise on domestic invoices, which is ~90% of the volume. The
- * `showCountry` toggle is per-block so a US team can show the
- * customer's country without showing their own.
- */
-function addressLinesForBlock(
-  addressJson: string | null,
-  showCountry: boolean,
-): string[] {
-  const all = formatAddressMultiLine(deserializeAddress(addressJson));
-  if (showCountry) return all;
-  // Trim only when there are 2+ lines — `formatAddressMultiLine`
-  // returns a single line for legacy plain-text addresses (just
-  // street), and we don't want to drop their only line. With 2+
-  // lines, the country (when present) is always last and never
-  // contains a comma; the city/state/zip line always does.
-  if (all.length < 2) return all;
-  const last = all[all.length - 1];
-  if (last && !last.includes(",")) return all.slice(0, -1);
-  return all;
 }
 
 export function InvoicePDF(props: InvoicePDFProps): React.JSX.Element {

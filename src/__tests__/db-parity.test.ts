@@ -50,6 +50,10 @@ import {
   ALLOWED_PROJECT_STATUSES,
 } from "@/app/(dashboard)/projects/allow-lists";
 import {
+  ALLOWED_PROPOSAL_STATUSES,
+  ALLOWED_DEPOSIT_TYPES,
+} from "@/app/(dashboard)/proposals/allow-lists";
+import {
   ALLOWED_OUTBOX_STATUS,
   ALLOWED_RELATED_KINDS,
   ALLOWED_DOMAIN_STATUS,
@@ -247,6 +251,13 @@ const PAIRS: Pair[] = [
     column: "status",
     table: "projects",
   },
+  {
+    name: "proposalStatuses",
+    appSet: ALLOWED_PROPOSAL_STATUSES,
+    column: "status",
+    table: "proposals",
+  },
+  { name: "depositTypes", appSet: ALLOWED_DEPOSIT_TYPES, column: "deposit_type" },
 ];
 
 describe("DB parity", () => {

@@ -85,6 +85,17 @@ A handful of tables are **business-scoped** (a Business owns 1+ Teams) — see "
 | `invoice_line_items_history` | Append-only |
 | `invoice_payments` | Recorded payments (manual or imported). `amount` + `currency` + `paid_on` + `paid_at` + `method` + `reference`. Currency-aware aggregation in batch-3 (bookkeeper #13). |
 
+## Proposals
+
+| Table | Purpose |
+|---|---|
+| `proposals` | Fixed-price quotes — the front of the funnel (draft → sent → viewed → accepted/declined → converted, plus `superseded` for replaced versions; timestamps trigger-stamped on first transition). Carries `team_id`, `user_id` (prepared-by), `customer_id`, `signer_contact_id` → `customer_contacts`, optional `business_id`, `proposal_number` (unique per team, from `team_settings.proposal_prefix`/`proposal_next_num`), terms (`payment_terms_days`+`label`, `deposit_type` `none\|percent\|amount` + `deposit_value`, `warranty_days`, `terms_notes`), versioning (`version_number`, `supersedes_proposal_id`), `accepted_total`. Owner/admin-only RLS (invoice tier). |
+| `proposals_history` | Append-only; SECURITY DEFINER trigger writes only. |
+| `proposal_line_items` | A line item = a proposed project with a `fixed_price`. `parent_line_item_id` self-ref (one level) models phases — phase prices sum to the parent's price, `is_capped` marks the total as a hard cap (action-layer enforced; DB guard is a P4 hardening). `converted_project_id` + `invoiced_at` land with the convert/billing phases. Only top-level rows are client-selectable at sign-off. |
+| `proposal_line_items_history` | Append-only |
+
+Sign-off tables (`proposal_events`, `proposal_acceptances`, `proposal_access_tokens`) arrive with the P2 public-signing migration — see SAL-036 when it lands.
+
 ## Messaging / outbox (per-team email pipeline)
 
 | Table | Purpose |
