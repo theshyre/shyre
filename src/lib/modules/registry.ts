@@ -29,6 +29,7 @@ import {
   BarChart3,
   Settings,
   Upload,
+  FileSignature,
   type LucideIcon,
 } from "lucide-react";
 
@@ -119,6 +120,15 @@ export const MODULES: ModuleManifest[] = [
       { labelKey: "invoices", href: "/invoices", icon: FileText },
     ],
     realtimeTables: ["invoices"],
+  },
+  {
+    id: "proposals",
+    labelKey: "modules.proposals",
+    icon: FileSignature,
+    section: "manage",
+    navItems: [
+      { labelKey: "proposals", href: "/proposals", icon: FileSignature },
+    ],
   },
   {
     id: "reports",

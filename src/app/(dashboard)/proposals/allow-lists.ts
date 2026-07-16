@@ -1,0 +1,58 @@
+/**
+ * Allow-lists for proposals.* enum-shaped columns. Mirrored by CHECK
+ * constraints in `20260716130000_proposals_p1_model.sql`; parity is enforced
+ * by `src/__tests__/db-parity.test.ts`.
+ *
+ * Plain module (no `"use server"`) so it can be imported by client components,
+ * server actions, and the parity test alike. Widening a set here without
+ * widening the CHECK in the same PR trips the parity test.
+ */
+
+/**
+ * Proposal lifecycle statuses, in display order. Forward-only graph
+ * (draft → sent → viewed → accepted|declined → converted), with `superseded`
+ * as the terminal state a version enters when a newer version replaces it.
+ * The transition rules live in `proposal-status.ts` (P2); this is just the
+ * value set the DB CHECK mirrors (table-scoped to `proposals`).
+ */
+export const PROPOSAL_STATUSES = [
+  "draft",
+  "sent",
+  "viewed",
+  "accepted",
+  "declined",
+  "converted",
+  "superseded",
+] as const;
+
+export type ProposalStatus = (typeof PROPOSAL_STATUSES)[number];
+
+export const ALLOWED_PROPOSAL_STATUSES = new Set<string>(PROPOSAL_STATUSES);
+
+/**
+ * A proposal is editable only while `draft`. Once sent it's frozen; changes
+ * go through a new version (the invoice freeze-and-reissue doctrine). The
+ * DB-level send-lock lands in P4; this predicate is the action-layer guard.
+ */
+export function isProposalEditable(status: string | null | undefined): boolean {
+  return status === "draft";
+}
+
+/** Terminal statuses — no further transitions. */
+export const TERMINAL_PROPOSAL_STATUSES = new Set<string>([
+  "declined",
+  "converted",
+  "superseded",
+]);
+
+/**
+ * Deposit modeling on the terms block. `none` = no deposit; `percent` =
+ * `deposit_value`% of the accepted total; `amount` = a flat `deposit_value`.
+ * v1 records the deposit as a term only — generating a deposit invoice is
+ * deferred.
+ */
+export const DEPOSIT_TYPES = ["none", "percent", "amount"] as const;
+
+export type DepositType = (typeof DEPOSIT_TYPES)[number];
+
+export const ALLOWED_DEPOSIT_TYPES = new Set<string>(DEPOSIT_TYPES);

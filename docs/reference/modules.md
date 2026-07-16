@@ -52,6 +52,7 @@ Customers are referenced by Time, Invoicing, and Business. They don't belong to 
 | Stint | `modules.stint` | track | Time |
 | Customers | `modules.customers` | manage | Customers |
 | Invoicing | `modules.invoicing` | manage | Invoices |
+| Proposals | `modules.proposals` | manage | Proposals |
 | Business | `modules.business` | admin | Business |
 
 See `src/lib/modules/registry.ts` for the source of truth.
