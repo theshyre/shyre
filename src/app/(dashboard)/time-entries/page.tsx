@@ -988,7 +988,6 @@ export default async function TimeEntriesPage({
       dayStr={day}
       weekStartStr={weekStart}
       anchorStr={anchor}
-      todayStr={today}
       tzOffsetMin={tzOffsetMin}
       currentUserId={callerId}
       weekEntries={weekEntries as unknown as TimeEntry[]}

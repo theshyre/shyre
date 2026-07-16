@@ -1,5 +1,14 @@
+import { cookies } from "next/headers";
 import Sidebar from "@/components/Sidebar";
 import { TimezoneSync } from "@/components/TimezoneSync";
+import { CurrentDateProvider } from "@/components/current-date-provider";
+import { RealtimeTeamSignal } from "@/components/realtime-team-signal";
+import {
+  TZ_COOKIE_NAME,
+  parseTzOffset,
+  getLocalToday,
+  getOffsetForZone,
+} from "@/lib/time/tz";
 import { ThemeSync } from "@/components/ThemeSync";
 import { TextSizeSync } from "@/components/TextSizeSync";
 import { TableDensityProvider } from "@/components/table-density-provider";
@@ -41,6 +50,18 @@ export default async function DashboardLayout({
   const preferredDensity = settings.preferredDensity;
   const avatarUrl = user.avatarUrl;
 
+  // Seed for <CurrentDateProvider>. Resolve "today" the same way the
+  // time-entries page does — an explicit IANA timezone wins (DST-correct),
+  // otherwise the browser's cookie offset — so the client provider hydrates
+  // without a flash and then keeps it live across midnight rollover.
+  const cookieStore = await cookies();
+  const cookieOffset = parseTzOffset(cookieStore.get(TZ_COOKIE_NAME)?.value);
+  const initialToday = getLocalToday(
+    settings.timezone
+      ? getOffsetForZone(settings.timezone, new Date())
+      : cookieOffset,
+  );
+
   // Fetch unresolved error count for admin badge. Conditional on
   // admin so non-admins don't pay the round-trip; admins eat one
   // sequential trip after the parallel block resolves.
@@ -72,39 +93,45 @@ export default async function DashboardLayout({
   return (
     <ToastProvider>
       <TableDensityProvider>
-        {/* Skip link MUST be the first focusable element so a keyboard
-            user pressing Tab on page load lands on it before the
-            sidebar's ~15 nav entries. Visually hidden until focused. */}
-        <SkipLink targetId="main-content" />
-        <div className="flex h-full">
-          <TimezoneSync />
-          <ThemeSync preferredTheme={preferredTheme} />
-          <TextSizeSync preferredTextSize={preferredTextSize} />
-          <TableDensitySync preferredDensity={preferredDensity} />
-          <Sidebar
-            displayName={user.displayName}
-            email={user.userEmail}
-            avatarUrl={avatarUrl}
-            userId={user.userId}
-            isSystemAdmin={admin}
-            unresolvedErrorCount={unresolvedErrorCount}
-            canManageBusiness={canManageBusiness}
-            teamCount={teamCount}
-            primaryTeamName={primaryTeamName}
-          />
-          <main
-            id="main-content"
-            tabIndex={-1}
-            className="flex-1 overflow-y-auto focus:outline-none"
-          >
-            <div className="px-[32px] py-[32px]">
-              <Breadcrumbs />
-              {children}
-            </div>
-          </main>
-          <GlobalKeyboardHelp />
-          <GlobalCommandPalette isSystemAdmin={admin} />
-        </div>
+        <CurrentDateProvider
+          initialToday={initialToday}
+          timezone={settings.timezone}
+        >
+          {/* Skip link MUST be the first focusable element so a keyboard
+              user pressing Tab on page load lands on it before the
+              sidebar's ~15 nav entries. Visually hidden until focused. */}
+          <SkipLink targetId="main-content" />
+          <div className="flex h-full">
+            <TimezoneSync />
+            <ThemeSync preferredTheme={preferredTheme} />
+            <TextSizeSync preferredTextSize={preferredTextSize} />
+            <TableDensitySync preferredDensity={preferredDensity} />
+            <Sidebar
+              displayName={user.displayName}
+              email={user.userEmail}
+              avatarUrl={avatarUrl}
+              userId={user.userId}
+              isSystemAdmin={admin}
+              unresolvedErrorCount={unresolvedErrorCount}
+              canManageBusiness={canManageBusiness}
+              teamCount={teamCount}
+              primaryTeamName={primaryTeamName}
+            />
+            <main
+              id="main-content"
+              tabIndex={-1}
+              className="flex-1 overflow-y-auto focus:outline-none"
+            >
+              <div className="px-[32px] py-[32px]">
+                <Breadcrumbs />
+                {children}
+              </div>
+            </main>
+            <GlobalKeyboardHelp />
+            <GlobalCommandPalette isSystemAdmin={admin} />
+          </div>
+          <RealtimeTeamSignal teamIds={teams.map((team) => team.id)} />
+        </CurrentDateProvider>
       </TableDensityProvider>
     </ToastProvider>
   );

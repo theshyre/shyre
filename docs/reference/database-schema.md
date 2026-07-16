@@ -129,6 +129,25 @@ Two layers: a **KEK** (key-encryption key, env var `EMAIL_KEY_ENCRYPTION_KEY` �
 - **Period-lock triggers** (`tg_invoices_period_lock`, `tg_time_entries_period_lock`, `tg_expenses_period_lock`) refuse mutations whose date falls inside a closed period.
 - **SECURITY DEFINER role-transition RPCs** (`transfer_team_ownership`, `update_team_member_role`) own the role-flip writes — the `team_members.role` UPDATE path is intentionally narrow.
 
+## Realtime team broadcast (live dashboard freshness)
+
+Migration `20260716120000_realtime_team_broadcast.sql`. A `SECURITY DEFINER`
+trigger `public.broadcast_team_change()` on `time_entries`, `invoices`, and
+`expenses` emits a **payload-free** Realtime Broadcast — `realtime.send(jsonb_build_object('table', TG_TABLE_NAME), 'change', 'team:<team_id>', private => true)` — carrying only the table name, never row data.
+
+- **Why Broadcast, not `postgres_changes`:** `postgres_changes` does not
+  RLS-filter DELETE and ships whole-row payloads (would regress SAL-006/011/013).
+  These tables are **not** in the `supabase_realtime` publication and keep
+  `REPLICA IDENTITY DEFAULT`. See **SAL-035**.
+- **Authorization:** an RLS `SELECT` policy on `realtime.messages` (`"team members receive team broadcasts"`) authorizes receipt of `team:<uuid>` topics via the `SECURITY DEFINER` `user_has_team_access()` helper — a client-supplied channel filter is not a boundary.
+- **Parity:** the set of triggered tables must equal the module registry's
+  aggregated `realtimeTables` (`realtimeWatchedTables()`), enforced by
+  `src/__tests__/realtime-parity.test.ts`. Adding a live table means declaring
+  it on the owning module **and** adding the trigger in the same PR.
+- **Client:** `src/components/realtime-team-signal.tsx` treats the ping as an
+  opaque "refetch" trigger for a user-controlled refresh; it never reads the
+  payload and never auto-applies.
+
 ## Migrations directory
 
 `supabase/migrations/*.sql` — 107 files as of 2026-05-05. Timestamps are monotonic; the latest landed file is the source of truth for next-migration naming. See `docs/reference/migrations.md` for the deploy-ordering playbook (Vercel + db-migrate.yml run in parallel, so additive vs destructive ordering matters).

@@ -92,6 +92,7 @@ describe("WeekTimesheet", () => {
       <WeekTimesheet
         weekStartStr={weekStartStr}
         tzOffsetMin={tzOffsetMin}
+        todayStr="2026-01-01"
         entries={[]}
         projects={[project]}
         categories={[]}
@@ -107,6 +108,7 @@ describe("WeekTimesheet", () => {
       <WeekTimesheet
         weekStartStr={weekStartStr}
         tzOffsetMin={tzOffsetMin}
+        todayStr="2026-01-01"
         entries={[
           makeEntry("e1", { day: 0, durationMin: 60 }),
           makeEntry("e2", { day: 2, durationMin: 90 }),
@@ -176,6 +178,7 @@ describe("WeekTimesheet", () => {
       <WeekTimesheet
         weekStartStr={weekStartStr}
         tzOffsetMin={tzOffsetMin}
+        todayStr="2026-01-01"
         entries={[entry]}
         projects={[parent, child]}
         categories={[]}
@@ -192,6 +195,7 @@ describe("WeekTimesheet", () => {
       <WeekTimesheet
         weekStartStr={weekStartStr}
         tzOffsetMin={tzOffsetMin}
+        todayStr="2026-01-01"
         entries={[
           makeEntry("e1", { day: 0, durationMin: 60 }), // 1:00 Mon
           makeEntry("e2", { day: 1, durationMin: 90 }), // 1:30 Tue
@@ -209,6 +213,7 @@ describe("WeekTimesheet", () => {
       <WeekTimesheet
         weekStartStr={weekStartStr}
         tzOffsetMin={tzOffsetMin}
+        todayStr="2026-01-01"
         entries={[makeEntry("e1", { day: 0, durationMin: 60 })]}
         projects={[project]}
         categories={[]}
@@ -230,6 +235,7 @@ describe("WeekTimesheet", () => {
       <WeekTimesheet
         weekStartStr={weekStartStr}
         tzOffsetMin={tzOffsetMin}
+        todayStr="2026-01-01"
         entries={[makeEntry("e1", { day: 0, durationMin: 60 })]}
         projects={[project]}
         categories={[]}
@@ -247,6 +253,7 @@ describe("WeekTimesheet", () => {
       <WeekTimesheet
         weekStartStr={weekStartStr}
         tzOffsetMin={tzOffsetMin}
+        todayStr="2026-01-01"
         entries={[]}
         projects={[project]}
         categories={[]}
@@ -260,6 +267,7 @@ describe("WeekTimesheet", () => {
       <WeekTimesheet
         weekStartStr={weekStartStr}
         tzOffsetMin={tzOffsetMin}
+        todayStr="2026-01-01"
         entries={[
           makeEntry("e1", { day: 0, durationMin: 60 }),
           makeEntry("e2", { day: 1, durationMin: 90 }),
@@ -289,6 +297,7 @@ describe("WeekTimesheet", () => {
       <WeekTimesheet
         weekStartStr={weekStartStr}
         tzOffsetMin={tzOffsetMin}
+        todayStr="2026-01-01"
         entries={[]}
         projects={[project]}
         categories={[]}
@@ -318,6 +327,7 @@ describe("WeekTimesheet", () => {
       <WeekTimesheet
         weekStartStr={weekStartStr}
         tzOffsetMin={tzOffsetMin}
+        todayStr="2026-01-01"
         entries={[mine, theirs]}
         projects={[project]}
         categories={[]}
@@ -338,6 +348,7 @@ describe("WeekTimesheet", () => {
       <WeekTimesheet
         weekStartStr={weekStartStr}
         tzOffsetMin={tzOffsetMin}
+        todayStr="2026-01-01"
         entries={[theirs]}
         projects={[project]}
         categories={[]}
@@ -362,6 +373,7 @@ describe("WeekTimesheet", () => {
       <WeekTimesheet
         weekStartStr={weekStartStr}
         tzOffsetMin={tzOffsetMin}
+        todayStr="2026-01-01"
         entries={[theirs]}
         projects={[project]}
         categories={[]}
@@ -380,6 +392,7 @@ describe("WeekTimesheet", () => {
       <WeekTimesheet
         weekStartStr={weekStartStr}
         tzOffsetMin={tzOffsetMin}
+        todayStr="2026-01-01"
         entries={[makeEntry("e1", { day: 0, durationMin: 60 })]}
         projects={[project]}
         categories={[]}
@@ -396,6 +409,7 @@ describe("WeekTimesheet", () => {
       <WeekTimesheet
         weekStartStr={weekStartStr}
         tzOffsetMin={tzOffsetMin}
+        todayStr="2026-01-01"
         entries={[makeEntry("e1", { day: 0, durationMin: 60 })]}
         projects={[project]}
         categories={[]}
@@ -420,6 +434,7 @@ describe("WeekTimesheet", () => {
       <WeekTimesheet
         weekStartStr={weekStartStr}
         tzOffsetMin={tzOffsetMin}
+        todayStr="2026-01-01"
         entries={[makeEntry("m1", { day: 0, durationMin: 30 }), theirs]}
         projects={[project]}
         categories={[]}
@@ -447,6 +462,7 @@ describe("WeekTimesheet", () => {
       <WeekTimesheet
         weekStartStr={weekStartStr}
         tzOffsetMin={tzOffsetMin}
+        todayStr="2026-01-01"
         entries={[makeEntry("m1", { day: 0, durationMin: 60 }), theirs]}
         projects={[project]}
         categories={[]}
@@ -469,6 +485,7 @@ describe("WeekTimesheet", () => {
       <WeekTimesheet
         weekStartStr={weekStartStr}
         tzOffsetMin={tzOffsetMin}
+        todayStr="2026-01-01"
         entries={[]}
         projects={[project]}
         categories={[]}
@@ -501,6 +518,7 @@ describe("WeekTimesheet", () => {
       <WeekTimesheet
         weekStartStr={weekStartStr}
         tzOffsetMin={tzOffsetMin}
+        todayStr="2026-01-01"
         entries={[makeEntry("m1", { day: 0, durationMin: 60 }), theirs]}
         projects={[project]}
         categories={[]}
@@ -538,6 +556,7 @@ describe("WeekTimesheet", () => {
       <WeekTimesheet
         weekStartStr={weekStartStr}
         tzOffsetMin={tzOffsetMin}
+        todayStr="2026-01-01"
         entries={[e]}
         projects={[project]}
         categories={[]}
@@ -575,6 +594,7 @@ describe("WeekTimesheet", () => {
       <WeekTimesheet
         weekStartStr={weekStartStr}
         tzOffsetMin={tzOffsetMin}
+        todayStr="2026-01-01"
         entries={entries}
         projects={[project]}
         categories={[]}
@@ -589,6 +609,7 @@ describe("WeekTimesheet", () => {
       <WeekTimesheet
         weekStartStr={weekStartStr}
         tzOffsetMin={tzOffsetMin}
+        todayStr="2026-01-01"
         entries={[]}
         projects={[project]}
         categories={[]}
@@ -624,6 +645,7 @@ describe("WeekTimesheet", () => {
       <WeekTimesheet
         weekStartStr={weekStartStr}
         tzOffsetMin={tzOffsetMin}
+        todayStr="2026-01-01"
         entries={[entry]}
         projects={[projectWithCustomer]}
         categories={[]}
@@ -672,6 +694,7 @@ describe("WeekTimesheet", () => {
       <WeekTimesheet
         weekStartStr={weekStartStr}
         tzOffsetMin={tzOffsetMin}
+        todayStr="2026-01-01"
         entries={[e1, e2]}
         projects={[projA, projB]}
         categories={[]}
@@ -704,6 +727,7 @@ describe("WeekTimesheet", () => {
       <WeekTimesheet
         weekStartStr={weekStartStr}
         tzOffsetMin={tzOffsetMin}
+        todayStr="2026-01-01"
         entries={[e]}
         projects={[projWithCustomer]}
         categories={[]}
@@ -727,6 +751,7 @@ describe("WeekTimesheet", () => {
       <WeekTimesheet
         weekStartStr={weekStartStr}
         tzOffsetMin={tzOffsetMin}
+        todayStr="2026-01-01"
         entries={[shared("e1", 0, 60), shared("e2", 2, 90)]}
         projects={[project]}
         categories={[]}

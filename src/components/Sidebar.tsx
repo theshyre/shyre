@@ -204,6 +204,9 @@ export default function Sidebar({
   const isSystemActive = systemItems.some(itemActive);
 
   async function handleSignOut(): Promise<void> {
+    // Tear down any open Realtime channels first so the socket can't linger
+    // authenticated as the just-signed-out user on a shared machine (SAL-035).
+    void supabase.removeAllChannels();
     await supabase.auth.signOut();
     router.push("/login");
     router.refresh();

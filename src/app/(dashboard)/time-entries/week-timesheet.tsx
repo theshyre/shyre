@@ -80,6 +80,11 @@ import type { AuthorInfo, CategoryOption, ProjectOption, TimeEntry } from "./typ
 interface Props {
   /** Local date of Monday of the visible week (YYYY-MM-DD) */
   weekStartStr: string;
+  /** The viewer's current local date (YYYY-MM-DD), kept live across midnight
+   *  rollover by <CurrentDateProvider>. Drives the "today" column highlight —
+   *  sourced from context, never recomputed here, so the three time views
+   *  agree on "today" at the rollover boundary. */
+  todayStr: string;
   /** User's TZ offset in minutes west of UTC */
   tzOffsetMin: number;
   entries: TimeEntry[];
@@ -241,6 +246,7 @@ const DAYS_IN_WEEK = 7;
  */
 export function WeekTimesheet({
   weekStartStr,
+  todayStr,
   tzOffsetMin,
   entries,
   projects,
@@ -299,7 +305,6 @@ export function WeekTimesheet({
     () => Array.from({ length: DAYS_IN_WEEK }, (_, i) => addLocalDays(weekStartStr, i)),
     [weekStartStr],
   );
-  const todayStr = utcToLocalDateStr(new Date(), tzOffsetMin);
 
   // Derive rows from existing entries + any user-added blank rows
   const [extraRows, setExtraRows] = useState<
@@ -920,7 +925,7 @@ export function WeekTimesheet({
           <JumpToDate
             view="week"
             anchorStr={weekStartStr}
-            todayStr={utcToLocalDateStr(new Date(), tzOffsetMin)}
+            todayStr={todayStr}
             tzOffsetMin={tzOffsetMin}
             onPrev={prevWeek}
             onNext={nextWeek}
