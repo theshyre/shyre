@@ -70,6 +70,8 @@
     "termsNotes": "Additional terms",
     "create": "Create proposal",
     "save": "Save changes",
+    "createDraft": "Create draft",
+    "saveDraft": "Save draft",
     "cancel": "Cancel"
   },
   "validation": {
@@ -80,6 +82,14 @@
     "depositValueRequired": "Enter a deposit value",
     "depositPercentTooHigh": "A percent deposit can't exceed 100%",
     "validUntilBeforeIssued": "Must be on or after the issued date"
+  },
+  "readiness": {
+    "titleMissing": "Name the proposal",
+    "itemsRequired": "Add at least one line item",
+    "titleRequired": "Give every line item and phase a title",
+    "priceInvalid": "Fix a line item or phase with an invalid price",
+    "phaseSumMismatch": "Phases must sum to the item price ({actual} ≠ {expected})",
+    "signerMissing": "Choose a signer contact"
   },
   "sign": {
     "heading": "Proposal from {business}",
@@ -174,6 +184,7 @@
     "sendFreezeNote": "Sending freezes this draft — later changes become a new version.",
     "sendFailed": "Send failed",
     "sendNeedsSigner": "Add a signer contact to send",
+    "sendChecklistIntro": "Finish these before sending:",
     "signoffHeading": "Sign-off",
     "sentTo": "Sent to {email}",
     "linkExpires": "Link expires {date}",

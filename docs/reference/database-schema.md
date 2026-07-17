@@ -102,6 +102,8 @@ Send-locks: `trg_guard_proposals_send_lock` / `trg_guard_pli_send_lock` freeze c
 
 P4 hardening (`20260716170000_proposals_p4_hardening.sql`): `proposal_otp_attempt(token_id)` — the ATOMIC OTP attempt increment (SAL-037; keep the hardcoded 5 in lockstep with `MAX_OTP_ATTEMPTS`); `uq_proposal_acceptances_proposal` — one decision record per proposal (SAL-038); statement-level `trg_z_pli_phase_sums_*` triggers — every phased item's phases must sum exactly to its fixed price (DB backstop over the action-layer rule).
 
+Draft leniency (`20260717130000_proposals_draft_leniency.sql`): save-as-you-go. The `trg_z_pli_phase_sums_*` triggers now **exempt `draft` proposals** (a WIP draft may hold a mismatched breakdown); the phase-sum guarantee is enforced instead at the draft → non-draft transition by `trg_proposals_phase_sums_on_send` (BEFORE UPDATE on `proposals`), which also catches a raw status flip. The author-facing completeness gate (title, ≥1 item, signer) lives in `proposalSendReadiness` at the action layer + the detail-page checklist.
+
 ## Messaging / outbox (per-team email pipeline)
 
 | Table | Purpose |
