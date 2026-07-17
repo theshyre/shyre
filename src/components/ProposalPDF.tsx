@@ -52,6 +52,12 @@ const styles = StyleSheet.create({
     maxWidth: 200,
     objectFit: "contain",
   },
+  clientLogo: {
+    maxHeight: 28,
+    maxWidth: 120,
+    marginBottom: 4,
+    objectFit: "contain",
+  },
   rightBlock: {
     flexDirection: "row",
     alignItems: "flex-start",
@@ -331,6 +337,10 @@ export interface ProposalPDFProps {
     email: string | null;
     address: string | null;
     showCountry?: boolean;
+    /** Customer co-brand: an optional accent hex + PNG/JPEG logo data URI,
+     *  rendered in the "Prepared for" block alongside the team's own brand. */
+    accentColor?: string | null;
+    logoDataUri?: string | null;
   };
   /** Intended signer's display name, printed under the client block. */
   signerName?: string | null;
@@ -375,6 +385,7 @@ export function ProposalPDF(props: ProposalPDFProps): React.JSX.Element {
     client.showCountry ?? false,
   );
   const accentColor = safeHex(business.brandColor) ?? ink;
+  const clientAccent = safeHex(client.accentColor);
   const primaryWordmark = business.wordmarkPrimary ?? business.name ?? "";
   const secondaryWordmark = business.wordmarkSecondary ?? "";
   const deposit = depositText(depositType, depositValue, fmt);
@@ -432,7 +443,20 @@ export function ProposalPDF(props: ProposalPDFProps): React.JSX.Element {
           <View style={styles.rightBlock}>
             <Text style={styles.rightLabel}>Prepared for</Text>
             <View style={styles.rightBody}>
-              <Text style={styles.rightName}>{client.name}</Text>
+              {client.logoDataUri ? (
+                // @react-pdf Image, not an HTML <img>.
+                // eslint-disable-next-line jsx-a11y/alt-text
+                <Image src={client.logoDataUri} style={styles.clientLogo} />
+              ) : null}
+              <Text
+                style={
+                  clientAccent
+                    ? { ...styles.rightName, color: clientAccent }
+                    : styles.rightName
+                }
+              >
+                {client.name}
+              </Text>
               {signerName ? (
                 <Text style={styles.rightLine}>Attn: {signerName}</Text>
               ) : null}

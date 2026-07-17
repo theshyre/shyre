@@ -2,9 +2,12 @@
 
 import { runSafeAction } from "@/lib/safe-action";
 import { assertSupabaseOk } from "@/lib/errors";
-import { validateTeamAccess } from "@/lib/team-context";
+import { isTeamAdmin, validateTeamAccess } from "@/lib/team-context";
 import { revalidatePath } from "next/cache";
 import { serializeAddress } from "@/lib/schemas/address";
+import { isOwnBrandingUrl } from "@/lib/branding/branding-url";
+
+const HEX_COLOR = /^#[0-9A-Fa-f]{3}([0-9A-Fa-f]{3})?$/;
 
 function extractAddress(formData: FormData, prefix: string): string | null {
   const address = {
@@ -76,6 +79,16 @@ export async function updateCustomerAction(formData: FormData): Promise<void> {
         raw === "" ? null : Math.max(0, Math.min(365, parseInt(raw, 10) || 0));
     }
 
+    // Co-brand accent: hex or null. The DB CHECK is the backstop; validate
+    // here for a friendly message rather than a raw constraint violation.
+    if (formData.has("accent_color")) {
+      const raw = (formData.get("accent_color") as string).trim();
+      if (raw !== "" && !HEX_COLOR.test(raw)) {
+        throw new Error("Accent color must be a hex value like #2563EB.");
+      }
+      patch.accent_color = raw === "" ? null : raw;
+    }
+
     // Guardrail: honor rate_editability on the default_rate column. See
     // the equivalent guardrail in projects/actions.ts updateProjectAction.
     if (formData.has("default_rate")) {
@@ -95,6 +108,41 @@ export async function updateCustomerAction(formData: FormData): Promise<void> {
     revalidatePath("/customers");
     revalidatePath(`/customers/${id}`);
   }, "updateCustomerAction") as unknown as void;
+}
+
+/**
+ * Persist (or clear) a customer's co-brand logo. Uploaded client-side to the
+ * shared `branding` bucket under `<team_id>/customers/<id>/…`; this stores the
+ * public URL onto `customers.logo_url`. Owner/admin-gated (matching the bucket
+ * RLS) and the URL is validated to be the customer's own team branding upload
+ * — an off-site or foreign-team URL is refused (SAL-041, SAL-039 image lesson).
+ */
+export async function setCustomerLogoAction(formData: FormData): Promise<void> {
+  return runSafeAction(formData, async (formData, { supabase }) => {
+    const customerId = formData.get("customer_id") as string;
+    if (!customerId) throw new Error("Missing customer id.");
+
+    const { data: customer } = await supabase
+      .from("customers")
+      .select("id, team_id")
+      .eq("id", customerId)
+      .single();
+    if (!customer) throw new Error("Customer not found.");
+    const teamId = customer.team_id as string;
+    const { role } = await validateTeamAccess(teamId);
+    if (!isTeamAdmin(role)) {
+      throw new Error("Only owners and admins can change a customer logo.");
+    }
+
+    const raw = (formData.get("logo_url") as string | null)?.trim() || null;
+    if (raw !== null && !isOwnBrandingUrl(raw, teamId)) {
+      throw new Error("That logo URL is not a valid upload for this team.");
+    }
+    assertSupabaseOk(
+      await supabase.from("customers").update({ logo_url: raw }).eq("id", customerId),
+    );
+    revalidatePath(`/customers/${customerId}`);
+  }, "setCustomerLogoAction") as unknown as void;
 }
 
 export async function setCustomerRateAction(

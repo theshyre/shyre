@@ -157,7 +157,8 @@
       "offerExpired": "Esta oferta ha caducado y ya no puede aceptarse.",
       "emailFailed": "No pudimos enviar el correo — inténtalo en unos minutos.",
       "generic": "Algo salió mal — inténtalo de nuevo."
-    }
+    },
+    "preparedForLabel": "Preparado para"
   },
   "activity": {
     "heading": "Actividad",

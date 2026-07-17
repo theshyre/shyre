@@ -139,6 +139,22 @@ describe("ProposalPDF", () => {
     expect(html).not.toContain("data:image");
   });
 
+  it("co-brands the Prepared-for block with the customer logo + accent color", () => {
+    const clientLogo = "data:image/png;base64,CUSTOMERLOGO";
+    const html = renderToString(
+      <ProposalPDF
+        {...baseProps}
+        client={{
+          ...baseProps.client,
+          accentColor: "#2563EB",
+          logoDataUri: clientLogo,
+        }}
+      />,
+    );
+    expect(html).toContain(clientLogo);
+    expect(html).toContain("#2563EB");
+  });
+
   it("renders a flat-amount deposit and survives missing optionals", () => {
     const flat = textOf(
       <ProposalPDF

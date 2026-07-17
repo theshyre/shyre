@@ -54,7 +54,7 @@ A handful of tables are **business-scoped** (a Business owns 1+ Teams) — see "
 
 | Table | Purpose |
 |---|---|
-| `customers` | The downstream entity invoices are sent TO. `team_id`-scoped. Includes `email`, `address`, `default_rate`, `payment_terms_days`, `archived`, `bounced_at`/`complained_at` (Resend webhook flags), `imported_from`/`imported_at`/`import_run_id`. |
+| `customers` | The downstream entity invoices are sent TO. `team_id`-scoped. Includes `email`, `address`, `default_rate`, `payment_terms_days`, `archived`, `bounced_at`/`complained_at` (Resend webhook flags), `imported_from`/`imported_at`/`import_run_id`, and co-brand fields `accent_color` (hex CHECK, `20260717150000`) + `logo_url` (the `branding` bucket under `<team_id>/customers/<id>/…`; validated by `isOwnBrandingUrl`; owner/admin-gated `setCustomerLogoAction`. SAL-041) — rendered on the proposal PDF + sign page alongside the team's brand. |
 | `customers_v` | View used by `/customers` list page. Adds derived columns the app lists need. |
 | `customer_contacts` | People at a customer org — invoice recipient list. SAL-013 narrowed RLS to team-only after a member-visibility decision. |
 | `customer_shares` | Cross-team visibility of a customer (subcontracting, parent-agency consolidation). |

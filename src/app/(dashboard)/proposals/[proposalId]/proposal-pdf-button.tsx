@@ -28,6 +28,8 @@ export interface ProposalPdfBundle {
     email: string | null;
     address: string | null;
     show_country_on_invoice: boolean | null;
+    accent_color: string | null;
+    logo_url: string | null;
   } | null;
   signerName: string | null;
   business: {
@@ -59,7 +61,10 @@ export function ProposalPdfButton({
     // whole render on a bad remote src, so a fetch failure falls back to the
     // text wordmark instead. Runs under the busy spinner set below.
     setBusy(true);
-    const logoDataUri = await fetchImageAsDataUri(business?.logo_url ?? null);
+    const [logoDataUri, clientLogoDataUri] = await Promise.all([
+      fetchImageAsDataUri(business?.logo_url ?? null),
+      fetchImageAsDataUri(client?.logo_url ?? null),
+    ]);
     const doc = (
       <ProposalPDF
         proposalNumber={proposal.proposal_number}
@@ -91,6 +96,8 @@ export function ProposalPdfButton({
           email: client?.email ?? null,
           address: client?.address ?? null,
           showCountry: client?.show_country_on_invoice ?? false,
+          accentColor: client?.accent_color ?? null,
+          logoDataUri: clientLogoDataUri,
         }}
         signerName={signerName}
         items={items}

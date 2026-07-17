@@ -87,6 +87,21 @@ authorize.
 Uploaded logos are stored per-team and are only writable by that team's owners
 and admins; see SAL-041 for the storage posture.
 
+### Customer co-branding
+
+A proposal is a document *from* your team *to* a customer, so both sides can
+carry identity. On a **customer's** edit page (**Branding**) you can set:
+
+- an **accent color** (hex) — colors the customer's name in the "Prepared for"
+  block on the PDF and on the sign page; and
+- a **customer logo** — shown next to their name on both surfaces.
+
+When no accent is set, the customer's deterministic chip color is used. Customer
+logos live in the same per-team `branding` bucket (under a `customers/` subpath)
+with the same owner/admin write rules. Co-branding is internal/client-facing
+polish — it never changes the audit record (the frozen `content_sha256` is over
+the proposal's terms + line items, not its styling).
+
 ## Sending & the sign-off link
 
 **Send for sign-off** (draft, signer contact required) emails the signer a
