@@ -3,6 +3,7 @@
 import { useState, useTransition } from "react";
 import { useTranslations } from "next-intl";
 import { Send, X, CircleAlert } from "lucide-react";
+import { Tooltip } from "@/components/Tooltip";
 import { buttonPrimaryClass, buttonGhostClass } from "@/lib/form-styles";
 import { assertActionResult } from "@/lib/action-result";
 import { sendProposalAction } from "./actions";
@@ -20,8 +21,10 @@ interface Props {
 }
 
 /** "Send for sign-off" — two-step: the confirm restates the recipient, since
- *  sending freezes the draft and emails the customer. A draft that isn't
- *  complete shows a checklist instead of an enabled button. Errors inline. */
+ *  sending freezes the draft and emails the customer. The confirm stays a
+ *  single-height inline row (the freeze note is a tooltip, errors float below)
+ *  so it never disrupts the surrounding action-bar layout. Errors render
+ *  inline; a draft that isn't complete shows a checklist instead. */
 export function SendProposalButton({
   proposalId,
   blockers,
@@ -50,7 +53,7 @@ export function SendProposalButton({
           {t("send")}
         </button>
         {!ready && (
-          <span className="mt-1 flex flex-col gap-1">
+          <span className="flex flex-col gap-1">
             <span className="text-caption text-content-secondary">
               {t("sendChecklistIntro")}
             </span>
@@ -76,8 +79,8 @@ export function SendProposalButton({
   }
 
   return (
-    <span className="inline-flex flex-col items-start gap-1">
-      <span className="inline-flex items-center gap-2">
+    <span className="relative inline-flex items-center gap-2">
+      <Tooltip label={t("sendFreezeNote")}>
         <button
           type="button"
           className={buttonPrimaryClass}
@@ -100,21 +103,21 @@ export function SendProposalButton({
             ? t("sending")
             : t("sendConfirm", { email: signerEmail ?? "—" })}
         </button>
-        <button
-          type="button"
-          className={buttonGhostClass}
-          disabled={pending}
-          onClick={() => setConfirming(false)}
-        >
-          <X size={16} aria-hidden="true" />
-          {t("sendCancel")}
-        </button>
-      </span>
-      <span className="text-caption text-content-secondary">
-        {t("sendFreezeNote")}
-      </span>
+      </Tooltip>
+      <button
+        type="button"
+        className={buttonGhostClass}
+        disabled={pending}
+        onClick={() => setConfirming(false)}
+      >
+        <X size={16} aria-hidden="true" />
+        {t("sendCancel")}
+      </button>
       {error && (
-        <span role="alert" className="text-caption text-error">
+        <span
+          role="alert"
+          className="absolute left-0 top-full mt-1 text-caption text-error"
+        >
           {error}
         </span>
       )}
