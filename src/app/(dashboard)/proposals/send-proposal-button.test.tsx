@@ -1,6 +1,8 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
-import { screen, fireEvent, waitFor } from "@testing-library/react";
+import { screen, fireEvent, waitFor, type RenderResult } from "@testing-library/react";
+import type { ReactElement } from "react";
 import { renderWithIntl } from "@/test/intl";
+import { ToastProvider } from "@/components/Toast";
 
 const sendMock = vi.fn();
 vi.mock("./actions", () => ({
@@ -10,59 +12,118 @@ vi.mock("./actions", () => ({
 
 import { SendProposalButton } from "./send-proposal-button";
 
+/** The button calls `useToast()`, so it needs a ToastProvider ancestor. */
+function render(ui: ReactElement): RenderResult {
+  return renderWithIntl(<ToastProvider>{ui}</ToastProvider>);
+}
+
+function openConfirm(): void {
+  fireEvent.click(screen.getByRole("button", { name: /Send for sign-off/ }));
+}
+
 beforeEach(() => sendMock.mockReset());
 
 describe("SendProposalButton", () => {
-  it("is two-step: the confirm restates the recipient before anything sends", async () => {
+  it("opens a confirm dialog that restates the recipient before anything sends", async () => {
     sendMock.mockResolvedValue({ success: true });
-    renderWithIntl(
+    render(
       <SendProposalButton
         proposalId="prop-1"
         blockers={[]}
         signerEmail="jordan@eyereg.example"
       />,
     );
-    fireEvent.click(screen.getByRole("button", { name: /Send for sign-off/ }));
-    // Nothing sent yet — the confirm shows exactly who will be emailed.
+    openConfirm();
+
+    // A dialog opens; nothing has been sent yet.
+    const dialog = screen.getByRole("dialog");
     expect(sendMock).not.toHaveBeenCalled();
-    const confirm = screen.getByRole("button", {
-      name: /Send to jordan@eyereg\.example/,
-    });
-    fireEvent.click(confirm);
+    // The recipient is visible text in the panel (not just a tooltip),
+    // and the freeze consequence is spelled out.
+    expect(dialog).toHaveTextContent("jordan@eyereg.example");
+    expect(dialog).toHaveTextContent(/freezes this draft/i);
+
+    fireEvent.click(
+      screen.getByRole("button", { name: /Send now to jordan@eyereg\.example/ }),
+    );
     await waitFor(() => expect(sendMock).toHaveBeenCalledTimes(1));
     expect((sendMock.mock.calls[0]![0] as FormData).get("id")).toBe("prop-1");
   });
 
-  it("cancel backs out without sending", () => {
-    renderWithIntl(
+  it("announces success via a toast once sent", async () => {
+    sendMock.mockResolvedValue({ success: true });
+    render(
       <SendProposalButton
         proposalId="prop-1"
         blockers={[]}
         signerEmail="jordan@eyereg.example"
       />,
     );
-    fireEvent.click(screen.getByRole("button", { name: /Send for sign-off/ }));
+    openConfirm();
+    fireEvent.click(screen.getByRole("button", { name: /Send now to/ }));
+    await waitFor(() =>
+      expect(
+        screen.getByText(/Proposal sent to jordan@eyereg\.example/),
+      ).toBeInTheDocument(),
+    );
+  });
+
+  it("cancel backs out without sending", () => {
+    render(
+      <SendProposalButton
+        proposalId="prop-1"
+        blockers={[]}
+        signerEmail="jordan@eyereg.example"
+      />,
+    );
+    openConfirm();
     fireEvent.click(screen.getByRole("button", { name: /^Cancel$/ }));
     expect(sendMock).not.toHaveBeenCalled();
+    expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
     expect(
       screen.getByRole("button", { name: /Send for sign-off/ }),
     ).toBeInTheDocument();
   });
 
-  it("is disabled while blockers remain, with each one listed", () => {
-    renderWithIntl(
+  it("Escape closes the confirm without sending", () => {
+    render(
+      <SendProposalButton
+        proposalId="prop-1"
+        blockers={[]}
+        signerEmail="jordan@eyereg.example"
+      />,
+    );
+    openConfirm();
+    expect(screen.getByRole("dialog")).toBeInTheDocument();
+    fireEvent.keyDown(window, { key: "Escape" });
+    expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
+    expect(sendMock).not.toHaveBeenCalled();
+  });
+
+  it("when blockers remain, the trigger stays usable and opens a checklist instead of sending", () => {
+    render(
       <SendProposalButton
         proposalId="prop-1"
         blockers={["Name the proposal", "Choose a signer contact"]}
         signerEmail={null}
       />,
     );
+    // The trigger is NOT a dead disabled button — it opens a panel that
+    // explains what's missing (keyboard/SR reachable, unlike a tooltip
+    // on a disabled control).
+    const trigger = screen.getByRole("button", { name: /Send for sign-off/ });
+    expect(trigger).not.toBeDisabled();
+    fireEvent.click(trigger);
+
+    const dialog = screen.getByRole("dialog");
+    expect(dialog).toHaveTextContent("Finish these before sending:");
+    expect(dialog).toHaveTextContent("Name the proposal");
+    expect(dialog).toHaveTextContent("Choose a signer contact");
+    // No recipient-bearing confirm exists in this state; nothing can send.
     expect(
-      screen.getByRole("button", { name: /Send for sign-off/ }),
-    ).toBeDisabled();
-    expect(screen.getByText("Finish these before sending:")).toBeInTheDocument();
-    expect(screen.getByText("Name the proposal")).toBeInTheDocument();
-    expect(screen.getByText("Choose a signer contact")).toBeInTheDocument();
+      screen.queryByRole("button", { name: /Send now to/ }),
+    ).not.toBeInTheDocument();
+    expect(sendMock).not.toHaveBeenCalled();
   });
 
   it("surfaces action failure inline — never a silent no-op", async () => {
@@ -70,15 +131,15 @@ describe("SendProposalButton", () => {
       success: false,
       error: { message: "Email is not configured for this team." },
     });
-    renderWithIntl(
+    render(
       <SendProposalButton
         proposalId="prop-1"
         blockers={[]}
         signerEmail="jordan@eyereg.example"
       />,
     );
-    fireEvent.click(screen.getByRole("button", { name: /Send for sign-off/ }));
-    fireEvent.click(screen.getByRole("button", { name: /Send to/ }));
+    openConfirm();
+    fireEvent.click(screen.getByRole("button", { name: /Send now to/ }));
     await waitFor(() =>
       expect(screen.getByRole("alert")).toHaveTextContent(
         /Email is not configured/,
