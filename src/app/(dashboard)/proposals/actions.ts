@@ -9,7 +9,14 @@ import { AppError, assertSupabaseOk } from "@/lib/errors";
 import { generateInvoiceNumber, calculateInvoiceTotals } from "@/lib/invoice-utils";
 import { paymentTermsLabel, computeDueDate } from "@/lib/payment-terms";
 import { roundMoney } from "@/lib/proposals/line-items";
-import { proposalSchema, type ProposalInput } from "@/lib/schemas/proposal";
+import {
+  proposalDraftSchema,
+  type ProposalDraftInput,
+} from "@/lib/schemas/proposal";
+import {
+  proposalSendReadiness,
+  type ReadinessIssue,
+} from "@/lib/proposals/readiness";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { generateSignToken, TOKEN_TTL_DAYS } from "@/lib/proposals/tokens";
 import { isValidProposalStatusTransition } from "@/lib/proposals/status";
@@ -22,7 +29,7 @@ import { isProposalEditable } from "./allow-lists";
  * nested line items don't map onto flat FormData) and validate it at the
  * boundary. Returns the typed input or throws a field-error-bearing AppError.
  */
-function parsePayload(formData: FormData): ProposalInput {
+function parsePayload(formData: FormData): ProposalDraftInput {
   const raw = formData.get("payload");
   if (typeof raw !== "string" || raw === "") {
     throw new Error("Missing proposal payload.");
@@ -33,7 +40,11 @@ function parsePayload(formData: FormData): ProposalInput {
   } catch {
     throw new Error("Malformed proposal payload.");
   }
-  const parsed = proposalSchema.safeParse(json);
+  // Save-as-you-go: create/update persist a draft with whatever the author has
+  // (the lenient schema keeps only the corruption bounds). Completeness — a
+  // title, ≥1 item, exact phase sums, a signer — is enforced at SEND time by
+  // `proposalSendReadiness` + the phase-sum-on-send DB trigger.
+  const parsed = proposalDraftSchema.safeParse(json);
   if (!parsed.success) {
     // Zod v4 types issue paths as PropertyKey[]; symbols can't occur in our
     // schema, so narrow them away for fromZodError's field-error map.
@@ -56,7 +67,7 @@ function parsePayload(formData: FormData): ProposalInput {
  */
 async function assertCustomerAndSigner(
   supabase: SupabaseClient,
-  input: ProposalInput,
+  input: ProposalDraftInput,
 ): Promise<void> {
   const { data: customer } = await supabase
     .from("customers")
@@ -79,11 +90,13 @@ async function assertCustomerAndSigner(
 }
 
 /** Column payload shared by create + update. */
-function proposalColumns(input: ProposalInput): Record<string, unknown> {
+function proposalColumns(input: ProposalDraftInput): Record<string, unknown> {
   return {
     customer_id: input.customer_id,
     signer_contact_id: input.signer_contact_id ?? null,
-    title: input.title,
+    // A draft may be unnamed; title is NOT NULL, so persist "" until the author
+    // names it (send-readiness blocks an untitled proposal from going out).
+    title: input.title ?? "",
     issued_date: input.issued_date ?? undefined, // DB defaults CURRENT_DATE
     valid_until: input.valid_until ?? null,
     payment_terms_days: input.payment_terms_days ?? null,
@@ -107,8 +120,11 @@ async function insertLineItems(
   supabase: SupabaseClient,
   proposalId: string,
   teamId: string,
-  items: ProposalInput["items"],
+  items: ProposalDraftInput["items"],
 ): Promise<void> {
+  // A work-in-progress draft may have no items yet — nothing to insert (and an
+  // empty insert would be a needless round-trip / PostgREST error).
+  if (items.length === 0) return;
   const parentRows = items.map((item, i) => ({
     proposal_id: proposalId,
     team_id: teamId,
@@ -257,6 +273,35 @@ export async function updateProposalAction(formData: FormData): Promise<void> {
   ) as unknown as void;
 }
 
+/** Rebuild the top-level → phases tree from flat rows for the readiness check.
+ *  Only the fields readiness inspects (title, price, phase breakdown) are
+ *  carried; sort order groups phases under their parent. */
+function buildReadinessItems(
+  rows: Array<{
+    id: string;
+    parent_line_item_id: string | null;
+    title: string | null;
+    fixed_price: number | string;
+  }>,
+): Array<{
+  title: string;
+  fixedPrice: number;
+  phases: Array<{ title: string; fixedPrice: number }>;
+}> {
+  return rows
+    .filter((r) => r.parent_line_item_id === null)
+    .map((parent) => ({
+      title: parent.title ?? "",
+      fixedPrice: Number(parent.fixed_price),
+      phases: rows
+        .filter((r) => r.parent_line_item_id === parent.id)
+        .map((phase) => ({
+          title: phase.title ?? "",
+          fixedPrice: Number(phase.fixed_price),
+        })),
+    }));
+}
+
 /**
  * Send a draft proposal for sign-off: freeze it (`draft → sent`), mint the
  * public access token (hash stored, raw only in the emailed URL), and email
@@ -289,11 +334,26 @@ export async function sendProposalAction(formData: FormData): Promise<void> {
           "Only a draft proposal can be sent. To revise a sent proposal, create a new version.",
         );
       }
-      if (!proposal.signer_contact_id) {
+
+      // Completeness gate (backstop to the detail-page checklist that already
+      // disables Send): a draft persists in any state, but can't go out until
+      // it's named, has items whose phases sum exactly, and names a signer.
+      const { data: readinessRows } = await supabase
+        .from("proposal_line_items")
+        .select("id, parent_line_item_id, sort_order, title, fixed_price")
+        .eq("proposal_id", proposalId)
+        .order("sort_order");
+      const blockers: ReadinessIssue[] = proposalSendReadiness({
+        title: (proposal.title as string | null) ?? null,
+        signerContactId: (proposal.signer_contact_id as string | null) ?? null,
+        items: buildReadinessItems(readinessRows ?? []),
+      });
+      if (blockers.length > 0) {
         throw AppError.refusal(
-          "Pick a signer contact before sending — the sign-off link and one-time code go to their email.",
+          "This proposal isn't ready to send yet — finish the checklist on the proposal (a title, at least one line item with matching phase totals, and a signer contact) before sending.",
         );
       }
+
       const { data: contact } = await supabase
         .from("customer_contacts")
         .select("id, name, email, customer_id")

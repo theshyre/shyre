@@ -46,7 +46,7 @@ function fillRequiredHeader(): void {
 }
 
 async function submit(): Promise<void> {
-  fireEvent.click(screen.getByRole("button", { name: /Create proposal/ }));
+  fireEvent.click(screen.getByRole("button", { name: /Create draft/ }));
   await Promise.resolve();
 }
 
@@ -126,19 +126,14 @@ describe("ProposalForm", () => {
     expect(screen.queryByText("$4,000.00")).not.toBeInTheDocument();
   });
 
-  it("blocks submit client-side with field errors and never calls the action", async () => {
+  it("save-as-you-go: an incomplete draft (blank item title) still saves — completeness is a send-time gate", async () => {
     renderForm();
-    // Header fields carry native `required` (constraint validation blocks an
-    // empty submit before zod runs), so fill them and leave the ITEM title
-    // blank — that rule is zod/domain-owned and must surface as a FieldError.
+    // Fill only the header; leave the line-item title blank. Under the lenient
+    // draft schema this is a valid WIP save (the send-readiness checklist is
+    // what blocks an incomplete proposal from actually going out).
     fillRequiredHeader();
     await submit();
-    await waitFor(() => {
-      expect(screen.getAllByRole("alert").length).toBeGreaterThan(0);
-    });
-    expect(createMock).not.toHaveBeenCalled();
-    // The domain key from the shared validator surfaces translated.
-    expect(screen.getByText("Title is required")).toBeInTheDocument();
+    await waitFor(() => expect(createMock).toHaveBeenCalledTimes(1));
   });
 
   it("submits a valid payload with the full item tree", async () => {
@@ -205,7 +200,7 @@ describe("ProposalForm", () => {
       ],
     };
     renderForm(initial);
-    fireEvent.click(screen.getByRole("button", { name: /Save changes/ }));
+    fireEvent.click(screen.getByRole("button", { name: /Save draft/ }));
     await waitFor(() => expect(updateMock).toHaveBeenCalledTimes(1));
     const fd = updateMock.mock.calls[0]![0] as FormData;
     expect(fd.get("id")).toBe("prop-1");

@@ -25,36 +25,50 @@ const itemSchema = z.object({
 });
 
 /**
- * Server-boundary schema for creating/updating a proposal. Scalar shape lives
- * here; the cross-field money rules (phase sums, price bounds, ≥1 item) are
- * delegated to `validateProposalItems` via superRefine so the form preview and
- * the boundary enforce the same domain logic.
+ * The scalar shape shared by the strict and draft schemas. Bounds that guard
+ * against persisting *corrupt* data (over-long strings, out-of-range numbers,
+ * malformed dates) live here so BOTH paths enforce them; the completeness
+ * rules that only matter when a proposal goes out (title present, ≥1 item,
+ * phase sums, deposit coupling) are layered on top by the strict schema alone.
+ *
+ * `title` is lenient here (a work-in-progress draft may not be named yet); the
+ * strict schema tightens it to `min(1)`.
+ */
+const proposalFields = {
+  team_id: z.string().uuid("Invalid team"),
+  customer_id: z.string().uuid("Invalid customer"),
+  signer_contact_id: z.string().uuid().optional().nullable(),
+  title: z.string().max(200).optional().nullable(),
+  issued_date: z.string().regex(ymd, "Invalid date").optional().nullable(),
+  valid_until: z.string().regex(ymd, "Invalid date").optional().nullable(),
+  payment_terms_days: z.number().int().min(0).max(365).optional().nullable(),
+  deposit_type: z.enum(DEPOSIT_TYPES).default("none"),
+  deposit_value: z.number().min(0).max(MAX_MONEY).optional().nullable(),
+  warranty_days: z.number().int().min(0).max(3650).optional().nullable(),
+  terms_notes: z.string().max(10000).optional().nullable(),
+  items: z.array(itemSchema).max(50),
+} as const;
+
+/**
+ * Draft (save-as-you-go) schema. Persists a work-in-progress proposal with
+ * whatever the author has so far — no title, no items, mismatched phase sums
+ * are all fine. Only the corruption bounds in `proposalFields` apply; the
+ * completeness gate is deferred to send time (`proposalSendReadiness` at the
+ * action layer, the phase-sum-on-send DB trigger as backstop).
+ */
+export const proposalDraftSchema = z.object(proposalFields);
+export type ProposalDraftInput = z.infer<typeof proposalDraftSchema>;
+
+/**
+ * Server-boundary schema for a "ready to send" proposal. Adds the completeness
+ * rules on top of the draft shape: a required title plus the cross-field money
+ * rules (phase sums, price bounds, ≥1 item) delegated to `validateProposalItems`
+ * via superRefine, so the form preview and the boundary enforce the same logic.
  */
 export const proposalSchema = z
   .object({
-    team_id: z.string().uuid("Invalid team"),
-    customer_id: z.string().uuid("Invalid customer"),
-    signer_contact_id: z.string().uuid().optional().nullable(),
+    ...proposalFields,
     title: z.string().min(1, "Title is required").max(200),
-    issued_date: z.string().regex(ymd, "Invalid date").optional().nullable(),
-    valid_until: z.string().regex(ymd, "Invalid date").optional().nullable(),
-    payment_terms_days: z
-      .number()
-      .int()
-      .min(0)
-      .max(365)
-      .optional()
-      .nullable(),
-    deposit_type: z.enum(DEPOSIT_TYPES).default("none"),
-    deposit_value: z
-      .number()
-      .min(0)
-      .max(MAX_MONEY)
-      .optional()
-      .nullable(),
-    warranty_days: z.number().int().min(0).max(3650).optional().nullable(),
-    terms_notes: z.string().max(10000).optional().nullable(),
-    items: z.array(itemSchema).max(50),
   })
   .superRefine((val, ctx) => {
     for (const issue of validateProposalItems(val.items)) {

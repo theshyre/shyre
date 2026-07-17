@@ -18,7 +18,7 @@ describe("SendProposalButton", () => {
     renderWithIntl(
       <SendProposalButton
         proposalId="prop-1"
-        hasSigner
+        blockers={[]}
         signerEmail="jordan@eyereg.example"
       />,
     );
@@ -37,7 +37,7 @@ describe("SendProposalButton", () => {
     renderWithIntl(
       <SendProposalButton
         proposalId="prop-1"
-        hasSigner
+        blockers={[]}
         signerEmail="jordan@eyereg.example"
       />,
     );
@@ -49,14 +49,20 @@ describe("SendProposalButton", () => {
     ).toBeInTheDocument();
   });
 
-  it("is disabled without a signer, with the reason visible", () => {
+  it("is disabled while blockers remain, with each one listed", () => {
     renderWithIntl(
-      <SendProposalButton proposalId="prop-1" hasSigner={false} signerEmail={null} />,
+      <SendProposalButton
+        proposalId="prop-1"
+        blockers={["Name the proposal", "Choose a signer contact"]}
+        signerEmail={null}
+      />,
     );
     expect(
       screen.getByRole("button", { name: /Send for sign-off/ }),
     ).toBeDisabled();
-    expect(screen.getByText("Add a signer contact to send")).toBeInTheDocument();
+    expect(screen.getByText("Finish these before sending:")).toBeInTheDocument();
+    expect(screen.getByText("Name the proposal")).toBeInTheDocument();
+    expect(screen.getByText("Choose a signer contact")).toBeInTheDocument();
   });
 
   it("surfaces action failure inline — never a silent no-op", async () => {
@@ -67,7 +73,7 @@ describe("SendProposalButton", () => {
     renderWithIntl(
       <SendProposalButton
         proposalId="prop-1"
-        hasSigner
+        blockers={[]}
         signerEmail="jordan@eyereg.example"
       />,
     );

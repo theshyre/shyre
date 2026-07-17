@@ -18,6 +18,7 @@ import { CreateInvoiceButton } from "../create-invoice-button";
 import { NewVersionButton } from "../new-version-button";
 import { ProposalPdfButton, type ProposalPdfBundle } from "./proposal-pdf-button";
 import { isProposalEditable, type DepositType } from "../allow-lists";
+import { proposalSendReadiness } from "@/lib/proposals/readiness";
 
 export async function generateMetadata(): Promise<Metadata> {
   const t = await getTranslations("proposals");
@@ -158,6 +159,23 @@ export default async function ProposalDetailPage({
   const status = (proposal.status as string) ?? "draft";
   const editable = isProposalEditable(status);
 
+  // Send-readiness (only for an editable draft): the same completeness rules
+  // the send action enforces, surfaced as a checklist so the author sees what
+  // to finish before the Send button unlocks. `items` already carries the
+  // title / fixedPrice / phases shape the readiness rule inspects.
+  const tReady = await getTranslations("proposals.readiness");
+  const sendBlockers = editable
+    ? proposalSendReadiness({
+        title: (proposal.title as string | null) ?? null,
+        signerContactId: (proposal.signer_contact_id as string | null) ?? null,
+        items: items.map((item) => ({
+          title: item.title,
+          fixedPrice: item.fixedPrice,
+          phases: item.phases,
+        })),
+      }).map((issue) => tReady(issue.key, issue.params))
+    : [];
+
   // Accepted-but-unbilled items drive the "Create invoice" affordance.
   const acceptedIds = new Set(
     ((acceptance?.selected_line_item_ids as string[] | null) ?? []),
@@ -240,7 +258,7 @@ export default async function ProposalDetailPage({
             <>
               <SendProposalButton
                 proposalId={proposalId}
-                hasSigner={!!proposal.signer_contact_id}
+                blockers={sendBlockers}
                 signerEmail={signer?.email ?? null}
               />
               <Link

@@ -2,15 +2,17 @@
 
 import { useState, useTransition } from "react";
 import { useTranslations } from "next-intl";
-import { Send, X } from "lucide-react";
+import { Send, X, CircleAlert } from "lucide-react";
 import { buttonPrimaryClass, buttonGhostClass } from "@/lib/form-styles";
 import { assertActionResult } from "@/lib/action-result";
 import { sendProposalAction } from "./actions";
 
 interface Props {
   proposalId: string;
-  /** Sending requires a signer contact (the link + OTP go to their email). */
-  hasSigner: boolean;
+  /** Translated "what's still missing before this can go out" messages. Empty
+   *  means the draft is ready to send; non-empty disables Send and renders the
+   *  readiness checklist so the author knows exactly what to finish. */
+  blockers: string[];
   /** The signer's email — restated in the inline confirm so a one-click
    *  misfire can't email the wrong person, and the author always knows
    *  exactly who receives the link. */
@@ -18,10 +20,11 @@ interface Props {
 }
 
 /** "Send for sign-off" — two-step: the confirm restates the recipient, since
- *  sending freezes the draft and emails the customer. Errors render inline. */
+ *  sending freezes the draft and emails the customer. A draft that isn't
+ *  complete shows a checklist instead of an enabled button. Errors inline. */
 export function SendProposalButton({
   proposalId,
-  hasSigner,
+  blockers,
   signerEmail,
 }: Props): React.JSX.Element {
   const t = useTranslations("proposals.detail");
@@ -29,13 +32,15 @@ export function SendProposalButton({
   const [pending, startTransition] = useTransition();
   const [error, setError] = useState<string | null>(null);
 
+  const ready = blockers.length === 0;
+
   if (!confirming) {
     return (
       <span className="inline-flex flex-col items-start gap-1">
         <button
           type="button"
           className={buttonPrimaryClass}
-          disabled={!hasSigner}
+          disabled={!ready}
           onClick={() => {
             setError(null);
             setConfirming(true);
@@ -44,9 +49,26 @@ export function SendProposalButton({
           <Send size={16} aria-hidden="true" />
           {t("send")}
         </button>
-        {!hasSigner && (
-          <span className="text-caption text-content-secondary">
-            {t("sendNeedsSigner")}
+        {!ready && (
+          <span className="mt-1 flex flex-col gap-1">
+            <span className="text-caption text-content-secondary">
+              {t("sendChecklistIntro")}
+            </span>
+            <ul className="flex flex-col gap-1">
+              {blockers.map((b, i) => (
+                <li
+                  key={i}
+                  className="flex items-center gap-1 text-caption text-content-secondary"
+                >
+                  <CircleAlert
+                    size={12}
+                    aria-hidden="true"
+                    className="shrink-0 text-warning"
+                  />
+                  {b}
+                </li>
+              ))}
+            </ul>
           </span>
         )}
       </span>

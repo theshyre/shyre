@@ -27,7 +27,7 @@ import {
   selectedTotal,
   type ProposalItemInput,
 } from "@/lib/proposals/line-items";
-import { proposalSchema } from "@/lib/schemas/proposal";
+import { proposalDraftSchema } from "@/lib/schemas/proposal";
 import type { DepositType } from "./allow-lists";
 import { createProposalAction, updateProposalAction } from "./actions";
 
@@ -293,7 +293,10 @@ export function ProposalForm({
   const isDirty = currentPayloadJson !== baselinePayload;
 
   const { pending, serverError, fieldErrors, handleSubmit } = useFormAction({
-    schema: proposalSchema,
+    // Save-as-you-go: the form persists a draft with whatever's filled in so
+    // far. Completeness is checked at Send (the readiness checklist on the
+    // detail page + the send action), never here — so save is never blocked.
+    schema: proposalDraftSchema,
     action: initial ? updateProposalAction : createProposalAction,
     transform: (fd) => {
       try {
@@ -951,7 +954,7 @@ export function ProposalForm({
       )}
       <div className="flex items-center gap-3">
         <SubmitButton
-          label={initial ? t("save") : t("create")}
+          label={initial ? t("saveDraft") : t("createDraft")}
           pending={pending}
         />
         <kbd className={kbdClass} aria-hidden="true">

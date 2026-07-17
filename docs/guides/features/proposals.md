@@ -30,6 +30,27 @@ don't see the module's data.
   shown on the PDF), a warranty window in days, and free-form additional
   terms.
 
+### Save as you go
+
+A proposal is a **draft** you can build up over time. **Save draft** persists
+whatever you have so far — an unnamed proposal, no line items yet, or a phased
+item whose phases don't add up yet are all fine to save and come back to. There
+is no all-or-nothing gate on saving; the draft shows in your proposals list and
+reopens for editing any time.
+
+Completeness is only required when the proposal actually goes out. The detail
+page shows a **readiness checklist** next to **Send for sign-off**, and the Send
+button stays disabled until the checklist is clear:
+
+- the proposal is **named**,
+- it has **at least one line item**, each line item and phase has a **title**
+  and a valid price, and any phased item's **phases sum exactly** to its price,
+- a **signer contact** is chosen (the sign link + one-time code go to them).
+
+(The send action re-checks the same rules server-side, and a database trigger
+enforces the phase-sum rule at the moment a draft is frozen — so a proposal can
+never go out with a broken breakdown, even via a direct status change.)
+
 ### The client picks a subset
 
 Clients aren't locked into all-or-nothing: they can authorize **any

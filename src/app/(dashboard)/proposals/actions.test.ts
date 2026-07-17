@@ -212,6 +212,34 @@ describe("createProposalAction", () => {
     ];
   }
 
+  it("saves an incomplete draft (no title, no items) — save-as-you-go", async () => {
+    queues["customers"] = [{ data: { id: CUSTOMER, team_id: TEAM }, error: null }];
+    queues["team_settings"] = [
+      { data: { proposal_prefix: "PROP", proposal_next_num: 7 }, error: null },
+      { data: null, error: null },
+    ];
+    queues["proposals"] = [{ data: { id: "prop-1" }, error: null }];
+
+    await expect(
+      createProposalAction(
+        formWith({
+          payload: JSON.stringify({
+            team_id: TEAM,
+            customer_id: CUSTOMER,
+            deposit_type: "none",
+            items: [],
+          }),
+        }),
+      ),
+    ).rejects.toThrow("NEXT_REDIRECT /proposals/prop-1");
+
+    // Persisted with an empty title (NOT NULL column) and zero line items —
+    // no phase-sum / completeness rejection at the draft boundary.
+    const [proposalRow] = insertedRows("proposals");
+    expect(proposalRow!.title).toBe("");
+    expect(insertedRows("proposal_line_items")).toHaveLength(0);
+  });
+
   it("creates the proposal with a generated number and the full item tree", async () => {
     seedHappyPath();
     await expect(
@@ -359,6 +387,15 @@ describe("sendProposalAction", () => {
       { data: draftProposal, error: null }, // fetch
       { data: null, error: null }, // status update
     ];
+    queues["proposal_line_items"] = [
+      // readiness load: one complete top-level item → nothing blocks send
+      {
+        data: [
+          { id: "li-1", parent_line_item_id: null, sort_order: 0, title: "Work", fixed_price: 1000 },
+        ],
+        error: null,
+      },
+    ];
     queues["customer_contacts"] = [
       {
         data: {
@@ -410,13 +447,31 @@ describe("sendProposalAction", () => {
     expect(eventInsert.actor_user_id).toBe("u-author");
   });
 
-  it("refuses without a signer contact", async () => {
+  it("refuses without a signer contact (readiness gate)", async () => {
     queues["proposals"] = [
       { data: { ...draftProposal, signer_contact_id: null }, error: null },
     ];
+    // Title + a complete item present, so the ONLY blocker is the signer.
+    queues["proposal_line_items"] = [
+      {
+        data: [
+          { id: "li-1", parent_line_item_id: null, sort_order: 0, title: "Work", fixed_price: 1000 },
+        ],
+        error: null,
+      },
+    ];
     await expect(
       sendProposalAction(formWith({ id: "prop-1" })),
-    ).rejects.toThrow(/Pick a signer contact/);
+    ).rejects.toThrow(/isn't ready to send/);
+    expect(sendProposalEmailMock).not.toHaveBeenCalled();
+  });
+
+  it("refuses an incomplete draft (no line items) before sending", async () => {
+    queues["proposals"] = [{ data: draftProposal, error: null }];
+    queues["proposal_line_items"] = [{ data: [], error: null }]; // nothing yet
+    await expect(
+      sendProposalAction(formWith({ id: "prop-1" })),
+    ).rejects.toThrow(/isn't ready to send/);
     expect(sendProposalEmailMock).not.toHaveBeenCalled();
   });
 
@@ -432,6 +487,14 @@ describe("sendProposalAction", () => {
   it("keeps the draft editable when the email fails (no status flip)", async () => {
     sendProposalEmailMock.mockRejectedValueOnce(new Error("resend down"));
     queues["proposals"] = [{ data: draftProposal, error: null }];
+    queues["proposal_line_items"] = [
+      {
+        data: [
+          { id: "li-1", parent_line_item_id: null, sort_order: 0, title: "Work", fixed_price: 1000 },
+        ],
+        error: null,
+      },
+    ];
     queues["customer_contacts"] = [
       {
         data: {

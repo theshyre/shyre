@@ -70,6 +70,8 @@
     "termsNotes": "Condiciones adicionales",
     "create": "Crear propuesta",
     "save": "Guardar cambios",
+    "createDraft": "Crear borrador",
+    "saveDraft": "Guardar borrador",
     "cancel": "Cancelar"
   },
   "validation": {
@@ -80,6 +82,14 @@
     "depositValueRequired": "Introduce el valor del depósito",
     "depositPercentTooHigh": "Un depósito porcentual no puede superar el 100%",
     "validUntilBeforeIssued": "Debe ser igual o posterior a la fecha de emisión"
+  },
+  "readiness": {
+    "titleMissing": "Ponle nombre a la propuesta",
+    "itemsRequired": "Añade al menos una partida",
+    "titleRequired": "Da un título a cada partida y fase",
+    "priceInvalid": "Corrige una partida o fase con un precio no válido",
+    "phaseSumMismatch": "Las fases deben sumar el precio de la partida ({actual} ≠ {expected})",
+    "signerMissing": "Elige un contacto firmante"
   },
   "sign": {
     "heading": "Propuesta de {business}",
@@ -174,6 +184,7 @@
     "sendFreezeNote": "Enviar congela este borrador — los cambios posteriores serán una versión nueva.",
     "sendFailed": "Error al enviar",
     "sendNeedsSigner": "Añade un contacto firmante para enviar",
+    "sendChecklistIntro": "Completa esto antes de enviar:",
     "signoffHeading": "Aprobación",
     "sentTo": "Enviada a {email}",
     "linkExpires": "El enlace caduca {date}",
