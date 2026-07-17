@@ -47,6 +47,7 @@ const styles = StyleSheet.create({
     color: ink,
     letterSpacing: -0.5,
   },
+  brandLockup: { flexDirection: "row", alignItems: "center", gap: 8 },
   logo: {
     // Cap the height so a tall logo can't blow out the header; width scales.
     maxHeight: 44,
@@ -454,16 +455,25 @@ export function ProposalPDF(props: ProposalPDFProps): React.JSX.Element {
       <Page size="A4" style={styles.page}>
         {/* Header — identical shape to the invoice PDF */}
         <View style={styles.header}>
-          {business.logoDataUri ? (
-            // @react-pdf Image is a PDF primitive, not an HTML <img> — no alt.
-            // eslint-disable-next-line jsx-a11y/alt-text
-            <Image src={business.logoDataUri} style={styles.logo} />
-          ) : (
-            <Text style={styles.brandMark}>
-              <Text style={{ color: accentColor }}>{primaryWordmark}</Text>
-              {secondaryWordmark ? <Text>{secondaryWordmark}</Text> : null}
-            </Text>
-          )}
+          {/* Brand lockup: logo AND wordmark side by side (either alone if only
+              one is set; the business name is the last-resort mark). */}
+          <View style={styles.brandLockup}>
+            {business.logoDataUri ? (
+              // @react-pdf Image is a PDF primitive, not an HTML <img> — no alt.
+              // eslint-disable-next-line jsx-a11y/alt-text
+              <Image src={business.logoDataUri} style={styles.logo} />
+            ) : null}
+            {business.wordmarkPrimary ? (
+              <Text style={styles.brandMark}>
+                <Text style={{ color: accentColor }}>
+                  {business.wordmarkPrimary}
+                </Text>
+                {secondaryWordmark ? <Text>{secondaryWordmark}</Text> : null}
+              </Text>
+            ) : business.logoDataUri ? null : (
+              <Text style={styles.brandMark}>{primaryWordmark}</Text>
+            )}
+          </View>
           <View style={styles.rightBlock}>
             <Text style={styles.rightLabel}>Prepared by</Text>
             <View style={styles.rightBody}>
