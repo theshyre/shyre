@@ -35,9 +35,11 @@ export async function updateSession(request: NextRequest) {
   } = await supabase.auth.getUser();
 
   // Redirect unauthenticated users to login. Exemptions: the login page,
-  // the Supabase auth callbacks, and /sign — the public proposal sign-off
-  // surface (SAL-036), where authorization is the hashed access token +
-  // emailed OTP enforced server-side, not a session.
+  // the Supabase auth callbacks, /sign — the public proposal sign-off
+  // surface (SAL-036) — and the Resend delivery webhook, which is called by
+  // Resend with NO session and authenticates itself via an HMAC signature
+  // (SAL-044). Without this exemption the webhook 307-redirects to /login, so
+  // Resend never gets a 2xx and eventually disables the endpoint.
   if (
     !user &&
     !request.nextUrl.pathname.startsWith("/login") &&
@@ -45,7 +47,10 @@ export async function updateSession(request: NextRequest) {
     // Exact segment match — `startsWith("/sign")` would silently exempt any
     // future /sign* route (/signup, /signals, …) from auth. SAL-036/037.
     request.nextUrl.pathname !== "/sign" &&
-    !request.nextUrl.pathname.startsWith("/sign/")
+    !request.nextUrl.pathname.startsWith("/sign/") &&
+    // Exact path — the webhook verifies its own HMAC; no other /api route is
+    // public (the rest are session-gated user exports/imports).
+    request.nextUrl.pathname !== "/api/messaging/webhook/resend"
   ) {
     const url = request.nextUrl.clone();
     url.pathname = "/login";
