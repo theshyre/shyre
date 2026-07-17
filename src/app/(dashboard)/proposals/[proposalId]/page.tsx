@@ -241,6 +241,8 @@ export default async function ProposalDetailPage({
     total,
     client: customer,
     signerName: signer?.name ?? null,
+    // 2+ signers → a signature column each on the PDF; single/legacy → none.
+    signerNames: roster.length >= 2 ? roster.map((r) => r.name) : [],
     business: branding ?? null,
   };
 

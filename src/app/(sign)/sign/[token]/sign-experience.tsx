@@ -247,7 +247,7 @@ export function SignExperience({ token, bundle }: Props): React.JSX.Element {
               src={bundle.customerLogoUrl}
               alt=""
               aria-hidden="true"
-              className="max-h-[44px] w-auto object-contain"
+              className="max-h-[64px] w-auto object-contain"
             />
           ) : null}
           {bundle.customerName ? (

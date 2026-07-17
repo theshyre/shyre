@@ -63,6 +63,10 @@ export interface ProposalDocumentViewProps {
   };
   items: ProposalDocumentItem[];
   total: number;
+  /** Names of the proposal's signers (roster order). When 2+, the acceptance
+   *  block renders a signature line PER signer instead of a single "Client"
+   *  line — a multi-signer deal needs every authorizer on the paper record. */
+  signers?: string[];
 }
 
 export function ProposalDocumentView({
@@ -71,6 +75,7 @@ export function ProposalDocumentView({
   proposal,
   items,
   total,
+  signers,
 }: ProposalDocumentViewProps): React.JSX.Element {
   const t = useTranslations("proposals.sign");
   const currency = proposal.currency;
@@ -131,7 +136,7 @@ export function ProposalDocumentView({
               src={customer.logoUrl}
               alt=""
               aria-hidden="true"
-              className="max-h-[44px] w-auto object-contain"
+              className="max-h-[64px] w-auto object-contain"
             />
           ) : null}
           {customer.name ? (
@@ -286,10 +291,14 @@ export function ProposalDocumentView({
         </p>
         <div className="mt-5 grid grid-cols-1 gap-8 sm:grid-cols-2">
           {[
-            { role: t("partyClient"), name: customer?.name ?? "—" },
+            // A multi-signer proposal (2+ roster signers) gets a signature line
+            // per signer; a single/legacy signer keeps the one "Client" line.
+            ...(signers && signers.length >= 2
+              ? signers.map((name) => ({ role: t("partyClient"), name }))
+              : [{ role: t("partyClient"), name: customer?.name ?? "—" }]),
             { role: t("partyProvider"), name: business.name ?? "—" },
-          ].map((party) => (
-            <div key={party.role}>
+          ].map((party, i) => (
+            <div key={`${party.role}-${i}`}>
               <p className="text-body-lg font-semibold text-content">
                 {party.role} — {party.name}
               </p>

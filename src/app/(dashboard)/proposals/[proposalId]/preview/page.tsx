@@ -71,6 +71,22 @@ export default async function ProposalPreviewPage({
     .eq("team_id", proposal.team_id as string)
     .single();
 
+  // Signer roster (2+ signers) — each gets a signature line in the acceptance
+  // block so the preview matches the multi-signer document the client receives.
+  const { data: signerRows } = await supabase
+    .from("proposal_signers")
+    .select("sort_order, customer_contacts(name)")
+    .eq("proposal_id", proposalId)
+    .order("sort_order");
+  const signers = (signerRows ?? []).map((row) => {
+    const c = (
+      Array.isArray(row.customer_contacts)
+        ? row.customer_contacts[0]
+        : row.customer_contacts
+    ) as { name: string } | null;
+    return c?.name ?? "—";
+  });
+
   const rows = (itemRows ?? []) as Row[];
   const parents = rows.filter((r) => r.parent_line_item_id === null);
   const items: ProposalDocumentItem[] = parents.map((parent) => ({
@@ -161,6 +177,7 @@ export default async function ProposalPreviewPage({
           }}
           items={items}
           total={total}
+          signers={signers}
         />
       </div>
     </div>
