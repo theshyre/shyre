@@ -11,6 +11,7 @@ import type { ProposalPDFItem } from "@/components/ProposalPDF";
 import { CustomerChip } from "@/components/CustomerChip";
 import { MarkdownView } from "@/components/MarkdownView";
 import { ProposalItemBody } from "@/components/ProposalItemBody";
+import { ProposalSummaryTable } from "@/components/ProposalSummaryTable";
 import { ProposalStatusBadge } from "../proposal-status-badge";
 import { DeleteProposalButton } from "../delete-proposal-button";
 import { SendProposalButton } from "../send-proposal-button";
@@ -32,6 +33,7 @@ interface LineItemRow {
   parent_line_item_id: string | null;
   sort_order: number;
   title: string;
+  summary: string | null;
   body_markdown: string | null;
   description: string | null;
   why_it_matters: string | null;
@@ -65,7 +67,7 @@ export default async function ProposalDetailPage({
   const { data: itemRows } = await supabase
     .from("proposal_line_items")
     .select(
-      "id, parent_line_item_id, sort_order, title, body_markdown, description, why_it_matters, out_of_scope, definition_of_done, fixed_price, is_capped, converted_project_id, invoiced_at",
+      "id, parent_line_item_id, sort_order, title, summary, body_markdown, description, why_it_matters, out_of_scope, definition_of_done, fixed_price, is_capped, converted_project_id, invoiced_at",
     )
     .eq("proposal_id", proposalId)
     .order("sort_order");
@@ -171,6 +173,7 @@ export default async function ProposalDetailPage({
   const parents = rows.filter((r) => r.parent_line_item_id === null);
   const items: ProposalPDFItem[] = parents.map((parent) => ({
     title: parent.title,
+    summary: parent.summary ?? null,
     bodyMarkdown: parent.body_markdown,
     description: parent.description,
     whyItMatters: parent.why_it_matters,
@@ -368,6 +371,18 @@ export default async function ProposalDetailPage({
             <MarkdownView content={proposal.overview_markdown} />
           </div>
         )}
+
+      {/* Auto summary / pricing table (2+ items). */}
+      <ProposalSummaryTable
+        items={items.map((item, i) => ({
+          id: parents[i]?.id,
+          title: item.title,
+          summary: item.summary,
+          fixedPrice: item.fixedPrice,
+        }))}
+        total={total}
+        currency={currency}
+      />
 
       {/* items */}
       <h2 className="mt-[32px] text-title font-semibold text-content">

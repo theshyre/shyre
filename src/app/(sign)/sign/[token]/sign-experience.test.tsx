@@ -38,7 +38,7 @@ function bundle(overrides: Partial<SignBundle> = {}): SignBundle {
     items: [
       {
         id: "li-1",
-        title: "Basic dependency upgrades",
+        title: "Basic dependency upgrades",        summary: null,
         bodyMarkdown: null,
         description: null,
         whyItMatters: null,
@@ -50,7 +50,7 @@ function bundle(overrides: Partial<SignBundle> = {}): SignBundle {
       },
       {
         id: "li-2",
-        title: "Modernize underlying components",
+        title: "Modernize underlying components",        summary: null,
         bodyMarkdown: null,
         description: null,
         whyItMatters: null,
@@ -97,8 +97,11 @@ describe("SignExperience", () => {
   it("renders the document with items, phases, and the full total", () => {
     renderWithIntl(<SignExperience token="tok" bundle={bundle()} />);
     expect(screen.getByText("Modernization")).toBeInTheDocument();
-    expect(screen.getByText("Basic dependency upgrades")).toBeInTheDocument();
-    expect(screen.getByText("$4,950.00")).toBeInTheDocument(); // full total
+    // Item titles/prices also render in the auto summary table above the items.
+    expect(
+      screen.getAllByText("Basic dependency upgrades").length,
+    ).toBeGreaterThan(0);
+    expect(screen.getAllByText("$4,950.00").length).toBeGreaterThan(0);
     expect(screen.getByText("Update the visual framework")).toBeInTheDocument();
     // Terms line is composed of multiple text nodes — match on the list item.
     expect(screen.getByText(/Net 30/)).toBeInTheDocument();

@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { useTranslations } from "next-intl";
 import { MarkdownView } from "@/components/MarkdownView";
 import { ProposalItemBody } from "@/components/ProposalItemBody";
+import { ProposalSummaryTable } from "@/components/ProposalSummaryTable";
 import {
   CheckCircle2,
   XCircle,
@@ -304,6 +305,18 @@ export function SignExperience({ token, bundle }: Props): React.JSX.Element {
           <MarkdownView content={bundle.overviewMarkdown} />
         </div>
       )}
+
+      {/* Auto summary / pricing table (2+ items). */}
+      <ProposalSummaryTable
+        items={bundle.items.map((item) => ({
+          id: item.id,
+          title: item.title,
+          summary: item.summary,
+          fixedPrice: item.fixedPrice,
+        }))}
+        total={fullTotal}
+        currency={currency}
+      />
 
       {/* Multi-signer notices: a co-signer either waits for the primary to set
           the scope, or is bound to the scope the primary already authorized. */}

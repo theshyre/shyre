@@ -122,6 +122,54 @@ const styles = StyleSheet.create({
   overview: {
     marginBottom: 16,
   },
+  summary: {
+    marginBottom: 16,
+  },
+  sumHeaderRow: {
+    flexDirection: "row",
+    borderBottomWidth: 0.5,
+    borderBottomColor: ink,
+    paddingBottom: 3,
+    marginBottom: 2,
+  },
+  sumRow: {
+    flexDirection: "row",
+    borderBottomWidth: 0.5,
+    borderBottomColor: ruleSoft,
+    paddingVertical: 3,
+  },
+  sumTotalRow: { flexDirection: "row", paddingTop: 4 },
+  sumNum: { width: 16, fontSize: 9, color: inkSecondary },
+  sumProject: {
+    flex: 3,
+    fontSize: 9,
+    fontFamily: "Helvetica-Bold",
+    color: ink,
+    paddingRight: 6,
+  },
+  sumWhat: { flex: 5, fontSize: 9, color: inkSecondary, paddingRight: 6 },
+  sumPrice: {
+    width: 60,
+    fontSize: 9,
+    fontFamily: "Courier",
+    color: ink,
+    textAlign: "right",
+  },
+  sumHead: {
+    fontSize: 8,
+    fontFamily: "Helvetica-Bold",
+    color: inkFaint,
+    textTransform: "uppercase",
+    letterSpacing: 0.5,
+  },
+  sumTotalLabel: {
+    flex: 1,
+    fontSize: 9,
+    fontFamily: "Helvetica-Bold",
+    color: ink,
+    textAlign: "right",
+    paddingRight: 6,
+  },
 
   // ---- line items
   itemBlock: {
@@ -300,6 +348,7 @@ const styles = StyleSheet.create({
 
 export interface ProposalPDFItem {
   title: string;
+  summary: string | null;
   bodyMarkdown: string | null;
   description: string | null;
   whyItMatters: string | null;
@@ -393,6 +442,9 @@ export function ProposalPDF(props: ProposalPDFProps): React.JSX.Element {
   );
   const accentColor = safeHex(business.brandColor) ?? ink;
   const clientAccent = safeHex(client.accentColor);
+  const summaryHasWhat = items.some(
+    (i) => i.summary && i.summary.trim() !== "",
+  );
   const primaryWordmark = business.wordmarkPrimary ?? business.name ?? "";
   const secondaryWordmark = business.wordmarkSecondary ?? "";
   const deposit = depositText(depositType, depositValue, fmt);
@@ -484,6 +536,37 @@ export function ProposalPDF(props: ProposalPDFProps): React.JSX.Element {
         {overviewMarkdown && overviewMarkdown.trim() !== "" ? (
           <View style={styles.overview}>
             <MarkdownPdf content={overviewMarkdown} />
+          </View>
+        ) : null}
+
+        {/* Auto summary / pricing table (2+ items). */}
+        {items.length >= 2 ? (
+          <View style={styles.summary}>
+            <Text style={styles.sectionTitle}>Summary</Text>
+            <View style={styles.sumHeaderRow}>
+              <Text style={[styles.sumNum, styles.sumHead]}>#</Text>
+              <Text style={[styles.sumProject, styles.sumHead]}>Project</Text>
+              {summaryHasWhat ? (
+                <Text style={[styles.sumWhat, styles.sumHead]}>
+                  What it does for you
+                </Text>
+              ) : null}
+              <Text style={[styles.sumPrice, styles.sumHead]}>Price</Text>
+            </View>
+            {items.map((item, i) => (
+              <View key={i} style={styles.sumRow}>
+                <Text style={styles.sumNum}>{i + 1}</Text>
+                <Text style={styles.sumProject}>{item.title}</Text>
+                {summaryHasWhat ? (
+                  <Text style={styles.sumWhat}>{item.summary ?? ""}</Text>
+                ) : null}
+                <Text style={styles.sumPrice}>{fmt(item.fixedPrice)}</Text>
+              </View>
+            ))}
+            <View style={styles.sumTotalRow}>
+              <Text style={styles.sumTotalLabel}>All items</Text>
+              <Text style={styles.sumPrice}>{fmt(total)}</Text>
+            </View>
           </View>
         ) : null}
 

@@ -87,7 +87,10 @@
     "itemBodyPreview": "Vista previa",
     "overviewLabel": "Resumen (opcional)",
     "overviewPlaceholder": "Una breve introducción o resumen que se muestra sobre las partidas — admite markdown.",
-    "overviewHint": "Admite markdown. Se muestra sobre las partidas en la propuesta y la página de firma."
+    "overviewHint": "Admite markdown. Se muestra sobre las partidas en la propuesta y la página de firma.",
+    "itemSummary": "Qué te aporta",
+    "itemSummaryPlaceholder": "Un beneficio en una línea — se muestra en la tabla resumen de arriba.",
+    "itemSummaryHint": "Opcional. Una línea concisa para la tabla resumen."
   },
   "validation": {
     "itemsRequired": "Añade al menos una partida",
@@ -176,7 +179,14 @@
     "preparedForLabel": "Preparado para",
     "awaitingPrimary": "El firmante principal debe autorizar primero",
     "awaitingPrimaryNote": "Esta propuesta requiere que todos los firmantes autoricen las mismas partidas. El firmante principal aún no lo ha hecho; podrás firmar en cuanto lo haga.",
-    "boundSubsetNote": "El firmante principal ha seleccionado las partidas siguientes. Como cofirmante, autorizas la misma selección."
+    "boundSubsetNote": "El firmante principal ha seleccionado las partidas siguientes. Como cofirmante, autorizas la misma selección.",
+    "acceptanceHeading": "Aceptación y autorización",
+    "acceptanceStatement": "Al firmar a continuación, el cliente autoriza las partidas seleccionadas a los precios fijos indicados, según los términos de esta propuesta.",
+    "partyClient": "Cliente",
+    "partyProvider": "Proveedor",
+    "sigSignature": "Firma",
+    "sigNameTitle": "Nombre / Cargo",
+    "sigDate": "Fecha"
   },
   "activity": {
     "heading": "Actividad",
@@ -301,5 +311,13 @@
     "title": "Vista previa",
     "subtitle": "Así ve la propuesta tu cliente. No se envía nada.",
     "back": "Volver a la propuesta"
+  },
+  "summaryTable": {
+    "heading": "Resumen",
+    "colNum": "#",
+    "colProject": "Proyecto",
+    "colWhat": "Qué te aporta",
+    "colPrice": "Precio",
+    "totalLabel": "Todo"
   }
 }

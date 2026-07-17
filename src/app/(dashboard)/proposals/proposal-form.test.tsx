@@ -191,7 +191,7 @@ describe("ProposalForm", () => {
       overview_markdown: null,
       items: [
         {
-          title: "Item A",
+          title: "Item A",          summary: null,
           bodyMarkdown: null,
           description: null,
           whyItMatters: null,

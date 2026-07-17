@@ -15,6 +15,8 @@ const phaseSchema = z.object({
 
 const itemSchema = z.object({
   title: z.string().max(200),
+  // Short one-line benefit for the top Summary table's "what it does" column.
+  summary: z.string().max(500).optional().nullable(),
   // Rich markdown body — replaces the legacy why/scope/DoD prose. The legacy
   // scalar fields stay optional for backward compatibility (older rows render
   // from them until re-saved).

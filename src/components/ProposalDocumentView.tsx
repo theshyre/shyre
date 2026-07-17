@@ -4,6 +4,7 @@ import { useTranslations } from "next-intl";
 import { formatCurrency } from "@/lib/invoice-utils";
 import { MarkdownView } from "@/components/MarkdownView";
 import { ProposalItemBody } from "@/components/ProposalItemBody";
+import { ProposalSummaryTable } from "@/components/ProposalSummaryTable";
 
 /**
  * Read-only render of a proposal AS THE CLIENT SEES IT on the sign page —
@@ -24,6 +25,7 @@ export interface ProposalDocumentPhase {
 export interface ProposalDocumentItem {
   id: string;
   title: string;
+  summary: string | null;
   bodyMarkdown: string | null;
   description: string | null;
   whyItMatters: string | null;
@@ -144,6 +146,18 @@ export function ProposalDocumentView({
         </div>
       )}
 
+      {/* Auto summary / pricing table (2+ items). */}
+      <ProposalSummaryTable
+        items={items.map((item) => ({
+          id: item.id,
+          title: item.title,
+          summary: item.summary,
+          fixedPrice: item.fixedPrice,
+        }))}
+        total={total}
+        currency={currency}
+      />
+
       {/* Line items */}
       <section className="mt-[24px]">
         <h2 className="text-title font-semibold text-content">
@@ -245,6 +259,40 @@ export function ProposalDocumentView({
           )}
         </section>
       )}
+
+      {/* Acceptance & Authorization — the document's signature section (this is
+          how the PDF closes). On-screen it's a read-only preview; the actual
+          sign-off happens on the client's interactive sign page or on paper. */}
+      <section className="mt-[32px] border-t border-edge pt-4">
+        <h2 className="text-title font-semibold text-content">
+          {t("acceptanceHeading")}
+        </h2>
+        <p className="mt-2 text-body text-content-secondary">
+          {t("acceptanceStatement")}
+        </p>
+        <div className="mt-5 grid grid-cols-1 gap-8 sm:grid-cols-2">
+          {[
+            { role: t("partyClient"), name: customer?.name ?? "—" },
+            { role: t("partyProvider"), name: business.name ?? "—" },
+          ].map((party) => (
+            <div key={party.role}>
+              <p className="text-body-lg font-semibold text-content">
+                {party.role} — {party.name}
+              </p>
+              {[t("sigSignature"), t("sigNameTitle"), t("sigDate")].map(
+                (label) => (
+                  <div key={label} className="mt-6">
+                    <div className="border-b border-content" />
+                    <p className="mt-1 text-caption text-content-muted">
+                      {label}
+                    </p>
+                  </div>
+                ),
+              )}
+            </div>
+          ))}
+        </div>
+      </section>
     </div>
   );
 }
