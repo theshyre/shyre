@@ -22,6 +22,7 @@ const contacts = [
     name: "Jordan Chen",
     email: "jordan@eyereg.example",
     customer_id: CUSTOMER,
+    role_label: "CTO",
   },
 ];
 
@@ -145,7 +146,8 @@ describe("ProposalForm", () => {
     fireEvent.change(screen.getByLabelText("Fixed price"), {
       target: { value: "950" },
     });
-    fireEvent.change(screen.getByLabelText("Signer (contact)"), {
+    // The roster select adds a signer on change (its own value stays "").
+    fireEvent.change(screen.getByLabelText("Signers"), {
       target: { value: contacts[0]!.id },
     });
 

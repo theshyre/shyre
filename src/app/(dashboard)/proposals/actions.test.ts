@@ -143,6 +143,7 @@ import { sha256Hex } from "@/lib/proposals/tokens";
 const TEAM = "11111111-1111-4111-8111-111111111111";
 const CUSTOMER = "22222222-2222-4222-8222-222222222222";
 const CONTACT = "33333333-3333-4333-8333-333333333333";
+const CONTACT2 = "44444444-4444-4444-8444-444444444444";
 
 function payload(overrides: Record<string, unknown> = {}): string {
   return JSON.stringify({
@@ -286,6 +287,43 @@ describe("createProposalAction", () => {
     expect(mockRevalidatePath).toHaveBeenCalledWith("/proposals");
   });
 
+  it("writes the signer roster (in order) and mirrors the primary + mode when 2+ signers", async () => {
+    queues["customers"] = [{ data: { id: CUSTOMER, team_id: TEAM }, error: null }];
+    queues["customer_contacts"] = [
+      {
+        data: [
+          { id: CONTACT, customer_id: CUSTOMER },
+          { id: CONTACT2, customer_id: CUSTOMER },
+        ],
+        error: null,
+      },
+    ];
+    queues["team_settings"] = [
+      { data: { proposal_prefix: "PROP", proposal_next_num: 7 }, error: null },
+      { data: null, error: null },
+    ];
+    queues["proposals"] = [{ data: { id: "prop-1" }, error: null }];
+    queues["proposal_line_items"] = [
+      { data: [{ id: "li-1" }, { id: "li-2" }], error: null },
+      { data: null, error: null },
+    ];
+
+    await expect(
+      createProposalAction(
+        formWith({
+          payload: payload({ signers: [CONTACT, CONTACT2], signing_mode: "all" }),
+        }),
+      ),
+    ).rejects.toThrow("NEXT_REDIRECT /proposals/prop-1");
+
+    const [proposalRow] = insertedRows("proposals");
+    expect(proposalRow!.signer_contact_id).toBe(CONTACT); // primary = roster[0]
+    expect(proposalRow!.signing_mode).toBe("all");
+    const roster = insertedRows("proposal_signers");
+    expect(roster.map((r) => r.contact_id)).toEqual([CONTACT, CONTACT2]);
+    expect(roster.map((r) => r.sort_order)).toEqual([0, 1]);
+  });
+
   it("rejects an invalid payload at the boundary without touching the DB", async () => {
     await expect(
       createProposalAction(formWith({ payload: payload({ items: [] }) })),
@@ -305,8 +343,9 @@ describe("createProposalAction", () => {
 
   it("refuses a signer contact that belongs to a different customer", async () => {
     queues["customers"] = [{ data: { id: CUSTOMER, team_id: TEAM }, error: null }];
+    // assertCustomerAndSigner validates all signer ids via `.in()` (array).
     queues["customer_contacts"] = [
-      { data: { id: CONTACT, customer_id: "someone-else" }, error: null },
+      { data: [{ id: CONTACT, customer_id: "someone-else" }], error: null },
     ];
     await expect(
       createProposalAction(
@@ -445,6 +484,44 @@ describe("sendProposalAction", () => {
     const eventInsert = insertedRows("proposal_events")[0]!;
     expect(eventInsert.event_type).toBe("sent");
     expect(eventInsert.actor_user_id).toBe("u-author");
+  });
+
+  it("mints a token + email per roster signer (multi-signer)", async () => {
+    queues["proposals"] = [
+      { data: { ...draftProposal, signing_mode: "all" }, error: null },
+      { data: null, error: null }, // status update
+    ];
+    queues["proposal_line_items"] = [
+      {
+        data: [
+          { id: "li-1", parent_line_item_id: null, sort_order: 0, title: "Work", fixed_price: 1000 },
+        ],
+        error: null,
+      },
+    ];
+    queues["proposal_signers"] = [
+      {
+        data: [
+          { id: "sgnr-1", sort_order: 0, customer_contacts: { name: "Ada", email: "ada@eyereg.example", customer_id: CUSTOMER } },
+          { id: "sgnr-2", sort_order: 1, customer_contacts: { name: "Bram", email: "bram@eyereg.example", customer_id: CUSTOMER } },
+        ],
+        error: null,
+      },
+    ];
+    queues["proposal_events"] = [{ data: null, error: null }];
+
+    await sendProposalAction(formWith({ id: "prop-1" }));
+
+    // One token per signer, each carrying its signer_id + email.
+    const tokens = insertedRows("proposal_access_tokens");
+    expect(tokens).toHaveLength(2);
+    expect(tokens.map((t) => t.signer_id)).toEqual(["sgnr-1", "sgnr-2"]);
+    expect(tokens.map((t) => t.signer_email)).toEqual([
+      "ada@eyereg.example",
+      "bram@eyereg.example",
+    ]);
+    // One sign-link email per signer.
+    expect(sendProposalEmailMock).toHaveBeenCalledTimes(2);
   });
 
   it("refuses without a signer contact (readiness gate)", async () => {

@@ -16,6 +16,8 @@ vi.mock("@/lib/logger", () => ({
 interface Result {
   data: unknown;
   error: unknown;
+  /** PostgREST count for `select(_, { count: 'exact', head: true })` queries. */
+  count?: number;
 }
 interface Call {
   table: string;
@@ -29,6 +31,7 @@ interface Builder extends PromiseLike<Result> {
   eq: (col: string, val: unknown) => Builder;
   is: (col: string, val: unknown) => Builder;
   order: (col: string) => Builder;
+  limit: (n: number) => Builder;
   insert: (rows: unknown) => Builder;
   update: (patch: unknown) => Builder;
   single: () => Promise<Result>;
@@ -44,6 +47,7 @@ function makeBuilder(table: string): Builder {
     eq: (...args) => (call.ops.push({ method: "eq", args }), builder),
     is: (...args) => (call.ops.push({ method: "is", args }), builder),
     order: (...args) => (call.ops.push({ method: "order", args }), builder),
+    limit: (...args) => (call.ops.push({ method: "limit", args }), builder),
     insert: (...args) => (call.ops.push({ method: "insert", args }), builder),
     update: (...args) => (call.ops.push({ method: "update", args }), builder),
     single: () => Promise.resolve(resolve()),
@@ -468,6 +472,161 @@ describe("recordSignDecision", () => {
     expect(acceptance.decision).toBe("declined");
     expect(acceptance.accepted_total).toBeNull();
     expect(acceptance.selected_line_item_ids).toEqual([]);
+  });
+
+  const verifiedSigner = (signerId: string): Record<string, unknown> =>
+    tokenRow({
+      otp_verified_at: new Date(NOW - 1000).toISOString(),
+      signer_id: signerId,
+    });
+
+  it("'all' mode: the primary's accept records but does NOT complete until every signer has signed", async () => {
+    queues["proposal_access_tokens"] = [
+      { data: verifiedSigner("sgnr-1"), error: null },
+      { data: [{ id: "tok-1" }], error: null }, // consume wins
+    ];
+    queues["proposals"] = [{ data: proposalRow({ signing_mode: "all" }), error: null }];
+    queues["proposal_signers"] = [
+      { data: [{ id: "sgnr-1" }], error: null }, // primary lookup
+      { data: null, count: 2, error: null }, // signer count
+    ];
+    queues["proposal_acceptances"] = [
+      { data: [], error: null }, // no prior binding
+      { data: null, error: null }, // acceptance insert
+      { data: null, count: 1, error: null }, // accepted count (1 of 2)
+    ];
+    queues["proposal_line_items"] = [{ data: ITEM_ROWS, error: null }];
+    queues["team_settings"] = [{ data: { tax_rate: 0 }, error: null }];
+    queues["proposal_events"] = [{ data: null, error: null }];
+
+    const result = await recordSignDecision(rawToken, {
+      ...decisionInput,
+      selectedLineItemIds: ["li-1", "li-2"],
+    });
+    expect(result).toEqual({ ok: true, value: { decision: "accepted" } });
+    // Acceptance carries the signer_id...
+    const acc = calls
+      .filter((c) => c.table === "proposal_acceptances")
+      .flatMap((c) => c.ops)
+      .find((o) => o.method === "insert")!.args[0] as { signer_id?: string };
+    expect(acc.signer_id).toBe("sgnr-1");
+    // ...but the proposal is NOT yet accepted (1 of 2 signed).
+    const flipped = calls.find(
+      (c) =>
+        c.table === "proposals" &&
+        c.ops.some(
+          (o) =>
+            o.method === "update" &&
+            (o.args[0] as { status?: string }).status === "accepted",
+        ),
+    );
+    expect(flipped).toBeUndefined();
+  });
+
+  it("'all' mode: a co-signer can't sign before the primary — awaiting_primary, no acceptance", async () => {
+    queues["proposal_access_tokens"] = [
+      { data: verifiedSigner("sgnr-2"), error: null },
+    ];
+    queues["proposals"] = [{ data: proposalRow({ signing_mode: "all" }), error: null }];
+    queues["proposal_signers"] = [{ data: [{ id: "sgnr-1" }], error: null }]; // primary = sgnr-1
+    queues["proposal_acceptances"] = [{ data: [], error: null }]; // no binding yet
+
+    const result = await recordSignDecision(rawToken, {
+      ...decisionInput,
+      selectedLineItemIds: ["li-1"],
+    });
+    expect(result).toEqual({ ok: false, reason: "awaiting_primary" });
+    expect(
+      calls.find(
+        (c) =>
+          c.table === "proposal_acceptances" &&
+          c.ops.some((o) => o.method === "insert"),
+      ),
+    ).toBeUndefined();
+  });
+
+  it("'all' mode: the final signer completes it — status accepted, BOUND to the primary's subset", async () => {
+    queues["proposal_access_tokens"] = [
+      { data: verifiedSigner("sgnr-2"), error: null },
+      { data: [{ id: "tok-1" }], error: null },
+    ];
+    queues["proposals"] = [
+      { data: proposalRow({ signing_mode: "all" }), error: null },
+      { data: null, error: null }, // status update
+    ];
+    queues["proposal_signers"] = [
+      { data: [{ id: "sgnr-1" }], error: null },
+      { data: null, count: 2, error: null },
+    ];
+    queues["proposal_acceptances"] = [
+      { data: [{ selected_line_item_ids: ["li-1"] }], error: null }, // primary bound li-1 only
+      { data: null, error: null },
+      { data: null, count: 2, error: null }, // now all 2 accepted
+    ];
+    queues["proposal_line_items"] = [{ data: ITEM_ROWS, error: null }];
+    queues["team_settings"] = [{ data: { tax_rate: 0 }, error: null }];
+    queues["proposal_events"] = [{ data: null, error: null }];
+
+    // Co-signer TRIES to select both — but is bound to the primary's [li-1].
+    const result = await recordSignDecision(rawToken, {
+      ...decisionInput,
+      selectedLineItemIds: ["li-1", "li-2"],
+    });
+    expect(result).toEqual({ ok: true, value: { decision: "accepted" } });
+    const acc = calls
+      .filter((c) => c.table === "proposal_acceptances")
+      .flatMap((c) => c.ops)
+      .find((o) => o.method === "insert")!.args[0] as {
+      selected_line_item_ids: string[];
+      accepted_total: number;
+    };
+    expect(acc.selected_line_item_ids).toEqual(["li-1"]); // bound, not their pick
+    expect(acc.accepted_total).toBe(950);
+    const flipped = calls.find(
+      (c) =>
+        c.table === "proposals" &&
+        c.ops.some(
+          (o) =>
+            o.method === "update" &&
+            (o.args[0] as { status?: string }).status === "accepted",
+        ),
+    );
+    expect(flipped).toBeDefined();
+  });
+
+  it("'all' mode: any decline kills the deal — status declined", async () => {
+    queues["proposal_access_tokens"] = [
+      { data: verifiedSigner("sgnr-1"), error: null },
+      { data: [{ id: "tok-1" }], error: null },
+    ];
+    queues["proposals"] = [
+      { data: proposalRow({ signing_mode: "all" }), error: null },
+      { data: null, error: null },
+    ];
+    queues["proposal_signers"] = [{ data: [{ id: "sgnr-1" }], error: null }];
+    queues["proposal_acceptances"] = [
+      { data: [], error: null },
+      { data: null, error: null },
+    ];
+    queues["proposal_line_items"] = [{ data: ITEM_ROWS, error: null }];
+    queues["proposal_events"] = [{ data: null, error: null }];
+
+    const result = await recordSignDecision(rawToken, {
+      ...decisionInput,
+      decision: "declined",
+      selectedLineItemIds: [],
+    });
+    expect(result).toEqual({ ok: true, value: { decision: "declined" } });
+    const declined = calls.find(
+      (c) =>
+        c.table === "proposals" &&
+        c.ops.some(
+          (o) =>
+            o.method === "update" &&
+            (o.args[0] as { status?: string }).status === "declined",
+        ),
+    );
+    expect(declined).toBeDefined();
   });
 
   it("refuses when the proposal is in a non-signable state", async () => {

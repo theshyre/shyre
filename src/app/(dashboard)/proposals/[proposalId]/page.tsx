@@ -2,7 +2,7 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { getTranslations } from "next-intl/server";
-import { Pencil, Eye } from "lucide-react";
+import { Pencil, Eye, CheckCircle2, XCircle, Clock } from "lucide-react";
 import { createClient } from "@/lib/supabase/server";
 import { buttonSecondaryClass } from "@/lib/form-styles";
 import { formatCurrency } from "@/lib/invoice-utils";
@@ -88,12 +88,37 @@ export default async function ProposalDetailPage({
   const { data: acceptanceRows } = await supabase
     .from("proposal_acceptances")
     .select(
-      "decision, signer_name, signer_title, signer_email, signature_typed, selected_line_item_ids, accepted_total, content_sha256, ip_address, occurred_at, provider_signed_at",
+      "signer_id, decision, signer_name, signer_title, signer_email, signature_typed, selected_line_item_ids, accepted_total, content_sha256, ip_address, occurred_at, provider_signed_at",
     )
     .eq("proposal_id", proposalId)
-    .order("occurred_at", { ascending: false })
-    .limit(1);
+    .order("occurred_at", { ascending: false });
   const acceptance = acceptanceRows?.[0] ?? null;
+
+  // Multi-signer roster + per-signer status ("2 of 3 signed").
+  const { data: signerRows } = await supabase
+    .from("proposal_signers")
+    .select("id, sort_order, customer_contacts(name, email, role_label)")
+    .eq("proposal_id", proposalId)
+    .order("sort_order");
+  const acceptanceBySigner = new Map(
+    (acceptanceRows ?? [])
+      .filter((a) => a.signer_id != null)
+      .map((a) => [a.signer_id as string, a.decision as string]),
+  );
+  const roster = (signerRows ?? []).map((row) => {
+    const c = (
+      Array.isArray(row.customer_contacts)
+        ? row.customer_contacts[0]
+        : row.customer_contacts
+    ) as { name: string; email: string; role_label: string | null } | null;
+    return {
+      id: row.id as string,
+      name: c?.name ?? "—",
+      roleLabel: c?.role_label ?? null,
+      decision: acceptanceBySigner.get(row.id as string) ?? null,
+    };
+  });
+  const signedCount = roster.filter((r) => r.decision === "accepted").length;
 
   const { data: eventRows } = await supabase
     .from("proposal_events")
@@ -477,6 +502,69 @@ export default async function ProposalDetailPage({
         <p className="mt-2 whitespace-pre-wrap text-body text-content-secondary">
           {proposal.terms_notes}
         </p>
+      )}
+
+      {/* Multi-signer roster + progress (only when 2+ signers). */}
+      {roster.length > 1 && (
+        <section className="mt-[32px]">
+          <div className="flex items-baseline justify-between gap-2">
+            <h2 className="text-title font-semibold text-content">
+              {t("signersHeading")}
+            </h2>
+            <span className="text-caption text-content-secondary">
+              {t("signersProgress", {
+                signed: signedCount,
+                total: roster.length,
+              })}
+              {" · "}
+              {(proposal.signing_mode as string) === "all"
+                ? t("modeAllShort")
+                : t("modeFirstShort")}
+            </span>
+          </div>
+          <ul className="mt-3 space-y-2">
+            {roster.map((signer, i) => (
+              <li
+                key={signer.id}
+                className="flex items-center gap-2 rounded-lg border border-edge bg-surface-raised p-3"
+              >
+                {signer.decision === "accepted" ? (
+                  <CheckCircle2
+                    size={16}
+                    aria-hidden="true"
+                    className="text-success"
+                  />
+                ) : signer.decision === "declined" ? (
+                  <XCircle size={16} aria-hidden="true" className="text-error" />
+                ) : (
+                  <Clock
+                    size={16}
+                    aria-hidden="true"
+                    className="text-content-muted"
+                  />
+                )}
+                <span className="flex-1 text-body text-content">
+                  {signer.name}
+                  {signer.roleLabel ? (
+                    <span className="text-content-muted"> · {signer.roleLabel}</span>
+                  ) : null}
+                  {i === 0 ? (
+                    <span className="ml-1 text-caption text-accent">
+                      {t("primarySigner")}
+                    </span>
+                  ) : null}
+                </span>
+                <span className="text-caption text-content-secondary">
+                  {signer.decision === "accepted"
+                    ? t("signerSigned")
+                    : signer.decision === "declined"
+                      ? t("signerDeclined")
+                      : t("signerPending")}
+                </span>
+              </li>
+            ))}
+          </ul>
+        </section>
       )}
 
       {/* Sign-off state */}

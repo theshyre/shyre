@@ -72,7 +72,15 @@
     "save": "Guardar cambios",
     "createDraft": "Crear borrador",
     "saveDraft": "Guardar borrador",
-    "cancel": "Cancelar"
+    "cancel": "Cancelar",
+    "signersLabel": "Firmantes",
+    "addSigner": "Añadir otro firmante…",
+    "removeSigner": "Quitar firmante",
+    "primarySigner": "Principal",
+    "modeFirst": "Basta el primero",
+    "modeAll": "Todos deben firmar",
+    "modeFirstHint": "La autorización de cualquier firmante es vinculante.",
+    "modeAllHint": "Todos los firmantes deben firmar las mismas partidas: el firmante principal elige el alcance primero y los cofirmantes autorizan esa misma selección."
   },
   "validation": {
     "itemsRequired": "Añade al menos una partida",
@@ -158,7 +166,10 @@
       "emailFailed": "No pudimos enviar el correo — inténtalo en unos minutos.",
       "generic": "Algo salió mal — inténtalo de nuevo."
     },
-    "preparedForLabel": "Preparado para"
+    "preparedForLabel": "Preparado para",
+    "awaitingPrimary": "El firmante principal debe autorizar primero",
+    "awaitingPrimaryNote": "Esta propuesta requiere que todos los firmantes autoricen las mismas partidas. El firmante principal aún no lo ha hecho; podrás firmar en cuanto lo haga.",
+    "boundSubsetNote": "El firmante principal ha seleccionado las partidas siguientes. Como cofirmante, autorizas la misma selección."
   },
   "activity": {
     "heading": "Actividad",
@@ -241,7 +252,15 @@
     "definitionOfDone": "Definición de terminado",
     "downloadPdf": "Descargar PDF",
     "downloadPdfPending": "Preparando PDF…",
-    "preview": "Vista previa"
+    "preview": "Vista previa",
+    "signersHeading": "Firmantes",
+    "signersProgress": "{signed} de {total} firmaron",
+    "modeAllShort": "Todos deben firmar",
+    "modeFirstShort": "Basta el primero",
+    "primarySigner": "Principal",
+    "signerSigned": "Firmado",
+    "signerDeclined": "Rechazado",
+    "signerPending": "Pendiente"
   },
   "pdf": {
     "documentTitle": "Propuesta",
