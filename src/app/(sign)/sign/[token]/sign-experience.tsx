@@ -238,7 +238,7 @@ export function SignExperience({ token, bundle }: Props): React.JSX.Element {
           identity on the document prepared for them. Logo is decorative
           (aria-hidden) — the name carries the accessible label. */}
       {(bundle.customerName || bundle.customerLogoUrl) && (
-        <div className="mt-3 flex items-center gap-2">
+        <div className="mt-4 flex items-center gap-3">
           {bundle.customerLogoUrl ? (
             // Public Supabase URL on a login-free page; plain <img> per the
             // avatar precedent.
@@ -247,14 +247,14 @@ export function SignExperience({ token, bundle }: Props): React.JSX.Element {
               src={bundle.customerLogoUrl}
               alt=""
               aria-hidden="true"
-              className="max-h-[28px] w-auto object-contain"
+              className="max-h-[44px] w-auto object-contain"
             />
           ) : null}
           {bundle.customerName ? (
-            <span className="text-caption text-content-secondary">
+            <span className="text-body-lg text-content-secondary">
               {t("preparedForLabel")}{" "}
               <span
-                className="font-medium text-content"
+                className="font-semibold text-content"
                 style={{ color: bundle.customerAccentColor ?? undefined }}
               >
                 {bundle.customerName}
