@@ -10,7 +10,7 @@ import {
   ProposalDocumentView,
   type ProposalDocumentItem,
 } from "@/components/ProposalDocumentView";
-import type { DepositType } from "../../allow-lists";
+import { resolveSignTheme, type DepositType } from "../../allow-lists";
 
 export async function generateMetadata(): Promise<Metadata> {
   const t = await getTranslations("proposals.preview");
@@ -51,7 +51,7 @@ export default async function ProposalPreviewPage({
   const { data: proposal } = await supabase
     .from("proposals")
     .select(
-      "id, team_id, proposal_number, title, valid_until, payment_terms_label, deposit_type, deposit_value, warranty_days, terms_notes, overview_markdown, currency, customers(name, accent_color, logo_url)",
+      "id, team_id, proposal_number, title, valid_until, payment_terms_label, deposit_type, deposit_value, warranty_days, terms_notes, overview_markdown, sign_theme, currency, customers(name, accent_color, logo_url)",
     )
     .eq("id", proposalId)
     .single();
@@ -125,8 +125,14 @@ export default async function ProposalPreviewPage({
         </Link>
       </div>
 
-      {/* The document, exactly as the client's sign page renders it. */}
-      <div className="rounded-lg border border-edge bg-surface p-[24px]">
+      {/* The document, exactly as the client's sign page renders it — pinned to
+          the proposal's chosen theme (data-theme overrides the dashboard theme
+          for this subtree), so the author previews the real client look while
+          the chrome above stays in their own theme. */}
+      <div
+        data-theme={resolveSignTheme(proposal.sign_theme)}
+        className="rounded-lg border border-edge bg-surface p-[24px]"
+      >
         <ProposalDocumentView
           business={{
             name: (branding?.business_name as string | null) ?? null,

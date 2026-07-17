@@ -133,6 +133,7 @@ function proposalColumns(input: ProposalDraftInput): Record<string, unknown> {
     warranty_days: input.warranty_days ?? null,
     terms_notes: input.terms_notes ?? null,
     overview_markdown: input.overview_markdown ?? null,
+    sign_theme: input.sign_theme ?? "light",
   };
 }
 
@@ -1060,6 +1061,7 @@ export async function createProposalVersionAction(
           warranty_days: source.warranty_days,
           terms_notes: source.terms_notes,
           overview_markdown: source.overview_markdown,
+          sign_theme: source.sign_theme,
           currency: source.currency,
           version_number: ((source.version_number as number) ?? 1) + 1,
           supersedes_proposal_id: proposalId,

@@ -91,7 +91,14 @@
     "itemSummary": "Qué te aporta",
     "itemSummaryPlaceholder": "Un beneficio en una línea — se muestra en la tabla resumen de arriba.",
     "itemSummaryHint": "Opcional. Una línea concisa para la tabla resumen.",
-    "phaseDescription": "Nota de la fase (opcional)"
+    "phaseDescription": "Nota de la fase (opcional)",
+    "appearanceHeading": "Apariencia de la página de firma",
+    "appearanceHint": "El tema de color que ve tu cliente en la página de firma y la vista previa. El claro se lee mejor para un documento formal y no sigue el modo oscuro de su dispositivo.",
+    "signTheme": {
+      "light": "Claro",
+      "dark": "Oscuro",
+      "warm": "Cálido"
+    }
   },
   "validation": {
     "itemsRequired": "Añade al menos una partida",

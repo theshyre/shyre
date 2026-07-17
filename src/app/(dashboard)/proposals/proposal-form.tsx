@@ -3,7 +3,7 @@
 import { useCallback, useMemo, useRef, useState } from "react";
 import Link from "next/link";
 import { useTranslations } from "next-intl";
-import { Plus, Trash2, TriangleAlert, CheckCircle2 } from "lucide-react";
+import { Plus, Trash2, TriangleAlert, CheckCircle2, Check } from "lucide-react";
 import { SubmitButton } from "@/components/SubmitButton";
 import { FieldError } from "@/components/FieldError";
 import { AutoTextarea } from "@/components/AutoTextarea";
@@ -29,7 +29,7 @@ import {
 } from "@/lib/proposals/line-items";
 import { proposalDraftSchema } from "@/lib/schemas/proposal";
 import { MarkdownView } from "@/components/MarkdownView";
-import type { DepositType } from "./allow-lists";
+import { SIGN_THEMES, type DepositType, type SignTheme } from "./allow-lists";
 import { createProposalAction, updateProposalAction } from "./actions";
 
 export interface TeamOption {
@@ -82,6 +82,7 @@ export interface ProposalFormInitial {
   warranty_days: number | null;
   terms_notes: string | null;
   overview_markdown: string | null;
+  sign_theme?: SignTheme;
   items: Array<{
     title: string;
     summary: string | null;
@@ -231,6 +232,9 @@ export function ProposalForm({
     initial?.warranty_days != null ? String(initial.warranty_days) : "",
   );
   const [termsNotes, setTermsNotes] = useState(initial?.terms_notes ?? "");
+  const [signTheme, setSignTheme] = useState<SignTheme>(
+    initial?.sign_theme ?? "light",
+  );
   const [overviewMarkdown, setOverviewMarkdown] = useState(
     initial?.overview_markdown ?? "",
   );
@@ -310,6 +314,7 @@ export function ProposalForm({
       warranty_days: warrantyDays.trim() === "" ? null : Number(warrantyDays),
       terms_notes: emptyToNull(termsNotes),
       overview_markdown: emptyToNull(overviewMarkdown),
+      sign_theme: signTheme,
       items: domainItems,
     }),
     [
@@ -326,6 +331,7 @@ export function ProposalForm({
       warrantyDays,
       termsNotes,
       overviewMarkdown,
+      signTheme,
       domainItems,
     ],
   );
@@ -1081,6 +1087,65 @@ export function ProposalForm({
             onChange={(e) => setTermsNotes(e.target.value)}
           />
         </div>
+      </section>
+
+      {/* ---- sign-page appearance ---- */}
+      <section className="space-y-3">
+        <div>
+          <h2 className="text-title font-semibold text-content">
+            {t("appearanceHeading")}
+          </h2>
+          <p className="mt-1 text-caption text-content-secondary">
+            {t("appearanceHint")}
+          </p>
+        </div>
+        <fieldset>
+          <legend className="sr-only">{t("appearanceHeading")}</legend>
+          <div className="flex flex-wrap gap-3">
+            {SIGN_THEMES.map((opt) => {
+              const checked = signTheme === opt;
+              return (
+                <label
+                  key={opt}
+                  className={`flex cursor-pointer items-center gap-3 rounded-lg border px-4 py-3 transition-colors ${
+                    checked
+                      ? "border-accent bg-accent-soft"
+                      : "border-edge hover:bg-hover"
+                  }`}
+                >
+                  <input
+                    type="radio"
+                    name="pf-sign-theme"
+                    value={opt}
+                    checked={checked}
+                    onChange={() => setSignTheme(opt)}
+                    className="sr-only"
+                  />
+                  {/* Live mini-swatch: data-theme resolves the theme's own
+                      tokens, so this previews the real client colors. */}
+                  <span
+                    data-theme={opt}
+                    aria-hidden="true"
+                    className="flex h-8 w-11 items-center justify-center gap-1 rounded border border-edge bg-surface"
+                  >
+                    <span className="h-3 w-3 rounded-full bg-content" />
+                    <span className="h-3 w-3 rounded-full bg-accent" />
+                  </span>
+                  <span className="flex items-center gap-1.5 text-body-lg font-medium text-content">
+                    {checked && (
+                      <Check
+                        size={14}
+                        aria-hidden="true"
+                        className="text-accent"
+                      />
+                    )}
+                    {t(`signTheme.${opt}`)}
+                  </span>
+                </label>
+              );
+            })}
+          </div>
+        </fieldset>
       </section>
 
       {/* ---- footer ---- */}

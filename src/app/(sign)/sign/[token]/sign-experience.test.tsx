@@ -70,6 +70,7 @@ function bundle(overrides: Partial<SignBundle> = {}): SignBundle {
     brandColor: null,
     wordmarkPrimary: null,
     wordmarkSecondary: null,
+    signTheme: "light",
     customerName: "EyeReg",
     customerLogoUrl: null,
     customerAccentColor: null,

@@ -15,6 +15,10 @@ import {
 } from "./tokens";
 import { roundMoney } from "./line-items";
 import { isValidProposalStatusTransition } from "./status";
+import {
+  resolveSignTheme,
+  type SignTheme,
+} from "@/app/(dashboard)/proposals/allow-lists";
 
 /**
  * The public sign-off service (SAL-036). Every function takes the RAW token
@@ -84,6 +88,8 @@ export interface SignBundle {
   awaitingPrimary: boolean;
   /** Optional proposal-level intro/summary (markdown), above the items. */
   overviewMarkdown: string | null;
+  /** Author-pinned color theme for the client-facing render (default light). */
+  signTheme: SignTheme;
   /** Sign-time state driving the page's flow. */
   otpVerified: boolean;
   otpPending: boolean;
@@ -290,6 +296,9 @@ export interface SignGateInfo {
    *  terminal message rather than an OTP form (a consumed token can't issue a
    *  new code). */
   decided: boolean;
+  /** Author-pinned color theme — the gate renders in it too, so the whole
+   *  /sign experience is one consistent look (default light). */
+  signTheme: SignTheme;
 }
 
 /**
@@ -317,10 +326,19 @@ export async function loadSignGate(
     .eq("team_id", token.team_id)
     .single();
 
+  // Only the pinned theme is read here — a colour name, not proposal content —
+  // so the gate can render in the same look as the document behind it.
+  const { data: themeRow } = await admin
+    .from("proposals")
+    .select("sign_theme")
+    .eq("id", token.proposal_id)
+    .single();
+
   return {
     ok: true,
     value: {
       verified: hasValidViewSession(token, cookieValue),
+      signTheme: resolveSignTheme(themeRow?.sign_theme),
       businessName: (settings?.business_name as string | null) ?? null,
       businessLogoUrl: (settings?.logo_url as string | null) ?? null,
       brandColor: (settings?.brand_color as string | null) ?? null,
@@ -349,7 +367,7 @@ export async function loadSignBundle(
   const { data: proposal } = await admin
     .from("proposals")
     .select(
-      "id, team_id, proposal_number, title, status, issued_date, valid_until, payment_terms_label, deposit_type, deposit_value, warranty_days, terms_notes, currency, accepted_total, signing_mode, overview_markdown, customers(name, accent_color, logo_url)",
+      "id, team_id, proposal_number, title, status, issued_date, valid_until, payment_terms_label, deposit_type, deposit_value, warranty_days, terms_notes, currency, accepted_total, signing_mode, overview_markdown, sign_theme, customers(name, accent_color, logo_url)",
     )
     .eq("id", token.proposal_id)
     .single();
@@ -472,6 +490,7 @@ export async function loadSignBundle(
       awaitingPrimary,
       overviewMarkdown:
         (proposal.overview_markdown as string | null) ?? null,
+      signTheme: resolveSignTheme(proposal.sign_theme),
     },
   };
 }
