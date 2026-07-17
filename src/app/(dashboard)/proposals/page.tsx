@@ -39,7 +39,7 @@ export default async function ProposalsPage({
   let query = supabase
     .from("proposals")
     .select(
-      "id, proposal_number, title, status, issued_date, valid_until, currency, customers(id, name), proposal_line_items(fixed_price, parent_line_item_id)",
+      "id, proposal_number, title, status, issued_date, valid_until, currency, customers(id, name, logo_url), proposal_line_items(fixed_price, parent_line_item_id)",
     )
     .order("issued_date", { ascending: false, nullsFirst: false })
     // Tiebreak on creation time, not the random UUID `id` — several proposals
@@ -51,8 +51,16 @@ export default async function ProposalsPage({
 
   const proposals: ProposalRow[] = (rows ?? []).map((row) => {
     const customer = Array.isArray(row.customers)
-      ? ((row.customers[0] ?? null) as { id: string; name: string } | null)
-      : (row.customers as { id: string; name: string } | null);
+      ? ((row.customers[0] ?? null) as {
+          id: string;
+          name: string;
+          logo_url: string | null;
+        } | null)
+      : (row.customers as {
+          id: string;
+          name: string;
+          logo_url: string | null;
+        } | null);
     const items = (row.proposal_line_items ?? []) as LineItemAgg[];
     // Phases are a breakdown of their parent — only top-level rows count.
     const total = roundMoney(

@@ -13,7 +13,7 @@ export interface ProposalRow {
   issued_date: string | null;
   valid_until: string | null;
   currency: string;
-  customer: { id: string; name: string } | null;
+  customer: { id: string; name: string; logo_url: string | null } | null;
   /** Sum of top-level line-item fixed prices (computed by the page). */
   total: number;
 }
@@ -84,6 +84,8 @@ export function ProposalsTable({ proposals }: Props): React.JSX.Element {
                   <CustomerChip
                     customerId={p.customer?.id}
                     customerName={p.customer?.name}
+                    logoUrl={p.customer?.logo_url ?? null}
+                    size={24}
                   />
                   <span>{p.customer?.name ?? "—"}</span>
                 </span>

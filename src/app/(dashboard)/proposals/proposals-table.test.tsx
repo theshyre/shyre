@@ -12,7 +12,7 @@ function row(overrides: Partial<ProposalRow> = {}): ProposalRow {
     issued_date: "2026-07-16",
     valid_until: null,
     currency: "USD",
-    customer: { id: "c1", name: "EyeReg Consulting" },
+    customer: { id: "c1", name: "EyeReg Consulting", logo_url: null },
     total: 4950,
     ...overrides,
   };
