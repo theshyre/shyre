@@ -55,7 +55,7 @@ export default async function NewProposalPage(): Promise<React.JSX.Element> {
 
   return (
     <div>
-      <h1 className="mb-[24px] text-title font-semibold text-content">
+      <h1 className="mb-[24px] text-page-title font-semibold text-content">
         {t("newPageTitle")}
       </h1>
       <ProposalForm

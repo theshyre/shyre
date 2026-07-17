@@ -477,7 +477,7 @@ export function ProposalForm({
 
       {/* ---- line items ---- */}
       <section>
-        <h2 className="text-heading font-semibold text-content">
+        <h2 className="text-title font-semibold text-content">
           {t("itemsHeading")}
         </h2>
         <p className="mt-1 text-caption text-content-secondary">
@@ -853,7 +853,7 @@ export function ProposalForm({
 
       {/* ---- terms ---- */}
       <section className="space-y-4">
-        <h2 className="text-heading font-semibold text-content">
+        <h2 className="text-title font-semibold text-content">
           {t("termsHeading")}
         </h2>
 

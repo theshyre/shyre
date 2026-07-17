@@ -196,7 +196,7 @@ export default async function ProposalDetailPage({
       <div className="flex flex-wrap items-start justify-between gap-3">
         <div>
           <div className="flex flex-wrap items-center gap-3">
-            <h1 className="text-title font-semibold text-content">
+            <h1 className="text-page-title font-semibold text-content">
               {proposal.title as string}
             </h1>
             <ProposalStatusBadge status={status} size="prominent" />
@@ -305,7 +305,7 @@ export default async function ProposalDetailPage({
       </dl>
 
       {/* items */}
-      <h2 className="mt-[32px] text-heading font-semibold text-content">
+      <h2 className="mt-[32px] text-title font-semibold text-content">
         {t("itemsHeading")}
       </h2>
       <div className="mt-3 space-y-[12px]">
@@ -406,7 +406,7 @@ export default async function ProposalDetailPage({
       </div>
 
       {/* terms */}
-      <h2 className="mt-[32px] text-heading font-semibold text-content">
+      <h2 className="mt-[32px] text-title font-semibold text-content">
         {t("termsHeading")}
       </h2>
       <dl className="mt-2 grid grid-cols-1 gap-x-8 gap-y-2 sm:grid-cols-3">
@@ -455,7 +455,7 @@ export default async function ProposalDetailPage({
       {/* Sign-off state */}
       {(signToken || acceptance) && (
         <>
-          <h2 className="mt-[32px] text-heading font-semibold text-content">
+          <h2 className="mt-[32px] text-title font-semibold text-content">
             {t("signoffHeading")}
           </h2>
           {signToken && !acceptance && (
@@ -550,7 +550,7 @@ export default async function ProposalDetailPage({
       )}
 
       {/* Activity */}
-      <h2 className="mt-[32px] text-heading font-semibold text-content">
+      <h2 className="mt-[32px] text-title font-semibold text-content">
         {tActivity("heading")}
       </h2>
       {events.length === 0 ? (

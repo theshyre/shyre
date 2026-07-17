@@ -1,7 +1,8 @@
 "use client";
 
 import { useTranslations } from "next-intl";
-import { Download } from "lucide-react";
+import { useState } from "react";
+import { Download, Loader2 } from "lucide-react";
 import { pdf } from "@react-pdf/renderer";
 import { ProposalPDF, type ProposalPDFItem } from "@/components/ProposalPDF";
 import { buttonSecondaryClass } from "@/lib/form-styles";
@@ -49,6 +50,7 @@ export function ProposalPdfButton({
 }): React.JSX.Element {
   const t = useTranslations("proposals.detail");
   const { proposal, items, total, client, signerName, business } = bundle;
+  const [busy, setBusy] = useState(false);
 
   async function handleDownload(): Promise<void> {
     const doc = (
@@ -86,23 +88,35 @@ export function ProposalPdfButton({
         items={items}
       />
     );
-    const blob = await pdf(doc).toBlob();
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement("a");
-    a.href = url;
-    a.download = `${proposal.proposal_number}.pdf`;
-    a.click();
-    URL.revokeObjectURL(url);
+    // Rendering a large PDF to a blob takes a beat — surface pending state
+    // rather than letting the button look inert (per the forms/buttons rule).
+    setBusy(true);
+    try {
+      const blob = await pdf(doc).toBlob();
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = `${proposal.proposal_number}.pdf`;
+      a.click();
+      URL.revokeObjectURL(url);
+    } finally {
+      setBusy(false);
+    }
   }
 
   return (
     <button
       type="button"
       className={buttonSecondaryClass}
+      disabled={busy}
       onClick={() => void handleDownload()}
     >
-      <Download size={16} aria-hidden="true" />
-      {t("downloadPdf")}
+      {busy ? (
+        <Loader2 size={16} aria-hidden="true" className="animate-spin" />
+      ) : (
+        <Download size={16} aria-hidden="true" />
+      )}
+      {busy ? t("downloadPdfPending") : t("downloadPdf")}
     </button>
   );
 }

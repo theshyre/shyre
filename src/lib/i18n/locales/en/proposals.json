@@ -227,7 +227,8 @@
     "whyItMatters": "Why it matters",
     "outOfScope": "Out of scope",
     "definitionOfDone": "Definition of done",
-    "downloadPdf": "Download PDF"
+    "downloadPdf": "Download PDF",
+    "downloadPdfPending": "Preparing PDF…"
   },
   "pdf": {
     "documentTitle": "Proposal",

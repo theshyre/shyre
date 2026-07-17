@@ -227,7 +227,8 @@
     "whyItMatters": "Por qué importa",
     "outOfScope": "Fuera de alcance",
     "definitionOfDone": "Definición de terminado",
-    "downloadPdf": "Descargar PDF"
+    "downloadPdf": "Descargar PDF",
+    "downloadPdfPending": "Preparando PDF…"
   },
   "pdf": {
     "documentTitle": "Propuesta",
