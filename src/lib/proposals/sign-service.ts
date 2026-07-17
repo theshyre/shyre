@@ -6,10 +6,12 @@ import { sendProposalEmail } from "@/lib/messaging/send-proposal";
 import {
   sha256Hex,
   generateOtpCode,
+  generateSignToken,
   hashOtp,
   digestsEqual,
   OTP_TTL_MINUTES,
   MAX_OTP_ATTEMPTS,
+  VIEW_SESSION_TTL_HOURS,
 } from "./tokens";
 import { roundMoney } from "./line-items";
 import { isValidProposalStatusTransition } from "./status";
@@ -105,7 +107,8 @@ export type SignFailReason =
   | "invalid_selection"
   | "offer_expired"
   | "awaiting_primary"
-  | "email_failed";
+  | "email_failed"
+  | "session_failed";
 
 /** DATE-string comparison in UTC: has the offer's validity window passed?
  *  `valid_until` is inclusive — the offer is good THROUGH that day. */
@@ -132,6 +135,38 @@ interface TokenRow {
   otp_expires_at: string | null;
   otp_attempts: number;
   otp_verified_at: string | null;
+  /** SAL-045 view-session gate. Nullable + read via `select *` so a code
+   *  deploy ahead of the migration reads `undefined` and fail-closes. */
+  view_session_hash?: string | null;
+  view_session_expires_at?: string | null;
+}
+
+/** Mask a signer email for the gate ("jo•••@acme.com") so a forwarded-link
+ *  holder who hasn't verified can't read the full recipient off the page. */
+export function maskEmail(email: string): string {
+  const at = email.lastIndexOf("@");
+  if (at <= 0) return "•••";
+  const local = email.slice(0, at);
+  const domain = email.slice(at + 1);
+  // Show at most 2 chars, and never the WHOLE local part when there's more
+  // than one char to hide behind — `bo` → `b•••`, `jordan` → `jo•••`.
+  const shown = local.slice(0, Math.min(2, Math.max(1, local.length - 1)));
+  return `${shown}•••@${domain}`;
+}
+
+/** True when the presented cookie proves a live, un-expired view session for
+ *  this exact token. Fail-closed on every missing piece (no cookie, columns
+ *  absent, expired). Constant-time hash compare. */
+function hasValidViewSession(
+  token: TokenRow,
+  cookieValue: string | null,
+): boolean {
+  if (!cookieValue) return false;
+  if (!token.view_session_hash || !token.view_session_expires_at) return false;
+  if (new Date(token.view_session_expires_at).getTime() < Date.now()) {
+    return false;
+  }
+  return digestsEqual(sha256Hex(cookieValue), token.view_session_hash);
 }
 
 type Admin = ReturnType<typeof createAdminClient>;
@@ -227,6 +262,78 @@ async function loadItems(
     }));
 }
 
+/** A fresh, un-expired code is outstanding — the gate can jump straight to the
+ *  code field, and the sign page can pre-open the code step. */
+function isOtpPending(token: TokenRow): boolean {
+  return (
+    !!token.otp_code_hash &&
+    !!token.otp_expires_at &&
+    new Date(token.otp_expires_at).getTime() > Date.now() &&
+    token.otp_attempts < MAX_OTP_ATTEMPTS
+  );
+}
+
+export interface SignGateInfo {
+  /** Whether the presented view-session cookie is valid. The page renders the
+   *  full experience when true, the identity-check gate when false. */
+  verified: boolean;
+  businessName: string | null;
+  businessLogoUrl: string | null;
+  brandColor: string | null;
+  wordmarkPrimary: string | null;
+  wordmarkSecondary: string | null;
+  /** Masked signer email for the "we'll email a code to …" line. */
+  maskedEmail: string;
+  /** A fresh code is outstanding — drive straight to the code field. */
+  otpPending: boolean;
+  /** The link was already consumed by a recorded decision — the gate shows a
+   *  terminal message rather than an OTP form (a consumed token can't issue a
+   *  new code). */
+  decided: boolean;
+}
+
+/**
+ * Resolve the gate for a sign link WITHOUT loading any proposal content
+ * (SAL-045). Validates the token, decides whether the presented view-session
+ * cookie is valid, and returns only the sender's public branding + the masked
+ * recipient. The full pricing/scope bundle is loaded (via `loadSignBundle`)
+ * ONLY once `verified` is true. Does NOT stamp `viewed` — that fires when the
+ * signer actually sees the document, post-verification.
+ */
+export async function loadSignGate(
+  rawToken: string,
+  cookieValue: string | null,
+): Promise<SignResult<SignGateInfo>> {
+  const admin = createAdminClient();
+  const tokenResult = await findValidToken(admin, rawToken);
+  if (!tokenResult.ok) return tokenResult;
+  const token = tokenResult.value;
+
+  const { data: settings } = await admin
+    .from("team_settings")
+    .select(
+      "business_name, logo_url, brand_color, wordmark_primary, wordmark_secondary",
+    )
+    .eq("team_id", token.team_id)
+    .single();
+
+  return {
+    ok: true,
+    value: {
+      verified: hasValidViewSession(token, cookieValue),
+      businessName: (settings?.business_name as string | null) ?? null,
+      businessLogoUrl: (settings?.logo_url as string | null) ?? null,
+      brandColor: (settings?.brand_color as string | null) ?? null,
+      wordmarkPrimary: (settings?.wordmark_primary as string | null) ?? null,
+      wordmarkSecondary:
+        (settings?.wordmark_secondary as string | null) ?? null,
+      maskedEmail: maskEmail(token.signer_email),
+      otpPending: isOtpPending(token),
+      decided: !!token.consumed_at,
+    },
+  };
+}
+
 /**
  * Resolve a sign link: validate the token, record the first view (event +
  * `sent → viewed` status flip), and return the client-safe bundle.
@@ -285,11 +392,7 @@ export async function loadSignBundle(
 
   const items = await loadItems(admin, token.proposal_id);
 
-  const otpPending =
-    !!token.otp_code_hash &&
-    !!token.otp_expires_at &&
-    new Date(token.otp_expires_at).getTime() > Date.now() &&
-    token.otp_attempts < MAX_OTP_ATTEMPTS;
+  const otpPending = isOtpPending(token);
 
   // Multi-signer context for this signer's link (mirrors recordSignDecision's
   // binding rule, so the page shows what the server will enforce).
@@ -437,7 +540,7 @@ export async function issueSignOtp(
 export async function verifySignOtp(
   rawToken: string,
   code: string,
-): Promise<SignResult<{ verified: true }>> {
+): Promise<SignResult<{ verified: true; viewSession: string }>> {
   const admin = createAdminClient();
   const tokenResult = await findValidToken(admin, rawToken);
   if (!tokenResult.ok) return tokenResult;
@@ -471,12 +574,35 @@ export async function verifySignOtp(
     };
   }
 
-  await admin
+  // Mint a per-browser view session (SAL-045): the raw secret goes back to the
+  // action to set as an httpOnly cookie; only its sha256 is stored. This is
+  // what lets a verified browser VIEW the proposal while a forwarded link
+  // (no cookie) stays gated.
+  const viewSession = generateSignToken();
+  const viewExpiresAt = new Date(
+    Date.now() + VIEW_SESSION_TTL_HOURS * 3_600_000,
+  );
+  const { error: persistError } = await admin
     .from("proposal_access_tokens")
-    .update({ otp_verified_at: new Date().toISOString() })
+    .update({
+      otp_verified_at: new Date().toISOString(),
+      view_session_hash: viewSession.hash,
+      view_session_expires_at: viewExpiresAt.toISOString(),
+    })
     .eq("id", token.id);
+  if (persistError) {
+    // A silent failure here (e.g. the migration hasn't landed yet in the
+    // parallel-deploy window) would set the browser cookie with no matching
+    // server-side hash → the signer loops the gate forever. Surface it and
+    // fail-closed so the action returns an error instead of a broken session.
+    logError(
+      new Error(`view-session persist failed: ${persistError.message}`),
+      { teamId: token.team_id, action: "signService.verifySignOtp" },
+    );
+    return { ok: false, reason: "session_failed" };
+  }
   await insertEvent(admin, token, "otp_verified");
-  return { ok: true, value: { verified: true } };
+  return { ok: true, value: { verified: true, viewSession: viewSession.raw } };
 }
 
 export interface SignDecisionInput {
@@ -487,6 +613,10 @@ export interface SignDecisionInput {
   selectedLineItemIds: string[];
   ipAddress: string | null;
   userAgent: string | null;
+  /** The browser's view-session cookie value (SAL-046) — signing requires the
+   *  SAME per-browser proof as viewing, not just the shared otp_verified_at
+   *  flag. Null on any request that never carried a verified session. */
+  viewSession: string | null;
 }
 
 /**
@@ -505,6 +635,14 @@ export async function recordSignDecision(
   const token = tokenResult.value;
   if (token.consumed_at) return { ok: false, reason: "consumed" };
   if (!token.otp_verified_at) return { ok: false, reason: "otp_required" };
+  // SAL-046: signing needs the SAME per-browser proof as viewing. The shared
+  // otp_verified_at flag alone would let a forwarded-link holder POST a
+  // decision (declining to sabotage, or accepting a subset) during the window
+  // after the real signer verifies but before they consume the token. Require
+  // the view-session cookie minted for THIS browser on verify.
+  if (!hasValidViewSession(token, input.viewSession)) {
+    return { ok: false, reason: "otp_required" };
+  }
 
   const { data: proposal } = await admin
     .from("proposals")

@@ -73,11 +73,19 @@ vi.mock("@/lib/supabase/admin", () => ({
 
 import {
   loadSignBundle,
+  loadSignGate,
+  maskEmail,
   issueSignOtp,
   verifySignOtp,
   recordSignDecision,
 } from "./sign-service";
-import { generateSignToken, hashOtp, MAX_OTP_ATTEMPTS, OTP_TTL_MINUTES } from "./tokens";
+import {
+  generateSignToken,
+  hashOtp,
+  sha256Hex,
+  MAX_OTP_ATTEMPTS,
+  OTP_TTL_MINUTES,
+} from "./tokens";
 
 const NOW = Date.now();
 
@@ -288,11 +296,43 @@ describe("verifySignOtp", () => {
     rpcQueue = [{ data: 1, error: null }];
     queues["proposal_events"] = [{ data: null, error: null }];
     const result = await verifySignOtp(rawToken, CODE);
-    expect(result).toEqual({ ok: true, value: { verified: true } });
+    expect(result.ok).toBe(true);
+    if (result.ok) {
+      expect(result.value.verified).toBe(true);
+      // A fresh, high-entropy view-session secret is handed back to set as the
+      // browser cookie (SAL-045) — never a constant.
+      expect(typeof result.value.viewSession).toBe("string");
+      expect(result.value.viewSession.length).toBeGreaterThan(20);
+    }
     expect(rpcCalls[0]).toEqual({
       fn: "proposal_otp_attempt",
       args: { p_token_id: "tok-1" },
     });
+    // The verify UPDATE must persist the view-session hash + expiry.
+    const verifiedUpdate = calls.find(
+      (c) =>
+        c.table === "proposal_access_tokens" &&
+        c.ops.some(
+          (o) =>
+            o.method === "update" &&
+            (o.args[0] as Record<string, unknown>).view_session_hash != null,
+        ),
+    );
+    expect(verifiedUpdate).toBeDefined();
+  });
+
+  it("fails closed (session_failed) if the view-session persist errors", async () => {
+    // e.g. the migration hasn't landed yet in the parallel-deploy window: the
+    // UPDATE that stores view_session_hash errors. Must NOT return ok (which
+    // would set a cookie with no matching server hash and loop the gate).
+    queues["proposal_access_tokens"] = [
+      { data: tokenWithOtp(), error: null },
+      { data: null, error: { message: "column view_session_hash does not exist" } },
+    ];
+    rpcQueue = [{ data: 1, error: null }];
+    const result = await verifySignOtp(rawToken, CODE);
+    expect(result).toEqual({ ok: false, reason: "session_failed" });
+    expect(logErrorMock).toHaveBeenCalled();
   });
 
   it("rejects a wrong code, burns an attempt, and logs otp_failed evidence", async () => {
@@ -336,8 +376,13 @@ describe("verifySignOtp", () => {
 });
 
 describe("recordSignDecision", () => {
+  const VIEW_SECRET = "browser-view-secret";
   const verifiedToken = (): Record<string, unknown> =>
-    tokenRow({ otp_verified_at: new Date(NOW - 1000).toISOString() });
+    tokenRow({
+      otp_verified_at: new Date(NOW - 1000).toISOString(),
+      view_session_hash: sha256Hex(VIEW_SECRET),
+      view_session_expires_at: new Date(NOW + 3_600_000).toISOString(),
+    });
 
   const decisionInput = {
     decision: "accepted" as const,
@@ -347,12 +392,41 @@ describe("recordSignDecision", () => {
     selectedLineItemIds: ["li-1", "li-2"],
     ipAddress: "203.0.113.5",
     userAgent: "vitest",
+    viewSession: VIEW_SECRET,
   };
 
   it("refuses without a verified OTP", async () => {
     queues["proposal_access_tokens"] = [{ data: tokenRow(), error: null }];
     const result = await recordSignDecision(rawToken, decisionInput);
     expect(result).toEqual({ ok: false, reason: "otp_required" });
+  });
+
+  it("refuses signing without THIS browser's view session, even if OTP is verified (SAL-046)", async () => {
+    // A forwarded-link holder: the shared otp_verified_at flag is set (the real
+    // signer verified), but they present no / a forged view-session cookie.
+    queues["proposal_access_tokens"] = [
+      {
+        data: tokenRow({
+          otp_verified_at: new Date(NOW - 1000).toISOString(),
+          view_session_hash: sha256Hex("the-real-secret"),
+          view_session_expires_at: new Date(NOW + 3_600_000).toISOString(),
+        }),
+        error: null,
+      },
+    ];
+    const result = await recordSignDecision(rawToken, {
+      ...decisionInput,
+      viewSession: "forged-or-absent",
+    });
+    expect(result).toEqual({ ok: false, reason: "otp_required" });
+    // Nothing was consumed or written — the attacker's POST is a clean refusal.
+    expect(
+      calls.some(
+        (c) =>
+          c.table === "proposal_acceptances" &&
+          c.ops.some((o) => o.method === "insert"),
+      ),
+    ).toBe(false);
   });
 
   it("refuses a consumed token (no double-accept)", async () => {
@@ -478,6 +552,8 @@ describe("recordSignDecision", () => {
     tokenRow({
       otp_verified_at: new Date(NOW - 1000).toISOString(),
       signer_id: signerId,
+      view_session_hash: sha256Hex(VIEW_SECRET),
+      view_session_expires_at: new Date(NOW + 3_600_000).toISOString(),
     });
 
   it("'all' mode: the primary's accept records but does NOT complete until every signer has signed", async () => {
@@ -634,5 +710,114 @@ describe("recordSignDecision", () => {
     queues["proposals"] = [{ data: proposalRow({ status: "declined" }), error: null }];
     const result = await recordSignDecision(rawToken, decisionInput);
     expect(result).toEqual({ ok: false, reason: "invalid_state" });
+  });
+});
+
+describe("maskEmail", () => {
+  it("keeps the domain + first two chars, masks the rest", () => {
+    expect(maskEmail("jordan@eyereg.example")).toBe("jo•••@eyereg.example");
+  });
+  it("degrades safely on a 1-char local part and on non-emails", () => {
+    expect(maskEmail("a@b.co")).toBe("a•••@b.co");
+    expect(maskEmail("notanemail")).toBe("•••");
+  });
+});
+
+describe("loadSignGate (SAL-045 identity gate)", () => {
+  const brandRow = {
+    data: {
+      business_name: "Malcom IO",
+      logo_url: "https://cdn.example/logo.png",
+      brand_color: "#0a0",
+      wordmark_primary: "malcom",
+      wordmark_secondary: ".io",
+    },
+    error: null,
+  };
+
+  it("rejects an unknown token without exposing anything", async () => {
+    queues["proposal_access_tokens"] = [{ data: null, error: null }];
+    expect(await loadSignGate(rawToken, null)).toEqual({
+      ok: false,
+      reason: "not_found",
+    });
+  });
+
+  it("is unverified with a masked recipient when there is no cookie", async () => {
+    queues["proposal_access_tokens"] = [{ data: tokenRow(), error: null }];
+    queues["team_settings"] = [brandRow];
+    const result = await loadSignGate(rawToken, null);
+    expect(result.ok).toBe(true);
+    if (result.ok) {
+      expect(result.value.verified).toBe(false);
+      expect(result.value.maskedEmail).toBe("jo•••@eyereg.example");
+      expect(result.value.businessName).toBe("Malcom IO");
+      expect(result.value.decided).toBe(false);
+    }
+  });
+
+  it("verifies when the cookie matches the stored view-session hash", async () => {
+    const secret = "browser-session-secret";
+    queues["proposal_access_tokens"] = [
+      {
+        data: tokenRow({
+          view_session_hash: sha256Hex(secret),
+          view_session_expires_at: new Date(NOW + 3_600_000).toISOString(),
+        }),
+        error: null,
+      },
+    ];
+    queues["team_settings"] = [brandRow];
+    const result = await loadSignGate(rawToken, secret);
+    expect(result.ok).toBe(true);
+    if (result.ok) expect(result.value.verified).toBe(true);
+  });
+
+  it("stays unverified when the view session has expired", async () => {
+    const secret = "browser-session-secret";
+    queues["proposal_access_tokens"] = [
+      {
+        data: tokenRow({
+          view_session_hash: sha256Hex(secret),
+          view_session_expires_at: new Date(NOW - 1000).toISOString(),
+        }),
+        error: null,
+      },
+    ];
+    queues["team_settings"] = [brandRow];
+    const result = await loadSignGate(rawToken, secret);
+    if (result.ok) expect(result.value.verified).toBe(false);
+  });
+
+  it("stays unverified when a forged cookie doesn't match the hash", async () => {
+    queues["proposal_access_tokens"] = [
+      {
+        data: tokenRow({
+          view_session_hash: sha256Hex("the-real-secret"),
+          view_session_expires_at: new Date(NOW + 3_600_000).toISOString(),
+        }),
+        error: null,
+      },
+    ];
+    queues["team_settings"] = [brandRow];
+    const result = await loadSignGate(rawToken, "a-forged-value");
+    if (result.ok) expect(result.value.verified).toBe(false);
+  });
+
+  it("marks a consumed link as decided (terminal gate, no OTP form)", async () => {
+    queues["proposal_access_tokens"] = [
+      { data: tokenRow({ consumed_at: new Date(NOW - 1000).toISOString() }), error: null },
+    ];
+    queues["team_settings"] = [brandRow];
+    const result = await loadSignGate(rawToken, null);
+    if (result.ok) expect(result.value.decided).toBe(true);
+  });
+
+  it("does NOT read any proposal content at the gate", async () => {
+    queues["proposal_access_tokens"] = [{ data: tokenRow(), error: null }];
+    queues["team_settings"] = [brandRow];
+    await loadSignGate(rawToken, null);
+    expect(calls.some((c) => c.table === "proposal_line_items")).toBe(false);
+    expect(calls.some((c) => c.table === "proposals")).toBe(false);
   });
 });

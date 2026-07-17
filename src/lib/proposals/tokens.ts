@@ -47,3 +47,17 @@ export const TOKEN_TTL_DAYS = 30;
 /** OTP lifetime + attempt budget before lockout. */
 export const OTP_TTL_MINUTES = 10;
 export const MAX_OTP_ATTEMPTS = 5;
+
+/** View-session lifetime after a successful OTP verify (SAL-045). The signer
+ *  stays "in" on this browser for this long before a fresh code is required to
+ *  view again — short enough that a walked-away or forwarded session can't be
+ *  resumed indefinitely, long enough to read + sign in one sitting. */
+export const VIEW_SESSION_TTL_HOURS = 24;
+
+/** Cookie name carrying a link's view-session secret. Scoped per link (a slice
+ *  of the token hash) so two sign links open in different tabs don't clobber
+ *  each other's session. The value is the raw secret; only its sha256 is
+ *  stored server-side, so the cookie name leaking is harmless. */
+export function viewSessionCookieName(rawToken: string): string {
+  return `sv_${sha256Hex(rawToken).slice(0, 16)}`;
+}

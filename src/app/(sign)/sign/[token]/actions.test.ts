@@ -15,9 +15,18 @@ vi.mock("@/lib/logger", () => ({
 }));
 
 let headerMap: Map<string, string>;
+let cookieMap: Map<string, string>;
+const cookieSetMock = vi.fn();
 vi.mock("next/headers", () => ({
   headers: async () => ({
     get: (key: string) => headerMap.get(key) ?? null,
+  }),
+  cookies: async () => ({
+    set: (...args: unknown[]) => cookieSetMock(...args),
+    get: (name: string) => {
+      const value = cookieMap.get(name);
+      return value === undefined ? undefined : { value };
+    },
   }),
 }));
 
@@ -26,6 +35,7 @@ import {
   verifySignOtpAction,
   submitSignDecisionAction,
 } from "./actions";
+import { viewSessionCookieName } from "@/lib/proposals/tokens";
 
 const TOKEN = "a".repeat(43);
 
@@ -34,10 +44,12 @@ beforeEach(() => {
   verifyMock.mockReset();
   decideMock.mockReset();
   logErrorMock.mockReset();
+  cookieSetMock.mockReset();
   headerMap = new Map([
     ["x-forwarded-for", "203.0.113.5, 10.0.0.1"],
     ["user-agent", "vitest-agent"],
   ]);
+  cookieMap = new Map();
 });
 
 describe("requestSignOtpAction", () => {
@@ -88,10 +100,31 @@ describe("verifySignOtpAction", () => {
     expect(verifyMock).not.toHaveBeenCalled();
   });
 
-  it("verifies well-formed codes", async () => {
-    verifyMock.mockResolvedValue({ ok: true, value: { verified: true } });
+  it("verifies well-formed codes and sets the httpOnly view-session cookie", async () => {
+    verifyMock.mockResolvedValue({
+      ok: true,
+      value: { verified: true, viewSession: "sess-secret-value" },
+    });
     expect(await verifySignOtpAction(TOKEN, "123456")).toEqual({ ok: true });
     expect(verifyMock).toHaveBeenCalledWith(TOKEN, "123456");
+    // SAL-045: the browser's view session is set as an httpOnly, /sign-scoped
+    // cookie carrying the raw secret the service handed back.
+    expect(cookieSetMock).toHaveBeenCalledTimes(1);
+    const [name, value, opts] = cookieSetMock.mock.calls[0]!;
+    expect(name).toMatch(/^sv_/);
+    expect(value).toBe("sess-secret-value");
+    expect((opts as { httpOnly?: boolean }).httpOnly).toBe(true);
+    expect((opts as { sameSite?: string }).sameSite).toBe("lax");
+    expect((opts as { path?: string }).path).toBe("/sign");
+  });
+
+  it("sets no cookie when verification fails", async () => {
+    verifyMock.mockResolvedValue({ ok: false, reason: "otp_invalid" });
+    expect(await verifySignOtpAction(TOKEN, "123456")).toEqual({
+      ok: false,
+      reason: "otp_invalid",
+    });
+    expect(cookieSetMock).not.toHaveBeenCalled();
   });
 });
 
@@ -104,7 +137,9 @@ describe("submitSignDecisionAction", () => {
     selectedLineItemIds: ["li-1"],
   };
 
-  it("threads IP (first forwarded hop) + UA into the decision record", async () => {
+  it("threads IP (first forwarded hop) + UA + the view-session cookie into the decision record", async () => {
+    // SAL-046: the browser's view-session cookie must reach recordSignDecision.
+    cookieMap.set(viewSessionCookieName(TOKEN), "browser-view-secret");
     decideMock.mockResolvedValue({ ok: true, value: { decision: "accepted" } });
     expect(await submitSignDecisionAction(TOKEN, payload)).toEqual({ ok: true });
     expect(decideMock).toHaveBeenCalledWith(TOKEN, {
@@ -115,6 +150,7 @@ describe("submitSignDecisionAction", () => {
       selectedLineItemIds: ["li-1"],
       ipAddress: "203.0.113.5",
       userAgent: "vitest-agent",
+      viewSession: "browser-view-secret",
     });
   });
 
