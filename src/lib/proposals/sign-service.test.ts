@@ -27,6 +27,7 @@ let calls: Call[] = [];
 interface Builder extends PromiseLike<Result> {
   select: (cols?: string) => Builder;
   eq: (col: string, val: unknown) => Builder;
+  is: (col: string, val: unknown) => Builder;
   order: (col: string) => Builder;
   insert: (rows: unknown) => Builder;
   update: (patch: unknown) => Builder;
@@ -40,6 +41,7 @@ function makeBuilder(table: string): Builder {
   const builder: Builder = {
     select: (...args) => (call.ops.push({ method: "select", args }), builder),
     eq: (...args) => (call.ops.push({ method: "eq", args }), builder),
+    is: (...args) => (call.ops.push({ method: "is", args }), builder),
     order: (...args) => (call.ops.push({ method: "order", args }), builder),
     insert: (...args) => (call.ops.push({ method: "insert", args }), builder),
     update: (...args) => (call.ops.push({ method: "update", args }), builder),
@@ -49,8 +51,18 @@ function makeBuilder(table: string): Builder {
   return builder;
 }
 
+/** Queue of results for admin.rpc calls (the atomic OTP increment). */
+let rpcQueue: Result[] = [];
+const rpcCalls: Array<{ fn: string; args: unknown }> = [];
+
 vi.mock("@/lib/supabase/admin", () => ({
-  createAdminClient: () => ({ from: (table: string) => makeBuilder(table) }),
+  createAdminClient: () => ({
+    from: (table: string) => makeBuilder(table),
+    rpc: (fn: string, args: unknown) => {
+      rpcCalls.push({ fn, args });
+      return Promise.resolve(rpcQueue.shift() ?? { data: null, error: null });
+    },
+  }),
 }));
 
 import {
@@ -113,6 +125,8 @@ const rawToken = generateSignToken().raw;
 beforeEach(() => {
   queues = {};
   calls = [];
+  rpcQueue = [];
+  rpcCalls.length = 0;
   sendEmailMock.mockClear();
   logErrorMock.mockClear();
 });
@@ -216,10 +230,14 @@ describe("issueSignOtp", () => {
       kind: string;
       toEmail: string;
       subject: string;
+      bodyText: string;
     };
     expect(emailInput.kind).toBe("proposal_otp");
     expect(emailInput.toEmail).toBe("jordan@eyereg.example");
-    const code = /(\d{6})/.exec(emailInput.subject)?.[1];
+    // The code lives in the BODY only — subjects leak via lock-screen
+    // previews and mail logs.
+    expect(emailInput.subject).not.toMatch(/\d{6}/);
+    const code = /(\d{6})/.exec(emailInput.bodyText)?.[1];
     expect(code).toBeDefined();
     expect(otpUpdate?.otp_code_hash).toBe(hashOtp("tok-1", code!));
   });
@@ -256,46 +274,50 @@ describe("verifySignOtp", () => {
     });
   }
 
-  it("verifies the right code and stamps otp_verified_at", async () => {
+  it("verifies the right code through the ATOMIC attempt increment", async () => {
     queues["proposal_access_tokens"] = [
       { data: tokenWithOtp(), error: null },
-      { data: null, error: null }, // attempts update
       { data: null, error: null }, // verified update
     ];
+    rpcQueue = [{ data: 1, error: null }];
     queues["proposal_events"] = [{ data: null, error: null }];
     const result = await verifySignOtp(rawToken, CODE);
     expect(result).toEqual({ ok: true, value: { verified: true } });
+    expect(rpcCalls[0]).toEqual({
+      fn: "proposal_otp_attempt",
+      args: { p_token_id: "tok-1" },
+    });
   });
 
-  it("rejects a wrong code and counts the attempt", async () => {
-    queues["proposal_access_tokens"] = [
-      { data: tokenWithOtp(), error: null },
-      { data: null, error: null },
-    ];
+  it("rejects a wrong code, burns an attempt, and logs otp_failed evidence", async () => {
+    queues["proposal_access_tokens"] = [{ data: tokenWithOtp(), error: null }];
+    rpcQueue = [{ data: 1, error: null }];
+    queues["proposal_events"] = [{ data: null, error: null }];
     const result = await verifySignOtp(rawToken, "000000");
     expect(result).toEqual({ ok: false, reason: "otp_invalid" });
+    const failEvent = calls.find(
+      (c) => c.table === "proposal_events" && c.ops.some((o) => o.method === "insert"),
+    );
+    expect(failEvent).toBeDefined();
   });
 
-  it("locks out after MAX attempts and logs otp_failed", async () => {
-    queues["proposal_access_tokens"] = [
-      { data: tokenWithOtp({ otp_attempts: MAX_OTP_ATTEMPTS - 1 }), error: null },
-      { data: null, error: null },
-    ];
+  it("reports locked when the wrong guess consumed the final attempt", async () => {
+    queues["proposal_access_tokens"] = [{ data: tokenWithOtp(), error: null }];
+    rpcQueue = [{ data: MAX_OTP_ATTEMPTS, error: null }];
     queues["proposal_events"] = [{ data: null, error: null }];
     const result = await verifySignOtp(rawToken, "000000");
     expect(result).toEqual({ ok: false, reason: "otp_locked" });
-    const lockEvent = calls.find(
-      (c) => c.table === "proposal_events" && c.ops.some((o) => o.method === "insert"),
-    );
-    expect(lockEvent).toBeDefined();
   });
 
-  it("refuses when already locked, expired, or no code issued", async () => {
+  it("locks when the atomic increment returns NULL (budget exhausted — race-proof)", async () => {
     queues["proposal_access_tokens"] = [
       { data: tokenWithOtp({ otp_attempts: MAX_OTP_ATTEMPTS }), error: null },
     ];
+    rpcQueue = [{ data: null, error: null }]; // conditional UPDATE matched no row
     expect(await verifySignOtp(rawToken, CODE)).toEqual({ ok: false, reason: "otp_locked" });
+  });
 
+  it("refuses expired or never-issued codes before burning any attempt", async () => {
     queues["proposal_access_tokens"] = [
       { data: tokenWithOtp({ otp_expires_at: new Date(NOW - 1000).toISOString() }), error: null },
     ];
@@ -303,6 +325,7 @@ describe("verifySignOtp", () => {
 
     queues["proposal_access_tokens"] = [{ data: tokenRow(), error: null }];
     expect(await verifySignOtp(rawToken, CODE)).toEqual({ ok: false, reason: "otp_required" });
+    expect(rpcCalls).toHaveLength(0); // pre-checks never touch the budget
   });
 });
 
@@ -345,10 +368,28 @@ describe("recordSignDecision", () => {
     expect(result).toEqual({ ok: false, reason: "invalid_selection" });
   });
 
+  it("refuses when a concurrent submit already consumed the token (SAL-038)", async () => {
+    queues["proposal_access_tokens"] = [
+      { data: verifiedToken(), error: null },
+      { data: [], error: null }, // conditional consume matched no row
+    ];
+    queues["proposals"] = [{ data: proposalRow(), error: null }];
+    queues["proposal_line_items"] = [{ data: ITEM_ROWS, error: null }];
+    const result = await recordSignDecision(rawToken, decisionInput);
+    expect(result).toEqual({ ok: false, reason: "consumed" });
+    // The race loser must NOT write a second acceptance record.
+    const acceptInsert = calls.find(
+      (c) =>
+        c.table === "proposal_acceptances" &&
+        c.ops.some((o) => o.method === "insert"),
+    );
+    expect(acceptInsert).toBeUndefined();
+  });
+
   it("accepts a subset: server-computed total, snapshot hash, status flip, token consumed", async () => {
     queues["proposal_access_tokens"] = [
       { data: verifiedToken(), error: null },
-      { data: null, error: null }, // consume update
+      { data: [{ id: "tok-1" }], error: null }, // conditional consume wins
     ];
     queues["proposals"] = [
       { data: proposalRow(), error: null },
@@ -395,7 +436,7 @@ describe("recordSignDecision", () => {
   it("records a decline with no selection and null total", async () => {
     queues["proposal_access_tokens"] = [
       { data: verifiedToken(), error: null },
-      { data: null, error: null },
+      { data: [{ id: "tok-1" }], error: null }, // conditional consume wins
     ];
     queues["proposals"] = [
       { data: proposalRow(), error: null },

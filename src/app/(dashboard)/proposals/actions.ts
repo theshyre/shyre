@@ -14,6 +14,7 @@ import { createAdminClient } from "@/lib/supabase/admin";
 import { generateSignToken, TOKEN_TTL_DAYS } from "@/lib/proposals/tokens";
 import { isValidProposalStatusTransition } from "@/lib/proposals/status";
 import { sendProposalEmail } from "@/lib/messaging/send-proposal";
+import { escapeHtml } from "@/lib/messaging/escape-html";
 import { isProposalEditable } from "./allow-lists";
 
 /**
@@ -332,6 +333,11 @@ export async function sendProposalAction(formData: FormData): Promise<void> {
       const signUrl = `${baseUrl}/sign/${raw}`;
       const number = proposal.proposal_number as string;
       const title = proposal.title as string;
+      // User-authored values are HTML-escaped before interpolation — this
+      // email rides the team's VERIFIED domain, so injected markup would
+      // inherit real credibility (see escape-html.ts).
+      const safeTitle = escapeHtml(title);
+      const safeName = escapeHtml((contact.name as string | null) ?? "");
       await sendProposalEmail(admin, {
         teamId: proposal.team_id as string,
         userId,
@@ -339,7 +345,7 @@ export async function sendProposalAction(formData: FormData): Promise<void> {
         kind: "proposal",
         toEmail: contact.email as string,
         subject: `Proposal ${number}: ${title}`,
-        bodyHtml: `<p>Hello ${contact.name ?? ""},</p><p>You have a proposal to review and sign off on: <strong>${title}</strong> (${number}).</p><p><a href="${signUrl}">Review &amp; sign the proposal</a></p><p>You can accept any combination of the line items — the link walks you through it. Before accepting, we'll email you a one-time code to confirm it's you.</p><p>This link expires on ${expiresAt.toISOString().slice(0, 10)}.</p>`,
+        bodyHtml: `<p>Hello ${safeName},</p><p>You have a proposal to review and sign off on: <strong>${safeTitle}</strong> (${number}).</p><p><a href="${signUrl}">Review &amp; sign the proposal</a></p><p>You can accept any combination of the line items — the link walks you through it. Before accepting, we'll email you a one-time code to confirm it's you.</p><p>This link expires on ${expiresAt.toISOString().slice(0, 10)}.</p>`,
         bodyText: `You have a proposal to review and sign off on: ${title} (${number}).\n\nReview & sign: ${signUrl}\n\nYou can accept any combination of the line items. Before accepting, we'll email you a one-time code to confirm it's you.\n\nThis link expires on ${expiresAt.toISOString().slice(0, 10)}.`,
       });
 
@@ -737,6 +743,171 @@ export async function createInvoiceFromProposalAction(
       redirect(`/invoices/${invoiceId}`);
     },
     "createInvoiceFromProposalAction",
+  ) as unknown as void;
+}
+
+/**
+ * Freeze-and-reissue versioning (the invoice void→re-bill doctrine): a sent
+ * proposal's content is immutable, so a revision is a NEW draft that copies
+ * the document, bumps `version_number`, and links `supersedes_proposal_id`.
+ * The old sent/viewed proposal flips to `superseded` and its outstanding sign
+ * links are revoked — the old URL dies the moment a replacement exists. A
+ * declined source stays `declined` (its own terminal record) but still links.
+ * Signed work (accepted/converted) is never superseded — that's a new deal.
+ */
+export async function createProposalVersionAction(
+  formData: FormData,
+): Promise<void> {
+  return runSafeAction(
+    formData,
+    async (formData, { supabase, userId }) => {
+      const proposalId = formData.get("id") as string;
+      if (!proposalId) throw new Error("Missing proposal id.");
+
+      const { data: source } = await supabase
+        .from("proposals")
+        .select("*")
+        .eq("id", proposalId)
+        .single();
+      if (!source) throw new Error("Proposal not found.");
+      await requireTeamAdmin(source.team_id as string);
+
+      const sourceStatus = (source.status as string) ?? "";
+      const canSupersede = isValidProposalStatusTransition(
+        sourceStatus,
+        "superseded",
+      );
+      if (sourceStatus === "draft") {
+        throw AppError.refusal(
+          "A draft is still editable — edit it directly instead of versioning.",
+        );
+      }
+      if (!canSupersede && sourceStatus !== "declined") {
+        throw AppError.refusal(
+          "Signed proposals can't be revised — draft a new proposal for the follow-on work.",
+        );
+      }
+
+      const { data: settings } = await supabase
+        .from("team_settings")
+        .select("proposal_prefix, proposal_next_num")
+        .eq("team_id", source.team_id as string)
+        .single();
+      const prefix = settings?.proposal_prefix ?? "PROP";
+      const nextNum = settings?.proposal_next_num ?? 1;
+
+      const { data: created, error } = await supabase
+        .from("proposals")
+        .insert({
+          team_id: source.team_id,
+          user_id: userId,
+          customer_id: source.customer_id,
+          signer_contact_id: source.signer_contact_id,
+          proposal_number: generateInvoiceNumber(prefix, nextNum),
+          title: source.title,
+          // Fresh issue date (DB default = today); the validity window is
+          // copied for the author to adjust in the new draft.
+          valid_until: source.valid_until,
+          payment_terms_days: source.payment_terms_days,
+          payment_terms_label: source.payment_terms_label,
+          deposit_type: source.deposit_type,
+          deposit_value: source.deposit_value,
+          warranty_days: source.warranty_days,
+          terms_notes: source.terms_notes,
+          currency: source.currency,
+          version_number: ((source.version_number as number) ?? 1) + 1,
+          supersedes_proposal_id: proposalId,
+        })
+        .select("id")
+        .single();
+      assertSupabaseOk({ data: created, error });
+      const newId = (created as { id: string }).id;
+
+      // Copy the item tree (parents first, then phases remapped).
+      const { data: itemRows } = await supabase
+        .from("proposal_line_items")
+        .select(
+          "id, parent_line_item_id, sort_order, title, description, why_it_matters, out_of_scope, definition_of_done, fixed_price, is_capped",
+        )
+        .eq("proposal_id", proposalId)
+        .order("sort_order");
+      const rows = (itemRows ?? []) as Array<Record<string, unknown>>;
+      const parents = rows.filter((r) => r.parent_line_item_id === null);
+      if (parents.length > 0) {
+        const { data: newParents, error: parentError } = await supabase
+          .from("proposal_line_items")
+          .insert(
+            parents.map((r, i) => ({
+              proposal_id: newId,
+              team_id: source.team_id,
+              parent_line_item_id: null,
+              sort_order: i,
+              title: r.title,
+              description: r.description,
+              why_it_matters: r.why_it_matters,
+              out_of_scope: r.out_of_scope,
+              definition_of_done: r.definition_of_done,
+              fixed_price: r.fixed_price,
+              is_capped: r.is_capped,
+            })),
+          )
+          .select("id");
+        assertSupabaseOk({ data: newParents, error: parentError });
+        const phaseRows = parents.flatMap((parent, i) =>
+          rows
+            .filter((r) => r.parent_line_item_id === parent.id)
+            .map((phase, j) => ({
+              proposal_id: newId,
+              team_id: source.team_id,
+              parent_line_item_id: (newParents as Array<{ id: string }>)[i]!.id,
+              sort_order: j,
+              title: phase.title,
+              description: phase.description,
+              fixed_price: phase.fixed_price,
+              is_capped: false,
+            })),
+        );
+        if (phaseRows.length > 0) {
+          assertSupabaseOk(
+            await supabase.from("proposal_line_items").insert(phaseRows),
+          );
+        }
+      }
+
+      const admin = createAdminClient();
+      if (canSupersede) {
+        // Kill the live document: status flip + revoke outstanding links.
+        assertSupabaseOk(
+          await supabase
+            .from("proposals")
+            .update({ status: "superseded" })
+            .eq("id", proposalId),
+        );
+        await admin
+          .from("proposal_access_tokens")
+          .update({ revoked_at: new Date().toISOString() })
+          .eq("proposal_id", proposalId)
+          .is("revoked_at", null);
+      }
+      await admin.from("proposal_events").insert({
+        proposal_id: proposalId,
+        team_id: source.team_id,
+        event_type: "superseded",
+        actor_user_id: userId,
+        actor_label: null,
+        metadata: { new_proposal_id: newId },
+      });
+
+      await supabase
+        .from("team_settings")
+        .update({ proposal_next_num: nextNum + 1 })
+        .eq("team_id", source.team_id as string);
+
+      revalidatePath("/proposals");
+      revalidatePath(`/proposals/${proposalId}`);
+      redirect(`/proposals/${newId}/edit`);
+    },
+    "createProposalVersionAction",
   ) as unknown as void;
 }
 

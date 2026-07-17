@@ -100,6 +100,8 @@ A handful of tables are **business-scoped** (a Business owns 1+ Teams) — see "
 
 Send-locks: `trg_guard_proposals_send_lock` / `trg_guard_pli_send_lock` freeze content (default-deny jsonb strip-list) once a proposal leaves `draft`; lifecycle columns and P3's convert/billing stamps stay writable. The `/sign/<token>` route is exempted from the auth middleware — see SAL-036 for the full public-surface posture.
 
+P4 hardening (`20260716170000_proposals_p4_hardening.sql`): `proposal_otp_attempt(token_id)` — the ATOMIC OTP attempt increment (SAL-037; keep the hardcoded 5 in lockstep with `MAX_OTP_ATTEMPTS`); `uq_proposal_acceptances_proposal` — one decision record per proposal (SAL-038); statement-level `trg_z_pli_phase_sums_*` triggers — every phased item's phases must sum exactly to its fixed price (DB backstop over the action-layer rule).
+
 ## Messaging / outbox (per-team email pipeline)
 
 | Table | Purpose |

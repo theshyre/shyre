@@ -102,6 +102,10 @@ interface Props {
   initial?: ProposalFormInitial;
 }
 
+/** Proposals are USD-only in v1 (DB default, no picker) — one constant so a
+ *  future currency column threads through a single point. */
+const FORM_CURRENCY = "USD";
+
 /** Money input string → validated dollars. Empty is $0 (a free line item is
  *  legal); non-numeric garbage maps to -1 so the shared domain validator
  *  reports `priceInvalid` on the right field instead of a raw zod message. */
@@ -194,9 +198,11 @@ export function ProposalForm({
     buildInitialItems(initial),
   );
 
-  // ---- selection preview (which items the client might check)
-  const [previewSelected, setPreviewSelected] = useState<Set<number>>(
-    () => new Set((initial?.items ?? [0]).map((_, i) => i)),
+  // ---- selection preview (which items the client might check). Keyed by
+  // the item's STABLE key, never its index — removing a middle row must not
+  // silently shift the checked state (and the money total) onto neighbors.
+  const [previewSelected, setPreviewSelected] = useState<Set<string>>(
+    () => new Set((initial?.items ?? [0]).map((_, i) => `init-${i}`)),
   );
 
   const patchItem = useCallback(
@@ -331,7 +337,12 @@ export function ProposalForm({
     (c) => c.customer_id === customerId,
   );
   const total = proposalTotal(domainItems);
-  const previewTotal = selectedTotal(domainItems, [...previewSelected]);
+  const previewTotal = selectedTotal(
+    domainItems,
+    items
+      .map((item, i) => (previewSelected.has(item.key) ? i : -1))
+      .filter((i) => i >= 0),
+  );
 
   return (
     <form
@@ -399,6 +410,9 @@ export function ProposalForm({
                 setSignerId("");
               }}
               required
+              aria-describedby={
+                errorFor("customer_id") ? "pf-customer-error" : undefined
+              }
             >
               <option value="">{t("customerPlaceholder")}</option>
               {teamCustomers.map((c) => (
@@ -407,7 +421,7 @@ export function ProposalForm({
                 </option>
               ))}
             </select>
-            <FieldError error={errorFor("customer_id")} />
+            <FieldError id="pf-customer-error" error={errorFor("customer_id")} />
           </div>
           <div>
             <label htmlFor="pf-signer" className={labelClass}>
@@ -455,7 +469,7 @@ export function ProposalForm({
               onChange={setValidUntil}
               min={issuedDate || undefined}
             />
-            <FieldError error={errorFor("valid_until")} />
+            <FieldError id="pf-valid-until-error" error={errorFor("valid_until")} />
           </div>
         </div>
       </section>
@@ -495,8 +509,16 @@ export function ProposalForm({
                       onChange={(e) =>
                         patchItem(item.key, { title: e.target.value })
                       }
+                      aria-describedby={
+                        errorFor(`items.${i}.title`)
+                          ? `pf-item-title-err-${item.key}`
+                          : undefined
+                      }
                     />
-                    <FieldError error={errorFor(`items.${i}.title`)} />
+                    <FieldError
+                      id={`pf-item-title-err-${item.key}`}
+                      error={errorFor(`items.${i}.title`)}
+                    />
                   </div>
                   <div className="w-[140px]">
                     <label
@@ -516,8 +538,16 @@ export function ProposalForm({
                       onChange={(e) =>
                         patchItem(item.key, { fixedPrice: e.target.value })
                       }
+                      aria-describedby={
+                        errorFor(`items.${i}.fixedPrice`)
+                          ? `pf-item-price-err-${item.key}`
+                          : undefined
+                      }
                     />
-                    <FieldError error={errorFor(`items.${i}.fixedPrice`)} />
+                    <FieldError
+                      id={`pf-item-price-err-${item.key}`}
+                      error={errorFor(`items.${i}.fixedPrice`)}
+                    />
                   </div>
                   {items.length > 1 && (
                     <button
@@ -611,33 +641,55 @@ export function ProposalForm({
                 {/* phases */}
                 <div className="mt-3 border-t border-edge pt-3">
                   {item.phases.map((phase, j) => (
-                    <div key={phase.key} className="mb-2 flex items-center gap-3">
-                      <input
-                        className={`${inputClass} flex-1`}
-                        placeholder={t("phaseTitle")}
-                        aria-label={t("phaseTitle")}
-                        value={phase.title}
-                        onChange={(e) =>
-                          patchPhase(item.key, phase.key, {
-                            title: e.target.value,
-                          })
-                        }
-                      />
-                      <input
-                        className={`${inputClass} w-[140px]`}
-                        type="number"
-                        min="0"
-                        step="0.01"
-                        inputMode="decimal"
-                        placeholder="0.00"
-                        aria-label={t("phasePrice")}
-                        value={phase.fixedPrice}
-                        onChange={(e) =>
-                          patchPhase(item.key, phase.key, {
-                            fixedPrice: e.target.value,
-                          })
-                        }
-                      />
+                    <div key={phase.key} className="mb-2 flex items-start gap-3">
+                      <div className="flex-1">
+                        <input
+                          className={inputClass}
+                          placeholder={t("phaseTitle")}
+                          aria-label={t("phaseTitle")}
+                          value={phase.title}
+                          onChange={(e) =>
+                            patchPhase(item.key, phase.key, {
+                              title: e.target.value,
+                            })
+                          }
+                          aria-describedby={
+                            errorFor(`items.${i}.phases.${j}.title`)
+                              ? `pf-phase-title-err-${phase.key}`
+                              : undefined
+                          }
+                        />
+                        <FieldError
+                          id={`pf-phase-title-err-${phase.key}`}
+                          error={errorFor(`items.${i}.phases.${j}.title`)}
+                        />
+                      </div>
+                      <div className="w-[140px]">
+                        <input
+                          className={inputClass}
+                          type="number"
+                          min="0"
+                          step="0.01"
+                          inputMode="decimal"
+                          placeholder="0.00"
+                          aria-label={t("phasePrice")}
+                          value={phase.fixedPrice}
+                          onChange={(e) =>
+                            patchPhase(item.key, phase.key, {
+                              fixedPrice: e.target.value,
+                            })
+                          }
+                          aria-describedby={
+                            errorFor(`items.${i}.phases.${j}.fixedPrice`)
+                              ? `pf-phase-price-err-${phase.key}`
+                              : undefined
+                          }
+                        />
+                        <FieldError
+                          id={`pf-phase-price-err-${phase.key}`}
+                          error={errorFor(`items.${i}.phases.${j}.fixedPrice`)}
+                        />
+                      </div>
                       <button
                         type="button"
                         className={`${buttonGhostClass} shrink-0 px-2 text-error`}
@@ -652,12 +704,6 @@ export function ProposalForm({
                       >
                         <Trash2 size={14} aria-hidden="true" />
                       </button>
-                      <FieldError
-                        error={errorFor(`items.${i}.phases.${j}.title`)}
-                      />
-                      <FieldError
-                        error={errorFor(`items.${i}.phases.${j}.fixedPrice`)}
-                      />
                     </div>
                   ))}
 
@@ -701,7 +747,6 @@ export function ProposalForm({
                           className={`inline-flex items-center gap-1 text-caption ${
                             phasesMatch ? "text-success-text" : "text-error"
                           }`}
-                          role="status"
                         >
                           {phasesMatch ? (
                             <CheckCircle2 size={12} aria-hidden="true" />
@@ -713,9 +758,9 @@ export function ProposalForm({
                             : t("phasesMismatch", {
                                 expected: formatCurrency(
                                   Math.max(target, 0),
-                                  "USD",
+                                  FORM_CURRENCY,
                                 ),
-                                actual: formatCurrency(Math.max(sum, 0), "USD"),
+                                actual: formatCurrency(Math.max(sum, 0), FORM_CURRENCY),
                               })}
                         </span>
                       </>
@@ -731,11 +776,12 @@ export function ProposalForm({
         <button
           type="button"
           className={`${buttonSecondaryClass} mt-3`}
-          onClick={() =>
+          onClick={() => {
+            const key = nextKey();
             setItems((prev) => [
               ...prev,
               {
-                key: nextKey(),
+                key,
                 title: "",
                 fixedPrice: "",
                 description: "",
@@ -745,8 +791,11 @@ export function ProposalForm({
                 isCapped: false,
                 phases: [],
               },
-            ])
-          }
+            ]);
+            // New items start SELECTED in the preview — matching the initial
+            // state, so the preview total never silently under-reports.
+            setPreviewSelected((prev) => new Set(prev).add(key));
+          }}
         >
           <Plus size={16} aria-hidden="true" />
           {t("addItem")}
@@ -767,12 +816,12 @@ export function ProposalForm({
               <label className="flex items-center gap-2 text-body text-content">
                 <input
                   type="checkbox"
-                  checked={previewSelected.has(i)}
+                  checked={previewSelected.has(item.key)}
                   onChange={(e) => {
                     setPreviewSelected((prev) => {
                       const next = new Set(prev);
-                      if (e.target.checked) next.add(i);
-                      else next.delete(i);
+                      if (e.target.checked) next.add(item.key);
+                      else next.delete(item.key);
                       return next;
                     });
                   }}
@@ -781,7 +830,7 @@ export function ProposalForm({
                   {item.title.trim() || t("untitledItem", { n: i + 1 })}
                 </span>
                 <span className="font-mono text-caption">
-                  {formatCurrency(Math.max(parseMoney(item.fixedPrice), 0), "USD")}
+                  {formatCurrency(Math.max(parseMoney(item.fixedPrice), 0), FORM_CURRENCY)}
                 </span>
               </label>
             </li>
@@ -792,12 +841,12 @@ export function ProposalForm({
             {t("previewSelectedTotal")}
           </span>
           <span className="font-mono font-semibold text-content">
-            {formatCurrency(previewTotal, "USD")}
+            {formatCurrency(previewTotal, FORM_CURRENCY)}
           </span>
         </div>
         <div className="mt-1 flex justify-between text-caption text-content-secondary">
           <span>{t("previewFullTotal")}</span>
-          <span className="font-mono">{formatCurrency(total, "USD")}</span>
+          <span className="font-mono">{formatCurrency(total, FORM_CURRENCY)}</span>
         </div>
       </section>
 
@@ -847,8 +896,11 @@ export function ProposalForm({
                 inputMode="decimal"
                 value={depositValue}
                 onChange={(e) => setDepositValue(e.target.value)}
+                aria-describedby={
+                  errorFor("deposit_value") ? "pf-deposit-value-error" : undefined
+                }
               />
-              <FieldError error={errorFor("deposit_value")} />
+              <FieldError id="pf-deposit-value-error" error={errorFor("deposit_value")} />
             </div>
           )}
           <div>
@@ -864,8 +916,11 @@ export function ProposalForm({
               inputMode="numeric"
               value={warrantyDays}
               onChange={(e) => setWarrantyDays(e.target.value)}
+              aria-describedby={
+                errorFor("warranty_days") ? "pf-warranty-error" : undefined
+              }
             />
-            <FieldError error={errorFor("warranty_days")} />
+            <FieldError id="pf-warranty-error" error={errorFor("warranty_days")} />
           </div>
         </div>
 
@@ -885,7 +940,11 @@ export function ProposalForm({
 
       {/* ---- footer ---- */}
       {serverError && (
-        <p role="alert" className="text-body text-error">
+        <p
+          role="alert"
+          className="flex items-center gap-1 text-body text-error"
+        >
+          <TriangleAlert size={14} aria-hidden="true" />
           {serverError}
         </p>
       )}
@@ -897,15 +956,18 @@ export function ProposalForm({
         <kbd className={kbdClass} aria-hidden="true">
           ⌘↵
         </kbd>
-        <Link
-          href={initial ? `/proposals/${initial.proposalId}` : "/proposals"}
-          className={`${buttonSecondaryClass} ${
-            pending ? "pointer-events-none opacity-50" : ""
-          }`}
-          aria-disabled={pending}
-        >
-          {t("cancel")}
-        </Link>
+        {pending ? (
+          <span className={`${buttonSecondaryClass} opacity-50`} aria-disabled="true">
+            {t("cancel")}
+          </span>
+        ) : (
+          <Link
+            href={initial ? `/proposals/${initial.proposalId}` : "/proposals"}
+            className={buttonSecondaryClass}
+          >
+            {t("cancel")}
+          </Link>
+        )}
       </div>
     </form>
   );
