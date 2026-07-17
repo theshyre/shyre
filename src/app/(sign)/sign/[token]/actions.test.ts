@@ -15,9 +15,13 @@ vi.mock("@/lib/logger", () => ({
 }));
 
 let headerMap: Map<string, string>;
+const cookieSetMock = vi.fn();
 vi.mock("next/headers", () => ({
   headers: async () => ({
     get: (key: string) => headerMap.get(key) ?? null,
+  }),
+  cookies: async () => ({
+    set: (...args: unknown[]) => cookieSetMock(...args),
   }),
 }));
 
@@ -34,6 +38,7 @@ beforeEach(() => {
   verifyMock.mockReset();
   decideMock.mockReset();
   logErrorMock.mockReset();
+  cookieSetMock.mockReset();
   headerMap = new Map([
     ["x-forwarded-for", "203.0.113.5, 10.0.0.1"],
     ["user-agent", "vitest-agent"],
@@ -88,10 +93,31 @@ describe("verifySignOtpAction", () => {
     expect(verifyMock).not.toHaveBeenCalled();
   });
 
-  it("verifies well-formed codes", async () => {
-    verifyMock.mockResolvedValue({ ok: true, value: { verified: true } });
+  it("verifies well-formed codes and sets the httpOnly view-session cookie", async () => {
+    verifyMock.mockResolvedValue({
+      ok: true,
+      value: { verified: true, viewSession: "sess-secret-value" },
+    });
     expect(await verifySignOtpAction(TOKEN, "123456")).toEqual({ ok: true });
     expect(verifyMock).toHaveBeenCalledWith(TOKEN, "123456");
+    // SAL-045: the browser's view session is set as an httpOnly, /sign-scoped
+    // cookie carrying the raw secret the service handed back.
+    expect(cookieSetMock).toHaveBeenCalledTimes(1);
+    const [name, value, opts] = cookieSetMock.mock.calls[0]!;
+    expect(name).toMatch(/^sv_/);
+    expect(value).toBe("sess-secret-value");
+    expect((opts as { httpOnly?: boolean }).httpOnly).toBe(true);
+    expect((opts as { sameSite?: string }).sameSite).toBe("lax");
+    expect((opts as { path?: string }).path).toBe("/sign");
+  });
+
+  it("sets no cookie when verification fails", async () => {
+    verifyMock.mockResolvedValue({ ok: false, reason: "otp_invalid" });
+    expect(await verifySignOtpAction(TOKEN, "123456")).toEqual({
+      ok: false,
+      reason: "otp_invalid",
+    });
+    expect(cookieSetMock).not.toHaveBeenCalled();
   });
 });
 

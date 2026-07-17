@@ -141,10 +141,14 @@ revisions become a new version.
 
 On the signing page the client:
 
-1. Reviews the full document (items, phases, terms, prices).
-2. Requests a **one-time code**, emailed to them, and enters it — this proves
-   they control the signer's inbox at the moment of acceptance (5 attempts,
-   10-minute expiry, re-sendable after a minute).
+1. **Verifies their identity first.** The link alone shows only your brand and
+   an identity check — no pricing or scope. They request a **one-time code**,
+   emailed to the signer's address, and enter it (5 attempts, 10-minute expiry,
+   re-sendable after a minute). This gates *viewing*, not just signing: a
+   forwarded link on a device that never enters the code can't read the
+   document. After verifying, the browser stays "in" for 24 hours; opening the
+   link fresh (or on another device) prompts for a new code.
+2. Reviews the full document (items, phases, terms, prices).
 3. **Checks the line items they authorize** — any combination; the accepted
    total updates live.
 4. Types their name, title, and signature, then **Accepts** (or declines).

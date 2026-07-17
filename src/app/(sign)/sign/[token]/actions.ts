@@ -1,6 +1,6 @@
 "use server";
 
-import { headers } from "next/headers";
+import { headers, cookies } from "next/headers";
 import { logError } from "@/lib/logger";
 import {
   issueSignOtp,
@@ -8,6 +8,10 @@ import {
   recordSignDecision,
   type SignFailReason,
 } from "@/lib/proposals/sign-service";
+import {
+  viewSessionCookieName,
+  VIEW_SESSION_TTL_HOURS,
+} from "@/lib/proposals/tokens";
 
 /**
  * PUBLIC server actions for the sign-off page (SAL-036). There is no session
@@ -56,7 +60,20 @@ export async function verifySignOtpAction(
   }
   try {
     const result = await verifySignOtp(token, code);
-    return result.ok ? { ok: true } : { ok: false, reason: result.reason };
+    if (!result.ok) return { ok: false, reason: result.reason };
+    // Set the browser's view session (SAL-045). httpOnly so client JS can't
+    // read it; scoped to /sign; lifetime matches the server-side session hash.
+    // A verified browser now views the proposal; a forwarded link (no cookie)
+    // stays at the identity gate.
+    const cookieStore = await cookies();
+    cookieStore.set(viewSessionCookieName(token), result.value.viewSession, {
+      httpOnly: true,
+      secure: process.env.NODE_ENV === "production",
+      sameSite: "lax",
+      path: "/sign",
+      maxAge: VIEW_SESSION_TTL_HOURS * 3600,
+    });
+    return { ok: true };
   } catch (err) {
     logError(err, { action: "verifySignOtpAction" });
     return { ok: false, reason: "error" };
