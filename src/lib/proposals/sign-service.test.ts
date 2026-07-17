@@ -166,7 +166,9 @@ describe("loadSignBundle", () => {
 
   it("builds the bundle with the top-level item tree", async () => {
     queues["proposal_access_tokens"] = [{ data: tokenRow(), error: null }];
-    queues["proposals"] = [{ data: proposalRow(), error: null }];
+    queues["proposals"] = [
+      { data: proposalRow({ sign_theme: "dark" }), error: null },
+    ];
     queues["team_settings"] = [{ data: { business_name: "Malcom IO" }, error: null }];
     queues["proposal_line_items"] = [{ data: ITEM_ROWS, error: null }];
 
@@ -174,6 +176,7 @@ describe("loadSignBundle", () => {
     expect(result.ok).toBe(true);
     if (!result.ok) return;
     expect(result.value.items).toHaveLength(2);
+    expect(result.value.signTheme).toBe("dark");
     expect(result.value.items[1]).toMatchObject({
       id: "li-2",
       fixedPrice: 4000,
@@ -813,11 +816,35 @@ describe("loadSignGate (SAL-045 identity gate)", () => {
     if (result.ok) expect(result.value.decided).toBe(true);
   });
 
-  it("does NOT read any proposal content at the gate", async () => {
+  it("reads no proposal CONTENT at the gate — only the pinned theme colour", async () => {
     queues["proposal_access_tokens"] = [{ data: tokenRow(), error: null }];
     queues["team_settings"] = [brandRow];
+    queues["proposals"] = [{ data: { sign_theme: "light" }, error: null }];
     await loadSignGate(rawToken, null);
+    // The pricing/scope (line items) never loads at the gate.
     expect(calls.some((c) => c.table === "proposal_line_items")).toBe(false);
-    expect(calls.some((c) => c.table === "proposals")).toBe(false);
+    // The only column read from `proposals` is the theme — never content.
+    const proposalSelects = calls
+      .filter((c) => c.table === "proposals")
+      .flatMap((c) => c.ops)
+      .filter((o) => o.method === "select")
+      .map((o) => o.args[0]);
+    for (const cols of proposalSelects) {
+      expect(cols).toBe("sign_theme");
+    }
+  });
+
+  it("returns the author-pinned theme, defaulting a bad value to light", async () => {
+    queues["proposal_access_tokens"] = [{ data: tokenRow(), error: null }];
+    queues["team_settings"] = [brandRow];
+    queues["proposals"] = [{ data: { sign_theme: "warm" }, error: null }];
+    const warm = await loadSignGate(rawToken, null);
+    if (warm.ok) expect(warm.value.signTheme).toBe("warm");
+
+    queues["proposal_access_tokens"] = [{ data: tokenRow(), error: null }];
+    queues["team_settings"] = [brandRow];
+    queues["proposals"] = [{ data: { sign_theme: "neon" }, error: null }];
+    const bad = await loadSignGate(rawToken, null);
+    if (bad.ok) expect(bad.value.signTheme).toBe("light");
   });
 });

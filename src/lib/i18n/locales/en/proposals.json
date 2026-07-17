@@ -91,7 +91,14 @@
     "itemSummary": "What it does for you",
     "itemSummaryPlaceholder": "A one-line benefit — shown in the summary table at the top.",
     "itemSummaryHint": "Optional. A concise line for the at-a-glance summary table.",
-    "phaseDescription": "Phase note (optional)"
+    "phaseDescription": "Phase note (optional)",
+    "appearanceHeading": "Sign page appearance",
+    "appearanceHint": "The color theme your client sees on the sign page and preview. Light reads best for a formal document and won't follow their device's dark mode.",
+    "signTheme": {
+      "light": "Light",
+      "dark": "Dark",
+      "warm": "Warm"
+    }
   },
   "validation": {
     "itemsRequired": "Add at least one line item",

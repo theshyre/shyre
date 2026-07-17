@@ -3,7 +3,11 @@ import { notFound, redirect } from "next/navigation";
 import { getTranslations } from "next-intl/server";
 import { createClient } from "@/lib/supabase/server";
 import { getUserTeams, isTeamAdmin } from "@/lib/team-context";
-import { isProposalEditable, type DepositType } from "../../allow-lists";
+import {
+  isProposalEditable,
+  resolveSignTheme,
+  type DepositType,
+} from "../../allow-lists";
 import {
   ProposalForm,
   type ProposalFormInitial,
@@ -127,6 +131,7 @@ export default async function EditProposalPage({
     warranty_days: (proposal.warranty_days as number | null) ?? null,
     terms_notes: (proposal.terms_notes as string | null) ?? null,
     overview_markdown: (proposal.overview_markdown as string | null) ?? null,
+    sign_theme: resolveSignTheme(proposal.sign_theme),
     items: parents.map((parent) => ({
       title: parent.title,
       summary: parent.summary ?? null,

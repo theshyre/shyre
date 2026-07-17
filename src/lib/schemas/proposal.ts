@@ -3,7 +3,10 @@ import {
   validateProposalItems,
   MAX_MONEY,
 } from "@/lib/proposals/line-items";
-import { DEPOSIT_TYPES } from "@/app/(dashboard)/proposals/allow-lists";
+import {
+  DEPOSIT_TYPES,
+  SIGN_THEMES,
+} from "@/app/(dashboard)/proposals/allow-lists";
 
 const ymd = /^\d{4}-\d{2}-\d{2}$/;
 
@@ -58,6 +61,8 @@ const proposalFields = {
   terms_notes: z.string().max(10000).optional().nullable(),
   // Optional proposal-level intro/summary (markdown), shown above the items.
   overview_markdown: z.string().max(20000).optional().nullable(),
+  // Color theme the client sees on the sign page + preview (default light).
+  sign_theme: z.enum(SIGN_THEMES).optional().default("light"),
   items: z.array(itemSchema).max(50),
 } as const;
 

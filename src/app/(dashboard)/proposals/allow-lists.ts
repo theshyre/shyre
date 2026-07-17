@@ -102,3 +102,30 @@ export const SIGNING_MODES = ["first", "all"] as const;
 export type SigningMode = (typeof SIGNING_MODES)[number];
 
 export const ALLOWED_SIGNING_MODES = new Set<string>(SIGNING_MODES);
+
+/**
+ * `proposals.sign_theme` — the color theme the CLIENT sees on the public sign
+ * page + the internal preview, pinned by the author when drafting (default
+ * `light`). A client-facing document should look consistent — like the PDF —
+ * not follow each recipient's OS dark/light preference. Limited to the three
+ * aesthetic themes; `high-contrast` is a viewer-side a11y setting, not a
+ * document brand choice, and `system` is exactly the per-client drift we're
+ * pinning away from. Mirrored by the CHECK in
+ * `20260717200000_proposals_sign_theme.sql`.
+ */
+export const SIGN_THEMES = ["light", "dark", "warm"] as const;
+
+export type SignTheme = (typeof SIGN_THEMES)[number];
+
+export const ALLOWED_SIGN_THEMES = new Set<string>(SIGN_THEMES);
+
+/** Fallback when the column is absent (pre-migration) or holds a stale value. */
+export const DEFAULT_SIGN_THEME: SignTheme = "light";
+
+/** Coerce a stored/loaded `sign_theme` to a known value, defaulting to light —
+ *  a bad or absent value must never break the client-facing render. */
+export function resolveSignTheme(value: unknown): SignTheme {
+  return typeof value === "string" && ALLOWED_SIGN_THEMES.has(value)
+    ? (value as SignTheme)
+    : DEFAULT_SIGN_THEME;
+}

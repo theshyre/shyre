@@ -29,6 +29,7 @@ function info(overrides: Partial<SignGateInfo> = {}): SignGateInfo {
     maskedEmail: "jo•••@eyereg.example",
     otpPending: false,
     decided: false,
+    signTheme: "light",
     ...overrides,
   };
 }

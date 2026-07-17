@@ -117,6 +117,17 @@ authorize.
 Uploaded logos are stored per-team and are only writable by that team's owners
 and admins; see SAL-041 for the storage posture.
 
+### Sign-page theme
+
+Each proposal has a **Sign page appearance** control (in the draft form) that
+pins the color theme the client sees — **Light** (the default), **Dark**, or
+**Warm**. A proposal is a formal, client-facing document, so it renders in the
+theme you choose rather than following each recipient's device dark/light
+setting; a client on a dark-mode phone still sees the light document you
+designed. The picker shows a live swatch of each theme, and the **Preview**
+reflects your choice. New versions inherit the theme of the proposal they
+replace.
+
 ### Customer co-branding
 
 A proposal is a document *from* your team *to* a customer, so both sides can
