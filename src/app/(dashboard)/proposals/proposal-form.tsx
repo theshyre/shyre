@@ -6,6 +6,7 @@ import { useTranslations } from "next-intl";
 import { Plus, Trash2, TriangleAlert, CheckCircle2 } from "lucide-react";
 import { SubmitButton } from "@/components/SubmitButton";
 import { FieldError } from "@/components/FieldError";
+import { AutoTextarea } from "@/components/AutoTextarea";
 import { DateField } from "@/components/DateField";
 import { PaymentTermsField } from "@/components/PaymentTermsField";
 import { useFormAction } from "@/hooks/use-form-action";
@@ -573,10 +574,10 @@ export function ProposalForm({
                     >
                       {t("itemDescription")}
                     </label>
-                    <textarea
+                    <AutoTextarea
                       id={`pf-item-desc-${item.key}`}
                       className={inputClass}
-                      rows={2}
+                      minRows={2}
                       value={item.description}
                       onChange={(e) =>
                         patchItem(item.key, { description: e.target.value })
@@ -590,10 +591,10 @@ export function ProposalForm({
                     >
                       {t("itemWhy")}
                     </label>
-                    <textarea
+                    <AutoTextarea
                       id={`pf-item-why-${item.key}`}
                       className={inputClass}
-                      rows={2}
+                      minRows={2}
                       value={item.whyItMatters}
                       onChange={(e) =>
                         patchItem(item.key, { whyItMatters: e.target.value })
@@ -607,10 +608,10 @@ export function ProposalForm({
                     >
                       {t("itemOutOfScope")}
                     </label>
-                    <textarea
+                    <AutoTextarea
                       id={`pf-item-oos-${item.key}`}
                       className={inputClass}
-                      rows={2}
+                      minRows={2}
                       value={item.outOfScope}
                       onChange={(e) =>
                         patchItem(item.key, { outOfScope: e.target.value })
@@ -624,10 +625,10 @@ export function ProposalForm({
                     >
                       {t("itemDoD")}
                     </label>
-                    <textarea
+                    <AutoTextarea
                       id={`pf-item-dod-${item.key}`}
                       className={inputClass}
-                      rows={2}
+                      minRows={2}
                       value={item.definitionOfDone}
                       onChange={(e) =>
                         patchItem(item.key, {
@@ -928,10 +929,10 @@ export function ProposalForm({
           <label htmlFor="pf-terms-notes" className={labelClass}>
             {t("termsNotes")}
           </label>
-          <textarea
+          <AutoTextarea
             id="pf-terms-notes"
             className={inputClass}
-            rows={3}
+            minRows={3}
             value={termsNotes}
             onChange={(e) => setTermsNotes(e.target.value)}
           />
