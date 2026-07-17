@@ -81,6 +81,18 @@ describe("ProposalPDF", () => {
     expect(html).toContain("Attn: Jordan Chen");
   });
 
+  it("prints a signature column per signer for a multi-signer proposal", () => {
+    const multi = textOf(
+      <ProposalPDF
+        {...baseProps}
+        signerNames={["Bret Andre", "Mijeong Andre"]}
+      />,
+    );
+    expect(multi).toContain("Bret Andre");
+    expect(multi).toContain("Mijeong Andre");
+    expect(multi).toContain("Provider");
+  });
+
   it("renders dates without timezone drift", () => {
     expect(html).toContain("07/16/2026");
     expect(html).toContain("08/15/2026");

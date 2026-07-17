@@ -400,6 +400,10 @@ export interface ProposalPDFProps {
   };
   /** Intended signer's display name, printed under the client block. */
   signerName?: string | null;
+  /** Multi-signer roster names — when 2+, the acceptance block prints a
+   *  signature column per signer (titled with their name) instead of a single
+   *  generic "Client" column. */
+  signerNames?: string[];
   items: ProposalPDFItem[];
 }
 
@@ -697,15 +701,23 @@ export function ProposalPDF(props: ProposalPDFProps): React.JSX.Element {
             shown, under the terms above.
           </Text>
           <View style={styles.signatureRow}>
-            <View style={styles.signatureCol}>
-              <Text style={styles.signatureColTitle}>Client</Text>
-              <View style={styles.signatureLine} />
-              <Text style={styles.signatureCaption}>Signature</Text>
-              <View style={styles.signatureLine} />
-              <Text style={styles.signatureCaption}>Name / Title</Text>
-              <View style={styles.signatureLine} />
-              <Text style={styles.signatureCaption}>Date</Text>
-            </View>
+            {/* A multi-signer proposal (2+ roster names) prints a signature
+                column per signer, titled with their name; otherwise a single
+                generic "Client" column. Provider always closes the row. */}
+            {(props.signerNames && props.signerNames.length >= 2
+              ? props.signerNames
+              : ["Client"]
+            ).map((title, i) => (
+              <View key={`sig-client-${i}`} style={styles.signatureCol}>
+                <Text style={styles.signatureColTitle}>{title}</Text>
+                <View style={styles.signatureLine} />
+                <Text style={styles.signatureCaption}>Signature</Text>
+                <View style={styles.signatureLine} />
+                <Text style={styles.signatureCaption}>Name / Title</Text>
+                <View style={styles.signatureLine} />
+                <Text style={styles.signatureCaption}>Date</Text>
+              </View>
+            ))}
             <View style={styles.signatureCol}>
               <Text style={styles.signatureColTitle}>Provider</Text>
               <View style={styles.signatureLine} />

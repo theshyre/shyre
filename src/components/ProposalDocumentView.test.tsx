@@ -122,4 +122,25 @@ describe("ProposalDocumentView", () => {
     expect(screen.getByText("malcom")).toBeInTheDocument();
     expect(screen.getByText(".io")).toBeInTheDocument();
   });
+
+  it("acceptance: one signature column per signer for a multi-signer proposal", () => {
+    renderWithIntl(
+      <ProposalDocumentView
+        {...base}
+        signers={["Bret Andre", "Mijeong Andre"]}
+      />,
+    );
+    // Each signer gets their own "Client — <name>" signature block, plus the
+    // provider → three "Signature" captions.
+    expect(screen.getByText(/Bret Andre/)).toBeInTheDocument();
+    expect(screen.getByText(/Mijeong Andre/)).toBeInTheDocument();
+    expect(screen.getAllByText("Signature")).toHaveLength(3);
+  });
+
+  it("acceptance: a single client block when there's no roster", () => {
+    renderWithIntl(<ProposalDocumentView {...base} />);
+    // Client (the customer) + provider → two signature blocks.
+    expect(screen.getByText(/Client — EyeReg/)).toBeInTheDocument();
+    expect(screen.getAllByText("Signature")).toHaveLength(2);
+  });
 });

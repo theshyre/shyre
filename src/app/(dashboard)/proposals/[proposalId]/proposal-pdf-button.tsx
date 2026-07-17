@@ -33,6 +33,8 @@ export interface ProposalPdfBundle {
     logo_url: string | null;
   } | null;
   signerName: string | null;
+  /** Multi-signer roster names — a signature column per signer on the PDF. */
+  signerNames: string[];
   business: {
     business_name: string | null;
     business_email: string | null;
@@ -54,7 +56,8 @@ export function ProposalPdfButton({
   bundle: ProposalPdfBundle;
 }): React.JSX.Element {
   const t = useTranslations("proposals.detail");
-  const { proposal, items, total, client, signerName, business } = bundle;
+  const { proposal, items, total, client, signerName, signerNames, business } =
+    bundle;
   const [busy, setBusy] = useState(false);
 
   async function handleDownload(): Promise<void> {
@@ -102,6 +105,7 @@ export function ProposalPdfButton({
           logoDataUri: clientLogoDataUri,
         }}
         signerName={signerName}
+        signerNames={signerNames}
         items={items}
       />
     );
