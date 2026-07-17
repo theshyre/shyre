@@ -42,7 +42,10 @@ export default async function ProposalsPage({
       "id, proposal_number, title, status, issued_date, valid_until, currency, customers(id, name), proposal_line_items(fixed_price, parent_line_item_id)",
     )
     .order("issued_date", { ascending: false, nullsFirst: false })
-    .order("id", { ascending: false });
+    // Tiebreak on creation time, not the random UUID `id` — several proposals
+    // issued the same day were sorting in a meaningless order. (Index:
+    // idx_proposals_team on (team_id, created_at DESC).)
+    .order("created_at", { ascending: false });
   if (selectedTeamId) query = query.eq("team_id", selectedTeamId);
   const { data: rows } = await query;
 
