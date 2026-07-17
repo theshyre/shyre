@@ -88,6 +88,7 @@ export default async function ProposalPreviewPage({
       .filter((r) => r.parent_line_item_id === parent.id)
       .map((phase) => ({
         title: phase.title,
+        description: phase.description,
         fixedPrice: Number(phase.fixed_price),
       })),
   }));

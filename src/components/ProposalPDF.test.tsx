@@ -56,9 +56,9 @@ const baseProps: ProposalPDFProps = {
       fixedPrice: 4000,
       isCapped: true,
       phases: [
-        { title: "Update the visual framework", fixedPrice: 2200 },
-        { title: "Retire older libraries", fixedPrice: 1200 },
-        { title: "Refresh code-quality checks", fixedPrice: 600 },
+        { title: "Update the visual framework", description: null, fixedPrice: 2200 },
+        { title: "Retire older libraries", description: null, fixedPrice: 1200 },
+        { title: "Refresh code-quality checks", description: null, fixedPrice: 600 },
       ],
     },
   ],

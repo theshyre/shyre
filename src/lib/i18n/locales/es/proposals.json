@@ -90,7 +90,8 @@
     "overviewHint": "Admite markdown. Se muestra sobre las partidas en la propuesta y la página de firma.",
     "itemSummary": "Qué te aporta",
     "itemSummaryPlaceholder": "Un beneficio en una línea — se muestra en la tabla resumen de arriba.",
-    "itemSummaryHint": "Opcional. Una línea concisa para la tabla resumen."
+    "itemSummaryHint": "Opcional. Una línea concisa para la tabla resumen.",
+    "phaseDescription": "Nota de la fase (opcional)"
   },
   "validation": {
     "itemsRequired": "Añade al menos una partida",

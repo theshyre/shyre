@@ -90,7 +90,8 @@
     "overviewHint": "Supports markdown. Shown above the line items on the proposal + sign page.",
     "itemSummary": "What it does for you",
     "itemSummaryPlaceholder": "A one-line benefit — shown in the summary table at the top.",
-    "itemSummaryHint": "Optional. A concise line for the at-a-glance summary table."
+    "itemSummaryHint": "Optional. A concise line for the at-a-glance summary table.",
+    "phaseDescription": "Phase note (optional)"
   },
   "validation": {
     "itemsRequired": "Add at least one line item",

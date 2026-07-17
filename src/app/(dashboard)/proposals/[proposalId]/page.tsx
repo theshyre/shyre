@@ -185,6 +185,7 @@ export default async function ProposalDetailPage({
       .filter((r) => r.parent_line_item_id === parent.id)
       .map((phase) => ({
         title: phase.title,
+        description: phase.description,
         fixedPrice: Number(phase.fixed_price),
       })),
   }));
@@ -433,12 +434,15 @@ export default async function ProposalDetailPage({
                   {item.phases.map((phase, j) => (
                     <li
                       key={j}
-                      className="flex items-baseline justify-between pl-[16px] text-body"
+                      className="flex items-baseline justify-between gap-3 pl-[16px] text-body"
                     >
-                      <span className="text-content-secondary">
-                        {phase.title}
+                      <span className="flex-1 text-content-secondary">
+                        <span className="font-semibold text-content">
+                          {phase.title}
+                        </span>
+                        {phase.description ? ` ${phase.description}` : ""}
                       </span>
-                      <span className="font-mono text-content-secondary">
+                      <span className="whitespace-nowrap font-mono text-content-secondary">
                         {formatCurrency(phase.fixedPrice, currency)}
                       </span>
                     </li>

@@ -356,7 +356,7 @@ export interface ProposalPDFItem {
   definitionOfDone: string | null;
   fixedPrice: number;
   isCapped: boolean;
-  phases: Array<{ title: string; fixedPrice: number }>;
+  phases: Array<{ title: string; description: string | null; fixedPrice: number }>;
 }
 
 export interface ProposalPDFProps {
@@ -614,7 +614,12 @@ export function ProposalPDF(props: ProposalPDFProps): React.JSX.Element {
                   <Text style={styles.fieldLabel}>Phases</Text>
                   {item.phases.map((phase, j) => (
                     <View key={j} style={styles.phaseRow}>
-                      <Text style={styles.phaseTitle}>{phase.title}</Text>
+                      <Text style={styles.phaseTitle}>
+                        <Text style={{ fontFamily: "Helvetica-Bold" }}>
+                          {phase.title}
+                        </Text>
+                        {phase.description ? ` ${phase.description}` : ""}
+                      </Text>
                       <Text style={styles.phasePrice}>
                         {fmt(phase.fixedPrice)}
                       </Text>

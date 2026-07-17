@@ -799,6 +799,17 @@ export function ProposalForm({
                           id={`pf-phase-title-err-${phase.key}`}
                           error={errorFor(`items.${i}.phases.${j}.title`)}
                         />
+                        <input
+                          className={`${inputClass} mt-1`}
+                          placeholder={t("phaseDescription")}
+                          aria-label={t("phaseDescription")}
+                          value={phase.description}
+                          onChange={(e) =>
+                            patchPhase(item.key, phase.key, {
+                              description: e.target.value,
+                            })
+                          }
+                        />
                       </div>
                       <div className="w-[140px]">
                         <input
