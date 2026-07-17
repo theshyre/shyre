@@ -1013,6 +1013,43 @@ describe("createProposalVersionAction", () => {
     expect(insertedRows("proposal_events")[0]?.event_type).toBe("superseded");
   });
 
+  it("carries the multi-signer roster + signing mode forward to the new version", async () => {
+    queues["proposals"] = [
+      { data: { ...sentProposal, signing_mode: "all" }, error: null }, // source
+      { data: { id: "prop-2" }, error: null }, // new version insert
+      { data: null, error: null }, // superseded flip
+    ];
+    queues["team_settings"] = [
+      { data: { proposal_prefix: "PROP", proposal_next_num: 8 }, error: null },
+      { data: null, error: null },
+    ];
+    queues["proposal_line_items"] = [{ data: [], error: null }]; // no items
+    queues["proposal_signers"] = [
+      {
+        data: [
+          { contact_id: "c-1", sort_order: 0 },
+          { contact_id: "c-2", sort_order: 1 },
+        ],
+        error: null,
+      }, // source roster
+      { data: null, error: null }, // roster insert
+    ];
+    queues["proposal_access_tokens"] = [{ data: null, error: null }];
+    queues["proposal_events"] = [{ data: null, error: null }];
+
+    await expect(
+      createProposalVersionAction(formWith({ id: "prop-1" })),
+    ).rejects.toThrow("NEXT_REDIRECT /proposals/prop-2/edit");
+
+    // Signing mode carried forward…
+    expect(insertedRows("proposals")[0]).toMatchObject({ signing_mode: "all" });
+    // …and the full roster re-created for the new version (not just the primary).
+    const roster = insertedRows("proposal_signers");
+    expect(roster).toHaveLength(2);
+    expect(roster.map((r) => r.contact_id)).toEqual(["c-1", "c-2"]);
+    expect(roster.every((r) => r.proposal_id === "prop-2")).toBe(true);
+  });
+
   it("declined source: links the version but keeps declined (terminal) and revokes nothing", async () => {
     queues["proposals"] = [
       { data: { ...sentProposal, status: "declined" }, error: null },
