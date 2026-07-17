@@ -24,6 +24,7 @@ import { isValidProposalStatusTransition } from "./status";
 
 export interface SignBundleItemPhase {
   title: string;
+  description: string | null;
   fixedPrice: number;
 }
 
@@ -220,6 +221,7 @@ async function loadItems(
         .filter((r) => r.parent_line_item_id === parent.id)
         .map((phase) => ({
           title: phase.title,
+          description: phase.description,
           fixedPrice: Number(phase.fixed_price),
         })),
     }));

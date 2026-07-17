@@ -20,6 +20,7 @@ import { ProposalSummaryTable } from "@/components/ProposalSummaryTable";
 
 export interface ProposalDocumentPhase {
   title: string;
+  description: string | null;
   fixedPrice: number;
 }
 export interface ProposalDocumentItem {
@@ -191,10 +192,15 @@ export function ProposalDocumentView({
                   {item.phases.map((phase, j) => (
                     <li
                       key={j}
-                      className="flex justify-between pl-[12px] text-caption text-content-secondary"
+                      className="flex justify-between gap-3 pl-[12px] text-caption text-content-secondary"
                     >
-                      <span>{phase.title}</span>
-                      <span className="font-mono">
+                      <span className="flex-1">
+                        <span className="font-semibold text-content">
+                          {phase.title}
+                        </span>
+                        {phase.description ? ` ${phase.description}` : ""}
+                      </span>
+                      <span className="whitespace-nowrap font-mono">
                         {formatCurrency(phase.fixedPrice, currency)}
                       </span>
                     </li>

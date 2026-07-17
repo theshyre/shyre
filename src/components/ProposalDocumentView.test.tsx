@@ -50,7 +50,7 @@ const base: ProposalDocumentViewProps = {
       definitionOfDone: null,
       fixedPrice: 4000,
       isCapped: true,
-      phases: [{ title: "Visual framework", fixedPrice: 4000 }],
+      phases: [{ title: "Visual framework", description: null, fixedPrice: 4000 }],
     },
   ],
   total: 4950,
@@ -70,6 +70,31 @@ describe("ProposalDocumentView", () => {
     // Terms.
     expect(screen.getByText(/Net 30/)).toBeInTheDocument();
     expect(screen.getByText(/Phasing per item/)).toBeInTheDocument();
+  });
+
+  it("renders a phase as a bold title + its description note", () => {
+    const withPhase = {
+      ...base,
+      items: [
+        {
+          ...base.items[1]!,
+          phases: [
+            {
+              title: "Update the visual framework",
+              description: "(Bootstrap 4 → 5)",
+              fixedPrice: 2200,
+            },
+          ],
+        },
+      ],
+    };
+    renderWithIntl(<ProposalDocumentView {...withPhase} />);
+    // Title is bold; the note renders as regular text (not a raw ** blob).
+    expect(screen.getByText("Update the visual framework").tagName).toBe("SPAN");
+    expect(
+      screen.getByText("Update the visual framework"),
+    ).toHaveClass("font-semibold");
+    expect(screen.getByText(/Bootstrap 4/)).toBeInTheDocument();
   });
 
   it("has NO interactive controls — read-only (no checkboxes, no buttons)", () => {

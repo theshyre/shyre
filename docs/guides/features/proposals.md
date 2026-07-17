@@ -29,10 +29,12 @@ don't see the module's data.
   still render, and open pre-composed into the markdown body when you edit.)
 - **Overview** — an optional proposal-level markdown intro/summary shown above
   the line items (great for a cover note or a summary table).
-- **Phases** — a line item can break into named phases with sub-prices. The
-  phases must **sum exactly to the item's fixed price** (the editor shows a
-  live check), and the item can be marked **capped** so the quote reads as a
-  hard ceiling.
+- **Phases** — a line item can break into named phases with sub-prices. Each
+  phase has a **name** (rendered bold), an optional **note** after it, and a
+  price — e.g. **Update the visual framework** (Bootstrap 4 → 5) — $2,200. The
+  phases must **sum exactly to the item's fixed price** (the editor shows a live
+  check), and the item can be marked **capped** so the quote reads as a hard
+  ceiling.
 - **Terms** — payment terms (net-N presets or custom), an optional deposit
   (percent of the accepted total, or a flat amount — recorded as a term and
   shown on the PDF), a warranty window in days, and free-form additional
