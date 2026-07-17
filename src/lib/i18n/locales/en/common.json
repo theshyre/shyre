@@ -244,5 +244,14 @@
   "freshness": {
     "dayChanged": "The date has changed — now showing {date}.",
     "updatesAvailable": "{count, plural, =1 {1 new update} other {# new updates}} · Refresh"
+  },
+  "logoPicker": {
+    "upload": "Upload logo",
+    "replace": "Replace logo",
+    "uploading": "Uploading…",
+    "remove": "Remove",
+    "errorType": "Unsupported file type. Use PNG, JPG, WebP, or SVG.",
+    "errorSize": "File too large. Max 2 MB.",
+    "helpText": "PNG, JPG, WebP, or SVG · up to 2 MB"
   }
 }

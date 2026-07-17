@@ -15,7 +15,11 @@ import {
   selectClass,
 } from "@/lib/form-styles";
 import { PaymentTermsField } from "@/components/PaymentTermsField";
-import { updateTeamSettingsAction } from "./team-settings-actions";
+import { LogoPicker } from "@/components/LogoPicker";
+import {
+  updateTeamSettingsAction,
+  setTeamLogoAction,
+} from "./team-settings-actions";
 
 interface TeamSettings {
   business_name: string | null;
@@ -31,6 +35,7 @@ interface TeamSettings {
   wordmark_primary: string | null;
   wordmark_secondary: string | null;
   brand_color: string | null;
+  logo_url: string | null;
   rate_visibility: string | null;
   rate_editability: string | null;
   time_entries_visibility: string | null;
@@ -51,6 +56,7 @@ const DEFAULTS: TeamSettings = {
   wordmark_primary: null,
   wordmark_secondary: null,
   brand_color: null,
+  logo_url: null,
   rate_visibility: "owner",
   rate_editability: "owner",
   time_entries_visibility: "own_only",
@@ -309,6 +315,20 @@ export function TeamSettingsForm({
           fallback={org.business_name}
           previewLabel={t("branding.preview")}
         />
+        {isAdmin && (
+          <div className="border-t border-edge pt-3">
+            <p className="mb-2 text-caption font-medium text-content-secondary">
+              {t("branding.logoLabel")}
+            </p>
+            <LogoPicker
+              folder={teamId}
+              initialUrl={org.logo_url}
+              action={setTeamLogoAction}
+              hiddenFields={{ team_id: teamId }}
+              altText={t("branding.logoLabel")}
+            />
+          </div>
+        )}
       </section>
 
       <section className="rounded-lg border border-edge bg-surface-raised p-4 space-y-3">

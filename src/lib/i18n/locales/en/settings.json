@@ -14,7 +14,8 @@
   },
   "branding": {
     "help": "Two-tone wordmark shown on outward-facing surfaces (invoice PDFs). Falls back to the business name in default ink when blank.",
-    "preview": "Preview"
+    "preview": "Preview",
+    "logoLabel": "Logo"
   },
   "profile": {
     "displayName": "Display name",

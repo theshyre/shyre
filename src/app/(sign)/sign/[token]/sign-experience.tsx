@@ -176,6 +176,30 @@ export function SignExperience({ token, bundle }: Props): React.JSX.Element {
         {announcement}
       </span>
 
+      {/* Brand mark: uploaded logo wins; otherwise the two-tone wordmark in
+          the team's brand color. Decorative — the business name is restated in
+          the eyebrow below, so this is aria-hidden. */}
+      {bundle.businessLogoUrl ? (
+        // Public Supabase URL on a login-free page; next/image would need
+        // remotePatterns and the avatar precedent uses a plain <img>.
+        // eslint-disable-next-line @next/next/no-img-element
+        <img
+          src={bundle.businessLogoUrl}
+          alt=""
+          aria-hidden="true"
+          className="mb-4 max-h-[48px] w-auto object-contain"
+        />
+      ) : bundle.wordmarkPrimary ? (
+        <p aria-hidden="true" className="mb-4 text-title font-semibold">
+          <span style={{ color: bundle.brandColor ?? undefined }}>
+            {bundle.wordmarkPrimary}
+          </span>
+          {bundle.wordmarkSecondary ? (
+            <span className="text-content">{bundle.wordmarkSecondary}</span>
+          ) : null}
+        </p>
+      ) : null}
+
       {/* Document header */}
       <p className="text-caption uppercase tracking-wide text-content-muted">
         {t("heading", { business: bundle.businessName ?? "—" })}

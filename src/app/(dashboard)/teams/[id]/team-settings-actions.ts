@@ -5,6 +5,7 @@ import { assertSupabaseOk } from "@/lib/errors";
 import { isTeamAdmin, validateTeamAccess } from "@/lib/team-context";
 import { revalidatePath } from "next/cache";
 import { serializeAddress } from "@/lib/schemas/address";
+import { isOwnBrandingUrl } from "@/lib/branding/branding-url";
 
 /**
  * Org-admin actions only. Per-user actions (profile, preferences, integrations)
@@ -149,6 +150,32 @@ export async function updateTeamSettingsAction(formData: FormData): Promise<void
 
     revalidatePath(`/teams/${teamId}`);
   }, "updateTeamSettingsAction") as unknown as void;
+}
+
+/**
+ * Persist (or clear) the team's uploaded logo. Dedicated setter — the logo is
+ * uploaded client-side to the `branding` bucket, then this stores its public
+ * URL onto `team_settings.logo_url`. The URL is validated to be this team's
+ * own branding upload so an off-site image can't be pointed at the column
+ * (it would render on the PDF + the login-free sign page under the team's
+ * name — the SAL-039 image lesson; see SAL-041).
+ */
+export async function setTeamLogoAction(formData: FormData): Promise<void> {
+  return runSafeAction(formData, async (formData, { supabase }) => {
+    const teamId = formData.get("team_id") as string;
+    const { role } = await validateTeamAccess(teamId);
+    if (!isTeamAdmin(role)) {
+      throw new Error("Only owners and admins can change the team logo.");
+    }
+    const raw = (formData.get("logo_url") as string | null)?.trim() || null;
+    if (raw !== null && !isOwnBrandingUrl(raw, teamId)) {
+      throw new Error("That logo URL is not a valid upload for this team.");
+    }
+    assertSupabaseOk(
+      await supabase.from("team_settings").upsert({ team_id: teamId, logo_url: raw }),
+    );
+    revalidatePath(`/teams/${teamId}`);
+  }, "setTeamLogoAction") as unknown as void;
 }
 
 export async function setTeamRateAction(formData: FormData): Promise<void> {

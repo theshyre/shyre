@@ -70,7 +70,7 @@ export default async function ProposalDetailPage({
   const { data: branding } = await supabase
     .from("team_settings")
     .select(
-      "business_name, business_email, business_address, business_phone, wordmark_primary, wordmark_secondary, brand_color, show_country_on_invoice",
+      "business_name, business_email, business_address, business_phone, wordmark_primary, wordmark_secondary, brand_color, logo_url, show_country_on_invoice",
     )
     .eq("team_id", proposal.team_id as string)
     .single();

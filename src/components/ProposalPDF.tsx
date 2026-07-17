@@ -5,6 +5,7 @@ import {
   Page,
   Text,
   View,
+  Image,
   StyleSheet,
 } from "@react-pdf/renderer";
 import {
@@ -44,6 +45,12 @@ const styles = StyleSheet.create({
     fontFamily: "Helvetica-Bold",
     color: ink,
     letterSpacing: -0.5,
+  },
+  logo: {
+    // Cap the height so a tall logo can't blow out the header; width scales.
+    maxHeight: 44,
+    maxWidth: 200,
+    objectFit: "contain",
   },
   rightBlock: {
     flexDirection: "row",
@@ -314,6 +321,9 @@ export interface ProposalPDFProps {
     wordmarkPrimary?: string | null;
     wordmarkSecondary?: string | null;
     brandColor?: string | null;
+    /** PNG/JPEG logo pre-resolved to a data URI (see fetchImageAsDataUri).
+     *  When set it renders in place of the text wordmark. */
+    logoDataUri?: string | null;
     showCountry?: boolean;
   };
   client: {
@@ -374,10 +384,16 @@ export function ProposalPDF(props: ProposalPDFProps): React.JSX.Element {
       <Page size="A4" style={styles.page}>
         {/* Header — identical shape to the invoice PDF */}
         <View style={styles.header}>
-          <Text style={styles.brandMark}>
-            <Text style={{ color: accentColor }}>{primaryWordmark}</Text>
-            {secondaryWordmark ? <Text>{secondaryWordmark}</Text> : null}
-          </Text>
+          {business.logoDataUri ? (
+            // @react-pdf Image is a PDF primitive, not an HTML <img> — no alt.
+            // eslint-disable-next-line jsx-a11y/alt-text
+            <Image src={business.logoDataUri} style={styles.logo} />
+          ) : (
+            <Text style={styles.brandMark}>
+              <Text style={{ color: accentColor }}>{primaryWordmark}</Text>
+              {secondaryWordmark ? <Text>{secondaryWordmark}</Text> : null}
+            </Text>
+          )}
           <View style={styles.rightBlock}>
             <Text style={styles.rightLabel}>Prepared by</Text>
             <View style={styles.rightBody}>
