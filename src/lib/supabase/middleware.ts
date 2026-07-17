@@ -34,11 +34,15 @@ export async function updateSession(request: NextRequest) {
     data: { user },
   } = await supabase.auth.getUser();
 
-  // Redirect unauthenticated users to login (except for login page itself)
+  // Redirect unauthenticated users to login. Exemptions: the login page,
+  // the Supabase auth callbacks, and /sign — the public proposal sign-off
+  // surface (SAL-036), where authorization is the hashed access token +
+  // emailed OTP enforced server-side, not a session.
   if (
     !user &&
     !request.nextUrl.pathname.startsWith("/login") &&
-    !request.nextUrl.pathname.startsWith("/auth")
+    !request.nextUrl.pathname.startsWith("/auth") &&
+    !request.nextUrl.pathname.startsWith("/sign")
   ) {
     const url = request.nextUrl.clone();
     url.pathname = "/login";

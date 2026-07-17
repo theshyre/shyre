@@ -11,6 +11,8 @@ import type { ProposalPDFItem } from "@/components/ProposalPDF";
 import { CustomerChip } from "@/components/CustomerChip";
 import { ProposalStatusBadge } from "../proposal-status-badge";
 import { DeleteProposalButton } from "../delete-proposal-button";
+import { SendProposalButton } from "../send-proposal-button";
+import { CounterSignButton } from "../counter-sign-button";
 import { ProposalPdfButton, type ProposalPdfBundle } from "./proposal-pdf-button";
 import { isProposalEditable, type DepositType } from "../allow-lists";
 
@@ -40,6 +42,7 @@ export default async function ProposalDetailPage({
   const { proposalId } = await params;
   const supabase = await createClient();
   const t = await getTranslations("proposals.detail");
+  const tActivity = await getTranslations("proposals.activity");
 
   const { data: proposal } = await supabase
     .from("proposals")
@@ -65,6 +68,33 @@ export default async function ProposalDetailPage({
     )
     .eq("team_id", proposal.team_id as string)
     .single();
+
+  // Sign-off state (owner/admin-visible via RLS): the latest link, the
+  // decision record, and the forward event log.
+  const { data: tokenRows } = await supabase
+    .from("proposal_access_tokens")
+    .select("signer_email, expires_at, first_viewed_at, consumed_at")
+    .eq("proposal_id", proposalId)
+    .order("created_at", { ascending: false })
+    .limit(1);
+  const signToken = tokenRows?.[0] ?? null;
+
+  const { data: acceptanceRows } = await supabase
+    .from("proposal_acceptances")
+    .select(
+      "decision, signer_name, signer_title, signer_email, signature_typed, selected_line_item_ids, accepted_total, content_sha256, ip_address, occurred_at, provider_signed_at",
+    )
+    .eq("proposal_id", proposalId)
+    .order("occurred_at", { ascending: false })
+    .limit(1);
+  const acceptance = acceptanceRows?.[0] ?? null;
+
+  const { data: eventRows } = await supabase
+    .from("proposal_events")
+    .select("id, event_type, actor_label, occurred_at")
+    .eq("proposal_id", proposalId)
+    .order("occurred_at", { ascending: true });
+  const events = eventRows ?? [];
 
   interface CustomerRow {
     id: string;
@@ -144,6 +174,10 @@ export default async function ProposalDetailPage({
           <ProposalPdfButton bundle={pdfBundle} />
           {editable && (
             <>
+              <SendProposalButton
+                proposalId={proposalId}
+                hasSigner={!!proposal.signer_contact_id}
+              />
               <Link
                 href={`/proposals/${proposalId}/edit`}
                 className={buttonSecondaryClass}
@@ -153,6 +187,9 @@ export default async function ProposalDetailPage({
               </Link>
               <DeleteProposalButton proposalId={proposalId} />
             </>
+          )}
+          {status === "accepted" && acceptance && !acceptance.provider_signed_at && (
+            <CounterSignButton proposalId={proposalId} />
           )}
         </div>
       </div>
@@ -331,6 +368,134 @@ export default async function ProposalDetailPage({
         <p className="mt-2 whitespace-pre-wrap text-body text-content-secondary">
           {proposal.terms_notes}
         </p>
+      )}
+
+      {/* Sign-off state */}
+      {(signToken || acceptance) && (
+        <>
+          <h2 className="mt-[32px] text-heading font-semibold text-content">
+            {t("signoffHeading")}
+          </h2>
+          {signToken && !acceptance && (
+            <p className="mt-2 text-body text-content-secondary">
+              {t("sentTo", { email: signToken.signer_email as string })}
+              {" · "}
+              {t("linkExpires", {
+                date: (signToken.expires_at as string).slice(0, 10),
+              })}
+              {signToken.first_viewed_at ? ` · ${t("viewedBadge")}` : ""}
+            </p>
+          )}
+          {acceptance && (
+            <div className="mt-2 rounded-lg border border-edge bg-surface-raised p-4">
+              <p className="text-body-lg font-semibold text-content">
+                {acceptance.decision === "accepted"
+                  ? t("acceptedBy", { name: acceptance.signer_name as string })
+                  : t("declinedBy", { name: acceptance.signer_name as string })}
+              </p>
+              <dl className="mt-2 grid grid-cols-1 gap-x-8 gap-y-1 text-body sm:grid-cols-2">
+                {acceptance.signer_title && (
+                  <div className="flex gap-2">
+                    <dt className="text-content-secondary">
+                      {t("signerTitleLabel")}:
+                    </dt>
+                    <dd className="text-content">
+                      {acceptance.signer_title as string}
+                    </dd>
+                  </div>
+                )}
+                {acceptance.signature_typed && (
+                  <div className="flex gap-2">
+                    <dt className="text-content-secondary">
+                      {t("signatureLabel")}:
+                    </dt>
+                    <dd className="italic text-content">
+                      {acceptance.signature_typed as string}
+                    </dd>
+                  </div>
+                )}
+                {acceptance.decision === "accepted" && (
+                  <>
+                    <div className="flex gap-2">
+                      <dt className="text-content-secondary">
+                        {t("acceptedTotalLabel")}:
+                      </dt>
+                      <dd className="font-mono font-semibold text-content">
+                        {formatCurrency(
+                          Number(acceptance.accepted_total ?? 0),
+                          currency,
+                        )}
+                      </dd>
+                    </div>
+                    <div className="flex gap-2">
+                      <dt className="text-content-secondary">
+                        {t("acceptedItems", {
+                          count: (acceptance.selected_line_item_ids as string[])
+                            .length,
+                        })}
+                      </dt>
+                    </div>
+                  </>
+                )}
+                <div className="flex gap-2">
+                  <dt className="text-content-secondary">{t("ipLabel")}:</dt>
+                  <dd className="font-mono text-content-secondary">
+                    {(acceptance.ip_address as string | null) ?? "—"}
+                  </dd>
+                </div>
+                <div className="flex gap-2 sm:col-span-2">
+                  <dt className="text-content-secondary">
+                    {t("recordHash")}:
+                  </dt>
+                  <dd className="break-all font-mono text-label text-content-muted">
+                    {acceptance.content_sha256 as string}
+                  </dd>
+                </div>
+                {acceptance.provider_signed_at && (
+                  <div className="flex gap-2">
+                    <dt className="text-content-secondary">
+                      {t("countersigned")}:
+                    </dt>
+                    <dd className="text-content">
+                      {(acceptance.provider_signed_at as string).slice(0, 10)}
+                    </dd>
+                  </div>
+                )}
+              </dl>
+            </div>
+          )}
+        </>
+      )}
+
+      {/* Activity */}
+      <h2 className="mt-[32px] text-heading font-semibold text-content">
+        {tActivity("heading")}
+      </h2>
+      {events.length === 0 ? (
+        <p className="mt-2 text-body text-content-secondary">
+          {tActivity("empty")}
+        </p>
+      ) : (
+        <ol className="mt-2 space-y-1">
+          {events.map((event) => (
+            <li
+              key={event.id as string}
+              className="flex flex-wrap items-baseline gap-2 text-body"
+            >
+              <span className="font-mono text-caption text-content-muted">
+                {(event.occurred_at as string).slice(0, 16).replace("T", " ")}
+              </span>
+              <span className="text-content">
+                {tActivity(`event.${event.event_type as string}`)}
+              </span>
+              {event.actor_label && (
+                <span className="text-caption text-content-secondary">
+                  {event.actor_label as string}
+                </span>
+              )}
+            </li>
+          ))}
+        </ol>
       )}
     </div>
   );

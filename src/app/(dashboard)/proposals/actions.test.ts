@@ -32,6 +32,20 @@ vi.mock("next/navigation", () => ({
   redirect: (path: string) => mockRedirect(path),
 }));
 
+// Admin client shares the same queue-per-table stub — token/event/acceptance
+// tables are distinct from the user-client tables, so no cross-talk.
+vi.mock("@/lib/supabase/admin", () => ({
+  createAdminClient: () => supabaseStub,
+}));
+
+const sendProposalEmailMock = vi.fn().mockResolvedValue({
+  outboxId: "ob-1",
+  providerMessageId: "pm-1",
+});
+vi.mock("@/lib/messaging/send-proposal", () => ({
+  sendProposalEmail: (...args: unknown[]) => sendProposalEmailMock(...args),
+}));
+
 // --- Chainable Supabase stub. Each from(table) call consumes queued results
 // FIFO; the builder is thenable so both `.single()` and bare awaits resolve.
 interface Result {
@@ -49,6 +63,8 @@ let calls: Call[] = [];
 interface Builder extends PromiseLike<Result> {
   select: (cols?: string) => Builder;
   eq: (col: string, val: unknown) => Builder;
+  order: (col: string, opts?: unknown) => Builder;
+  limit: (n: number) => Builder;
   insert: (rows: unknown) => Builder;
   update: (patch: unknown) => Builder;
   delete: () => Builder;
@@ -67,6 +83,14 @@ function makeBuilder(table: string): Builder {
     },
     eq: (...args) => {
       call.ops.push({ method: "eq", args });
+      return builder;
+    },
+    order: (...args) => {
+      call.ops.push({ method: "order", args });
+      return builder;
+    },
+    limit: (...args) => {
+      call.ops.push({ method: "limit", args });
       return builder;
     },
     insert: (...args) => {
@@ -96,7 +120,10 @@ import {
   createProposalAction,
   updateProposalAction,
   deleteProposalAction,
+  sendProposalAction,
+  counterSignProposalAction,
 } from "./actions";
+import { sha256Hex } from "@/lib/proposals/tokens";
 
 const TEAM = "11111111-1111-4111-8111-111111111111";
 const CUSTOMER = "22222222-2222-4222-8222-222222222222";
@@ -152,6 +179,8 @@ beforeEach(() => {
   mockRequireTeamAdmin.mockResolvedValue({ userId: "u-author", role: "owner" });
   mockRevalidatePath.mockReset();
   mockRedirect.mockClear();
+  sendProposalEmailMock.mockClear();
+  process.env.NEXT_PUBLIC_APP_URL = "https://shyre.test";
 });
 
 describe("createProposalAction", () => {
@@ -296,6 +325,175 @@ describe("updateProposalAction", () => {
     await expect(
       updateProposalAction(formWith({ id: "nope", payload: payload() })),
     ).rejects.toThrow(/not found/i);
+  });
+});
+
+describe("sendProposalAction", () => {
+  const draftProposal = {
+    id: "prop-1",
+    team_id: TEAM,
+    status: "draft",
+    proposal_number: "PROP-2026-007",
+    title: "Modernization",
+    customer_id: CUSTOMER,
+    signer_contact_id: CONTACT,
+  };
+
+  it("mints a hashed token, emails the sign link, flips to sent, logs the event", async () => {
+    queues["proposals"] = [
+      { data: draftProposal, error: null }, // fetch
+      { data: null, error: null }, // status update
+    ];
+    queues["customer_contacts"] = [
+      {
+        data: {
+          id: CONTACT,
+          name: "Jordan Chen",
+          email: "jordan@eyereg.example",
+          customer_id: CUSTOMER,
+        },
+        error: null,
+      },
+    ];
+    queues["proposal_access_tokens"] = [{ data: null, error: null }];
+    queues["proposal_events"] = [{ data: null, error: null }];
+
+    await sendProposalAction(formWith({ id: "prop-1" }));
+
+    // Token: stored hash must be sha256 of the raw token in the emailed URL.
+    const tokenInsert = insertedRows("proposal_access_tokens")[0]!;
+    expect(tokenInsert.signer_email).toBe("jordan@eyereg.example");
+    expect(tokenInsert.token_hash).toMatch(/^[0-9a-f]{64}$/);
+
+    expect(sendProposalEmailMock).toHaveBeenCalledTimes(1);
+    const emailInput = sendProposalEmailMock.mock.calls[0]![1] as {
+      kind: string;
+      toEmail: string;
+      bodyText: string;
+    };
+    expect(emailInput.kind).toBe("proposal");
+    expect(emailInput.toEmail).toBe("jordan@eyereg.example");
+    const rawToken = /https:\/\/shyre\.test\/sign\/([A-Za-z0-9_-]+)/.exec(
+      emailInput.bodyText,
+    )?.[1];
+    expect(rawToken).toBeDefined();
+    expect(sha256Hex(rawToken!)).toBe(tokenInsert.token_hash);
+
+    // Status flipped to sent + event logged with the ADMIN-side actor.
+    const statusUpdate = calls.find(
+      (c) =>
+        c.table === "proposals" &&
+        c.ops.some(
+          (o) =>
+            o.method === "update" &&
+            (o.args[0] as { status?: string }).status === "sent",
+        ),
+    );
+    expect(statusUpdate).toBeDefined();
+    const eventInsert = insertedRows("proposal_events")[0]!;
+    expect(eventInsert.event_type).toBe("sent");
+    expect(eventInsert.actor_user_id).toBe("u-author");
+  });
+
+  it("refuses without a signer contact", async () => {
+    queues["proposals"] = [
+      { data: { ...draftProposal, signer_contact_id: null }, error: null },
+    ];
+    await expect(
+      sendProposalAction(formWith({ id: "prop-1" })),
+    ).rejects.toThrow(/Pick a signer contact/);
+    expect(sendProposalEmailMock).not.toHaveBeenCalled();
+  });
+
+  it("refuses to re-send a non-draft proposal", async () => {
+    queues["proposals"] = [
+      { data: { ...draftProposal, status: "sent" }, error: null },
+    ];
+    await expect(
+      sendProposalAction(formWith({ id: "prop-1" })),
+    ).rejects.toThrow(/Only a draft proposal can be sent/);
+  });
+
+  it("keeps the draft editable when the email fails (no status flip)", async () => {
+    sendProposalEmailMock.mockRejectedValueOnce(new Error("resend down"));
+    queues["proposals"] = [{ data: draftProposal, error: null }];
+    queues["customer_contacts"] = [
+      {
+        data: {
+          id: CONTACT,
+          name: "Jordan Chen",
+          email: "jordan@eyereg.example",
+          customer_id: CUSTOMER,
+        },
+        error: null,
+      },
+    ];
+    queues["proposal_access_tokens"] = [{ data: null, error: null }];
+
+    await expect(
+      sendProposalAction(formWith({ id: "prop-1" })),
+    ).rejects.toThrow(/resend down/);
+    const statusUpdate = calls.find(
+      (c) =>
+        c.table === "proposals" && c.ops.some((o) => o.method === "update"),
+    );
+    expect(statusUpdate).toBeUndefined();
+  });
+});
+
+describe("counterSignProposalAction", () => {
+  it("stamps the provider signature and logs countersigned", async () => {
+    queues["proposals"] = [
+      { data: { id: "prop-1", team_id: TEAM, status: "accepted" }, error: null },
+    ];
+    queues["proposal_acceptances"] = [
+      {
+        data: { id: "acc-1", decision: "accepted", provider_signed_at: null },
+        error: null,
+      },
+      { data: null, error: null }, // update
+    ];
+    queues["proposal_events"] = [{ data: null, error: null }];
+
+    await counterSignProposalAction(formWith({ id: "prop-1" }));
+
+    const update = calls
+      .filter((c) => c.table === "proposal_acceptances")
+      .flatMap((c) => c.ops.filter((o) => o.method === "update"))
+      .map((o) => o.args[0] as { provider_signed_by_user_id?: string })[0];
+    expect(update?.provider_signed_by_user_id).toBe("u-author");
+    expect(insertedRows("proposal_events")[0]?.event_type).toBe(
+      "countersigned",
+    );
+  });
+
+  it("refuses a double counter-sign", async () => {
+    queues["proposals"] = [
+      { data: { id: "prop-1", team_id: TEAM, status: "accepted" }, error: null },
+    ];
+    queues["proposal_acceptances"] = [
+      {
+        data: {
+          id: "acc-1",
+          decision: "accepted",
+          provider_signed_at: "2026-07-16T00:00:00Z",
+        },
+        error: null,
+      },
+    ];
+    await expect(
+      counterSignProposalAction(formWith({ id: "prop-1" })),
+    ).rejects.toThrow(/already counter-signed/);
+  });
+
+  it("refuses when nothing was accepted", async () => {
+    queues["proposals"] = [
+      { data: { id: "prop-1", team_id: TEAM, status: "sent" }, error: null },
+    ];
+    queues["proposal_acceptances"] = [{ data: null, error: null }];
+    await expect(
+      counterSignProposalAction(formWith({ id: "prop-1" })),
+    ).rejects.toThrow(/No accepted sign-off/);
   });
 });
 

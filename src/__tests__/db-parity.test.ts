@@ -52,6 +52,8 @@ import {
 import {
   ALLOWED_PROPOSAL_STATUSES,
   ALLOWED_DEPOSIT_TYPES,
+  ALLOWED_PROPOSAL_EVENT_TYPES,
+  ALLOWED_ACCEPTANCE_DECISIONS,
 } from "@/app/(dashboard)/proposals/allow-lists";
 import {
   ALLOWED_OUTBOX_STATUS,
@@ -118,6 +120,29 @@ function extractCheckValues(
       i++;
     }
     scoped = sql.slice(start, i - 1);
+    // A widened enum lands as `ALTER TABLE <table> … ADD CONSTRAINT … CHECK`
+    // in a later migration (DROP-then-ADD workflow), outside the CREATE
+    // TABLE body. Append those statements so "last CHECK occurrence wins"
+    // sees the widening — but ONLY pure `CHECK (column IN (...))` enum
+    // constraints. Compound expressions that merely mention the column
+    // (e.g. projects' `CHECK (closed_at IS NULL OR status IN ('completed',
+    // 'archived'))`) must not shadow the real enum. `[^;]*` keeps each
+    // match inside one statement.
+    const alterRe = new RegExp(
+      String.raw`ALTER\s+TABLE\s+(?:ONLY\s+)?(?:public\.)?` +
+        table +
+        String.raw`\b[^;]*;`,
+      "gi",
+    );
+    const pureEnumRe = new RegExp(
+      String.raw`CHECK\s*\(\s*` + column + String.raw`\s+IN\s*\(`,
+      "i",
+    );
+    for (const m of sql.matchAll(alterRe)) {
+      if (pureEnumRe.test(m[0])) {
+        scoped += "\n" + m[0];
+      }
+    }
   }
   const pattern = new RegExp(
     String.raw`CHECK\s*\(\s*(?:[^()]*?\b)` +
@@ -258,6 +283,18 @@ const PAIRS: Pair[] = [
     table: "proposals",
   },
   { name: "depositTypes", appSet: ALLOWED_DEPOSIT_TYPES, column: "deposit_type" },
+  {
+    name: "proposalEventTypes",
+    appSet: ALLOWED_PROPOSAL_EVENT_TYPES,
+    column: "event_type",
+    table: "proposal_events",
+  },
+  {
+    name: "acceptanceDecisions",
+    appSet: ALLOWED_ACCEPTANCE_DECISIONS,
+    column: "decision",
+    table: "proposal_acceptances",
+  },
 ];
 
 describe("DB parity", () => {

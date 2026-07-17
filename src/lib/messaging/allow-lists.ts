@@ -22,11 +22,14 @@ export const ALLOWED_OUTBOX_STATUS = new Set([
   "failed_permanent",
 ] as const);
 
-/** message_outbox.related_kind — what the message is about. */
+/** message_outbox.related_kind — what the message is about. `proposal` is
+ *  the sign-link email; `proposal_otp` the one-time code (SAL-036). */
 export const ALLOWED_RELATED_KINDS = new Set([
   "invoice",
   "invoice_reminder",
   "payment_thanks",
+  "proposal",
+  "proposal_otp",
 ] as const);
 
 /** verified_email_domains.status — Resend's domain-verification
