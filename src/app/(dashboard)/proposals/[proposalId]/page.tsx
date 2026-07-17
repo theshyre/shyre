@@ -9,6 +9,8 @@ import { formatCurrency } from "@/lib/invoice-utils";
 import { roundMoney } from "@/lib/proposals/line-items";
 import type { ProposalPDFItem } from "@/components/ProposalPDF";
 import { CustomerChip } from "@/components/CustomerChip";
+import { MarkdownView } from "@/components/MarkdownView";
+import { ProposalItemBody } from "@/components/ProposalItemBody";
 import { ProposalStatusBadge } from "../proposal-status-badge";
 import { DeleteProposalButton } from "../delete-proposal-button";
 import { SendProposalButton } from "../send-proposal-button";
@@ -30,6 +32,7 @@ interface LineItemRow {
   parent_line_item_id: string | null;
   sort_order: number;
   title: string;
+  body_markdown: string | null;
   description: string | null;
   why_it_matters: string | null;
   out_of_scope: string | null;
@@ -62,7 +65,7 @@ export default async function ProposalDetailPage({
   const { data: itemRows } = await supabase
     .from("proposal_line_items")
     .select(
-      "id, parent_line_item_id, sort_order, title, description, why_it_matters, out_of_scope, definition_of_done, fixed_price, is_capped, converted_project_id, invoiced_at",
+      "id, parent_line_item_id, sort_order, title, body_markdown, description, why_it_matters, out_of_scope, definition_of_done, fixed_price, is_capped, converted_project_id, invoiced_at",
     )
     .eq("proposal_id", proposalId)
     .order("sort_order");
@@ -168,6 +171,7 @@ export default async function ProposalDetailPage({
   const parents = rows.filter((r) => r.parent_line_item_id === null);
   const items: ProposalPDFItem[] = parents.map((parent) => ({
     title: parent.title,
+    bodyMarkdown: parent.body_markdown,
     description: parent.description,
     whyItMatters: parent.why_it_matters,
     outOfScope: parent.out_of_scope,
@@ -217,6 +221,7 @@ export default async function ProposalDetailPage({
     proposal: {
       proposal_number: proposal.proposal_number as string,
       title: proposal.title as string,
+      overview_markdown: (proposal.overview_markdown as string | null) ?? null,
       issued_date: (proposal.issued_date as string | null) ?? null,
       valid_until: (proposal.valid_until as string | null) ?? null,
       payment_terms_label:
@@ -356,6 +361,14 @@ export default async function ProposalDetailPage({
         </div>
       </dl>
 
+      {/* Proposal-level overview (markdown), above the items. */}
+      {typeof proposal.overview_markdown === "string" &&
+        proposal.overview_markdown.trim() !== "" && (
+          <div className="mt-[24px]">
+            <MarkdownView content={proposal.overview_markdown} />
+          </div>
+        )}
+
       {/* items */}
       <h2 className="mt-[32px] text-title font-semibold text-content">
         {t("itemsHeading")}
@@ -379,43 +392,18 @@ export default async function ProposalDetailPage({
                 {formatCurrency(item.fixedPrice, currency)}
               </span>
             </div>
-            {item.description && (
-              <p className="mt-1 text-body text-content-secondary">
-                {item.description}
-              </p>
-            )}
-            <div className="mt-2 grid grid-cols-1 gap-x-8 gap-y-2 sm:grid-cols-2">
-              {item.whyItMatters && (
-                <div>
-                  <p className="text-label font-semibold uppercase text-content-muted">
-                    {t("whyItMatters")}
-                  </p>
-                  <p className="text-body text-content-secondary">
-                    {item.whyItMatters}
-                  </p>
-                </div>
-              )}
-              {item.outOfScope && (
-                <div>
-                  <p className="text-label font-semibold uppercase text-content-muted">
-                    {t("outOfScope")}
-                  </p>
-                  <p className="text-body text-content-secondary">
-                    {item.outOfScope}
-                  </p>
-                </div>
-              )}
-              {item.definitionOfDone && (
-                <div>
-                  <p className="text-label font-semibold uppercase text-content-muted">
-                    {t("definitionOfDone")}
-                  </p>
-                  <p className="text-body text-content-secondary">
-                    {item.definitionOfDone}
-                  </p>
-                </div>
-              )}
-            </div>
+            <ProposalItemBody
+              bodyMarkdown={item.bodyMarkdown}
+              description={item.description}
+              whyItMatters={item.whyItMatters}
+              outOfScope={item.outOfScope}
+              definitionOfDone={item.definitionOfDone}
+              labels={{
+                whyItMatters: t("whyItMatters"),
+                outOfScope: t("outOfScope"),
+                definitionOfDone: t("definitionOfDone"),
+              }}
+            />
             {item.phases.length > 0 && (
               <div className="mt-3 border-t border-edge pt-2">
                 <p className="text-label font-semibold uppercase text-content-muted">

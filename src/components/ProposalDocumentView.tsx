@@ -2,6 +2,8 @@
 
 import { useTranslations } from "next-intl";
 import { formatCurrency } from "@/lib/invoice-utils";
+import { MarkdownView } from "@/components/MarkdownView";
+import { ProposalItemBody } from "@/components/ProposalItemBody";
 
 /**
  * Read-only render of a proposal AS THE CLIENT SEES IT on the sign page —
@@ -22,6 +24,7 @@ export interface ProposalDocumentPhase {
 export interface ProposalDocumentItem {
   id: string;
   title: string;
+  bodyMarkdown: string | null;
   description: string | null;
   whyItMatters: string | null;
   outOfScope: string | null;
@@ -53,6 +56,7 @@ export interface ProposalDocumentViewProps {
     warrantyDays: number | null;
     termsNotes: string | null;
     currency: string;
+    overviewMarkdown: string | null;
   };
   items: ProposalDocumentItem[];
   total: number;
@@ -133,6 +137,13 @@ export function ProposalDocumentView({
         </div>
       )}
 
+      {/* Proposal-level overview (markdown), above the line items. */}
+      {proposal.overviewMarkdown && proposal.overviewMarkdown.trim() !== "" && (
+        <div className="mt-[24px]">
+          <MarkdownView content={proposal.overviewMarkdown} />
+        </div>
+      )}
+
       {/* Line items */}
       <section className="mt-[24px]">
         <h2 className="text-title font-semibold text-content">
@@ -149,31 +160,18 @@ export function ProposalDocumentView({
                   {formatCurrency(item.fixedPrice, currency)}
                 </span>
               </div>
-              {item.description && (
-                <p className="mt-1 text-body text-content-secondary">
-                  {item.description}
-                </p>
-              )}
-              {item.whyItMatters && (
-                <p className="mt-1 text-caption text-content-secondary">
-                  <span className="font-semibold">{t("whyItMatters")}: </span>
-                  {item.whyItMatters}
-                </p>
-              )}
-              {item.outOfScope && (
-                <p className="mt-1 text-caption text-content-secondary">
-                  <span className="font-semibold">{t("outOfScope")}: </span>
-                  {item.outOfScope}
-                </p>
-              )}
-              {item.definitionOfDone && (
-                <p className="mt-1 text-caption text-content-secondary">
-                  <span className="font-semibold">
-                    {t("definitionOfDone")}:{" "}
-                  </span>
-                  {item.definitionOfDone}
-                </p>
-              )}
+              <ProposalItemBody
+                bodyMarkdown={item.bodyMarkdown}
+                description={item.description}
+                whyItMatters={item.whyItMatters}
+                outOfScope={item.outOfScope}
+                definitionOfDone={item.definitionOfDone}
+                labels={{
+                  whyItMatters: t("whyItMatters"),
+                  outOfScope: t("outOfScope"),
+                  definitionOfDone: t("definitionOfDone"),
+                }}
+              />
               {item.phases.length > 0 && (
                 <ul className="mt-2 space-y-1 border-t border-edge pt-2">
                   {item.phases.map((phase, j) => (

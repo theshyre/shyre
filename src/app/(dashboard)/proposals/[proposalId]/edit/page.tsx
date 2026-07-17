@@ -21,6 +21,7 @@ interface LineItemRow {
   parent_line_item_id: string | null;
   sort_order: number;
   title: string;
+  body_markdown: string | null;
   description: string | null;
   why_it_matters: string | null;
   out_of_scope: string | null;
@@ -60,7 +61,7 @@ export default async function EditProposalPage({
   const { data: itemRows } = await supabase
     .from("proposal_line_items")
     .select(
-      "id, parent_line_item_id, sort_order, title, description, why_it_matters, out_of_scope, definition_of_done, fixed_price, is_capped",
+      "id, parent_line_item_id, sort_order, title, body_markdown, description, why_it_matters, out_of_scope, definition_of_done, fixed_price, is_capped",
     )
     .eq("proposal_id", proposalId)
     .order("sort_order");
@@ -124,8 +125,10 @@ export default async function EditProposalPage({
       proposal.deposit_value != null ? Number(proposal.deposit_value) : null,
     warranty_days: (proposal.warranty_days as number | null) ?? null,
     terms_notes: (proposal.terms_notes as string | null) ?? null,
+    overview_markdown: (proposal.overview_markdown as string | null) ?? null,
     items: parents.map((parent) => ({
       title: parent.title,
+      bodyMarkdown: parent.body_markdown ?? null,
       description: parent.description,
       whyItMatters: parent.why_it_matters,
       outOfScope: parent.out_of_scope,

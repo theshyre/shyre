@@ -8,6 +8,7 @@ import {
   Image,
   StyleSheet,
 } from "@react-pdf/renderer";
+import { MarkdownPdf } from "@/components/markdown-pdf";
 import {
   makeFmt,
   safeHex,
@@ -116,6 +117,9 @@ const styles = StyleSheet.create({
     fontSize: 16,
     fontFamily: "Helvetica-Bold",
     color: ink,
+    marginBottom: 16,
+  },
+  overview: {
     marginBottom: 16,
   },
 
@@ -296,6 +300,7 @@ const styles = StyleSheet.create({
 
 export interface ProposalPDFItem {
   title: string;
+  bodyMarkdown: string | null;
   description: string | null;
   whyItMatters: string | null;
   outOfScope: string | null;
@@ -308,6 +313,7 @@ export interface ProposalPDFItem {
 export interface ProposalPDFProps {
   proposalNumber: string;
   title: string;
+  overviewMarkdown?: string | null;
   issuedDate: string | null;
   validUntil: string | null;
   /** Frozen at authoring time ("Net 30" / "Due on receipt"), or null. */
@@ -361,6 +367,7 @@ export function ProposalPDF(props: ProposalPDFProps): React.JSX.Element {
   const {
     proposalNumber,
     title,
+    overviewMarkdown,
     issuedDate,
     validUntil,
     paymentTermsLabel,
@@ -474,6 +481,12 @@ export function ProposalPDF(props: ProposalPDFProps): React.JSX.Element {
 
         <Text style={styles.docTitle}>{title}</Text>
 
+        {overviewMarkdown && overviewMarkdown.trim() !== "" ? (
+          <View style={styles.overview}>
+            <MarkdownPdf content={overviewMarkdown} />
+          </View>
+        ) : null}
+
         {/* Line items — each with a physical tick-box so a paper signer can
             mark the subset they authorize. */}
         {items.map((item, i) => (
@@ -484,27 +497,35 @@ export function ProposalPDF(props: ProposalPDFProps): React.JSX.Element {
               <Text style={styles.itemPrice}>{fmt(item.fixedPrice)}</Text>
             </View>
             <View style={styles.itemBody}>
-              {item.description ? (
-                <Text style={styles.fieldText}>{item.description}</Text>
-              ) : null}
-              {item.whyItMatters ? (
+              {item.bodyMarkdown && item.bodyMarkdown.trim() !== "" ? (
+                <MarkdownPdf content={item.bodyMarkdown} />
+              ) : (
                 <>
-                  <Text style={styles.fieldLabel}>Why it matters</Text>
-                  <Text style={styles.fieldText}>{item.whyItMatters}</Text>
+                  {item.description ? (
+                    <Text style={styles.fieldText}>{item.description}</Text>
+                  ) : null}
+                  {item.whyItMatters ? (
+                    <>
+                      <Text style={styles.fieldLabel}>Why it matters</Text>
+                      <Text style={styles.fieldText}>{item.whyItMatters}</Text>
+                    </>
+                  ) : null}
+                  {item.outOfScope ? (
+                    <>
+                      <Text style={styles.fieldLabel}>Out of scope</Text>
+                      <Text style={styles.fieldText}>{item.outOfScope}</Text>
+                    </>
+                  ) : null}
+                  {item.definitionOfDone ? (
+                    <>
+                      <Text style={styles.fieldLabel}>Definition of done</Text>
+                      <Text style={styles.fieldText}>
+                        {item.definitionOfDone}
+                      </Text>
+                    </>
+                  ) : null}
                 </>
-              ) : null}
-              {item.outOfScope ? (
-                <>
-                  <Text style={styles.fieldLabel}>Out of scope</Text>
-                  <Text style={styles.fieldText}>{item.outOfScope}</Text>
-                </>
-              ) : null}
-              {item.definitionOfDone ? (
-                <>
-                  <Text style={styles.fieldLabel}>Definition of done</Text>
-                  <Text style={styles.fieldText}>{item.definitionOfDone}</Text>
-                </>
-              ) : null}
+              )}
               {item.phases.length > 0 && (
                 <>
                   <Text style={styles.fieldLabel}>Phases</Text>

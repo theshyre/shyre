@@ -22,6 +22,7 @@ interface Row {
   parent_line_item_id: string | null;
   sort_order: number;
   title: string;
+  body_markdown: string | null;
   description: string | null;
   why_it_matters: string | null;
   out_of_scope: string | null;
@@ -49,7 +50,7 @@ export default async function ProposalPreviewPage({
   const { data: proposal } = await supabase
     .from("proposals")
     .select(
-      "id, team_id, proposal_number, title, valid_until, payment_terms_label, deposit_type, deposit_value, warranty_days, terms_notes, currency, customers(name, accent_color, logo_url)",
+      "id, team_id, proposal_number, title, valid_until, payment_terms_label, deposit_type, deposit_value, warranty_days, terms_notes, overview_markdown, currency, customers(name, accent_color, logo_url)",
     )
     .eq("id", proposalId)
     .single();
@@ -58,7 +59,7 @@ export default async function ProposalPreviewPage({
   const { data: itemRows } = await supabase
     .from("proposal_line_items")
     .select(
-      "id, parent_line_item_id, sort_order, title, description, why_it_matters, out_of_scope, definition_of_done, fixed_price, is_capped",
+      "id, parent_line_item_id, sort_order, title, body_markdown, description, why_it_matters, out_of_scope, definition_of_done, fixed_price, is_capped",
     )
     .eq("proposal_id", proposalId)
     .order("sort_order");
@@ -74,6 +75,7 @@ export default async function ProposalPreviewPage({
   const items: ProposalDocumentItem[] = parents.map((parent) => ({
     id: parent.id,
     title: parent.title,
+    bodyMarkdown: parent.body_markdown,
     description: parent.description,
     whyItMatters: parent.why_it_matters,
     outOfScope: parent.out_of_scope,
@@ -145,6 +147,7 @@ export default async function ProposalPreviewPage({
                 : null,
             warrantyDays: (proposal.warranty_days as number | null) ?? null,
             termsNotes: (proposal.terms_notes as string | null) ?? null,
+            overviewMarkdown: (proposal.overview_markdown as string | null) ?? null,
             currency: (proposal.currency as string) ?? "USD",
           }}
           items={items}

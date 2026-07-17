@@ -22,6 +22,8 @@ export interface ProposalPhaseInput {
 
 export interface ProposalItemInput {
   title: string;
+  /** Rich markdown body (replaces the legacy prose fields when set). */
+  bodyMarkdown?: string | null;
   description?: string | null;
   whyItMatters?: string | null;
   outOfScope?: string | null;

@@ -3,6 +3,8 @@
 import { useEffect, useMemo, useRef, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { useTranslations } from "next-intl";
+import { MarkdownView } from "@/components/MarkdownView";
+import { ProposalItemBody } from "@/components/ProposalItemBody";
 import {
   CheckCircle2,
   XCircle,
@@ -296,6 +298,13 @@ export function SignExperience({ token, bundle }: Props): React.JSX.Element {
         </div>
       )}
 
+      {/* Proposal-level overview (markdown), above the items. */}
+      {bundle.overviewMarkdown && bundle.overviewMarkdown.trim() !== "" && (
+        <div className="mt-[24px]">
+          <MarkdownView content={bundle.overviewMarkdown} />
+        </div>
+      )}
+
       {/* Multi-signer notices: a co-signer either waits for the primary to set
           the scope, or is bound to the scope the primary already authorized. */}
       {!decided && bundle.awaitingPrimary && (
@@ -382,31 +391,18 @@ export function SignExperience({ token, bundle }: Props): React.JSX.Element {
                       {formatCurrency(item.fixedPrice, currency)}
                     </span>
                   </div>
-                  {item.description && (
-                    <p className="mt-1 text-body text-content-secondary">
-                      {item.description}
-                    </p>
-                  )}
-                  {item.whyItMatters && (
-                    <p className="mt-1 text-caption text-content-secondary">
-                      <span className="font-semibold">{t("whyItMatters")}: </span>
-                      {item.whyItMatters}
-                    </p>
-                  )}
-                  {item.outOfScope && (
-                    <p className="mt-1 text-caption text-content-secondary">
-                      <span className="font-semibold">{t("outOfScope")}: </span>
-                      {item.outOfScope}
-                    </p>
-                  )}
-                  {item.definitionOfDone && (
-                    <p className="mt-1 text-caption text-content-secondary">
-                      <span className="font-semibold">
-                        {t("definitionOfDone")}:{" "}
-                      </span>
-                      {item.definitionOfDone}
-                    </p>
-                  )}
+                  <ProposalItemBody
+                    bodyMarkdown={item.bodyMarkdown}
+                    description={item.description}
+                    whyItMatters={item.whyItMatters}
+                    outOfScope={item.outOfScope}
+                    definitionOfDone={item.definitionOfDone}
+                    labels={{
+                      whyItMatters: t("whyItMatters"),
+                      outOfScope: t("outOfScope"),
+                      definitionOfDone: t("definitionOfDone"),
+                    }}
+                  />
                   {item.phases.length > 0 && (
                     <ul className="mt-2 space-y-1 border-t border-edge pt-2">
                       {item.phases.map((phase, j) => (

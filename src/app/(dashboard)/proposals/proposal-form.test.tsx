@@ -188,9 +188,11 @@ describe("ProposalForm", () => {
       deposit_value: null,
       warranty_days: null,
       terms_notes: null,
+      overview_markdown: null,
       items: [
         {
           title: "Item A",
+          bodyMarkdown: null,
           description: null,
           whyItMatters: null,
           outOfScope: null,

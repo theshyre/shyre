@@ -132,6 +132,7 @@ function proposalColumns(input: ProposalDraftInput): Record<string, unknown> {
     deposit_value: input.deposit_type === "none" ? null : (input.deposit_value ?? null),
     warranty_days: input.warranty_days ?? null,
     terms_notes: input.terms_notes ?? null,
+    overview_markdown: input.overview_markdown ?? null,
   };
 }
 
@@ -155,6 +156,7 @@ async function insertLineItems(
     parent_line_item_id: null,
     sort_order: i,
     title: item.title,
+    body_markdown: item.bodyMarkdown ?? null,
     description: item.description ?? null,
     why_it_matters: item.whyItMatters ?? null,
     out_of_scope: item.outOfScope ?? null,
@@ -1056,6 +1058,7 @@ export async function createProposalVersionAction(
           deposit_value: source.deposit_value,
           warranty_days: source.warranty_days,
           terms_notes: source.terms_notes,
+          overview_markdown: source.overview_markdown,
           currency: source.currency,
           version_number: ((source.version_number as number) ?? 1) + 1,
           supersedes_proposal_id: proposalId,
@@ -1069,7 +1072,7 @@ export async function createProposalVersionAction(
       const { data: itemRows } = await supabase
         .from("proposal_line_items")
         .select(
-          "id, parent_line_item_id, sort_order, title, description, why_it_matters, out_of_scope, definition_of_done, fixed_price, is_capped",
+          "id, parent_line_item_id, sort_order, title, body_markdown, description, why_it_matters, out_of_scope, definition_of_done, fixed_price, is_capped",
         )
         .eq("proposal_id", proposalId)
         .order("sort_order");
@@ -1085,6 +1088,7 @@ export async function createProposalVersionAction(
               parent_line_item_id: null,
               sort_order: i,
               title: r.title,
+              body_markdown: r.body_markdown,
               description: r.description,
               why_it_matters: r.why_it_matters,
               out_of_scope: r.out_of_scope,

@@ -25,11 +25,13 @@ const base: ProposalDocumentViewProps = {
     warrantyDays: 30,
     termsNotes: "Phasing per item.",
     currency: "USD",
+    overviewMarkdown: null,
   },
   items: [
     {
       id: "li-1",
       title: "Dependency upgrades",
+      bodyMarkdown: null,
       description: "Bring deps current.",
       whyItMatters: "Reduces CVE exposure.",
       outOfScope: "Major framework jumps.",
@@ -41,6 +43,7 @@ const base: ProposalDocumentViewProps = {
     {
       id: "li-2",
       title: "Modernize components",
+      bodyMarkdown: null,
       description: null,
       whyItMatters: null,
       outOfScope: null,
