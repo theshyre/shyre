@@ -18,6 +18,7 @@ vi.mock("@/lib/safe-action", () => ({
 const mockValidateTeamAccess = vi.fn();
 vi.mock("@/lib/team-context", () => ({
   validateTeamAccess: (...args: unknown[]) => mockValidateTeamAccess(...args),
+  isTeamAdmin: (role: string) => role === "owner" || role === "admin",
 }));
 
 const mockRevalidatePath = vi.fn();
@@ -27,6 +28,7 @@ vi.mock("next/cache", () => ({
 
 const state: {
   canSetCustomerRate: boolean;
+  customerRow: Record<string, unknown> | null;
   inserts: { table: string; rows: unknown }[];
   updates: {
     table: string;
@@ -36,6 +38,7 @@ const state: {
   rpcCalls: { name: string; args: unknown }[];
 } = {
   canSetCustomerRate: true,
+  customerRow: { id: "c1", team_id: "t-1" },
   inserts: [],
   updates: [],
   rpcCalls: [],
@@ -61,6 +64,12 @@ function mockSupabase() {
           return Promise.resolve({ data: null, error: null });
         },
       }),
+      select: () => ({
+        eq: () => ({
+          single: () =>
+            Promise.resolve({ data: state.customerRow, error: null }),
+        }),
+      }),
     }),
   };
 }
@@ -73,11 +82,13 @@ import {
   createCustomerAction,
   updateCustomerAction,
   setCustomerRateAction,
+  setCustomerLogoAction,
   archiveCustomerAction,
 } from "./actions";
 
 function resetState(): void {
   state.canSetCustomerRate = true;
+  state.customerRow = { id: "c1", team_id: "t-1" };
   state.inserts = [];
   state.updates = [];
   state.rpcCalls = [];
@@ -199,6 +210,25 @@ describe("updateCustomerAction", () => {
     expect(u?.patch.show_country_on_invoice).toBe(false);
   });
 
+  it("persists a valid accent_color; empty clears it to null", async () => {
+    await updateCustomerAction(fd({ id: "c1", name: "Acme", accent_color: "#2563EB" }));
+    expect(
+      state.updates.find((x) => x.table === "customers")?.patch.accent_color,
+    ).toBe("#2563EB");
+    resetState();
+    await updateCustomerAction(fd({ id: "c1", name: "Acme", accent_color: "" }));
+    expect(
+      state.updates.find((x) => x.table === "customers")?.patch.accent_color,
+    ).toBeNull();
+  });
+
+  it("rejects a malformed accent_color with a friendly message (before the update)", async () => {
+    await expect(
+      updateCustomerAction(fd({ id: "c1", name: "Acme", accent_color: "blue" })),
+    ).rejects.toThrow(/hex value/);
+    expect(state.updates).toHaveLength(0);
+  });
+
   it("treats checked show_country_on_invoice as true", async () => {
     await updateCustomerAction(
       fd({ id: "c1", name: "Acme", show_country_on_invoice: "on" }),
@@ -277,6 +307,56 @@ describe("updateCustomerAction", () => {
     await updateCustomerAction(fd({ id: "c1", name: "Acme" }));
     expect(mockRevalidatePath).toHaveBeenCalledWith("/customers");
     expect(mockRevalidatePath).toHaveBeenCalledWith("/customers/c1");
+  });
+});
+
+describe("setCustomerLogoAction", () => {
+  const SUPA = "https://proj.supabase.co";
+  const ownLogo = (team: string) =>
+    `${SUPA}/storage/v1/object/public/branding/${team}/customers/c1/1.png`;
+
+  beforeEach(() => {
+    resetState();
+    process.env.NEXT_PUBLIC_SUPABASE_URL = SUPA;
+  });
+
+  it("persists a valid own-branding customer logo (owner/admin)", async () => {
+    mockValidateTeamAccess.mockResolvedValue({ userId: fakeUserId, role: "admin" });
+    await setCustomerLogoAction(
+      fd({ customer_id: "c1", logo_url: ownLogo("t-1") }),
+    );
+    const u = state.updates.find((x) => x.table === "customers");
+    expect(u?.where).toEqual({ id: "c1" });
+    expect(u?.patch).toEqual({ logo_url: ownLogo("t-1") });
+  });
+
+  it("rejects a plain member", async () => {
+    mockValidateTeamAccess.mockResolvedValue({ userId: fakeUserId, role: "member" });
+    await expect(
+      setCustomerLogoAction(fd({ customer_id: "c1", logo_url: ownLogo("t-1") })),
+    ).rejects.toThrow(/owners and admins/);
+    expect(state.updates).toHaveLength(0);
+  });
+
+  it("rejects an off-site / foreign-team URL (SAL-041)", async () => {
+    mockValidateTeamAccess.mockResolvedValue({ userId: fakeUserId, role: "owner" });
+    await expect(
+      setCustomerLogoAction(
+        fd({ customer_id: "c1", logo_url: "https://evil.example/x.png" }),
+      ),
+    ).rejects.toThrow(/not a valid upload/);
+    await expect(
+      setCustomerLogoAction(fd({ customer_id: "c1", logo_url: ownLogo("t-9") })),
+    ).rejects.toThrow(/not a valid upload/);
+    expect(state.updates).toHaveLength(0);
+  });
+
+  it("clears the logo (null) on the remove path", async () => {
+    mockValidateTeamAccess.mockResolvedValue({ userId: fakeUserId, role: "owner" });
+    await setCustomerLogoAction(fd({ customer_id: "c1" }));
+    expect(
+      state.updates.find((x) => x.table === "customers")?.patch,
+    ).toEqual({ logo_url: null });
   });
 });
 

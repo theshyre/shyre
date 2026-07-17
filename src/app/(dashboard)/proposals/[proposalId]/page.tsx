@@ -53,7 +53,7 @@ export default async function ProposalDetailPage({
   const { data: proposal } = await supabase
     .from("proposals")
     .select(
-      "*, customers(id, name, email, address, show_country_on_invoice), customer_contacts(id, name, email)",
+      "*, customers(id, name, email, address, show_country_on_invoice, accent_color, logo_url), customer_contacts(id, name, email)",
     )
     .eq("id", proposalId)
     .single();
@@ -125,6 +125,8 @@ export default async function ProposalDetailPage({
     email: string | null;
     address: string | null;
     show_country_on_invoice: boolean | null;
+    accent_color: string | null;
+    logo_url: string | null;
   }
   const customer = Array.isArray(proposal.customers)
     ? ((proposal.customers[0] ?? null) as CustomerRow | null)

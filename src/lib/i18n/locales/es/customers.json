@@ -14,7 +14,8 @@
     "notes": "Notas",
     "defaultRate": "Tarifa por defecto ($/hr)",
     "showCountryOnInvoice": "Mostrar país en la factura",
-    "showCountryOnInvoiceHint": "Cuando está activo, la línea de país de la dirección de este cliente se muestra bajo el bloque \"Facturar a\". Desactivado por defecto — la mayoría de las facturas domésticas se leen mejor sin él."
+    "showCountryOnInvoiceHint": "Cuando está activo, la línea de país de la dirección de este cliente se muestra bajo el bloque \"Facturar a\". Desactivado por defecto — la mayoría de las facturas domésticas se leen mejor sin él.",
+    "accentColor": "Color de acento"
   },
   "table": {
     "defaultRate": "Tarifa por defecto",
@@ -45,5 +46,10 @@
   "archiveFailed": "No se pudo archivar el cliente.",
   "contactDeleteFailed": "No se pudo eliminar el contacto.",
   "contactDeleteAria": "Eliminar contacto {name}",
-  "exportCsv": "Exportar CSV"
+  "exportCsv": "Exportar CSV",
+  "branding": {
+    "heading": "Marca",
+    "help": "Marca opcional del cliente mostrada en las propuestas preparadas para él (PDF y página de firma).",
+    "logoLabel": "Logo"
+  }
 }

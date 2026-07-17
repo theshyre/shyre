@@ -14,10 +14,12 @@ import { FieldError } from "@/components/FieldError";
 import { SubmitButton } from "@/components/SubmitButton";
 import { PaymentTermsField } from "@/components/PaymentTermsField";
 import { deserializeAddress } from "@/lib/schemas/address";
-import { updateCustomerAction } from "../actions";
+import { LogoPicker } from "@/components/LogoPicker";
+import { updateCustomerAction, setCustomerLogoAction } from "../actions";
 
 interface Client {
   id: string;
+  team_id: string;
   name: string;
   email: string | null;
   address: string | null;
@@ -25,6 +27,8 @@ interface Client {
   default_rate: number | null;
   payment_terms_days: number | null;
   show_country_on_invoice: boolean | null;
+  accent_color: string | null;
+  logo_url: string | null;
 }
 
 export function CustomerEditForm({
@@ -160,6 +164,50 @@ export function CustomerEditForm({
             rows={3}
             defaultValue={client.notes ?? ""}
             className={textareaClass}
+          />
+        </div>
+      </div>
+
+      {/* Co-brand: the customer's own accent + logo, shown on client-facing
+          proposal surfaces alongside the team's brand. */}
+      <div className="rounded-lg border border-edge bg-surface-raised p-4 space-y-3">
+        <p className="text-body-lg font-semibold uppercase tracking-wider text-content-muted">
+          {t("branding.heading")}
+        </p>
+        <p className="text-caption text-content-muted">{t("branding.help")}</p>
+        <div className="max-w-[220px]">
+          <label htmlFor="customer-edit-accent" className={labelClass}>
+            {t("fields.accentColor")}
+          </label>
+          <input
+            id="customer-edit-accent"
+            name="accent_color"
+            type="text"
+            defaultValue={client.accent_color ?? ""}
+            className={`${inputClass} font-mono`}
+            placeholder="#2563EB"
+            pattern="^#[0-9A-Fa-f]{3}([0-9A-Fa-f]{3})?$"
+            aria-describedby={
+              fieldErrors.accent_color
+                ? "customer-edit-accent-error"
+                : undefined
+            }
+          />
+          <FieldError
+            error={fieldErrors.accent_color}
+            id="customer-edit-accent-error"
+          />
+        </div>
+        <div>
+          <p className="mb-2 text-caption font-medium text-content-secondary">
+            {t("branding.logoLabel")}
+          </p>
+          <LogoPicker
+            folder={`${client.team_id}/customers/${client.id}`}
+            initialUrl={client.logo_url}
+            action={setCustomerLogoAction}
+            hiddenFields={{ customer_id: client.id }}
+            altText={t("branding.logoLabel")}
           />
         </div>
       </div>

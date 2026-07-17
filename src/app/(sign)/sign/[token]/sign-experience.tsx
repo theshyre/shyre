@@ -214,6 +214,36 @@ export function SignExperience({ token, bundle }: Props): React.JSX.Element {
           : ""}
       </p>
 
+      {/* Customer co-brand: their own logo + accent, so the client sees their
+          identity on the document prepared for them. Logo is decorative
+          (aria-hidden) — the name carries the accessible label. */}
+      {(bundle.customerName || bundle.customerLogoUrl) && (
+        <div className="mt-3 flex items-center gap-2">
+          {bundle.customerLogoUrl ? (
+            // Public Supabase URL on a login-free page; plain <img> per the
+            // avatar precedent.
+            // eslint-disable-next-line @next/next/no-img-element
+            <img
+              src={bundle.customerLogoUrl}
+              alt=""
+              aria-hidden="true"
+              className="max-h-[28px] w-auto object-contain"
+            />
+          ) : null}
+          {bundle.customerName ? (
+            <span className="text-caption text-content-secondary">
+              {t("preparedForLabel")}{" "}
+              <span
+                className="font-medium text-content"
+                style={{ color: bundle.customerAccentColor ?? undefined }}
+              >
+                {bundle.customerName}
+              </span>
+            </span>
+          ) : null}
+        </div>
+      )}
+
       {/* Offer-expiry notice: acceptance is blocked server-side too; a
           decline remains recordable. Icon + text + warning color. */}
       {!decided && bundle.offerExpired && (

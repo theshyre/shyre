@@ -69,6 +69,8 @@ function bundle(overrides: Partial<SignBundle> = {}): SignBundle {
     wordmarkPrimary: null,
     wordmarkSecondary: null,
     customerName: "EyeReg",
+    customerLogoUrl: null,
+    customerAccentColor: null,
     signerEmail: "jordan@eyereg.example",
     otpVerified: false,
     otpPending: false,

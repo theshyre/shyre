@@ -64,6 +64,9 @@ export interface SignBundle {
   wordmarkPrimary: string | null;
   wordmarkSecondary: string | null;
   customerName: string | null;
+  /** Customer co-brand (SAL-041 public URL) — shown next to the team's brand. */
+  customerLogoUrl: string | null;
+  customerAccentColor: string | null;
   signerEmail: string;
   /** Sign-time state driving the page's flow. */
   otpVerified: boolean;
@@ -217,7 +220,7 @@ export async function loadSignBundle(
   const { data: proposal } = await admin
     .from("proposals")
     .select(
-      "id, team_id, proposal_number, title, status, issued_date, valid_until, payment_terms_label, deposit_type, deposit_value, warranty_days, terms_notes, currency, accepted_total, customers(name)",
+      "id, team_id, proposal_number, title, status, issued_date, valid_until, payment_terms_label, deposit_type, deposit_value, warranty_days, terms_notes, currency, accepted_total, customers(name, accent_color, logo_url)",
     )
     .eq("id", token.proposal_id)
     .single();
@@ -249,9 +252,14 @@ export async function loadSignBundle(
     )
     .eq("team_id", token.team_id)
     .single();
+  type CustomerBrand = {
+    name: string;
+    accent_color: string | null;
+    logo_url: string | null;
+  };
   const customer = Array.isArray(proposal.customers)
-    ? ((proposal.customers[0] ?? null) as { name: string } | null)
-    : (proposal.customers as { name: string } | null);
+    ? ((proposal.customers[0] ?? null) as CustomerBrand | null)
+    : (proposal.customers as CustomerBrand | null);
 
   const items = await loadItems(admin, token.proposal_id);
 
@@ -293,6 +301,8 @@ export async function loadSignBundle(
       wordmarkPrimary: (settings?.wordmark_primary as string | null) ?? null,
       wordmarkSecondary: (settings?.wordmark_secondary as string | null) ?? null,
       customerName: customer?.name ?? null,
+      customerLogoUrl: customer?.logo_url ?? null,
+      customerAccentColor: customer?.accent_color ?? null,
       signerEmail: token.signer_email,
       otpVerified: !!token.otp_verified_at,
       otpPending,

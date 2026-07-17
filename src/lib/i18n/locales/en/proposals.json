@@ -157,7 +157,8 @@
       "offerExpired": "This offer has expired and can no longer be accepted.",
       "emailFailed": "We couldn't send the email — try again shortly.",
       "generic": "Something went wrong — try again."
-    }
+    },
+    "preparedForLabel": "Prepared for"
   },
   "activity": {
     "heading": "Activity",

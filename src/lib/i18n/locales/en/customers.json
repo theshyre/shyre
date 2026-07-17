@@ -14,7 +14,8 @@
     "notes": "Notes",
     "defaultRate": "Default Rate ($/hr)",
     "showCountryOnInvoice": "Show country on invoice",
-    "showCountryOnInvoiceHint": "When on, the country line of this customer's address renders under the Invoice For block. Off by default — most domestic invoices read cleaner without it."
+    "showCountryOnInvoiceHint": "When on, the country line of this customer's address renders under the Invoice For block. Off by default — most domestic invoices read cleaner without it.",
+    "accentColor": "Accent color"
   },
   "table": {
     "defaultRate": "Default Rate",
@@ -45,5 +46,10 @@
   "archiveFailed": "Couldn't archive customer.",
   "contactDeleteFailed": "Couldn't delete contact.",
   "contactDeleteAria": "Delete contact {name}",
-  "exportCsv": "Export CSV"
+  "exportCsv": "Export CSV",
+  "branding": {
+    "heading": "Branding",
+    "help": "Optional co-brand shown on proposals prepared for this customer (PDF + sign page).",
+    "logoLabel": "Logo"
+  }
 }
