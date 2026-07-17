@@ -5,6 +5,7 @@ import { useState } from "react";
 import { Download, Loader2 } from "lucide-react";
 import { pdf } from "@react-pdf/renderer";
 import { ProposalPDF, type ProposalPDFItem } from "@/components/ProposalPDF";
+import { fetchImageAsDataUri } from "@/lib/branding/image-data-uri";
 import { buttonSecondaryClass } from "@/lib/form-styles";
 
 export interface ProposalPdfBundle {
@@ -37,6 +38,7 @@ export interface ProposalPdfBundle {
     wordmark_primary: string | null;
     wordmark_secondary: string | null;
     brand_color: string | null;
+    logo_url: string | null;
     show_country_on_invoice: boolean | null;
   } | null;
 }
@@ -53,6 +55,11 @@ export function ProposalPdfButton({
   const [busy, setBusy] = useState(false);
 
   async function handleDownload(): Promise<void> {
+    // Resolve the logo to a data URI first — react-pdf's <Image> would fail the
+    // whole render on a bad remote src, so a fetch failure falls back to the
+    // text wordmark instead. Runs under the busy spinner set below.
+    setBusy(true);
+    const logoDataUri = await fetchImageAsDataUri(business?.logo_url ?? null);
     const doc = (
       <ProposalPDF
         proposalNumber={proposal.proposal_number}
@@ -76,6 +83,7 @@ export function ProposalPdfButton({
           wordmarkPrimary: business?.wordmark_primary ?? null,
           wordmarkSecondary: business?.wordmark_secondary ?? null,
           brandColor: business?.brand_color ?? null,
+          logoDataUri,
           showCountry: business?.show_country_on_invoice ?? false,
         }}
         client={{
@@ -88,9 +96,8 @@ export function ProposalPdfButton({
         items={items}
       />
     );
-    // Rendering a large PDF to a blob takes a beat — surface pending state
-    // rather than letting the button look inert (per the forms/buttons rule).
-    setBusy(true);
+    // Rendering a large PDF to a blob takes a beat — the busy state set above
+    // (before the logo fetch) already covers it, per the forms/buttons rule.
     try {
       const blob = await pdf(doc).toBlob();
       const url = URL.createObjectURL(blob);

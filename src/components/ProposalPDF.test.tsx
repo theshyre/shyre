@@ -121,6 +121,24 @@ describe("ProposalPDF", () => {
     expect(html).toContain("Name / Title");
   });
 
+  it("renders the uploaded logo in place of the wordmark when a data URI is set", () => {
+    const uri = "data:image/png;base64,AAAABBBB";
+    const html = renderToString(
+      <ProposalPDF
+        {...baseProps}
+        business={{ ...baseProps.business, logoDataUri: uri }}
+      />,
+    );
+    expect(html).toContain(uri);
+  });
+
+  it("falls back to the text wordmark when no logo is set", () => {
+    const html = renderToString(<ProposalPDF {...baseProps} />);
+    // The two-tone wordmark renders; no logo <image> data URI present.
+    expect(html).toContain("malcom");
+    expect(html).not.toContain("data:image");
+  });
+
   it("renders a flat-amount deposit and survives missing optionals", () => {
     const flat = textOf(
       <ProposalPDF

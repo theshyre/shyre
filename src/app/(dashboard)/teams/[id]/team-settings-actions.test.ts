@@ -1,4 +1,4 @@
-import { describe, it, expect, vi, beforeEach } from "vitest";
+import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 
 /**
  * team-settings has three actions: updateTeamSettingsAction (the
@@ -101,6 +101,7 @@ vi.mock("@/lib/supabase/server", () => ({
 }));
 
 import {
+  setTeamLogoAction,
   setTeamRateAction,
   setTeamTimeEntriesVisibilityAction,
   updateTeamSettingsAction,
@@ -120,6 +121,58 @@ function fd(entries: Record<string, string>): FormData {
   for (const [k, v] of Object.entries(entries)) f.set(k, v);
   return f;
 }
+
+describe("setTeamLogoAction", () => {
+  const SUPA = "https://proj.supabase.co";
+  const ownLogo = (team: string) =>
+    `${SUPA}/storage/v1/object/public/branding/${team}/1700.png`;
+
+  beforeEach(() => {
+    reset();
+    process.env.NEXT_PUBLIC_SUPABASE_URL = SUPA;
+  });
+  afterEach(() => {
+    delete process.env.NEXT_PUBLIC_SUPABASE_URL;
+  });
+
+  it("rejects plain members", async () => {
+    mockValidateTeamAccess.mockResolvedValue({ userId: fakeUserId, role: "member" });
+    await expect(
+      setTeamLogoAction(fd({ team_id: "t-1", logo_url: ownLogo("t-1") })),
+    ).rejects.toThrow(/owners and admins/);
+    expect(state.upserts).toHaveLength(0);
+  });
+
+  it("persists a valid own-branding logo URL", async () => {
+    mockValidateTeamAccess.mockResolvedValue({ userId: fakeUserId, role: "admin" });
+    await setTeamLogoAction(fd({ team_id: "t-1", logo_url: ownLogo("t-1") }));
+    expect(state.upserts).toHaveLength(1);
+    expect(state.upserts[0]?.patch).toEqual({
+      team_id: "t-1",
+      logo_url: ownLogo("t-1"),
+    });
+    expect(mockRevalidatePath).toHaveBeenCalledWith("/teams/t-1");
+  });
+
+  it("rejects an off-site or foreign-team URL (SAL-041)", async () => {
+    mockValidateTeamAccess.mockResolvedValue({ userId: fakeUserId, role: "owner" });
+    await expect(
+      setTeamLogoAction(
+        fd({ team_id: "t-1", logo_url: "https://evil.example/logo.png" }),
+      ),
+    ).rejects.toThrow(/not a valid upload/);
+    await expect(
+      setTeamLogoAction(fd({ team_id: "t-1", logo_url: ownLogo("t-2") })),
+    ).rejects.toThrow(/not a valid upload/);
+    expect(state.upserts).toHaveLength(0);
+  });
+
+  it("clears the logo (null) when no url is provided — the remove path", async () => {
+    mockValidateTeamAccess.mockResolvedValue({ userId: fakeUserId, role: "owner" });
+    await setTeamLogoAction(fd({ team_id: "t-1" }));
+    expect(state.upserts[0]?.patch).toEqual({ team_id: "t-1", logo_url: null });
+  });
+});
 
 describe("updateTeamSettingsAction", () => {
   beforeEach(reset);

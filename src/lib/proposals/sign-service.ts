@@ -57,6 +57,12 @@ export interface SignBundle {
   };
   items: SignBundleItem[];
   businessName: string | null;
+  /** Branding for the sign-page header (SAL-041 — a public URL rendered as a
+   *  plain <img>). Logo wins; else the two-tone wordmark in the brand color. */
+  businessLogoUrl: string | null;
+  brandColor: string | null;
+  wordmarkPrimary: string | null;
+  wordmarkSecondary: string | null;
   customerName: string | null;
   signerEmail: string;
   /** Sign-time state driving the page's flow. */
@@ -238,7 +244,9 @@ export async function loadSignBundle(
 
   const { data: settings } = await admin
     .from("team_settings")
-    .select("business_name")
+    .select(
+      "business_name, logo_url, brand_color, wordmark_primary, wordmark_secondary",
+    )
     .eq("team_id", token.team_id)
     .single();
   const customer = Array.isArray(proposal.customers)
@@ -280,6 +288,10 @@ export async function loadSignBundle(
       },
       items,
       businessName: (settings?.business_name as string | null) ?? null,
+      businessLogoUrl: (settings?.logo_url as string | null) ?? null,
+      brandColor: (settings?.brand_color as string | null) ?? null,
+      wordmarkPrimary: (settings?.wordmark_primary as string | null) ?? null,
+      wordmarkSecondary: (settings?.wordmark_secondary as string | null) ?? null,
       customerName: customer?.name ?? null,
       signerEmail: token.signer_email,
       otpVerified: !!token.otp_verified_at,

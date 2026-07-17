@@ -14,7 +14,8 @@
   },
   "branding": {
     "help": "Logotipo de dos tonos mostrado en superficies externas (PDF de facturas). Si está vacío, se usa el nombre del negocio.",
-    "preview": "Vista previa"
+    "preview": "Vista previa",
+    "logoLabel": "Logo"
   },
   "profile": {
     "displayName": "Nombre visible",

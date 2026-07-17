@@ -23,7 +23,7 @@ A handful of tables are **business-scoped** (a Business owns 1+ Teams) — see "
 | `teams` | `team_id` PK | Tenant unit. Every member, customer, project, time entry, invoice has a `team_id`. |
 | `team_members` | `(team_id, user_id)` | Role grant: `owner` / `admin` / `member`. UNIQUE on the pair. |
 | `team_invites` | `(team_id, token)` | Pending invites. Email-matched on accept. |
-| `team_settings` | `team_id` PK | Per-team settings: default rate, invoice prefix + counter, default tax rate, branding. |
+| `team_settings` | `team_id` PK | Per-team settings: default rate, invoice prefix + counter, default tax rate, branding (`wordmark_primary`/`wordmark_secondary`, `brand_color`, and `logo_url` — an uploaded logo in the public `branding` Storage bucket, activated by `20260717140000`; rendered on the proposal PDF + sign page. Writes validated by `isOwnBrandingUrl` to be the team's own upload — the SAL-039 image lesson, SAL-041). |
 | `team_shares` | `(parent_team_id, child_team_id)` | Cross-team data sharing — predecessor of `customer_shares`. Largely unused now; kept for legacy import paths. |
 | `team_period_locks` | `(team_id, period_end)` | Bookkeeper period close. Triggers refuse mutations on locked periods. |
 | `team_period_locks_history` | history | Append-only event log for lock/unlock actions. |

@@ -67,10 +67,25 @@ invoice numbering.
 ## The PDF
 
 **Download PDF** on the detail page renders a branded document in your
-browser (nothing is uploaded): your team's wordmark and brand color, the
-pricing table with phased sub-items, terms, and a **two-party signature
-block** — each line item carries a physical tick-box so a client signing on
-paper can mark the subset they authorize.
+browser (nothing is uploaded): your team's **uploaded logo** (or, if none is
+set, the two-tone wordmark in your brand color), the pricing table with phased
+sub-items, terms, and a **two-party signature block** — each line item carries
+a physical tick-box so a client signing on paper can mark the subset they
+authorize.
+
+## Branding your proposals
+
+**Team settings → Branding** (owner/admin) is where your brand lives:
+
+- A **wordmark** (two-tone text) and a **brand color** — the fallback mark, and
+  the accent color used across the document.
+- A **logo** — upload a PNG or JPG (up to 2 MB) and it renders in the proposal
+  PDF header and at the top of the public sign page the client sees, in place of
+  the wordmark. (SVG/WebP uploads show on the sign page but the PDF falls back to
+  the wordmark — the PDF engine only embeds PNG/JPG.)
+
+Uploaded logos are stored per-team and are only writable by that team's owners
+and admins; see SAL-041 for the storage posture.
 
 ## Sending & the sign-off link
 
