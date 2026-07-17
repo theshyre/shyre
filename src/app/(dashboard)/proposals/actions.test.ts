@@ -122,6 +122,8 @@ import {
   deleteProposalAction,
   sendProposalAction,
   counterSignProposalAction,
+  convertProposalAction,
+  createInvoiceFromProposalAction,
 } from "./actions";
 import { sha256Hex } from "@/lib/proposals/tokens";
 
@@ -494,6 +496,219 @@ describe("counterSignProposalAction", () => {
     await expect(
       counterSignProposalAction(formWith({ id: "prop-1" })),
     ).rejects.toThrow(/No accepted sign-off/);
+  });
+});
+
+// The kickoff-example item tree: li-1 unphased $950, li-2 phased $4,000.
+const CONVERT_ITEMS = [
+  { id: "li-1", parent_line_item_id: null, sort_order: 0, title: "Basic dependency upgrades", description: "Upgrades", fixed_price: 950, converted_project_id: null, invoiced_at: null },
+  { id: "li-2", parent_line_item_id: null, sort_order: 1, title: "Modernize underlying components", description: null, fixed_price: 4000, converted_project_id: null, invoiced_at: null },
+  { id: "li-3", parent_line_item_id: "li-2", sort_order: 0, title: "Update the visual framework", description: null, fixed_price: 2200, converted_project_id: null, invoiced_at: null },
+  { id: "li-4", parent_line_item_id: "li-2", sort_order: 1, title: "Retire older libraries", description: null, fixed_price: 1200, converted_project_id: null, invoiced_at: null },
+  { id: "li-5", parent_line_item_id: "li-2", sort_order: 2, title: "Refresh code-quality checks", description: null, fixed_price: 600, converted_project_id: null, invoiced_at: null },
+];
+
+describe("convertProposalAction", () => {
+  const acceptedProposal = {
+    id: "prop-1",
+    team_id: TEAM,
+    status: "accepted",
+    customer_id: CUSTOMER,
+    proposal_number: "PROP-2026-007",
+  };
+
+  it("creates a project per accepted item, phases as sub-projects, links them back, flips to converted", async () => {
+    queues["proposals"] = [
+      { data: acceptedProposal, error: null },
+      { data: null, error: null }, // status → converted
+    ];
+    queues["proposal_acceptances"] = [
+      { data: [{ selected_line_item_ids: ["li-1", "li-2"], decision: "accepted" }], error: null },
+    ];
+    queues["proposal_line_items"] = [{ data: CONVERT_ITEMS, error: null }];
+    queues["projects"] = [
+      { data: { id: "p-1" }, error: null }, // li-1
+      { data: { id: "p-2" }, error: null }, // li-2 parent
+      { data: { id: "p-3" }, error: null }, // phase 1
+      { data: { id: "p-4" }, error: null }, // phase 2
+      { data: { id: "p-5" }, error: null }, // phase 3
+    ];
+    queues["proposal_events"] = [{ data: null, error: null }];
+
+    await convertProposalAction(formWith({ id: "prop-1" }));
+
+    const projectInserts = insertedRows("projects");
+    expect(projectInserts).toHaveLength(5);
+    expect(projectInserts[0]).toMatchObject({
+      name: "Basic dependency upgrades",
+      customer_id: CUSTOMER,
+      team_id: TEAM,
+      is_internal: false,
+      default_billable: true,
+    });
+    // The three phases hang under li-2's project.
+    const subs = projectInserts.filter((p) => p.parent_project_id === "p-2");
+    expect(subs.map((s) => s.name)).toEqual([
+      "Update the visual framework",
+      "Retire older libraries",
+      "Refresh code-quality checks",
+    ]);
+
+    // Line items linked back to their created projects.
+    const liUpdates = calls
+      .filter((c) => c.table === "proposal_line_items")
+      .flatMap((c) => c.ops.filter((o) => o.method === "update"))
+      .map((o) => o.args[0] as { converted_project_id?: string });
+    expect(liUpdates.map((u) => u.converted_project_id)).toEqual([
+      "p-1",
+      "p-2",
+      "p-3",
+      "p-4",
+      "p-5",
+    ]);
+
+    const statusUpdate = calls.find(
+      (c) =>
+        c.table === "proposals" &&
+        c.ops.some(
+          (o) =>
+            o.method === "update" &&
+            (o.args[0] as { status?: string }).status === "converted",
+        ),
+    );
+    expect(statusUpdate).toBeDefined();
+    expect(insertedRows("proposal_events")[0]).toMatchObject({
+      event_type: "converted",
+      metadata: { projects_created: 5 },
+    });
+  });
+
+  it("refuses when the proposal isn't accepted", async () => {
+    queues["proposals"] = [
+      { data: { ...acceptedProposal, status: "sent" }, error: null },
+    ];
+    await expect(
+      convertProposalAction(formWith({ id: "prop-1" })),
+    ).rejects.toThrow(/Only an accepted proposal/);
+  });
+
+  it("refuses when there is no accepted sign-off", async () => {
+    queues["proposals"] = [{ data: acceptedProposal, error: null }];
+    queues["proposal_acceptances"] = [{ data: null, error: null }];
+    await expect(
+      convertProposalAction(formWith({ id: "prop-1" })),
+    ).rejects.toThrow(/No accepted sign-off/);
+  });
+
+  it("refuses a double convert (everything already linked)", async () => {
+    queues["proposals"] = [{ data: acceptedProposal, error: null }];
+    queues["proposal_acceptances"] = [
+      { data: [{ selected_line_item_ids: ["li-1"], decision: "accepted" }], error: null },
+    ];
+    queues["proposal_line_items"] = [
+      {
+        data: [{ ...CONVERT_ITEMS[0]!, converted_project_id: "p-old" }],
+        error: null,
+      },
+    ];
+    await expect(
+      convertProposalAction(formWith({ id: "prop-1" })),
+    ).rejects.toThrow(/already been converted/);
+    expect(insertedRows("projects")).toHaveLength(0);
+  });
+});
+
+describe("createInvoiceFromProposalAction", () => {
+  const acceptedProposal = {
+    id: "prop-1",
+    team_id: TEAM,
+    status: "accepted",
+    customer_id: CUSTOMER,
+    proposal_number: "PROP-2026-007",
+    title: "Modernization",
+    payment_terms_days: 30,
+    payment_terms_label: "Net 30",
+  };
+
+  function seedBillable(): void {
+    queues["proposals"] = [{ data: acceptedProposal, error: null }];
+    queues["proposal_acceptances"] = [
+      { data: [{ selected_line_item_ids: ["li-1", "li-2"], decision: "accepted" }], error: null },
+    ];
+    queues["proposal_line_items"] = [{ data: CONVERT_ITEMS, error: null }];
+    queues["team_settings"] = [
+      { data: { invoice_prefix: "INV", invoice_next_num: 42, tax_rate: 0 }, error: null },
+      { data: null, error: null }, // counter increment
+    ];
+    queues["invoices"] = [{ data: { id: "inv-1" }, error: null }];
+    queues["invoice_line_items"] = [{ data: null, error: null }];
+  }
+
+  it("bills the accepted subset as manual lines with proposal terms — $4,950", async () => {
+    seedBillable();
+    await expect(
+      createInvoiceFromProposalAction(formWith({ id: "prop-1" })),
+    ).rejects.toThrow("NEXT_REDIRECT /invoices/inv-1");
+
+    const year = new Date().getFullYear();
+    const [invoiceRow] = insertedRows("invoices");
+    expect(invoiceRow).toMatchObject({
+      team_id: TEAM,
+      customer_id: CUSTOMER,
+      invoice_number: `INV-${year}-042`,
+      status: "draft",
+      subtotal: 4950,
+      total: 4950,
+      payment_terms_days: 30,
+      payment_terms_label: "Net 30",
+      grouping_mode: "detailed",
+    });
+    expect(invoiceRow!.due_date).toMatch(/^\d{4}-\d{2}-\d{2}$/);
+
+    const lineRows = insertedRows("invoice_line_items");
+    expect(lineRows).toHaveLength(2);
+    // Manual lines: BOTH source FKs null (the mutex CHECK's third case).
+    expect(
+      lineRows.every(
+        (r) => r.time_entry_id === null && r.expense_id === null,
+      ),
+    ).toBe(true);
+    expect(lineRows.map((r) => r.amount)).toEqual([950, 4000]);
+    expect(lineRows[0]!.description).toContain("PROP-2026-007");
+
+    // Double-bill lock stamped on both billed items.
+    const stamps = calls
+      .filter((c) => c.table === "proposal_line_items")
+      .flatMap((c) => c.ops.filter((o) => o.method === "update"))
+      .map((o) => o.args[0] as { invoiced_at?: string })
+      .filter((p) => p.invoiced_at);
+    expect(stamps).toHaveLength(2);
+  });
+
+  it("refuses when everything accepted is already invoiced", async () => {
+    queues["proposals"] = [{ data: acceptedProposal, error: null }];
+    queues["proposal_acceptances"] = [
+      { data: [{ selected_line_item_ids: ["li-1"], decision: "accepted" }], error: null },
+    ];
+    queues["proposal_line_items"] = [
+      {
+        data: [{ ...CONVERT_ITEMS[0]!, invoiced_at: "2026-07-16T00:00:00Z" }],
+        error: null,
+      },
+    ];
+    await expect(
+      createInvoiceFromProposalAction(formWith({ id: "prop-1" })),
+    ).rejects.toThrow(/already been invoiced/);
+    expect(insertedRows("invoices")).toHaveLength(0);
+  });
+
+  it("refuses to bill an unaccepted proposal", async () => {
+    queues["proposals"] = [
+      { data: { ...acceptedProposal, status: "viewed" }, error: null },
+    ];
+    await expect(
+      createInvoiceFromProposalAction(formWith({ id: "prop-1" })),
+    ).rejects.toThrow(/Only an accepted proposal can be billed/);
   });
 });
 

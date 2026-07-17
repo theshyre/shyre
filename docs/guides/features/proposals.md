@@ -2,9 +2,9 @@
 
 Proposals are the front of Shyre's funnel: draft a fixed-price quote, send it
 for sign-off, and convert the accepted work into projects that time is tracked
-against and billed from. Authoring, the branded PDF, **sending, and the
-public client sign-off** are live; convert-to-project and fixed-price billing
-arrive next.
+against and billed from. The full loop is live: authoring, the branded PDF,
+sending, the public client sign-off, **convert-to-project, and fixed-price
+billing**.
 
 ## Who can use it
 
@@ -89,9 +89,27 @@ asks for inline confirmation) — sent and signed proposals are part of the
 audit record, are content-frozen at the database level, and are never
 deletable.
 
+## Converting accepted work into projects
+
+On an accepted proposal, **Convert to projects** creates one project per
+accepted line item — a phased item becomes a project with its phases as
+**sub-projects** — owned by the proposal's customer, ready for time tracking.
+Each line item links to its created project ("View project"), and the
+proposal moves to `converted`. Items the client didn't select are not
+converted.
+
+## Billing the fixed price
+
+**Create invoice** (accepted or converted) drafts an invoice with one
+fixed-price line per accepted item (`PROP-2026-001 — Basic dependency
+upgrades … $950.00`), carrying the proposal's payment terms into the due
+date. Billed items are locked against double-billing — the button disappears
+once everything accepted has been invoiced. The invoice is a normal draft:
+review it, adjust tax if needed, and send it through the standard invoice
+flow. Example: a client accepts Projects 1 + 3 ($950 + $4,000) → one draft
+invoice totaling **$4,950**.
+
 ## What's next (later phases)
 
-- **Convert** accepted items into projects (phased items become a project
-  with sub-projects) and bill the fixed price straight onto an invoice.
 - **Versioning** — revise a sent proposal by issuing a new version that
   supersedes the old one.

@@ -13,6 +13,8 @@ import { ProposalStatusBadge } from "../proposal-status-badge";
 import { DeleteProposalButton } from "../delete-proposal-button";
 import { SendProposalButton } from "../send-proposal-button";
 import { CounterSignButton } from "../counter-sign-button";
+import { ConvertProposalButton } from "../convert-proposal-button";
+import { CreateInvoiceButton } from "../create-invoice-button";
 import { ProposalPdfButton, type ProposalPdfBundle } from "./proposal-pdf-button";
 import { isProposalEditable, type DepositType } from "../allow-lists";
 
@@ -32,6 +34,8 @@ interface LineItemRow {
   definition_of_done: string | null;
   fixed_price: number | string;
   is_capped: boolean;
+  converted_project_id: string | null;
+  invoiced_at: string | null;
 }
 
 export default async function ProposalDetailPage({
@@ -56,7 +60,7 @@ export default async function ProposalDetailPage({
   const { data: itemRows } = await supabase
     .from("proposal_line_items")
     .select(
-      "id, parent_line_item_id, sort_order, title, description, why_it_matters, out_of_scope, definition_of_done, fixed_price, is_capped",
+      "id, parent_line_item_id, sort_order, title, description, why_it_matters, out_of_scope, definition_of_done, fixed_price, is_capped, converted_project_id, invoiced_at",
     )
     .eq("proposal_id", proposalId)
     .order("sort_order");
@@ -133,6 +137,16 @@ export default async function ProposalDetailPage({
   const status = (proposal.status as string) ?? "draft";
   const editable = isProposalEditable(status);
 
+  // Accepted-but-unbilled items drive the "Create invoice" affordance.
+  const acceptedIds = new Set(
+    ((acceptance?.selected_line_item_ids as string[] | null) ?? []),
+  );
+  const hasUnbilledAccepted =
+    acceptance?.decision === "accepted" &&
+    parents.some(
+      (row) => acceptedIds.has(row.id) && row.invoiced_at === null,
+    );
+
   const pdfBundle: ProposalPdfBundle = {
     proposal: {
       proposal_number: proposal.proposal_number as string,
@@ -191,6 +205,13 @@ export default async function ProposalDetailPage({
           {status === "accepted" && acceptance && !acceptance.provider_signed_at && (
             <CounterSignButton proposalId={proposalId} />
           )}
+          {status === "accepted" && (
+            <ConvertProposalButton proposalId={proposalId} />
+          )}
+          {(status === "accepted" || status === "converted") &&
+            hasUnbilledAccepted && (
+              <CreateInvoiceButton proposalId={proposalId} />
+            )}
         </div>
       </div>
 
@@ -240,6 +261,14 @@ export default async function ProposalDetailPage({
             <div className="flex items-baseline justify-between gap-3">
               <span className="text-body-lg font-semibold text-content">
                 {item.title}
+                {parents[i]?.converted_project_id && (
+                  <Link
+                    href={`/projects/${parents[i]!.converted_project_id}`}
+                    className="ml-2 text-caption font-normal text-accent hover:underline"
+                  >
+                    {t("viewProject")}
+                  </Link>
+                )}
               </span>
               <span className="font-mono text-body-lg text-content">
                 {formatCurrency(item.fixedPrice, currency)}
