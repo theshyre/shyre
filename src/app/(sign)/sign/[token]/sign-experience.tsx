@@ -180,7 +180,7 @@ export function SignExperience({ token, bundle }: Props): React.JSX.Element {
       <p className="text-caption uppercase tracking-wide text-content-muted">
         {t("heading", { business: bundle.businessName ?? "—" })}
       </p>
-      <h1 className="mt-1 text-title font-semibold text-content">
+      <h1 className="mt-1 text-page-title font-semibold text-content">
         {bundle.proposal.title}
       </h1>
       <p className="mt-1 font-mono text-caption text-content-secondary">
@@ -233,7 +233,7 @@ export function SignExperience({ token, bundle }: Props): React.JSX.Element {
       {/* Line items — selectable once verified; the subset rule is stated up
           front so the read-only stage doesn't read as all-or-nothing. */}
       <section className="mt-[24px]">
-        <h2 className="text-heading font-semibold text-content">
+        <h2 className="text-title font-semibold text-content">
           {t("itemsHeading")}
         </h2>
         {!decided && (
@@ -368,7 +368,7 @@ export function SignExperience({ token, bundle }: Props): React.JSX.Element {
         bundle.proposal.warrantyDays != null ||
         bundle.proposal.termsNotes) && (
         <section className="mt-[24px]">
-          <h2 className="text-heading font-semibold text-content">
+          <h2 className="text-title font-semibold text-content">
             {t("termsHeading")}
           </h2>
           <ul className="mt-2 space-y-1 text-body text-content-secondary">
