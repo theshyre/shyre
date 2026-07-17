@@ -82,25 +82,33 @@ export function ProposalDocumentView({
 
   return (
     <div>
-      {/* Brand mark: logo, else two-tone wordmark in the brand color. */}
-      {business.logoUrl ? (
-        // eslint-disable-next-line @next/next/no-img-element -- stored public URL
-        <img
-          src={business.logoUrl}
-          alt=""
-          aria-hidden="true"
-          className="mb-4 max-h-[48px] w-auto object-contain"
-        />
-      ) : business.wordmarkPrimary ? (
-        <p aria-hidden="true" className="mb-4 text-title font-semibold">
-          <span style={{ color: business.brandColor ?? undefined }}>
-            {business.wordmarkPrimary}
-          </span>
-          {business.wordmarkSecondary ? (
-            <span className="text-content">{business.wordmarkSecondary}</span>
+      {/* Brand lockup: the logo AND the two-tone wordmark, side by side (either
+          alone if only one is set). */}
+      {(business.logoUrl || business.wordmarkPrimary) && (
+        <div className="mb-4 flex items-center gap-3">
+          {business.logoUrl ? (
+            // eslint-disable-next-line @next/next/no-img-element -- stored public URL
+            <img
+              src={business.logoUrl}
+              alt=""
+              aria-hidden="true"
+              className="max-h-[48px] w-auto object-contain"
+            />
           ) : null}
-        </p>
-      ) : null}
+          {business.wordmarkPrimary ? (
+            <p aria-hidden="true" className="text-title font-semibold">
+              <span style={{ color: business.brandColor ?? undefined }}>
+                {business.wordmarkPrimary}
+              </span>
+              {business.wordmarkSecondary ? (
+                <span className="text-content">
+                  {business.wordmarkSecondary}
+                </span>
+              ) : null}
+            </p>
+          ) : null}
+        </div>
+      )}
 
       <p className="text-caption uppercase tracking-wide text-content-muted">
         {t("heading", { business: business.name ?? "—" })}

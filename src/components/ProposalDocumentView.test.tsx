@@ -109,15 +109,17 @@ describe("ProposalDocumentView", () => {
     expect(screen.getByText(".io")).toBeInTheDocument();
   });
 
-  it("renders the business logo (and hides the wordmark) when a logo is set", () => {
+  it("renders the logo AND the wordmark together (the brand lockup) when both are set", () => {
     renderWithIntl(
       <ProposalDocumentView
         {...base}
         business={{ ...base.business, logoUrl: "https://x/branding/t/logo.png" }}
       />,
     );
-    expect(screen.queryByText("malcom")).not.toBeInTheDocument();
-    // The customer co-brand line names the customer.
-    expect(screen.getByText("EyeReg")).toBeInTheDocument();
+    // The lockup shows the uploaded logo image + the two-tone wordmark.
+    const logo = document.querySelector('img[src="https://x/branding/t/logo.png"]');
+    expect(logo).not.toBeNull();
+    expect(screen.getByText("malcom")).toBeInTheDocument();
+    expect(screen.getByText(".io")).toBeInTheDocument();
   });
 });

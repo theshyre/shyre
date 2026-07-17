@@ -123,7 +123,7 @@ describe("ProposalPDF", () => {
     expect(html).toContain("Name / Title");
   });
 
-  it("renders the uploaded logo in place of the wordmark when a data URI is set", () => {
+  it("renders the logo AND the wordmark together (brand lockup) when both are set", () => {
     const uri = "data:image/png;base64,AAAABBBB";
     const html = renderToString(
       <ProposalPDF
@@ -131,7 +131,8 @@ describe("ProposalPDF", () => {
         business={{ ...baseProps.business, logoDataUri: uri }}
       />,
     );
-    expect(html).toContain(uri);
+    expect(html).toContain(uri); // the logo image
+    expect(html).toContain("malcom"); // and the wordmark
   });
 
   it("falls back to the text wordmark when no logo is set", () => {
