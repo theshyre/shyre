@@ -90,3 +90,15 @@ export type AcceptanceDecision = (typeof ACCEPTANCE_DECISIONS)[number];
 export const ALLOWED_ACCEPTANCE_DECISIONS = new Set<string>(
   ACCEPTANCE_DECISIONS,
 );
+
+/**
+ * `proposals.signing_mode` — how many rostered signers must authorize:
+ * `first` = any one signer's authorization is binding (the single-signer
+ * default); `all` = every signer must counter-sign the SAME accepted subset.
+ * Mirrored by the CHECK in `20260717160000_proposals_multi_signer_schema.sql`.
+ */
+export const SIGNING_MODES = ["first", "all"] as const;
+
+export type SigningMode = (typeof SIGNING_MODES)[number];
+
+export const ALLOWED_SIGNING_MODES = new Set<string>(SIGNING_MODES);

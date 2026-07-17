@@ -52,6 +52,7 @@ import {
 import {
   ALLOWED_PROPOSAL_STATUSES,
   ALLOWED_DEPOSIT_TYPES,
+  ALLOWED_SIGNING_MODES,
   ALLOWED_PROPOSAL_EVENT_TYPES,
   ALLOWED_ACCEPTANCE_DECISIONS,
 } from "@/app/(dashboard)/proposals/allow-lists";
@@ -294,6 +295,12 @@ const PAIRS: Pair[] = [
     appSet: ALLOWED_ACCEPTANCE_DECISIONS,
     column: "decision",
     table: "proposal_acceptances",
+  },
+  {
+    name: "signingModes",
+    appSet: ALLOWED_SIGNING_MODES,
+    column: "signing_mode",
+    table: "proposals",
   },
 ];
 
