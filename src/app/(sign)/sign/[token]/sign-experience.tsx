@@ -9,6 +9,8 @@ import {
   MailCheck,
   ShieldCheck,
   TriangleAlert,
+  Clock,
+  Lock,
 } from "lucide-react";
 import {
   inputClass,
@@ -91,8 +93,12 @@ export function SignExperience({ token, bundle }: Props): React.JSX.Element {
     "otp_send" | "otp_verify" | "accept" | "decline" | null
   >(null);
 
+  // A bound co-signer ('all' mode, after the primary authorized) sees the
+  // primary's fixed subset — pre-selected and read-only. Everyone else starts
+  // with all items selected and may deselect.
   const [selected, setSelected] = useState<Set<string>>(
-    () => new Set(bundle.items.map((item) => item.id)),
+    () =>
+      new Set(bundle.boundSelectedIds ?? bundle.items.map((item) => item.id)),
   );
   const [signerName, setSignerName] = useState("");
   const [signerTitle, setSignerTitle] = useState("");
@@ -132,6 +138,8 @@ export function SignExperience({ token, bundle }: Props): React.JSX.Element {
         return t("errors.invalidSelection");
       case "offer_expired":
         return t("errors.offerExpired");
+      case "awaiting_primary":
+        return t("awaitingPrimaryNote");
       case "email_failed":
         return t("errors.emailFailed");
       default:
@@ -162,8 +170,12 @@ export function SignExperience({ token, bundle }: Props): React.JSX.Element {
 
   const decided = bundle.decided;
   const decidedAccepted = bundle.proposal.status === "accepted";
-  const selectable = !decided && bundle.otpVerified;
+  // A bound co-signer cannot change the subset — it's the primary's.
+  const isBound = bundle.boundSelectedIds !== null;
+  const selectable = !decided && bundle.otpVerified && !isBound;
   const acceptMissing: string[] = [];
+  // A co-signer whose primary hasn't authorized yet can't sign at all.
+  if (bundle.awaitingPrimary) acceptMissing.push(t("awaitingPrimary"));
   if (selected.size === 0) acceptMissing.push(t("missingSelection"));
   if (signerName.trim() === "") acceptMissing.push(t("missingName"));
   if (signature.trim() === "") acceptMissing.push(t("missingSignature"));
@@ -281,6 +293,27 @@ export function SignExperience({ token, bundle }: Props): React.JSX.Element {
                 ),
               })
             : t("alreadyDecided")}
+        </div>
+      )}
+
+      {/* Multi-signer notices: a co-signer either waits for the primary to set
+          the scope, or is bound to the scope the primary already authorized. */}
+      {!decided && bundle.awaitingPrimary && (
+        <div
+          role="status"
+          className="mt-[24px] flex items-start gap-2 rounded-lg border border-edge bg-surface-raised p-4 text-body text-content-secondary"
+        >
+          <Clock size={16} aria-hidden="true" className="mt-0.5 text-accent" />
+          <span>{t("awaitingPrimaryNote")}</span>
+        </div>
+      )}
+      {!decided && !bundle.awaitingPrimary && isBound && (
+        <div
+          role="status"
+          className="mt-[24px] flex items-start gap-2 rounded-lg border border-edge bg-surface-raised p-4 text-body text-content-secondary"
+        >
+          <Lock size={16} aria-hidden="true" className="mt-0.5 text-accent" />
+          <span>{t("boundSubsetNote")}</span>
         </div>
       )}
 

@@ -45,6 +45,7 @@ export interface ContactOption {
   name: string;
   email: string;
   customer_id: string;
+  role_label: string | null;
 }
 
 interface PhaseState {
@@ -71,6 +72,8 @@ export interface ProposalFormInitial {
   team_id: string;
   customer_id: string;
   signer_contact_id: string | null;
+  signers?: string[];
+  signing_mode?: "first" | "all";
   title: string;
   issued_date: string | null;
   valid_until: string | null;
@@ -174,7 +177,16 @@ export function ProposalForm({
   // ---- header state
   const [teamId, setTeamId] = useState(initial?.team_id ?? teams[0]?.id ?? "");
   const [customerId, setCustomerId] = useState(initial?.customer_id ?? "");
-  const [signerId, setSignerId] = useState(initial?.signer_contact_id ?? "");
+  // Signer roster (ordered contact ids; entry 0 is the primary). Seeded from
+  // an explicit roster, else the single signer_contact_id, else empty.
+  const [signers, setSigners] = useState<string[]>(
+    () =>
+      initial?.signers ??
+      (initial?.signer_contact_id ? [initial.signer_contact_id] : []),
+  );
+  const [signingMode, setSigningMode] = useState<"first" | "all">(
+    initial?.signing_mode ?? "first",
+  );
   const [title, setTitle] = useState(initial?.title ?? "");
   const [issuedDate, setIssuedDate] = useState(initial?.issued_date ?? "");
   const [validUntil, setValidUntil] = useState(initial?.valid_until ?? "");
@@ -258,7 +270,9 @@ export function ProposalForm({
     (): Record<string, unknown> => ({
       team_id: teamId,
       customer_id: customerId,
-      signer_contact_id: signerId || null,
+      signer_contact_id: signers[0] ?? null,
+      signers,
+      signing_mode: signers.length > 1 ? signingMode : "first",
       title: title.trim(),
       issued_date: issuedDate || null,
       valid_until: validUntil || null,
@@ -273,7 +287,8 @@ export function ProposalForm({
     [
       teamId,
       customerId,
-      signerId,
+      signers,
+      signingMode,
       title,
       issuedDate,
       validUntil,
@@ -340,6 +355,9 @@ export function ProposalForm({
   const customerContacts = contacts.filter(
     (c) => c.customer_id === customerId,
   );
+  const availableContacts = customerContacts.filter(
+    (c) => !signers.includes(c.id),
+  );
   const total = proposalTotal(domainItems);
   const previewTotal = selectedTotal(
     domainItems,
@@ -372,7 +390,7 @@ export function ProposalForm({
               onChange={(e) => {
                 setTeamId(e.target.value);
                 setCustomerId("");
-                setSignerId("");
+                setSigners([]);
               }}
             >
               {teams.map((team) => (
@@ -411,7 +429,7 @@ export function ProposalForm({
               value={customerId}
               onChange={(e) => {
                 setCustomerId(e.target.value);
-                setSignerId("");
+                setSigners([]);
               }}
               required
               aria-describedby={
@@ -429,26 +447,103 @@ export function ProposalForm({
           </div>
           <div>
             <label htmlFor="pf-signer" className={labelClass}>
-              {t("signer")}
+              {t("signersLabel")}
             </label>
+            {signers.length > 0 && (
+              <ul className="mb-2 space-y-1">
+                {signers.map((id, i) => {
+                  const c = contacts.find((x) => x.id === id);
+                  return (
+                    <li
+                      key={id}
+                      className="flex items-center gap-2 rounded-md border border-edge bg-surface px-2 py-1 text-body"
+                    >
+                      <span className="flex-1 truncate">
+                        {c ? c.name : id}
+                        {c?.role_label ? (
+                          <span className="text-content-muted">
+                            {" "}
+                            · {c.role_label}
+                          </span>
+                        ) : null}
+                        {i === 0 && signers.length > 1 ? (
+                          <span className="ml-1 text-caption text-accent">
+                            {t("primarySigner")}
+                          </span>
+                        ) : null}
+                      </span>
+                      <button
+                        type="button"
+                        onClick={() =>
+                          setSigners((prev) => prev.filter((x) => x !== id))
+                        }
+                        className={buttonGhostClass}
+                        aria-label={t("removeSigner")}
+                      >
+                        <Trash2 size={14} aria-hidden="true" className="text-error" />
+                      </button>
+                    </li>
+                  );
+                })}
+              </ul>
+            )}
             <select
               id="pf-signer"
               className={selectClass}
-              value={signerId}
-              onChange={(e) => setSignerId(e.target.value)}
-              disabled={customerContacts.length === 0}
+              value=""
+              onChange={(e) => {
+                const v = e.target.value;
+                if (v) setSigners((prev) => [...prev, v]);
+              }}
+              disabled={availableContacts.length === 0}
             >
               <option value="">
                 {customerContacts.length === 0
                   ? t("signerNone")
-                  : t("signerPlaceholder")}
+                  : signers.length === 0
+                    ? t("signerPlaceholder")
+                    : t("addSigner")}
               </option>
-              {customerContacts.map((c) => (
+              {availableContacts.map((c) => (
                 <option key={c.id} value={c.id}>
                   {c.name} ({c.email})
+                  {c.role_label ? ` — ${c.role_label}` : ""}
                 </option>
               ))}
             </select>
+            {signers.length > 1 && (
+              <div className="mt-2">
+                <div className="inline-flex overflow-hidden rounded-md border border-edge">
+                  <button
+                    type="button"
+                    aria-pressed={signingMode === "first"}
+                    onClick={() => setSigningMode("first")}
+                    className={`px-3 py-1 text-caption ${
+                      signingMode === "first"
+                        ? "bg-accent-soft font-medium text-accent"
+                        : "text-content-secondary hover:text-content"
+                    }`}
+                  >
+                    {t("modeFirst")}
+                  </button>
+                  <button
+                    type="button"
+                    aria-pressed={signingMode === "all"}
+                    onClick={() => setSigningMode("all")}
+                    className={`border-l border-edge px-3 py-1 text-caption ${
+                      signingMode === "all"
+                        ? "bg-accent-soft font-medium text-accent"
+                        : "text-content-secondary hover:text-content"
+                    }`}
+                  >
+                    {t("modeAll")}
+                  </button>
+                </div>
+                <p className="mt-1 text-caption text-content-muted">
+                  {signingMode === "all" ? t("modeAllHint") : t("modeFirstHint")}
+                </p>
+              </div>
+            )}
           </div>
         </div>
 

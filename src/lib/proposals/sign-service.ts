@@ -68,6 +68,15 @@ export interface SignBundle {
   customerLogoUrl: string | null;
   customerAccentColor: string | null;
   signerEmail: string;
+  /** Multi-signer context for THIS signer's link. `first` = any one signer
+   *  binds; `all` = every rostered signer must sign the same subset. */
+  signingMode: "first" | "all";
+  /** In 'all' mode, once the primary has authorized, co-signers are BOUND to
+   *  this subset (rendered read-only, pre-selected). Null when not bound. */
+  boundSelectedIds: string[] | null;
+  /** A co-signer opened their link before the primary authorized the scope —
+   *  they can't sign yet. */
+  awaitingPrimary: boolean;
   /** Sign-time state driving the page's flow. */
   otpVerified: boolean;
   otpPending: boolean;
@@ -90,6 +99,7 @@ export type SignFailReason =
   | "invalid_state"
   | "invalid_selection"
   | "offer_expired"
+  | "awaiting_primary"
   | "email_failed";
 
 /** DATE-string comparison in UTC: has the offer's validity window passed?
@@ -105,6 +115,8 @@ interface TokenRow {
   id: string;
   proposal_id: string;
   team_id: string;
+  /** Which roster signer this link is for; NULL on the single-signer path. */
+  signer_id: string | null;
   signer_email: string;
   signer_name: string | null;
   expires_at: string;
@@ -220,7 +232,7 @@ export async function loadSignBundle(
   const { data: proposal } = await admin
     .from("proposals")
     .select(
-      "id, team_id, proposal_number, title, status, issued_date, valid_until, payment_terms_label, deposit_type, deposit_value, warranty_days, terms_notes, currency, accepted_total, customers(name, accent_color, logo_url)",
+      "id, team_id, proposal_number, title, status, issued_date, valid_until, payment_terms_label, deposit_type, deposit_value, warranty_days, terms_notes, currency, accepted_total, signing_mode, customers(name, accent_color, logo_url)",
     )
     .eq("id", token.proposal_id)
     .single();
@@ -269,6 +281,38 @@ export async function loadSignBundle(
     new Date(token.otp_expires_at).getTime() > Date.now() &&
     token.otp_attempts < MAX_OTP_ATTEMPTS;
 
+  // Multi-signer context for this signer's link (mirrors recordSignDecision's
+  // binding rule, so the page shows what the server will enforce).
+  const signingMode = ((proposal.signing_mode as string) ?? "first") as
+    | "first"
+    | "all";
+  let boundSelectedIds: string[] | null = null;
+  let awaitingPrimary = false;
+  if (signingMode === "all" && token.signer_id !== null) {
+    const { data: rosterRows } = await admin
+      .from("proposal_signers")
+      .select("id")
+      .eq("proposal_id", token.proposal_id)
+      .order("sort_order")
+      .limit(1);
+    const isPrimary = token.signer_id === (rosterRows?.[0]?.id ?? null);
+    const { data: priorRows } = await admin
+      .from("proposal_acceptances")
+      .select("selected_line_item_ids")
+      .eq("proposal_id", token.proposal_id)
+      .eq("decision", "accepted")
+      .order("occurred_at", { ascending: true })
+      .limit(1);
+    const prior = priorRows?.[0];
+    if (prior) {
+      boundSelectedIds = [
+        ...new Set((prior.selected_line_item_ids as string[]) ?? []),
+      ];
+    } else if (!isPrimary) {
+      awaitingPrimary = true;
+    }
+  }
+
   return {
     ok: true,
     value: {
@@ -310,6 +354,9 @@ export async function loadSignBundle(
       offerExpired: offerExpired(
         (proposal.valid_until as string | null) ?? null,
       ),
+      signingMode,
+      boundSelectedIds,
+      awaitingPrimary,
     },
   };
 }
@@ -450,7 +497,7 @@ export async function recordSignDecision(
   const { data: proposal } = await admin
     .from("proposals")
     .select(
-      "id, status, proposal_number, title, payment_terms_label, deposit_type, deposit_value, warranty_days, terms_notes, currency, valid_until",
+      "id, status, proposal_number, title, payment_terms_label, deposit_type, deposit_value, warranty_days, terms_notes, currency, valid_until, signing_mode",
     )
     .eq("id", token.proposal_id)
     .single();
@@ -464,6 +511,43 @@ export async function recordSignDecision(
     return { ok: false, reason: "invalid_state" };
   }
 
+  // Multi-signer 'all' mode: every signer must authorize the SAME subset, so
+  // the PRIMARY (roster sort_order 0) signs first and their accepted subset
+  // BINDS every co-signer. This enforces ordering (co-signers are blocked
+  // until the primary decides) — which also closes the race where two
+  // "first" signers could otherwise bind divergent subsets.
+  const isAll =
+    (proposal.signing_mode as string) === "all" && token.signer_id !== null;
+  let boundSubset: string[] | null = null;
+  if (isAll) {
+    const { data: rosterRows } = await admin
+      .from("proposal_signers")
+      .select("id")
+      .eq("proposal_id", token.proposal_id)
+      .order("sort_order")
+      .limit(1);
+    const primaryId = (rosterRows?.[0]?.id as string | undefined) ?? null;
+    const isPrimary = token.signer_id === primaryId;
+
+    const { data: priorRows } = await admin
+      .from("proposal_acceptances")
+      .select("selected_line_item_ids")
+      .eq("proposal_id", token.proposal_id)
+      .eq("decision", "accepted")
+      .order("occurred_at", { ascending: true })
+      .limit(1);
+    const prior = priorRows?.[0];
+    if (prior) {
+      boundSubset = [
+        ...new Set((prior.selected_line_item_ids as string[]) ?? []),
+      ];
+    } else if (!isPrimary && input.decision === "accepted") {
+      // No binding subset yet and this isn't the primary — the primary must
+      // authorize the scope first.
+      return { ok: false, reason: "awaiting_primary" };
+    }
+  }
+
   // An expired OFFER can no longer be accepted — but a decline is still a
   // recordable business outcome.
   if (
@@ -475,7 +559,10 @@ export async function recordSignDecision(
 
   const items = await loadItems(admin, token.proposal_id);
   const itemIds = new Set(items.map((i) => i.id));
-  const selected = [...new Set(input.selectedLineItemIds)];
+  // A co-signer in 'all' mode is BOUND to the primary's subset — their own
+  // selection is ignored so every signature covers one identical content hash.
+  const selected =
+    boundSubset ?? [...new Set(input.selectedLineItemIds)];
 
   let acceptedTotal: number | null = null;
   if (input.decision === "accepted") {
@@ -549,6 +636,7 @@ export async function recordSignDecision(
     .insert({
       proposal_id: token.proposal_id,
       team_id: token.team_id,
+      signer_id: token.signer_id,
       decision: input.decision,
       signer_name: input.signerName,
       signer_title: input.signerTitle,
@@ -577,10 +665,42 @@ export async function recordSignDecision(
     return { ok: false, reason: "invalid_state" };
   }
 
-  await admin
-    .from("proposals")
-    .update({ status: input.decision, accepted_total: acceptedTotal })
-    .eq("id", token.proposal_id);
+  // Status flip. A decline by anyone kills the deal immediately. An accept
+  // decides it right away in single-signer / 'first' mode; in 'all' mode it
+  // flips to accepted only once EVERY rostered signer has accepted (the shared
+  // bound subset means every acceptance carries the same total).
+  if (input.decision === "declined") {
+    await admin
+      .from("proposals")
+      .update({ status: "declined" })
+      .eq("id", token.proposal_id);
+  } else if (!isAll) {
+    await admin
+      .from("proposals")
+      .update({ status: "accepted", accepted_total: acceptedTotal })
+      .eq("id", token.proposal_id);
+  } else {
+    const { count: signerCount } = await admin
+      .from("proposal_signers")
+      .select("id", { count: "exact", head: true })
+      .eq("proposal_id", token.proposal_id);
+    const { count: acceptedCount } = await admin
+      .from("proposal_acceptances")
+      .select("id", { count: "exact", head: true })
+      .eq("proposal_id", token.proposal_id)
+      .eq("decision", "accepted");
+    if (
+      signerCount != null &&
+      acceptedCount != null &&
+      acceptedCount >= signerCount
+    ) {
+      await admin
+        .from("proposals")
+        .update({ status: "accepted", accepted_total: acceptedTotal })
+        .eq("id", token.proposal_id);
+    }
+    // Otherwise more signatures are pending — status stays sent/viewed.
+  }
   await insertEvent(admin, token, input.decision, {
     accepted_total: acceptedTotal,
     selected_count: input.decision === "accepted" ? selected.length : 0,

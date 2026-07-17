@@ -77,23 +77,47 @@ async function assertCustomerAndSigner(
   if (!customer || customer.team_id !== input.team_id) {
     throw AppError.refusal("Customer not found on this team.");
   }
-  if (input.signer_contact_id) {
-    const { data: contact } = await supabase
+  // Every signer (the primary and every roster entry) must be a contact of
+  // this customer — the sign link + OTP go to their email.
+  const signerIds = [
+    ...new Set(
+      [input.signer_contact_id ?? null, ...(input.signers ?? [])].filter(
+        (id): id is string => !!id,
+      ),
+    ),
+  ];
+  if (signerIds.length > 0) {
+    const { data: contacts } = await supabase
       .from("customer_contacts")
       .select("id, customer_id")
-      .eq("id", input.signer_contact_id)
-      .single();
-    if (!contact || contact.customer_id !== input.customer_id) {
-      throw AppError.refusal("Signer contact does not belong to this customer.");
+      .in("id", signerIds);
+    const validForCustomer = new Set(
+      (contacts ?? [])
+        .filter((c) => c.customer_id === input.customer_id)
+        .map((c) => c.id as string),
+    );
+    if (signerIds.some((id) => !validForCustomer.has(id))) {
+      throw AppError.refusal(
+        "A signer contact does not belong to this customer.",
+      );
     }
   }
 }
 
+/** Ordered, de-duplicated roster contact ids (entry 0 = primary signer). */
+function rosterContactIds(input: ProposalDraftInput): string[] {
+  return [...new Set(input.signers ?? [])];
+}
+
 /** Column payload shared by create + update. */
 function proposalColumns(input: ProposalDraftInput): Record<string, unknown> {
+  const roster = rosterContactIds(input);
   return {
     customer_id: input.customer_id,
-    signer_contact_id: input.signer_contact_id ?? null,
+    // The primary signer mirrors roster[0] (back-compat + the single-signer
+    // path); fall back to the explicit field when no roster is set.
+    signer_contact_id: roster[0] ?? input.signer_contact_id ?? null,
+    signing_mode: input.signing_mode ?? "first",
     // A draft may be unnamed; title is NOT NULL, so persist "" until the author
     // names it (send-readiness blocks an untitled proposal from going out).
     title: input.title ?? "",
@@ -163,6 +187,37 @@ async function insertLineItems(
   }
 }
 
+/**
+ * Persist the signer roster (draft-only; send-locked after). A roster row is
+ * written only for 2+ signers — a single signer stays on the legacy path via
+ * `signer_contact_id` (no roster row, NULL `signer_id` on its token, SAL-038
+ * single-decision). Replaces the roster wholesale, like line items.
+ */
+async function saveSigners(
+  supabase: SupabaseClient,
+  proposalId: string,
+  teamId: string,
+  contactIds: string[],
+): Promise<void> {
+  assertSupabaseOk(
+    await supabase
+      .from("proposal_signers")
+      .delete()
+      .eq("proposal_id", proposalId),
+  );
+  if (contactIds.length < 2) return;
+  assertSupabaseOk(
+    await supabase.from("proposal_signers").insert(
+      contactIds.map((contactId, i) => ({
+        proposal_id: proposalId,
+        team_id: teamId,
+        contact_id: contactId,
+        sort_order: i,
+      })),
+    ),
+  );
+}
+
 export async function createProposalAction(formData: FormData): Promise<void> {
   return runSafeAction(
     formData,
@@ -194,6 +249,12 @@ export async function createProposalAction(formData: FormData): Promise<void> {
       const proposalId = (proposal as { id: string }).id;
 
       await insertLineItems(supabase, proposalId, input.team_id, input.items);
+      await saveSigners(
+        supabase,
+        proposalId,
+        input.team_id,
+        rosterContactIds(input),
+      );
 
       // Same accepted race caveat as invoice_next_num: a concurrent create
       // can collide, and UNIQUE(team_id, proposal_number) turns it into a
@@ -264,6 +325,12 @@ export async function updateProposalAction(formData: FormData): Promise<void> {
           .eq("proposal_id", proposalId),
       );
       await insertLineItems(supabase, proposalId, existing.team_id, input.items);
+      await saveSigners(
+        supabase,
+        proposalId,
+        existing.team_id,
+        rosterContactIds(input),
+      );
 
       revalidatePath("/proposals");
       revalidatePath(`/proposals/${proposalId}`);
@@ -317,7 +384,7 @@ export async function sendProposalAction(formData: FormData): Promise<void> {
       const { data: proposal } = await supabase
         .from("proposals")
         .select(
-          "id, team_id, status, proposal_number, title, customer_id, signer_contact_id",
+          "id, team_id, status, proposal_number, title, customer_id, signer_contact_id, signing_mode",
         )
         .eq("id", proposalId)
         .single();
@@ -354,15 +421,6 @@ export async function sendProposalAction(formData: FormData): Promise<void> {
         );
       }
 
-      const { data: contact } = await supabase
-        .from("customer_contacts")
-        .select("id, name, email, customer_id")
-        .eq("id", proposal.signer_contact_id as string)
-        .single();
-      if (!contact || contact.customer_id !== proposal.customer_id) {
-        throw AppError.refusal("Signer contact does not belong to this customer.");
-      }
-
       const baseUrl = process.env.NEXT_PUBLIC_APP_URL ?? "";
       if (!baseUrl) {
         throw new Error(
@@ -370,46 +428,118 @@ export async function sendProposalAction(formData: FormData): Promise<void> {
         );
       }
 
-      // Token rows have no INSERT policy — the admin client is the only
-      // writer, keeping the hash out of any RLS-governed surface.
+      // Build the recipient list. A roster (2+ signers) mints one token PER
+      // signer — each carrying its `signer_id`, so the per-signer uniqueness
+      // index applies. Otherwise the single-signer path uses signer_contact_id
+      // (signer_id NULL, SAL-038 single-decision — unchanged behavior).
+      interface Recipient {
+        signerId: string | null;
+        email: string;
+        name: string | null;
+      }
+      const { data: rosterRows } = await supabase
+        .from("proposal_signers")
+        .select(
+          "id, sort_order, customer_contacts(id, name, email, customer_id)",
+        )
+        .eq("proposal_id", proposalId)
+        .order("sort_order");
+
+      let recipients: Recipient[];
+      if (rosterRows && rosterRows.length > 0) {
+        recipients = rosterRows.map((row) => {
+          const c = (
+            Array.isArray(row.customer_contacts)
+              ? row.customer_contacts[0]
+              : row.customer_contacts
+          ) as {
+            name: string | null;
+            email: string | null;
+            customer_id: string;
+          } | null;
+          if (!c || c.customer_id !== proposal.customer_id) {
+            throw AppError.refusal(
+              "A signer contact does not belong to this customer.",
+            );
+          }
+          return {
+            signerId: row.id as string,
+            email: c.email as string,
+            name: c.name ?? null,
+          };
+        });
+      } else {
+        const { data: contact } = await supabase
+          .from("customer_contacts")
+          .select("id, name, email, customer_id")
+          .eq("id", proposal.signer_contact_id as string)
+          .single();
+        if (!contact || contact.customer_id !== proposal.customer_id) {
+          throw AppError.refusal(
+            "Signer contact does not belong to this customer.",
+          );
+        }
+        recipients = [
+          {
+            signerId: null,
+            email: contact.email as string,
+            name: (contact.name as string | null) ?? null,
+          },
+        ];
+      }
+
+      // Token rows have no INSERT policy — the admin client is the only writer,
+      // keeping hashes out of any RLS-governed surface.
       const admin = createAdminClient();
-      const { raw, hash } = generateSignToken();
       const expiresAt = new Date(
         Date.now() + TOKEN_TTL_DAYS * 24 * 60 * 60 * 1000,
       );
-      const { error: tokenError } = await admin
-        .from("proposal_access_tokens")
-        .insert({
-          proposal_id: proposalId,
-          team_id: proposal.team_id,
-          token_hash: hash,
-          signer_email: contact.email as string,
-          signer_name: (contact.name as string | null) ?? null,
-          expires_at: expiresAt.toISOString(),
-          created_by_user_id: userId,
-        });
-      assertSupabaseOk({ data: null, error: tokenError });
-
-      const signUrl = `${baseUrl}/sign/${raw}`;
       const number = proposal.proposal_number as string;
       const title = proposal.title as string;
-      // User-authored values are HTML-escaped before interpolation — this
-      // email rides the team's VERIFIED domain, so injected markup would
-      // inherit real credibility (see escape-html.ts).
       const safeTitle = escapeHtml(title);
-      const safeName = escapeHtml((contact.name as string | null) ?? "");
-      await sendProposalEmail(admin, {
-        teamId: proposal.team_id as string,
-        userId,
-        proposalId,
-        kind: "proposal",
-        toEmail: contact.email as string,
-        subject: `Proposal ${number}: ${title}`,
-        bodyHtml: `<p>Hello ${safeName},</p><p>You have a proposal to review and sign off on: <strong>${safeTitle}</strong> (${number}).</p><p><a href="${signUrl}">Review &amp; sign the proposal</a></p><p>You can accept any combination of the line items — the link walks you through it. Before accepting, we'll email you a one-time code to confirm it's you.</p><p>This link expires on ${expiresAt.toISOString().slice(0, 10)}.</p>`,
-        bodyText: `You have a proposal to review and sign off on: ${title} (${number}).\n\nReview & sign: ${signUrl}\n\nYou can accept any combination of the line items. Before accepting, we'll email you a one-time code to confirm it's you.\n\nThis link expires on ${expiresAt.toISOString().slice(0, 10)}.`,
-      });
+      const allMustSign = (proposal.signing_mode as string) === "all";
 
-      // Status flip AFTER the email leaves — a failed send keeps the draft
+      // One token + email per signer. A failed send on any recipient throws and
+      // leaves the draft editable (status flips only after all have gone out).
+      for (const recipient of recipients) {
+        const { raw, hash } = generateSignToken();
+        assertSupabaseOk({
+          data: null,
+          error: (
+            await admin.from("proposal_access_tokens").insert({
+              proposal_id: proposalId,
+              team_id: proposal.team_id,
+              token_hash: hash,
+              signer_id: recipient.signerId,
+              signer_email: recipient.email,
+              signer_name: recipient.name,
+              expires_at: expiresAt.toISOString(),
+              created_by_user_id: userId,
+            })
+          ).error,
+        });
+
+        const signUrl = `${baseUrl}/sign/${raw}`;
+        const safeName = escapeHtml(recipient.name ?? "");
+        const coSignerNote = allMustSign
+          ? "<p>This proposal requires every signer to authorize the same items, so your co-signers will each receive their own link.</p>"
+          : "";
+        const coSignerNoteText = allMustSign
+          ? "\n\nThis proposal requires every signer to authorize the same items; your co-signers each receive their own link.\n"
+          : "";
+        await sendProposalEmail(admin, {
+          teamId: proposal.team_id as string,
+          userId,
+          proposalId,
+          kind: "proposal",
+          toEmail: recipient.email,
+          subject: `Proposal ${number}: ${title}`,
+          bodyHtml: `<p>Hello ${safeName},</p><p>You have a proposal to review and sign off on: <strong>${safeTitle}</strong> (${number}).</p><p><a href="${signUrl}">Review &amp; sign the proposal</a></p>${coSignerNote}<p>Before accepting, we'll email you a one-time code to confirm it's you.</p><p>This link expires on ${expiresAt.toISOString().slice(0, 10)}.</p>`,
+          bodyText: `You have a proposal to review and sign off on: ${title} (${number}).\n\nReview & sign: ${signUrl}${coSignerNoteText}\n\nBefore accepting, we'll email you a one-time code to confirm it's you.\n\nThis link expires on ${expiresAt.toISOString().slice(0, 10)}.`,
+        });
+      }
+
+      // Status flip AFTER every email leaves — a failed send keeps the draft
       // editable. The trigger stamps sent_at; the send-lock allows the
       // transition (draft rows are freely mutable).
       assertSupabaseOk(
@@ -424,7 +554,10 @@ export async function sendProposalAction(formData: FormData): Promise<void> {
         event_type: "sent",
         actor_user_id: userId,
         actor_label: null,
-        metadata: { to: contact.email },
+        metadata: {
+          recipients: recipients.length,
+          signing_mode: proposal.signing_mode ?? "first",
+        },
       });
 
       revalidatePath("/proposals");

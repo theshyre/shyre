@@ -132,6 +132,27 @@ On the signing page the client:
 The link expires after 30 days, works once (a recorded decision consumes it),
 and requires `NEXT_PUBLIC_APP_URL` to be configured.
 
+## Multiple signers
+
+A proposal can require more than one person to sign. On the form, add each
+signer under **Signers** (the first is the **primary**). With two or more, pick
+a mode:
+
+- **First to authorize** — any one signer's acceptance is binding. Everyone
+  gets a link; whoever acts first decides.
+- **All must sign** — every signer must authorize the **same** scope. The
+  **primary** signs first and selects which line items they accept; that
+  selection **binds** the co-signers, who each get their own link, verify their
+  own one-time code, and counter-sign the **same** items (shown read-only — a
+  co-signer who opens their link before the primary has authorized sees a
+  "waiting for the primary" notice and can't sign yet). The proposal only flips
+  to **accepted** once everyone has signed; a **decline by anyone** ends it.
+
+Because every signature in "all" mode covers the identical accepted subset,
+they all share one frozen `content_sha256` — one coherent audit record, not a
+pile of conflicting ones. The detail page shows a **Signers** panel with each
+person's status and an "X of N signed" count.
+
 ## The acceptance record
 
 Every decision is stored immutably: signer name / title / typed signature,

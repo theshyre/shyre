@@ -38,6 +38,10 @@ const proposalFields = {
   team_id: z.string().uuid("Invalid team"),
   customer_id: z.string().uuid("Invalid customer"),
   signer_contact_id: z.string().uuid().optional().nullable(),
+  // Multi-signer roster: ordered contact ids (entry 0 is the primary signer,
+  // mirrored onto signer_contact_id). Empty = the single-signer default.
+  signers: z.array(z.string().uuid()).max(10).optional().default([]),
+  signing_mode: z.enum(["first", "all"]).optional().default("first"),
   title: z.string().max(200).optional().nullable(),
   issued_date: z.string().regex(ymd, "Invalid date").optional().nullable(),
   valid_until: z.string().regex(ymd, "Invalid date").optional().nullable(),

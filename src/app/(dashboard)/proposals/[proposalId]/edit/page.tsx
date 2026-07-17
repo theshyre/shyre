@@ -65,6 +65,13 @@ export default async function EditProposalPage({
     .eq("proposal_id", proposalId)
     .order("sort_order");
 
+  const { data: signerRows } = await supabase
+    .from("proposal_signers")
+    .select("contact_id, sort_order")
+    .eq("proposal_id", proposalId)
+    .order("sort_order");
+  const rosterIds = (signerRows ?? []).map((r) => r.contact_id as string);
+
   const { data: customerRows } = await supabase
     .from("customers")
     .select("id, name, team_id")
@@ -79,7 +86,7 @@ export default async function EditProposalPage({
 
   const { data: contactRows } = await supabase
     .from("customer_contacts")
-    .select("id, name, email, customer_id")
+    .select("id, name, email, customer_id, role_label")
     .in(
       "customer_id",
       customers.map((c) => c.id),
@@ -90,6 +97,7 @@ export default async function EditProposalPage({
     name: c.name as string,
     email: c.email as string,
     customer_id: c.customer_id as string,
+    role_label: (c.role_label as string | null) ?? null,
   }));
 
   const rows = (itemRows ?? []) as LineItemRow[];
@@ -100,6 +108,13 @@ export default async function EditProposalPage({
     team_id: proposal.team_id as string,
     customer_id: proposal.customer_id as string,
     signer_contact_id: (proposal.signer_contact_id as string | null) ?? null,
+    signers:
+      rosterIds.length > 0
+        ? rosterIds
+        : proposal.signer_contact_id
+          ? [proposal.signer_contact_id as string]
+          : [],
+    signing_mode: (proposal.signing_mode as "first" | "all") ?? "first",
     title: proposal.title as string,
     issued_date: (proposal.issued_date as string | null) ?? null,
     valid_until: (proposal.valid_until as string | null) ?? null,

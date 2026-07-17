@@ -40,7 +40,7 @@ export default async function NewProposalPage(): Promise<React.JSX.Element> {
 
   const { data: contactRows } = await supabase
     .from("customer_contacts")
-    .select("id, name, email, customer_id")
+    .select("id, name, email, customer_id, role_label")
     .in(
       "customer_id",
       customers.map((c) => c.id),
@@ -51,6 +51,7 @@ export default async function NewProposalPage(): Promise<React.JSX.Element> {
     name: c.name as string,
     email: c.email as string,
     customer_id: c.customer_id as string,
+    role_label: (c.role_label as string | null) ?? null,
   }));
 
   return (
