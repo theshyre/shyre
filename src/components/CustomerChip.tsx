@@ -43,6 +43,10 @@ interface Props {
   size?: number;
   /** Optional className for layout adjustments (margin, etc.). */
   className?: string;
+  /** The customer's uploaded logo (public URL). When set, it renders in the
+   *  chip's square footprint in place of the initials — a real logo is a
+   *  stronger identity-mark. Falls back to initials when absent. */
+  logoUrl?: string | null;
 }
 
 /**
@@ -116,7 +120,26 @@ export function CustomerChip({
   internal = false,
   size = 16,
   className = "",
+  logoUrl = null,
 }: Props): React.JSX.Element {
+  // Logo branch: a real uploaded logo beats initials as an identity-mark.
+  // Rendered in the same square footprint (object-contain so it's never
+  // distorted) on a neutral chip so a transparent logo still reads as a chip.
+  if (logoUrl && !internal) {
+    return (
+      <span
+        aria-hidden="true"
+        className={`inline-flex items-center justify-center overflow-hidden rounded-[3px] shrink-0 border border-edge bg-surface-raised ${className}`}
+        style={{ width: size, height: size }}
+      >
+        {/* Stored public URL rendered as a plain <img> — the avatar/logo
+            precedent; next/image would need remotePatterns for the bucket. */}
+        {/* eslint-disable-next-line @next/next/no-img-element */}
+        <img src={logoUrl} alt="" className="h-full w-full object-contain" />
+      </span>
+    );
+  }
+
   // Internal-project branch: the project intentionally has no
   // customer. Render a building glyph on a neutral background to
   // signal "internal work," not the `?` we use for missing data.

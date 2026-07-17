@@ -47,6 +47,38 @@ describe("CustomerChip", () => {
     expect(chip?.textContent).toBe("AC");
   });
 
+  it("renders the logo (not initials) when a logoUrl is set", () => {
+    const { container } = render(
+      <CustomerChip
+        customerId="cust-1"
+        customerName="Acme Corp"
+        logoUrl="https://cdn.example/branding/t/customers/c/logo.png"
+      />,
+    );
+    const img = container.querySelector("img");
+    expect(img).not.toBeNull();
+    expect(img?.getAttribute("src")).toBe(
+      "https://cdn.example/branding/t/customers/c/logo.png",
+    );
+    // The initials fall away, and the mark stays aria-hidden (name is the
+    // accessible label alongside).
+    expect(container.textContent).toBe("");
+    expect(container.querySelector("span[aria-hidden='true']")).not.toBeNull();
+  });
+
+  it("falls back to initials when a logoUrl would collide with the internal flag", () => {
+    // internal projects have no customer logo — the building glyph wins.
+    const { container } = render(
+      <CustomerChip
+        customerId={null}
+        customerName={null}
+        internal
+        logoUrl="https://cdn.example/x.png"
+      />,
+    );
+    expect(container.querySelector("img")).toBeNull();
+  });
+
   it("hashes the customer id deterministically — same id renders the same background", () => {
     const { container: c1 } = render(
       <CustomerChip customerId="cust-stable" customerName="Acme" />,
