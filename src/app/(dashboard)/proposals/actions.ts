@@ -1049,6 +1049,9 @@ export async function createProposalVersionAction(
           user_id: userId,
           customer_id: source.customer_id,
           signer_contact_id: source.signer_contact_id,
+          // Carry the signing mode forward — a multi-signer proposal must stay
+          // multi-signer across a version bump, not silently reset to 'first'.
+          signing_mode: source.signing_mode,
           proposal_number: generateInvoiceNumber(prefix, nextNum),
           title: source.title,
           // Fresh issue date (DB default = today); the validity window is
@@ -1122,6 +1125,32 @@ export async function createProposalVersionAction(
             await supabase.from("proposal_line_items").insert(phaseRows),
           );
         }
+      }
+
+      // Copy the multi-signer roster (proposal_signers) so a versioned proposal
+      // keeps ALL its co-signers — the insert above only carries the primary via
+      // signer_contact_id. Without this, a 2+-signer proposal reset to just the
+      // primary on every version bump.
+      const { data: sourceSigners } = await supabase
+        .from("proposal_signers")
+        .select("contact_id, sort_order")
+        .eq("proposal_id", proposalId)
+        .order("sort_order");
+      const signerRows = (sourceSigners ?? []) as Array<{
+        contact_id: string;
+        sort_order: number;
+      }>;
+      if (signerRows.length > 0) {
+        assertSupabaseOk(
+          await supabase.from("proposal_signers").insert(
+            signerRows.map((s) => ({
+              proposal_id: newId,
+              team_id: source.team_id,
+              contact_id: s.contact_id,
+              sort_order: s.sort_order,
+            })),
+          ),
+        );
       }
 
       const admin = createAdminClient();
