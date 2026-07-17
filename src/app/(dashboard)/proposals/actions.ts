@@ -450,10 +450,14 @@ interface AcceptedItemRow {
 async function loadAcceptedSelection(
   supabase: SupabaseClient,
   proposalId: string,
-): Promise<{ selectedIds: Set<string>; items: AcceptedItemRow[] }> {
+): Promise<{
+  selectedIds: Set<string>;
+  taxRate: number | null;
+  items: AcceptedItemRow[];
+}> {
   const { data: acceptanceRows } = await supabase
     .from("proposal_acceptances")
-    .select("selected_line_item_ids, decision")
+    .select("selected_line_item_ids, decision, tax_rate")
     .eq("proposal_id", proposalId)
     .eq("decision", "accepted")
     .order("occurred_at", { ascending: false })
@@ -473,6 +477,10 @@ async function loadAcceptedSelection(
     selectedIds: new Set(
       (acceptance.selected_line_item_ids as string[]) ?? [],
     ),
+    // The rate frozen at signing (null on legacy acceptances taken before the
+    // snapshot column existed — the caller falls back to the team default).
+    taxRate:
+      acceptance.tax_rate != null ? Number(acceptance.tax_rate) : null,
     items: (itemRows ?? []) as AcceptedItemRow[],
   };
 }
@@ -627,7 +635,7 @@ export async function createInvoiceFromProposalAction(
       const { data: proposal } = await supabase
         .from("proposals")
         .select(
-          "id, team_id, status, customer_id, proposal_number, title, payment_terms_days, payment_terms_label",
+          "id, team_id, status, customer_id, proposal_number, title, currency, payment_terms_days, payment_terms_label",
         )
         .eq("id", proposalId)
         .single();
@@ -640,103 +648,144 @@ export async function createInvoiceFromProposalAction(
         );
       }
 
-      const { selectedIds, items } = await loadAcceptedSelection(
-        supabase,
-        proposalId,
-      );
-      const billable = items.filter(
-        (item) =>
-          item.parent_line_item_id === null &&
-          selectedIds.has(item.id) &&
-          item.invoiced_at === null,
-      );
-      if (billable.length === 0) {
+      const { selectedIds, taxRate: acceptedTaxRate, items } =
+        await loadAcceptedSelection(supabase, proposalId);
+      const candidateIds = items
+        .filter(
+          (item) =>
+            item.parent_line_item_id === null &&
+            selectedIds.has(item.id) &&
+            item.invoiced_at === null,
+        )
+        .map((item) => item.id);
+      if (candidateIds.length === 0) {
         throw AppError.refusal(
           "Every accepted line item has already been invoiced.",
         );
       }
 
-      const { data: settings } = await supabase
-        .from("team_settings")
-        .select("invoice_prefix, invoice_next_num, tax_rate")
-        .eq("team_id", proposal.team_id as string)
-        .single();
-      const prefix = settings?.invoice_prefix ?? "INV";
-      const nextNum = settings?.invoice_next_num ?? 1;
-      const taxRate = Number(settings?.tax_rate ?? 0);
-      const invoiceNumber = generateInvoiceNumber(prefix, nextNum);
-
-      const number = proposal.proposal_number as string;
-      const lines = billable.map((item) => ({
-        description: `${number} — ${item.title}`,
-        quantity: 1,
-        unitPrice: roundMoney(Number(item.fixed_price)),
-        amount: roundMoney(Number(item.fixed_price)),
-      }));
-      const totals = calculateInvoiceTotals(lines, taxRate);
-
-      // Terms carry over from the proposal (the cascade's highest-priority
-      // source); due date derives from today + net-N when terms are set.
-      const termsDays = (proposal.payment_terms_days as number | null) ?? null;
-      const today = new Date().toISOString().slice(0, 10);
-      const dueDate = termsDays != null ? computeDueDate(today, termsDays) : null;
-
-      const { data: invoice, error } = await supabase
-        .from("invoices")
-        .insert({
-          team_id: proposal.team_id,
-          user_id: userId,
-          customer_id: proposal.customer_id,
-          invoice_number: invoiceNumber,
-          due_date: dueDate,
-          status: "draft",
-          subtotal: totals.subtotal,
-          discount_amount: totals.discountAmount,
-          discount_rate: totals.discountRate,
-          tax_rate: totals.taxRate,
-          tax_amount: totals.taxAmount,
-          total: totals.total,
-          notes: `Fixed-price work per proposal ${number}: ${proposal.title as string}`,
-          grouping_mode: "detailed",
-          payment_terms_days: termsDays,
-          payment_terms_label:
-            (proposal.payment_terms_label as string | null) ??
-            (termsDays != null ? paymentTermsLabel(termsDays) : null),
-        })
-        .select("id")
-        .single();
-      assertSupabaseOk({ data: invoice, error });
-      const invoiceId = (invoice as { id: string }).id;
-
-      assertSupabaseOk(
-        await supabase.from("invoice_line_items").insert(
-          lines.map((line) => ({
-            invoice_id: invoiceId,
-            description: line.description,
-            quantity: line.quantity,
-            unit_price: line.unitPrice,
-            amount: line.amount,
-            time_entry_id: null,
-            expense_id: null,
-          })),
-        ),
-      );
-
-      // Double-bill lock: stamp every billed item.
+      // Claim the items ATOMICALLY: the `invoiced_at IS NULL` predicate on the
+      // UPDATE means two concurrent "Bill proposal" clicks can't both stamp the
+      // same item — only one wins the row, the other claims nothing and is
+      // refused below. This is the same consume-first guard as the sign token
+      // (SAL-038); a read-then-stamp loop had a double-bill race.
       const nowIso = new Date().toISOString();
-      for (const item of billable) {
-        assertSupabaseOk(
-          await supabase
-            .from("proposal_line_items")
-            .update({ invoiced_at: nowIso })
-            .eq("id", item.id),
+      const { data: claimedRows, error: claimError } = await supabase
+        .from("proposal_line_items")
+        .update({ invoiced_at: nowIso })
+        .in("id", candidateIds)
+        .is("invoiced_at", null)
+        .select("id, title, fixed_price");
+      assertSupabaseOk({ data: claimedRows, error: claimError });
+      const claimed = (claimedRows ?? []) as Array<{
+        id: string;
+        title: string;
+        fixed_price: number;
+      }>;
+      if (claimed.length === 0) {
+        throw AppError.refusal(
+          "Every accepted line item has already been invoiced.",
         );
       }
+      const claimedIds = claimed.map((c) => c.id);
 
-      await supabase
-        .from("team_settings")
-        .update({ invoice_next_num: nextNum + 1 })
-        .eq("team_id", proposal.team_id as string);
+      // Everything after the claim runs under a rollback guard: if invoice
+      // assembly fails, release the lock we just took so the work is billable
+      // again rather than stranded "invoiced" against a non-existent invoice.
+      let invoiceId: string;
+      try {
+        const { data: settings } = await supabase
+          .from("team_settings")
+          .select("invoice_prefix, invoice_next_num, tax_rate")
+          .eq("team_id", proposal.team_id as string)
+          .single();
+        const prefix = settings?.invoice_prefix ?? "INV";
+        const nextNum = settings?.invoice_next_num ?? 1;
+        // Bill at the rate frozen when the client signed; only fall back to the
+        // live team default for legacy acceptances taken before the snapshot.
+        const taxRate =
+          acceptedTaxRate ?? Number(settings?.tax_rate ?? 0);
+        const invoiceNumber = generateInvoiceNumber(prefix, nextNum);
+
+        const number = proposal.proposal_number as string;
+        const lines = claimed.map((item) => ({
+          proposalLineItemId: item.id,
+          description: `${number} — ${item.title}`,
+          quantity: 1,
+          unitPrice: roundMoney(Number(item.fixed_price)),
+          amount: roundMoney(Number(item.fixed_price)),
+        }));
+        const totals = calculateInvoiceTotals(lines, taxRate);
+
+        // Terms carry over from the proposal (the cascade's highest-priority
+        // source); due date derives from today + net-N when terms are set.
+        const termsDays =
+          (proposal.payment_terms_days as number | null) ?? null;
+        const today = new Date().toISOString().slice(0, 10);
+        const dueDate =
+          termsDays != null ? computeDueDate(today, termsDays) : null;
+
+        const { data: invoice, error } = await supabase
+          .from("invoices")
+          .insert({
+            team_id: proposal.team_id,
+            user_id: userId,
+            customer_id: proposal.customer_id,
+            proposal_id: proposal.id,
+            currency: (proposal.currency as string | null) ?? "USD",
+            invoice_number: invoiceNumber,
+            due_date: dueDate,
+            status: "draft",
+            subtotal: totals.subtotal,
+            discount_amount: totals.discountAmount,
+            discount_rate: totals.discountRate,
+            tax_rate: totals.taxRate,
+            tax_amount: totals.taxAmount,
+            total: totals.total,
+            notes: `Fixed-price work per proposal ${number}: ${proposal.title as string}`,
+            grouping_mode: "detailed",
+            payment_terms_days: termsDays,
+            payment_terms_label:
+              (proposal.payment_terms_label as string | null) ??
+              (termsDays != null ? paymentTermsLabel(termsDays) : null),
+          })
+          .select("id")
+          .single();
+        assertSupabaseOk({ data: invoice, error });
+        invoiceId = (invoice as { id: string }).id;
+
+        assertSupabaseOk(
+          await supabase.from("invoice_line_items").insert(
+            lines.map((line) => ({
+              invoice_id: invoiceId,
+              description: line.description,
+              quantity: line.quantity,
+              unit_price: line.unitPrice,
+              amount: line.amount,
+              time_entry_id: null,
+              expense_id: null,
+              // Structured back-link: reconciliation and the void/delete
+              // unlock triggers key off this instead of parsing the text.
+              proposal_line_item_id: line.proposalLineItemId,
+            })),
+          ),
+        );
+
+        await supabase
+          .from("team_settings")
+          .update({ invoice_next_num: nextNum + 1 })
+          .eq("team_id", proposal.team_id as string);
+      } catch (err) {
+        // Release the double-bill lock we claimed above so the work is
+        // billable again rather than stranded against no invoice. redirect()
+        // is deliberately OUTSIDE this try — its NEXT_REDIRECT throw is the
+        // success path and must never trigger a rollback.
+        await supabase
+          .from("proposal_line_items")
+          .update({ invoiced_at: null })
+          .in("id", claimedIds);
+        throw err;
+      }
 
       revalidatePath("/invoices");
       revalidatePath(`/proposals/${proposalId}`);

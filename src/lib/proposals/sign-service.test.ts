@@ -32,6 +32,7 @@ interface Builder extends PromiseLike<Result> {
   insert: (rows: unknown) => Builder;
   update: (patch: unknown) => Builder;
   single: () => Promise<Result>;
+  maybeSingle: () => Promise<Result>;
 }
 
 function makeBuilder(table: string): Builder {
@@ -46,6 +47,7 @@ function makeBuilder(table: string): Builder {
     insert: (...args) => (call.ops.push({ method: "insert", args }), builder),
     update: (...args) => (call.ops.push({ method: "update", args }), builder),
     single: () => Promise.resolve(resolve()),
+    maybeSingle: () => Promise.resolve(resolve()),
     then: (onF, onR) => Promise.resolve(resolve()).then(onF, onR),
   };
   return builder;
@@ -396,6 +398,8 @@ describe("recordSignDecision", () => {
       { data: null, error: null }, // status update
     ];
     queues["proposal_line_items"] = [{ data: ITEM_ROWS, error: null }];
+    // Team default is 8.5% at signing — the acceptance must freeze it.
+    queues["team_settings"] = [{ data: { tax_rate: 8.5 }, error: null }];
     queues["proposal_acceptances"] = [{ data: null, error: null }];
     queues["proposal_events"] = [{ data: null, error: null }];
 
@@ -412,11 +416,13 @@ describe("recordSignDecision", () => {
       content_sha256: string;
       selected_line_item_ids: string[];
       signer_name: string;
+      tax_rate: number | null;
     };
     expect(acceptance.accepted_total).toBe(4950); // computed server-side
     expect(acceptance.content_sha256).toMatch(/^[0-9a-f]{64}$/);
     expect(acceptance.selected_line_item_ids).toEqual(["li-1", "li-2"]);
     expect(acceptance.signer_name).toBe("Jordan Chen");
+    expect(acceptance.tax_rate).toBe(8.5); // rate frozen at signing
 
     const statusUpdate = calls.find(
       (c) =>
