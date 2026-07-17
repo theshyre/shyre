@@ -240,7 +240,8 @@
     "outOfScope": "Fuera de alcance",
     "definitionOfDone": "Definición de terminado",
     "downloadPdf": "Descargar PDF",
-    "downloadPdfPending": "Preparando PDF…"
+    "downloadPdfPending": "Preparando PDF…",
+    "preview": "Vista previa"
   },
   "pdf": {
     "documentTitle": "Propuesta",
@@ -269,5 +270,10 @@
     "titleRole": "Cargo",
     "date": "Fecha",
     "selectedItems": "Partidas autorizadas"
+  },
+  "preview": {
+    "title": "Vista previa",
+    "subtitle": "Así ve la propuesta tu cliente. No se envía nada.",
+    "back": "Volver a la propuesta"
   }
 }

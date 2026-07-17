@@ -195,6 +195,15 @@ export const BREADCRUMB_ROUTES: BreadcrumbRouteSpec[] = [
     ],
   },
   {
+    pattern: "/proposals/[proposalId]/preview",
+    trail: [
+      { id: "work", labelKey: "work", href: null },
+      { id: "proposals", labelKey: "proposals", href: "/proposals" },
+      { id: "proposalDetail", labelKey: "proposalDetail", href: "/proposals/[proposalId]" },
+      { id: "proposalPreview", labelKey: "proposalPreview", href: "/proposals/[proposalId]/preview" },
+    ],
+  },
+  {
     pattern: "/reports",
     trail: [
       { id: "work", labelKey: "work", href: null },
