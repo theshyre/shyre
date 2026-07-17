@@ -19,7 +19,9 @@ don't see the module's data.
 - **Header** — customer, optional signer (a contact on that customer), title,
   issued date, and a validity window ("valid until").
 - **Line items** — each line item is a *proposed project* with a title, a
-  **fixed price**, and a rich **markdown body** (the *Details* field). Write
+  **fixed price**, an optional one-line **"what it does for you"** summary (used
+  in the summary table — see below), and a rich **markdown body** (the *Details*
+  field). Write
   the scope however reads best — headings, **bold**, bullet lists, even tables
   — with a live preview in the editor. The body renders the same on the detail
   page, the client sign page, and the PDF. (Proposals authored before this had
@@ -57,11 +59,21 @@ button stays disabled until the checklist is clear:
 enforces the phase-sum rule at the moment a draft is frozen — so a proposal can
 never go out with a broken breakdown, even via a direct status change.)
 
+### The summary table
+
+When a proposal has **two or more** line items, an at-a-glance **Summary** table
+is generated automatically at the top — `#` / Project / *What it does for you* /
+Price, with an **All items** total. It's derived from the line items, so it can
+never drift from the prices below. The "what it does" column appears only when
+at least one item has a summary line. It renders on the detail page, the client
+sign page, the preview, and the PDF.
+
 ### Preview what the client sees
 
 **Preview** (on the detail page, next to Download PDF) opens the proposal
-rendered exactly as it appears on the client's sign page — brand header, line
-items, terms, total — but read-only. It's **non-consuming**: unlike the client
+rendered exactly as it appears on the client's sign page — brand header, summary
+table, line items, terms, and the **Acceptance & Authorization** signature block
+that closes the document — but read-only. It's **non-consuming**: unlike the client
 opening their real sign link, previewing never flips a sent proposal to
 "viewed" or touches any lifecycle state, so you can check your work as many
 times as you like. (The PDF download remains the take-away document; the

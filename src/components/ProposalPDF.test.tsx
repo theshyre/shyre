@@ -36,7 +36,7 @@ const baseProps: ProposalPDFProps = {
   signerName: "Jordan Chen",
   items: [
     {
-      title: "Basic dependency upgrades",
+      title: "Basic dependency upgrades",      summary: null,
       bodyMarkdown: null,
       description: "Bring all in-range dependencies current.",
       whyItMatters: "Reduces exposure to known CVEs.",
@@ -47,7 +47,7 @@ const baseProps: ProposalPDFProps = {
       phases: [],
     },
     {
-      title: "Modernize underlying components",
+      title: "Modernize underlying components",      summary: null,
       bodyMarkdown: null,
       description: null,
       whyItMatters: null,

@@ -156,6 +156,7 @@ async function insertLineItems(
     parent_line_item_id: null,
     sort_order: i,
     title: item.title,
+    summary: item.summary ?? null,
     body_markdown: item.bodyMarkdown ?? null,
     description: item.description ?? null,
     why_it_matters: item.whyItMatters ?? null,
@@ -1072,7 +1073,7 @@ export async function createProposalVersionAction(
       const { data: itemRows } = await supabase
         .from("proposal_line_items")
         .select(
-          "id, parent_line_item_id, sort_order, title, body_markdown, description, why_it_matters, out_of_scope, definition_of_done, fixed_price, is_capped",
+          "id, parent_line_item_id, sort_order, title, summary, body_markdown, description, why_it_matters, out_of_scope, definition_of_done, fixed_price, is_capped",
         )
         .eq("proposal_id", proposalId)
         .order("sort_order");
@@ -1088,6 +1089,7 @@ export async function createProposalVersionAction(
               parent_line_item_id: null,
               sort_order: i,
               title: r.title,
+              summary: r.summary,
               body_markdown: r.body_markdown,
               description: r.description,
               why_it_matters: r.why_it_matters,

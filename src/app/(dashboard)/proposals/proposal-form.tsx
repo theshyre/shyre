@@ -60,6 +60,7 @@ interface ItemState {
   key: string;
   title: string;
   fixedPrice: string;
+  summary: string;
   bodyMarkdown: string;
   isCapped: boolean;
   phases: PhaseState[];
@@ -83,6 +84,7 @@ export interface ProposalFormInitial {
   overview_markdown: string | null;
   items: Array<{
     title: string;
+    summary: string | null;
     bodyMarkdown: string | null;
     description: string | null;
     whyItMatters: string | null;
@@ -157,6 +159,7 @@ function buildInitialItems(
   const source = initial?.items ?? [
     {
       title: "",
+      summary: null,
       bodyMarkdown: null,
       description: null,
       whyItMatters: null,
@@ -171,6 +174,7 @@ function buildInitialItems(
     key: `init-${i}`,
     title: item.title,
     fixedPrice: item.fixedPrice ? String(item.fixedPrice) : "",
+    summary: item.summary ?? "",
     bodyMarkdown: composeLegacyBody(item),
     isCapped: item.isCapped,
     phases: item.phases.map((phase, j) => ({
@@ -273,6 +277,7 @@ export function ProposalForm({
     () =>
       items.map((it) => ({
         title: it.title.trim(),
+        summary: emptyToNull(it.summary),
         bodyMarkdown: emptyToNull(it.bodyMarkdown),
         fixedPrice: parseMoney(it.fixedPrice),
         isCapped: it.phases.length > 0 ? it.isCapped : undefined,
@@ -718,6 +723,27 @@ export function ProposalForm({
 
                 <div className="mt-3">
                   <label
+                    htmlFor={`pf-item-summary-${item.key}`}
+                    className={labelClass}
+                  >
+                    {t("itemSummary")}
+                  </label>
+                  <input
+                    id={`pf-item-summary-${item.key}`}
+                    className={inputClass}
+                    value={item.summary}
+                    placeholder={t("itemSummaryPlaceholder")}
+                    onChange={(e) =>
+                      patchItem(item.key, { summary: e.target.value })
+                    }
+                  />
+                  <p className="mt-1 text-caption text-content-muted">
+                    {t("itemSummaryHint")}
+                  </p>
+                </div>
+
+                <div className="mt-3">
+                  <label
                     htmlFor={`pf-item-body-${item.key}`}
                     className={labelClass}
                   >
@@ -894,6 +920,7 @@ export function ProposalForm({
                 key,
                 title: "",
                 fixedPrice: "",
+                summary: "",
                 bodyMarkdown: "",
                 isCapped: false,
                 phases: [],

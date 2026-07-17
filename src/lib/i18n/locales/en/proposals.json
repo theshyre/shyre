@@ -87,7 +87,10 @@
     "itemBodyPreview": "Preview",
     "overviewLabel": "Overview (optional)",
     "overviewPlaceholder": "A short intro or summary shown above the line items — markdown supported.",
-    "overviewHint": "Supports markdown. Shown above the line items on the proposal + sign page."
+    "overviewHint": "Supports markdown. Shown above the line items on the proposal + sign page.",
+    "itemSummary": "What it does for you",
+    "itemSummaryPlaceholder": "A one-line benefit — shown in the summary table at the top.",
+    "itemSummaryHint": "Optional. A concise line for the at-a-glance summary table."
   },
   "validation": {
     "itemsRequired": "Add at least one line item",
@@ -176,7 +179,14 @@
     "preparedForLabel": "Prepared for",
     "awaitingPrimary": "The primary signer must authorize first",
     "awaitingPrimaryNote": "This proposal requires every signer to authorize the same items. The primary signer hasn't done so yet — you'll be able to sign once they have.",
-    "boundSubsetNote": "The primary signer has selected the items below. As a co-signer, you're authorizing the same selection."
+    "boundSubsetNote": "The primary signer has selected the items below. As a co-signer, you're authorizing the same selection.",
+    "acceptanceHeading": "Acceptance & Authorization",
+    "acceptanceStatement": "By signing below, the client authorizes the selected line items at the fixed prices shown, under the terms of this proposal.",
+    "partyClient": "Client",
+    "partyProvider": "Provider",
+    "sigSignature": "Signature",
+    "sigNameTitle": "Name / Title",
+    "sigDate": "Date"
   },
   "activity": {
     "heading": "Activity",
@@ -301,5 +311,13 @@
     "title": "Preview",
     "subtitle": "This is how the proposal looks to your client. Nothing is sent.",
     "back": "Back to proposal"
+  },
+  "summaryTable": {
+    "heading": "Summary",
+    "colNum": "#",
+    "colProject": "Project",
+    "colWhat": "What it does for you",
+    "colPrice": "Price",
+    "totalLabel": "All items"
   }
 }

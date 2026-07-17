@@ -30,7 +30,7 @@ const base: ProposalDocumentViewProps = {
   items: [
     {
       id: "li-1",
-      title: "Dependency upgrades",
+      title: "Dependency upgrades",      summary: null,
       bodyMarkdown: null,
       description: "Bring deps current.",
       whyItMatters: "Reduces CVE exposure.",
@@ -42,7 +42,7 @@ const base: ProposalDocumentViewProps = {
     },
     {
       id: "li-2",
-      title: "Modernize components",
+      title: "Modernize components",      summary: null,
       bodyMarkdown: null,
       description: null,
       whyItMatters: null,
@@ -61,11 +61,12 @@ describe("ProposalDocumentView", () => {
     renderWithIntl(<ProposalDocumentView {...base} />);
     expect(screen.getByText("Platform modernization")).toBeInTheDocument();
     expect(screen.getByText("PROP-2026-007", { exact: false })).toBeInTheDocument();
-    // Line items + detail + phases + total.
-    expect(screen.getByText("Dependency upgrades")).toBeInTheDocument();
+    // Line items + detail + phases + total. Titles/prices also appear in the
+    // auto summary table, so they legitimately occur more than once.
+    expect(screen.getAllByText("Dependency upgrades").length).toBeGreaterThan(0);
     expect(screen.getByText(/Reduces CVE exposure/)).toBeInTheDocument();
     expect(screen.getByText("Visual framework")).toBeInTheDocument();
-    expect(screen.getByText("$4,950.00")).toBeInTheDocument();
+    expect(screen.getAllByText("$4,950.00").length).toBeGreaterThan(0);
     // Terms.
     expect(screen.getByText(/Net 30/)).toBeInTheDocument();
     expect(screen.getByText(/Phasing per item/)).toBeInTheDocument();

@@ -22,6 +22,8 @@ export interface ProposalPhaseInput {
 
 export interface ProposalItemInput {
   title: string;
+  /** Short one-line benefit for the Summary table's "what it does" column. */
+  summary?: string | null;
   /** Rich markdown body (replaces the legacy prose fields when set). */
   bodyMarkdown?: string | null;
   description?: string | null;
