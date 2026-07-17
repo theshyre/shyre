@@ -6,8 +6,9 @@ import type { SupabaseClient } from "@supabase/supabase-js";
 import { runSafeAction } from "@/lib/safe-action";
 import { requireTeamAdmin } from "@/lib/team-context";
 import { AppError, assertSupabaseOk } from "@/lib/errors";
-import { generateInvoiceNumber } from "@/lib/invoice-utils";
-import { paymentTermsLabel } from "@/lib/payment-terms";
+import { generateInvoiceNumber, calculateInvoiceTotals } from "@/lib/invoice-utils";
+import { paymentTermsLabel, computeDueDate } from "@/lib/payment-terms";
+import { roundMoney } from "@/lib/proposals/line-items";
 import { proposalSchema, type ProposalInput } from "@/lib/schemas/proposal";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { generateSignToken, TOKEN_TTL_DAYS } from "@/lib/proposals/tokens";
@@ -424,6 +425,318 @@ export async function counterSignProposalAction(
       revalidatePath(`/proposals/${proposalId}`);
     },
     "counterSignProposalAction",
+  ) as unknown as void;
+}
+
+interface AcceptedItemRow {
+  id: string;
+  parent_line_item_id: string | null;
+  sort_order: number;
+  title: string;
+  description: string | null;
+  fixed_price: number | string;
+  converted_project_id: string | null;
+  invoiced_at: string | null;
+}
+
+/** The latest accepted decision's selected top-level item ids, or a refusal
+ *  message when there is no accepted sign-off. */
+async function loadAcceptedSelection(
+  supabase: SupabaseClient,
+  proposalId: string,
+): Promise<{ selectedIds: Set<string>; items: AcceptedItemRow[] }> {
+  const { data: acceptanceRows } = await supabase
+    .from("proposal_acceptances")
+    .select("selected_line_item_ids, decision")
+    .eq("proposal_id", proposalId)
+    .eq("decision", "accepted")
+    .order("occurred_at", { ascending: false })
+    .limit(1);
+  const acceptance = acceptanceRows?.[0];
+  if (!acceptance) {
+    throw AppError.refusal("No accepted sign-off on this proposal yet.");
+  }
+  const { data: itemRows } = await supabase
+    .from("proposal_line_items")
+    .select(
+      "id, parent_line_item_id, sort_order, title, description, fixed_price, converted_project_id, invoiced_at",
+    )
+    .eq("proposal_id", proposalId)
+    .order("sort_order");
+  return {
+    selectedIds: new Set(
+      (acceptance.selected_line_item_ids as string[]) ?? [],
+    ),
+    items: (itemRows ?? []) as AcceptedItemRow[],
+  };
+}
+
+/**
+ * Convert the accepted line items into projects: one project per accepted
+ * top-level item; a phased item becomes a project with its phases as
+ * sub-projects (`parent_project_id`). Each created project id is linked back
+ * onto its line item, and the proposal moves `accepted → converted`.
+ */
+export async function convertProposalAction(formData: FormData): Promise<void> {
+  return runSafeAction(
+    formData,
+    async (formData, { supabase, userId }) => {
+      const proposalId = formData.get("id") as string;
+      if (!proposalId) throw new Error("Missing proposal id.");
+
+      const { data: proposal } = await supabase
+        .from("proposals")
+        .select("id, team_id, status, customer_id, proposal_number")
+        .eq("id", proposalId)
+        .single();
+      if (!proposal) throw new Error("Proposal not found.");
+      await requireTeamAdmin(proposal.team_id as string);
+      if (
+        !isValidProposalStatusTransition(
+          (proposal.status as string) ?? "",
+          "converted",
+        )
+      ) {
+        throw AppError.refusal(
+          "Only an accepted proposal can be converted into projects.",
+        );
+      }
+
+      const { selectedIds, items } = await loadAcceptedSelection(
+        supabase,
+        proposalId,
+      );
+      const accepted = items.filter(
+        (item) =>
+          item.parent_line_item_id === null &&
+          selectedIds.has(item.id) &&
+          item.converted_project_id === null,
+      );
+      if (accepted.length === 0) {
+        throw AppError.refusal(
+          "Every accepted line item has already been converted.",
+        );
+      }
+
+      let createdCount = 0;
+      for (const item of accepted) {
+        // Parent project = the accepted line item.
+        const { data: project, error } = await supabase
+          .from("projects")
+          .insert({
+            team_id: proposal.team_id,
+            user_id: userId,
+            customer_id: proposal.customer_id,
+            is_internal: false,
+            default_billable: true,
+            name: item.title,
+            description: item.description,
+          })
+          .select("id")
+          .single();
+        assertSupabaseOk({ data: project, error });
+        const projectId = (project as { id: string }).id;
+        createdCount += 1;
+
+        assertSupabaseOk(
+          await supabase
+            .from("proposal_line_items")
+            .update({ converted_project_id: projectId })
+            .eq("id", item.id),
+        );
+
+        // Phases → sub-projects under the parent (one level, same customer —
+        // the projects triggers enforce both).
+        const phases = items.filter(
+          (row) => row.parent_line_item_id === item.id,
+        );
+        for (const phase of phases) {
+          const { data: sub, error: subError } = await supabase
+            .from("projects")
+            .insert({
+              team_id: proposal.team_id,
+              user_id: userId,
+              customer_id: proposal.customer_id,
+              is_internal: false,
+              default_billable: true,
+              name: phase.title,
+              description: phase.description,
+              parent_project_id: projectId,
+            })
+            .select("id")
+            .single();
+          assertSupabaseOk({ data: sub, error: subError });
+          createdCount += 1;
+          assertSupabaseOk(
+            await supabase
+              .from("proposal_line_items")
+              .update({
+                converted_project_id: (sub as { id: string }).id,
+              })
+              .eq("id", phase.id),
+          );
+        }
+      }
+
+      assertSupabaseOk(
+        await supabase
+          .from("proposals")
+          .update({ status: "converted" })
+          .eq("id", proposalId),
+      );
+      const admin = createAdminClient();
+      await admin.from("proposal_events").insert({
+        proposal_id: proposalId,
+        team_id: proposal.team_id,
+        event_type: "converted",
+        actor_user_id: userId,
+        actor_label: null,
+        metadata: { projects_created: createdCount },
+      });
+
+      revalidatePath("/proposals");
+      revalidatePath(`/proposals/${proposalId}`);
+      revalidatePath("/projects");
+    },
+    "convertProposalAction",
+  ) as unknown as void;
+}
+
+/**
+ * Bill the accepted fixed prices: create a draft invoice whose line items are
+ * MANUAL lines (no time-entry / expense source — the shape the
+ * `invoice_line_items_source_mutex` CHECK reserves for ad-hoc charges), one
+ * per accepted, not-yet-billed line item. Payment terms carry over from the
+ * proposal; `invoiced_at` locks each billed item against double-billing.
+ */
+export async function createInvoiceFromProposalAction(
+  formData: FormData,
+): Promise<void> {
+  return runSafeAction(
+    formData,
+    async (formData, { supabase, userId }) => {
+      const proposalId = formData.get("id") as string;
+      if (!proposalId) throw new Error("Missing proposal id.");
+
+      const { data: proposal } = await supabase
+        .from("proposals")
+        .select(
+          "id, team_id, status, customer_id, proposal_number, title, payment_terms_days, payment_terms_label",
+        )
+        .eq("id", proposalId)
+        .single();
+      if (!proposal) throw new Error("Proposal not found.");
+      await requireTeamAdmin(proposal.team_id as string);
+      const proposalStatus = (proposal.status as string) ?? "";
+      if (proposalStatus !== "accepted" && proposalStatus !== "converted") {
+        throw AppError.refusal(
+          "Only an accepted proposal can be billed — get the sign-off first.",
+        );
+      }
+
+      const { selectedIds, items } = await loadAcceptedSelection(
+        supabase,
+        proposalId,
+      );
+      const billable = items.filter(
+        (item) =>
+          item.parent_line_item_id === null &&
+          selectedIds.has(item.id) &&
+          item.invoiced_at === null,
+      );
+      if (billable.length === 0) {
+        throw AppError.refusal(
+          "Every accepted line item has already been invoiced.",
+        );
+      }
+
+      const { data: settings } = await supabase
+        .from("team_settings")
+        .select("invoice_prefix, invoice_next_num, tax_rate")
+        .eq("team_id", proposal.team_id as string)
+        .single();
+      const prefix = settings?.invoice_prefix ?? "INV";
+      const nextNum = settings?.invoice_next_num ?? 1;
+      const taxRate = Number(settings?.tax_rate ?? 0);
+      const invoiceNumber = generateInvoiceNumber(prefix, nextNum);
+
+      const number = proposal.proposal_number as string;
+      const lines = billable.map((item) => ({
+        description: `${number} — ${item.title}`,
+        quantity: 1,
+        unitPrice: roundMoney(Number(item.fixed_price)),
+        amount: roundMoney(Number(item.fixed_price)),
+      }));
+      const totals = calculateInvoiceTotals(lines, taxRate);
+
+      // Terms carry over from the proposal (the cascade's highest-priority
+      // source); due date derives from today + net-N when terms are set.
+      const termsDays = (proposal.payment_terms_days as number | null) ?? null;
+      const today = new Date().toISOString().slice(0, 10);
+      const dueDate = termsDays != null ? computeDueDate(today, termsDays) : null;
+
+      const { data: invoice, error } = await supabase
+        .from("invoices")
+        .insert({
+          team_id: proposal.team_id,
+          user_id: userId,
+          customer_id: proposal.customer_id,
+          invoice_number: invoiceNumber,
+          due_date: dueDate,
+          status: "draft",
+          subtotal: totals.subtotal,
+          discount_amount: totals.discountAmount,
+          discount_rate: totals.discountRate,
+          tax_rate: totals.taxRate,
+          tax_amount: totals.taxAmount,
+          total: totals.total,
+          notes: `Fixed-price work per proposal ${number}: ${proposal.title as string}`,
+          grouping_mode: "detailed",
+          payment_terms_days: termsDays,
+          payment_terms_label:
+            (proposal.payment_terms_label as string | null) ??
+            (termsDays != null ? paymentTermsLabel(termsDays) : null),
+        })
+        .select("id")
+        .single();
+      assertSupabaseOk({ data: invoice, error });
+      const invoiceId = (invoice as { id: string }).id;
+
+      assertSupabaseOk(
+        await supabase.from("invoice_line_items").insert(
+          lines.map((line) => ({
+            invoice_id: invoiceId,
+            description: line.description,
+            quantity: line.quantity,
+            unit_price: line.unitPrice,
+            amount: line.amount,
+            time_entry_id: null,
+            expense_id: null,
+          })),
+        ),
+      );
+
+      // Double-bill lock: stamp every billed item.
+      const nowIso = new Date().toISOString();
+      for (const item of billable) {
+        assertSupabaseOk(
+          await supabase
+            .from("proposal_line_items")
+            .update({ invoiced_at: nowIso })
+            .eq("id", item.id),
+        );
+      }
+
+      await supabase
+        .from("team_settings")
+        .update({ invoice_next_num: nextNum + 1 })
+        .eq("team_id", proposal.team_id as string);
+
+      revalidatePath("/invoices");
+      revalidatePath(`/proposals/${proposalId}`);
+      redirect(`/invoices/${invoiceId}`);
+    },
+    "createInvoiceFromProposalAction",
   ) as unknown as void;
 }
 
