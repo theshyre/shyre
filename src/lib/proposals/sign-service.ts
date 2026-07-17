@@ -467,6 +467,21 @@ export async function recordSignDecision(
     );
   }
 
+  // Freeze the tax rate in force at signing. A signed fixed-price deal is a
+  // promise about the client's total — if we applied the team-default rate
+  // whenever the invoice is later generated, a rate change between signing
+  // and billing would silently move the number the client authorized. The
+  // rate snapshot rides on the acceptance and is what the invoice bills at.
+  let taxRateSnapshot: number | null = null;
+  if (input.decision === "accepted") {
+    const { data: settings } = await admin
+      .from("team_settings")
+      .select("tax_rate")
+      .eq("team_id", token.team_id)
+      .maybeSingle();
+    taxRateSnapshot = settings?.tax_rate != null ? Number(settings.tax_rate) : 0;
+  }
+
   // Frozen document snapshot — stable key order so the sha256 is
   // reproducible from the stored JSON.
   const snapshot = {
@@ -481,6 +496,7 @@ export async function recordSignDecision(
     termsNotes: (proposal.terms_notes as string | null) ?? null,
     decision: input.decision,
     acceptedTotal,
+    taxRate: taxRateSnapshot,
     items: items.map((item) => ({
       id: item.id,
       title: item.title,
@@ -520,6 +536,7 @@ export async function recordSignDecision(
       content_snapshot: snapshot,
       content_sha256: sha256Hex(snapshotJson),
       accepted_total: acceptedTotal,
+      tax_rate: taxRateSnapshot,
       ip_address: input.ipAddress,
       user_agent: input.userAgent,
       otp_verified_at: token.otp_verified_at,

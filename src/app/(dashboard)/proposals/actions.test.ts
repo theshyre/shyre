@@ -64,12 +64,14 @@ interface Builder extends PromiseLike<Result> {
   select: (cols?: string) => Builder;
   eq: (col: string, val: unknown) => Builder;
   is: (col: string, val: unknown) => Builder;
+  in: (col: string, vals: unknown[]) => Builder;
   order: (col: string, opts?: unknown) => Builder;
   limit: (n: number) => Builder;
   insert: (rows: unknown) => Builder;
   update: (patch: unknown) => Builder;
   delete: () => Builder;
   single: () => Promise<Result>;
+  maybeSingle: () => Promise<Result>;
 }
 
 function makeBuilder(table: string): Builder {
@@ -88,6 +90,10 @@ function makeBuilder(table: string): Builder {
     },
     is: (...args) => {
       call.ops.push({ method: "is", args });
+      return builder;
+    },
+    in: (...args) => {
+      call.ops.push({ method: "in", args });
       return builder;
     },
     order: (...args) => {
@@ -111,6 +117,7 @@ function makeBuilder(table: string): Builder {
       return builder;
     },
     single: () => Promise.resolve(resolve()),
+    maybeSingle: () => Promise.resolve(resolve()),
     then: (onFulfilled, onRejected) =>
       Promise.resolve(resolve()).then(onFulfilled, onRejected),
   };
@@ -632,16 +639,36 @@ describe("createInvoiceFromProposalAction", () => {
     customer_id: CUSTOMER,
     proposal_number: "PROP-2026-007",
     title: "Modernization",
+    currency: "USD",
     payment_terms_days: 30,
     payment_terms_label: "Net 30",
   };
 
-  function seedBillable(): void {
+  // The atomic claim (UPDATE ... WHERE invoiced_at IS NULL RETURNING) resolves
+  // to the rows it actually locked — id + title + fixed_price.
+  const claimedTopLevel = [
+    { id: "li-1", title: "Basic dependency upgrades", fixed_price: 950 },
+    { id: "li-2", title: "Modernize underlying components", fixed_price: 4000 },
+  ];
+
+  function seedBillable(acceptanceTaxRate: number | null = 0): void {
     queues["proposals"] = [{ data: acceptedProposal, error: null }];
     queues["proposal_acceptances"] = [
-      { data: [{ selected_line_item_ids: ["li-1", "li-2"], decision: "accepted" }], error: null },
+      {
+        data: [
+          {
+            selected_line_item_ids: ["li-1", "li-2"],
+            decision: "accepted",
+            tax_rate: acceptanceTaxRate,
+          },
+        ],
+        error: null,
+      },
     ];
-    queues["proposal_line_items"] = [{ data: CONVERT_ITEMS, error: null }];
+    queues["proposal_line_items"] = [
+      { data: CONVERT_ITEMS, error: null }, // loadAcceptedSelection read
+      { data: claimedTopLevel, error: null }, // atomic claim RETURNING
+    ];
     queues["team_settings"] = [
       { data: { invoice_prefix: "INV", invoice_next_num: 42, tax_rate: 0 }, error: null },
       { data: null, error: null }, // counter increment
@@ -661,6 +688,9 @@ describe("createInvoiceFromProposalAction", () => {
     expect(invoiceRow).toMatchObject({
       team_id: TEAM,
       customer_id: CUSTOMER,
+      // Structured back-link + currency carried through from the proposal.
+      proposal_id: "prop-1",
+      currency: "USD",
       invoice_number: `INV-${year}-042`,
       status: "draft",
       subtotal: 4950,
@@ -673,22 +703,67 @@ describe("createInvoiceFromProposalAction", () => {
 
     const lineRows = insertedRows("invoice_line_items");
     expect(lineRows).toHaveLength(2);
-    // Manual lines: BOTH source FKs null (the mutex CHECK's third case).
+    // Source lines: time-entry / expense FKs null (the mutex CHECK's third
+    // case), but the proposal line item IS linked for reconciliation + unlock.
     expect(
       lineRows.every(
         (r) => r.time_entry_id === null && r.expense_id === null,
       ),
     ).toBe(true);
+    expect(lineRows.map((r) => r.proposal_line_item_id)).toEqual(["li-1", "li-2"]);
     expect(lineRows.map((r) => r.amount)).toEqual([950, 4000]);
     expect(lineRows[0]!.description).toContain("PROP-2026-007");
 
-    // Double-bill lock stamped on both billed items.
-    const stamps = calls
+    // Double-bill lock: a SINGLE atomic claim stamps invoiced_at across both
+    // items, guarded by `invoiced_at IS NULL` so concurrent bills can't race.
+    const claims = calls
+      .filter((c) => c.table === "proposal_line_items")
+      .filter((c) =>
+        c.ops.some(
+          (o) =>
+            o.method === "update" &&
+            (o.args[0] as { invoiced_at?: string }).invoiced_at != null,
+        ),
+      );
+    expect(claims).toHaveLength(1);
+    const claim = claims[0]!;
+    expect(claim.ops.some((o) => o.method === "is" && o.args[0] === "invoiced_at")).toBe(true);
+    expect(claim.ops.find((o) => o.method === "in")!.args[1]).toEqual(["li-1", "li-2"]);
+  });
+
+  it("bills at the tax rate frozen when the client signed, not the team default", async () => {
+    // Team default is 0 (seedBillable), but the signature froze 10% — the bill
+    // must honor what the client actually authorized.
+    seedBillable(10);
+    await expect(
+      createInvoiceFromProposalAction(formWith({ id: "prop-1" })),
+    ).rejects.toThrow("NEXT_REDIRECT /invoices/inv-1");
+
+    const [invoiceRow] = insertedRows("invoices");
+    expect(invoiceRow).toMatchObject({
+      tax_rate: 10,
+      subtotal: 4950,
+      tax_amount: 495,
+      total: 5445,
+    });
+  });
+
+  it("rolls back the double-bill lock when invoice assembly fails", async () => {
+    seedBillable();
+    // Invoice insert errors after the claim is taken.
+    queues["invoices"] = [{ data: null, error: { message: "insert boom" } }];
+    await expect(
+      createInvoiceFromProposalAction(formWith({ id: "prop-1" })),
+    ).rejects.toThrow();
+
+    // The claim stamped invoiced_at; the catch must clear it back to null so
+    // the work isn't stranded "billed" against a non-existent invoice.
+    const releases = calls
       .filter((c) => c.table === "proposal_line_items")
       .flatMap((c) => c.ops.filter((o) => o.method === "update"))
-      .map((o) => o.args[0] as { invoiced_at?: string })
-      .filter((p) => p.invoiced_at);
-    expect(stamps).toHaveLength(2);
+      .map((o) => o.args[0] as { invoiced_at?: string | null })
+      .filter((p) => p.invoiced_at === null);
+    expect(releases).toHaveLength(1);
   });
 
   it("refuses when everything accepted is already invoiced", async () => {

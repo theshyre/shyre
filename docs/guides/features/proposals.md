@@ -103,11 +103,21 @@ converted.
 **Create invoice** (accepted or converted) drafts an invoice with one
 fixed-price line per accepted item (`PROP-2026-001 — Basic dependency
 upgrades … $950.00`), carrying the proposal's payment terms into the due
-date. Billed items are locked against double-billing — the button disappears
-once everything accepted has been invoiced. The invoice is a normal draft:
-review it, adjust tax if needed, and send it through the standard invoice
-flow. Example: a client accepts Projects 1 + 3 ($950 + $4,000) → one draft
-invoice totaling **$4,950**.
+date, its currency, and a structured link back to the proposal (so the bill
+reconciles to its sign-off without parsing the line text). The tax rate is
+the one **frozen when the client signed** — if you change your team default
+between sign-off and billing, the signed deal still bills at the rate the
+client agreed to. Billed items are locked against double-billing — the button
+disappears once everything accepted has been invoiced, and two simultaneous
+"Create invoice" clicks can't both bill the same item. The invoice is a normal
+draft: review it and send it through the standard invoice flow. Example: a
+client accepts Projects 1 + 3 ($950 + $4,000) → one draft invoice totaling
+**$4,950**.
+
+**Voiding or deleting** that invoice releases the lock — the fixed-price work
+becomes billable again, so a mistaken bill is fully recoverable (correct it by
+voiding, then re-billing). Nothing stays stranded as "invoiced" against an
+invoice that no longer exists.
 
 ## Versions
 
