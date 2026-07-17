@@ -63,6 +63,9 @@ export interface SignBundle {
   otpVerified: boolean;
   otpPending: boolean;
   decided: boolean;
+  /** The OFFER's validity window has passed (`valid_until` < today). The
+   *  page blocks acceptance but still allows a decline for the record. */
+  offerExpired: boolean;
 }
 
 export type SignFailReason =
@@ -77,7 +80,15 @@ export type SignFailReason =
   | "otp_cooldown"
   | "invalid_state"
   | "invalid_selection"
+  | "offer_expired"
   | "email_failed";
+
+/** DATE-string comparison in UTC: has the offer's validity window passed?
+ *  `valid_until` is inclusive — the offer is good THROUGH that day. */
+export function offerExpired(validUntil: string | null): boolean {
+  if (!validUntil) return false;
+  return validUntil < new Date().toISOString().slice(0, 10);
+}
 
 export type SignResult<T> = { ok: true; value: T } | { ok: false; reason: SignFailReason };
 
@@ -274,6 +285,9 @@ export async function loadSignBundle(
       otpVerified: !!token.otp_verified_at,
       otpPending,
       decided: !!token.consumed_at,
+      offerExpired: offerExpired(
+        (proposal.valid_until as string | null) ?? null,
+      ),
     },
   };
 }
@@ -318,7 +332,9 @@ export async function issueSignOtp(
       proposalId: token.proposal_id,
       kind: "proposal_otp",
       toEmail: token.signer_email,
-      subject: `Your sign-off code: ${code}`,
+      // Code stays OUT of the subject — subjects surface in lock-screen
+      // previews and mail-server logs without the mail being opened.
+      subject: "Your sign-off code",
       bodyHtml: `<p>Your one-time code to sign off on the proposal is:</p><p style="font-size:24px;font-weight:bold;letter-spacing:4px">${code}</p><p>It expires in ${OTP_TTL_MINUTES} minutes. If you didn't request this, you can ignore this email.</p>`,
       bodyText: `Your one-time code to sign off on the proposal is: ${code}\n\nIt expires in ${OTP_TTL_MINUTES} minutes. If you didn't request this, you can ignore this email.`,
     });
@@ -352,23 +368,25 @@ export async function verifySignOtp(
   if (new Date(token.otp_expires_at).getTime() < Date.now()) {
     return { ok: false, reason: "otp_expired" };
   }
-  if (token.otp_attempts >= MAX_OTP_ATTEMPTS) {
+
+  // ATOMIC conditional increment (SAL-037): one UPDATE that only fires while
+  // under budget and returns the new count — parallel guesses each consume a
+  // real attempt instead of racing a stale read. NULL = locked.
+  const { data: attempts } = await admin.rpc("proposal_otp_attempt", {
+    p_token_id: token.id,
+  });
+  if (attempts == null) {
     return { ok: false, reason: "otp_locked" };
   }
 
-  const attempts = token.otp_attempts + 1;
-  await admin
-    .from("proposal_access_tokens")
-    .update({ otp_attempts: attempts })
-    .eq("id", token.id);
-
   if (!digestsEqual(hashOtp(token.id, code), token.otp_code_hash)) {
-    if (attempts >= MAX_OTP_ATTEMPTS) {
-      await insertEvent(admin, token, "otp_failed", { attempts });
-    }
+    // Every failed attempt is evidence — a brute-force burst must be visible
+    // in the activity trail, not just the final lockout.
+    await insertEvent(admin, token, "otp_failed", { attempts });
     return {
       ok: false,
-      reason: attempts >= MAX_OTP_ATTEMPTS ? "otp_locked" : "otp_invalid",
+      reason:
+        (attempts as number) >= MAX_OTP_ATTEMPTS ? "otp_locked" : "otp_invalid",
     };
   }
 
@@ -424,6 +442,15 @@ export async function recordSignDecision(
     return { ok: false, reason: "invalid_state" };
   }
 
+  // An expired OFFER can no longer be accepted — but a decline is still a
+  // recordable business outcome.
+  if (
+    input.decision === "accepted" &&
+    offerExpired((proposal.valid_until as string | null) ?? null)
+  ) {
+    return { ok: false, reason: "offer_expired" };
+  }
+
   const items = await loadItems(admin, token.proposal_id);
   const itemIds = new Set(items.map((i) => i.id));
   const selected = [...new Set(input.selectedLineItemIds)];
@@ -465,6 +492,20 @@ export async function recordSignDecision(
   };
   const snapshotJson = JSON.stringify(snapshot);
 
+  // Consume the token FIRST via a conditional update (SAL-038): only one of
+  // any concurrent submits wins the `consumed_at IS NULL` predicate, so the
+  // "one decision per proposal" guarantee holds under parallelism. The
+  // unique index on proposal_acceptances(proposal_id) is the DB backstop.
+  const { data: consumedRows } = await admin
+    .from("proposal_access_tokens")
+    .update({ consumed_at: new Date().toISOString() })
+    .eq("id", token.id)
+    .is("consumed_at", null)
+    .select("id");
+  if (!consumedRows || consumedRows.length === 0) {
+    return { ok: false, reason: "consumed" };
+  }
+
   const { error: acceptError } = await admin
     .from("proposal_acceptances")
     .insert({
@@ -488,6 +529,12 @@ export async function recordSignDecision(
       teamId: token.team_id,
       action: "signService.recordSignDecision",
     });
+    // Roll back the consume so the signer can retry — better a retryable
+    // token than a consumed link with no decision record.
+    await admin
+      .from("proposal_access_tokens")
+      .update({ consumed_at: null })
+      .eq("id", token.id);
     return { ok: false, reason: "invalid_state" };
   }
 
@@ -495,10 +542,6 @@ export async function recordSignDecision(
     .from("proposals")
     .update({ status: input.decision, accepted_total: acceptedTotal })
     .eq("id", token.proposal_id);
-  await admin
-    .from("proposal_access_tokens")
-    .update({ consumed_at: new Date().toISOString() })
-    .eq("id", token.id);
   await insertEvent(admin, token, input.decision, {
     accepted_total: acceptedTotal,
     selected_count: input.decision === "accepted" ? selected.length : 0,

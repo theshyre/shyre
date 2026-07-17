@@ -63,6 +63,7 @@ let calls: Call[] = [];
 interface Builder extends PromiseLike<Result> {
   select: (cols?: string) => Builder;
   eq: (col: string, val: unknown) => Builder;
+  is: (col: string, val: unknown) => Builder;
   order: (col: string, opts?: unknown) => Builder;
   limit: (n: number) => Builder;
   insert: (rows: unknown) => Builder;
@@ -83,6 +84,10 @@ function makeBuilder(table: string): Builder {
     },
     eq: (...args) => {
       call.ops.push({ method: "eq", args });
+      return builder;
+    },
+    is: (...args) => {
+      call.ops.push({ method: "is", args });
       return builder;
     },
     order: (...args) => {
@@ -124,6 +129,7 @@ import {
   counterSignProposalAction,
   convertProposalAction,
   createInvoiceFromProposalAction,
+  createProposalVersionAction,
 } from "./actions";
 import { sha256Hex } from "@/lib/proposals/tokens";
 
@@ -709,6 +715,133 @@ describe("createInvoiceFromProposalAction", () => {
     await expect(
       createInvoiceFromProposalAction(formWith({ id: "prop-1" })),
     ).rejects.toThrow(/Only an accepted proposal can be billed/);
+  });
+});
+
+describe("createProposalVersionAction", () => {
+  const sentProposal = {
+    id: "prop-1",
+    team_id: TEAM,
+    status: "sent",
+    customer_id: CUSTOMER,
+    signer_contact_id: CONTACT,
+    proposal_number: "PROP-2026-007",
+    title: "Modernization",
+    valid_until: "2026-08-15",
+    payment_terms_days: 30,
+    payment_terms_label: "Net 30",
+    deposit_type: "none",
+    deposit_value: null,
+    warranty_days: 30,
+    terms_notes: null,
+    currency: "USD",
+    version_number: 1,
+  };
+
+  it("copies the document to a new draft, supersedes the source, revokes its links", async () => {
+    queues["proposals"] = [
+      { data: sentProposal, error: null }, // source fetch
+      { data: { id: "prop-2" }, error: null }, // new version insert
+      { data: null, error: null }, // superseded status flip
+    ];
+    queues["team_settings"] = [
+      { data: { proposal_prefix: "PROP", proposal_next_num: 8 }, error: null },
+      { data: null, error: null }, // counter increment
+    ];
+    queues["proposal_line_items"] = [
+      { data: CONVERT_ITEMS, error: null }, // source items
+      { data: [{ id: "nli-1" }, { id: "nli-2" }], error: null }, // new parents
+      { data: null, error: null }, // new phases
+    ];
+    queues["proposal_access_tokens"] = [{ data: null, error: null }]; // revoke
+    queues["proposal_events"] = [{ data: null, error: null }];
+
+    await expect(
+      createProposalVersionAction(formWith({ id: "prop-1" })),
+    ).rejects.toThrow("NEXT_REDIRECT /proposals/prop-2/edit");
+
+    const [versionRow] = insertedRows("proposals");
+    expect(versionRow).toMatchObject({
+      supersedes_proposal_id: "prop-1",
+      version_number: 2,
+      title: "Modernization",
+      payment_terms_days: 30,
+    });
+    // The item tree is copied: 2 parents + 3 phases remapped to new parents.
+    const copied = insertedRows("proposal_line_items");
+    expect(copied).toHaveLength(5);
+    expect(
+      copied.filter((r) => r.parent_line_item_id === "nli-2"),
+    ).toHaveLength(3);
+
+    // Old doc superseded + its outstanding links revoked.
+    const supersede = calls.find(
+      (c) =>
+        c.table === "proposals" &&
+        c.ops.some(
+          (o) =>
+            o.method === "update" &&
+            (o.args[0] as { status?: string }).status === "superseded",
+        ),
+    );
+    expect(supersede).toBeDefined();
+    const revoke = calls.find(
+      (c) =>
+        c.table === "proposal_access_tokens" &&
+        c.ops.some(
+          (o) =>
+            o.method === "update" &&
+            (o.args[0] as { revoked_at?: string }).revoked_at,
+        ),
+    );
+    expect(revoke).toBeDefined();
+    expect(insertedRows("proposal_events")[0]?.event_type).toBe("superseded");
+  });
+
+  it("declined source: links the version but keeps declined (terminal) and revokes nothing", async () => {
+    queues["proposals"] = [
+      { data: { ...sentProposal, status: "declined" }, error: null },
+      { data: { id: "prop-2" }, error: null },
+    ];
+    queues["team_settings"] = [
+      { data: { proposal_prefix: "PROP", proposal_next_num: 8 }, error: null },
+      { data: null, error: null },
+    ];
+    queues["proposal_line_items"] = [
+      { data: [], error: null }, // no items edge case
+    ];
+    queues["proposal_events"] = [{ data: null, error: null }];
+
+    await expect(
+      createProposalVersionAction(formWith({ id: "prop-1" })),
+    ).rejects.toThrow("NEXT_REDIRECT /proposals/prop-2/edit");
+
+    const supersede = calls.find(
+      (c) =>
+        c.table === "proposals" &&
+        c.ops.some(
+          (o) =>
+            o.method === "update" &&
+            (o.args[0] as { status?: string }).status === "superseded",
+        ),
+    );
+    expect(supersede).toBeUndefined();
+  });
+
+  it("refuses drafts (just edit them) and signed work", async () => {
+    queues["proposals"] = [
+      { data: { ...sentProposal, status: "draft" }, error: null },
+    ];
+    await expect(
+      createProposalVersionAction(formWith({ id: "prop-1" })),
+    ).rejects.toThrow(/still editable/);
+
+    queues["proposals"] = [
+      { data: { ...sentProposal, status: "accepted" }, error: null },
+    ];
+    await expect(
+      createProposalVersionAction(formWith({ id: "prop-1" })),
+    ).rejects.toThrow(/can't be revised/);
   });
 });
 

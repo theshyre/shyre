@@ -69,6 +69,7 @@ function bundle(overrides: Partial<SignBundle> = {}): SignBundle {
     otpVerified: false,
     otpPending: false,
     decided: false,
+    offerExpired: false,
     ...overrides,
   };
 }
@@ -190,10 +191,42 @@ describe("SignExperience", () => {
         })}
       />,
     );
-    expect(screen.getByRole("status")).toHaveTextContent(/accepted.*\$4,950\.00/i);
+    expect(
+      screen.getByText(/was accepted — total \$4,950\.00/),
+    ).toBeInTheDocument();
     expect(
       screen.queryByRole("button", { name: /Accept/ }),
     ).not.toBeInTheDocument();
     expect(screen.queryByRole("checkbox")).not.toBeInTheDocument();
+  });
+
+  it("expired offer: warning shown, accept hidden, decline still available", () => {
+    renderWithIntl(
+      <SignExperience
+        token="tok"
+        bundle={bundle({ otpVerified: true, offerExpired: true })}
+      />,
+    );
+    expect(screen.getByText(/validity window ended/)).toBeInTheDocument();
+    expect(
+      screen.queryByRole("button", { name: /Accept/ }),
+    ).not.toBeInTheDocument();
+    expect(screen.getByRole("button", { name: /^Decline$/ })).toBeInTheDocument();
+  });
+
+  it("announces step transitions through the persistent live region", async () => {
+    requestMock.mockResolvedValue({ ok: true, sentTo: "jordan@eyereg.example" });
+    renderWithIntl(<SignExperience token="tok" bundle={bundle()} />);
+    const region = screen
+      .getAllByRole("status")
+      .find((el) => el.getAttribute("aria-live") === "polite");
+    expect(region).toBeDefined();
+    expect(region!.textContent).toBe("");
+    fireEvent.click(screen.getByRole("button", { name: /Email me a code/ }));
+    await waitFor(() =>
+      expect(region!.textContent).toMatch(/code has been emailed/i),
+    );
+    // Focus lands in the revealed code field.
+    expect(screen.getByLabelText("6-digit code")).toHaveFocus();
   });
 });

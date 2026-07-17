@@ -94,7 +94,9 @@ describe("ProposalForm", () => {
 
   it("computes the selected-subset preview total from checked items", () => {
     renderForm();
-    // Item 1: $950. Add item 2: $4000. Both start selected → $4,950.
+    // Item 1: $950. Add item 2: $4000. New items start SELECTED (the preview
+    // must never silently under-report), so with both checked the "Selected
+    // total" equals "Full proposal": two $4,950 matches.
     fireEvent.change(screen.getAllByLabelText("Fixed price")[0]!, {
       target: { value: "950" },
     });
@@ -102,12 +104,10 @@ describe("ProposalForm", () => {
     fireEvent.change(screen.getAllByLabelText("Fixed price")[1]!, {
       target: { value: "4000" },
     });
-    // New items aren't auto-added to the preview set — check it. With both
-    // selected, "Selected total" equals "Full proposal": two matches.
     const previewChecks = screen
       .getAllByRole("checkbox")
       .filter((el) => el.closest("li"));
-    fireEvent.click(previewChecks[1]!);
+    expect(previewChecks[1]).toBeChecked();
     expect(screen.getAllByText("$4,950.00")).toHaveLength(2);
 
     // Unchecking the first drops the selected total to $4,000 (which then
@@ -116,6 +116,14 @@ describe("ProposalForm", () => {
     fireEvent.click(previewChecks[0]!);
     expect(screen.getAllByText("$4,000.00")).toHaveLength(2);
     expect(screen.getAllByText("$4,950.00")).toHaveLength(1);
+
+    // Removing the still-checked second item drops it from the preview
+    // entirely — selection is keyed by stable key, not index, so nothing
+    // shifts onto a neighbor.
+    fireEvent.click(
+      screen.getAllByRole("button", { name: "Remove line item" })[1]!,
+    );
+    expect(screen.queryByText("$4,000.00")).not.toBeInTheDocument();
   });
 
   it("blocks submit client-side with field errors and never calls the action", async () => {

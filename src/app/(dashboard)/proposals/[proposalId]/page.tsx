@@ -15,6 +15,7 @@ import { SendProposalButton } from "../send-proposal-button";
 import { CounterSignButton } from "../counter-sign-button";
 import { ConvertProposalButton } from "../convert-proposal-button";
 import { CreateInvoiceButton } from "../create-invoice-button";
+import { NewVersionButton } from "../new-version-button";
 import { ProposalPdfButton, type ProposalPdfBundle } from "./proposal-pdf-button";
 import { isProposalEditable, type DepositType } from "../allow-lists";
 
@@ -100,6 +101,23 @@ export default async function ProposalDetailPage({
     .order("occurred_at", { ascending: true });
   const events = eventRows ?? [];
 
+  // Version chain: the proposal this one replaced, and the one that replaced
+  // it (a superseded doc always points forward to its successor).
+  const supersedesId = (proposal.supersedes_proposal_id as string | null) ?? null;
+  const { data: supersedesRow } = supersedesId
+    ? await supabase
+        .from("proposals")
+        .select("id, proposal_number")
+        .eq("id", supersedesId)
+        .single()
+    : { data: null };
+  const { data: supersededByRows } = await supabase
+    .from("proposals")
+    .select("id, proposal_number")
+    .eq("supersedes_proposal_id", proposalId)
+    .limit(1);
+  const supersededBy = supersededByRows?.[0] ?? null;
+
   interface CustomerRow {
     id: string;
     name: string;
@@ -111,8 +129,11 @@ export default async function ProposalDetailPage({
     ? ((proposal.customers[0] ?? null) as CustomerRow | null)
     : (proposal.customers as CustomerRow | null);
   const signer = Array.isArray(proposal.customer_contacts)
-    ? ((proposal.customer_contacts[0] ?? null) as { name: string } | null)
-    : (proposal.customer_contacts as { name: string } | null);
+    ? ((proposal.customer_contacts[0] ?? null) as {
+        name: string;
+        email: string;
+      } | null)
+    : (proposal.customer_contacts as { name: string; email: string } | null);
 
   // Build the item tree: top-level items in order, phases nested.
   const rows = (itemRows ?? []) as LineItemRow[];
@@ -182,7 +203,36 @@ export default async function ProposalDetailPage({
           </div>
           <p className="mt-1 font-mono text-caption text-content-secondary">
             {proposal.proposal_number as string}
+            {((proposal.version_number as number) ?? 1) > 1 &&
+              ` · v${proposal.version_number as number}`}
           </p>
+          {(supersedesRow || supersededBy) && (
+            <p className="mt-1 text-caption text-content-secondary">
+              {supersedesRow && (
+                <>
+                  {t("supersedes")}{" "}
+                  <Link
+                    href={`/proposals/${supersedesRow.id as string}`}
+                    className="font-mono text-accent hover:underline"
+                  >
+                    {supersedesRow.proposal_number as string}
+                  </Link>
+                </>
+              )}
+              {supersedesRow && supersededBy && " · "}
+              {supersededBy && (
+                <>
+                  {t("supersededBy")}{" "}
+                  <Link
+                    href={`/proposals/${supersededBy.id as string}`}
+                    className="font-mono text-accent hover:underline"
+                  >
+                    {supersededBy.proposal_number as string}
+                  </Link>
+                </>
+              )}
+            </p>
+          )}
         </div>
         <div className="flex flex-wrap items-center gap-2">
           <ProposalPdfButton bundle={pdfBundle} />
@@ -191,6 +241,7 @@ export default async function ProposalDetailPage({
               <SendProposalButton
                 proposalId={proposalId}
                 hasSigner={!!proposal.signer_contact_id}
+                signerEmail={signer?.email ?? null}
               />
               <Link
                 href={`/proposals/${proposalId}/edit`}
@@ -212,6 +263,8 @@ export default async function ProposalDetailPage({
             hasUnbilledAccepted && (
               <CreateInvoiceButton proposalId={proposalId} />
             )}
+          {(status === "sent" || status === "viewed" || status === "declined") &&
+            !supersededBy && <NewVersionButton proposalId={proposalId} />}
         </div>
       </div>
 

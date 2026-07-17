@@ -13,23 +13,50 @@ import { SendProposalButton } from "./send-proposal-button";
 beforeEach(() => sendMock.mockReset());
 
 describe("SendProposalButton", () => {
-  it("sends with the proposal id", async () => {
+  it("is two-step: the confirm restates the recipient before anything sends", async () => {
     sendMock.mockResolvedValue({ success: true });
-    renderWithIntl(<SendProposalButton proposalId="prop-1" hasSigner />);
+    renderWithIntl(
+      <SendProposalButton
+        proposalId="prop-1"
+        hasSigner
+        signerEmail="jordan@eyereg.example"
+      />,
+    );
     fireEvent.click(screen.getByRole("button", { name: /Send for sign-off/ }));
+    // Nothing sent yet — the confirm shows exactly who will be emailed.
+    expect(sendMock).not.toHaveBeenCalled();
+    const confirm = screen.getByRole("button", {
+      name: /Send to jordan@eyereg\.example/,
+    });
+    fireEvent.click(confirm);
     await waitFor(() => expect(sendMock).toHaveBeenCalledTimes(1));
     expect((sendMock.mock.calls[0]![0] as FormData).get("id")).toBe("prop-1");
   });
 
+  it("cancel backs out without sending", () => {
+    renderWithIntl(
+      <SendProposalButton
+        proposalId="prop-1"
+        hasSigner
+        signerEmail="jordan@eyereg.example"
+      />,
+    );
+    fireEvent.click(screen.getByRole("button", { name: /Send for sign-off/ }));
+    fireEvent.click(screen.getByRole("button", { name: /^Cancel$/ }));
+    expect(sendMock).not.toHaveBeenCalled();
+    expect(
+      screen.getByRole("button", { name: /Send for sign-off/ }),
+    ).toBeInTheDocument();
+  });
+
   it("is disabled without a signer, with the reason visible", () => {
-    renderWithIntl(<SendProposalButton proposalId="prop-1" hasSigner={false} />);
+    renderWithIntl(
+      <SendProposalButton proposalId="prop-1" hasSigner={false} signerEmail={null} />,
+    );
     expect(
       screen.getByRole("button", { name: /Send for sign-off/ }),
     ).toBeDisabled();
-    expect(
-      screen.getByText("Add a signer contact to send"),
-    ).toBeInTheDocument();
-    expect(sendMock).not.toHaveBeenCalled();
+    expect(screen.getByText("Add a signer contact to send")).toBeInTheDocument();
   });
 
   it("surfaces action failure inline — never a silent no-op", async () => {
@@ -37,8 +64,15 @@ describe("SendProposalButton", () => {
       success: false,
       error: { message: "Email is not configured for this team." },
     });
-    renderWithIntl(<SendProposalButton proposalId="prop-1" hasSigner />);
+    renderWithIntl(
+      <SendProposalButton
+        proposalId="prop-1"
+        hasSigner
+        signerEmail="jordan@eyereg.example"
+      />,
+    );
     fireEvent.click(screen.getByRole("button", { name: /Send for sign-off/ }));
+    fireEvent.click(screen.getByRole("button", { name: /Send to/ }));
     await waitFor(() =>
       expect(screen.getByRole("alert")).toHaveTextContent(
         /Email is not configured/,

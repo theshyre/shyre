@@ -109,7 +109,20 @@ review it, adjust tax if needed, and send it through the standard invoice
 flow. Example: a client accepts Projects 1 + 3 ($950 + $4,000) → one draft
 invoice totaling **$4,950**.
 
-## What's next (later phases)
+## Versions
 
-- **Versioning** — revise a sent proposal by issuing a new version that
-  supersedes the old one.
+A sent proposal's content is frozen — revisions go through **New version**
+(available on sent, viewed, and declined proposals): the document is copied
+into a fresh editable draft with a new number and a bumped version (`v2`,
+`v3`, …), linked both ways ("Supersedes" / "Superseded by" on the detail
+page). The old sent/viewed proposal flips to `superseded` and **its
+outstanding sign links stop working immediately**; a declined proposal keeps
+its own record and just gains the link. Accepted or converted proposals are
+never superseded — follow-on work is a new proposal.
+
+## Validity windows
+
+`Valid until` is enforced: once the date passes, the signing page shows an
+expiry notice and **acceptance is blocked** (server-side too) — though the
+client can still record a decline. Issue a new version to re-offer with a
+fresh window.

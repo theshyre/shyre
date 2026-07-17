@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState, useTransition } from "react";
+import { useEffect, useMemo, useRef, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { useTranslations } from "next-intl";
 import {
@@ -37,6 +37,12 @@ interface Props {
  * emailed one-time code → select the line items to authorize → typed-name
  * signature → accept (or decline). Every submit re-validates server-side;
  * this component only drives UI state.
+ *
+ * Built for external, possibly non-technical signers using any assistive
+ * tech: real <form> semantics (Enter submits each step), a persistent polite
+ * live region announcing step transitions, deliberate focus re-homing when a
+ * refresh swaps the visible step, and checkbox names scoped to title + price
+ * (the contract prose stays selectable without toggling a selection).
  */
 export function SignExperience({ token, bundle }: Props): React.JSX.Element {
   const t = useTranslations("proposals.sign");
@@ -46,6 +52,44 @@ export function SignExperience({ token, bundle }: Props): React.JSX.Element {
   const [otpRequested, setOtpRequested] = useState(bundle.otpPending);
   const [otpCode, setOtpCode] = useState("");
   const [error, setError] = useState<string | null>(null);
+  // Persistent polite live region (mounted from first render — live regions
+  // inserted WITH their content are not reliably announced). Success
+  // transitions write here; router.refresh() re-renders in place so the
+  // node persists across state flips.
+  const [announcement, setAnnouncement] = useState("");
+  const otpInputRef = useRef<HTMLInputElement>(null);
+  const signHeadingRef = useRef<HTMLHeadingElement>(null);
+  const decidedBannerRef = useRef<HTMLDivElement>(null);
+
+  // Focus management across the refresh-driven state transitions: the
+  // element the user activated unmounts, so deliberately re-home focus to
+  // the next step instead of letting it drop to <body>.
+  const prevVerified = useRef(bundle.otpVerified);
+  const prevDecided = useRef(bundle.decided);
+  useEffect(() => {
+    if (!prevVerified.current && bundle.otpVerified && !bundle.decided) {
+      signHeadingRef.current?.focus();
+    }
+    if (!prevDecided.current && bundle.decided) {
+      decidedBannerRef.current?.focus();
+    }
+    prevVerified.current = bundle.otpVerified;
+    prevDecided.current = bundle.decided;
+  }, [bundle.otpVerified, bundle.decided]);
+
+  // When the code field appears (after "Email me a code"), put the caret in it.
+  const prevRequested = useRef(otpRequested);
+  useEffect(() => {
+    if (!prevRequested.current && otpRequested) {
+      otpInputRef.current?.focus();
+    }
+    prevRequested.current = otpRequested;
+  }, [otpRequested]);
+
+  // Which action is in flight — drives per-button pending labels.
+  const [pendingAction, setPendingAction] = useState<
+    "otp_send" | "otp_verify" | "accept" | "decline" | null
+  >(null);
 
   const [selected, setSelected] = useState<Set<string>>(
     () => new Set(bundle.items.map((item) => item.id)),
@@ -86,6 +130,8 @@ export function SignExperience({ token, bundle }: Props): React.JSX.Element {
         return t("errors.consumed");
       case "invalid_selection":
         return t("errors.invalidSelection");
+      case "offer_expired":
+        return t("errors.offerExpired");
       case "email_failed":
         return t("errors.emailFailed");
       default:
@@ -93,12 +139,20 @@ export function SignExperience({ token, bundle }: Props): React.JSX.Element {
     }
   }
 
-  function runAction(fn: () => Promise<PublicActionResult>, onOk?: () => void): void {
+  function runAction(
+    action: "otp_send" | "otp_verify" | "accept" | "decline",
+    fn: () => Promise<PublicActionResult>,
+    onOk?: () => void,
+    announce?: string,
+  ): void {
     setError(null);
+    setPendingAction(action);
     startTransition(async () => {
       const result = await fn();
+      setPendingAction(null);
       if (result.ok) {
         onOk?.();
+        if (announce) setAnnouncement(announce);
         router.refresh();
       } else {
         setError(failureMessage(result));
@@ -108,9 +162,20 @@ export function SignExperience({ token, bundle }: Props): React.JSX.Element {
 
   const decided = bundle.decided;
   const decidedAccepted = bundle.proposal.status === "accepted";
+  const selectable = !decided && bundle.otpVerified;
+  const acceptMissing: string[] = [];
+  if (selected.size === 0) acceptMissing.push(t("missingSelection"));
+  if (signerName.trim() === "") acceptMissing.push(t("missingName"));
+  if (signature.trim() === "") acceptMissing.push(t("missingSignature"));
 
   return (
     <main className="mx-auto max-w-[720px] px-[24px] py-[40px]">
+      {/* Persistent live region — announces step transitions (code sent /
+          verified / decision recorded) to assistive tech. */}
+      <span role="status" aria-live="polite" aria-atomic="true" className="sr-only">
+        {announcement}
+      </span>
+
       {/* Document header */}
       <p className="text-caption uppercase tracking-wide text-content-muted">
         {t("heading", { business: bundle.businessName ?? "—" })}
@@ -125,11 +190,25 @@ export function SignExperience({ token, bundle }: Props): React.JSX.Element {
           : ""}
       </p>
 
-      {/* Decision banner (terminal states) */}
-      {decided && (
+      {/* Offer-expiry notice: acceptance is blocked server-side too; a
+          decline remains recordable. Icon + text + warning color. */}
+      {!decided && bundle.offerExpired && (
         <div
           role="status"
-          className={`mt-4 flex items-center gap-2 rounded-lg border p-3 text-body ${
+          className="mt-4 flex items-center gap-2 rounded-lg border border-warning-text bg-warning-soft p-3 text-body text-warning-text"
+        >
+          <TriangleAlert size={16} aria-hidden="true" />
+          {t("offerExpiredNotice", { date: bundle.proposal.validUntil ?? "" })}
+        </div>
+      )}
+
+      {/* Decision banner (terminal states). Focus lands here after the
+          decision records; tabIndex=-1 makes it programmatically focusable. */}
+      {decided && (
+        <div
+          ref={decidedBannerRef}
+          tabIndex={-1}
+          className={`mt-4 flex items-center gap-2 rounded-lg border p-3 text-body focus:outline-none ${
             decidedAccepted
               ? "border-success-text bg-success-soft text-success-text"
               : "border-edge bg-surface-inset text-content-secondary"
@@ -151,31 +230,35 @@ export function SignExperience({ token, bundle }: Props): React.JSX.Element {
         </div>
       )}
 
-      {/* Line items — selectable when signing is possible */}
+      {/* Line items — selectable once verified; the subset rule is stated up
+          front so the read-only stage doesn't read as all-or-nothing. */}
       <section className="mt-[24px]">
         <h2 className="text-heading font-semibold text-content">
           {t("itemsHeading")}
         </h2>
-        {!decided && bundle.otpVerified && (
+        {!decided && (
           <p className="mt-1 text-caption text-content-secondary">
-            {t("itemsHint")}
+            {selectable ? t("itemsHint") : t("itemsHintPreVerify")}
           </p>
         )}
         <div className="mt-3 space-y-[12px]">
           {bundle.items.map((item) => (
-            <label
+            <div
               key={item.id}
-              className={`block rounded-lg border p-4 ${
-                !decided && bundle.otpVerified
-                  ? "cursor-pointer border-edge hover:bg-hover"
-                  : "border-edge"
-              } ${selected.has(item.id) && bundle.otpVerified && !decided ? "bg-accent-soft/30" : ""}`}
+              className={`rounded-lg border border-edge p-4 ${
+                selectable && selected.has(item.id) ? "bg-accent-soft" : ""
+              }`}
             >
               <div className="flex items-start gap-3">
-                {!decided && bundle.otpVerified && (
+                {selectable && (
                   <input
                     type="checkbox"
+                    id={`sign-item-${item.id}`}
                     className="mt-1"
+                    // Name = title + price only. The card body (scope prose a
+                    // signer must be able to select/copy) stays OUTSIDE the
+                    // label so reading it never toggles a selection.
+                    aria-labelledby={`sit-${item.id} sip-${item.id}`}
                     checked={selected.has(item.id)}
                     onChange={(e) => {
                       setSelected((prev) => {
@@ -189,10 +272,26 @@ export function SignExperience({ token, bundle }: Props): React.JSX.Element {
                 )}
                 <div className="flex-1">
                   <div className="flex items-baseline justify-between gap-3">
-                    <span className="text-body-lg font-semibold text-content">
-                      {item.title}
-                    </span>
-                    <span className="font-mono text-body-lg text-content">
+                    {selectable ? (
+                      <label
+                        id={`sit-${item.id}`}
+                        htmlFor={`sign-item-${item.id}`}
+                        className="cursor-pointer text-body-lg font-semibold text-content"
+                      >
+                        {item.title}
+                      </label>
+                    ) : (
+                      <span
+                        id={`sit-${item.id}`}
+                        className="text-body-lg font-semibold text-content"
+                      >
+                        {item.title}
+                      </span>
+                    )}
+                    <span
+                      id={`sip-${item.id}`}
+                      className="font-mono text-body-lg text-content"
+                    >
                       {formatCurrency(item.fixedPrice, currency)}
                     </span>
                   </div>
@@ -245,21 +344,20 @@ export function SignExperience({ token, bundle }: Props): React.JSX.Element {
                   )}
                 </div>
               </div>
-            </label>
+            </div>
           ))}
         </div>
 
-        <div className="mt-3 flex items-baseline justify-between border-t border-edge pt-2">
+        {/* aria-live: toggling an item changes a MONEY figure — announce it. */}
+        <div
+          aria-live={selectable ? "polite" : undefined}
+          className="mt-3 flex items-baseline justify-between border-t border-edge pt-2"
+        >
           <span className="text-body-lg font-semibold text-content">
-            {bundle.otpVerified && !decided
-              ? t("selectedTotal")
-              : t("fullTotal")}
+            {selectable ? t("selectedTotal") : t("fullTotal")}
           </span>
           <span className="font-mono text-title font-semibold text-content">
-            {formatCurrency(
-              bundle.otpVerified && !decided ? selectedTotal : fullTotal,
-              currency,
-            )}
+            {formatCurrency(selectable ? selectedTotal : fullTotal, currency)}
           </span>
         </div>
       </section>
@@ -312,7 +410,26 @@ export function SignExperience({ token, bundle }: Props): React.JSX.Element {
       {!decided && (
         <section className="mt-[32px] rounded-lg border border-edge bg-surface-raised p-4">
           {!bundle.otpVerified ? (
-            <>
+            <form
+              onSubmit={(e) => {
+                e.preventDefault();
+                if (otpRequested && otpCode.length === 6) {
+                  runAction(
+                    "otp_verify",
+                    () => verifySignOtpAction(token, otpCode),
+                    undefined,
+                    t("announceVerified"),
+                  );
+                } else if (!otpRequested) {
+                  runAction(
+                    "otp_send",
+                    () => requestSignOtpAction(token),
+                    () => setOtpRequested(true),
+                    t("announceCodeSent"),
+                  );
+                }
+              }}
+            >
               <h2 className="flex items-center gap-2 text-body-lg font-semibold text-content">
                 <MailCheck size={16} aria-hidden="true" />
                 {t("otpHeading")}
@@ -322,17 +439,30 @@ export function SignExperience({ token, bundle }: Props): React.JSX.Element {
               </p>
               <div className="mt-3 flex flex-wrap items-end gap-3">
                 <button
-                  type="button"
-                  className={buttonSecondaryClass}
+                  type={otpRequested ? "button" : "submit"}
+                  // The single forward action pre-request → primary; demoted
+                  // once the code entry becomes the main path.
+                  className={
+                    otpRequested ? buttonSecondaryClass : buttonPrimaryClass
+                  }
                   disabled={pending}
-                  onClick={() =>
-                    runAction(
-                      () => requestSignOtpAction(token),
-                      () => setOtpRequested(true),
-                    )
+                  onClick={
+                    otpRequested
+                      ? () =>
+                          runAction(
+                            "otp_send",
+                            () => requestSignOtpAction(token),
+                            undefined,
+                            t("announceCodeSent"),
+                          )
+                      : undefined
                   }
                 >
-                  {otpRequested ? t("otpResend") : t("otpSend")}
+                  {pendingAction === "otp_send"
+                    ? t("otpSending")
+                    : otpRequested
+                      ? t("otpResend")
+                      : t("otpSend")}
                 </button>
                 {otpRequested && (
                   <>
@@ -342,6 +472,7 @@ export function SignExperience({ token, bundle }: Props): React.JSX.Element {
                       </label>
                       <input
                         id="sign-otp"
+                        ref={otpInputRef}
                         className={`${inputClass} w-[140px] font-mono tracking-widest`}
                         inputMode="numeric"
                         autoComplete="one-time-code"
@@ -353,23 +484,46 @@ export function SignExperience({ token, bundle }: Props): React.JSX.Element {
                       />
                     </div>
                     <button
-                      type="button"
+                      type="submit"
                       className={buttonPrimaryClass}
                       disabled={pending || otpCode.length !== 6}
-                      onClick={() =>
-                        runAction(() => verifySignOtpAction(token, otpCode))
-                      }
                     >
                       <ShieldCheck size={16} aria-hidden="true" />
-                      {t("otpVerify")}
+                      {pendingAction === "otp_verify"
+                        ? t("otpVerifying")
+                        : t("otpVerify")}
                     </button>
                   </>
                 )}
               </div>
-            </>
+            </form>
           ) : (
-            <>
-              <h2 className="flex items-center gap-2 text-body-lg font-semibold text-content">
+            <form
+              onSubmit={(e) => {
+                e.preventDefault();
+                if (bundle.offerExpired || acceptMissing.length > 0 || pending) {
+                  return;
+                }
+                runAction(
+                  "accept",
+                  () =>
+                    submitSignDecisionAction(token, {
+                      decision: "accepted",
+                      signerName,
+                      signerTitle,
+                      signatureTyped: signature,
+                      selectedLineItemIds: [...selected],
+                    }),
+                  undefined,
+                  t("announceDecided"),
+                );
+              }}
+            >
+              <h2
+                ref={signHeadingRef}
+                tabIndex={-1}
+                className="flex items-center gap-2 text-body-lg font-semibold text-content focus:outline-none"
+              >
                 <ShieldCheck size={16} aria-hidden="true" />
                 {t("signHeading")}
               </h2>
@@ -384,6 +538,9 @@ export function SignExperience({ token, bundle }: Props): React.JSX.Element {
                   <input
                     id="sign-name"
                     className={inputClass}
+                    required
+                    aria-required="true"
+                    autoFocus
                     value={signerName}
                     onChange={(e) => setSignerName(e.target.value)}
                   />
@@ -406,6 +563,8 @@ export function SignExperience({ token, bundle }: Props): React.JSX.Element {
                   <input
                     id="sign-signature"
                     className={`${inputClass} italic`}
+                    required
+                    aria-required="true"
                     placeholder={t("signaturePlaceholder")}
                     value={signature}
                     onChange={(e) => setSignature(e.target.value)}
@@ -419,32 +578,20 @@ export function SignExperience({ token, bundle }: Props): React.JSX.Element {
                 })}
               </p>
               <div className="mt-3 flex flex-wrap items-center gap-3">
-                <button
-                  type="button"
-                  className={buttonPrimaryClass}
-                  disabled={
-                    pending ||
-                    selected.size === 0 ||
-                    signerName.trim() === "" ||
-                    signature.trim() === ""
-                  }
-                  onClick={() =>
-                    runAction(() =>
-                      submitSignDecisionAction(token, {
-                        decision: "accepted",
-                        signerName,
-                        signerTitle,
-                        signatureTyped: signature,
-                        selectedLineItemIds: [...selected],
-                      }),
-                    )
-                  }
-                >
-                  <CheckCircle2 size={16} aria-hidden="true" />
-                  {t("accept", {
-                    total: formatCurrency(selectedTotal, currency),
-                  })}
-                </button>
+                {!bundle.offerExpired && (
+                  <button
+                    type="submit"
+                    className={buttonPrimaryClass}
+                    disabled={pending || acceptMissing.length > 0}
+                  >
+                    <CheckCircle2 size={16} aria-hidden="true" />
+                    {pendingAction === "accept"
+                      ? t("accepting")
+                      : t("accept", {
+                          total: formatCurrency(selectedTotal, currency),
+                        })}
+                  </button>
+                )}
                 {!confirmDecline ? (
                   <button
                     type="button"
@@ -462,18 +609,24 @@ export function SignExperience({ token, bundle }: Props): React.JSX.Element {
                       className={buttonDangerClass}
                       disabled={pending || signerName.trim() === ""}
                       onClick={() =>
-                        runAction(() =>
-                          submitSignDecisionAction(token, {
-                            decision: "declined",
-                            signerName,
-                            signerTitle,
-                            signatureTyped: "",
-                            selectedLineItemIds: [],
-                          }),
+                        runAction(
+                          "decline",
+                          () =>
+                            submitSignDecisionAction(token, {
+                              decision: "declined",
+                              signerName,
+                              signerTitle,
+                              signatureTyped: "",
+                              selectedLineItemIds: [],
+                            }),
+                          undefined,
+                          t("announceDecided"),
                         )
                       }
                     >
-                      {t("declineConfirm")}
+                      {pendingAction === "decline"
+                        ? t("declining")
+                        : t("declineConfirm")}
                     </button>
                     <button
                       type="button"
@@ -486,12 +639,19 @@ export function SignExperience({ token, bundle }: Props): React.JSX.Element {
                   </span>
                 )}
               </div>
+              {/* A dead-looking primary button with no reason is the classic
+                  "is this broken?" moment — say what's missing. */}
+              {!bundle.offerExpired && acceptMissing.length > 0 && (
+                <p className="mt-2 text-caption text-content-secondary">
+                  {t("acceptMissing", { missing: acceptMissing.join(", ") })}
+                </p>
+              )}
               {confirmDecline && signerName.trim() === "" && (
                 <p className="mt-2 text-caption text-content-secondary">
                   {t("declineNeedsName")}
                 </p>
               )}
-            </>
+            </form>
           )}
 
           {error && (

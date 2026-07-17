@@ -42,7 +42,10 @@ export async function updateSession(request: NextRequest) {
     !user &&
     !request.nextUrl.pathname.startsWith("/login") &&
     !request.nextUrl.pathname.startsWith("/auth") &&
-    !request.nextUrl.pathname.startsWith("/sign")
+    // Exact segment match — `startsWith("/sign")` would silently exempt any
+    // future /sign* route (/signup, /signals, …) from auth. SAL-036/037.
+    request.nextUrl.pathname !== "/sign" &&
+    !request.nextUrl.pathname.startsWith("/sign/")
   ) {
     const url = request.nextUrl.clone();
     url.pathname = "/login";
