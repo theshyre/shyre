@@ -27,6 +27,7 @@ export interface CustomerRow {
   default_rate: number | null;
   bounced_at: string | null;
   complained_at: string | null;
+  logo_url: string | null;
 }
 
 interface Props {
@@ -304,6 +305,8 @@ export function CustomersTable({
                     <CustomerChip
                       customerId={client.id}
                       customerName={client.name}
+                      logoUrl={client.logo_url}
+                      size={24}
                     />
                     <Link
                       href={`/customers/${client.id}`}

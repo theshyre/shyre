@@ -45,6 +45,9 @@ interface CustomerRow {
    *  (marked as spam). Same treatment as bounced — separate column
    *  so the icon + reason can differ. */
   complained_at: string | null;
+  /** Uploaded customer logo (public URL) — shown as the list identity-mark
+   *  in place of the initials chip when present. */
+  logo_url: string | null;
 }
 
 export default async function ClientsPage({
@@ -69,14 +72,14 @@ export default async function ClientsPage({
       supabase
         .from("customers_v")
         .select(
-          "id, team_id, name, email, default_rate, bounced_at, complained_at",
+          "id, team_id, name, email, default_rate, bounced_at, complained_at, logo_url",
         )
         .eq("archived", false)
         .eq("team_id", selectedTeamId),
       supabase
         .from("customer_shares")
         .select(
-          "customer_id, customers_v(id, team_id, name, email, default_rate, bounced_at, complained_at, archived)",
+          "customer_id, customers_v(id, team_id, name, email, default_rate, bounced_at, complained_at, archived, logo_url)",
         )
         .eq("team_id", selectedTeamId),
     ]);
@@ -105,6 +108,7 @@ export default async function ClientsPage({
           default_rate: c.default_rate,
           bounced_at: c.bounced_at,
           complained_at: c.complained_at,
+          logo_url: c.logo_url,
         });
     }
     customers = Array.from(byId.values()).sort((a, b) =>
@@ -114,7 +118,7 @@ export default async function ClientsPage({
     const { data } = await supabase
       .from("customers_v")
       .select(
-        "id, team_id, name, email, default_rate, bounced_at, complained_at",
+        "id, team_id, name, email, default_rate, bounced_at, complained_at, logo_url",
       )
       .eq("archived", false)
       .order("name");
