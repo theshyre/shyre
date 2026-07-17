@@ -30,6 +30,7 @@ export interface SignBundleItemPhase {
 export interface SignBundleItem {
   id: string;
   title: string;
+  bodyMarkdown: string | null;
   description: string | null;
   whyItMatters: string | null;
   outOfScope: string | null;
@@ -77,6 +78,8 @@ export interface SignBundle {
   /** A co-signer opened their link before the primary authorized the scope —
    *  they can't sign yet. */
   awaitingPrimary: boolean;
+  /** Optional proposal-level intro/summary (markdown), above the items. */
+  overviewMarkdown: string | null;
   /** Sign-time state driving the page's flow. */
   otpVerified: boolean;
   otpPending: boolean;
@@ -177,6 +180,7 @@ interface LineItemRow {
   parent_line_item_id: string | null;
   sort_order: number;
   title: string;
+  body_markdown: string | null;
   description: string | null;
   why_it_matters: string | null;
   out_of_scope: string | null;
@@ -192,7 +196,7 @@ async function loadItems(
   const { data } = await admin
     .from("proposal_line_items")
     .select(
-      "id, parent_line_item_id, sort_order, title, description, why_it_matters, out_of_scope, definition_of_done, fixed_price, is_capped",
+      "id, parent_line_item_id, sort_order, title, body_markdown, description, why_it_matters, out_of_scope, definition_of_done, fixed_price, is_capped",
     )
     .eq("proposal_id", proposalId)
     .order("sort_order");
@@ -202,6 +206,7 @@ async function loadItems(
     .map((parent) => ({
       id: parent.id,
       title: parent.title,
+      bodyMarkdown: parent.body_markdown,
       description: parent.description,
       whyItMatters: parent.why_it_matters,
       outOfScope: parent.out_of_scope,
@@ -232,7 +237,7 @@ export async function loadSignBundle(
   const { data: proposal } = await admin
     .from("proposals")
     .select(
-      "id, team_id, proposal_number, title, status, issued_date, valid_until, payment_terms_label, deposit_type, deposit_value, warranty_days, terms_notes, currency, accepted_total, signing_mode, customers(name, accent_color, logo_url)",
+      "id, team_id, proposal_number, title, status, issued_date, valid_until, payment_terms_label, deposit_type, deposit_value, warranty_days, terms_notes, currency, accepted_total, signing_mode, overview_markdown, customers(name, accent_color, logo_url)",
     )
     .eq("id", token.proposal_id)
     .single();
@@ -357,6 +362,8 @@ export async function loadSignBundle(
       signingMode,
       boundSelectedIds,
       awaitingPrimary,
+      overviewMarkdown:
+        (proposal.overview_markdown as string | null) ?? null,
     },
   };
 }

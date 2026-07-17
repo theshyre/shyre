@@ -15,6 +15,10 @@ const phaseSchema = z.object({
 
 const itemSchema = z.object({
   title: z.string().max(200),
+  // Rich markdown body — replaces the legacy why/scope/DoD prose. The legacy
+  // scalar fields stay optional for backward compatibility (older rows render
+  // from them until re-saved).
+  bodyMarkdown: z.string().max(20000).optional().nullable(),
   description: z.string().max(5000).optional().nullable(),
   whyItMatters: z.string().max(5000).optional().nullable(),
   outOfScope: z.string().max(5000).optional().nullable(),
@@ -50,6 +54,8 @@ const proposalFields = {
   deposit_value: z.number().min(0).max(MAX_MONEY).optional().nullable(),
   warranty_days: z.number().int().min(0).max(3650).optional().nullable(),
   terms_notes: z.string().max(10000).optional().nullable(),
+  // Optional proposal-level intro/summary (markdown), shown above the items.
+  overview_markdown: z.string().max(20000).optional().nullable(),
   items: z.array(itemSchema).max(50),
 } as const;
 

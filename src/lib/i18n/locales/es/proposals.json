@@ -80,7 +80,14 @@
     "modeFirst": "Basta el primero",
     "modeAll": "Todos deben firmar",
     "modeFirstHint": "La autorización de cualquier firmante es vinculante.",
-    "modeAllHint": "Todos los firmantes deben firmar las mismas partidas: el firmante principal elige el alcance primero y los cofirmantes autorizan esa misma selección."
+    "modeAllHint": "Todos los firmantes deben firmar las mismas partidas: el firmante principal elige el alcance primero y los cofirmantes autorizan esa misma selección.",
+    "itemBody": "Detalles",
+    "itemBodyPlaceholder": "Describe el trabajo en markdown — encabezados, **negrita**, listas, tablas…",
+    "itemBodyHint": "Admite markdown: **negrita**, *cursiva*, - listas, ## encabezados, | tablas |.",
+    "itemBodyPreview": "Vista previa",
+    "overviewLabel": "Resumen (opcional)",
+    "overviewPlaceholder": "Una breve introducción o resumen que se muestra sobre las partidas — admite markdown.",
+    "overviewHint": "Admite markdown. Se muestra sobre las partidas en la propuesta y la página de firma."
   },
   "validation": {
     "itemsRequired": "Añade al menos una partida",

@@ -80,7 +80,14 @@
     "modeFirst": "First to authorize",
     "modeAll": "All must sign",
     "modeFirstHint": "Any one signer's authorization is binding.",
-    "modeAllHint": "Every signer must sign the same items — the primary signer selects the scope first, and co-signers authorize that same selection."
+    "modeAllHint": "Every signer must sign the same items — the primary signer selects the scope first, and co-signers authorize that same selection.",
+    "itemBody": "Details",
+    "itemBodyPlaceholder": "Describe the work in markdown — headings, **bold**, bullet lists, tables…",
+    "itemBodyHint": "Supports markdown: **bold**, *italic*, - lists, ## headings, | tables |.",
+    "itemBodyPreview": "Preview",
+    "overviewLabel": "Overview (optional)",
+    "overviewPlaceholder": "A short intro or summary shown above the line items — markdown supported.",
+    "overviewHint": "Supports markdown. Shown above the line items on the proposal + sign page."
   },
   "validation": {
     "itemsRequired": "Add at least one line item",

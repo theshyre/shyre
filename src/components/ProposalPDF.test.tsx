@@ -37,6 +37,7 @@ const baseProps: ProposalPDFProps = {
   items: [
     {
       title: "Basic dependency upgrades",
+      bodyMarkdown: null,
       description: "Bring all in-range dependencies current.",
       whyItMatters: "Reduces exposure to known CVEs.",
       outOfScope: "Major-version framework jumps.",
@@ -47,6 +48,7 @@ const baseProps: ProposalPDFProps = {
     },
     {
       title: "Modernize underlying components",
+      bodyMarkdown: null,
       description: null,
       whyItMatters: null,
       outOfScope: null,

@@ -12,6 +12,7 @@ export interface ProposalPdfBundle {
   proposal: {
     proposal_number: string;
     title: string;
+    overview_markdown: string | null;
     issued_date: string | null;
     valid_until: string | null;
     payment_terms_label: string | null;
@@ -69,6 +70,7 @@ export function ProposalPdfButton({
       <ProposalPDF
         proposalNumber={proposal.proposal_number}
         title={proposal.title}
+        overviewMarkdown={proposal.overview_markdown}
         issuedDate={proposal.issued_date}
         validUntil={proposal.valid_until}
         paymentTermsLabel={proposal.payment_terms_label}

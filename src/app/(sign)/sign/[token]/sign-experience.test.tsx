@@ -39,6 +39,7 @@ function bundle(overrides: Partial<SignBundle> = {}): SignBundle {
       {
         id: "li-1",
         title: "Basic dependency upgrades",
+        bodyMarkdown: null,
         description: null,
         whyItMatters: null,
         outOfScope: null,
@@ -50,6 +51,7 @@ function bundle(overrides: Partial<SignBundle> = {}): SignBundle {
       {
         id: "li-2",
         title: "Modernize underlying components",
+        bodyMarkdown: null,
         description: null,
         whyItMatters: null,
         outOfScope: null,
@@ -74,6 +76,7 @@ function bundle(overrides: Partial<SignBundle> = {}): SignBundle {
     signingMode: "first",
     boundSelectedIds: null,
     awaitingPrimary: false,
+    overviewMarkdown: null,
     signerEmail: "jordan@eyereg.example",
     otpVerified: false,
     otpPending: false,

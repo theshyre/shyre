@@ -18,9 +18,15 @@ don't see the module's data.
 
 - **Header** — customer, optional signer (a contact on that customer), title,
   issued date, and a validity window ("valid until").
-- **Line items** — each line item is a *proposed project* with a title,
-  plain-language description, "why it matters," optional out-of-scope notes,
-  a definition of done, and a **fixed price**.
+- **Line items** — each line item is a *proposed project* with a title, a
+  **fixed price**, and a rich **markdown body** (the *Details* field). Write
+  the scope however reads best — headings, **bold**, bullet lists, even tables
+  — with a live preview in the editor. The body renders the same on the detail
+  page, the client sign page, and the PDF. (Proposals authored before this had
+  separate "why it matters / out of scope / definition of done" fields; those
+  still render, and open pre-composed into the markdown body when you edit.)
+- **Overview** — an optional proposal-level markdown intro/summary shown above
+  the line items (great for a cover note or a summary table).
 - **Phases** — a line item can break into named phases with sub-prices. The
   phases must **sum exactly to the item's fixed price** (the editor shows a
   live check), and the item can be marked **capped** so the quote reads as a

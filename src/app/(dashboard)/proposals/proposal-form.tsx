@@ -28,6 +28,7 @@ import {
   type ProposalItemInput,
 } from "@/lib/proposals/line-items";
 import { proposalDraftSchema } from "@/lib/schemas/proposal";
+import { MarkdownView } from "@/components/MarkdownView";
 import type { DepositType } from "./allow-lists";
 import { createProposalAction, updateProposalAction } from "./actions";
 
@@ -59,10 +60,7 @@ interface ItemState {
   key: string;
   title: string;
   fixedPrice: string;
-  description: string;
-  whyItMatters: string;
-  outOfScope: string;
-  definitionOfDone: string;
+  bodyMarkdown: string;
   isCapped: boolean;
   phases: PhaseState[];
 }
@@ -82,8 +80,10 @@ export interface ProposalFormInitial {
   deposit_value: number | null;
   warranty_days: number | null;
   terms_notes: string | null;
+  overview_markdown: string | null;
   items: Array<{
     title: string;
+    bodyMarkdown: string | null;
     description: string | null;
     whyItMatters: string | null;
     outOfScope: string | null;
@@ -127,12 +127,37 @@ function emptyToNull(v: string): string | null {
  *  Pure — initial keys live in an `init-*` namespace disjoint from the
  *  `new-*` keys handed out by the ref counter for rows added later, so no
  *  ref is touched during render. */
+/** Migrate an item's legacy structured prose into a single markdown body, so a
+ *  proposal authored before the markdown feature opens in the new editor with
+ *  its content preserved (as markdown the author can keep editing). */
+function composeLegacyBody(item: {
+  bodyMarkdown?: string | null;
+  description?: string | null;
+  whyItMatters?: string | null;
+  outOfScope?: string | null;
+  definitionOfDone?: string | null;
+}): string {
+  if (item.bodyMarkdown && item.bodyMarkdown.trim() !== "") {
+    return item.bodyMarkdown;
+  }
+  const parts: string[] = [];
+  if (item.description?.trim()) parts.push(item.description.trim());
+  if (item.whyItMatters?.trim())
+    parts.push(`**Why it matters:** ${item.whyItMatters.trim()}`);
+  if (item.outOfScope?.trim())
+    parts.push(`**Out of scope:** ${item.outOfScope.trim()}`);
+  if (item.definitionOfDone?.trim())
+    parts.push(`**Definition of done:** ${item.definitionOfDone.trim()}`);
+  return parts.join("\n\n");
+}
+
 function buildInitialItems(
   initial: ProposalFormInitial | undefined,
 ): ItemState[] {
   const source = initial?.items ?? [
     {
       title: "",
+      bodyMarkdown: null,
       description: null,
       whyItMatters: null,
       outOfScope: null,
@@ -146,10 +171,7 @@ function buildInitialItems(
     key: `init-${i}`,
     title: item.title,
     fixedPrice: item.fixedPrice ? String(item.fixedPrice) : "",
-    description: item.description ?? "",
-    whyItMatters: item.whyItMatters ?? "",
-    outOfScope: item.outOfScope ?? "",
-    definitionOfDone: item.definitionOfDone ?? "",
+    bodyMarkdown: composeLegacyBody(item),
     isCapped: item.isCapped,
     phases: item.phases.map((phase, j) => ({
       key: `init-${i}-${j}`,
@@ -205,6 +227,9 @@ export function ProposalForm({
     initial?.warranty_days != null ? String(initial.warranty_days) : "",
   );
   const [termsNotes, setTermsNotes] = useState(initial?.terms_notes ?? "");
+  const [overviewMarkdown, setOverviewMarkdown] = useState(
+    initial?.overview_markdown ?? "",
+  );
 
   // ---- line items state (lazy initializer — runs once)
   const [items, setItems] = useState<ItemState[]>(() =>
@@ -248,10 +273,7 @@ export function ProposalForm({
     () =>
       items.map((it) => ({
         title: it.title.trim(),
-        description: emptyToNull(it.description),
-        whyItMatters: emptyToNull(it.whyItMatters),
-        outOfScope: emptyToNull(it.outOfScope),
-        definitionOfDone: emptyToNull(it.definitionOfDone),
+        bodyMarkdown: emptyToNull(it.bodyMarkdown),
         fixedPrice: parseMoney(it.fixedPrice),
         isCapped: it.phases.length > 0 ? it.isCapped : undefined,
         phases:
@@ -282,6 +304,7 @@ export function ProposalForm({
         depositType === "none" ? null : parseMoney(depositValue),
       warranty_days: warrantyDays.trim() === "" ? null : Number(warrantyDays),
       terms_notes: emptyToNull(termsNotes),
+      overview_markdown: emptyToNull(overviewMarkdown),
       items: domainItems,
     }),
     [
@@ -297,6 +320,7 @@ export function ProposalForm({
       depositValue,
       warrantyDays,
       termsNotes,
+      overviewMarkdown,
       domainItems,
     ],
   );
@@ -573,6 +597,34 @@ export function ProposalForm({
         </div>
       </section>
 
+      {/* ---- overview (markdown) ---- */}
+      <section>
+        <label htmlFor="pf-overview" className={labelClass}>
+          {t("overviewLabel")}
+        </label>
+        <AutoTextarea
+          id="pf-overview"
+          className={inputClass}
+          minRows={3}
+          value={overviewMarkdown}
+          placeholder={t("overviewPlaceholder")}
+          onChange={(e) => setOverviewMarkdown(e.target.value)}
+        />
+        <p className="mt-1 text-caption text-content-muted">
+          {t("overviewHint")}
+        </p>
+        {overviewMarkdown.trim() !== "" && (
+          <details className="mt-2">
+            <summary className="cursor-pointer text-caption text-accent">
+              {t("itemBodyPreview")}
+            </summary>
+            <div className="mt-2 rounded-lg border border-edge bg-surface p-3">
+              <MarkdownView content={overviewMarkdown} />
+            </div>
+          </details>
+        )}
+      </section>
+
       {/* ---- line items ---- */}
       <section>
         <h2 className="text-title font-semibold text-content">
@@ -664,77 +716,36 @@ export function ProposalForm({
                   )}
                 </div>
 
-                <div className="mt-3 grid grid-cols-1 gap-3 sm:grid-cols-2">
-                  <div>
-                    <label
-                      htmlFor={`pf-item-desc-${item.key}`}
-                      className={labelClass}
-                    >
-                      {t("itemDescription")}
-                    </label>
-                    <AutoTextarea
-                      id={`pf-item-desc-${item.key}`}
-                      className={inputClass}
-                      minRows={2}
-                      value={item.description}
-                      onChange={(e) =>
-                        patchItem(item.key, { description: e.target.value })
-                      }
-                    />
-                  </div>
-                  <div>
-                    <label
-                      htmlFor={`pf-item-why-${item.key}`}
-                      className={labelClass}
-                    >
-                      {t("itemWhy")}
-                    </label>
-                    <AutoTextarea
-                      id={`pf-item-why-${item.key}`}
-                      className={inputClass}
-                      minRows={2}
-                      value={item.whyItMatters}
-                      onChange={(e) =>
-                        patchItem(item.key, { whyItMatters: e.target.value })
-                      }
-                    />
-                  </div>
-                  <div>
-                    <label
-                      htmlFor={`pf-item-oos-${item.key}`}
-                      className={labelClass}
-                    >
-                      {t("itemOutOfScope")}
-                    </label>
-                    <AutoTextarea
-                      id={`pf-item-oos-${item.key}`}
-                      className={inputClass}
-                      minRows={2}
-                      value={item.outOfScope}
-                      onChange={(e) =>
-                        patchItem(item.key, { outOfScope: e.target.value })
-                      }
-                    />
-                  </div>
-                  <div>
-                    <label
-                      htmlFor={`pf-item-dod-${item.key}`}
-                      className={labelClass}
-                    >
-                      {t("itemDoD")}
-                    </label>
-                    <AutoTextarea
-                      id={`pf-item-dod-${item.key}`}
-                      className={inputClass}
-                      minRows={2}
-                      value={item.definitionOfDone}
-                      onChange={(e) =>
-                        patchItem(item.key, {
-                          definitionOfDone: e.target.value,
-                        })
-                      }
-                    />
-                  </div>
+                <div className="mt-3">
+                  <label
+                    htmlFor={`pf-item-body-${item.key}`}
+                    className={labelClass}
+                  >
+                    {t("itemBody")}
+                  </label>
+                  <AutoTextarea
+                    id={`pf-item-body-${item.key}`}
+                    className={inputClass}
+                    minRows={4}
+                    value={item.bodyMarkdown}
+                    placeholder={t("itemBodyPlaceholder")}
+                    onChange={(e) =>
+                      patchItem(item.key, { bodyMarkdown: e.target.value })
+                    }
+                  />
+                  <p className="mt-1 text-caption text-content-muted">
+                    {t("itemBodyHint")}
+                  </p>
+                  {item.bodyMarkdown.trim() !== "" && (
+                    <details className="mt-2">
+                      <summary className="cursor-pointer text-caption text-accent">
+                        {t("itemBodyPreview")}
+                      </summary>
+                      <div className="mt-2 rounded-lg border border-edge bg-surface p-3">
+                        <MarkdownView content={item.bodyMarkdown} />
+                      </div>
+                    </details>
+                  )}
                 </div>
 
                 {/* phases */}
@@ -883,10 +894,7 @@ export function ProposalForm({
                 key,
                 title: "",
                 fixedPrice: "",
-                description: "",
-                whyItMatters: "",
-                outOfScope: "",
-                definitionOfDone: "",
+                bodyMarkdown: "",
                 isCapped: false,
                 phases: [],
               },
