@@ -124,21 +124,21 @@ export function ProposalDocumentView({
       </p>
 
       {(customer?.name || customer?.logoUrl) && (
-        <div className="mt-3 flex items-center gap-2">
+        <div className="mt-4 flex items-center gap-3">
           {customer.logoUrl ? (
             // eslint-disable-next-line @next/next/no-img-element -- stored public URL
             <img
               src={customer.logoUrl}
               alt=""
               aria-hidden="true"
-              className="max-h-[28px] w-auto object-contain"
+              className="max-h-[44px] w-auto object-contain"
             />
           ) : null}
           {customer.name ? (
-            <span className="text-caption text-content-secondary">
+            <span className="text-body-lg text-content-secondary">
               {t("preparedForLabel")}{" "}
               <span
-                className="font-medium text-content"
+                className="font-semibold text-content"
                 style={{ color: customer.accentColor ?? undefined }}
               >
                 {customer.name}
