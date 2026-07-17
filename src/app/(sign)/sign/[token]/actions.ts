@@ -123,6 +123,12 @@ export async function submitSignDecisionAction(
     const ipAddress = forwardedFor?.split(",")[0]?.trim() || null;
     const userAgent = headerList.get("user-agent");
 
+    // SAL-046: pass this browser's view-session cookie so signing requires the
+    // same per-browser proof as viewing (not just the shared otp_verified_at).
+    const cookieStore = await cookies();
+    const viewSession =
+      cookieStore.get(viewSessionCookieName(token))?.value ?? null;
+
     const result = await recordSignDecision(token, {
       decision: p.decision,
       signerName: p.signerName.trim(),
@@ -131,6 +137,7 @@ export async function submitSignDecisionAction(
       selectedLineItemIds: p.selectedLineItemIds as string[],
       ipAddress,
       userAgent,
+      viewSession,
     });
     return result.ok ? { ok: true } : { ok: false, reason: result.reason };
   } catch (err) {

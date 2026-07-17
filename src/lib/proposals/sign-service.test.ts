@@ -321,6 +321,20 @@ describe("verifySignOtp", () => {
     expect(verifiedUpdate).toBeDefined();
   });
 
+  it("fails closed (session_failed) if the view-session persist errors", async () => {
+    // e.g. the migration hasn't landed yet in the parallel-deploy window: the
+    // UPDATE that stores view_session_hash errors. Must NOT return ok (which
+    // would set a cookie with no matching server hash and loop the gate).
+    queues["proposal_access_tokens"] = [
+      { data: tokenWithOtp(), error: null },
+      { data: null, error: { message: "column view_session_hash does not exist" } },
+    ];
+    rpcQueue = [{ data: 1, error: null }];
+    const result = await verifySignOtp(rawToken, CODE);
+    expect(result).toEqual({ ok: false, reason: "session_failed" });
+    expect(logErrorMock).toHaveBeenCalled();
+  });
+
   it("rejects a wrong code, burns an attempt, and logs otp_failed evidence", async () => {
     queues["proposal_access_tokens"] = [{ data: tokenWithOtp(), error: null }];
     rpcQueue = [{ data: 1, error: null }];
@@ -362,8 +376,13 @@ describe("verifySignOtp", () => {
 });
 
 describe("recordSignDecision", () => {
+  const VIEW_SECRET = "browser-view-secret";
   const verifiedToken = (): Record<string, unknown> =>
-    tokenRow({ otp_verified_at: new Date(NOW - 1000).toISOString() });
+    tokenRow({
+      otp_verified_at: new Date(NOW - 1000).toISOString(),
+      view_session_hash: sha256Hex(VIEW_SECRET),
+      view_session_expires_at: new Date(NOW + 3_600_000).toISOString(),
+    });
 
   const decisionInput = {
     decision: "accepted" as const,
@@ -373,12 +392,41 @@ describe("recordSignDecision", () => {
     selectedLineItemIds: ["li-1", "li-2"],
     ipAddress: "203.0.113.5",
     userAgent: "vitest",
+    viewSession: VIEW_SECRET,
   };
 
   it("refuses without a verified OTP", async () => {
     queues["proposal_access_tokens"] = [{ data: tokenRow(), error: null }];
     const result = await recordSignDecision(rawToken, decisionInput);
     expect(result).toEqual({ ok: false, reason: "otp_required" });
+  });
+
+  it("refuses signing without THIS browser's view session, even if OTP is verified (SAL-046)", async () => {
+    // A forwarded-link holder: the shared otp_verified_at flag is set (the real
+    // signer verified), but they present no / a forged view-session cookie.
+    queues["proposal_access_tokens"] = [
+      {
+        data: tokenRow({
+          otp_verified_at: new Date(NOW - 1000).toISOString(),
+          view_session_hash: sha256Hex("the-real-secret"),
+          view_session_expires_at: new Date(NOW + 3_600_000).toISOString(),
+        }),
+        error: null,
+      },
+    ];
+    const result = await recordSignDecision(rawToken, {
+      ...decisionInput,
+      viewSession: "forged-or-absent",
+    });
+    expect(result).toEqual({ ok: false, reason: "otp_required" });
+    // Nothing was consumed or written — the attacker's POST is a clean refusal.
+    expect(
+      calls.some(
+        (c) =>
+          c.table === "proposal_acceptances" &&
+          c.ops.some((o) => o.method === "insert"),
+      ),
+    ).toBe(false);
   });
 
   it("refuses a consumed token (no double-accept)", async () => {
@@ -504,6 +552,8 @@ describe("recordSignDecision", () => {
     tokenRow({
       otp_verified_at: new Date(NOW - 1000).toISOString(),
       signer_id: signerId,
+      view_session_hash: sha256Hex(VIEW_SECRET),
+      view_session_expires_at: new Date(NOW + 3_600_000).toISOString(),
     });
 
   it("'all' mode: the primary's accept records but does NOT complete until every signer has signed", async () => {

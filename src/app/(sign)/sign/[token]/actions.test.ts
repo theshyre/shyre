@@ -15,6 +15,7 @@ vi.mock("@/lib/logger", () => ({
 }));
 
 let headerMap: Map<string, string>;
+let cookieMap: Map<string, string>;
 const cookieSetMock = vi.fn();
 vi.mock("next/headers", () => ({
   headers: async () => ({
@@ -22,6 +23,10 @@ vi.mock("next/headers", () => ({
   }),
   cookies: async () => ({
     set: (...args: unknown[]) => cookieSetMock(...args),
+    get: (name: string) => {
+      const value = cookieMap.get(name);
+      return value === undefined ? undefined : { value };
+    },
   }),
 }));
 
@@ -30,6 +35,7 @@ import {
   verifySignOtpAction,
   submitSignDecisionAction,
 } from "./actions";
+import { viewSessionCookieName } from "@/lib/proposals/tokens";
 
 const TOKEN = "a".repeat(43);
 
@@ -43,6 +49,7 @@ beforeEach(() => {
     ["x-forwarded-for", "203.0.113.5, 10.0.0.1"],
     ["user-agent", "vitest-agent"],
   ]);
+  cookieMap = new Map();
 });
 
 describe("requestSignOtpAction", () => {
@@ -130,7 +137,9 @@ describe("submitSignDecisionAction", () => {
     selectedLineItemIds: ["li-1"],
   };
 
-  it("threads IP (first forwarded hop) + UA into the decision record", async () => {
+  it("threads IP (first forwarded hop) + UA + the view-session cookie into the decision record", async () => {
+    // SAL-046: the browser's view-session cookie must reach recordSignDecision.
+    cookieMap.set(viewSessionCookieName(TOKEN), "browser-view-secret");
     decideMock.mockResolvedValue({ ok: true, value: { decision: "accepted" } });
     expect(await submitSignDecisionAction(TOKEN, payload)).toEqual({ ok: true });
     expect(decideMock).toHaveBeenCalledWith(TOKEN, {
@@ -141,6 +150,7 @@ describe("submitSignDecisionAction", () => {
       selectedLineItemIds: ["li-1"],
       ipAddress: "203.0.113.5",
       userAgent: "vitest-agent",
+      viewSession: "browser-view-secret",
     });
   });
 

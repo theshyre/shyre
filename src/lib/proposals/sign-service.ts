@@ -107,7 +107,8 @@ export type SignFailReason =
   | "invalid_selection"
   | "offer_expired"
   | "awaiting_primary"
-  | "email_failed";
+  | "email_failed"
+  | "session_failed";
 
 /** DATE-string comparison in UTC: has the offer's validity window passed?
  *  `valid_until` is inclusive — the offer is good THROUGH that day. */
@@ -147,7 +148,9 @@ export function maskEmail(email: string): string {
   if (at <= 0) return "•••";
   const local = email.slice(0, at);
   const domain = email.slice(at + 1);
-  const shown = local.slice(0, Math.min(2, local.length));
+  // Show at most 2 chars, and never the WHOLE local part when there's more
+  // than one char to hide behind — `bo` → `b•••`, `jordan` → `jo•••`.
+  const shown = local.slice(0, Math.min(2, Math.max(1, local.length - 1)));
   return `${shown}•••@${domain}`;
 }
 
@@ -579,7 +582,7 @@ export async function verifySignOtp(
   const viewExpiresAt = new Date(
     Date.now() + VIEW_SESSION_TTL_HOURS * 3_600_000,
   );
-  await admin
+  const { error: persistError } = await admin
     .from("proposal_access_tokens")
     .update({
       otp_verified_at: new Date().toISOString(),
@@ -587,6 +590,17 @@ export async function verifySignOtp(
       view_session_expires_at: viewExpiresAt.toISOString(),
     })
     .eq("id", token.id);
+  if (persistError) {
+    // A silent failure here (e.g. the migration hasn't landed yet in the
+    // parallel-deploy window) would set the browser cookie with no matching
+    // server-side hash → the signer loops the gate forever. Surface it and
+    // fail-closed so the action returns an error instead of a broken session.
+    logError(
+      new Error(`view-session persist failed: ${persistError.message}`),
+      { teamId: token.team_id, action: "signService.verifySignOtp" },
+    );
+    return { ok: false, reason: "session_failed" };
+  }
   await insertEvent(admin, token, "otp_verified");
   return { ok: true, value: { verified: true, viewSession: viewSession.raw } };
 }
@@ -599,6 +613,10 @@ export interface SignDecisionInput {
   selectedLineItemIds: string[];
   ipAddress: string | null;
   userAgent: string | null;
+  /** The browser's view-session cookie value (SAL-046) — signing requires the
+   *  SAME per-browser proof as viewing, not just the shared otp_verified_at
+   *  flag. Null on any request that never carried a verified session. */
+  viewSession: string | null;
 }
 
 /**
@@ -617,6 +635,14 @@ export async function recordSignDecision(
   const token = tokenResult.value;
   if (token.consumed_at) return { ok: false, reason: "consumed" };
   if (!token.otp_verified_at) return { ok: false, reason: "otp_required" };
+  // SAL-046: signing needs the SAME per-browser proof as viewing. The shared
+  // otp_verified_at flag alone would let a forwarded-link holder POST a
+  // decision (declining to sabotage, or accepting a subset) during the window
+  // after the real signer verifies but before they consume the token. Require
+  // the view-session cookie minted for THIS browser on verify.
+  if (!hasValidViewSession(token, input.viewSession)) {
+    return { ok: false, reason: "otp_required" };
+  }
 
   const { data: proposal } = await admin
     .from("proposals")
