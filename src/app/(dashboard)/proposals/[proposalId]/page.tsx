@@ -119,6 +119,7 @@ export default async function ProposalDetailPage({
     return {
       id: row.id as string,
       name: c?.name ?? "—",
+      email: c?.email ?? "",
       roleLabel: c?.role_label ?? null,
       decision: acceptanceBySigner.get(row.id as string) ?? null,
     };
@@ -167,6 +168,18 @@ export default async function ProposalDetailPage({
         email: string;
       } | null)
     : (proposal.customer_contacts as { name: string; email: string } | null);
+
+  // Send-confirm recipients: every rostered signer (2+), else the single
+  // primary. Each gets their own sign-off link + one-time code — the confirm
+  // lists them all so it's clear who's emailed.
+  const sendRecipients: Array<{ name: string; email: string }> =
+    roster.length >= 2
+      ? roster
+          .filter((r) => r.email)
+          .map((r) => ({ name: r.name, email: r.email }))
+      : signer?.email
+        ? [{ name: signer.name, email: signer.email }]
+        : [];
 
   // Build the item tree: top-level items in order, phases nested.
   const rows = (itemRows ?? []) as LineItemRow[];
@@ -304,7 +317,7 @@ export default async function ProposalDetailPage({
               <SendProposalButton
                 proposalId={proposalId}
                 blockers={sendBlockers}
-                signerEmail={signer?.email ?? null}
+                recipients={sendRecipients}
               />
               <Link
                 href={`/proposals/${proposalId}/edit`}

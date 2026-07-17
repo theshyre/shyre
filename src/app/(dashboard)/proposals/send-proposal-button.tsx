@@ -35,10 +35,11 @@ interface Props {
    *  Empty means the draft is ready to send; non-empty routes the panel
    *  to a readiness checklist instead of the confirm. */
   blockers: string[];
-  /** The signer's email — restated in the confirm panel (visible line +
-   *  the confirm button's accessible name) so a misfire can't email the
-   *  wrong person, and never armed when null. */
-  signerEmail: string | null;
+  /** Every signer who will receive a sign-off link, restated in the confirm
+   *  panel so the author sees exactly who is emailed. A single-signer proposal
+   *  shows one "To <email>" line; a multi-signer proposal lists all of them
+   *  (each signer gets their OWN link + one-time code). Empty disables send. */
+  recipients: Array<{ name: string; email: string }>;
 }
 
 /**
@@ -60,7 +61,7 @@ interface Props {
 export function SendProposalButton({
   proposalId,
   blockers,
-  signerEmail,
+  recipients,
 }: Props): React.JSX.Element {
   const t = useTranslations("proposals.detail");
   const toast = useToast();
@@ -79,9 +80,9 @@ export function SendProposalButton({
   const descId = useId();
 
   const ready = blockers.length === 0;
-  // Readiness already requires a signer, but never arm a send to nobody —
-  // an empty recipient would email "—".
-  const canSend = ready && !!signerEmail;
+  // Readiness already requires a signer, but never arm a send to nobody.
+  const canSend = ready && recipients.length > 0;
+  const multi = recipients.length >= 2;
 
   const close = useCallback(() => {
     // Don't yank the panel out from under an in-flight request — the
@@ -107,7 +108,9 @@ export function SendProposalButton({
         // to the stable page shell so it doesn't fall to <body>.
         toast.push({
           kind: "success",
-          message: t("sendSuccessToast", { email: signerEmail ?? "" }),
+          message: multi
+            ? t("sendSuccessMulti", { count: recipients.length })
+            : t("sendSuccessToast", { email: recipients[0]?.email ?? "" }),
         });
         setOpen(false);
         setPanelPos(null);
@@ -116,7 +119,7 @@ export function SendProposalButton({
         setError(err instanceof Error ? err.message : t("sendFailed"));
       }
     });
-  }, [canSend, pending, proposalId, signerEmail, t, toast]);
+  }, [canSend, multi, pending, proposalId, recipients, t, toast]);
 
   function computePanelPos(): { top: number; left: number } | null {
     const trigger = triggerRef.current;
@@ -210,13 +213,38 @@ export function SendProposalButton({
       {canSend ? (
         <>
           <div id={descId} className="mt-3 flex flex-col gap-2">
-            <p className="flex flex-wrap items-center gap-1.5 text-caption text-content-secondary">
-              <Mail size={14} aria-hidden="true" className="shrink-0" />
-              <span>{t("sendTo")}</span>
-              <span className="font-mono text-body text-content break-all">
-                {signerEmail}
-              </span>
-            </p>
+            {multi ? (
+              <div className="flex flex-col gap-1.5">
+                <p className="flex items-center gap-1.5 text-caption text-content-secondary">
+                  <Mail size={14} aria-hidden="true" className="shrink-0" />
+                  {t("sendToSigners", { count: recipients.length })}
+                </p>
+                <ul className="flex flex-col gap-1 pl-[22px]">
+                  {recipients.map((r) => (
+                    <li
+                      key={r.email}
+                      className="flex flex-wrap items-baseline gap-x-1.5 text-caption text-content-secondary"
+                    >
+                      <span className="font-medium text-content">{r.name}</span>
+                      <span className="font-mono text-content break-all">
+                        {r.email}
+                      </span>
+                    </li>
+                  ))}
+                </ul>
+                <p className="text-caption text-content-muted">
+                  {t("sendMultiNote")}
+                </p>
+              </div>
+            ) : (
+              <p className="flex flex-wrap items-center gap-1.5 text-caption text-content-secondary">
+                <Mail size={14} aria-hidden="true" className="shrink-0" />
+                <span>{t("sendTo")}</span>
+                <span className="font-mono text-body text-content break-all">
+                  {recipients[0]?.email}
+                </span>
+              </p>
+            )}
             <p className="flex items-start gap-2 rounded-md bg-warning-soft px-3 py-2">
               <CircleAlert
                 size={14}
@@ -247,7 +275,11 @@ export function SendProposalButton({
               // action; the visible label stays short + stable. Label-in-
               // Name holds ("Send now" ⊆ "Send now to …").
               aria-label={
-                pending ? undefined : t("sendConfirmAria", { email: signerEmail })
+                pending
+                  ? undefined
+                  : multi
+                    ? t("sendConfirmAriaMulti", { count: recipients.length })
+                    : t("sendConfirmAria", { email: recipients[0]?.email ?? "" })
               }
               onClick={doSend}
             >
@@ -284,7 +316,7 @@ export function SendProposalButton({
                 {b}
               </li>
             ))}
-            {ready && !signerEmail && (
+            {ready && recipients.length === 0 && (
               <li className="flex items-center gap-1.5 text-caption text-content-secondary">
                 <CircleAlert
                   size={12}

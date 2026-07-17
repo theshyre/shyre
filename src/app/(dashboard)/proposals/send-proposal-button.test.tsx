@@ -24,13 +24,35 @@ function openConfirm(): void {
 beforeEach(() => sendMock.mockReset());
 
 describe("SendProposalButton", () => {
+  it("lists EVERY signer in the confirm for a multi-signer proposal", () => {
+    render(
+      <SendProposalButton
+        proposalId="prop-1"
+        blockers={[]}
+        recipients={[
+          { name: "Bret Andre", email: "bret@avdresearch.com" },
+          { name: "Mijeong Andre", email: "mj@avdresearch.com" },
+        ]}
+      />,
+    );
+    openConfirm();
+    const dialog = screen.getByRole("dialog");
+    // Both signers + emails are shown, and it's clear each gets their own link.
+    expect(dialog).toHaveTextContent("Bret Andre");
+    expect(dialog).toHaveTextContent("bret@avdresearch.com");
+    expect(dialog).toHaveTextContent("Mijeong Andre");
+    expect(dialog).toHaveTextContent("mj@avdresearch.com");
+    expect(dialog).toHaveTextContent(/To 2 signers/);
+    expect(dialog).toHaveTextContent(/own private link and one-time code/);
+  });
+
   it("opens a confirm dialog that restates the recipient before anything sends", async () => {
     sendMock.mockResolvedValue({ success: true });
     render(
       <SendProposalButton
         proposalId="prop-1"
         blockers={[]}
-        signerEmail="jordan@eyereg.example"
+        recipients={[{ name: "Jordan Chen", email: "jordan@eyereg.example" }]}
       />,
     );
     openConfirm();
@@ -56,7 +78,7 @@ describe("SendProposalButton", () => {
       <SendProposalButton
         proposalId="prop-1"
         blockers={[]}
-        signerEmail="jordan@eyereg.example"
+        recipients={[{ name: "Jordan Chen", email: "jordan@eyereg.example" }]}
       />,
     );
     openConfirm();
@@ -73,7 +95,7 @@ describe("SendProposalButton", () => {
       <SendProposalButton
         proposalId="prop-1"
         blockers={[]}
-        signerEmail="jordan@eyereg.example"
+        recipients={[{ name: "Jordan Chen", email: "jordan@eyereg.example" }]}
       />,
     );
     openConfirm();
@@ -90,7 +112,7 @@ describe("SendProposalButton", () => {
       <SendProposalButton
         proposalId="prop-1"
         blockers={[]}
-        signerEmail="jordan@eyereg.example"
+        recipients={[{ name: "Jordan Chen", email: "jordan@eyereg.example" }]}
       />,
     );
     openConfirm();
@@ -105,7 +127,7 @@ describe("SendProposalButton", () => {
       <SendProposalButton
         proposalId="prop-1"
         blockers={["Name the proposal", "Choose a signer contact"]}
-        signerEmail={null}
+        recipients={[]}
       />,
     );
     // The trigger is NOT a dead disabled button — it opens a panel that
@@ -135,7 +157,7 @@ describe("SendProposalButton", () => {
       <SendProposalButton
         proposalId="prop-1"
         blockers={[]}
-        signerEmail="jordan@eyereg.example"
+        recipients={[{ name: "Jordan Chen", email: "jordan@eyereg.example" }]}
       />,
     );
     openConfirm();
