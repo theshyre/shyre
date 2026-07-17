@@ -51,6 +51,16 @@ button stays disabled until the checklist is clear:
 enforces the phase-sum rule at the moment a draft is frozen — so a proposal can
 never go out with a broken breakdown, even via a direct status change.)
 
+### Preview what the client sees
+
+**Preview** (on the detail page, next to Download PDF) opens the proposal
+rendered exactly as it appears on the client's sign page — brand header, line
+items, terms, total — but read-only. It's **non-consuming**: unlike the client
+opening their real sign link, previewing never flips a sent proposal to
+"viewed" or touches any lifecycle state, so you can check your work as many
+times as you like. (The PDF download remains the take-away document; the
+preview is the on-screen, web-page view.)
+
 ### The client picks a subset
 
 Clients aren't locked into all-or-nothing: they can authorize **any

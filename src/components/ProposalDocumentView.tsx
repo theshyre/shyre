@@ -1,0 +1,252 @@
+"use client";
+
+import { useTranslations } from "next-intl";
+import { formatCurrency } from "@/lib/invoice-utils";
+
+/**
+ * Read-only render of a proposal AS THE CLIENT SEES IT on the sign page —
+ * brand header, line items (with the why/scope/DoD detail + phases), terms,
+ * and total. Presentational only: no OTP, no selection, no accept/decline.
+ *
+ * Shared, layer-neutral (`src/components`) so the authed preview route can
+ * render it WITHOUT importing the public `(sign)` page (the layer-violation
+ * the module boundary forbids). Reuses the `proposals.sign` copy so the
+ * preview and the real sign page read identically. The sign page keeps its own
+ * SELECTABLE item rendering; only static content is shared here.
+ */
+
+export interface ProposalDocumentPhase {
+  title: string;
+  fixedPrice: number;
+}
+export interface ProposalDocumentItem {
+  id: string;
+  title: string;
+  description: string | null;
+  whyItMatters: string | null;
+  outOfScope: string | null;
+  definitionOfDone: string | null;
+  fixedPrice: number;
+  isCapped: boolean;
+  phases: ProposalDocumentPhase[];
+}
+export interface ProposalDocumentViewProps {
+  business: {
+    name: string | null;
+    logoUrl: string | null;
+    brandColor: string | null;
+    wordmarkPrimary: string | null;
+    wordmarkSecondary: string | null;
+  };
+  customer: {
+    name: string | null;
+    logoUrl: string | null;
+    accentColor: string | null;
+  } | null;
+  proposal: {
+    proposalNumber: string;
+    title: string;
+    validUntil: string | null;
+    paymentTermsLabel: string | null;
+    depositType: "none" | "percent" | "amount";
+    depositValue: number | null;
+    warrantyDays: number | null;
+    termsNotes: string | null;
+    currency: string;
+  };
+  items: ProposalDocumentItem[];
+  total: number;
+}
+
+export function ProposalDocumentView({
+  business,
+  customer,
+  proposal,
+  items,
+  total,
+}: ProposalDocumentViewProps): React.JSX.Element {
+  const t = useTranslations("proposals.sign");
+  const currency = proposal.currency;
+  const hasTerms =
+    !!proposal.paymentTermsLabel ||
+    proposal.depositType !== "none" ||
+    proposal.warrantyDays != null ||
+    !!proposal.termsNotes;
+
+  return (
+    <div>
+      {/* Brand mark: logo, else two-tone wordmark in the brand color. */}
+      {business.logoUrl ? (
+        // eslint-disable-next-line @next/next/no-img-element -- stored public URL
+        <img
+          src={business.logoUrl}
+          alt=""
+          aria-hidden="true"
+          className="mb-4 max-h-[48px] w-auto object-contain"
+        />
+      ) : business.wordmarkPrimary ? (
+        <p aria-hidden="true" className="mb-4 text-title font-semibold">
+          <span style={{ color: business.brandColor ?? undefined }}>
+            {business.wordmarkPrimary}
+          </span>
+          {business.wordmarkSecondary ? (
+            <span className="text-content">{business.wordmarkSecondary}</span>
+          ) : null}
+        </p>
+      ) : null}
+
+      <p className="text-caption uppercase tracking-wide text-content-muted">
+        {t("heading", { business: business.name ?? "—" })}
+      </p>
+      <h1 className="mt-1 text-page-title font-semibold text-content">
+        {proposal.title}
+      </h1>
+      <p className="mt-1 font-mono text-caption text-content-secondary">
+        {proposal.proposalNumber}
+        {proposal.validUntil
+          ? ` · ${t("validUntil", { date: proposal.validUntil })}`
+          : ""}
+      </p>
+
+      {(customer?.name || customer?.logoUrl) && (
+        <div className="mt-3 flex items-center gap-2">
+          {customer.logoUrl ? (
+            // eslint-disable-next-line @next/next/no-img-element -- stored public URL
+            <img
+              src={customer.logoUrl}
+              alt=""
+              aria-hidden="true"
+              className="max-h-[28px] w-auto object-contain"
+            />
+          ) : null}
+          {customer.name ? (
+            <span className="text-caption text-content-secondary">
+              {t("preparedForLabel")}{" "}
+              <span
+                className="font-medium text-content"
+                style={{ color: customer.accentColor ?? undefined }}
+              >
+                {customer.name}
+              </span>
+            </span>
+          ) : null}
+        </div>
+      )}
+
+      {/* Line items */}
+      <section className="mt-[24px]">
+        <h2 className="text-title font-semibold text-content">
+          {t("itemsHeading")}
+        </h2>
+        <div className="mt-3 space-y-[12px]">
+          {items.map((item) => (
+            <div key={item.id} className="rounded-lg border border-edge p-4">
+              <div className="flex items-baseline justify-between gap-3">
+                <span className="text-body-lg font-semibold text-content">
+                  {item.title}
+                </span>
+                <span className="font-mono text-body-lg text-content">
+                  {formatCurrency(item.fixedPrice, currency)}
+                </span>
+              </div>
+              {item.description && (
+                <p className="mt-1 text-body text-content-secondary">
+                  {item.description}
+                </p>
+              )}
+              {item.whyItMatters && (
+                <p className="mt-1 text-caption text-content-secondary">
+                  <span className="font-semibold">{t("whyItMatters")}: </span>
+                  {item.whyItMatters}
+                </p>
+              )}
+              {item.outOfScope && (
+                <p className="mt-1 text-caption text-content-secondary">
+                  <span className="font-semibold">{t("outOfScope")}: </span>
+                  {item.outOfScope}
+                </p>
+              )}
+              {item.definitionOfDone && (
+                <p className="mt-1 text-caption text-content-secondary">
+                  <span className="font-semibold">
+                    {t("definitionOfDone")}:{" "}
+                  </span>
+                  {item.definitionOfDone}
+                </p>
+              )}
+              {item.phases.length > 0 && (
+                <ul className="mt-2 space-y-1 border-t border-edge pt-2">
+                  {item.phases.map((phase, j) => (
+                    <li
+                      key={j}
+                      className="flex justify-between pl-[12px] text-caption text-content-secondary"
+                    >
+                      <span>{phase.title}</span>
+                      <span className="font-mono">
+                        {formatCurrency(phase.fixedPrice, currency)}
+                      </span>
+                    </li>
+                  ))}
+                  {item.isCapped && (
+                    <li className="pl-[12px] text-label text-content-muted">
+                      {t("capped", {
+                        total: formatCurrency(item.fixedPrice, currency),
+                      })}
+                    </li>
+                  )}
+                </ul>
+              )}
+            </div>
+          ))}
+        </div>
+
+        <div className="mt-3 flex items-baseline justify-between border-t border-edge pt-2">
+          <span className="text-body-lg font-semibold text-content">
+            {t("fullTotal")}
+          </span>
+          <span className="font-mono text-title font-semibold text-content">
+            {formatCurrency(total, currency)}
+          </span>
+        </div>
+      </section>
+
+      {hasTerms && (
+        <section className="mt-[24px]">
+          <h2 className="text-title font-semibold text-content">
+            {t("termsHeading")}
+          </h2>
+          <ul className="mt-2 space-y-1 text-body text-content-secondary">
+            {proposal.paymentTermsLabel && (
+              <li>
+                {t("paymentTerms")}: {proposal.paymentTermsLabel}
+              </li>
+            )}
+            {proposal.depositType === "percent" &&
+              proposal.depositValue != null && (
+                <li>
+                  {t("deposit")}:{" "}
+                  {t("depositPercent", { value: proposal.depositValue })}
+                </li>
+              )}
+            {proposal.depositType === "amount" &&
+              proposal.depositValue != null && (
+                <li>
+                  {t("deposit")}: {formatCurrency(proposal.depositValue, currency)}
+                </li>
+              )}
+            {proposal.warrantyDays != null && (
+              <li>
+                {t("warranty")}: {t("warrantyDays", { days: proposal.warrantyDays })}
+              </li>
+            )}
+          </ul>
+          {proposal.termsNotes && (
+            <p className="mt-2 whitespace-pre-wrap text-body text-content-secondary">
+              {proposal.termsNotes}
+            </p>
+          )}
+        </section>
+      )}
+    </div>
+  );
+}

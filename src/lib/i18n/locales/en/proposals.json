@@ -240,7 +240,8 @@
     "outOfScope": "Out of scope",
     "definitionOfDone": "Definition of done",
     "downloadPdf": "Download PDF",
-    "downloadPdfPending": "Preparing PDF…"
+    "downloadPdfPending": "Preparing PDF…",
+    "preview": "Preview"
   },
   "pdf": {
     "documentTitle": "Proposal",
@@ -269,5 +270,10 @@
     "titleRole": "Title",
     "date": "Date",
     "selectedItems": "Authorized items"
+  },
+  "preview": {
+    "title": "Preview",
+    "subtitle": "This is how the proposal looks to your client. Nothing is sent.",
+    "back": "Back to proposal"
   }
 }

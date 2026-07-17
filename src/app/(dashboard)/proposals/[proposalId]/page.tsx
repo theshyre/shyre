@@ -2,7 +2,7 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { getTranslations } from "next-intl/server";
-import { Pencil } from "lucide-react";
+import { Pencil, Eye } from "lucide-react";
 import { createClient } from "@/lib/supabase/server";
 import { buttonSecondaryClass } from "@/lib/form-styles";
 import { formatCurrency } from "@/lib/invoice-utils";
@@ -255,6 +255,13 @@ export default async function ProposalDetailPage({
           )}
         </div>
         <div className="flex flex-wrap items-center gap-2">
+          <Link
+            href={`/proposals/${proposalId}/preview`}
+            className={buttonSecondaryClass}
+          >
+            <Eye size={16} aria-hidden="true" />
+            {t("preview")}
+          </Link>
           <ProposalPdfButton bundle={pdfBundle} />
           {editable && (
             <>
