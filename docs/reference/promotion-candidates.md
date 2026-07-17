@@ -113,3 +113,12 @@ Per `docs/reference/shared-packages.md`:
 Do not author new generic primitives in Shyre and inline-then-
 promote — author them in `theshyre-core` first when the genericness
 is clear at design time.
+
+## Pending candidates
+
+- **`AutoTextarea`** (`src/components/AutoTextarea.tsx`) — content-sizing
+  textarea (grows to fit, no inner scroll). Added 2026-07-17 as a local
+  component for a quick proposal-form fix; generic enough to promote to
+  `@theshyre/ui` (drop the local copy + re-import) once a second consumer
+  appears. Watch for CSS `field-sizing: content` reaching Safari, which would
+  retire the JS entirely.
