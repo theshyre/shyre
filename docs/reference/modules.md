@@ -97,13 +97,29 @@ Teams and Settings render in the Setup section too, but as shell surfaces (see a
 - Platform Architect persona at `docs/personas/platform-architect.md`
 
 
-## Documented exception: projects ↔ business expenses
+## Shared expense primitives (resolved exception)
 
-`src/app/(dashboard)/projects/[id]/*` deliberately imports `ExpenseRow`,
-`NewExpenseForm`, `dedupeVendors`, and the expense search helpers from
-`src/app/(dashboard)/business/[businessId]/expenses/*`. This crosses the
-"modules never import from other modules" rule ON PURPOSE (2026-05-28
-decision): the project page embeds the real expense surface rather than a
-diverging copy. Do not "fix" it by duplicating; the sanctioned refactor is
-lifting the shared expense primitives into `src/lib/expenses/` when next
-touched.
+The former documented exception — project pages importing `ExpenseRow`,
+`NewExpenseForm`, `dedupeVendors`, etc. straight out of
+`src/app/(dashboard)/business/[businessId]/expenses/*` — was resolved on
+2026-07-18 by lifting the shared expense primitives into neutral homes, so
+neither module imports from the other:
+
+- **`src/lib/expenses/`** — helpers, types, and the row-level server
+  actions: `categories`, `categories-help`, `allow-lists`,
+  `expense-lock-helpers`, `split-helpers`, `vendor-options`,
+  `format-helpers`, `types` (`ProjectOption`), `revalidate`, and
+  `actions` (create / update / single-field update / split / delete /
+  restore).
+- **`src/components/expenses/`** — the shared React components both
+  surfaces render: `ExpenseRow`, `ExpenseExpandedRow`,
+  `SplitExpenseModal`, `NewExpenseForm`. They import their actions from
+  `@/lib/expenses/actions`, keeping `src/components/` module-agnostic.
+
+Module-specific glue stayed put: the Business module keeps the bulk
+actions, filter machinery (`filter-params`, `query-filters`,
+`filter-formdata`, `bulk-auth`), table/filters/summary-tiles/import UI;
+the Projects module keeps its page wiring and thin wrappers
+(`ProjectExpenseForm`, `ProjectExpensesTable`). New expense
+functionality shared by both surfaces belongs in the neutral homes from
+the start — do not reintroduce cross-module imports.

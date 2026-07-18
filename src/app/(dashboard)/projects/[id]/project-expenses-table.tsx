@@ -12,8 +12,8 @@ import {
 import {
   ExpenseRow,
   type ExpenseAuthor,
-} from "@/app/(dashboard)/business/[businessId]/expenses/expense-row";
-import type { ProjectOption } from "@/app/(dashboard)/business/[businessId]/expenses/page";
+} from "@/components/expenses/expense-row";
+import type { ProjectOption } from "@/lib/expenses/types";
 
 export interface ProjectExpensesTableExpense {
   id: string;
@@ -55,7 +55,7 @@ interface Props {
 }
 
 /**
- * Project-page expenses table — reuses the business module's
+ * Project-page expenses table — reuses the shared
  * full `<ExpenseRow>` (with inline-editable cells, chevron
  * expand-to-edit-description-and-notes, and the invoiced lock
  * chip) instead of the read+add-light variant that shipped with

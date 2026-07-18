@@ -17,7 +17,8 @@ import {
 } from "./expense-summary-tiles";
 import { parseExpenseFilters, hasActiveFilters } from "./filter-params";
 import { applyExpenseFilters } from "./query-filters";
-import { dedupeVendors } from "./vendor-options";
+import { dedupeVendors } from "@/lib/expenses/vendor-options";
+import type { ProjectOption } from "@/lib/expenses/types";
 import { parseListPagination } from "@/lib/pagination/list-pagination";
 import { PaginationFooter } from "@/components/PaginationFooter";
 
@@ -25,7 +26,7 @@ export async function generateMetadata(): Promise<Metadata> {
   const t = await getTranslations("expenses");
   return { title: t("title") };
 }
-import { NewExpenseForm } from "./new-expense-form";
+import { NewExpenseForm } from "@/components/expenses/new-expense-form";
 
 interface ExpenseRecord {
   id: string;
@@ -43,12 +44,6 @@ interface ExpenseRecord {
   billable: boolean;
   is_sample: boolean;
   projects: { id: string; name: string } | null;
-}
-
-export interface ProjectOption {
-  id: string;
-  name: string;
-  team_id: string;
 }
 
 function pad2(n: number): string {

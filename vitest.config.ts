@@ -33,11 +33,10 @@ export default defineConfig({
         branches: 45,
         functions: 49,
         lines: 55,
-        // Note: measured numbers as of 2026-07-18 are 55.32 / 46.22
-        // / 49.47 / 56.01 (API-route test sweep: harvest import,
-        // expenses/time/people-history/identity-history CSV exports,
-        // messaging sender contract). The floor is set just below to
-        // allow ~0.3 pp slack for nondeterminism. Ratchet on the next
+        // Note: union of the 2026-07-18 API-route sweep (measured
+        // 55.32/46.22/49.47/56.01) and the shared-expense-primitives
+        // lift (+~1pp of component/bulk-action tests); floors kept at
+        // the higher pair, remeasure + ratchet on the next
         // coverage-raising PR.
       },
     },

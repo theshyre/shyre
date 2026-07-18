@@ -24,16 +24,16 @@ import {
   updateExpenseFieldAction,
   deleteExpenseAction,
   restoreExpenseAction,
-} from "./actions";
-import { INVOICED_EDITABLE_EXPENSE_FIELDS } from "./expense-lock-helpers";
-import { EXPENSE_CATEGORIES } from "./categories";
+} from "@/lib/expenses/actions";
+import { INVOICED_EDITABLE_EXPENSE_FIELDS } from "@/lib/expenses/expense-lock-helpers";
+import { EXPENSE_CATEGORIES } from "@/lib/expenses/categories";
 import {
   formatExpenseAmount,
   formatExpenseDateDisplay,
-} from "./format-helpers";
+} from "@/lib/expenses/format-helpers";
 import { SplitExpenseModal } from "./split-expense-modal";
 import { ExpenseExpandedRow } from "./expense-expanded-row";
-import type { ProjectOption } from "./page";
+import type { ProjectOption } from "@/lib/expenses/types";
 
 interface ExpenseRecord {
   id: string;

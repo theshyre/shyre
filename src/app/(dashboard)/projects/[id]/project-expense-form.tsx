@@ -1,6 +1,6 @@
 "use client";
 
-import { NewExpenseForm } from "@/app/(dashboard)/business/[businessId]/expenses/new-expense-form";
+import { NewExpenseForm } from "@/components/expenses/new-expense-form";
 
 interface Props {
   /** The project's team — used as the hidden team_id on submit.

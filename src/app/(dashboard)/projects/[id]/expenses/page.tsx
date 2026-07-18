@@ -7,8 +7,8 @@ import {
   type ExpensesSectionExpense,
   type ProjectExpenseRowAuthor,
 } from "../expenses-section";
-import type { ProjectOption } from "@/app/(dashboard)/business/[businessId]/expenses/page";
-import { dedupeVendors } from "@/app/(dashboard)/business/[businessId]/expenses/vendor-options";
+import type { ProjectOption } from "@/lib/expenses/types";
+import { dedupeVendors } from "@/lib/expenses/vendor-options";
 
 export async function generateMetadata({
   params,
@@ -24,14 +24,12 @@ export async function generateMetadata({
 }
 
 /**
- * /projects/[id]/expenses — hosts the existing ExpensesSection
- * (read + add-light + delete + edit-deep-link). Phase 3 keeps this
- * surface intentionally limited per platform-architect review:
- * promoting to full inline editing would deepen the cross-module
- * import dependency from this module into the business module's
- * expense components. The "Edit on Expenses page" deep-link on
- * each row goes to /business/[id]/expenses?project=<id> for the
- * full Pattern B editor.
+ * /projects/[id]/expenses — hosts the ExpensesSection built on the
+ * shared expense primitives (`src/components/expenses/*` +
+ * `@/lib/expenses/*`). Full inline editing here is the same code
+ * path as the business surface, so the two stay in parity. The
+ * full Pattern B editor (bulk strip, filters, import) still lives
+ * at /business/[id]/expenses.
  */
 export default async function ProjectExpensesPage({
   params,

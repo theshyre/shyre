@@ -12,9 +12,9 @@ import { useTranslations } from "next-intl";
 import { Tag, FolderKanban, Loader2, Check, DollarSign } from "lucide-react";
 import { Tooltip } from "@/components/Tooltip";
 import { useDropdownPlacement } from "@/hooks/use-dropdown-placement";
-import { EXPENSE_CATEGORIES } from "./categories";
-import { getCategoryHelp } from "./categories-help";
-import type { ProjectOption } from "./page";
+import { EXPENSE_CATEGORIES } from "@/lib/expenses/categories";
+import { getCategoryHelp } from "@/lib/expenses/categories-help";
+import type { ProjectOption } from "@/lib/expenses/types";
 
 /**
  * Bulk-action dropdown pickers for the expenses table toolbar.

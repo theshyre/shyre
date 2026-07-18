@@ -12,10 +12,10 @@ import {
   EditableCell,
   type EditableCellSelectOption,
 } from "@/components/EditableCell";
-import { EXPENSE_CATEGORIES } from "./categories";
-import { updateExpenseFieldAction } from "./actions";
-import { INVOICED_EDITABLE_EXPENSE_FIELDS } from "./expense-lock-helpers";
-import type { ProjectOption } from "./page";
+import { EXPENSE_CATEGORIES } from "@/lib/expenses/categories";
+import { updateExpenseFieldAction } from "@/lib/expenses/actions";
+import { INVOICED_EDITABLE_EXPENSE_FIELDS } from "@/lib/expenses/expense-lock-helpers";
+import type { ProjectOption } from "@/lib/expenses/types";
 
 export interface ExpandedRowExpense {
   id: string;

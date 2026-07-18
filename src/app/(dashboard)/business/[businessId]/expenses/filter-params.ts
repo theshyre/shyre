@@ -9,7 +9,7 @@
  * whole point. Server-side query construction lives in the page;
  * client-side URL update logic lives in the filter bar.
  */
-import { ALLOWED_EXPENSE_CATEGORIES } from "./allow-lists";
+import { ALLOWED_EXPENSE_CATEGORIES } from "@/lib/expenses/allow-lists";
 
 export interface ExpenseFilters {
   /** Free-text substring match against vendor / description / notes.
