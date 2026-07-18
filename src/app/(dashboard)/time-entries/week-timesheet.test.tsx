@@ -776,3 +776,61 @@ describe("WeekTimesheet", () => {
     ).toBeInTheDocument();
   });
 });
+
+describe("WeekTimesheet — agent attribution rollup (SAL-051)", () => {
+  it("badges a row's author chip when any summed entry is agent-started", () => {
+    window.localStorage.setItem("shyre.weekTimesheet.groupBy", "project");
+    const agentStarted: TimeEntry = {
+      ...makeEntry("a1", { day: 1, durationMin: 45 }),
+      author: { user_id: "u1", display_name: "Marcus", avatar_url: null },
+      started_by_kind: "agent",
+      agent_label: "Claude Code",
+    };
+    const userStarted: TimeEntry = {
+      ...makeEntry("a2", { day: 2, durationMin: 30 }),
+      author: { user_id: "u1", display_name: "Marcus", avatar_url: null },
+    };
+    const { container } = renderTimesheet(
+      <WeekTimesheet
+        weekStartStr={weekStartStr}
+        tzOffsetMin={tzOffsetMin}
+        todayStr="2026-01-01"
+        entries={[agentStarted, userStarted]}
+        projects={[project]}
+        categories={[]}
+        currentUserId="u1"
+      />,
+    );
+    // One (project, category, user) row sums both entries — the agent
+    // one must not hide inside the aggregate.
+    expect(container.querySelector("svg.lucide-bot")).not.toBeNull();
+    expect(screen.getByText("via Claude Code")).toBeInTheDocument();
+    window.localStorage.removeItem("shyre.weekTimesheet.groupBy");
+  });
+
+  it("renders no badge when every summed entry is user-started", () => {
+    window.localStorage.setItem("shyre.weekTimesheet.groupBy", "project");
+    const { container } = renderTimesheet(
+      <WeekTimesheet
+        weekStartStr={weekStartStr}
+        tzOffsetMin={tzOffsetMin}
+        todayStr="2026-01-01"
+        entries={[
+          {
+            ...makeEntry("a1", { day: 1, durationMin: 45 }),
+            author: {
+              user_id: "u1",
+              display_name: "Marcus",
+              avatar_url: null,
+            },
+          },
+        ]}
+        projects={[project]}
+        categories={[]}
+        currentUserId="u1"
+      />,
+    );
+    expect(container.querySelector("svg.lucide-bot")).toBeNull();
+    window.localStorage.removeItem("shyre.weekTimesheet.groupBy");
+  });
+});

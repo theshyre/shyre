@@ -64,6 +64,11 @@ export interface CsvEntryRow {
   customerId: string;
   invoiceId: string;
   invoiced: boolean;
+  /** Who/what initiated the entry — `started_by_kind` ("user" /
+   *  "agent" / "integration" / "import"), suffixed with the agent
+   *  label when one is stored, e.g. "agent (Claude Code)". Lets a
+   *  bookkeeper separate agent-logged hours in any export (SAL-051). */
+  source: string;
 }
 
 /**
@@ -119,6 +124,9 @@ const HEADERS: Array<keyof CsvEntryRow> = [
   "customerId",
   "invoiceId",
   "invoiced",
+  // Appended last so existing bookkeeper templates keyed on column
+  // positions keep working.
+  "source",
 ];
 
 const HEADER_LABELS: Record<keyof CsvEntryRow, string> = {
@@ -148,6 +156,7 @@ const HEADER_LABELS: Record<keyof CsvEntryRow, string> = {
   customerId: "Customer ID",
   invoiceId: "Invoice ID",
   invoiced: "Invoiced",
+  source: "Source",
 };
 
 /**

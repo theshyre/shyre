@@ -51,7 +51,7 @@ export async function GET(request: Request): Promise<Response> {
   let q = supabase
     .from("time_entries")
     .select(
-      "id, user_id, team_id, project_id, invoice_id, start_time, end_time, duration_min, description, billable, github_issue, linked_ticket_provider, linked_ticket_key, category_id, projects(name, customer_id, budget_period, budget_hours_per_period, budget_dollars_per_period, customers(name)), categories(name, category_sets(name))",
+      "id, user_id, team_id, project_id, invoice_id, start_time, end_time, duration_min, description, billable, github_issue, linked_ticket_provider, linked_ticket_key, category_id, started_by_kind, agent_label, projects(name, customer_id, budget_period, budget_hours_per_period, budget_dollars_per_period, customers(name)), categories(name, category_sets(name))",
     )
     .is("deleted_at", null)
     .gte("start_time", rangeStart.toISOString())
@@ -165,6 +165,15 @@ export async function GET(request: Request): Promise<Response> {
       customerId: (project?.customer_id as string | null) ?? "",
       invoiceId: (row.invoice_id as string | null) ?? "",
       invoiced: row.invoice_id != null,
+      // "user" / "agent (Claude Code)" / "integration (…)" / "import" —
+      // agent hours stay separable in every export (SAL-051). The
+      // label is free-ish text from the token holder; escapeCsvField
+      // in toCsv() handles quoting + formula-injection defense.
+      source: (() => {
+        const kind = (row.started_by_kind as string | null) ?? "user";
+        const label = (row.agent_label as string | null) ?? null;
+        return label ? `${kind} (${label})` : kind;
+      })(),
     };
   });
 

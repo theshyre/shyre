@@ -31,7 +31,14 @@
     "closeMenu": "Cerrar menú"
   },
   "authorship": {
-    "unknownUser": "Usuario desconocido"
+    "unknownUser": "Usuario desconocido",
+    "viaAgent": "vía {label}",
+    "startedByOnBehalf": "Iniciado por {label} en nombre de {name}",
+    "includesAgentTime": "Incluye tiempo iniciado por {label}",
+    "agentFallback": "Agente",
+    "integrationFallback": "Integración",
+    "loggedByAgent": "Registrado por {label}",
+    "sessionRef": "sesión {ref}"
   },
   "commandPalette": {
     "placeholder": "Ir a…",

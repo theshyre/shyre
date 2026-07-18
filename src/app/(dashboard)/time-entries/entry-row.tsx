@@ -316,9 +316,15 @@ export function EntryRow({
           })()}
         </td>
 
-        {/* Author — per the MANDATORY authorship rule */}
+        {/* Author — per the MANDATORY authorship rule. Agent-started
+            entries additionally carry the Bot badge (SAL-051). */}
         <td className="px-3 py-2.5 align-middle whitespace-nowrap">
-          <EntryAuthor author={entry.author} size={20} />
+          <EntryAuthor
+            author={entry.author}
+            size={20}
+            startedByKind={entry.started_by_kind}
+            agentLabel={entry.agent_label}
+          />
         </td>
 
         {/* Start time (small, muted). In the flat Table view the

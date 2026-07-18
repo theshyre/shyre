@@ -783,3 +783,111 @@ describe("TitleLineDrawer", () => {
     expect(link).toHaveTextContent("1042");
   });
 });
+
+describe("agent attribution on week rows (SAL-051)", () => {
+  it("EntrySummaryRow shows the Bot badge (compact: icon + sr-only text) for an agent-started entry", () => {
+    const { container } = renderWithIntl(
+      wrapInTable(
+        <EntrySummaryRow
+          entry={makeEntry("e1", {
+            started_by_kind: "agent",
+            agent_label: "Claude Code",
+          })}
+          dayIndex={1}
+          editing={false}
+          onEditToggle={() => {}}
+          dayDateLong="Tuesday, May 5"
+          isRunning={false}
+          liveElapsedMin={0}
+        />,
+      ),
+    );
+    expect(container.querySelector("svg.lucide-bot")).not.toBeNull();
+    const badgeText = screen.getByText("via Claude Code");
+    expect(badgeText.className).toContain("sr-only");
+  });
+
+  it("EntrySummaryRow shows no badge for a user-started entry", () => {
+    const { container } = renderWithIntl(
+      wrapInTable(
+        <EntrySummaryRow
+          entry={makeEntry("e1")}
+          dayIndex={1}
+          editing={false}
+          onEditToggle={() => {}}
+          dayDateLong="Tuesday, May 5"
+          isRunning={false}
+          liveElapsedMin={0}
+        />,
+      ),
+    );
+    expect(container.querySelector("svg.lucide-bot")).toBeNull();
+  });
+
+  it("TitleLineRow carries the badge when ANY folded entry is agent-started", () => {
+    const ticket = {
+      linked_ticket_key: "AE-644",
+      linked_ticket_provider: "jira" as const,
+      linked_ticket_url: "https://x/AE-644",
+      description: "cutover implementation",
+    };
+    const line = groupEntriesByTitle(
+      dayGrid({
+        0: [makeEntry("e1", { ...ticket, duration_min: 60 })],
+        1: [
+          makeEntry("e2", {
+            ...ticket,
+            duration_min: 210,
+            started_by_kind: "agent",
+            agent_label: "Claude Code",
+          }),
+        ],
+      }),
+    )[0]!;
+    const { container } = renderWithIntl(
+      wrapInTable(
+        <TitleLineRow
+          line={line}
+          expanded={false}
+          onToggle={() => {}}
+          controlsId="title-0-0"
+          dayDatesLong={WEEK_DAYS_LONG}
+          runningStartIso={null}
+          runningNowMs={0}
+        />,
+      ),
+    );
+    expect(container.querySelector("svg.lucide-bot")).not.toBeNull();
+    expect(screen.getByText("via Claude Code")).toBeInTheDocument();
+  });
+
+  it("TitleLineDrawer header chip carries the rollup badge too (view parity)", () => {
+    const rows = [
+      {
+        entry: makeEntry("e1", {
+          started_by_kind: "agent",
+          agent_label: "Claude Code",
+        }),
+        dayIndex: 0,
+      },
+      { entry: makeEntry("e2"), dayIndex: 1 },
+    ];
+    const { container } = renderWithIntl(
+      wrapInTable(
+        <TitleLineDrawer
+          rows={rows}
+          controlsId="title-0-0"
+          dayDatesLong={WEEK_DAYS_LONG}
+          taskLabel="AE-644"
+          runningStartIso={null}
+          runningNowMs={0}
+          editingEntryId={null}
+          onEditToggle={() => {}}
+          onClose={() => {}}
+        />,
+      ),
+    );
+    expect(container.querySelector("svg.lucide-bot")).not.toBeNull();
+    expect(screen.getByText("via Claude Code")).toBeInTheDocument();
+  });
+});

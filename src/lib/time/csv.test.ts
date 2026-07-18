@@ -58,6 +58,7 @@ function row(overrides: Partial<CsvEntryRow> = {}): CsvEntryRow {
     customerId: "cust-1",
     invoiceId: "",
     invoiced: false,
+    source: "user",
     ...overrides,
   };
 }
@@ -86,8 +87,9 @@ describe("toCsv", () => {
     expect(dataLine).toContain("team-1");
     expect(dataLine).toContain("proj-1");
     // invoiced=false comes through as a literal "false"; the
-    // booleans-stringify rule from escapeCsvField applies here.
-    expect(dataLine).toMatch(/false$/);
+    // booleans-stringify rule from escapeCsvField applies here. The
+    // SAL-051 Source column now trails it.
+    expect(dataLine).toMatch(/false,user$/);
   });
 
   it("renders Period Budget columns when the project has a recurring cap", () => {
@@ -161,5 +163,29 @@ describe("escapeCsvField — formula-injection defense (SAL-048)", () => {
     expect(escapeCsvField(true)).toBe("true");
     expect(escapeCsvField("Acme Corp")).toBe("Acme Corp");
     expect(escapeCsvField("")).toBe("");
+  });
+});
+
+describe("toCsv — Source column (SAL-051)", () => {
+  it("appends 'Source' as the last header so positional templates keep working", () => {
+    const headerLine = toCsv([]).split("\r\n")[0] ?? "";
+    expect(headerLine.endsWith(",Source")).toBe(true);
+  });
+
+  it("emits the started-by kind, with the agent label when present", () => {
+    const csv = toCsv([
+      row({ source: "agent (Claude Code)" }),
+      row({ source: "import" }),
+    ]);
+    expect(csv).toContain("agent (Claude Code)");
+    expect(csv).toContain("import");
+  });
+
+  it("neutralizes a formula-injection attempt smuggled through an agent label", () => {
+    const csv = toCsv([row({ source: "=HYPERLINK(\"http://evil\")" })]);
+    const dataLine = csv.split("\r\n")[1] ?? "";
+    // escapeCsvField prefixes the apostrophe and quotes the field.
+    expect(dataLine).toContain("'=HYPERLINK");
+    expect(dataLine).not.toMatch(/,=HYPERLINK/);
   });
 });
