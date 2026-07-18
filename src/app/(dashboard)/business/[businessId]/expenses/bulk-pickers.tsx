@@ -409,7 +409,7 @@ function DropdownPicker({
         ref={menuRef}
         tabIndex={-1}
         onKeyDown={handleMenuKey}
-        className="fixed z-50 flex flex-col rounded-md border border-edge bg-surface shadow-lg"
+        className="fixed z-50 flex flex-col rounded-md border border-edge bg-surface-raised shadow-lg"
         style={{
           width: menuWidthPx,
           right: menuPos.right,
