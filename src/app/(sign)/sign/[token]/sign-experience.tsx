@@ -23,6 +23,7 @@ import {
   buttonDangerClass,
 } from "@/lib/form-styles";
 import { formatCurrency } from "@/lib/invoice-utils";
+import { formatDisplayDate } from "@/lib/format-date";
 import { roundMoney } from "@/lib/proposals/line-items";
 import type { SignBundle } from "@/lib/proposals/sign-service";
 import {
@@ -230,7 +231,7 @@ export function SignExperience({ token, bundle }: Props): React.JSX.Element {
       <p className="mt-1 font-mono text-caption text-content-secondary">
         {bundle.proposal.proposalNumber}
         {bundle.proposal.validUntil
-          ? ` · ${t("validUntil", { date: bundle.proposal.validUntil })}`
+          ? ` · ${t("validUntil", { date: formatDisplayDate(bundle.proposal.validUntil) })}`
           : ""}
       </p>
 
@@ -281,7 +282,7 @@ export function SignExperience({ token, bundle }: Props): React.JSX.Element {
           className="mt-4 flex items-center gap-2 rounded-lg border border-warning-text bg-warning-soft p-3 text-body text-warning-text"
         >
           <TriangleAlert size={16} aria-hidden="true" />
-          {t("offerExpiredNotice", { date: bundle.proposal.validUntil ?? "" })}
+          {t("offerExpiredNotice", { date: formatDisplayDate(bundle.proposal.validUntil) })}
         </div>
       )}
 

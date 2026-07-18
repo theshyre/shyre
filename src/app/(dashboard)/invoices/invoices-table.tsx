@@ -3,10 +3,11 @@
 import { useCallback, useEffect, useMemo, useState, useTransition } from "react";
 import { useTranslations } from "next-intl";
 import Link from "next/link";
-import { CheckCircle, Download } from "lucide-react";
+import { CheckCircle, Download, FileText } from "lucide-react";
 import { Tooltip } from "@/components/Tooltip";
 import { useToast } from "@/components/Toast";
 import { CustomerChip } from "@/components/CustomerChip";
+import { formatDisplayDate } from "@/lib/format-date";
 import { PaginationFooter } from "@/components/PaginationFooter";
 import { InvoiceStatusBadge } from "./invoice-status-badge";
 import { effectiveInvoiceStatus } from "@/lib/invoice-status";
@@ -165,7 +166,17 @@ export function InvoicesTable({
 
   if (invoices.length === 0) {
     return (
-      <p className="mt-4 text-body text-content-muted">{t("noInvoices")}</p>
+      <div className="mt-6 rounded-lg border border-edge bg-surface-raised p-8 text-center">
+        <div className="mx-auto mb-3 flex h-10 w-10 items-center justify-center rounded-full bg-accent-soft">
+          <FileText size={20} className="text-accent" aria-hidden="true" />
+        </div>
+        <h3 className="text-body-lg font-medium text-content">
+          {t("emptyTitle")}
+        </h3>
+        <p className="mt-1 text-caption text-content-muted max-w-md mx-auto">
+          {t("emptyDescription")}
+        </p>
+      </div>
     );
   }
 
@@ -348,7 +359,7 @@ export function InvoicesTable({
                   </span>
                 </td>
                 <td className="px-4 py-3 text-content-secondary text-caption">
-                  {inv.issued_date ?? "—"}
+                  {formatDisplayDate(inv.issued_date)}
                 </td>
                 <td className="px-4 py-3 text-right font-mono tabular-nums text-content">
                   {inv.total

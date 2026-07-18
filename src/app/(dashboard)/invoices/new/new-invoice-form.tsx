@@ -14,6 +14,7 @@ import {
 } from "lucide-react";
 import { AlertBanner } from "@theshyre/ui";
 import { useFormAction } from "@/hooks/use-form-action";
+import { useUnsavedChanges } from "@/hooks/use-unsaved-changes";
 import { useDirtyTitle } from "@/hooks/use-dirty-title";
 import { SubmitButton } from "@/components/SubmitButton";
 import { DateField } from "@/components/DateField";
@@ -380,6 +381,10 @@ export function NewInvoiceForm({
     action: createInvoiceAction,
     onSuccess: () => setDirty(false),
   });
+  // The form tracked `dirty` but never armed the guard — the longest
+  // form in the app could be wiped by a stray navigation (CLAUDE.md
+  // explicitly requires the guard on the invoice editor).
+  useUnsavedChanges(dirty && !pending);
 
   // Resolve the actual range bounds from the preset, recomputed each
   // render so a stale "this month" doesn't haunt a user with the tab

@@ -183,7 +183,7 @@ export default async function TeamDetailPage({
         <Building2 size={24} className="text-accent" />
         <h1 className="text-page-title font-bold text-content">{org.name}</h1>
         <span className="inline-flex items-center gap-1.5 rounded-full bg-surface-inset px-2.5 py-0.5 text-caption font-medium text-content-muted">
-          {role}
+          {tc(`roles.${role}`)}
         </span>
       </div>
 

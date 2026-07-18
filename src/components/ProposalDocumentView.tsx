@@ -2,6 +2,7 @@
 
 import { useTranslations } from "next-intl";
 import { formatCurrency } from "@/lib/invoice-utils";
+import { formatDisplayDate } from "@/lib/format-date";
 import { MarkdownView } from "@/components/MarkdownView";
 import { ProposalItemBody } from "@/components/ProposalItemBody";
 import { ProposalSummaryTable } from "@/components/ProposalSummaryTable";
@@ -124,7 +125,7 @@ export function ProposalDocumentView({
       <p className="mt-1 font-mono text-caption text-content-secondary">
         {proposal.proposalNumber}
         {proposal.validUntil
-          ? ` · ${t("validUntil", { date: proposal.validUntil })}`
+          ? ` · ${t("validUntil", { date: formatDisplayDate(proposal.validUntil) })}`
           : ""}
       </p>
 

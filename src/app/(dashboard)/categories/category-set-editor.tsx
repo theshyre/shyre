@@ -157,7 +157,7 @@ function CategoryRow({ category }: { category: Category }): React.JSX.Element {
         style={{ backgroundColor: category.color }}
       />
       <span className="flex-1 text-body-lg text-content">{category.name}</span>
-      <span className="text-[11px] font-mono text-content-muted">
+      <span className="text-caption font-mono text-content-muted">
         #{category.sort_order}
       </span>
       <button

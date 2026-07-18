@@ -6,6 +6,7 @@ import { Pencil, Eye, CheckCircle2, XCircle, Clock } from "lucide-react";
 import { createClient } from "@/lib/supabase/server";
 import { buttonSecondaryClass } from "@/lib/form-styles";
 import { formatCurrency } from "@/lib/invoice-utils";
+import { formatDisplayDate, formatDisplayDateTime } from "@/lib/format-date";
 import { roundMoney } from "@/lib/proposals/line-items";
 import type { ProposalPDFItem } from "@/components/ProposalPDF";
 import { CustomerChip } from "@/components/CustomerChip";
@@ -265,7 +266,7 @@ export default async function ProposalDetailPage({
       <div className="flex flex-wrap items-start justify-between gap-3">
         <div>
           <div className="flex flex-wrap items-center gap-3">
-            <h1 className="text-page-title font-semibold text-content">
+            <h1 className="text-page-title font-bold text-content">
               {proposal.title as string}
             </h1>
             <ProposalStatusBadge status={status} size="prominent" />
@@ -369,7 +370,7 @@ export default async function ProposalDetailPage({
         <div>
           <dt className="text-caption text-content-secondary">{t("issued")}</dt>
           <dd className="text-body text-content">
-            {(proposal.issued_date as string | null) ?? "—"}
+            {formatDisplayDate(proposal.issued_date as string | null)}
           </dd>
         </div>
         <div>
@@ -377,7 +378,7 @@ export default async function ProposalDetailPage({
             {t("validUntil")}
           </dt>
           <dd className="text-body text-content">
-            {(proposal.valid_until as string | null) ?? "—"}
+            {formatDisplayDate(proposal.valid_until as string | null)}
           </dd>
         </div>
       </dl>
@@ -704,7 +705,7 @@ export default async function ProposalDetailPage({
               className="flex flex-wrap items-baseline gap-2 text-body"
             >
               <span className="font-mono text-caption text-content-muted">
-                {(event.occurred_at as string).slice(0, 16).replace("T", " ")}
+                {formatDisplayDateTime(event.occurred_at as string)}
               </span>
               <span className="text-content">
                 {tActivity(`event.${event.event_type as string}`)}

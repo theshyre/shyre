@@ -115,7 +115,7 @@ describe("EntryTable", () => {
         onToggleExpand={() => {}}
       />,
     );
-    expect(screen.getByText(/no time entries/i)).toBeInTheDocument();
+    expect(screen.getByText(/no entries here/i)).toBeInTheDocument();
   });
 
   it("renders group header with label and total in H:MM format", () => {

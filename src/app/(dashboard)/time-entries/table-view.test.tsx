@@ -199,7 +199,7 @@ describe("TableView", () => {
 
   it("entry count caption pluralizes correctly", () => {
     renderTable({ entries: [] });
-    expect(screen.getByText(/no entries/i)).toBeInTheDocument();
+    expect(screen.getAllByText(/no entries/i).length).toBeGreaterThan(0);
     renderTable({ entries: [makeEntry("a", "Solo")] });
     expect(screen.getByText(/1 entry/)).toBeInTheDocument();
   });

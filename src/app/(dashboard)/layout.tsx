@@ -1,4 +1,5 @@
 import { cookies } from "next/headers";
+import { getTranslations } from "next-intl/server";
 import Sidebar from "@/components/Sidebar";
 import { TimezoneSync } from "@/components/TimezoneSync";
 import { CurrentDateProvider } from "@/components/current-date-provider";
@@ -90,6 +91,8 @@ export default async function DashboardLayout({
   const teamCount = teams.length;
   const primaryTeamName = teamCount === 1 ? (teams[0]?.name ?? null) : null;
 
+  const tCommon = await getTranslations("common");
+
   return (
     <ToastProvider>
       <TableDensityProvider>
@@ -100,7 +103,7 @@ export default async function DashboardLayout({
           {/* Skip link MUST be the first focusable element so a keyboard
               user pressing Tab on page load lands on it before the
               sidebar's ~15 nav entries. Visually hidden until focused. */}
-          <SkipLink targetId="main-content" />
+          <SkipLink targetId="main-content" label={tCommon("a11y.skipToContent")} />
           <div className="flex h-full">
             <TimezoneSync />
             <ThemeSync preferredTheme={preferredTheme} />

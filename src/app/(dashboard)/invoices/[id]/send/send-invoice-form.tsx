@@ -298,7 +298,7 @@ export function SendInvoiceForm(props: Props): React.JSX.Element {
               />
               {props.signature && (
                 <div className="mt-2 rounded-md border border-edge bg-surface px-3 py-2 text-caption text-content-secondary">
-                  <div className="font-medium text-content-muted uppercase tracking-wider text-[10px] mb-1">
+                  <div className="font-medium text-content-muted uppercase tracking-wider text-label mb-1">
                     {t("signaturePreview")}
                   </div>
                   <pre className="whitespace-pre-wrap font-sans text-body text-content-secondary">

@@ -130,7 +130,7 @@ export default async function ErrorDashboardPage({
                         {err.error_code}
                       </span>
                       {isResolved && (
-                        <span className="inline-flex items-center gap-1 rounded-full bg-success-soft px-2 py-0.5 text-[10px] text-success-text">
+                        <span className="inline-flex items-center gap-1 rounded-full bg-success-soft px-2 py-0.5 text-label text-success-text">
                           <CheckCircle size={8} />
                           Resolved
                         </span>
@@ -146,7 +146,7 @@ export default async function ErrorDashboardPage({
                       <LocalDateTime value={err.created_at} />
                     </p>
                     {err.action && (
-                      <p className="text-[10px] text-content-muted font-mono">
+                      <p className="text-label text-content-muted font-mono">
                         {err.action}
                       </p>
                     )}

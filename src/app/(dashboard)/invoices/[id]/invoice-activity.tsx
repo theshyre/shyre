@@ -51,7 +51,7 @@ function formatPaymentHeadlineDate(value: string): string {
     ];
     return `${months[Number(m) - 1]} ${Number(d)}, ${y}`;
   }
-  return new Date(value).toLocaleDateString("en-US", {
+  return new Date(value).toLocaleDateString(undefined, {
     month: "short",
     day: "numeric",
     year: "numeric",

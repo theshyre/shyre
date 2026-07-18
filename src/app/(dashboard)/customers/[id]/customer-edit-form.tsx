@@ -9,6 +9,7 @@ import {
   labelClass,
 } from "@/lib/form-styles";
 import { useFormAction } from "@/hooks/use-form-action";
+import { useUnsavedChanges } from "@/hooks/use-unsaved-changes";
 import { AddressFields } from "@/components/AddressFields";
 import { FieldError } from "@/components/FieldError";
 import { SubmitButton } from "@/components/SubmitButton";
@@ -37,6 +38,7 @@ export function CustomerEditForm({
   client: Client;
 }): React.JSX.Element {
   const t = useTranslations("customers");
+  const tc = useTranslations("common");
   const tPay = useTranslations("paymentTerms");
 
   const [paymentTermsDays, setPaymentTermsDays] = useState<number | null>(
@@ -45,13 +47,24 @@ export function CustomerEditForm({
 
   const { pending, success, serverError, fieldErrors, handleSubmit } =
     useFormAction({
+      onSuccess: () => setFormDirty(false),
       action: updateCustomerAction,
     });
+  // Unsaved-changes guard (CLAUDE.md UX rule): any user edit arms the
+  // browser's native "Leave page?" confirm until a successful save.
+  // Form-level onChange covers the uncontrolled inputs.
+  const [formDirty, setFormDirty] = useState(false);
+  useUnsavedChanges(formDirty && !pending);
+
 
   const address = deserializeAddress(client.address);
 
   return (
-    <form action={handleSubmit} className="space-y-4">
+    <form
+      action={handleSubmit}
+      onChange={() => setFormDirty(true)}
+      className="space-y-4"
+    >
       <input type="hidden" name="id" value={client.id} />
 
       {serverError && (
@@ -216,7 +229,7 @@ export function CustomerEditForm({
         label={t("saveChanges")}
         pending={pending}
         success={success}
-        successMessage="Saved"
+        successMessage={tc("actions.saved")}
       />
     </form>
   );

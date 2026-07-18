@@ -5,6 +5,7 @@ import { useTranslations } from "next-intl";
 import { Plus } from "lucide-react";
 import { AlertBanner } from "@theshyre/ui";
 import { useFormAction } from "@/hooks/use-form-action";
+import { useUnsavedChanges } from "@/hooks/use-unsaved-changes";
 import { SubmitButton } from "@/components/SubmitButton";
 import { FieldError } from "@/components/FieldError";
 import {
@@ -75,13 +76,18 @@ export function NewTimeEntryForm({
   const t = useTranslations("time");
   const tc = useTranslations("common");
 
+  // Unsaved-changes guard (CLAUDE.md: required on the manual entry form).
+  const [formDirty, setFormDirty] = useState(false);
+
   const { pending, success, serverError, fieldErrors, handleSubmit } = useFormAction({
     action: createTimeEntryAction,
     onSuccess: () => {
       setOpen(false);
       setSelectedProjectId("");
+      setFormDirty(false);
     },
   });
+  useUnsavedChanges(formDirty && !pending);
 
   const selectedProject = projects.find((p) => p.id === selectedProjectId);
   const linkedRepo = selectedProject?.github_repo ?? null;
@@ -116,6 +122,7 @@ export function NewTimeEntryForm({
   return (
     <form
       action={handleSubmit}
+      onChange={() => setFormDirty(true)}
       className="space-y-3 rounded-lg border border-edge bg-surface-raised p-4"
     >
       {serverError && (
