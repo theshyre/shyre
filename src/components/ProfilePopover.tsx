@@ -86,7 +86,7 @@ export function ProfilePopover({
         // that case — closing would unmount the child mid-click and
         // the user's selection would never reach its handler.
         const target = e.target as HTMLElement | null;
-        if (target?.closest('[role="menu"]')) return;
+        if (target?.closest("[data-popover-panel]")) return;
         close();
       }
     }
@@ -107,7 +107,6 @@ export function ProfilePopover({
         <button
           type="button"
           onClick={() => setOpen((p) => !p)}
-          aria-haspopup="menu"
           aria-expanded={open}
           aria-label={t("nav.profile")}
           className={`flex w-full items-center gap-3 px-4 py-2.5 text-left transition-colors hover:bg-hover ${
@@ -134,7 +133,12 @@ export function ProfilePopover({
 
       {open && (
         <div
-          role="menu"
+          // Plain labeled popover, not role="menu" — the old menu role
+          // promised arrow-key nav it didn't implement AND nested
+          // non-menuitem interactive children (text-size, theme picker),
+          // which SR menu navigation skips entirely.
+          role="group"
+          data-popover-panel
           aria-label={t("nav.profile")}
           className="absolute bottom-full left-0 right-0 z-40 mb-1 mx-2 rounded-lg border border-edge bg-surface-raised shadow-lg overflow-hidden"
         >
@@ -168,7 +172,6 @@ export function ProfilePopover({
           <div className="py-1">
             <Link
               href="/profile"
-              role="menuitem"
               onClick={close}
               className={`flex items-center gap-3 px-3 py-2 text-body transition-colors ${
                 isProfileActive
@@ -181,7 +184,6 @@ export function ProfilePopover({
             </Link>
             <Link
               href="/docs"
-              role="menuitem"
               onClick={close}
               className={`flex items-center gap-3 px-3 py-2 text-body transition-colors ${
                 isDocsActive
@@ -197,7 +199,6 @@ export function ProfilePopover({
           <div className="border-t border-edge py-1">
             <button
               type="button"
-              role="menuitem"
               onClick={() => {
                 close();
                 onSignOut();

@@ -253,9 +253,18 @@ export function SignExperience({ token, bundle }: Props): React.JSX.Element {
           {bundle.customerName ? (
             <span className="text-body-lg text-content-secondary">
               {t("preparedForLabel")}{" "}
+              {/* Accent is DECORATIVE (underline), never the text color —
+                  the stored hex has no contrast guarantee against the
+                  pinned theme (WCAG 1.4.3), so the name stays text-content. */}
               <span
-                className="font-semibold text-content"
-                style={{ color: bundle.customerAccentColor ?? undefined }}
+                className={`font-semibold text-content ${
+                  bundle.customerAccentColor
+                    ? "underline decoration-2 underline-offset-4"
+                    : ""
+                }`}
+                style={{
+                  textDecorationColor: bundle.customerAccentColor ?? undefined,
+                }}
               >
                 {bundle.customerName}
               </span>
@@ -646,7 +655,6 @@ export function SignExperience({ token, bundle }: Props): React.JSX.Element {
                     className={inputClass}
                     required
                     aria-required="true"
-                    autoFocus
                     value={signerName}
                     onChange={(e) => setSignerName(e.target.value)}
                   />

@@ -23,7 +23,8 @@ describe("ProfilePopover", () => {
     // a single line so the sidebar saves vertical chrome.
     expect(trigger.textContent).not.toContain("marcus@malcom.io");
     expect(trigger.getAttribute("aria-expanded")).toBe("false");
-    expect(trigger.getAttribute("aria-haspopup")).toBe("menu");
+    // Labeled-group popover now, not a menu — state is aria-expanded.
+    expect(trigger.getAttribute("aria-expanded")).toBe("false");
   });
 
   // Open-state interaction tests are deliberately deferred — the

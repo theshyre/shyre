@@ -142,9 +142,17 @@ export function ProposalDocumentView({
           {customer.name ? (
             <span className="text-body-lg text-content-secondary">
               {t("preparedForLabel")}{" "}
+              {/* Accent as decorative underline only — stored hex has no
+                  contrast guarantee against the pinned theme (WCAG 1.4.3). */}
               <span
-                className="font-semibold text-content"
-                style={{ color: customer.accentColor ?? undefined }}
+                className={`font-semibold text-content ${
+                  customer.accentColor
+                    ? "underline decoration-2 underline-offset-4"
+                    : ""
+                }`}
+                style={{
+                  textDecorationColor: customer.accentColor ?? undefined,
+                }}
               >
                 {customer.name}
               </span>

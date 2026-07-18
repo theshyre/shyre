@@ -149,6 +149,21 @@ export default function Sidebar({
     return () => window.removeEventListener("keydown", onKey);
   }, [mobileOpen]);
 
+  // Below md the CLOSED drawer is -translate-x-full — visually gone but,
+  // without `inert`, its ~15 links stayed in the tab order and exposed to
+  // AT, so keyboard focus vanished off-screen (WCAG 2.4.3/2.4.7). Track
+  // the breakpoint so `inert` applies only on mobile-closed; on md+ the
+  // aside is static and must stay interactive. Starts false (SSR) and
+  // corrects post-hydration — worst case is one uninert paint.
+  const [isMobileViewport, setIsMobileViewport] = useState(false);
+  useEffect(() => {
+    const mq = window.matchMedia("(max-width: 767px)");
+    const sync = (): void => setIsMobileViewport(mq.matches);
+    sync();
+    mq.addEventListener("change", sync);
+    return () => mq.removeEventListener("change", sync);
+  }, []);
+
   // "Work" section: shell-level Dashboard + every registered module
   // in the track + manage sections. Reports + Projects now flow
   // through the registry instead of being hardcoded here.
@@ -251,6 +266,7 @@ export default function Sidebar({
       <aside
         id="primary-sidebar"
         aria-hidden={mobileOpen ? false : undefined}
+        inert={isMobileViewport && !mobileOpen ? true : undefined}
         onClick={(e) => {
           // Close the mobile drawer when any link inside is clicked
           // — the user is navigating away. md+ has no drawer state to

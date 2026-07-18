@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
-import { screen, waitFor } from "@testing-library/react";
+import { screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { renderWithIntl } from "@/test/intl";
 
@@ -26,17 +26,17 @@ describe("ThemePickerPopover", () => {
       screen.getByRole("button", { name: /theme.*dark/i }),
     ).toBeInTheDocument();
     // No menu items visible yet
-    expect(screen.queryByRole("menuitemradio")).not.toBeInTheDocument();
+    expect(screen.queryByRole("group")).not.toBeInTheDocument();
   });
 
   it("opens a menu with all 5 themes on click; current one is checked", async () => {
     const user = userEvent.setup();
     renderWithIntl(<ThemePickerPopover />);
     await user.click(screen.getByRole("button", { name: /theme.*dark/i }));
-    const items = screen.getAllByRole("menuitemradio");
+    const items = within(screen.getByRole("group")).getAllByRole("button");
     expect(items).toHaveLength(5);
-    const dark = screen.getByRole("menuitemradio", { name: /dark/i });
-    expect(dark).toHaveAttribute("aria-checked", "true");
+    const dark = within(screen.getByRole("group")).getByRole("button", { name: /dark/i });
+    expect(dark).toHaveAttribute("aria-pressed", "true");
   });
 
   it("clicking a theme calls setTheme and closes the menu", async () => {
@@ -44,10 +44,10 @@ describe("ThemePickerPopover", () => {
     renderWithIntl(<ThemePickerPopover />);
     await user.click(screen.getByRole("button", { name: /theme.*dark/i }));
     // Visible label is "Reading" — selector key stays "warm".
-    await user.click(screen.getByRole("menuitemradio", { name: /reading/i }));
+    await user.click(within(screen.getByRole("group")).getByRole("button", { name: /reading/i }));
     expect(setThemeSpy).toHaveBeenCalledWith("warm");
     await waitFor(() => {
-      expect(screen.queryByRole("menuitemradio")).not.toBeInTheDocument();
+      expect(screen.queryByRole("group")).not.toBeInTheDocument();
     });
   });
 
@@ -55,10 +55,10 @@ describe("ThemePickerPopover", () => {
     const user = userEvent.setup();
     renderWithIntl(<ThemePickerPopover />);
     await user.click(screen.getByRole("button", { name: /theme.*dark/i }));
-    expect(screen.getAllByRole("menuitemradio")).toHaveLength(5);
+    expect(within(screen.getByRole("group")).getAllByRole("button")).toHaveLength(5);
     await user.keyboard("{Escape}");
     await waitFor(() => {
-      expect(screen.queryByRole("menuitemradio")).not.toBeInTheDocument();
+      expect(screen.queryByRole("group")).not.toBeInTheDocument();
     });
   });
 });
