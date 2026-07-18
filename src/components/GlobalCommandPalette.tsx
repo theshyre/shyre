@@ -1,44 +1,65 @@
 "use client";
 
-import { useCallback, useMemo, useState } from "react";
+import { useCallback, useMemo, useState, type ComponentType } from "react";
 import { useRouter } from "next/navigation";
 import { useTranslations } from "next-intl";
 import {
-  Clock,
+  BookOpen,
   LayoutDashboard,
-  Users,
-  FolderKanban,
-  FileText,
-  BarChart3,
-  Shield,
+  ShieldAlert,
   User,
-  type LucideIcon,
 } from "lucide-react";
 import { CommandPalette, useKeyboardShortcut } from "@theshyre/ui";
+import { navItemsForSection } from "@/lib/modules/registry";
 
 interface CommandItem {
   id: string;
   label: string;
   href: string;
-  icon: LucideIcon;
+  icon: ComponentType<{ size?: number; className?: string }>;
   /** Keywords a user might type that should still surface this item. */
   keywords?: string[];
 }
 
 interface Props {
-  /** Admin destinations surfaced only when the viewer has system-admin. */
+  /** System hub surfaced only when the viewer has system-admin. */
   isSystemAdmin: boolean;
+  /** Mirrors the sidebar's /business gating — owner/admin on ≥1 team. */
+  canManageBusiness: boolean;
 }
 
+/** Search synonyms per destination. Keyed by href so registry additions
+ *  work with zero entries here (label matching still applies). */
+const KEYWORDS: Record<string, string[]> = {
+  "/": ["home"],
+  "/time-entries": ["timer", "timesheet", "hours", "track"],
+  "/customers": ["clients"],
+  "/invoices": ["bill", "billing"],
+  "/proposals": ["quote", "sign-off", "pipeline"],
+  "/business": ["expenses", "people", "registrations"],
+  "/teams": ["members", "organization"],
+  "/settings": ["preferences"],
+  "/import": ["harvest", "csv"],
+  "/profile": ["settings", "preferences", "account"],
+  "/docs": ["help", "guide", "documentation"],
+  "/system": ["admin", "errors", "users"],
+};
+
 /**
- * `⌘K` opens a navigate-only command palette. Starts with static
- * destinations (every top-level route) and filters client-side by
- * label + keywords — fast, zero-server-trip for MVP.
+ * `⌘K` opens a navigate-only command palette. Destinations DERIVE from
+ * the module registry (the same source the sidebar renders from), so a
+ * newly registered module is searchable with zero palette changes —
+ * previously this was a parallel hardcoded list that drifted (it was
+ * missing Proposals/Teams/Business entirely and pointed "Admin" at a
+ * dead /admin URL).
  *
  * Future: extend to search customers / projects / invoices by name
  * via a server endpoint (`onQuery` already accepts async results).
  */
-export function GlobalCommandPalette({ isSystemAdmin }: Props): React.JSX.Element {
+export function GlobalCommandPalette({
+  isSystemAdmin,
+  canManageBusiness,
+}: Props): React.JSX.Element {
   const [open, setOpen] = useState(false);
   const router = useRouter();
   const tNav = useTranslations("common.nav");
@@ -51,65 +72,57 @@ export function GlobalCommandPalette({ isSystemAdmin }: Props): React.JSX.Elemen
   });
 
   const items: CommandItem[] = useMemo(() => {
+    // Mirror the sidebar's composition: shell Dashboard + registered
+    // modules (track/manage/setup, with the same /business gate) +
+    // shell surfaces (profile, docs) + the sysadmin hub.
+    const registryItems = [
+      ...navItemsForSection("track"),
+      ...navItemsForSection("manage"),
+      ...navItemsForSection("setup").filter(
+        (item) => item.href !== "/business" || canManageBusiness,
+      ),
+    ];
     const base: CommandItem[] = [
-    {
-      id: "dashboard",
-      label: tNav("dashboard"),
-      href: "/",
-      icon: LayoutDashboard,
-      keywords: ["home"],
-    },
-    {
-      id: "time",
-      label: tNav("time"),
-      href: "/time-entries",
-      icon: Clock,
-      keywords: ["timer", "timesheet", "hours", "track"],
-    },
-    {
-      id: "customers",
-      label: tNav("customers"),
-      href: "/customers",
-      icon: Users,
-      keywords: ["clients"],
-    },
-    {
-      id: "projects",
-      label: tNav("projects"),
-      href: "/projects",
-      icon: FolderKanban,
-    },
-    {
-      id: "invoices",
-      label: tNav("invoices"),
-      href: "/invoices",
-      icon: FileText,
-      keywords: ["bill", "billing"],
-    },
-    {
-      id: "reports",
-      label: tNav("reports"),
-      href: "/reports",
-      icon: BarChart3,
-    },
-    {
-      id: "profile",
-      label: tNav("profile"),
-      href: "/profile",
-      icon: User,
-      keywords: ["settings", "preferences", "account"],
-    },
-  ];
+      {
+        id: "dashboard",
+        label: tNav("dashboard"),
+        href: "/",
+        icon: LayoutDashboard,
+        keywords: KEYWORDS["/"],
+      },
+      ...registryItems.map((item) => ({
+        id: item.labelKey,
+        label: tNav(item.labelKey),
+        href: item.href,
+        icon: item.icon,
+        keywords: KEYWORDS[item.href],
+      })),
+      {
+        id: "profile",
+        label: tNav("profile"),
+        href: "/profile",
+        icon: User,
+        keywords: KEYWORDS["/profile"],
+      },
+      {
+        id: "docs",
+        label: tNav("docs"),
+        href: "/docs",
+        icon: BookOpen,
+        keywords: KEYWORDS["/docs"],
+      },
+    ];
     if (isSystemAdmin) {
       base.push({
-        id: "admin",
-        label: tNav("admin"),
-        href: "/admin",
-        icon: Shield,
+        id: "systemHub",
+        label: tNav("systemHub"),
+        href: "/system",
+        icon: ShieldAlert,
+        keywords: KEYWORDS["/system"],
       });
     }
     return base;
-  }, [isSystemAdmin, tNav]);
+  }, [isSystemAdmin, canManageBusiness, tNav]);
 
   const onQuery = useCallback(
     (q: string): CommandItem[] => {

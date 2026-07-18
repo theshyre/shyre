@@ -1,6 +1,16 @@
 import type { Metadata } from "next";
+import { cookies } from "next/headers";
 import { createClient } from "@/lib/supabase/server";
 import { getUserContext } from "@/lib/team-context";
+import { getUserSettings } from "@/lib/user-settings";
+import {
+  parseTzOffset,
+  TZ_COOKIE_NAME,
+  getOffsetForZone,
+  getLocalToday,
+  getLocalWeekStart,
+  localDateMidnightUtc,
+} from "@/lib/time/tz";
 import { getTranslations } from "next-intl/server";
 import Link from "next/link";
 
@@ -28,10 +38,25 @@ export default async function DashboardPage(): Promise<React.JSX.Element> {
   const t = await getTranslations("dashboard");
   const tc = await getTranslations("common");
 
-  // Get today's start/end
-  const now = new Date();
-  const todayStart = new Date(now.getFullYear(), now.getMonth(), now.getDate()).toISOString();
-  const weekStart = new Date(now.getFullYear(), now.getMonth(), now.getDate() - now.getDay()).toISOString();
+  // "Today" and "this week" in the USER'S timezone, not the server's.
+  // The old math used the server clock (UTC in prod), so a US-timezone
+  // user's evening entries landed on the "wrong" day and the totals here
+  // could disagree with the week view. Resolve tz the same way the
+  // layout/time-entries do (explicit IANA zone wins, else the browser
+  // cookie offset) and reuse the shared Monday-week helper so the
+  // dashboard and the timesheet agree bit-for-bit.
+  const cookieStore = await cookies();
+  const cookieOffset = parseTzOffset(cookieStore.get(TZ_COOKIE_NAME)?.value);
+  const userSettings = await getUserSettings();
+  const tzOffsetMin = userSettings.timezone
+    ? getOffsetForZone(userSettings.timezone, new Date())
+    : cookieOffset;
+  const today = getLocalToday(tzOffsetMin);
+  const todayStart = localDateMidnightUtc(today, tzOffsetMin).toISOString();
+  const weekStart = localDateMidnightUtc(
+    getLocalWeekStart(today),
+    tzOffsetMin,
+  ).toISOString();
 
   // Parallel queries
   const [todayEntries, weekEntries, activeTimers, unbilledEntries, customers, projects, recentEntries] =

@@ -3,7 +3,11 @@ import { createClient } from "@/lib/supabase/server";
 import { getUserTeams } from "@/lib/team-context";
 import { getTranslations } from "next-intl/server";
 import { notFound } from "next/navigation";
+import Link from "next/link";
 import { FolderKanban, Users } from "lucide-react";
+import { StatusBadge } from "@/components/StatusBadge";
+import { LinkPendingSpinner } from "@/components/LinkPendingSpinner";
+import { formatCurrency } from "@/lib/invoice-utils";
 
 export async function generateMetadata({
   params,
@@ -79,6 +83,7 @@ export default async function ClientDetailPage({
   const { id } = await params;
   const supabase = await createClient();
   const t = await getTranslations("customers");
+  const tProjectStatus = await getTranslations("projects.status.label");
 
   const { data: client } = await supabase
     .from("customers_v")
@@ -323,23 +328,31 @@ export default async function ClientDetailPage({
         {projects && projects.length > 0 ? (
           <ul className="mt-3 space-y-2">
             {projects.map((p) => (
-              <li
-                key={p.id}
-                className="flex items-center justify-between rounded-lg border border-edge bg-surface-raised px-4 py-3 hover:bg-hover transition-colors"
-              >
-                <div>
-                  <span className="font-medium text-content">{p.name}</span>
-                  {p.status !== "active" && (
-                    <span className="ml-2 inline-flex items-center rounded-full bg-surface-inset px-2 py-0.5 text-caption text-content-muted">
-                      {p.status}
-                    </span>
-                  )}
-                </div>
-                <span className="text-body-lg text-content-secondary font-mono">
-                  {p.hourly_rate
-                    ? `$${Number(p.hourly_rate).toFixed(2)}/hr`
-                    : "—"}
-                </span>
+              <li key={p.id}>
+                {/* Whole row is a real link — it was hover-styled but inert,
+                    a false affordance. Status renders through the shared
+                    StatusBadge (translated, 2-channel) instead of a raw
+                    enum in a gray pill. */}
+                <Link
+                  href={`/projects/${p.id}`}
+                  className="flex items-center justify-between rounded-lg border border-edge bg-surface-raised px-4 py-3 hover:bg-hover transition-colors"
+                >
+                  <span className="flex items-center gap-2">
+                    <LinkPendingSpinner />
+                    <span className="font-medium text-content">{p.name}</span>
+                    {p.status !== "active" && (
+                      <StatusBadge
+                        status={p.status as string}
+                        label={tProjectStatus(p.status as string)}
+                      />
+                    )}
+                  </span>
+                  <span className="text-body-lg text-content-secondary font-mono">
+                    {p.hourly_rate
+                      ? `${formatCurrency(Number(p.hourly_rate))}/hr`
+                      : "—"}
+                  </span>
+                </Link>
               </li>
             ))}
           </ul>

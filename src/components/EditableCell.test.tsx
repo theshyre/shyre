@@ -167,10 +167,17 @@ describe("EditableCell — text variant", () => {
       fireEvent.keyDown(input, { key: "Enter" });
     });
     await waitFor(() => {
-      // Error border applied — input remains visible with the
+      // Error state applied — input remains visible with the
       // attempted value, not snapped back to "Linode".
       expect(input.value).toBe("Akamai");
       expect(input.className).toContain("border-error");
+      // The message is VISIBLE inline text announced via role="alert"
+      // and programmatically tied to the input — not a tooltip (the old
+      // icon-tooltip was unreachable by mouse, keyboard, and SR alike).
+      expect(input.getAttribute("aria-invalid")).toBe("true");
+      const alert = document.querySelector('[role="alert"]');
+      expect(alert?.textContent).toContain("Permission denied");
+      expect(input.getAttribute("aria-describedby")).toBe(alert?.id);
     });
   });
 });

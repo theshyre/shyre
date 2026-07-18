@@ -79,6 +79,19 @@ export default function Timer({
       const tag = target.tagName.toLowerCase();
       if (tag === "input" || tag === "textarea" || tag === "select") return;
       if (target.isContentEditable) return;
+      // Space is also the standard activation key for buttons, links, and
+      // composite widgets (the DateField calendar grid, checkboxes…). Only
+      // hijack it when focus is on non-interactive content — otherwise a
+      // keyboard user pressing Space on ANY focused button would stop the
+      // timer instead of activating the control (and preventDefault would
+      // swallow the activation). WCAG 2.1.1.
+      if (
+        target.closest(
+          "button, a, [role='button'], [role='grid'], [role='menu'], [role='dialog'], [tabindex]",
+        )
+      ) {
+        return;
+      }
       e.preventDefault();
       void handleStop();
     }

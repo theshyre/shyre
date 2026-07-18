@@ -197,7 +197,7 @@ export default async function TeamDetailPage({
             </h2>
           </div>
           <Link
-            href={`/customers?team=${id}`}
+            href={`/customers?org=${id}`}
             className="flex items-center gap-1 text-caption text-accent hover:underline"
           >
             <LinkPendingSpinner />
@@ -244,7 +244,7 @@ export default async function TeamDetailPage({
             </h2>
           </div>
           <Link
-            href={`/projects?team=${id}`}
+            href={`/projects?org=${id}`}
             className="flex items-center gap-1 text-caption text-accent hover:underline"
           >
             <LinkPendingSpinner />
