@@ -3,7 +3,7 @@
 /**
  * Cross-surface signal for "the running timer may have changed".
  *
- * The sidebar <Timer> is the sole running-timer UI, but start/stop
+ * The sidebar <SidebarTimer> is the sole running-timer UI, but start/stop
  * happens from several surfaces (entry-row kebab, week-row Play/Stop,
  * the /time-entries start form). Each of those surfaces calls a server
  * action and then dispatches this event so the sidebar can re-fetch

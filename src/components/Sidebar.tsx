@@ -5,19 +5,16 @@ import { usePathname, useRouter } from "next/navigation";
 import { useTranslations } from "next-intl";
 import { useEffect, useState } from "react";
 import { createClient } from "@/lib/supabase/client";
-import {
-  LayoutDashboard,
-  ShieldAlert,
-  Building2,
-  Menu,
-} from "lucide-react";
+import { Building2, Menu } from "lucide-react";
 import type { ComponentType } from "react";
-import Timer from "./Timer";
 import { LinkPendingSpinner } from "./LinkPendingSpinner";
 import { Tooltip } from "./Tooltip";
 import { Logo } from "./Logo";
 import { ProfilePopover } from "./ProfilePopover";
-import { navItemsForSection } from "@/lib/modules/registry";
+import {
+  navItemsForSection,
+  shellSurfacesForPlacement,
+} from "@/lib/modules/registry";
 
 interface NavItem {
   labelKey: string;
@@ -88,9 +85,14 @@ interface SidebarProps {
   displayName: string;
   email: string;
   avatarUrl?: string | null;
-  /** Viewer's user_id — threaded to the sidebar <Timer> so its author
-   *  chip can resolve a stable preset color. */
+  /** Viewer's user_id — used by the profile popover's avatar to
+   *  resolve a stable preset color. */
   userId: string;
+  /** Module-owned widget rendered in the bottom block (the running
+   *  timer from the time-entries module). Composed in by the
+   *  dashboard layout so this shell component never imports module
+   *  code. */
+  timerSlot?: React.ReactNode;
   isSystemAdmin?: boolean;
   unresolvedErrorCount?: number;
   /** True when the viewer is owner|admin of at least one business
@@ -128,6 +130,7 @@ export default function Sidebar({
   canManageBusiness,
   teamCount = 0,
   primaryTeamName = null,
+  timerSlot,
 }: SidebarProps): React.JSX.Element {
   const pathname = usePathname();
   const router = useRouter();
@@ -164,11 +167,12 @@ export default function Sidebar({
     return () => mq.removeEventListener("change", sync);
   }, []);
 
-  // "Work" section: shell-level Dashboard + every registered module
-  // in the track + manage sections. Reports + Projects now flow
-  // through the registry instead of being hardcoded here.
+  // "Work" section: the shell Dashboard surface + every registered
+  // module in the track + manage sections. All of it — including
+  // Dashboard — flows through the registry instead of being
+  // hardcoded here (SHELL_SURFACES holds the always-on shell pages).
   const workItems: NavItem[] = [
-    { labelKey: "dashboard", href: "/", icon: LayoutDashboard },
+    ...shellSurfacesForPlacement("home").map((s) => s.navItem),
     ...navItemsForSection("track"),
     ...navItemsForSection("manage"),
   ];
@@ -184,19 +188,13 @@ export default function Sidebar({
 
   // "System" section: sysadmin-only. Single entry to /system which
   // is the sysadmin hub; sub-routes (errors, users, instance teams,
-  // sample data) are reached from there. The unresolved-errors
-  // badge lives on this entry — used to live on the old "Admin"
-  // entry, which never made sense for non-admins anyway.
-  const systemItems: NavItem[] = isAdmin
-    ? [
-        {
-          labelKey: "systemHub",
-          href: "/system",
-          icon: ShieldAlert,
-          badge: unresolvedErrorCount ?? 0,
-        },
-      ]
-    : [];
+  // sample data) are reached from there. The entry itself comes from
+  // the registry's SHELL_SURFACES (placement "system") — only the
+  // unresolved-errors badge is wired here, since the count is a
+  // per-request concern the registry can't know about.
+  const systemItems: NavItem[] = shellSurfacesForPlacement("system")
+    .filter((s) => !s.requiresSystemAdmin || isAdmin)
+    .map((s) => ({ ...s.navItem, badge: unresolvedErrorCount ?? 0 }));
 
   // Section-level active state — true when the current pathname is
   // on or under any item in this section. The header gets a subtle
@@ -393,14 +391,10 @@ export default function Sidebar({
         )}
       </div>
 
-      {/* Bottom block — ambient context + identity + controls */}
-      <div className="border-t border-edge">
-        <Timer
-          displayName={displayName}
-          avatarUrl={avatarUrl ?? null}
-          userId={userId}
-        />
-      </div>
+      {/* Bottom block — ambient context + identity + controls. The
+          running-timer widget is module-owned and arrives via the
+          timerSlot prop (composed in layout.tsx). */}
+      {timerSlot && <div className="border-t border-edge">{timerSlot}</div>}
 
       {/* Single-row profile + popover trigger. The avatar row used to
           carry a two-line block (display name + email) and was

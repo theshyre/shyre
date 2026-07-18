@@ -85,7 +85,7 @@ describe("RunningTimerCard", () => {
     ).toHaveFocus();
   });
 
-  it("renders nothing when a timer is running — sidebar <Timer> owns that surface", () => {
+  it("renders nothing when a timer is running — sidebar <SidebarTimer> owns that surface", () => {
     const running: TimeEntry = {
       id: "e1",
       team_id: "o1",

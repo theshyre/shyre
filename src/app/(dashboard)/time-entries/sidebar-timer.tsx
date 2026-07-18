@@ -8,7 +8,7 @@ import { Square, ArrowRight } from "lucide-react";
 import { LinkPendingSpinner } from "@theshyre/ui";
 import { buttonDangerClass, kbdClass } from "@/lib/form-styles";
 import { EntryAuthor } from "@/components/EntryAuthor";
-import { stopTimerAction } from "@/app/(dashboard)/time-entries/actions";
+import { stopTimerAction } from "./actions";
 import { useRunningEntry } from "@/hooks/use-running-entry";
 import { notifyTimerChanged } from "@/lib/timer-events";
 import { Tooltip } from "@/components/Tooltip";
@@ -34,8 +34,14 @@ interface Props {
  * /time-entries; stops can happen from here, from the entry kebab,
  * or a week-row Stop button. All mutations route through server
  * actions.
+ *
+ * Lives in the time-entries module (it calls the module's
+ * `stopTimerAction`) even though it renders inside the shell sidebar
+ * — the shell must stay module-agnostic, so the dashboard layout
+ * composes it in via the Sidebar's `timerSlot` prop instead of the
+ * Sidebar importing module code.
  */
-export default function Timer({
+export default function SidebarTimer({
   displayName,
   avatarUrl,
   userId,

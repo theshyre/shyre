@@ -1,6 +1,7 @@
 import { cookies } from "next/headers";
 import { getTranslations } from "next-intl/server";
 import Sidebar from "@/components/Sidebar";
+import SidebarTimer from "./time-entries/sidebar-timer";
 import { TimezoneSync } from "@/components/TimezoneSync";
 import { CurrentDateProvider } from "@/components/current-date-provider";
 import { RealtimeTeamSignal } from "@/components/realtime-team-signal";
@@ -119,6 +120,16 @@ export default async function DashboardLayout({
               canManageBusiness={canManageBusiness}
               teamCount={teamCount}
               primaryTeamName={primaryTeamName}
+              timerSlot={
+                // The running-timer widget is time-entries-module
+                // code; the layout (shell composition root) injects
+                // it so the shared <Sidebar> stays module-agnostic.
+                <SidebarTimer
+                  displayName={user.displayName}
+                  avatarUrl={avatarUrl ?? null}
+                  userId={user.userId}
+                />
+              }
             />
             <main
               id="main-content"

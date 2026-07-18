@@ -25,7 +25,7 @@ import { updateTimeEntryAction } from "./actions";
 import { CategoryPicker } from "./category-picker";
 import { DurationInput } from "./duration-input";
 import { Tooltip } from "@/components/Tooltip";
-import { TicketField, ticketFieldVisible } from "@/components/TicketField";
+import { TicketField, ticketFieldVisible } from "./ticket-field";
 import type { CategoryOption, ProjectOption, TimeEntry } from "./types";
 
 interface Props {

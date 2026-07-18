@@ -7,7 +7,7 @@ import { Tooltip } from "@/components/Tooltip";
 import {
   refreshTicketTitleAction,
   applyTicketTitleAsDescriptionAction,
-} from "@/app/(dashboard)/time-entries/actions";
+} from "./actions";
 
 export interface TicketChipProps {
   /** The owning time entry's id — used by the refresh action. When

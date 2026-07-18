@@ -15,12 +15,12 @@ import { renderWithIntl } from "@/test/intl";
  *   - apply-as-title button only when title is resolved
  */
 
-vi.mock("@/app/(dashboard)/time-entries/actions", () => ({
+vi.mock("./actions", () => ({
   refreshTicketTitleAction: vi.fn().mockResolvedValue(undefined),
   applyTicketTitleAsDescriptionAction: vi.fn().mockResolvedValue(undefined),
 }));
 
-import { TicketChip } from "./TicketChip";
+import { TicketChip } from "./ticket-chip";
 
 describe("TicketChip — provider variants", () => {
   it("renders Jira provider with the 'J' glyph", () => {
