@@ -10,6 +10,8 @@ Vercel auto-deploys app code on every push to `main`. The `.github/workflows/db-
 
 `ADD COLUMN`, `CREATE TABLE`, `CREATE INDEX`, `CREATE POLICY`, adding a nullable FK, adding a new enum value: safe to ship in a single PR with the code that uses them. If the migration lands first, the column is unused (fine). If the code lands first, queries against the new column fail gracefully (Supabase returns `{ data: null, error: ... }`, server code falls back to `[]`) and recover the moment the migration finishes seconds later. Use `IF NOT EXISTS` everywhere so retries are idempotent.
 
+**`ADD COLUMN` on a table with a `*_v` view ⇒ `CREATE OR REPLACE VIEW` in the same migration.** A view's column list is frozen at creation, so the new column does NOT flow through — readers of the view silently get nothing (the `customers.accent_color`/`logo_url` incident: added in `20260717150000`, view only refreshed in `20260717210000`, customer-edit form read NULL branding in between). `src/__tests__/view-parity.test.ts` enforces this for `customers_v`.
+
 ## Destructive migrations — two-PR dance
 
 `DROP COLUMN`, `DROP TABLE`, `ALTER COLUMN ... NOT NULL` without default, renaming, narrowing a type: ship in two PRs, never one.

@@ -14,12 +14,18 @@ import {
   MAX_OTP_ATTEMPTS,
   VIEW_SESSION_TTL_HOURS,
 } from "./tokens";
-import { roundMoney } from "./line-items";
+import {
+  roundMoney,
+  buildProposalItemTree,
+  PROPOSAL_ITEM_COLUMNS,
+  type ProposalItemDbRow,
+} from "./line-items";
 import { isValidProposalStatusTransition } from "./status";
+import { unwrapEmbed } from "@/lib/supabase/embed";
 import {
   resolveSignTheme,
   type SignTheme,
-} from "@/app/(dashboard)/proposals/allow-lists";
+} from "@/lib/proposals/allow-lists";
 
 /**
  * The public sign-off service (SAL-036). Every function takes the RAW token
@@ -183,15 +189,35 @@ function hasValidViewSession(
 
 type Admin = ReturnType<typeof createAdminClient>;
 
+/**
+ * Surface a read-path DB error to /admin/errors before the caller returns its
+ * deliberately coarse not_found/failure — otherwise a transient DB outage is
+ * indistinguishable from a bad link. PGRST116 ("zero rows" from `.single()`)
+ * is excluded: that outcome IS the expected not_found business result (e.g. a
+ * probing or stale link), not a failure worth an error-log entry.
+ */
+function logReadError(
+  error: { code?: string; message?: string } | null,
+  action: string,
+  teamId?: string,
+): void {
+  if (!error || error.code === "PGRST116") return;
+  logError(new Error(`${action} read failed: ${error.message ?? "unknown"}`), {
+    ...(teamId ? { teamId } : {}),
+    action,
+  });
+}
+
 async function findValidToken(
   admin: Admin,
   rawToken: string,
 ): Promise<SignResult<TokenRow>> {
-  const { data } = await admin
+  const { data, error } = await admin
     .from("proposal_access_tokens")
     .select("*")
     .eq("token_hash", sha256Hex(rawToken))
     .single();
+  logReadError(error, "signService.findValidToken");
   const token = data as TokenRow | null;
   if (!token) return { ok: false, reason: "not_found" };
   if (token.revoked_at) return { ok: false, reason: "revoked" };
@@ -273,54 +299,17 @@ ${url}`,
   }
 }
 
-interface LineItemRow {
-  id: string;
-  parent_line_item_id: string | null;
-  sort_order: number;
-  title: string;
-  summary: string | null;
-  body_markdown: string | null;
-  description: string | null;
-  why_it_matters: string | null;
-  out_of_scope: string | null;
-  definition_of_done: string | null;
-  fixed_price: number | string;
-  is_capped: boolean;
-}
-
 async function loadItems(
   admin: Admin,
   proposalId: string,
 ): Promise<SignBundleItem[]> {
-  const { data } = await admin
+  const { data, error } = await admin
     .from("proposal_line_items")
-    .select(
-      "id, parent_line_item_id, sort_order, title, summary, body_markdown, description, why_it_matters, out_of_scope, definition_of_done, fixed_price, is_capped",
-    )
+    .select(PROPOSAL_ITEM_COLUMNS)
     .eq("proposal_id", proposalId)
     .order("sort_order");
-  const rows = (data ?? []) as LineItemRow[];
-  return rows
-    .filter((r) => r.parent_line_item_id === null)
-    .map((parent) => ({
-      id: parent.id,
-      title: parent.title,
-      summary: parent.summary ?? null,
-      bodyMarkdown: parent.body_markdown,
-      description: parent.description,
-      whyItMatters: parent.why_it_matters,
-      outOfScope: parent.out_of_scope,
-      definitionOfDone: parent.definition_of_done,
-      fixedPrice: Number(parent.fixed_price),
-      isCapped: parent.is_capped,
-      phases: rows
-        .filter((r) => r.parent_line_item_id === parent.id)
-        .map((phase) => ({
-          title: phase.title,
-          description: phase.description,
-          fixedPrice: Number(phase.fixed_price),
-        })),
-    }));
+  logReadError(error, "signService.loadItems");
+  return buildProposalItemTree((data ?? []) as ProposalItemDbRow[]);
 }
 
 /** A fresh, un-expired code is outstanding — the gate can jump straight to the
@@ -373,21 +362,23 @@ export async function loadSignGate(
   if (!tokenResult.ok) return tokenResult;
   const token = tokenResult.value;
 
-  const { data: settings } = await admin
+  const { data: settings, error: settingsError } = await admin
     .from("team_settings")
     .select(
       "business_name, logo_url, brand_color, wordmark_primary, wordmark_secondary",
     )
     .eq("team_id", token.team_id)
     .single();
+  logReadError(settingsError, "signService.loadSignGate", token.team_id);
 
   // Only the pinned theme is read here — a colour name, not proposal content —
   // so the gate can render in the same look as the document behind it.
-  const { data: themeRow } = await admin
+  const { data: themeRow, error: themeError } = await admin
     .from("proposals")
     .select("sign_theme")
     .eq("id", token.proposal_id)
     .single();
+  logReadError(themeError, "signService.loadSignGate", token.team_id);
 
   return {
     ok: true,
@@ -419,13 +410,14 @@ export async function loadSignBundle(
   if (!tokenResult.ok) return tokenResult;
   const token = tokenResult.value;
 
-  const { data: proposal } = await admin
+  const { data: proposal, error: proposalError } = await admin
     .from("proposals")
     .select(
       "id, team_id, user_id, proposal_number, title, status, issued_date, valid_until, payment_terms_label, deposit_type, deposit_value, warranty_days, terms_notes, currency, accepted_total, signing_mode, overview_markdown, sign_theme, customers(name, accent_color, logo_url)",
     )
     .eq("id", token.proposal_id)
     .single();
+  logReadError(proposalError, "signService.loadSignBundle", token.team_id);
   if (!proposal) return { ok: false, reason: "not_found" };
 
   // First open: stamp the token, log the event, flip sent → viewed. Later
@@ -454,21 +446,22 @@ export async function loadSignBundle(
     }
   }
 
-  const { data: settings } = await admin
+  const { data: settings, error: settingsError } = await admin
     .from("team_settings")
     .select(
       "business_name, logo_url, brand_color, wordmark_primary, wordmark_secondary",
     )
     .eq("team_id", token.team_id)
     .single();
+  logReadError(settingsError, "signService.loadSignBundle", token.team_id);
   type CustomerBrand = {
     name: string;
     accent_color: string | null;
     logo_url: string | null;
   };
-  const customer = Array.isArray(proposal.customers)
-    ? ((proposal.customers[0] ?? null) as CustomerBrand | null)
-    : (proposal.customers as CustomerBrand | null);
+  const customer = unwrapEmbed(
+    proposal.customers as CustomerBrand | CustomerBrand[] | null,
+  );
 
   const items = await loadItems(admin, token.proposal_id);
 
@@ -728,13 +721,14 @@ export async function recordSignDecision(
     return { ok: false, reason: "otp_required" };
   }
 
-  const { data: proposal } = await admin
+  const { data: proposal, error: proposalError } = await admin
     .from("proposals")
     .select(
       "id, user_id, status, proposal_number, title, payment_terms_label, deposit_type, deposit_value, warranty_days, terms_notes, currency, valid_until, signing_mode",
     )
     .eq("id", token.proposal_id)
     .single();
+  logReadError(proposalError, "signService.recordSignDecision", token.team_id);
   if (!proposal) return { ok: false, reason: "not_found" };
   if (
     !isValidProposalStatusTransition(
@@ -817,11 +811,16 @@ export async function recordSignDecision(
   // rate snapshot rides on the acceptance and is what the invoice bills at.
   let taxRateSnapshot: number | null = null;
   if (input.decision === "accepted") {
-    const { data: settings } = await admin
+    const { data: settings, error: settingsError } = await admin
       .from("team_settings")
       .select("tax_rate")
       .eq("team_id", token.team_id)
       .maybeSingle();
+    logReadError(
+      settingsError,
+      "signService.recordSignDecision",
+      token.team_id,
+    );
     taxRateSnapshot = settings?.tax_rate != null ? Number(settings.tax_rate) : 0;
   }
 

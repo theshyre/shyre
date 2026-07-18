@@ -22,7 +22,9 @@ import { generateSignToken, TOKEN_TTL_DAYS } from "@/lib/proposals/tokens";
 import { isValidProposalStatusTransition } from "@/lib/proposals/status";
 import { sendProposalEmail } from "@/lib/messaging/send-proposal";
 import { escapeHtml } from "@/lib/messaging/escape-html";
-import { isProposalEditable } from "./allow-lists";
+import { unwrapEmbed } from "@/lib/supabase/embed";
+import { pickVersionCopyColumns } from "@/lib/proposals/version-copy";
+import { isProposalEditable } from "@/lib/proposals/allow-lists";
 
 /**
  * Parse the structured form payload (the authoring form posts one JSON field —
@@ -449,18 +451,20 @@ export async function sendProposalAction(formData: FormData): Promise<void> {
         .eq("proposal_id", proposalId)
         .order("sort_order");
 
+      interface RosterContact {
+        name: string | null;
+        email: string | null;
+        customer_id: string;
+      }
       let recipients: Recipient[];
       if (rosterRows && rosterRows.length > 0) {
         recipients = rosterRows.map((row) => {
-          const c = (
-            Array.isArray(row.customer_contacts)
-              ? row.customer_contacts[0]
-              : row.customer_contacts
-          ) as {
-            name: string | null;
-            email: string | null;
-            customer_id: string;
-          } | null;
+          const c = unwrapEmbed(
+            row.customer_contacts as
+              | RosterContact
+              | RosterContact[]
+              | null,
+          );
           if (!c || c.customer_id !== proposal.customer_id) {
             throw AppError.refusal(
               "A signer contact does not belong to this customer.",
@@ -1157,25 +1161,13 @@ export async function createProposalVersionAction(
         .insert({
           team_id: source.team_id,
           user_id: userId,
-          customer_id: source.customer_id,
-          signer_contact_id: source.signer_contact_id,
-          // Carry the signing mode forward — a multi-signer proposal must stay
-          // multi-signer across a version bump, not silently reset to 'first'.
-          signing_mode: source.signing_mode,
+          // Every copied content/terms column (signing_mode included — a
+          // multi-signer proposal must stay multi-signer across a version
+          // bump). VERSION_COPY_COLUMNS is the single audited list, so a new
+          // proposals column can't silently drop out of version copies.
+          // issued_date is deliberately NOT copied (DB default = today).
+          ...pickVersionCopyColumns(source as Record<string, unknown>),
           proposal_number: generateInvoiceNumber(prefix, nextNum),
-          title: source.title,
-          // Fresh issue date (DB default = today); the validity window is
-          // copied for the author to adjust in the new draft.
-          valid_until: source.valid_until,
-          payment_terms_days: source.payment_terms_days,
-          payment_terms_label: source.payment_terms_label,
-          deposit_type: source.deposit_type,
-          deposit_value: source.deposit_value,
-          warranty_days: source.warranty_days,
-          terms_notes: source.terms_notes,
-          overview_markdown: source.overview_markdown,
-          sign_theme: source.sign_theme,
-          currency: source.currency,
           version_number: ((source.version_number as number) ?? 1) + 1,
           supersedes_proposal_id: proposalId,
         })

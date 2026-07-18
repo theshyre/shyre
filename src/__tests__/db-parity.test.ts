@@ -43,7 +43,7 @@ import {
   ALLOWED_COMPENSATION_TYPES,
   ALLOWED_COMPENSATION_SCHEDULES,
 } from "@/app/(dashboard)/business/people-allow-lists";
-import { ALLOWED_INVOICE_GROUPING_MODES } from "@/app/(dashboard)/invoices/allow-lists";
+import { ALLOWED_INVOICE_GROUPING_MODES } from "@/lib/invoices/allow-lists";
 import {
   ALLOWED_BUDGET_PERIODS,
   ALLOWED_BUDGET_CARRYOVER,
@@ -56,7 +56,7 @@ import {
   ALLOWED_SIGN_THEMES,
   ALLOWED_PROPOSAL_EVENT_TYPES,
   ALLOWED_ACCEPTANCE_DECISIONS,
-} from "@/app/(dashboard)/proposals/allow-lists";
+} from "@/lib/proposals/allow-lists";
 import {
   ALLOWED_OUTBOX_STATUS,
   ALLOWED_RELATED_KINDS,

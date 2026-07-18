@@ -7,7 +7,7 @@ import {
   isProposalEditable,
   resolveSignTheme,
   type DepositType,
-} from "../../allow-lists";
+} from "@/lib/proposals/allow-lists";
 import {
   ProposalForm,
   type ProposalFormInitial,

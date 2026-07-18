@@ -5,31 +5,23 @@ import { getTranslations } from "next-intl/server";
 import { ArrowLeft, Eye } from "lucide-react";
 import { createClient } from "@/lib/supabase/server";
 import { buttonSecondaryClass } from "@/lib/form-styles";
-import { roundMoney } from "@/lib/proposals/line-items";
+import {
+  roundMoney,
+  buildProposalItemTree,
+  PROPOSAL_ITEM_COLUMNS,
+  type ProposalItemDbRow,
+} from "@/lib/proposals/line-items";
+import { loadProposalRoster } from "@/lib/proposals/roster";
+import { unwrapEmbed } from "@/lib/supabase/embed";
 import {
   ProposalDocumentView,
   type ProposalDocumentItem,
 } from "@/components/ProposalDocumentView";
-import { resolveSignTheme, type DepositType } from "../../allow-lists";
+import { resolveSignTheme, type DepositType } from "@/lib/proposals/allow-lists";
 
 export async function generateMetadata(): Promise<Metadata> {
   const t = await getTranslations("proposals.preview");
   return { title: t("title") };
-}
-
-interface Row {
-  id: string;
-  parent_line_item_id: string | null;
-  sort_order: number;
-  title: string;
-  summary: string | null;
-  body_markdown: string | null;
-  description: string | null;
-  why_it_matters: string | null;
-  out_of_scope: string | null;
-  definition_of_done: string | null;
-  fixed_price: number | string;
-  is_capped: boolean;
 }
 
 /**
@@ -59,9 +51,7 @@ export default async function ProposalPreviewPage({
 
   const { data: itemRows } = await supabase
     .from("proposal_line_items")
-    .select(
-      "id, parent_line_item_id, sort_order, title, summary, body_markdown, description, why_it_matters, out_of_scope, definition_of_done, fixed_price, is_capped",
-    )
+    .select(PROPOSAL_ITEM_COLUMNS)
     .eq("proposal_id", proposalId)
     .order("sort_order");
 
@@ -73,52 +63,28 @@ export default async function ProposalPreviewPage({
 
   // Signer roster (2+ signers) — each gets a signature line in the acceptance
   // block so the preview matches the multi-signer document the client receives.
-  const { data: signerRows } = await supabase
-    .from("proposal_signers")
-    .select("sort_order, customer_contacts(name)")
-    .eq("proposal_id", proposalId)
-    .order("sort_order");
-  const signers = (signerRows ?? []).map((row) => {
-    const c = (
-      Array.isArray(row.customer_contacts)
-        ? row.customer_contacts[0]
-        : row.customer_contacts
-    ) as { name: string } | null;
-    return c?.name ?? "—";
-  });
+  const signers = (await loadProposalRoster(supabase, proposalId)).map(
+    (entry) => entry.name,
+  );
 
-  const rows = (itemRows ?? []) as Row[];
-  const parents = rows.filter((r) => r.parent_line_item_id === null);
-  const items: ProposalDocumentItem[] = parents.map((parent) => ({
-    id: parent.id,
-    title: parent.title,
-    summary: parent.summary ?? null,
-    bodyMarkdown: parent.body_markdown,
-    description: parent.description,
-    whyItMatters: parent.why_it_matters,
-    outOfScope: parent.out_of_scope,
-    definitionOfDone: parent.definition_of_done,
-    fixedPrice: Number(parent.fixed_price),
-    isCapped: parent.is_capped,
-    phases: rows
-      .filter((r) => r.parent_line_item_id === parent.id)
-      .map((phase) => ({
-        title: phase.title,
-        description: phase.description,
-        fixedPrice: Number(phase.fixed_price),
-      })),
-  }));
+  const items: ProposalDocumentItem[] = buildProposalItemTree(
+    (itemRows ?? []) as ProposalItemDbRow[],
+  );
   const total = roundMoney(items.reduce((sum, i) => sum + i.fixedPrice, 0));
 
-  const customerRaw = Array.isArray(proposal.customers)
-    ? (proposal.customers[0] ?? null)
-    : proposal.customers;
+  interface CustomerBrandRow {
+    name: string | null;
+    logo_url: string | null;
+    accent_color: string | null;
+  }
+  const customerRaw = unwrapEmbed(
+    proposal.customers as CustomerBrandRow | CustomerBrandRow[] | null,
+  );
   const customer = customerRaw
     ? {
-        name: (customerRaw as { name: string | null }).name ?? null,
-        logoUrl: (customerRaw as { logo_url: string | null }).logo_url ?? null,
-        accentColor:
-          (customerRaw as { accent_color: string | null }).accent_color ?? null,
+        name: customerRaw.name ?? null,
+        logoUrl: customerRaw.logo_url ?? null,
+        accentColor: customerRaw.accent_color ?? null,
       }
     : null;
 

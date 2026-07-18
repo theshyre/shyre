@@ -17,7 +17,7 @@ import {
 import {
   ALLOWED_INVOICE_GROUPING_MODES,
   type InvoiceGroupingMode,
-} from "./allow-lists";
+} from "@/lib/invoices/allow-lists";
 import {
   isValidInvoiceStatusTransition,
   type InvoiceStatus,
