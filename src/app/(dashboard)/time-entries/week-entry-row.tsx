@@ -69,7 +69,11 @@ import {
   updateTimeEntryDurationAction,
 } from "./actions";
 import { DurationInput } from "./duration-input";
-import { displayDescription, type TitleLine } from "./group-entries-by-title";
+import {
+  displayDescription,
+  deriveAgentAttribution,
+  type TitleLine,
+} from "./group-entries-by-title";
 import type { ProjectOption, TimeEntry } from "./types";
 
 const DAYS_IN_WEEK = 7;
@@ -210,7 +214,13 @@ export function EntrySummaryRow({
               surfaces a time_entries row renders the author. Compact
               mode shows just the avatar with name on hover so the
               sub-row stays scannable. */}
-          <EntryAuthor author={entry.author} size={16} compact />
+          <EntryAuthor
+            author={entry.author}
+            size={16}
+            compact
+            startedByKind={entry.started_by_kind}
+            agentLabel={entry.agent_label}
+          />
           {ticketKey ? (
             ticketUrl ? (
               <a
@@ -517,6 +527,9 @@ export function TitleLineRow({
   const taskName = ticketKey ?? (desc || t("untitled"));
   const allEntries = line.entriesByDay.flat();
   const author = allEntries[0]?.author ?? null;
+  // Agent attribution rollup — if any folded entry was agent-started,
+  // the merged line carries the Bot badge (SAL-051, display-only).
+  const agentAttribution = deriveAgentAttribution(allEntries);
   const invoicedLabel =
     line.invoicedState === "all"
       ? tLock("locked")
@@ -705,7 +718,14 @@ export function TitleLineRow({
               </button>
             </Tooltip>
           </span>
-          <EntryAuthor author={author} size={16} compact />
+          <EntryAuthor
+            author={author}
+            size={16}
+            compact
+            startedByKind={agentAttribution?.startedByKind}
+            agentLabel={agentAttribution?.agentLabel}
+            rollup
+          />
           {ticketKey ? (
             ticketUrl ? (
               <a
@@ -827,6 +847,11 @@ export function TitleLineDrawer({
 }: TitleLineDrawerProps): React.JSX.Element {
   const tTitle = useTranslations("time.titleLine");
   const author = rows[0]?.entry.author ?? null;
+  // Same rollup as the merged line this drawer expands from — the
+  // header chip must not lose the Bot badge the line carries.
+  const drawerAttribution = deriveAgentAttribution(
+    rows.map((r) => r.entry),
+  );
 
   const handleKeyDown = (e: React.KeyboardEvent<HTMLDivElement>): void => {
     if (e.key === "Escape") {
@@ -853,7 +878,14 @@ export function TitleLineDrawer({
           {/* Author once, per the authorship rule — the merged line is
               single-author by construction. */}
           <div className="flex items-center gap-1.5 pb-1 text-caption text-content-muted">
-            <EntryAuthor author={author} size={14} compact />
+            <EntryAuthor
+              author={author}
+              size={14}
+              compact
+              startedByKind={drawerAttribution?.startedByKind}
+              agentLabel={drawerAttribution?.agentLabel}
+              rollup
+            />
             <span>{tTitle("drawerHeader", { count: rows.length })}</span>
           </div>
           <ul className="space-y-px">

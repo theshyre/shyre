@@ -3,6 +3,7 @@
 How each Shyre feature works. Apply to every user regardless of role; role-specific behavior (e.g. who can edit, who can share) is called out inline and linked from the [agency owner guides](../agency/) where relevant.
 
 - [Time tracking](time-tracking.md)
+- [Agent attribution on time entries](agent-attribution.md)
 - [Live updates & day rollover](live-updates.md)
 - [Customers](customers.md)
 - [Projects](projects.md)
@@ -11,7 +12,9 @@ How each Shyre feature works. Apply to every user regardless of role; role-speci
 - [Business identity](business-identity.md)
 - [Expenses](expenses.md)
 - [Invoicing](invoicing.md)
+- [Reviewing agent-tracked time](agent-time-review.md)
 - [Proposals](proposals.md)
 - [Imports (Harvest)](imports.md)
 - [Integration tokens](integration-tokens.md)
+- [Integrations API (REST + MCP)](integrations-api.md)
 - [Keyboard shortcuts](keyboard-shortcuts.md)

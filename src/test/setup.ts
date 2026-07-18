@@ -8,17 +8,20 @@ import { vi } from "vitest";
 // bundler boundaries, not behavior.
 vi.mock("server-only", () => ({}));
 
-// Mock window.matchMedia for jsdom
-Object.defineProperty(window, "matchMedia", {
-  writable: true,
-  value: (query: string) => ({
-    matches: false,
-    media: query,
-    onchange: null,
-    addListener: () => {},
-    removeListener: () => {},
-    addEventListener: () => {},
-    removeEventListener: () => {},
-    dispatchEvent: () => false,
-  }),
-});
+// Mock window.matchMedia for jsdom. Guarded so files that opt into the
+// node environment (e.g. the MCP route test) can share this setup.
+if (typeof window !== "undefined") {
+  Object.defineProperty(window, "matchMedia", {
+    writable: true,
+    value: (query: string) => ({
+      matches: false,
+      media: query,
+      onchange: null,
+      addListener: () => {},
+      removeListener: () => {},
+      addEventListener: () => {},
+      removeEventListener: () => {},
+      dispatchEvent: () => false,
+    }),
+  });
+}

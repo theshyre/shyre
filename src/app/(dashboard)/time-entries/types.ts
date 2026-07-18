@@ -57,6 +57,18 @@ export interface TimeEntry {
   projects: ProjectInfo | null;
   /** Per the mandatory authorship rule — present on every display-bound entry. */
   author: AuthorInfo | null;
+  /** Who/what initiated the entry (SAL-051, display-only). DB default
+   *  is 'user'; optional because narrower selects may omit the column —
+   *  absent renders identically to 'user'. 'agent' / 'integration' add
+   *  the Bot badge on every authorship chip. */
+  started_by_kind?: "user" | "agent" | "integration" | "import" | null;
+  /** Opaque session/run reference from the starting agent (e.g. a
+   *  Claude Code session id). Shown as read-only meta on the edit
+   *  form; DB-immutable. */
+  started_by_ref?: string | null;
+  /** Human-readable agent name, e.g. "Claude Code". Null for
+   *  user-started entries. */
+  agent_label?: string | null;
 }
 
 export interface ProjectOption {

@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useRef, useState } from "react";
 import { useTranslations } from "next-intl";
+import { Bot } from "lucide-react";
 import { AlertBanner } from "@theshyre/ui";
 import { useFormAction } from "@/hooks/use-form-action";
 import { useFormDirty } from "@/hooks/use-form-dirty";
@@ -58,6 +59,7 @@ export function InlineEditForm({
   const t = useTranslations("time");
   const tc = useTranslations("common");
   const tLock = useTranslations("time.lock");
+  const tAuthorship = useTranslations("common.authorship");
   const descRef = useRef<HTMLTextAreaElement>(null);
   const formRef = useRef<HTMLFormElement>(null);
 
@@ -148,6 +150,29 @@ export function InlineEditForm({
     >
       {locked && (
         <AlertBanner tone="warning">{tLock("editBlocked")}</AlertBanner>
+      )}
+      {/* Agent attribution — read-only meta (SAL-051). The columns are
+          DB-immutable (default-deny trigger), so there is deliberately
+          no edit affordance: "Logged by Claude Code · session abc123". */}
+      {(entry.started_by_kind === "agent" ||
+        entry.started_by_kind === "integration") && (
+        <p className="flex items-center gap-1.5 text-caption text-content-muted">
+          <Bot size={14} aria-hidden="true" className="shrink-0" />
+          <span>
+            {tAuthorship("loggedByAgent", {
+              label:
+                entry.agent_label ??
+                tAuthorship(
+                  entry.started_by_kind === "integration"
+                    ? "integrationFallback"
+                    : "agentFallback",
+                ),
+            })}
+            {entry.started_by_ref
+              ? ` · ${tAuthorship("sessionRef", { ref: entry.started_by_ref })}`
+              : null}
+          </span>
+        </p>
       )}
       {serverError && (
         <AlertBanner tone="error">{serverError}</AlertBanner>

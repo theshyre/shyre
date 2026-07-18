@@ -38,7 +38,11 @@ import {
   flattenEntriesByDay,
   shouldAutoExpand,
 } from "./week-entry-row";
-import { groupEntriesByTitle, type TitleLine } from "./group-entries-by-title";
+import {
+  groupEntriesByTitle,
+  deriveAgentAttribution,
+  type TitleLine,
+} from "./group-entries-by-title";
 import { formatDurationHMZero } from "@/lib/time/week";
 import { notifyTimerChanged } from "@/lib/timer-events";
 import { localDayBoundsIso } from "@/lib/local-day-bounds";
@@ -1766,7 +1770,24 @@ function TimesheetRow({
           })()}
           {showAuthorChip && (
             <div className="mt-1">
-              <EntryAuthor author={row.author} size={16} />
+              {/* Agent-attribution rollup (SAL-051): if any entry
+                  summed into this row was agent-started, the row's
+                  author chip carries the Bot badge so agent-logged
+                  minutes never hide inside the weekly aggregate. */}
+              {(() => {
+                const attribution = deriveAgentAttribution(
+                  row.entriesByDay.flat(),
+                );
+                return (
+                  <EntryAuthor
+                    author={row.author}
+                    size={16}
+                    startedByKind={attribution?.startedByKind}
+                    agentLabel={attribution?.agentLabel}
+                    rollup
+                  />
+                );
+              })()}
             </div>
           )}
         </div>

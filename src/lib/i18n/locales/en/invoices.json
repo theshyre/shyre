@@ -48,10 +48,26 @@
       "includeHelp": "Add unbilled billable expenses (vendor charges, subscriptions, fees) for the selected customer + date range as separate invoice lines.",
       "includeHelpNoCustomer": "Pick a customer first — billable expenses are scoped per-customer through their project."
     },
+    "agentReview": {
+      "heading": "Agent-tracked time",
+      "count": "{count, plural, one {1 entry} other {# entries}}",
+      "help": "These entries were started by AI agents on your behalf. Review them before invoicing — Exclude only removes an entry from this invoice; nothing is deleted or changed.",
+      "unlabeled": "Agent",
+      "overlapBadge": "Overlaps your tracked time",
+      "overlapDetail": "Overlaps \"{entry}\" — {name}'s entry on the same project.",
+      "overlapUntitledEntry": "an untitled entry on {date}",
+      "excludedStatus": "{count, plural, =0 {No entries excluded from this invoice.} one {1 entry excluded from this invoice.} other {# entries excluded from this invoice.}}",
+      "exclude": "Exclude",
+      "excludeAria": "Exclude \"{entry}\" from this invoice",
+      "include": "Include",
+      "includeAria": "Include \"{entry}\" on this invoice",
+      "excludedChip": "Excluded"
+    },
     "preview": {
       "heading": "Preview",
       "entries": "Time entries",
       "hours": "Total hours",
+      "agentHours": "Agent hours",
       "lines": "Invoice lines",
       "expenses": "{count, plural, one {1 expense} other {# expenses}}",
       "expensesNonUsdExcluded": "{count, plural, one {1 non-USD expense excluded — phase 2 invoices USD only.} other {# non-USD expenses excluded — phase 2 invoices USD only.}}",

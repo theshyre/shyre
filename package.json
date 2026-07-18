@@ -30,6 +30,7 @@
     "setup:company": "npm run db:push && npm run seed:company"
   },
   "dependencies": {
+    "@modelcontextprotocol/sdk": "^1.26.0",
     "@react-pdf/renderer": "^4.4.1",
     "@supabase/ssr": "^0.12.0",
     "@supabase/supabase-js": "^2.103.0",
@@ -38,6 +39,7 @@
     "@theshyre/ui": "^0.12.0",
     "geist": "^1.7.0",
     "lucide-react": "^1.8.0",
+    "mcp-handler": "^1.1.0",
     "mdast-util-to-string": "^4.0.0",
     "next": "^16.2.6",
     "next-intl": "^4.9.1",

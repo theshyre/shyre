@@ -18,6 +18,10 @@ interface RowFixture {
   user_id: string;
   description: string | null;
   start_time: string;
+  /** Optional in the fixture: rows predating the SAL-051 columns (or a
+   *  select that omits them) must degrade to 'user' / null. */
+  started_by_kind?: string;
+  agent_label?: string | null;
   projects:
     | { name?: string; customers?: { name?: string } | null }
     | null;
@@ -217,5 +221,59 @@ describe("useRunningEntry", () => {
       expect(captured.value).not.toBeNull();
     });
     expect(captured.value?.today_baseline_min).toBe(0);
+  });
+
+  it("carries agent attribution through to the summary (SAL-051)", async () => {
+    state.runningRow = {
+      id: "e-1",
+      project_id: "p-1",
+      category_id: null,
+      user_id: "u-1",
+      description: null,
+      start_time: new Date(2026, 4, 15, 9, 0).toISOString(),
+      started_by_kind: "agent",
+      agent_label: "Claude Code",
+      projects: { name: "X", customers: null },
+    };
+    type Captured = { started_by_kind?: string; agent_label?: string | null };
+    const captured: { value: Captured | null } = { value: null };
+    render(
+      <Probe
+        onRunning={(r) => {
+          captured.value = r as Captured;
+        }}
+      />,
+    );
+    await waitFor(() => {
+      expect(captured.value).not.toBeNull();
+    });
+    expect(captured.value?.started_by_kind).toBe("agent");
+    expect(captured.value?.agent_label).toBe("Claude Code");
+  });
+
+  it("defaults attribution to 'user' / null when the columns are absent", async () => {
+    state.runningRow = {
+      id: "e-1",
+      project_id: "p-1",
+      category_id: null,
+      user_id: "u-1",
+      description: null,
+      start_time: new Date(2026, 4, 15, 9, 0).toISOString(),
+      projects: { name: "X", customers: null },
+    };
+    type Captured = { started_by_kind?: string; agent_label?: string | null };
+    const captured: { value: Captured | null } = { value: null };
+    render(
+      <Probe
+        onRunning={(r) => {
+          captured.value = r as Captured;
+        }}
+      />,
+    );
+    await waitFor(() => {
+      expect(captured.value).not.toBeNull();
+    });
+    expect(captured.value?.started_by_kind).toBe("user");
+    expect(captured.value?.agent_label).toBeNull();
   });
 });

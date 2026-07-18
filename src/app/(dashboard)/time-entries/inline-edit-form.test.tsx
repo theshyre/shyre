@@ -177,3 +177,77 @@ describe("InlineEditForm", () => {
     expect(descAfter?.value).toBe("AE-640 Fix login bug");
   });
 });
+
+describe("InlineEditForm — agent attribution meta (SAL-051)", () => {
+  it("shows 'Logged by {label} · session {ref}' for an agent-started entry", () => {
+    renderWithIntl(
+      <InlineEditForm
+        entry={{
+          ...entry,
+          started_by_kind: "agent",
+          agent_label: "Claude Code",
+          started_by_ref: "abc123",
+        }}
+        projects={[project]}
+        categories={[]}
+        onDone={() => {}}
+      />,
+    );
+    expect(
+      screen.getByText(/Logged by Claude Code · session abc123/),
+    ).toBeInTheDocument();
+  });
+
+  it("omits the session fragment when started_by_ref is null", () => {
+    renderWithIntl(
+      <InlineEditForm
+        entry={{
+          ...entry,
+          started_by_kind: "agent",
+          agent_label: "Claude Code",
+          started_by_ref: null,
+        }}
+        projects={[project]}
+        categories={[]}
+        onDone={() => {}}
+      />,
+    );
+    expect(screen.getByText("Logged by Claude Code")).toBeInTheDocument();
+    expect(screen.queryByText(/session/)).toBeNull();
+  });
+
+  it("falls back to the generic label for a label-less integration entry", () => {
+    renderWithIntl(
+      <InlineEditForm
+        entry={{
+          ...entry,
+          started_by_kind: "integration",
+          agent_label: null,
+          started_by_ref: null,
+        }}
+        projects={[project]}
+        categories={[]}
+        onDone={() => {}}
+      />,
+    );
+    expect(screen.getByText("Logged by Integration")).toBeInTheDocument();
+  });
+
+  it("renders NO attribution meta for user-started entries (no edit affordance either way)", () => {
+    const { container } = renderWithIntl(
+      <InlineEditForm
+        entry={entry}
+        projects={[project]}
+        categories={[]}
+        onDone={() => {}}
+      />,
+    );
+    expect(screen.queryByText(/Logged by/)).toBeNull();
+    // Attribution is DB-immutable — no form control must exist for it.
+    expect(
+      container.querySelector(
+        'input[name="started_by_kind"], input[name="agent_label"], input[name="started_by_ref"]',
+      ),
+    ).toBeNull();
+  });
+});
