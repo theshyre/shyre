@@ -22,7 +22,7 @@ import Link from "next/link";
 import { inputClass, selectClass, kbdClass } from "@/lib/form-styles";
 import { Tooltip } from "@/components/Tooltip";
 import { DateField } from "@/components/DateField";
-import { EXPENSE_CATEGORIES } from "./categories";
+import { EXPENSE_CATEGORIES } from "@/lib/expenses/categories";
 import {
   applyBillableFilter,
   applyProjectFilter,
@@ -35,7 +35,7 @@ import {
   toggleCategory as toggleCategoryFilter,
   type ExpenseFilters as Filters,
 } from "./filter-params";
-import type { ProjectOption } from "./page";
+import type { ProjectOption } from "@/lib/expenses/types";
 
 interface Props {
   /** Distinct YYYY strings of every expense in the business's

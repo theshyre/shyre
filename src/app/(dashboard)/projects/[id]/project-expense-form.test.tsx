@@ -5,7 +5,7 @@ import { renderWithIntl } from "@/test/intl";
 // Mock the createExpenseAction so the wrapper's render doesn't pull
 // the server-action import chain into the test environment.
 vi.mock(
-  "@/app/(dashboard)/business/[businessId]/expenses/actions",
+  "@/lib/expenses/actions",
   () => ({
     createExpenseAction: vi.fn(async () => ({ success: true })),
   }),

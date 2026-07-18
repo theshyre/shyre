@@ -5,8 +5,8 @@ import {
   ProjectExpensesTable,
   type ProjectExpensesTableExpense,
 } from "./project-expenses-table";
-import type { ExpenseAuthor } from "@/app/(dashboard)/business/[businessId]/expenses/expense-row";
-import type { ProjectOption } from "@/app/(dashboard)/business/[businessId]/expenses/page";
+import type { ExpenseAuthor } from "@/components/expenses/expense-row";
+import type { ProjectOption } from "@/lib/expenses/types";
 
 /** Re-export with the legacy name so consumers (the project page,
  *  the /projects/[id]/expenses route) don't need to be re-pointed. */
@@ -51,12 +51,12 @@ interface Props {
  * `hideSelection` on the row; bulk lives only on /business/[id]/
  * expenses.
  *
- * Cross-module note: this surface imports row + expanded-row
- * components from the business module. Platform-architect flagged
- * this as a layer violation in the phase-1 review; the user
- * explicitly chose the cross-module reuse over duplicating the
- * editable-row logic. Documented in
- * [[project-phase2-followups]] memory.
+ * The row + expanded-row components are the shared expense
+ * primitives from `src/components/expenses/` (backed by the
+ * row-level actions in `@/lib/expenses/actions`) — the same
+ * components the business module's /business/[id]/expenses table
+ * renders, so both surfaces stay in behavioral parity without any
+ * cross-module import. See docs/reference/modules.md.
  */
 export async function ExpensesSection({
   projectId,

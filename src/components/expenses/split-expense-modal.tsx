@@ -12,8 +12,8 @@ import {
   buttonPrimaryClass,
   buttonSecondaryClass,
 } from "@/lib/form-styles";
-import { splitExpenseAction } from "./actions";
-import { EXPENSE_CATEGORIES } from "./categories";
+import { splitExpenseAction } from "@/lib/expenses/actions";
+import { EXPENSE_CATEGORIES } from "@/lib/expenses/categories";
 import {
   appendBlankSplit,
   autoBalanceLastSplit,
@@ -23,7 +23,7 @@ import {
   totalSplitCents,
   validateSplits,
   type ExpenseSplit,
-} from "./split-helpers";
+} from "@/lib/expenses/split-helpers";
 
 interface Props {
   expenseId: string;

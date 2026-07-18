@@ -20,10 +20,10 @@ import {
 } from "@/lib/form-styles";
 import { SubmitButton } from "@/components/SubmitButton";
 import { DateField } from "@/components/DateField";
-import { createExpenseAction } from "./actions";
-import { EXPENSE_CATEGORIES, type ExpenseCategory } from "./categories";
-import { getCategoryHelp } from "./categories-help";
-import type { ProjectOption } from "./page";
+import { createExpenseAction } from "@/lib/expenses/actions";
+import { EXPENSE_CATEGORIES, type ExpenseCategory } from "@/lib/expenses/categories";
+import { getCategoryHelp } from "@/lib/expenses/categories-help";
+import type { ProjectOption } from "@/lib/expenses/types";
 
 interface Props {
   /** Default team to charge a new expense to. Used as the hidden

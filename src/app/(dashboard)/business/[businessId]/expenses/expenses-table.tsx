@@ -20,13 +20,13 @@ import {
   bulkUpdateExpenseCategoryAction,
   bulkUpdateExpenseProjectAction,
 } from "./actions";
-import { ExpenseRow, type ExpenseAuthor } from "./expense-row";
+import { ExpenseRow, type ExpenseAuthor } from "@/components/expenses/expense-row";
 import {
   BulkBillablePicker,
   BulkCategoryPicker,
   BulkProjectPicker,
 } from "./bulk-pickers";
-import type { ProjectOption } from "./page";
+import type { ProjectOption } from "@/lib/expenses/types";
 import type { ExpenseFilters } from "./filter-params";
 import { appendFilterParams } from "./filter-formdata";
 
