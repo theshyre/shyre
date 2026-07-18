@@ -242,7 +242,11 @@ describe("SignExperience", () => {
     await waitFor(() =>
       expect(region!.textContent).toMatch(/code has been emailed/i),
     );
-    // Focus lands in the revealed code field.
-    expect(screen.getByLabelText("6-digit code")).toHaveFocus();
+    // Focus lands in the revealed code field. waitFor: the focus is set
+    // by an effect after the field mounts — under CI parallel load the
+    // synchronous assertion raced it (flaked on #43's run).
+    await waitFor(() =>
+      expect(screen.getByLabelText("6-digit code")).toHaveFocus(),
+    );
   });
 });
