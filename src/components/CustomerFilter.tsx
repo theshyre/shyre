@@ -9,6 +9,8 @@ import { CustomerChip } from "@/components/CustomerChip";
 export interface CustomerFilterOption {
   id: string;
   name: string;
+  /** Uploaded logo — the stronger identity-mark when present. */
+  logo_url?: string | null;
 }
 
 interface Props {
@@ -94,6 +96,7 @@ export function CustomerFilter({
           <CustomerChip
             customerId={selected.id}
             customerName={selected.name}
+            logoUrl={selected.logo_url ?? null}
             size={14}
           />
         ) : (
@@ -143,6 +146,7 @@ export function CustomerFilter({
               <CustomerChip
                 customerId={c.id}
                 customerName={c.name}
+                logoUrl={c.logo_url ?? null}
                 size={14}
               />
               <span className="flex-1 min-w-0 truncate text-content">

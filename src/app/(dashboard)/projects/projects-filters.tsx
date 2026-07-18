@@ -270,6 +270,7 @@ export function CustomerFilter({
               <CustomerChip
                 customerId={c.id}
                 customerName={c.name}
+                logoUrl={(c as { logo_url?: string | null }).logo_url ?? null}
                 size={14}
               />
               <span className="font-medium text-content truncate">

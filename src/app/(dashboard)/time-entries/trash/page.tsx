@@ -32,7 +32,7 @@ export default async function TimeEntriesTrashPage({
   const { data: rows, count: matchingCount } = await supabase
     .from("time_entries")
     .select(
-      "id, start_time, end_time, duration_min, description, billable, deleted_at, projects(name, customers(name)), categories(name, color)",
+      "id, start_time, end_time, duration_min, description, billable, deleted_at, projects(name, customers(id, name, logo_url)), categories(name, color)",
       { count: "exact" },
     )
     .not("deleted_at", "is", null)
@@ -49,7 +49,7 @@ export default async function TimeEntriesTrashPage({
     billable: r.billable,
     deleted_at: r.deleted_at,
     project_name: pickProjectName(r.projects),
-    customer_name: pickCustomerName(r.projects),
+    customer: pickCustomer(r.projects),
     category: pickCategory(r.categories),
   }));
 
@@ -95,13 +95,16 @@ function pickProjectName(p: unknown): string {
   return obj.name ?? "—";
 }
 
-function pickCustomerName(p: unknown): string | null {
+function pickCustomer(
+  p: unknown,
+): { id: string; name: string; logo_url: string | null } | null {
   if (!p || typeof p !== "object") return null;
   const obj = p as { customers?: unknown };
   const customers = obj.customers;
   const first = Array.isArray(customers) ? customers[0] : customers;
   if (first && typeof first === "object" && "name" in first) {
-    return (first as { name: string }).name;
+    const c = first as { id: string; name: string; logo_url?: string | null };
+    return { id: c.id, name: c.name, logo_url: c.logo_url ?? null };
   }
   return null;
 }
