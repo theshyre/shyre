@@ -87,13 +87,15 @@ describe("SignGate", () => {
     expect(refreshMock).not.toHaveBeenCalled();
   });
 
-  it("shows a terminal message (no OTP form) once the link is decided", () => {
+  it("decided links stay RE-VIEWABLE: notice + the code flow remain", () => {
+    // 2026-07-18 decision: a signer can always re-verify to re-read the
+    // record they signed. Signing stays locked server-side.
     renderWithIntl(<SignGate token={TOKEN} info={info({ decided: true })} />);
     expect(
-      screen.getByText(/A decision has already been recorded/),
+      screen.getByText(/verify it's you to view the signed record/i),
     ).toBeInTheDocument();
     expect(
-      screen.queryByRole("button", { name: /Email me a code/ }),
-    ).not.toBeInTheDocument();
+      screen.getByRole("button", { name: /Email me a code/ }),
+    ).toBeInTheDocument();
   });
 });

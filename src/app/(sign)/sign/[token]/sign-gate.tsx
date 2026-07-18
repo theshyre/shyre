@@ -128,14 +128,16 @@ export function SignGate({ token, info }: Props): React.JSX.Element {
           {t("otpHeading")}
         </h1>
 
-        {info.decided ? (
-          <p className="mt-2 text-body text-content-secondary">
-            {t("gateDecided", { business: info.businessName ?? "—" })}
-          </p>
-        ) : (
-          <>
+        {/* Decided links stay re-viewable: the signer can always re-verify
+            to re-read the record they signed (2026-07-18 decision). The
+            intro copy changes; the code flow is identical. */}
+        <>
             <p className="mt-2 text-body text-content-secondary">
-              {t("gateWaiting", { business: info.businessName ?? "—" })}
+              {info.decided
+                ? t("gateDecidedViewable", {
+                    business: info.businessName ?? "—",
+                  })
+                : t("gateWaiting", { business: info.businessName ?? "—" })}
             </p>
             <p className="mt-1 text-body text-content-secondary">
               {t("gateHint", { email: info.maskedEmail })}
@@ -227,8 +229,7 @@ export function SignGate({ token, info }: Props): React.JSX.Element {
                 {error}
               </p>
             )}
-          </>
-        )}
+        </>
       </div>
     </main>
   );

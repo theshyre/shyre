@@ -216,7 +216,8 @@
     "sigSignature": "Firma",
     "sigNameTitle": "Nombre / Cargo",
     "sigDate": "Fecha",
-    "loading": "Cargando propuesta…"
+    "loading": "Cargando propuesta…",
+    "gateDecidedViewable": "Ya se registró una decisión para esta propuesta. Verifica tu identidad para ver el registro firmado."
   },
   "activity": {
     "heading": "Actividad",

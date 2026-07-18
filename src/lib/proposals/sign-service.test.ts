@@ -1003,3 +1003,38 @@ describe("owner notifications (batch 4a)", () => {
     expect((ownerSend![1] as { subject: string }).subject).toMatch(/accepted/);
   });
 });
+
+describe("re-verify-to-re-view (2026-07-18 decision)", () => {
+  it("a CONSUMED link can still be issued a code (view-only re-entry)", async () => {
+    queues["proposal_access_tokens"] = [
+      { data: tokenRow({ consumed_at: new Date(NOW - 1000).toISOString() }), error: null },
+      { data: null, error: null }, // otp write
+    ];
+    queues["proposal_events"] = [{ data: null, error: null }];
+    const result = await issueSignOtp(rawToken);
+    expect(result.ok).toBe(true);
+  });
+
+  it("signing on a consumed link is STILL refused", async () => {
+    queues["proposal_access_tokens"] = [
+      {
+        data: tokenRow({
+          consumed_at: new Date(NOW - 1000).toISOString(),
+          otp_verified_at: new Date(NOW - 500).toISOString(),
+        }),
+        error: null,
+      },
+    ];
+    const result = await recordSignDecision(rawToken, {
+      decision: "accepted",
+      signerName: "X",
+      signerTitle: null,
+      signatureTyped: "X",
+      selectedLineItemIds: ["li-1"],
+      ipAddress: null,
+      userAgent: null,
+      viewSession: "whatever",
+    });
+    expect(result).toEqual({ ok: false, reason: "consumed" });
+  });
+});
