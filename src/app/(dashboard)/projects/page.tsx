@@ -160,7 +160,7 @@ export default async function ProjectsPage({
 
   let clientsQuery = supabase
     .from("customers")
-    .select("id, name")
+    .select("id, name, inactive_at")
     .eq("archived", false)
     .order("name");
   if (selectedTeamId) clientsQuery = clientsQuery.eq("team_id", selectedTeamId);

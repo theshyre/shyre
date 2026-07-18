@@ -16,6 +16,9 @@ const STATUS_COLOR_CLASSES: Record<string, string> = {
   paused: "bg-warning-soft text-warning-text",
   completed: "bg-info-soft text-info-text",
   archived: "bg-surface-inset text-content-muted",
+  // Customer lifecycle (2026-07-18): dormant-but-visible. Explicit entry
+  // rather than the fallback so the color map can't drift silently.
+  inactive: "bg-surface-inset text-content-muted",
 };
 
 export function StatusBadge({

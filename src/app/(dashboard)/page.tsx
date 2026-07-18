@@ -108,7 +108,10 @@ export default async function DashboardPage(): Promise<React.JSX.Element> {
         .from("customers")
         .select("id")
 
-        .eq("archived", false),
+        .eq("archived", false)
+        // Dormant customers don't count as "customers" on the dashboard —
+        // the number means "who am I actively working with".
+        .is("inactive_at", null),
       supabase
         .from("projects")
         .select("id")

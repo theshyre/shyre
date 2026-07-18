@@ -64,5 +64,30 @@
     "logoLabel": "Logo"
   },
   "emptyTitle": "Aún no hay clientes",
-  "emptyDescription": "Añade tu primer cliente para empezar a registrar trabajo y enviar facturas."
+  "emptyDescription": "Añade tu primer cliente para empezar a registrar trabajo y enviar facturas.",
+  "filter": {
+    "all": "Todos",
+    "active": "Activos",
+    "inactive": "Inactivos",
+    "archived": "Archivados"
+  },
+  "status": {
+    "active": "Activo",
+    "inactive": "Inactivo",
+    "archived": "Archivado"
+  },
+  "bulkDeactivate": "Marcar inactivos ({count})",
+  "bulkDeactivatedToast": "{count, plural, =1 {1 cliente marcado} other {# clientes marcados}} como inactivo.",
+  "bulkReactivatedToast": "{count, plural, =1 {1 cliente reactivado} other {# clientes reactivados}}.",
+  "deactivateFailed": "No se pudo marcar como inactivo.",
+  "bulkRestore": "Restaurar ({count})",
+  "restore": "Restaurar",
+  "restoredToast": "Cliente restaurado.",
+  "restoreFailed": "No se pudo restaurar.",
+  "markInactive": "Marcar como inactivo",
+  "reactivate": "Reactivar",
+  "inactiveSince": "Inactivo desde {date}",
+  "lifecycleHint": "Los clientes inactivos mantienen todo su historial visible pero se agrupan por separado al iniciar trabajo nuevo. Para ocultar un cliente por completo, usa Archivar.",
+  "inactivePickerGroup": "Inactivos",
+  "inactivePickedHint": "Este cliente está marcado como inactivo."
 }

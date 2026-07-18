@@ -63,6 +63,30 @@ function mockSupabase() {
           state.updates.push({ table, patch, where: { [col]: val } });
           return Promise.resolve({ data: null, error: null });
         },
+        in: (col: string, vals: string[]) => {
+          const rec = {
+            table,
+            patch,
+            where: { [col]: vals.join("|") } as Record<string, string>,
+          };
+          return {
+            is: (col2: string, val2: unknown) => {
+              rec.where[col2] = String(val2);
+              state.updates.push(rec);
+              return Promise.resolve({ data: null, error: null });
+            },
+            then: (
+              onF: (v: { data: null; error: null }) => unknown,
+              onR?: (e: unknown) => unknown,
+            ) => {
+              state.updates.push(rec);
+              return Promise.resolve({ data: null, error: null }).then(
+                onF,
+                onR,
+              );
+            },
+          };
+        },
       }),
       select: () => ({
         eq: () => ({
@@ -79,6 +103,8 @@ vi.mock("@/lib/supabase/server", () => ({
 }));
 
 import {
+  deactivateCustomerAction,
+  reactivateCustomerAction,
   createCustomerAction,
   updateCustomerAction,
   setCustomerRateAction,
@@ -415,5 +441,29 @@ describe("archiveCustomerAction", () => {
   it("revalidates /customers", async () => {
     await archiveCustomerAction(fd({ id: "c1" }));
     expect(mockRevalidatePath).toHaveBeenCalledWith("/customers");
+  });
+});
+
+describe("deactivate / reactivate (lifecycle 2026-07-18)", () => {
+  beforeEach(resetState);
+
+  it("deactivate stamps inactive_at ONLY where currently null (idempotent — original date survives re-sweeps)", async () => {
+    await deactivateCustomerAction(fd({ id: "c1" }));
+    const u = state.updates.find((x) => x.table === "customers");
+    expect(u?.patch.inactive_at).toEqual(expect.any(String));
+    expect(u?.where).toMatchObject({ id: "c1", inactive_at: "null" });
+    expect(mockRevalidatePath).toHaveBeenCalledWith("/customers");
+    expect(mockRevalidatePath).toHaveBeenCalledWith("/customers/c1");
+  });
+
+  it("reactivate nulls inactive_at unconditionally", async () => {
+    await reactivateCustomerAction(fd({ id: "c1" }));
+    const u = state.updates.find((x) => x.table === "customers");
+    expect(u?.patch).toEqual({ inactive_at: null });
+  });
+
+  it("empty ids is a no-op", async () => {
+    await deactivateCustomerAction(fd({}));
+    expect(state.updates).toHaveLength(0);
   });
 });

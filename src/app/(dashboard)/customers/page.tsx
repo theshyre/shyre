@@ -49,12 +49,15 @@ interface CustomerRow {
   /** Uploaded customer logo (public URL) — shown as the list identity-mark
    *  in place of the initials chip when present. */
   logo_url: string | null;
+  /** Dormant-relationship marker (NULL = active). */
+  inactive_at: string | null;
 }
 
 interface SearchParams {
   [key: string]: string | string[] | undefined;
   org?: string;
   bounced?: string;
+  status?: string;
   limit?: string;
 }
 
@@ -67,6 +70,17 @@ export default async function ClientsPage({
   const teams = await getUserTeams();
   const sp = await searchParams;
   const { org: selectedTeamId, bounced: bouncedFilter } = sp;
+  // Lifecycle filter chips: All (active + inactive, badged) / Active /
+  // Inactive / Archived. Default deliberately shows inactive — "visible but
+  // dormant" is the whole distinction from archive. The Archived view doubles
+  // as the RESTORE surface (previously unreachable after the undo toast).
+  const statusFilter =
+    sp.status === "active" ||
+    sp.status === "inactive" ||
+    sp.status === "archived"
+      ? sp.status
+      : "all";
+  const showArchived = statusFilter === "archived";
   const { limit } = parseListPagination(sp);
   const t = await getTranslations("customers");
   // ?bounced=1 narrows the list to customers Resend has flagged
@@ -82,14 +96,14 @@ export default async function ClientsPage({
       supabase
         .from("customers_v")
         .select(
-          "id, team_id, name, email, default_rate, bounced_at, complained_at, logo_url",
+          "id, team_id, name, email, default_rate, bounced_at, complained_at, logo_url, inactive_at",
         )
-        .eq("archived", false)
+        .eq("archived", showArchived)
         .eq("team_id", selectedTeamId),
       supabase
         .from("customer_shares")
         .select(
-          "customer_id, customers_v(id, team_id, name, email, default_rate, bounced_at, complained_at, archived, logo_url)",
+          "customer_id, customers_v(id, team_id, name, email, default_rate, bounced_at, complained_at, archived, logo_url, inactive_at)",
         )
         .eq("team_id", selectedTeamId),
     ]);
@@ -103,7 +117,7 @@ export default async function ClientsPage({
       })
       .filter(
         (c): c is CustomerRow & { archived: boolean } =>
-          c !== null && c.archived === false,
+          c !== null && c.archived === showArchived,
       )) as Array<CustomerRow & { archived: boolean }>;
 
     const byId = new Map<string, CustomerRow>();
@@ -119,6 +133,7 @@ export default async function ClientsPage({
           bounced_at: c.bounced_at,
           complained_at: c.complained_at,
           logo_url: c.logo_url,
+          inactive_at: c.inactive_at,
         });
     }
     customers = Array.from(byId.values()).sort((a, b) =>
@@ -145,6 +160,11 @@ export default async function ClientsPage({
     customers = customers.filter(
       (c) => c.bounced_at || c.complained_at,
     );
+  }
+  if (statusFilter === "active") {
+    customers = customers.filter((c) => c.inactive_at === null);
+  } else if (statusFilter === "inactive") {
+    customers = customers.filter((c) => c.inactive_at !== null);
   }
 
   // Load-more pagination (parseListPagination + PaginationFooter,
@@ -206,7 +226,36 @@ export default async function ClientsPage({
         </div>
       )}
 
+      {/* Lifecycle filter chips — always visible (context is never hidden).
+          "Archived" doubles as the restore surface. */}
+      <div className="mt-4 flex flex-wrap items-center gap-2">
+        {(["all", "active", "inactive", "archived"] as const).map((opt) => {
+          const isCurrent = statusFilter === opt;
+          const params = new URLSearchParams();
+          if (selectedTeamId) params.set("org", selectedTeamId);
+          if (opt !== "all") params.set("status", opt);
+          const href = params.size
+            ? `/customers?${params.toString()}`
+            : "/customers";
+          return (
+            <Link
+              key={opt}
+              href={href}
+              aria-current={isCurrent ? "true" : undefined}
+              className={`rounded-full border px-3 py-1 text-caption font-medium transition-colors ${
+                isCurrent
+                  ? "border-accent bg-accent-soft text-accent-text"
+                  : "border-edge text-content-secondary hover:bg-hover"
+              }`}
+            >
+              {t(`filter.${opt}`)}
+            </Link>
+          );
+        })}
+      </div>
+
       <CustomersTable
+        view={showArchived ? "archived" : "default"}
         customers={customers ?? []}
         totalCount={totalCount}
         shareCounts={shareCounts}

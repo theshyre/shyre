@@ -13,6 +13,7 @@ import {
 } from "lucide-react";
 import { StatusBadge } from "@/components/StatusBadge";
 import { CustomerChip } from "@/components/CustomerChip";
+import { CustomerLifecycleButton } from "./customer-lifecycle-button";
 import { LinkPendingSpinner } from "@/components/LinkPendingSpinner";
 import { buttonSecondaryClass } from "@/lib/form-styles";
 import { formatCurrency } from "@/lib/invoice-utils";
@@ -411,6 +412,19 @@ export default async function ClientDetailPage({
         <h1 className="text-page-title font-bold text-content break-words">
           {customerName}
         </h1>
+        {/* Lifecycle state — the archived detail page used to render with
+            ZERO indication (flagged blocking by the UX review). */}
+        {client.archived === true ? (
+          <StatusBadge status="archived" label={t("status.archived")} />
+        ) : client.inactive_at ? (
+          <StatusBadge status="inactive" label={t("status.inactive")} />
+        ) : null}
+        {client.archived !== true && (
+          <CustomerLifecycleButton
+            customerId={client.id as string}
+            inactive={client.inactive_at != null}
+          />
+        )}
       </div>
       <p className="mt-1 text-caption text-content-muted">
         {t("editSubtitle")}

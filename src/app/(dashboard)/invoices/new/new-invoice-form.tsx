@@ -53,6 +53,9 @@ interface CustomerOption {
   name: string;
   default_rate: number | null;
   payment_terms_days: number | null;
+  /** Dormant customer — bottom-grouped; still billable (final invoices,
+   *  stragglers). Never a hard block: that strands receivables. */
+  inactive_at?: string | null;
 }
 
 /** Per-entry payload streamed to the client by `page.tsx`. The
@@ -249,6 +252,7 @@ export function NewInvoiceForm({
   teams: TeamListItem[];
 }): React.JSX.Element {
   const t = useTranslations("invoices");
+  const tCustomers = useTranslations("customers");
   const tNew = useTranslations("invoices.new");
   const tPay = useTranslations("paymentTerms");
 
@@ -648,11 +652,24 @@ export function NewInvoiceForm({
                   className={selectClass}
                 >
                   <option value="">{t("allClients")}</option>
-                  {customers.map((c) => (
-                    <option key={c.id} value={c.id}>
-                      {c.name}
-                    </option>
-                  ))}
+                  {customers
+                    .filter((c) => !c.inactive_at)
+                    .map((c) => (
+                      <option key={c.id} value={c.id}>
+                        {c.name}
+                      </option>
+                    ))}
+                  {customers.some((c) => c.inactive_at) && (
+                    <optgroup label={tCustomers("inactivePickerGroup")}>
+                      {customers
+                        .filter((c) => c.inactive_at)
+                        .map((c) => (
+                          <option key={c.id} value={c.id}>
+                            {c.name}
+                          </option>
+                        ))}
+                    </optgroup>
+                  )}
                 </select>
                 {/* Hidden inputs carry the selected project ids
                     through to the server action. Empty selection =

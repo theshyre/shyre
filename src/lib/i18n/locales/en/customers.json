@@ -64,5 +64,30 @@
     "logoLabel": "Logo"
   },
   "emptyTitle": "No customers yet",
-  "emptyDescription": "Add your first customer to start tracking work and sending invoices."
+  "emptyDescription": "Add your first customer to start tracking work and sending invoices.",
+  "filter": {
+    "all": "All",
+    "active": "Active",
+    "inactive": "Inactive",
+    "archived": "Archived"
+  },
+  "status": {
+    "active": "Active",
+    "inactive": "Inactive",
+    "archived": "Archived"
+  },
+  "bulkDeactivate": "Mark inactive ({count})",
+  "bulkDeactivatedToast": "{count, plural, =1 {1 customer} other {# customers}} marked inactive.",
+  "bulkReactivatedToast": "{count, plural, =1 {1 customer} other {# customers}} reactivated.",
+  "deactivateFailed": "Couldn't mark inactive.",
+  "bulkRestore": "Restore ({count})",
+  "restore": "Restore",
+  "restoredToast": "Customer restored.",
+  "restoreFailed": "Couldn't restore.",
+  "markInactive": "Mark inactive",
+  "reactivate": "Reactivate",
+  "inactiveSince": "Inactive since {date}",
+  "lifecycleHint": "Inactive customers keep all history visible but are grouped separately when starting new work. To hide a customer entirely, use Archive.",
+  "inactivePickerGroup": "Inactive",
+  "inactivePickedHint": "This customer is marked inactive."
 }
