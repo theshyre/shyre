@@ -145,3 +145,21 @@ describe("toCsv", () => {
     expect(csv.endsWith("\r\n")).toBe(true);
   });
 });
+
+describe("escapeCsvField — formula-injection defense (SAL-048)", () => {
+  it("prefixes leading formula triggers on strings with a quote", () => {
+    expect(escapeCsvField("=HYPERLINK(\"http://evil\")")).toBe(
+      "\"'=HYPERLINK(\"\"http://evil\"\")\"",
+    );
+    expect(escapeCsvField("+1234")).toBe("'+1234");
+    expect(escapeCsvField("-cmd")).toBe("'-cmd");
+    expect(escapeCsvField("@SUM(A1)")).toBe("'@SUM(A1)");
+  });
+
+  it("leaves numbers, booleans, and ordinary strings untouched", () => {
+    expect(escapeCsvField(-42.5)).toBe("-42.5");
+    expect(escapeCsvField(true)).toBe("true");
+    expect(escapeCsvField("Acme Corp")).toBe("Acme Corp");
+    expect(escapeCsvField("")).toBe("");
+  });
+});
