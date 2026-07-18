@@ -68,3 +68,15 @@ See `src/lib/modules/registry.ts` for the source of truth.
 - [Architecture](architecture.md)
 - [Database schema](database-schema.md)
 - Platform Architect persona at `docs/personas/platform-architect.md`
+
+
+## Documented exception: projects ↔ business expenses
+
+`src/app/(dashboard)/projects/[id]/*` deliberately imports `ExpenseRow`,
+`NewExpenseForm`, `dedupeVendors`, and the expense search helpers from
+`src/app/(dashboard)/business/[businessId]/expenses/*`. This crosses the
+"modules never import from other modules" rule ON PURPOSE (2026-05-28
+decision): the project page embeds the real expense surface rather than a
+diverging copy. Do not "fix" it by duplicating; the sanctioned refactor is
+lifting the shared expense primitives into `src/lib/expenses/` when next
+touched.

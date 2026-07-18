@@ -1,5 +1,6 @@
 "use client";
 
+import { CustomerChip } from "@/components/CustomerChip";
 import { useCallback, useEffect, useState, useTransition } from "react";
 import { useTranslations } from "next-intl";
 import { RotateCcw } from "lucide-react";
@@ -24,7 +25,7 @@ interface TrashEntry {
   billable: boolean;
   deleted_at: string | null;
   project_name: string;
-  customer_name: string | null;
+  customer: { id: string; name: string; logo_url: string | null } | null;
   category: { name: string; color: string } | null;
 }
 
@@ -317,8 +318,18 @@ export function TrashList({ entries, formatDuration }: Props): React.JSX.Element
               </td>
               <td className="px-4 py-2 text-body-lg text-content">
                 {e.project_name}
-                {e.customer_name && (
-                  <span className="text-content-muted"> · {e.customer_name}</span>
+                {e.customer && (
+                  <span className="inline-flex items-center gap-1.5 text-content-muted">
+                    {" "}
+                    ·{" "}
+                    <CustomerChip
+                      customerId={e.customer.id}
+                      customerName={e.customer.name}
+                      logoUrl={e.customer.logo_url}
+                      size={14}
+                    />
+                    {e.customer.name}
+                  </span>
                 )}
                 {e.description && (
                   <div className="text-caption text-content-muted truncate max-w-xs">

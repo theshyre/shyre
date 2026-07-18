@@ -39,6 +39,9 @@ function ThemedShell({
   return (
     <div
       data-theme={theme}
+      // Hook for the prefers-contrast: more override in globals.css — a
+      // visitor's OS contrast preference beats the author's pinned theme.
+      data-sign-surface
       className="min-h-screen bg-surface text-content"
     >
       {children}

@@ -26,7 +26,7 @@ function makeEntry(id: string) {
     billable: true,
     deleted_at: "2026-04-14T12:00:00Z",
     project_name: "Alpha",
-    customer_name: "Acme",
+    customer: { id: "cust-1", name: "Acme", logo_url: null },
     category: { name: "Build", color: "#00aa00" },
   };
 }

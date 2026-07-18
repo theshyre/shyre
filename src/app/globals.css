@@ -223,3 +223,41 @@ html[data-density="comfortable"] {
 .shyre-select::-ms-expand {
   display: none;
 }
+
+
+/* Accessibility escape hatch for the PINNED sign-page theme (a11y review):
+ * an author may pin `dark`/`warm` for their client, but a visitor whose OS
+ * asks for MORE contrast gets the high-contrast palette regardless of the
+ * pin. Values are the `[data-theme="high-contrast"]` block verbatim (from
+ * @theshyre/design-tokens — re-declared because CSS cannot alias another
+ * selector's custom properties). Scoped to the sign surface only via
+ * [data-sign-surface]; the dashboard already has a user-selectable
+ * high-contrast theme. */
+@media (prefers-contrast: more) {
+  [data-sign-surface] {
+    --surface: #ffffff;
+    --surface-raised: #ffffff;
+    --surface-inset: #f3f4f6;
+    --surface-overlay: rgba(0, 0, 0, 0.7);
+    --content: #000000;
+    --content-secondary: #1f2937;
+    --content-muted: #374151;
+    --content-inverse: #ffffff;
+    --edge: #000000;
+    --edge-muted: #6b7280;
+    --accent: #3730a3;
+    --accent-hover: #312e81;
+    --accent-soft: #c7d2fe;
+    --accent-text: #312e81;
+    --focus-ring: #4338ca;
+    --hover: #e5e7eb;
+    --success: #047857;
+    --success-soft: #a7f3d0;
+    --warning: #b45309;
+    --warning-soft: #fde68a;
+    --error: #b91c1c;
+    --error-soft: #fecaca;
+    --info: #1d4ed8;
+    --info-soft: #bfdbfe;
+  }
+}

@@ -122,3 +122,13 @@ is clear at design time.
   `@theshyre/ui` (drop the local copy + re-import) once a second consumer
   appears. Watch for CSS `field-sizing: content` reaching Safari, which would
   retire the JS entirely.
+
+
+## 2026-07-18 architecture-review verdicts
+
+| Component | Verdict |
+|---|---|
+| `CustomerChip` | **Ready** — deps are lucide + `AVATAR_PRESETS`/`presetAvatarUrl` from `@theshyre/ui`; it's the square org-counterpart to `Avatar` and the round-person/square-org doctrine belongs in the package. Promote with `DateField` + `LocalDateTime` in the next batch. |
+| `Modal` | Evaluate — the focus-trap/return-focus fixes here should land upstream in the `@theshyre/ui` Modal instead of promoting a fork. |
+| `MarkdownView` | Only if Liv needs markdown (adds react-markdown + remark-gfm to the package). |
+| `LogoPicker` | **Not ready** — imports `@/lib/supabase/client`; needs an upload-callback split first. |
