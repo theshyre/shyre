@@ -24,6 +24,8 @@ import {
   toIsoEndOfDay,
 } from "./reports-period";
 import { ReportsPeriodFilter } from "./reports-period-filter";
+import { entryMatchesSource, resolveReportsSource } from "./reports-source";
+import { ReportsSourceFilter } from "./reports-source-filter";
 
 interface ClientSummary {
   name: string;
@@ -69,6 +71,9 @@ export default async function ReportsPage({
      *  children when the id refers to a parent project. Unset = no
      *  project filter (totals span every visible project in scope). */
     project?: string;
+    /** Source lens: all (default) / human / agent — separates
+     *  agent-tracked hours from human-initiated ones (SAL-051 P3). */
+    source?: string;
   }>;
 }): Promise<React.JSX.Element> {
   const supabase = await createClient();
@@ -81,6 +86,7 @@ export default async function ReportsPage({
     to: params.to ?? null,
     preset: params.preset ?? null,
   });
+  const source = resolveReportsSource(params.source ?? null);
   const t = await getTranslations("reports");
 
   const userTeamIds = teams.map((tm) => tm.id);
@@ -141,7 +147,7 @@ export default async function ReportsPage({
   let entriesQuery = supabase
     .from("time_entries")
     .select(
-      "user_id, duration_min, billable, projects(name, hourly_rate, is_internal, customers(id, name, logo_url, default_rate))",
+      "user_id, duration_min, billable, started_by_kind, projects(name, hourly_rate, is_internal, customers(id, name, logo_url, default_rate))",
     )
     .not("end_time", "is", null)
     .not("duration_min", "is", null)
@@ -152,7 +158,13 @@ export default async function ReportsPage({
   if (expandedProjectIds !== null) {
     entriesQuery = entriesQuery.in("project_id", expandedProjectIds);
   }
-  const { data: entries } = await entriesQuery;
+  const { data: rawEntryRows } = await entriesQuery;
+  // Source lens: agent vs human (= everything not agent, so the two
+  // buckets partition All exactly). Applied in JS via the same pure
+  // helper the tests pin, keeping filter math in one place.
+  const entries = (rawEntryRows ?? []).filter((entry) =>
+    entryMatchesSource(entry.started_by_kind as string | null, source),
+  );
 
   // Get org's default rate (use selected org's settings if filtered, otherwise 0)
   let defaultRate = 0;
@@ -348,12 +360,13 @@ export default async function ReportsPage({
         {t("period.label", { from: period.from, to: period.to })}
       </p>
 
-      <div className="mt-4">
+      <div className="mt-4 space-y-3">
         <ReportsPeriodFilter
           from={period.from}
           to={period.to}
           preset={period.preset}
         />
+        <ReportsSourceFilter source={source} />
       </div>
 
       {/* Summary cards */}

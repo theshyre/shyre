@@ -16,6 +16,9 @@ interface RawEntryRow {
   description: string | null;
   duration_min: number | null;
   start_time: string | null;
+  end_time: string | null;
+  started_by_kind: string | null;
+  agent_label: string | null;
   user_id: string;
   project_id: string;
   projects: {
@@ -114,7 +117,7 @@ export default async function NewInvoicePage(): Promise<React.JSX.Element> {
     ? await supabase
         .from("time_entries")
         .select(
-          "id, team_id, description, duration_min, start_time, user_id, project_id, projects!inner(name, hourly_rate, invoice_code, customer_id, is_internal, customers(default_rate)), categories(name)",
+          "id, team_id, description, duration_min, start_time, end_time, started_by_kind, agent_label, user_id, project_id, projects!inner(name, hourly_rate, invoice_code, customer_id, is_internal, customers(default_rate)), categories(name)",
         )
         .in("team_id", teamIds)
         .eq("invoiced", false)
@@ -208,6 +211,15 @@ export default async function NewInvoicePage(): Promise<React.JSX.Element> {
         r.start_time && r.start_time.length >= 10
           ? r.start_time.slice(0, 10)
           : "",
+      // Agent-review metadata (SAL-051 P3): full timestamps for the
+      // wall-clock overlap check + display-only attribution. The
+      // kind defaults to 'user' for pre-migration rows where the
+      // column hasn't backfilled into a cached row shape.
+      userId: r.user_id,
+      startTime: r.start_time,
+      endTime: r.end_time,
+      startedByKind: r.started_by_kind ?? "user",
+      agentLabel: r.agent_label ?? null,
     };
   });
 

@@ -11,6 +11,7 @@ How each Shyre feature works. Apply to every user regardless of role; role-speci
 - [Business identity](business-identity.md)
 - [Expenses](expenses.md)
 - [Invoicing](invoicing.md)
+- [Reviewing agent-tracked time](agent-time-review.md)
 - [Proposals](proposals.md)
 - [Imports (Harvest)](imports.md)
 - [Keyboard shortcuts](keyboard-shortcuts.md)

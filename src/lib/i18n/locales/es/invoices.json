@@ -48,10 +48,26 @@
       "includeHelp": "Agrega los gastos facturables sin facturar (cargos de proveedores, suscripciones, comisiones) del cliente y rango de fechas seleccionados como líneas separadas de la factura.",
       "includeHelpNoCustomer": "Elige primero un cliente — los gastos facturables se asignan por cliente a través de su proyecto."
     },
+    "agentReview": {
+      "heading": "Tiempo registrado por agentes",
+      "count": "{count, plural, one {1 registro} other {# registros}}",
+      "help": "Estos registros fueron iniciados por agentes de IA en tu nombre. Revísalos antes de facturar — Excluir solo quita el registro de esta factura; no se elimina ni se modifica nada.",
+      "unlabeled": "Agente",
+      "overlapBadge": "Se superpone con tu tiempo registrado",
+      "overlapDetail": "Se superpone con \"{entry}\" — registro de {name} en el mismo proyecto.",
+      "overlapUntitledEntry": "un registro sin título del {date}",
+      "excludedStatus": "{count, plural, =0 {Ningún registro excluido de esta factura.} one {1 registro excluido de esta factura.} other {# registros excluidos de esta factura.}}",
+      "exclude": "Excluir",
+      "excludeAria": "Excluir \"{entry}\" de esta factura",
+      "include": "Incluir",
+      "includeAria": "Incluir \"{entry}\" en esta factura",
+      "excludedChip": "Excluido"
+    },
     "preview": {
       "heading": "Vista previa",
       "entries": "Registros de tiempo",
       "hours": "Horas totales",
+      "agentHours": "Horas de agentes",
       "lines": "Líneas de factura",
       "expenses": "{count, plural, one {1 gasto} other {# gastos}}",
       "expensesNonUsdExcluded": "{count, plural, one {1 gasto en moneda distinta a USD excluido — la fase 2 solo factura en USD.} other {# gastos en moneda distinta a USD excluidos — la fase 2 solo factura en USD.}}",
