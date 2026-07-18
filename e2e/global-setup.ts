@@ -47,7 +47,26 @@ async function globalSetup(config: FullConfig): Promise<void> {
       email_confirm: true,
     });
   if (createErr || !createData.user) {
-    throw new Error(`Failed to create e2e user: ${createErr?.message}`);
+    // The sweep above is best-effort: the staging project's admin delete
+    // endpoint currently returns 500 (empty body) even for freshly created
+    // users, so the previous run's fixture can survive teardown. Reset the
+    // existing user in place instead of failing the whole suite — the specs
+    // only need a confirmed user with a known password.
+    const { data: users } = await admin.auth.admin.listUsers({
+      page: 1,
+      perPage: 1000,
+    });
+    const existing = (users?.users ?? []).find((u) => u.email === E2E_EMAIL);
+    if (!existing) {
+      throw new Error(`Failed to create e2e user: ${createErr?.message}`);
+    }
+    const { error: resetErr } = await admin.auth.admin.updateUserById(
+      existing.id,
+      { password: E2E_PASSWORD, email_confirm: true },
+    );
+    if (resetErr) {
+      throw new Error(`Failed to reset e2e user: ${resetErr.message}`);
+    }
   }
 
   // Sign in via Playwright and save auth state
