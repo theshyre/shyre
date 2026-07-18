@@ -23,7 +23,7 @@ describe("Avatar", () => {
       <Avatar avatarUrl="preset:violet" displayName="Marcus" />,
     );
     const el = container.querySelector("span") as HTMLElement;
-    expect(el.style.backgroundColor).toBe("rgb(139, 92, 246)"); // #8b5cf6
+    expect(el.style.backgroundColor).toBe("rgb(124, 58, 237)"); // #7c3aed — violet deepened for AA initials (tokens 0.6.0)
     expect(el.textContent).toBe("M");
   });
 
