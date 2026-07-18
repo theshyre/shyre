@@ -130,6 +130,7 @@ export function EditableCell(props: EditableCellProps): React.JSX.Element {
   // Stable id for the optional <datalist> (text variant only). Hook
   // must run unconditionally even when no suggestions are passed.
   const datalistId = useId();
+  const errorId = useId();
 
   const effectiveDraft = draft ?? value;
   // Native autocomplete suggestions for the text variant. De-dupe +
@@ -289,6 +290,8 @@ export function EditableCell(props: EditableCellProps): React.JSX.Element {
           onKeyDown={handleKey}
           onBlur={() => void commit()}
           disabled={showSpinner}
+          aria-invalid={errorBorder || undefined}
+          aria-describedby={errorBorder && errorMessage ? errorId : undefined}
           className={`block w-full min-w-0 max-w-full rounded-sm border bg-surface py-0.5 text-inherit ${
             errorBorder ? "border-error" : "border-accent"
           } focus:outline-none focus:ring-1 focus:ring-accent`}
@@ -310,6 +313,8 @@ export function EditableCell(props: EditableCellProps): React.JSX.Element {
           onKeyDown={handleKey}
           onBlur={() => void commit()}
           disabled={showSpinner}
+          aria-invalid={errorBorder || undefined}
+          aria-describedby={errorBorder && errorMessage ? errorId : undefined}
           rows={(props as TextareaProps).rows ?? 2}
           placeholder={placeholder}
           className={`block w-full min-w-0 max-w-full rounded-sm border bg-surface py-0.5 text-inherit resize-none ${
@@ -346,6 +351,10 @@ export function EditableCell(props: EditableCellProps): React.JSX.Element {
             onKeyDown={handleKey}
             onBlur={() => void commit()}
             disabled={showSpinner}
+            aria-invalid={errorBorder || undefined}
+            aria-describedby={
+              errorBorder && errorMessage ? errorId : undefined
+            }
             placeholder={placeholder}
             list={hasSuggestions ? datalistId : undefined}
             {...(props.variant === "number" && {
@@ -375,13 +384,23 @@ export function EditableCell(props: EditableCellProps): React.JSX.Element {
         </div>
       )}
       {errorBorder && errorMessage && (
-        <div className="pointer-events-none absolute inset-y-0 right-1 flex items-center">
-          <Tooltip label={errorMessage} labelMode="label">
-            <span className="inline-flex">
-              <AlertTriangle size={12} className="text-error" />
-            </span>
-          </Tooltip>
-        </div>
+        // Visible inline error, NOT a tooltip: the old icon-tooltip sat in a
+        // pointer-events-none wrapper on a non-focusable span, so neither
+        // mouse nor keyboard nor screen reader could ever reach the message
+        // (and the project tooltip rule forbids tooltips for form errors).
+        // Floats below the cell so the table row doesn't reflow.
+        <p
+          id={errorId}
+          role="alert"
+          className="absolute left-0 top-full z-20 mt-0.5 flex max-w-[240px] items-start gap-1 rounded-md border border-edge bg-surface-raised px-2 py-1 text-label text-error-text shadow-lg"
+        >
+          <AlertTriangle
+            size={12}
+            aria-hidden="true"
+            className="mt-0.5 shrink-0"
+          />
+          {errorMessage}
+        </p>
       )}
     </div>
   );

@@ -462,6 +462,27 @@ export function DateField(props: DateFieldProps): React.JSX.Element {
 
   const handleGridKeyDown = useCallback(
     (e: React.KeyboardEvent<HTMLDivElement>) => {
+      // Keys the grid handles must not leak to window-level shortcut
+      // listeners — the time views bind bare ArrowLeft/ArrowRight to
+      // prev/next week-or-day, so without this an arrow press inside the
+      // jump-to-date calendar would ALSO navigate the page behind it
+      // (and the resulting scroll could dismiss the popover mid-use).
+      if (
+        [
+          "ArrowLeft",
+          "ArrowRight",
+          "ArrowUp",
+          "ArrowDown",
+          "Home",
+          "End",
+          "PageUp",
+          "PageDown",
+          "Enter",
+          " ",
+        ].includes(e.key)
+      ) {
+        e.stopPropagation();
+      }
       switch (e.key) {
         case "ArrowLeft":
           e.preventDefault();

@@ -128,7 +128,10 @@ export default async function DashboardLayout({
               </div>
             </main>
             <GlobalKeyboardHelp />
-            <GlobalCommandPalette isSystemAdmin={admin} />
+            <GlobalCommandPalette
+              isSystemAdmin={admin}
+              canManageBusiness={canManageBusiness}
+            />
           </div>
           <RealtimeTeamSignal teamIds={teams.map((team) => team.id)} />
         </CurrentDateProvider>

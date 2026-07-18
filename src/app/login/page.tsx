@@ -5,7 +5,7 @@ import { useRouter } from "next/navigation";
 import { useState } from "react";
 import { useTranslations } from "next-intl";
 import { inputClass, labelClass, buttonPrimaryClass } from "@/lib/form-styles";
-import { LogIn, UserPlus } from "lucide-react";
+import { LogIn, UserPlus, CircleAlert, MailCheck } from "lucide-react";
 import { Logo } from "@/components/Logo";
 
 export default function LoginPage(): React.JSX.Element {
@@ -13,6 +13,11 @@ export default function LoginPage(): React.JSX.Element {
   const [password, setPassword] = useState("");
   const [isSignUp, setIsSignUp] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  // Success/info messaging ("check your email") gets its OWN channel — it
+  // used to render through the error slot in red with role="alert", which
+  // miscoded a success as a failure on every channel (color, icon-less,
+  // assertive announcement).
+  const [notice, setNotice] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
   const router = useRouter();
   const supabase = createClient();
@@ -22,6 +27,7 @@ export default function LoginPage(): React.JSX.Element {
   async function handleSubmit(e: React.FormEvent): Promise<void> {
     e.preventDefault();
     setError(null);
+    setNotice(null);
     setLoading(true);
 
     const { error: authError } = isSignUp
@@ -35,7 +41,7 @@ export default function LoginPage(): React.JSX.Element {
     }
 
     if (isSignUp) {
-      setError(t("checkEmailConfirmation"));
+      setNotice(t("checkEmailConfirmation"));
       setLoading(false);
       return;
     }
@@ -92,9 +98,20 @@ export default function LoginPage(): React.JSX.Element {
             <p
               role="alert"
               aria-live="assertive"
-              className="text-body-lg text-error"
+              className="flex items-start gap-2 text-body-lg text-error-text"
             >
+              <CircleAlert size={16} aria-hidden="true" className="mt-0.5 shrink-0" />
               {error}
+            </p>
+          )}
+
+          {notice && (
+            <p
+              role="status"
+              className="flex items-start gap-2 rounded-md bg-success-soft px-3 py-2 text-body-lg text-success-text"
+            >
+              <MailCheck size={16} aria-hidden="true" className="mt-0.5 shrink-0" />
+              {notice}
             </p>
           )}
 
@@ -123,6 +140,7 @@ export default function LoginPage(): React.JSX.Element {
             onClick={() => {
               setIsSignUp(!isSignUp);
               setError(null);
+              setNotice(null);
             }}
             className="text-accent hover:underline"
           >
