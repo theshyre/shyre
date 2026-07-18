@@ -44,3 +44,5 @@ Migration filenames sort lexically. A migration with a timestamp earlier than an
 - Prod migrations need `SUPABASE_DB_URL` repo secret (session-pooler URI, port 5432). Without it, `db-migrate.yml` fails loudly — treat that as a fire, not a warning.
 - Local `npm run db:push` and the GH Action are interchangeable; the migration table dedupes. If you apply locally because CI is slow, the action will no-op on the next push.
 - Never disable the `db-verify.yml` PR check to get a merge through. If it's red, the migration is broken — fix it, don't route around it.
+
+- **FKs to `auth.users`**: any new table referencing `auth.users` must GRANT the RI minimum to `supabase_auth_admin` in the same migration (CASCADE → SELECT, DELETE; SET NULL → SELECT, UPDATE; else SELECT) — otherwise GoTrue's hard `deleteUser` 500s for every user (SAL-050).
