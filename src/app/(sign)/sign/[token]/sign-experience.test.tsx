@@ -79,7 +79,7 @@ function bundle(overrides: Partial<SignBundle> = {}): SignBundle {
     awaitingPrimary: false,
     overviewMarkdown: null,
     signerEmail: "jordan@eyereg.example",
-    otpVerified: false,
+    otpVerified: true,
     otpPending: false,
     decided: false,
     offerExpired: false,
@@ -108,38 +108,7 @@ describe("SignExperience", () => {
     expect(screen.getByText(/Net 30/)).toBeInTheDocument();
   });
 
-  it("gates signing behind the OTP: request then verify", async () => {
-    requestMock.mockResolvedValue({ ok: true, sentTo: "jordan@eyereg.example" });
-    verifyMock.mockResolvedValue({ ok: true });
-    renderWithIntl(<SignExperience token="tok" bundle={bundle()} />);
 
-    // No sign form yet.
-    expect(screen.queryByLabelText("Your name")).not.toBeInTheDocument();
-
-    fireEvent.click(screen.getByRole("button", { name: /Email me a code/ }));
-    await waitFor(() => expect(requestMock).toHaveBeenCalledWith("tok"));
-    await waitFor(() =>
-      expect(screen.getByLabelText("6-digit code")).toBeInTheDocument(),
-    );
-
-    fireEvent.change(screen.getByLabelText("6-digit code"), {
-      target: { value: "123456" },
-    });
-    fireEvent.click(screen.getByRole("button", { name: /Verify/ }));
-    await waitFor(() =>
-      expect(verifyMock).toHaveBeenCalledWith("tok", "123456"),
-    );
-    expect(refreshMock).toHaveBeenCalled();
-  });
-
-  it("shows a translated error on OTP failure", async () => {
-    requestMock.mockResolvedValue({ ok: false, reason: "otp_cooldown" });
-    renderWithIntl(<SignExperience token="tok" bundle={bundle()} />);
-    fireEvent.click(screen.getByRole("button", { name: /Email me a code/ }));
-    await waitFor(() =>
-      expect(screen.getByRole("alert")).toHaveTextContent(/code was just sent/i),
-    );
-  });
 
   it("verified state: subset selection drives the accept total, accept submits the ids", async () => {
     submitMock.mockResolvedValue({ ok: true });
@@ -230,23 +199,16 @@ describe("SignExperience", () => {
     expect(screen.getByRole("button", { name: /^Decline$/ })).toBeInTheDocument();
   });
 
-  it("announces step transitions through the persistent live region", async () => {
-    requestMock.mockResolvedValue({ ok: true, sentTo: "jordan@eyereg.example" });
-    renderWithIntl(<SignExperience token="tok" bundle={bundle()} />);
+  it("keeps the persistent polite live region mounted from first render", () => {
+    // OTP announcements moved to the SignGate (which owns verification now);
+    // this component still announces decisions through the same region.
+    renderWithIntl(
+      <SignExperience token="tok" bundle={bundle({ otpVerified: true })} />,
+    );
     const region = screen
       .getAllByRole("status")
       .find((el) => el.getAttribute("aria-live") === "polite");
     expect(region).toBeDefined();
     expect(region!.textContent).toBe("");
-    fireEvent.click(screen.getByRole("button", { name: /Email me a code/ }));
-    await waitFor(() =>
-      expect(region!.textContent).toMatch(/code has been emailed/i),
-    );
-    // Focus lands in the revealed code field. waitFor: the focus is set
-    // by an effect after the field mounts — under CI parallel load the
-    // synchronous assertion raced it (flaked on #43's run).
-    await waitFor(() =>
-      expect(screen.getByLabelText("6-digit code")).toHaveFocus(),
-    );
   });
 });
