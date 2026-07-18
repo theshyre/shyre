@@ -29,16 +29,14 @@ export default defineConfig({
         // floor here in the same PR. Never lower a floor to make a
         // build pass. Target (per CLAUDE.md) is 90%+; we'll get there
         // by ratcheting, not by wishing.
-        statements: 53.2,
-        branches: 44.9,
-        functions: 49.2,
-        lines: 53.9,
-        // Note: measured numbers as of 2026-07-18 are 53.57 / 45.24
-        // / 49.60 / 54.23 (shared-expense-primitives lift: new tests
-        // for ExpenseRow / ExpenseExpandedRow / SplitExpenseModal /
-        // NewExpenseForm, the bulk expense actions, and the lifted
-        // lib helpers). The floor is set just below to allow ~0.3 pp
-        // slack for nondeterminism. Ratchet on the next
+        statements: 55,
+        branches: 45,
+        functions: 49,
+        lines: 55,
+        // Note: union of the 2026-07-18 API-route sweep (measured
+        // 55.32/46.22/49.47/56.01) and the shared-expense-primitives
+        // lift (+~1pp of component/bulk-action tests); floors kept at
+        // the higher pair, remeasure + ratchet on the next
         // coverage-raising PR.
       },
     },

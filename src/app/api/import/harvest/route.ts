@@ -1082,7 +1082,12 @@ export async function POST(request: Request): Promise<NextResponse> {
         },
       };
 
-      await supabase
+      // Close-out write must be checked: an RLS/permission failure
+      // here would strand the run as status='running' forever with no
+      // trace (same bug class as the expenses-import close-out fix,
+      // PR #66). Don't fail the import over it — the data landed —
+      // but leave the trace in /admin/errors.
+      const { error: completeError } = await supabase
         .from("import_runs")
         .update({
           status: "completed",
@@ -1090,6 +1095,14 @@ export async function POST(request: Request): Promise<NextResponse> {
           summary,
         })
         .eq("id", ctx.importRunId);
+      if (completeError) {
+        logError(completeError, {
+          userId: user.id,
+          teamId: organizationId,
+          url: "/api/import/harvest",
+          action: "harvestImportCompleteRun",
+        });
+      }
 
       return NextResponse.json({
         success: true,
@@ -1100,7 +1113,7 @@ export async function POST(request: Request): Promise<NextResponse> {
       // Leave a trace in the import_runs record so the user can see
       // what happened in the history list — partial writes stay
       // addressable via undo even when the request itself crashed.
-      await supabase
+      const { error: markFailedError } = await supabase
         .from("import_runs")
         .update({
           status: "failed",
@@ -1110,6 +1123,16 @@ export async function POST(request: Request): Promise<NextResponse> {
           },
         })
         .eq("id", ctx.importRunId);
+      if (markFailedError) {
+        // The run will look stuck at 'running' — make sure an admin
+        // can at least see why from /admin/errors.
+        logError(markFailedError, {
+          userId: user.id,
+          teamId: organizationId,
+          url: "/api/import/harvest",
+          action: "harvestImportMarkRunFailed",
+        });
+      }
 
       return errorResponse(err, {
         userId: user.id,
@@ -1333,7 +1356,22 @@ async function upsertHarvestCategorySet(
       })
       .select("id")
       .single();
-    if (error || !created) return { setId: null, idByTaskName };
+    if (error || !created) {
+      // Degradation, not a hard failure: without a set the import
+      // still lands entries, just uncategorized. But it IS an error
+      // path a user notices later ("where did my categories go?") —
+      // it must be triageable from /admin/errors, not silent.
+      logError(
+        error ?? new Error("category_sets insert returned no row"),
+        {
+          userId,
+          teamId,
+          url: "/api/import/harvest",
+          action: "harvestImportCategorySet",
+        },
+      );
+      return { setId: null, idByTaskName };
+    }
     setId = created.id as string;
   }
 
@@ -1357,10 +1395,21 @@ async function upsertHarvestCategorySet(
       imported_at: ctx.importedAt,
       import_run_id: ctx.importRunId,
     }));
-    const { data: inserted } = await supabase
+    const { data: inserted, error: categoriesError } = await supabase
       .from("categories")
       .insert(rows)
       .select("id, name");
+    if (categoriesError) {
+      // PostgREST failures here return { data: null, error } — without
+      // this check the import would silently land every entry with
+      // category_id NULL (the "silent fail on bad join" class).
+      logError(categoriesError, {
+        userId,
+        teamId,
+        url: "/api/import/harvest",
+        action: "harvestImportCategories",
+      });
+    }
     for (const row of inserted ?? []) {
       existingByName.set(row.name as string, row.id as string);
     }
