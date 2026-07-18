@@ -129,6 +129,7 @@ const supabaseStub = {
 };
 
 import {
+  resendSignLinksAction,
   createProposalAction,
   updateProposalAction,
   deleteProposalAction,
@@ -1120,5 +1121,70 @@ describe("deleteProposalAction", () => {
     await expect(
       deleteProposalAction(formWith({ id: "prop-1" })),
     ).rejects.toThrow(/Only draft proposals can be deleted/);
+  });
+});
+
+describe("resendSignLinksAction", () => {
+  const sentProposalRow = {
+    id: "prop-1",
+    team_id: TEAM,
+    status: "sent",
+    proposal_number: "PROP-2026-007",
+    title: "Modernization",
+    signing_mode: "first",
+  };
+
+  it("revokes outstanding tokens, mints + emails fresh ones, logs link_resent", async () => {
+    queues["proposals"] = [{ data: sentProposalRow, error: null }];
+    queues["proposal_access_tokens"] = [
+      {
+        data: [
+          { id: "tok-1", signer_id: null, signer_email: "j@x.com", signer_name: "Jordan" },
+        ],
+        error: null,
+      }, // pending lookup
+      { data: null, error: null }, // revoke update
+      { data: null, error: null }, // fresh insert
+    ];
+    queues["proposal_events"] = [{ data: null, error: null }];
+
+    await resendSignLinksAction(formWith({ id: "prop-1" }));
+
+    // Old token revoked BEFORE the new one exists.
+    const revoke = calls.find(
+      (c) =>
+        c.table === "proposal_access_tokens" &&
+        c.ops.some(
+          (o) =>
+            o.method === "update" &&
+            (o.args[0] as { revoked_at?: string }).revoked_at,
+        ),
+    );
+    expect(revoke).toBeDefined();
+    const minted = insertedRows("proposal_access_tokens");
+    expect(minted).toHaveLength(1);
+    expect(minted[0]).toMatchObject({ signer_email: "j@x.com" });
+    // A fresh HASH is stored, never a raw token.
+    expect(String(minted[0]!.token_hash)).toMatch(/^[0-9a-f]{64}$/);
+    expect(sendProposalEmailMock).toHaveBeenCalledTimes(1);
+    expect(insertedRows("proposal_events")[0]?.event_type).toBe("link_resent");
+  });
+
+  it("refuses when there are no outstanding links", async () => {
+    queues["proposals"] = [{ data: sentProposalRow, error: null }];
+    queues["proposal_access_tokens"] = [{ data: [], error: null }];
+    await expect(
+      resendSignLinksAction(formWith({ id: "prop-1" })),
+    ).rejects.toThrow(/No outstanding/);
+    expect(sendProposalEmailMock).not.toHaveBeenCalled();
+  });
+
+  it("refuses on a draft (nothing sent yet)", async () => {
+    queues["proposals"] = [
+      { data: { ...sentProposalRow, status: "draft" }, error: null },
+    ];
+    await expect(
+      resendSignLinksAction(formWith({ id: "prop-1" })),
+    ).rejects.toThrow(/sent proposal/);
   });
 });

@@ -20,6 +20,7 @@ import { CounterSignButton } from "../counter-sign-button";
 import { ConvertProposalButton } from "../convert-proposal-button";
 import { CreateInvoiceButton } from "../create-invoice-button";
 import { NewVersionButton } from "../new-version-button";
+import { ResendLinkButton } from "../resend-link-button";
 import { ProposalPdfButton, type ProposalPdfBundle } from "./proposal-pdf-button";
 import { isProposalEditable, type DepositType } from "../allow-lists";
 import { proposalSendReadiness } from "@/lib/proposals/readiness";
@@ -599,14 +600,19 @@ export default async function ProposalDetailPage({
             {t("signoffHeading")}
           </h2>
           {signToken && !acceptance && (
-            <p className="mt-2 text-body text-content-secondary">
-              {t("sentTo", { email: signToken.signer_email as string })}
-              {" · "}
-              {t("linkExpires", {
-                date: (signToken.expires_at as string).slice(0, 10),
-              })}
-              {signToken.first_viewed_at ? ` · ${t("viewedBadge")}` : ""}
-            </p>
+            <div className="mt-2 flex flex-wrap items-center gap-3">
+              <p className="text-body text-content-secondary">
+                {t("sentTo", { email: signToken.signer_email as string })}
+                {" · "}
+                {t("linkExpires", {
+                  date: (signToken.expires_at as string).slice(0, 10),
+                })}
+                {signToken.first_viewed_at ? ` · ${t("viewedBadge")}` : ""}
+              </p>
+              {(status === "sent" || status === "viewed") && (
+                <ResendLinkButton proposalId={proposalId} />
+              )}
+            </div>
           )}
           {acceptance && (
             <div className="mt-2 rounded-lg border border-edge bg-surface-raised p-4">

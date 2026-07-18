@@ -95,6 +95,9 @@ const eslintConfig = defineConfig([
     "next-env.d.ts",
     // Generated coverage reports (already in .gitignore).
     "coverage/**",
+    // Claude Code agent worktrees — sibling checkouts living inside the
+    // repo dir; linting them here double-lints in-progress branches.
+    ".claude/worktrees/**",
   ]),
 ]);
 

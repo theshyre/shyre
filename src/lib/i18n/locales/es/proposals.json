@@ -300,7 +300,11 @@
     "primarySigner": "Principal",
     "signerSigned": "Firmado",
     "signerDeclined": "Rechazado",
-    "signerPending": "Pendiente"
+    "signerPending": "Pendiente",
+    "resendLink": "Reenviar enlace",
+    "resending": "Reenviando…",
+    "resendSuccess": "Enlace(s) de firma nuevos enviados. Los enlaces anteriores ya no funcionan.",
+    "resendFailed": "Error al reenviar"
   },
   "pdf": {
     "documentTitle": "Propuesta",

@@ -74,6 +74,7 @@ export const PROPOSAL_EVENT_TYPES = [
   "countersigned",
   "converted",
   "superseded",
+  "link_resent",
 ] as const;
 
 export type ProposalEventType = (typeof PROPOSAL_EVENT_TYPES)[number];

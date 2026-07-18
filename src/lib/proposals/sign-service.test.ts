@@ -68,6 +68,14 @@ vi.mock("@/lib/supabase/admin", () => ({
       rpcCalls.push({ fn, args });
       return Promise.resolve(rpcQueue.shift() ?? { data: null, error: null });
     },
+    auth: {
+      admin: {
+        getUserById: async () => ({
+          data: { user: { email: "owner@malcom.example" } },
+          error: null,
+        }),
+      },
+    },
   }),
 }));
 
@@ -846,5 +854,49 @@ describe("loadSignGate (SAL-045 identity gate)", () => {
     queues["proposals"] = [{ data: { sign_theme: "neon" }, error: null }];
     const bad = await loadSignGate(rawToken, null);
     if (bad.ok) expect(bad.value.signTheme).toBe("light");
+  });
+});
+
+describe("owner notifications (batch 4a)", () => {
+  it("emails the proposal owner when a decision is recorded", async () => {
+    const VIEW_SECRET = "browser-view-secret";
+    queues["proposal_access_tokens"] = [
+      {
+        data: tokenRow({
+          otp_verified_at: new Date(NOW - 1000).toISOString(),
+          view_session_hash: sha256Hex(VIEW_SECRET),
+          view_session_expires_at: new Date(NOW + 3_600_000).toISOString(),
+        }),
+        error: null,
+      },
+      { data: [{ id: "tok-1" }], error: null }, // consume wins
+    ];
+    queues["proposals"] = [
+      { data: proposalRow({ user_id: "owner-1" }), error: null },
+      { data: null, error: null }, // status flip
+    ];
+    queues["proposal_line_items"] = [{ data: ITEM_ROWS, error: null }];
+    queues["team_settings"] = [{ data: { tax_rate: 0 }, error: null }];
+    queues["proposal_events"] = [{ data: null, error: null }];
+
+    const result = await recordSignDecision(rawToken, {
+      decision: "accepted",
+      signerName: "Jordan Chen",
+      signerTitle: null,
+      signatureTyped: "Jordan Chen",
+      selectedLineItemIds: ["li-1", "li-2"],
+      ipAddress: null,
+      userAgent: null,
+      viewSession: VIEW_SECRET,
+    });
+    expect(result.ok).toBe(true);
+    // The owner-notification email went out through the outbox pipeline —
+    // addressed to the OWNER, with no pricing in the subject.
+    const ownerSend = sendEmailMock.mock.calls.find(
+      (c) => (c[1] as { toEmail: string }).toEmail === "owner@malcom.example",
+    );
+    expect(ownerSend).toBeDefined();
+    expect((ownerSend![1] as { subject: string }).subject).not.toMatch(/\$/);
+    expect((ownerSend![1] as { subject: string }).subject).toMatch(/accepted/);
   });
 });
