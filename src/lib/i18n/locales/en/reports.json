@@ -30,5 +30,11 @@
     "totalRevenue": "Time-Based Revenue",
     "billablePercent": "Billable %"
   },
-  "noData": "No time entries for this period."
+  "noData": "No time entries for this period.",
+  "collected": {
+    "heading": "Collected (cash basis)",
+    "subtitle": "Payments recorded in this period — includes fixed-price and proposal-derived invoices. Each currency stands alone.",
+    "cardLabel": "Collected · {currency}",
+    "paymentCount": "{count, plural, =1 {1 payment} other {# payments}}"
+  }
 }
