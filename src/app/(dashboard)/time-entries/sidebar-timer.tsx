@@ -169,7 +169,17 @@ export default function SidebarTimer({
           <p className="text-caption text-content-muted">{startedCaption}</p>
         </Tooltip>
         <div className="flex items-center justify-between gap-2">
-          <EntryAuthor author={author} size={16} />
+          {/* Agent-started running timers surface the Bot badge +
+              agent label here (SAL-051) — the human stays the author,
+              but a runaway agent timer must be visible at a glance.
+              Read-only signal: Space and Stop behave exactly as for a
+              user-started timer. */}
+          <EntryAuthor
+            author={author}
+            size={16}
+            startedByKind={running.started_by_kind}
+            agentLabel={running.agent_label}
+          />
           <Link
             href={entryHref}
             className="inline-flex items-center gap-1 text-caption text-content-secondary hover:text-content focus-visible:outline-none focus-visible:underline shrink-0"

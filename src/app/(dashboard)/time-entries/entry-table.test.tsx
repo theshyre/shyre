@@ -347,3 +347,56 @@ describe("EntryTable", () => {
     ).toBeInTheDocument();
   });
 });
+
+describe("EntryTable — agent attribution (SAL-051)", () => {
+  function agentEntry(id: string): TimeEntry {
+    return {
+      ...makeEntry(id),
+      author: { user_id: "u1", display_name: "Marcus", avatar_url: null },
+      started_by_kind: "agent",
+      agent_label: "Claude Code",
+      started_by_ref: "sess-1",
+    };
+  }
+
+  it("renders the Bot badge + 'via {label}' next to the author on agent-started rows", () => {
+    const { container } = renderTable(
+      <EntryTable
+        groups={[group("g1", "Today", [agentEntry("a")])]}
+        projects={[]}
+        categories={[]}
+        expandedEntryId={null}
+        onToggleExpand={() => {}}
+      />,
+    );
+    expect(screen.getByText("via Claude Code")).toBeInTheDocument();
+    expect(container.querySelector("svg.lucide-bot")).not.toBeNull();
+    // Author name still renders — the badge is additive, never a swap.
+    expect(screen.getByText("Marcus")).toBeInTheDocument();
+  });
+
+  it("renders no badge on user-started rows", () => {
+    const { container } = renderTable(
+      <EntryTable
+        groups={[
+          group("g1", "Today", [
+            {
+              ...makeEntry("a"),
+              author: {
+                user_id: "u1",
+                display_name: "Marcus",
+                avatar_url: null,
+              },
+            },
+          ]),
+        ]}
+        projects={[]}
+        categories={[]}
+        expandedEntryId={null}
+        onToggleExpand={() => {}}
+      />,
+    );
+    expect(container.querySelector("svg.lucide-bot")).toBeNull();
+    expect(screen.queryByText(/via /)).toBeNull();
+  });
+});

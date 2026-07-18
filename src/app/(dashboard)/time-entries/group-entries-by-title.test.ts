@@ -2,6 +2,7 @@ import { describe, it, expect } from "vitest";
 import {
   groupEntriesByTitle,
   displayDescription,
+  deriveAgentAttribution,
 } from "./group-entries-by-title";
 import type { TimeEntry } from "./types";
 
@@ -322,5 +323,53 @@ describe("groupEntriesByTitle", () => {
     const lines = groupEntriesByTitle(matrix);
     expect(lines).toHaveLength(1);
     expect(lines[0]!.entryCount).toBe(1);
+  });
+});
+
+describe("deriveAgentAttribution", () => {
+  const e = (
+    kind: string | null | undefined,
+    label: string | null = null,
+  ): { started_by_kind?: TimeEntry["started_by_kind"]; agent_label?: string | null } => ({
+    started_by_kind: kind as TimeEntry["started_by_kind"],
+    agent_label: label,
+  });
+
+  it("returns null when every entry is user-started or unattributed", () => {
+    expect(deriveAgentAttribution([])).toBeNull();
+    expect(
+      deriveAgentAttribution([e("user"), e(null), e(undefined)]),
+    ).toBeNull();
+  });
+
+  it("returns null for import-sourced entries (historical data, not live automation)", () => {
+    expect(deriveAgentAttribution([e("import")])).toBeNull();
+  });
+
+  it("surfaces an agent entry hidden among user entries", () => {
+    expect(
+      deriveAgentAttribution([e("user"), e("agent", "Claude Code"), e("user")]),
+    ).toEqual({ startedByKind: "agent", agentLabel: "Claude Code" });
+  });
+
+  it("kind + label come from the SAME entry — first labeled badged entry wins", () => {
+    // A label-less integration entry must not lend its kind to another
+    // entry's agent name (that would misattribute the actor).
+    expect(
+      deriveAgentAttribution([e("integration", null), e("agent", "Claude Code")]),
+    ).toEqual({ startedByKind: "agent", agentLabel: "Claude Code" });
+  });
+
+  it("falls back to the first badged entry when no badged entry has a label", () => {
+    expect(
+      deriveAgentAttribution([e("user"), e("integration", null), e("agent", null)]),
+    ).toEqual({ startedByKind: "integration", agentLabel: null });
+  });
+
+  it("keeps a null label when no badged entry carries one", () => {
+    expect(deriveAgentAttribution([e("agent", null)])).toEqual({
+      startedByKind: "agent",
+      agentLabel: null,
+    });
   });
 });

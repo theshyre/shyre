@@ -48,6 +48,43 @@ import type { TimeEntry } from "./types";
 
 const DAYS_IN_WEEK = 7;
 
+/** Display-only agent attribution rolled up from a set of entries
+ *  (SAL-051). Non-null when at least one entry was started by an agent
+ *  or integration — the aggregate line then carries the Bot badge so
+ *  agent-logged time never hides inside a merged/summed row. */
+export interface AgentAttribution {
+  startedByKind: "agent" | "integration";
+  agentLabel: string | null;
+}
+
+/**
+ * Roll up per-entry `started_by_kind` / `agent_label` for an aggregate
+ * surface (merged title line, timesheet row, drawer header). Kind and
+ * label are always taken from the SAME entry — the first badged entry
+ * that carries a label, else the first badged entry — so the tooltip
+ * never pairs one entry's kind with another entry's agent name.
+ * Returns null when every entry is user-started (or the columns
+ * weren't selected) — callers render plain human authorship.
+ */
+export function deriveAgentAttribution(
+  entries: ReadonlyArray<
+    Pick<TimeEntry, "started_by_kind" | "agent_label">
+  >,
+): AgentAttribution | null {
+  let fallback: AgentAttribution | null = null;
+  for (const e of entries) {
+    const k = e.started_by_kind;
+    if (k !== "agent" && k !== "integration") continue;
+    if (e.agent_label != null) {
+      return { startedByKind: k, agentLabel: e.agent_label };
+    }
+    if (fallback === null) {
+      fallback = { startedByKind: k, agentLabel: null };
+    }
+  }
+  return fallback;
+}
+
 /** Collision-free merge key for a (ticketKey, trimmed description,
  *  billable) tuple. JSON-encoding escapes the strings, so no in-text
  *  character (spaces, separators) can make two different tuples share a

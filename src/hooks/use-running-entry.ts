@@ -13,6 +13,14 @@ export interface RunningEntrySummary {
   start_time: string;
   project_name: string;
   customer_name: string | null;
+  /** `time_entries.started_by_kind` — 'user' | 'agent' | 'integration'
+   *  | 'import'. Display-only (SAL-051): the sidebar timer shows a Bot
+   *  badge for agent/integration so a runaway agent-started timer is
+   *  visible at a glance. */
+  started_by_kind: string;
+  /** Human-readable agent name (e.g. "Claude Code"); null for
+   *  user-started timers. */
+  agent_label: string | null;
   /**
    * Sum of duration_min for this (project, category, user) on the same
    * local day as the running entry's start_time, excluding the running
@@ -50,7 +58,7 @@ export function useRunningEntry(): {
     const { data } = await supabase
       .from("time_entries")
       .select(
-        "id, project_id, category_id, user_id, description, start_time, projects(name, customers(name))",
+        "id, project_id, category_id, user_id, description, start_time, started_by_kind, agent_label, projects(name, customers(name))",
       )
       .is("end_time", null)
       .is("deleted_at", null)
@@ -113,6 +121,8 @@ export function useRunningEntry(): {
       start_time: first.start_time,
       project_name: projectRow?.name ?? "",
       customer_name: customerRow?.name ?? null,
+      started_by_kind: (first.started_by_kind as string | null) ?? "user",
+      agent_label: (first.agent_label as string | null) ?? null,
       today_baseline_min,
     });
   }, [supabase]);

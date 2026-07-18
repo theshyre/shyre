@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { screen } from "@testing-library/react";
+import { screen, fireEvent, waitFor } from "@testing-library/react";
 import { renderWithIntl as render } from "@/test/intl";
 import { EntryAuthor } from "./EntryAuthor";
 
@@ -121,6 +121,180 @@ describe("EntryAuthor", () => {
     const avatar = container.querySelector("span[aria-label='X']");
     expect(avatar).not.toBeNull();
     expect(avatar).toHaveStyle({ width: "36px", height: "36px" });
+  });
+
+  it("renders the Bot badge + 'via {label}' text for agent-started entries (icon + text, two channels)", () => {
+    const { container } = render(
+      <EntryAuthor
+        author={{
+          user_id: "u1",
+          display_name: "Jordan Patel",
+          avatar_url: null,
+        }}
+        startedByKind="agent"
+        agentLabel="Claude Code"
+      />,
+    );
+    // Text channel — visible in full mode.
+    expect(screen.getByText("via Claude Code")).toBeInTheDocument();
+    // Icon channel — lucide Bot renders an aria-hidden svg.
+    const svg = container.querySelector("svg.lucide-bot");
+    expect(svg).not.toBeNull();
+    expect(svg?.getAttribute("aria-hidden")).toBe("true");
+    // The human stays the author — name still renders.
+    expect(screen.getByText("Jordan Patel")).toBeInTheDocument();
+  });
+
+  it("renders the badge for integration-started entries too", () => {
+    render(
+      <EntryAuthor
+        author={{ user_id: "u1", display_name: "Jordan", avatar_url: null }}
+        startedByKind="integration"
+        agentLabel="Zapier"
+      />,
+    );
+    expect(screen.getByText("via Zapier")).toBeInTheDocument();
+  });
+
+  it("renders NO badge for user-started entries, import rows, or when the kind is absent", () => {
+    const cases: Array<string | null | undefined> = [
+      "user",
+      "import",
+      null,
+      undefined,
+    ];
+    for (const kind of cases) {
+      const { container, unmount } = render(
+        <EntryAuthor
+          author={{ user_id: "u1", display_name: "Jordan", avatar_url: null }}
+          startedByKind={kind}
+          agentLabel={kind === "user" ? "Claude Code" : null}
+        />,
+      );
+      expect(container.querySelector("svg.lucide-bot")).toBeNull();
+      expect(container.textContent).not.toContain("via");
+      unmount();
+    }
+  });
+
+  it("falls back to a generic localized label when agent_label is missing", () => {
+    render(
+      <EntryAuthor
+        author={{ user_id: "u1", display_name: "Jordan", avatar_url: null }}
+        startedByKind="agent"
+        agentLabel={null}
+      />,
+    );
+    expect(screen.getByText("via Agent")).toBeInTheDocument();
+  });
+
+  it("falls back to 'Integration' for a label-less integration entry", () => {
+    render(
+      <EntryAuthor
+        author={{ user_id: "u1", display_name: "Jordan", avatar_url: null }}
+        startedByKind="integration"
+        agentLabel={null}
+      />,
+    );
+    expect(screen.getByText("via Integration")).toBeInTheDocument();
+  });
+
+  it("compact mode keeps the badge text for AT via sr-only", () => {
+    const { container } = render(
+      <EntryAuthor
+        author={{
+          user_id: "u1",
+          display_name: "Jordan Patel",
+          avatar_url: null,
+        }}
+        compact
+        startedByKind="agent"
+        agentLabel="Claude Code"
+      />,
+    );
+    // Icon channel still renders in dense contexts…
+    expect(container.querySelector("svg.lucide-bot")).not.toBeNull();
+    // …and the text channel survives as sr-only.
+    const badgeText = screen.getByText("via Claude Code");
+    expect(badgeText.className).toContain("sr-only");
+    // Author name stays screen-reader accessible as before.
+    const nameEl = screen.getByText("Jordan Patel");
+    expect(nameEl.className).toContain("sr-only");
+  });
+
+  it("compact agent chip reveals the full attribution sentence via its tooltip", async () => {
+    const { container } = render(
+      <EntryAuthor
+        author={{
+          user_id: "u1",
+          display_name: "Jordan Patel",
+          avatar_url: null,
+        }}
+        compact
+        startedByKind="agent"
+        agentLabel="Claude Code"
+      />,
+    );
+    const trigger = container.firstElementChild;
+    expect(trigger).not.toBeNull();
+    fireEvent.focus(trigger as Element);
+    await waitFor(() => {
+      expect(
+        screen.getByText(
+          "Started by Claude Code on behalf of Jordan Patel",
+        ),
+      ).toBeInTheDocument();
+    });
+  });
+
+  it("rollup chips use the softer 'Includes time started by {label}' sentence", async () => {
+    const { container } = render(
+      <EntryAuthor
+        author={{
+          user_id: "u1",
+          display_name: "Jordan Patel",
+          avatar_url: null,
+        }}
+        compact
+        startedByKind="agent"
+        agentLabel="Claude Code"
+        rollup
+      />,
+    );
+    const trigger = container.firstElementChild;
+    fireEvent.focus(trigger as Element);
+    await waitFor(() => {
+      expect(
+        screen.getByText("Includes time started by Claude Code"),
+      ).toBeInTheDocument();
+    });
+    // The singular on-behalf-of claim must NOT appear on an aggregate —
+    // only some of the folded entries may be agent-started.
+    expect(screen.queryByText(/on behalf of/)).toBeNull();
+  });
+
+  it("full-mode badge exposes the attribution sentence on focus (tooltip accessible name)", async () => {
+    render(
+      <EntryAuthor
+        author={{
+          user_id: "u1",
+          display_name: "Jordan Patel",
+          avatar_url: null,
+        }}
+        startedByKind="agent"
+        agentLabel="Claude Code"
+      />,
+    );
+    const badge = screen.getByText("via Claude Code").parentElement;
+    expect(badge).not.toBeNull();
+    fireEvent.focus(badge as Element);
+    await waitFor(() => {
+      expect(
+        screen.getByText(
+          "Started by Claude Code on behalf of Jordan Patel",
+        ),
+      ).toBeInTheDocument();
+    });
   });
 
   it("applies extra className for layout hooks", () => {

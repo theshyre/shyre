@@ -120,7 +120,7 @@ export default async function DashboardPage(): Promise<React.JSX.Element> {
       supabase
         .from("time_entries")
         .select(
-          "id, description, start_time, end_time, duration_min, user_id, projects(name, customers(id, name, logo_url))",
+          "id, description, start_time, end_time, duration_min, user_id, started_by_kind, agent_label, projects(name, customers(id, name, logo_url))",
         )
 
         .is("deleted_at", null)
@@ -429,7 +429,14 @@ export default async function DashboardPage(): Promise<React.JSX.Element> {
                     </div>
                   </div>
                   <div className="flex items-center gap-3">
-                    <EntryAuthor author={author} compact />
+                    <EntryAuthor
+                      author={author}
+                      compact
+                      startedByKind={
+                        (entry.started_by_kind as string | null) ?? null
+                      }
+                      agentLabel={(entry.agent_label as string | null) ?? null}
+                    />
                     <span className="text-body font-mono text-content-secondary">
                       {isRunning ? (
                         <span className="text-success">

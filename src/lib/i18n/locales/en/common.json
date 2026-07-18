@@ -31,7 +31,14 @@
     "closeMenu": "Close menu"
   },
   "authorship": {
-    "unknownUser": "Unknown user"
+    "unknownUser": "Unknown user",
+    "viaAgent": "via {label}",
+    "startedByOnBehalf": "Started by {label} on behalf of {name}",
+    "includesAgentTime": "Includes time started by {label}",
+    "agentFallback": "Agent",
+    "integrationFallback": "Integration",
+    "loggedByAgent": "Logged by {label}",
+    "sessionRef": "session {ref}"
   },
   "commandPalette": {
     "placeholder": "Jump to…",

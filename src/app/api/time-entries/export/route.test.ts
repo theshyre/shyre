@@ -250,4 +250,68 @@ describe("GET /api/time-entries/export", () => {
     const body = await res.text();
     expect(body).toContain("'=cmd|");
   });
+
+  it("emits a Source column separating agent hours from user hours (SAL-051)", async () => {
+    mockGetUser.mockResolvedValue({ data: { user: { id: "u1" } } });
+    queues["time_entries"] = [
+      {
+        data: [
+          entryRow(), // no started_by_kind selected → defaults to "user"
+          entryRow({
+            id: "te-agent",
+            started_by_kind: "agent",
+            agent_label: "Claude Code",
+          }),
+          entryRow({ id: "te-import", started_by_kind: "import" }),
+        ],
+        error: null,
+      },
+    ];
+    queues["user_profiles"] = [
+      { data: [{ user_id: "u2", display_name: "Mariah" }], error: null },
+    ];
+    const res = await GET(
+      new Request("https://shyre.test/api/time-entries/export"),
+    );
+    expect(res.status).toBe(200);
+    const body = await res.text();
+    const lines = body.trimEnd().split("\r\n");
+    expect((lines[0] ?? "").endsWith(",Source")).toBe(true);
+    expect(lines[1]).toMatch(/,user$/);
+    expect(lines[2]).toMatch(/,agent \(Claude Code\)$/);
+    expect(lines[3]).toMatch(/,import$/);
+    // The route's select must actually request the columns —
+    // otherwise every row would silently degrade to "user".
+    const selectCall = filters.find(
+      (f) => f.table === "time_entries" && f.method === "select",
+    );
+    expect(String(selectCall?.args[0])).toContain("started_by_kind");
+    expect(String(selectCall?.args[0])).toContain("agent_label");
+  });
+
+  it("neutralizes a formula-injection agent label in the Source column (SAL-048 defense holds)", async () => {
+    mockGetUser.mockResolvedValue({ data: { user: { id: "u1" } } });
+    queues["time_entries"] = [
+      {
+        data: [
+          entryRow({
+            started_by_kind: "agent",
+            agent_label: '=HYPERLINK("http://evil")',
+          }),
+        ],
+        error: null,
+      },
+    ];
+    queues["user_profiles"] = [
+      { data: [{ user_id: "u2", display_name: "Mariah" }], error: null },
+    ];
+    const res = await GET(
+      new Request("https://shyre.test/api/time-entries/export"),
+    );
+    const body = await res.text();
+    // The kind prefix means the field never starts with "=", and the
+    // embedded quotes/commas are RFC-4180 escaped by escapeCsvField.
+    expect(body).toContain('"agent (=HYPERLINK(""http://evil""))"');
+    expect(body).not.toMatch(/,=HYPERLINK/);
+  });
 });

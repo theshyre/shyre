@@ -57,6 +57,8 @@ function runningEntry(
     start_time: new Date(Date.now() - 90_000).toISOString(),
     project_name: "Alpha",
     customer_name: "Acme",
+    started_by_kind: "user",
+    agent_label: null,
     today_baseline_min: 0,
     ...overrides,
   };
@@ -142,5 +144,38 @@ describe("SidebarTimer — running", () => {
     fireEvent.keyDown(input, { code: "Space" });
     expect(stopTimerMock).not.toHaveBeenCalled();
     input.remove();
+  });
+});
+
+describe("SidebarTimer — agent-started running entry (SAL-051)", () => {
+  beforeEach(() => {
+    runningHolder.current = runningEntry({
+      started_by_kind: "agent",
+      agent_label: "Claude Code",
+    });
+    stopTimerMock.mockClear();
+    refreshMock.mockClear();
+  });
+
+  it("shows the Bot badge + agent label so a runaway agent timer is visible at a glance", () => {
+    const { container } = renderWithIntl(<SidebarTimer {...author} />);
+    expect(screen.getByText("via Claude Code")).toBeInTheDocument();
+    expect(container.querySelector("svg.lucide-bot")).not.toBeNull();
+    // The human stays the author.
+    expect(screen.getByText("Marcus")).toBeInTheDocument();
+  });
+
+  it("keeps Stop working exactly as for a user-started timer (read-only signal)", async () => {
+    renderWithIntl(<SidebarTimer {...author} />);
+    fireEvent.click(screen.getByRole("button", { name: /stop/i }));
+    await waitFor(() => expect(stopTimerMock).toHaveBeenCalledTimes(1));
+    expect(stopTimerMock.mock.calls[0]?.[0]?.get("id")).toBe("e-1");
+  });
+
+  it("renders NO badge for a user-started timer", () => {
+    runningHolder.current = runningEntry();
+    const { container } = renderWithIntl(<SidebarTimer {...author} />);
+    expect(container.querySelector("svg.lucide-bot")).toBeNull();
+    expect(screen.queryByText(/via /)).toBeNull();
   });
 });
