@@ -284,6 +284,10 @@ test.describe("public sign flow", () => {
         .eq("id", seeded.proposalId);
       await admin.from("proposals").delete().eq("id", seeded.proposalId);
       await admin.from("customers").delete().eq("id", seeded.customerId);
+      // Sweep any error_logs the run deposited (e.g. notifyOwner attempts
+      // against this teardown-bound team) so e2e runs never leave
+      // unresolved noise in /system/errors.
+      await admin.from("error_logs").delete().eq("team_id", seeded.teamId);
       await admin.from("teams").delete().eq("id", seeded.teamId);
       await admin.from("businesses").delete().eq("id", seeded.businessId);
     }

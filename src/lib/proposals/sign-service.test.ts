@@ -1101,3 +1101,49 @@ describe("read-path error logging (batch 5)", () => {
     });
   });
 });
+
+describe("notifyOwner noise guard", () => {
+  it("does NOT logError when the team simply has no email configured", async () => {
+    const VIEW_SECRET = "browser-view-secret";
+    sendEmailMock.mockRejectedValueOnce(
+      new Error("Email is not configured for this team. Visit /settings/email."),
+    );
+    queues["proposal_access_tokens"] = [
+      {
+        data: tokenRow({
+          otp_verified_at: new Date(NOW - 1000).toISOString(),
+          view_session_hash: sha256Hex(VIEW_SECRET),
+          view_session_expires_at: new Date(NOW + 3_600_000).toISOString(),
+        }),
+        error: null,
+      },
+      { data: [{ id: "tok-1" }], error: null },
+    ];
+    queues["proposals"] = [
+      { data: proposalRow({ user_id: "owner-1" }), error: null },
+      { data: null, error: null },
+    ];
+    queues["proposal_line_items"] = [{ data: ITEM_ROWS, error: null }];
+    queues["team_settings"] = [{ data: { tax_rate: 0 }, error: null }];
+    queues["proposal_events"] = [{ data: null, error: null }];
+
+    const result = await recordSignDecision(rawToken, {
+      decision: "accepted",
+      signerName: "Jordan Chen",
+      signerTitle: null,
+      signatureTyped: "Jordan Chen",
+      selectedLineItemIds: ["li-1", "li-2"],
+      ipAddress: null,
+      userAgent: null,
+      viewSession: VIEW_SECRET,
+    });
+    // The decision itself succeeds AND nothing lands in the error log.
+    expect(result.ok).toBe(true);
+    const notifyLogs = logErrorMock.mock.calls.filter(
+      (c) =>
+        (c[1] as { action?: string } | undefined)?.action ===
+        "signService.notifyOwner",
+    );
+    expect(notifyLogs).toHaveLength(0);
+  });
+});

@@ -292,6 +292,18 @@ async function notifyOwner(
 ${url}`,
     });
   } catch (err) {
+    // "No email configured" is a team-configuration STATE, not a system
+    // fault — a team that never set up sending would otherwise deposit an
+    // unresolved error in /system/errors on EVERY view/accept/decline
+    // (exactly the noise the error-log rules forbid). Real failures
+    // (provider errors, quota, decrypt) still log.
+    const msg = err instanceof Error ? err.message : "";
+    if (
+      msg.includes("Email is not configured") ||
+      msg.includes("API key is missing")
+    ) {
+      return;
+    }
     logError(err, {
       teamId: token.team_id,
       action: "signService.notifyOwner",
