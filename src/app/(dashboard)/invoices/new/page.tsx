@@ -54,7 +54,7 @@ export default async function NewInvoicePage(): Promise<React.JSX.Element> {
 
   const { data: customers } = await supabase
     .from("customers_v")
-    .select("id, name, default_rate, payment_terms_days")
+    .select("id, name, default_rate, payment_terms_days, inactive_at")
     .eq("archived", false)
     .order("name");
 

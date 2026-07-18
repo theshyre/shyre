@@ -96,7 +96,7 @@ describe("GET /api/customers/csv", () => {
     const body = await res.text();
     const [header] = body.split("\n");
     expect(header).toBe(
-      "customer_id,team,team_id,name,email,address,notes,default_rate,payment_terms_days,archived,imported_from,imported_at,created_at",
+      "customer_id,team,team_id,name,email,address,notes,default_rate,payment_terms_days,archived,inactive_at,imported_from,imported_at,created_at",
     );
     // Comma + quote in the name → RFC-4180 quoting with doubled quotes.
     expect(body).toContain('"Acme, ""Inc."""');

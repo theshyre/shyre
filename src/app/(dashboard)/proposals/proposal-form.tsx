@@ -40,6 +40,9 @@ export interface CustomerOption {
   id: string;
   name: string;
   team_id: string;
+  /** Dormant customer — bottom-grouped in the picker, still selectable
+   *  (proposing to a dormant customer is the re-engagement motion). */
+  inactive?: boolean;
 }
 export interface ContactOption {
   id: string;
@@ -201,6 +204,7 @@ export function ProposalForm({
 }: Props): React.JSX.Element {
   const t = useTranslations("proposals.form");
   const tv = useTranslations("proposals.validation");
+  const tCustomers = useTranslations("customers");
 
   // Keys for rows added AFTER mount — only ever touched inside event
   // handlers, in a namespace disjoint from buildInitialItems' `init-*` keys.
@@ -490,12 +494,30 @@ export function ProposalForm({
               }
             >
               <option value="">{t("customerPlaceholder")}</option>
-              {teamCustomers.map((c) => (
-                <option key={c.id} value={c.id}>
-                  {c.name}
-                </option>
-              ))}
+              {teamCustomers
+                .filter((c) => !c.inactive)
+                .map((c) => (
+                  <option key={c.id} value={c.id}>
+                    {c.name}
+                  </option>
+                ))}
+              {teamCustomers.some((c) => c.inactive) && (
+                <optgroup label={tCustomers("inactivePickerGroup")}>
+                  {teamCustomers
+                    .filter((c) => c.inactive)
+                    .map((c) => (
+                      <option key={c.id} value={c.id}>
+                        {c.name}
+                      </option>
+                    ))}
+                </optgroup>
+              )}
             </select>
+            {teamCustomers.find((c) => c.id === customerId)?.inactive && (
+              <p className="mt-1 text-caption text-content-muted">
+                {tCustomers("inactivePickedHint")}
+              </p>
+            )}
             <FieldError id="pf-customer-error" error={errorFor("customer_id")} />
           </div>
           <div>

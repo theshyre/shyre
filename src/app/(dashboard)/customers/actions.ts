@@ -240,3 +240,46 @@ export async function bulkRestoreCustomersAction(
     revalidatePath("/customers");
   }, "bulkRestoreCustomersAction") as unknown as void;
 }
+
+/**
+ * Mark a customer inactive / active again (2026-07-18 lifecycle feature).
+ * Non-destructive and freely reversible — the customer stays fully visible
+ * (badged) and history untouched; only new-work pickers demote them. The
+ * timestamp form answers "inactive since when?" (bounced_at precedent).
+ * Idempotent: re-deactivating keeps the ORIGINAL timestamp (`inactive_at
+ * IS NULL` predicate) so bulk sweeps can't quietly rewrite history.
+ */
+export async function deactivateCustomerAction(
+  formData: FormData,
+): Promise<void> {
+  return runSafeAction(formData, async (formData, { supabase }) => {
+    const ids = formData.getAll("id").map(String).filter(Boolean);
+    if (ids.length === 0) return;
+    assertSupabaseOk(
+      await supabase
+        .from("customers")
+        .update({ inactive_at: new Date().toISOString() })
+        .in("id", ids)
+        .is("inactive_at", null),
+    );
+    revalidatePath("/customers");
+    for (const id of ids) revalidatePath(`/customers/${id}`);
+  }, "deactivateCustomerAction") as unknown as void;
+}
+
+export async function reactivateCustomerAction(
+  formData: FormData,
+): Promise<void> {
+  return runSafeAction(formData, async (formData, { supabase }) => {
+    const ids = formData.getAll("id").map(String).filter(Boolean);
+    if (ids.length === 0) return;
+    assertSupabaseOk(
+      await supabase
+        .from("customers")
+        .update({ inactive_at: null })
+        .in("id", ids),
+    );
+    revalidatePath("/customers");
+    for (const id of ids) revalidatePath(`/customers/${id}`);
+  }, "reactivateCustomerAction") as unknown as void;
+}

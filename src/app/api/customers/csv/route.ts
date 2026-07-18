@@ -37,7 +37,7 @@ export async function GET(request: Request): Promise<Response> {
   let query = supabase
     .from("customers")
     .select(
-      "id, team_id, name, email, address, notes, default_rate, payment_terms_days, archived, imported_from, imported_at, created_at",
+      "id, team_id, name, email, address, notes, default_rate, payment_terms_days, archived, inactive_at, imported_from, imported_at, created_at",
     )
     .order("name", { ascending: true });
 
@@ -82,6 +82,7 @@ export async function GET(request: Request): Promise<Response> {
     "default_rate",
     "payment_terms_days",
     "archived",
+    "inactive_at",
     "imported_from",
     "imported_at",
     "created_at",
@@ -105,6 +106,7 @@ export async function GET(request: Request): Promise<Response> {
           ? String(row.payment_terms_days)
           : "",
         row.archived === true,
+        (row.inactive_at as string | null) ?? "",
         (row.imported_from as string | null) ?? "",
         (row.imported_at as string | null) ?? "",
         (row.created_at as string | null) ?? "",

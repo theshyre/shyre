@@ -29,6 +29,8 @@ import { BudgetHoursWithDollars } from "./budget-hours-with-dollars";
 interface CustomerOption {
   id: string;
   name: string;
+  /** Dormant customer — bottom-grouped in the picker, still selectable. */
+  inactive_at?: string | null;
 }
 
 interface ParentProjectOption {
@@ -104,6 +106,7 @@ export function NewProjectForm({
   const [parentDefaultsApplied, setParentDefaultsApplied] = useState(false);
 
   const t = useTranslations("projects");
+  const tCustomers = useTranslations("customers");
   const tc = useTranslations("common");
 
   function resetForm(): void {
@@ -276,11 +279,24 @@ export function NewProjectForm({
               }
             >
               <option value="">{t("fields.pickCustomer")}</option>
-              {customers.map((c) => (
-                <option key={c.id} value={c.id}>
-                  {c.name}
-                </option>
-              ))}
+              {customers
+                .filter((c) => !c.inactive_at)
+                .map((c) => (
+                  <option key={c.id} value={c.id}>
+                    {c.name}
+                  </option>
+                ))}
+              {customers.some((c) => c.inactive_at) && (
+                <optgroup label={tCustomers("inactivePickerGroup")}>
+                  {customers
+                    .filter((c) => c.inactive_at)
+                    .map((c) => (
+                      <option key={c.id} value={c.id}>
+                        {c.name}
+                      </option>
+                    ))}
+                </optgroup>
+              )}
             </select>
             <FieldError
               error={fieldErrors.customer_id}

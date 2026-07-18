@@ -8,8 +8,7 @@ import {
   Users,
   MailWarning,
   Share2,
-  ShieldAlert,
-} from "lucide-react";
+  ShieldAlert, Moon, RotateCcw } from "lucide-react";
 import { Tooltip } from "@/components/Tooltip";
 import { useToast } from "@/components/Toast";
 import { CustomerChip } from "@/components/CustomerChip";
@@ -18,9 +17,13 @@ import { formatDisplayDateTime } from "@/lib/format-date";
 import { formatCurrency } from "@/lib/invoice-utils";
 import { tableClass } from "@/lib/table-styles";
 import { ArchiveButton } from "./archive-button";
+import { RestoreCustomerButton } from "./restore-customer-button";
+import { StatusBadge } from "@/components/StatusBadge";
 import {
   bulkArchiveCustomersAction,
   bulkRestoreCustomersAction,
+  deactivateCustomerAction,
+  reactivateCustomerAction,
 } from "./actions";
 
 export interface CustomerRow {
@@ -32,10 +35,16 @@ export interface CustomerRow {
   bounced_at: string | null;
   complained_at: string | null;
   logo_url: string | null;
+  /** Dormant-relationship marker (NULL = active). Lifecycle feature 2026-07-18. */
+  inactive_at: string | null;
 }
 
 interface Props {
   customers: CustomerRow[];
+  /** "archived" renders the restore surface: archived badge on every row,
+   *  row + bulk actions become Restore. Default view shows active+inactive
+   *  with the Inactive badge on dormant rows. */
+  view?: "default" | "archived";
   /** Rows matching the current filter (pre-pagination count) —
    *  drives the load-more footer. */
   totalCount: number;
@@ -63,6 +72,7 @@ interface Props {
  */
 export function CustomersTable({
   customers,
+  view = "default",
   totalCount,
   shareCounts,
   teamNameById,
@@ -112,6 +122,60 @@ export function CustomersTable({
   }, []);
 
   const showOrgColumn = teamNameById.size > 1;
+
+  const onBulkDeactivate = useCallback((): void => {
+    const ids = Array.from(selected);
+    if (ids.length === 0) return;
+    startTransition(async () => {
+      const fd = new FormData();
+      for (const id of ids) fd.append("id", id);
+      try {
+        await deactivateCustomerAction(fd);
+        setSelected(new Set());
+        toast.push({
+          kind: "success",
+          message: t("bulkDeactivatedToast", { count: ids.length }),
+          actionLabel: tc("actions.undo"),
+          onAction: async () => {
+            const undoFd = new FormData();
+            for (const id of ids) undoFd.append("id", id);
+            await reactivateCustomerAction(undoFd);
+            toast.push({
+              kind: "success",
+              message: t("bulkReactivatedToast", { count: ids.length }),
+            });
+          },
+        });
+      } catch (err) {
+        toast.push({
+          kind: "error",
+          message: err instanceof Error ? err.message : t("deactivateFailed"),
+        });
+      }
+    });
+  }, [selected, startTransition, toast, t, tc]);
+
+  const onBulkRestore = useCallback((): void => {
+    const ids = Array.from(selected);
+    if (ids.length === 0) return;
+    startTransition(async () => {
+      const fd = new FormData();
+      for (const id of ids) fd.append("id", id);
+      try {
+        await bulkRestoreCustomersAction(fd);
+        setSelected(new Set());
+        toast.push({
+          kind: "success",
+          message: t("bulkRestoredToast", { count: ids.length }),
+        });
+      } catch (err) {
+        toast.push({
+          kind: "error",
+          message: err instanceof Error ? err.message : t("restoreFailed"),
+        });
+      }
+    });
+  }, [selected, startTransition, toast, t]);
 
   const onBulkArchive = useCallback((): void => {
     const ids = Array.from(selected);
@@ -215,14 +279,38 @@ export function CustomersTable({
                 total: loadedCount,
               })}
             </span>
-            <button
-              type="button"
-              onClick={onBulkArchive}
-              className="ml-auto inline-flex items-center gap-1.5 rounded-md border border-error/40 bg-error-soft px-3 py-1.5 text-caption font-semibold text-error-text hover:bg-error/10"
-            >
-              <Archive size={14} />
-              {t("bulkArchive", { count: selectedCount })}
-            </button>
+            {view === "archived" ? (
+              <button
+                type="button"
+                onClick={onBulkRestore}
+                className="ml-auto inline-flex items-center gap-1.5 rounded-md border border-edge bg-surface-raised px-3 py-1.5 text-caption font-semibold text-content hover:bg-hover"
+              >
+                <RotateCcw size={14} />
+                {t("bulkRestore", { count: selectedCount })}
+              </button>
+            ) : (
+              <>
+                {/* Neutral styling on purpose — non-destructive, unlike the
+                    red Archive beside it; the color contrast teaches the
+                    Inactive-vs-Archive distinction. */}
+                <button
+                  type="button"
+                  onClick={onBulkDeactivate}
+                  className="ml-auto inline-flex items-center gap-1.5 rounded-md border border-edge bg-surface-raised px-3 py-1.5 text-caption font-semibold text-content hover:bg-hover"
+                >
+                  <Moon size={14} />
+                  {t("bulkDeactivate", { count: selectedCount })}
+                </button>
+                <button
+                  type="button"
+                  onClick={onBulkArchive}
+                  className="inline-flex items-center gap-1.5 rounded-md border border-error/40 bg-error-soft px-3 py-1.5 text-caption font-semibold text-error-text hover:bg-error/10"
+                >
+                  <Archive size={14} />
+                  {t("bulkArchive", { count: selectedCount })}
+                </button>
+              </>
+            )}
           </>
         ) : (
           <span className="text-caption text-content-muted">
@@ -330,6 +418,17 @@ export function CustomersTable({
                     >
                       {client.name}
                     </Link>
+                    {view === "archived" ? (
+                      <StatusBadge
+                        status="archived"
+                        label={t("status.archived")}
+                      />
+                    ) : client.inactive_at ? (
+                      <StatusBadge
+                        status="inactive"
+                        label={t("status.inactive")}
+                      />
+                    ) : null}
                     {shareCount > 0 && (
                       <Tooltip
                         label={t("sharedWith", { count: shareCount })}
@@ -375,10 +474,14 @@ export function CustomersTable({
                     : "—"}
                 </td>
                 <td className="px-4 py-3 text-right">
-                  <ArchiveButton
-                    customerId={client.id}
-                    customerName={client.name}
-                  />
+                  {view === "archived" ? (
+                    <RestoreCustomerButton customerId={client.id} />
+                  ) : (
+                    <ArchiveButton
+                      customerId={client.id}
+                      customerName={client.name}
+                    />
+                  )}
                 </td>
               </tr>
             );

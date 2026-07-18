@@ -34,12 +34,13 @@ export default async function NewProposalPage({
 
   const { data: customerRows } = await supabase
     .from("customers")
-    .select("id, name, team_id")
+    .select("id, name, team_id, inactive_at")
     .eq("archived", false)
     .in("team_id", adminTeamIds)
     .order("name");
   const customers: CustomerOption[] = (customerRows ?? []).map((c) => ({
     id: c.id as string,
+    inactive: c.inactive_at != null,
     name: c.name as string,
     team_id: c.team_id as string,
   }));
