@@ -29,15 +29,16 @@ export default defineConfig({
         // floor here in the same PR. Never lower a floor to make a
         // build pass. Target (per CLAUDE.md) is 90%+; we'll get there
         // by ratcheting, not by wishing.
-        statements: 52,
-        branches: 44,
-        functions: 48,
-        lines: 53,
-        // Note: measured numbers as of 2026-07-18 are 52.74 / 44.61
-        // / 48.34 / 53.37 (server-action test sweep: import undo,
-        // team email, expense CSV import, system deploy, period
-        // locks). The floor is set just below to allow ~0.3 pp slack
-        // for nondeterminism. Ratchet on the next coverage-raising PR.
+        statements: 55,
+        branches: 45,
+        functions: 49,
+        lines: 55,
+        // Note: measured numbers as of 2026-07-18 are 55.32 / 46.22
+        // / 49.47 / 56.01 (API-route test sweep: harvest import,
+        // expenses/time/people-history/identity-history CSV exports,
+        // messaging sender contract). The floor is set just below to
+        // allow ~0.3 pp slack for nondeterminism. Ratchet on the next
+        // coverage-raising PR.
       },
     },
   },
