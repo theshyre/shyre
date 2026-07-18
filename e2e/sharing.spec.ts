@@ -1,10 +1,11 @@
 import { test, expect } from "@playwright/test";
 
-test("/settings redirects to /profile", async ({ page }) => {
+test("/settings renders the settings hub", async ({ page }) => {
+  // /settings stopped redirecting to /profile when it became the settings
+  // hub (four-persona IA review) — assert the hub's own heading instead.
   await page.goto("/settings");
-  await expect(page).toHaveURL(/\/profile/);
   await expect(
-    page.getByRole("heading", { name: /your profile/i }),
+    page.getByRole("heading", { name: "Settings", exact: true }),
   ).toBeVisible();
 });
 
