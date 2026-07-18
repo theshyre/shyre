@@ -75,6 +75,11 @@ The integrations surface lets external apps (first: Claude Code) start/stop time
 - Middleware exemption follows the SAL-039 exact-segment discipline (`/api/v1`, `/api/v1/`, `/api/mcp`); `middleware.test.ts` carries control probes (`/api/v10`, `/api/v1x`, `/api/mcpx` still redirect).
 - New FK to `auth.users` repeats the `supabase_auth_admin` grant (SAL-050 forward rule).
 
+**Route-layer commitments implemented in the P1 API PR (`feat/integrations-p1-api`):**
+- `runIntegrationRoute` (`src/lib/integrations/api-auth.ts`) is the single gate for every `/api/v1` route: Authorization-header-only PAT extraction, immediate sha256, strict-Zod body validation, ERRCODE→HTTP mapping with ONE uniform 401 body for every auth-failure shape (no oracle), 409 bodies carrying the redacted conflict reason, and `logError()` on EVERY non-2xx with the token's display prefix only — never the raw token, never the Authorization header. `integrations-route-parity.test.ts` greps the route sources so a route that forgets the wrapper (i.e. a PUBLIC route on this middleware-exempt surface) fails the build; it also asserts no route or the MCP handler touches a Supabase client directly.
+- The MCP endpoint (`/api/mcp`, Streamable HTTP only — SSE disabled) authenticates via `withMcpAuth` + `verifyIntegrationBearer` (same PAT → hash → `api_whoami` gauntlet); the token HASH, never the raw PAT, rides on `authInfo.extra`. All five tools call the same `src/lib/integrations/service.ts` functions as REST — the two transports cannot drift.
+- The service layer talks to the DB exclusively through a bare session-less ANON client (`createIntegrationClient`) — no cookies, no service role — so the six granted RPCs remain the entire reachable surface.
+
 **Pre-GA checklist (tracked; tick before announcing the feature):**
 - [ ] psql RLS simulation (SAL-003 template): owner-sees-own / admin-sees-team / member-sees-only-own on `integration_tokens` + `integration_events`; anon sees nothing; no client write path to events/idempotency.
 - [ ] Post-deploy probe: fabricated, revoked, and expired tokens each → identical coarse 401 + `logError` row at /system/errors.

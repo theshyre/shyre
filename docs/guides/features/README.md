@@ -13,4 +13,5 @@ How each Shyre feature works. Apply to every user regardless of role; role-speci
 - [Invoicing](invoicing.md)
 - [Proposals](proposals.md)
 - [Imports (Harvest)](imports.md)
+- [Integrations API (REST + MCP)](integrations-api.md)
 - [Keyboard shortcuts](keyboard-shortcuts.md)

@@ -34,6 +34,7 @@ const MODULES: ModuleCard[] = [
       { title: "Categories", href: "/docs/guides/features/categories" },
       { title: "Templates", href: "/docs/guides/features/templates" },
       { title: "Imports (Harvest)", href: "/docs/guides/features/imports" },
+      { title: "Integrations API (REST + MCP)", href: "/docs/guides/features/integrations-api" },
     ],
   },
   {
