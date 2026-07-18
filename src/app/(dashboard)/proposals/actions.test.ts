@@ -1256,3 +1256,180 @@ describe("resendSignLinksAction", () => {
     ).rejects.toThrow(/sent proposal/);
   });
 });
+
+describe("createInvoiceFromProposalAction — deposit mode (SAL-049)", () => {
+  const depositProposal = {
+    id: "prop-1",
+    team_id: TEAM,
+    status: "accepted",
+    customer_id: CUSTOMER,
+    proposal_number: "PROP-2026-007",
+    title: "Modernization",
+    currency: "USD",
+    payment_terms_days: 30,
+    payment_terms_label: "Net 30",
+    deposit_type: "percent",
+    deposit_value: 50,
+    accepted_total: 4950,
+    deposit_invoice_id: null,
+  };
+
+  function seedDeposit(overrides: Record<string, unknown> = {}): void {
+    queues["proposals"] = [
+      { data: { ...depositProposal, ...overrides }, error: null },
+      { data: [{ id: "prop-1" }], error: null }, // deposit-slot claim wins
+    ];
+    queues["proposal_acceptances"] = [
+      {
+        data: [
+          {
+            selected_line_item_ids: ["li-1", "li-2"],
+            decision: "accepted",
+            tax_rate: 0,
+          },
+        ],
+        error: null,
+      },
+    ];
+    queues["proposal_line_items"] = [{ data: CONVERT_ITEMS, error: null }];
+    queues["team_settings"] = [
+      { data: { invoice_prefix: "INV", invoice_next_num: 9, tax_rate: 0 }, error: null },
+      { data: null, error: null }, // counter bump
+    ];
+    queues["invoices"] = [{ data: { id: "inv-dep" }, error: null }];
+    queues["invoice_line_items"] = [{ data: null, error: null }];
+  }
+
+  it("bills 50% of the ACCEPTED total as one manual line and claims the slot", async () => {
+    seedDeposit();
+    await expect(
+      createInvoiceFromProposalAction(
+        formWith({ id: "prop-1", mode: "deposit" }),
+      ),
+    ).rejects.toThrow("NEXT_REDIRECT /invoices/inv-dep");
+    const [inv] = insertedRows("invoices");
+    expect(inv).toMatchObject({ proposal_id: "prop-1", subtotal: 2475 });
+    const [line] = insertedRows("invoice_line_items");
+    expect(line).toMatchObject({ amount: 2475, proposal_line_item_id: null });
+    expect(String(line!.description)).toMatch(/Deposit \(50%\)/);
+    // Deposit NEVER claims item-level invoiced_at (that's the full bill's lock).
+    const itemClaim = calls.find(
+      (c) =>
+        c.table === "proposal_line_items" &&
+        c.ops.some((o) => o.method === "update"),
+    );
+    expect(itemClaim).toBeUndefined();
+  });
+
+  it("loses a concurrent deposit race: deletes its own invoice and refuses", async () => {
+    seedDeposit();
+    queues["proposals"] = [
+      { data: depositProposal, error: null },
+      { data: [], error: null }, // slot claim matched no row — lost the race
+    ];
+    queues["invoices"] = [
+      { data: { id: "inv-dep" }, error: null },
+      { data: null, error: null }, // our rollback delete
+    ];
+    await expect(
+      createInvoiceFromProposalAction(
+        formWith({ id: "prop-1", mode: "deposit" }),
+      ),
+    ).rejects.toThrow(/already been billed/);
+    const del = calls.find(
+      (c) =>
+        c.table === "invoices" && c.ops.some((o) => o.method === "delete"),
+    );
+    expect(del).toBeDefined();
+  });
+
+  it("refuses when the deposit slot is already claimed", async () => {
+    seedDeposit({ deposit_invoice_id: "inv-existing" });
+    await expect(
+      createInvoiceFromProposalAction(
+        formWith({ id: "prop-1", mode: "deposit" }),
+      ),
+    ).rejects.toThrow(/already been billed/);
+  });
+
+  it("refuses when the proposal has no deposit term", async () => {
+    seedDeposit({ deposit_type: "none", deposit_value: null });
+    await expect(
+      createInvoiceFromProposalAction(
+        formWith({ id: "prop-1", mode: "deposit" }),
+      ),
+    ).rejects.toThrow(/no deposit term/);
+  });
+});
+
+describe("createInvoiceFromProposalAction — deposit netting on the full bill", () => {
+  it("nets a billed deposit out as a negative line (pre-tax)", async () => {
+    queues["proposals"] = [
+      {
+        data: {
+          id: "prop-1",
+          team_id: TEAM,
+          status: "accepted",
+          customer_id: CUSTOMER,
+          proposal_number: "PROP-2026-007",
+          title: "Modernization",
+          currency: "USD",
+          payment_terms_days: 30,
+          payment_terms_label: "Net 30",
+          deposit_type: "percent",
+          deposit_value: 50,
+          accepted_total: 4950,
+          deposit_invoice_id: "inv-dep",
+        },
+        error: null,
+      },
+    ];
+    queues["proposal_acceptances"] = [
+      {
+        data: [
+          {
+            selected_line_item_ids: ["li-1", "li-2"],
+            decision: "accepted",
+            tax_rate: 0,
+          },
+        ],
+        error: null,
+      },
+    ];
+    queues["proposal_line_items"] = [
+      { data: CONVERT_ITEMS, error: null },
+      {
+        data: [
+          { id: "li-1", title: "Basic dependency upgrades", fixed_price: 950 },
+          { id: "li-2", title: "Modernize underlying components", fixed_price: 4000 },
+        ],
+        error: null,
+      },
+    ];
+    queues["team_settings"] = [
+      { data: { invoice_prefix: "INV", invoice_next_num: 9, tax_rate: 0 }, error: null },
+      { data: null, error: null },
+    ];
+    queues["invoices"] = [
+      {
+        data: { id: "inv-dep", invoice_number: "INV-008", subtotal: 2475, status: "sent" },
+        error: null,
+      }, // deposit lookup
+      { data: { id: "inv-final" }, error: null }, // final insert
+    ];
+    queues["invoice_line_items"] = [{ data: null, error: null }];
+
+    await expect(
+      createInvoiceFromProposalAction(formWith({ id: "prop-1" })),
+    ).rejects.toThrow("NEXT_REDIRECT /invoices/inv-final");
+
+    const [finalInvoice] = insertedRows("invoices");
+    // 950 + 4000 − 2475 = 2475: the client pays the remainder, never twice.
+    expect(finalInvoice).toMatchObject({ subtotal: 2475 });
+    const negLine = insertedRows("invoice_line_items").find(
+      (l) => Number(l.amount) < 0,
+    );
+    expect(negLine).toMatchObject({ amount: -2475 });
+    expect(String(negLine!.description)).toContain("INV-008");
+  });
+});

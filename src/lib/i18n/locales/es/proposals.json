@@ -323,7 +323,8 @@
     "resendLink": "Reenviar enlace",
     "resending": "Reenviando…",
     "resendSuccess": "Enlace(s) de firma nuevos enviados. Los enlaces anteriores ya no funcionan.",
-    "resendFailed": "Error al reenviar"
+    "resendFailed": "Error al reenviar",
+    "billDeposit": "Facturar depósito"
   },
   "pdf": {
     "documentTitle": "Propuesta",

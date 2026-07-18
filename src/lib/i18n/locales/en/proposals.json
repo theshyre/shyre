@@ -323,7 +323,8 @@
     "resendLink": "Resend link",
     "resending": "Resending…",
     "resendSuccess": "Fresh sign link(s) emailed. Earlier links no longer work.",
-    "resendFailed": "Resend failed"
+    "resendFailed": "Resend failed",
+    "billDeposit": "Bill deposit"
   },
   "pdf": {
     "documentTitle": "Proposal",
