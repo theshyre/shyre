@@ -13,6 +13,7 @@ import {
 import { Tooltip } from "@/components/Tooltip";
 import { useToast } from "@/components/Toast";
 import { CustomerChip } from "@/components/CustomerChip";
+import { PaginationFooter } from "@/components/PaginationFooter";
 import { formatDisplayDateTime } from "@/lib/format-date";
 import { formatCurrency } from "@/lib/invoice-utils";
 import { tableClass } from "@/lib/table-styles";
@@ -35,6 +36,9 @@ export interface CustomerRow {
 
 interface Props {
   customers: CustomerRow[];
+  /** Rows matching the current filter (pre-pagination count) —
+   *  drives the load-more footer. */
+  totalCount: number;
   /** customer.id → number of additional teams that share visibility. */
   shareCounts: Map<string, number>;
   /** team_id → display name, used in the Org column. Empty when the
@@ -59,6 +63,7 @@ interface Props {
  */
 export function CustomersTable({
   customers,
+  totalCount,
   shareCounts,
   teamNameById,
 }: Props): React.JSX.Element {
@@ -69,8 +74,8 @@ export function CustomersTable({
   const [selected, setSelected] = useState<Set<string>>(new Set());
 
   const selectedCount = selected.size;
-  const totalCount = customers.length;
-  const allSelected = totalCount > 0 && selectedCount === totalCount;
+  const loadedCount = customers.length;
+  const allSelected = loadedCount > 0 && selectedCount === loadedCount;
   const someSelected = selectedCount > 0 && !allSelected;
 
   // Escape clears the selection (Pattern A/B contract). Only fires
@@ -91,11 +96,11 @@ export function CustomersTable({
 
   const toggleAll = useCallback(() => {
     setSelected((prev) =>
-      prev.size === totalCount && totalCount > 0
+      prev.size === loadedCount && loadedCount > 0
         ? new Set()
         : new Set(customers.map((c) => c.id)),
     );
-  }, [customers, totalCount]);
+  }, [customers, loadedCount]);
 
   const toggleOne = useCallback((id: string) => {
     setSelected((prev) => {
@@ -207,7 +212,7 @@ export function CustomersTable({
             <span className="text-caption text-content-secondary">
               {t("bulkSelectedLabel", {
                 count: selectedCount,
-                total: totalCount,
+                total: loadedCount,
               })}
             </span>
             <button
@@ -389,6 +394,7 @@ export function CustomersTable({
           </tr>
         </tfoot>
       </table>
+      <PaginationFooter loaded={customers.length} total={totalCount} />
     </div>
   );
 }

@@ -18,7 +18,7 @@
     "member": "Member",
     "hours": "Hours",
     "billableHours": "Billable Hours",
-    "revenue": "Revenue",
+    "revenue": "Time-Based Revenue",
     "entries": "Entries"
   },
   "sectionsExtra": {
@@ -27,7 +27,7 @@
   "totals": {
     "total": "Total",
     "totalHours": "Total Hours",
-    "totalRevenue": "Total Revenue",
+    "totalRevenue": "Time-Based Revenue",
     "billablePercent": "Billable %"
   },
   "noData": "No time entries for this period."

@@ -34,6 +34,17 @@
     "title": "Proyectos",
     "noProjects": "Aún no hay proyectos para este cliente."
   },
+  "proposalsSection": {
+    "title": "Propuestas",
+    "none": "Aún no hay propuestas para este cliente.",
+    "newProposal": "Nueva propuesta",
+    "viewAll": "Ver las {count, number} propuestas"
+  },
+  "invoicesSection": {
+    "title": "Facturas",
+    "none": "Aún no hay facturas para este cliente.",
+    "viewAll": "Ver las {count, number} facturas"
+  },
   "sharedWith": "{count, plural, one {Compartido con # organización} other {Compartido con # organizaciones}}",
   "bouncedBanner": "{count, plural, one {# cliente ha rebotado o marcado una factura como spam} other {# clientes han rebotado o marcado una factura como spam}}. Actualiza su correo antes de enviar de nuevo.",
   "bouncedShowOnly": "Mostrar solo los marcados →",

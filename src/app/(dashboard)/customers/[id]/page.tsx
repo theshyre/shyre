@@ -1,14 +1,29 @@
 import type { Metadata } from "next";
 import { createClient } from "@/lib/supabase/server";
-import { getUserTeams } from "@/lib/team-context";
+import { getUserTeams, isTeamAdmin } from "@/lib/team-context";
 import { getTranslations } from "next-intl/server";
 import { notFound } from "next/navigation";
 import Link from "next/link";
-import { FolderKanban } from "lucide-react";
+import {
+  ArrowRight,
+  FileSignature,
+  FileText,
+  FolderKanban,
+  Plus,
+} from "lucide-react";
 import { StatusBadge } from "@/components/StatusBadge";
 import { CustomerChip } from "@/components/CustomerChip";
 import { LinkPendingSpinner } from "@/components/LinkPendingSpinner";
+import { buttonSecondaryClass } from "@/lib/form-styles";
 import { formatCurrency } from "@/lib/invoice-utils";
+import { effectiveInvoiceStatus } from "@/lib/invoice-status";
+import { roundMoney } from "@/lib/proposals/line-items";
+import {
+  displayProposalTotal,
+  isProposalExpired,
+} from "@/lib/proposals/list-view";
+import { ProposalStatusBadge } from "../../proposals/proposal-status-badge";
+import { InvoiceStatusBadge } from "../../invoices/invoice-status-badge";
 
 export async function generateMetadata({
   params,
@@ -65,6 +80,15 @@ interface SecurityGroupRow {
   name: string;
 }
 
+function todayLocalDate(): string {
+  const d = new Date();
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+}
+
+/** Compact-list cap for the proposals / invoices sections — enough
+ *  to scan recent history; the "View all" link carries the rest. */
+const COMPACT_LIST_LIMIT = 6;
+
 function displayName(
   profile:
     | { display_name: string | null }[]
@@ -99,6 +123,77 @@ export default async function ClientDetailPage({
     .select("*")
     .eq("customer_id", id)
     .order("created_at", { ascending: false });
+
+  // Compact recent-history lists: this customer's proposals and
+  // invoices (capped, with a count for the "View all" link). RLS
+  // scopes both — members simply see empty sections for proposals.
+  const [
+    { data: proposalRows, count: proposalCount },
+    { data: invoiceRows, count: invoiceCount },
+  ] = await Promise.all([
+    supabase
+      .from("proposals")
+      .select(
+        "id, proposal_number, title, status, issued_date, valid_until, currency, accepted_total, proposal_line_items(fixed_price, parent_line_item_id)",
+        { count: "exact" },
+      )
+      .eq("customer_id", id)
+      .order("issued_date", { ascending: false, nullsFirst: false })
+      .order("created_at", { ascending: false })
+      .range(0, COMPACT_LIST_LIMIT - 1),
+    supabase
+      .from("invoices")
+      .select("id, invoice_number, status, due_date, issued_date, total, currency", {
+        count: "exact",
+      })
+      .eq("customer_id", id)
+      .order("issued_date", { ascending: false, nullsFirst: false })
+      .order("id", { ascending: false })
+      .range(0, COMPACT_LIST_LIMIT - 1),
+  ]);
+
+  const today = todayLocalDate();
+  const customerProposals = (proposalRows ?? []).map((p) => {
+    const items = (p.proposal_line_items ?? []) as Array<{
+      fixed_price: number | string;
+      parent_line_item_id: string | null;
+    }>;
+    // Phases break down their parent — only top-level rows count.
+    const total = roundMoney(
+      items
+        .filter((li) => li.parent_line_item_id === null)
+        .reduce((sum, li) => sum + Number(li.fixed_price), 0),
+    );
+    const status = (p.status as string) ?? "draft";
+    return {
+      id: p.id as string,
+      number: p.proposal_number as string,
+      title: p.title as string,
+      status,
+      expired: isProposalExpired(
+        status,
+        (p.valid_until as string | null) ?? null,
+        today,
+      ),
+      total: displayProposalTotal(
+        status,
+        total,
+        p.accepted_total != null ? Number(p.accepted_total) : null,
+      ),
+      currency: (p.currency as string) ?? "USD",
+    };
+  });
+  const customerInvoices = (invoiceRows ?? []).map((inv) => ({
+    id: inv.id as string,
+    number: inv.invoice_number as string,
+    status: effectiveInvoiceStatus(
+      (inv.status as string | null) ?? "draft",
+      (inv.due_date as string | null) ?? null,
+      today,
+    ),
+    total: inv.total != null ? Number(inv.total) : null,
+    currency: (inv.currency as string | null) ?? undefined,
+  }));
 
   // Sharing data
   const { data: sharesData } = await supabase
@@ -149,6 +244,11 @@ export default async function ClientDetailPage({
   const currentPrimaryMembership = userOrgs.find(
     (o) => o.id === client.team_id,
   );
+  // Proposal authoring is owner/admin of the customer's own team —
+  // the same tier /proposals/new enforces server-side.
+  const canCreateProposal =
+    currentPrimaryMembership !== undefined &&
+    isTeamAdmin(currentPrimaryMembership.role);
   const canChangePrimary = currentPrimaryMembership?.role === "owner";
   const changePrimaryTeams = userOrgs
     .filter((o) => o.id !== client.team_id)
@@ -367,6 +467,117 @@ export default async function ClientDetailPage({
         ) : (
           <p className="mt-3 text-body-lg text-content-muted">
             {t("projects.noProjects")}
+          </p>
+        )}
+      </div>
+
+      {/* Proposals — compact recent list + the entry point for
+          quoting new work for THIS customer. */}
+      <div className="mt-8">
+        <div className="flex items-center gap-3 flex-wrap">
+          <FileSignature size={20} className="text-accent" />
+          <h2 className="text-title font-semibold text-content">
+            {t("proposalsSection.title")}
+          </h2>
+          {canCreateProposal && (
+            <Link
+              href={`/proposals/new?customerId=${id}`}
+              className={`${buttonSecondaryClass} ml-auto`}
+            >
+              <Plus size={14} />
+              {t("proposalsSection.newProposal")}
+            </Link>
+          )}
+        </div>
+        {customerProposals.length > 0 ? (
+          <>
+            <ul className="mt-3 space-y-2">
+              {customerProposals.map((p) => (
+                <li key={p.id}>
+                  <Link
+                    href={`/proposals/${p.id}`}
+                    className="flex items-center justify-between gap-3 rounded-lg border border-edge bg-surface-raised px-4 py-3 hover:bg-hover transition-colors"
+                  >
+                    <span className="flex min-w-0 items-center gap-2">
+                      <LinkPendingSpinner />
+                      <span className="font-mono text-caption text-content-secondary">
+                        {p.number}
+                      </span>
+                      <span className="truncate font-medium text-content">
+                        {p.title}
+                      </span>
+                      <ProposalStatusBadge status={p.status} expired={p.expired} />
+                    </span>
+                    <span className="shrink-0 text-body-lg text-content-secondary font-mono">
+                      {formatCurrency(p.total, p.currency)}
+                    </span>
+                  </Link>
+                </li>
+              ))}
+            </ul>
+            {(proposalCount ?? 0) > customerProposals.length && (
+              <Link
+                href="/proposals"
+                className="mt-2 inline-flex items-center gap-1 text-body text-accent hover:underline"
+              >
+                {t("proposalsSection.viewAll", { count: proposalCount ?? 0 })}
+                <ArrowRight size={14} />
+              </Link>
+            )}
+          </>
+        ) : (
+          <p className="mt-3 text-body-lg text-content-muted">
+            {t("proposalsSection.none")}
+          </p>
+        )}
+      </div>
+
+      {/* Invoices — compact recent list with read-time overdue. */}
+      <div className="mt-8">
+        <div className="flex items-center gap-3">
+          <FileText size={20} className="text-accent" />
+          <h2 className="text-title font-semibold text-content">
+            {t("invoicesSection.title")}
+          </h2>
+        </div>
+        {customerInvoices.length > 0 ? (
+          <>
+            <ul className="mt-3 space-y-2">
+              {customerInvoices.map((inv) => (
+                <li key={inv.id}>
+                  <Link
+                    href={`/invoices/${inv.id}`}
+                    className="flex items-center justify-between gap-3 rounded-lg border border-edge bg-surface-raised px-4 py-3 hover:bg-hover transition-colors"
+                  >
+                    <span className="flex min-w-0 items-center gap-2">
+                      <LinkPendingSpinner />
+                      <span className="font-mono font-medium text-content">
+                        {inv.number}
+                      </span>
+                      <InvoiceStatusBadge status={inv.status} />
+                    </span>
+                    <span className="shrink-0 text-body-lg text-content-secondary font-mono">
+                      {inv.total !== null
+                        ? formatCurrency(inv.total, inv.currency)
+                        : "—"}
+                    </span>
+                  </Link>
+                </li>
+              ))}
+            </ul>
+            {(invoiceCount ?? 0) > customerInvoices.length && (
+              <Link
+                href={`/invoices?customerId=${id}`}
+                className="mt-2 inline-flex items-center gap-1 text-body text-accent hover:underline"
+              >
+                {t("invoicesSection.viewAll", { count: invoiceCount ?? 0 })}
+                <ArrowRight size={14} />
+              </Link>
+            )}
+          </>
+        ) : (
+          <p className="mt-3 text-body-lg text-content-muted">
+            {t("invoicesSection.none")}
           </p>
         )}
       </div>

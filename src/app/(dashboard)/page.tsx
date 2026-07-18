@@ -25,10 +25,15 @@ import {
   DollarSign,
   Users,
   FolderKanban,
+  FileText,
+  FileSignature,
   ArrowRight,
   Play,
 } from "lucide-react";
 import { buttonPrimaryClass } from "@/lib/form-styles";
+import { formatCurrency } from "@/lib/invoice-utils";
+import { roundMoney } from "@/lib/proposals/line-items";
+import { summarizeOutstandingProposals } from "@/lib/proposals/list-view";
 import { ExpiringCredentialsBanner } from "@/components/ExpiringCredentialsBanner";
 import { EntryAuthor, type EntryAuthorInfo } from "@/components/EntryAuthor";
 import { CustomerChip } from "@/components/CustomerChip";
@@ -60,8 +65,17 @@ export default async function DashboardPage(): Promise<React.JSX.Element> {
   ).toISOString();
 
   // Parallel queries
-  const [todayEntries, weekEntries, activeTimers, unbilledEntries, customers, projects, recentEntries] =
-    await Promise.all([
+  const [
+    todayEntries,
+    weekEntries,
+    activeTimers,
+    unbilledEntries,
+    customers,
+    projects,
+    recentEntries,
+    sentInvoices,
+    outstandingProposals,
+  ] = await Promise.all([
       supabase
         .from("time_entries")
         .select("duration_min")
@@ -109,6 +123,17 @@ export default async function DashboardPage(): Promise<React.JSX.Element> {
         .is("deleted_at", null)
         .order("start_time", { ascending: false })
         .limit(5),
+      // Money-in-flight cards. "Outstanding invoices" is the simple
+      // read — summed `total` of status='sent' invoices (payments
+      // are not netted; the invoice detail is the source of truth
+      // for balances). "Awaiting signature" mirrors the proposals
+      // list's outstanding rollup: sent+viewed proposals, totals
+      // derived from top-level line items.
+      supabase.from("invoices").select("total").eq("status", "sent"),
+      supabase
+        .from("proposals")
+        .select("status, proposal_line_items(fixed_price, parent_line_item_id)")
+        .in("status", ["sent", "viewed"]),
     ]);
 
   // Resolve author profiles in one round-trip so the recent-activity
@@ -150,13 +175,50 @@ export default async function DashboardPage(): Promise<React.JSX.Element> {
   const clientCount = customers.data?.length ?? 0;
   const projectCount = projects.data?.length ?? 0;
 
+  // Invoices are sent in the team's currency; v1 sums the raw
+  // totals (matching the task's "just sum" contract) and formats in
+  // the default currency. Proposals are USD-only in v1.
+  const outstandingInvoicesTotal = roundMoney(
+    (sentInvoices.data ?? []).reduce(
+      (sum, inv) => sum + Number(inv.total ?? 0),
+      0,
+    ),
+  );
+  const awaitingSignature = summarizeOutstandingProposals(
+    (outstandingProposals.data ?? []).map((p) => {
+      const items = (p.proposal_line_items ?? []) as Array<{
+        fixed_price: number | string;
+        parent_line_item_id: string | null;
+      }>;
+      return {
+        status: (p.status as string) ?? "sent",
+        // Phases break down their parent — only top-level rows count.
+        total: roundMoney(
+          items
+            .filter((li) => li.parent_line_item_id === null)
+            .reduce((sum, li) => sum + Number(li.fixed_price), 0),
+        ),
+      };
+    }),
+  );
+
   const fmtHours = (mins: number): string => {
     const h = Math.floor(mins / 60);
     const m = Math.round(mins % 60);
     return h > 0 ? `${h}h ${m}m` : `${m}m`;
   };
 
-  const stats = [
+  interface StatCard {
+    label: string;
+    value: string;
+    /** Optional caption under the value (e.g. "2 proposals"). */
+    sub?: string;
+    icon: typeof Clock;
+    color: string;
+    bgColor: string;
+  }
+
+  const stats: StatCard[] = [
     {
       label: t("stats.todayHours"),
       value: fmtHours(todayMinutes),
@@ -184,6 +246,23 @@ export default async function DashboardPage(): Promise<React.JSX.Element> {
       icon: DollarSign,
       color: "text-warning" as const,
       bgColor: "bg-warning-soft" as const,
+    },
+    {
+      label: t("stats.outstandingInvoices"),
+      value: formatCurrency(outstandingInvoicesTotal),
+      icon: FileText,
+      color: "text-warning" as const,
+      bgColor: "bg-warning-soft" as const,
+    },
+    {
+      label: t("stats.awaitingSignature"),
+      value: formatCurrency(awaitingSignature.total, "USD"),
+      sub: t("stats.awaitingSignatureCount", {
+        count: awaitingSignature.count,
+      }),
+      icon: FileSignature,
+      color: "text-info" as const,
+      bgColor: "bg-info-soft" as const,
     },
     {
       label: t("stats.totalClients"),
@@ -250,6 +329,11 @@ export default async function DashboardPage(): Promise<React.JSX.Element> {
                   <p className="text-title font-bold font-mono text-content">
                     {stat.value}
                   </p>
+                  {stat.sub && (
+                    <p className="text-caption text-content-muted">
+                      {stat.sub}
+                    </p>
+                  )}
                 </div>
               </div>
             </div>

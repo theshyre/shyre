@@ -246,6 +246,7 @@
   "bulkMarkPaidIneligibleHint": "Solo facturas enviadas o vencidas pueden marcarse pagadas en lote. Reduce la selección.",
   "bulkPaidToast": "{count, plural, one {1 factura marcada como pagada} other {# facturas marcadas como pagadas}}",
   "bulkPaidFailed": "No se pudieron marcar las facturas como pagadas.",
+  "fromProposal": "De la propuesta",
   "emptyTitle": "Aún no hay facturas",
   "emptyDescription": "Crea una factura a partir del tiempo registrado, gastos o una propuesta aceptada."
 }

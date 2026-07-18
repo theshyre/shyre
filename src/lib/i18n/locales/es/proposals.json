@@ -15,7 +15,8 @@
     "accepted": "Aceptada",
     "declined": "Rechazada",
     "converted": "Convertida",
-    "superseded": "Reemplazada"
+    "superseded": "Reemplazada",
+    "expired": "Vencida"
   },
   "table": {
     "number": "Número",
@@ -24,6 +25,23 @@
     "status": "Estado",
     "total": "Total",
     "issued": "Emitida"
+  },
+  "filters": {
+    "status": {
+      "listboxLabel": "Filtrar por estado",
+      "label": {
+        "all": "Todos los estados",
+        "draft": "Borrador",
+        "sent": "Enviadas y vistas",
+        "accepted": "Aceptadas",
+        "declined": "Rechazadas",
+        "history": "Historial"
+      }
+    }
+  },
+  "list": {
+    "outstanding": "{total} pendiente de firma ({count, plural, one {# propuesta} other {# propuestas}})",
+    "sentDaysAgo": "enviada hace {days} d"
   },
   "form": {
     "team": "Equipo",

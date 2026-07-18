@@ -34,6 +34,17 @@
     "title": "Projects",
     "noProjects": "No projects yet for this customer."
   },
+  "proposalsSection": {
+    "title": "Proposals",
+    "none": "No proposals yet for this customer.",
+    "newProposal": "New proposal",
+    "viewAll": "View all {count, number} proposals"
+  },
+  "invoicesSection": {
+    "title": "Invoices",
+    "none": "No invoices yet for this customer.",
+    "viewAll": "View all {count, number} invoices"
+  },
   "sharedWith": "{count, plural, one {Shared with # organization} other {Shared with # organizations}}",
   "bouncedBanner": "{count, plural, one {# customer has bounced or marked an invoice as spam} other {# customers have bounced or marked an invoice as spam}}. Update their email before sending again.",
   "bouncedShowOnly": "Show only flagged →",

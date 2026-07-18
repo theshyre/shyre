@@ -18,7 +18,7 @@
     "member": "Miembro",
     "hours": "Horas",
     "billableHours": "Horas Facturables",
-    "revenue": "Ingresos",
+    "revenue": "Ingresos por Horas",
     "entries": "Registros"
   },
   "sectionsExtra": {
@@ -27,7 +27,7 @@
   "totals": {
     "total": "Total",
     "totalHours": "Total de Horas",
-    "totalRevenue": "Total de Ingresos",
+    "totalRevenue": "Ingresos por Horas",
     "billablePercent": "% Facturable"
   },
   "noData": "No hay registros de tiempo para este período."

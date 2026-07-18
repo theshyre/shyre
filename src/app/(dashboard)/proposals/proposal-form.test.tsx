@@ -62,6 +62,34 @@ describe("ProposalForm", () => {
     expect(screen.getByLabelText("Title")).toHaveFocus();
   });
 
+  it("preselects the customer from defaultCustomerId", () => {
+    renderWithIntl(
+      <ProposalForm
+        teams={teams}
+        customers={customers}
+        contacts={contacts}
+        defaultCustomerId={CUSTOMER}
+      />,
+    );
+    expect(
+      (screen.getByLabelText("Customer") as HTMLSelectElement).value,
+    ).toBe(CUSTOMER);
+  });
+
+  it("leaves the customer empty for an unknown defaultCustomerId", () => {
+    renderWithIntl(
+      <ProposalForm
+        teams={teams}
+        customers={customers}
+        contacts={contacts}
+        defaultCustomerId="99999999-9999-4999-8999-999999999999"
+      />,
+    );
+    expect(
+      (screen.getByLabelText("Customer") as HTMLSelectElement).value,
+    ).toBe("");
+  });
+
   it("adds and removes line items", () => {
     renderForm();
     expect(screen.getAllByLabelText("Project title")).toHaveLength(1);

@@ -313,5 +313,6 @@
     "notAdmin": "Project history is visible to owner / admin only.",
     "notFound": "Project not found.",
     "loadMore": "Load more"
-  }
+  },
+  "fromProposal": "From proposal"
 }

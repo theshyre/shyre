@@ -31,4 +31,20 @@ describe("ProposalStatusBadge", () => {
     renderWithIntl(<ProposalStatusBadge status="accepted" size="prominent" />);
     expect(screen.getByRole("status")).toHaveTextContent("Accepted");
   });
+
+  it.each([["sent"], ["viewed"]])(
+    "relabels an expired %s proposal as Expired",
+    (status) => {
+      renderWithIntl(<ProposalStatusBadge status={status} expired />);
+      expect(screen.getByText("Expired")).toBeInTheDocument();
+      expect(screen.queryByText("Sent")).not.toBeInTheDocument();
+      expect(screen.queryByText("Viewed")).not.toBeInTheDocument();
+    },
+  );
+
+  it("ignores the expired flag on decided statuses", () => {
+    renderWithIntl(<ProposalStatusBadge status="accepted" expired />);
+    expect(screen.getByText("Accepted")).toBeInTheDocument();
+    expect(screen.queryByText("Expired")).not.toBeInTheDocument();
+  });
 });

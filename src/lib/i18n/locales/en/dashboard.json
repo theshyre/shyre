@@ -8,7 +8,10 @@
     "activeTimers": "Active Timers",
     "unbilledHours": "Unbilled Hours",
     "totalClients": "Clients",
-    "totalProjects": "Active Projects"
+    "totalProjects": "Active Projects",
+    "outstandingInvoices": "Outstanding Invoices",
+    "awaitingSignature": "Awaiting Signature",
+    "awaitingSignatureCount": "{count, plural, one {# proposal} other {# proposals}}"
   },
   "recentActivity": "Recent Activity",
   "noRecentActivity": "No recent time entries.",

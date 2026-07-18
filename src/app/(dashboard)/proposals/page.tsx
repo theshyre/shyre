@@ -1,11 +1,20 @@
 import type { Metadata } from "next";
 import { FileSignature } from "lucide-react";
 import { getTranslations } from "next-intl/server";
+import { Send } from "lucide-react";
 import { createClient } from "@/lib/supabase/server";
 import { getUserTeams, isTeamAdmin } from "@/lib/team-context";
 import { TeamFilter } from "@/components/TeamFilter";
 import { roundMoney } from "@/lib/proposals/line-items";
+import {
+  parseProposalStatusFilter,
+  proposalFilterStatuses,
+  summarizeOutstandingProposals,
+} from "@/lib/proposals/list-view";
+import { parseListPagination } from "@/lib/pagination/list-pagination";
+import { formatCurrency } from "@/lib/invoice-utils";
 import { NewProposalLink } from "./new-proposal-link";
+import { ProposalStatusFilterChip } from "./proposals-filters";
 import { ProposalsTable, type ProposalRow } from "./proposals-table";
 
 export async function generateMetadata(): Promise<Metadata> {
@@ -16,11 +25,18 @@ export async function generateMetadata(): Promise<Metadata> {
 interface SearchParams {
   [key: string]: string | string[] | undefined;
   org?: string;
+  status?: string;
+  limit?: string;
 }
 
 interface LineItemAgg {
   fixed_price: number | string;
   parent_line_item_id: string | null;
+}
+
+function todayLocalDate(): string {
+  const d = new Date();
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
 }
 
 export default async function ProposalsPage({
@@ -34,13 +50,20 @@ export default async function ProposalsPage({
   const t = await getTranslations("proposals");
 
   const selectedTeamId = sp.org ?? null;
+  const statusFilter = parseProposalStatusFilter(sp.status);
+  const filterStatuses = proposalFilterStatuses(statusFilter);
+  const { limit } = parseListPagination(sp);
 
   // RLS scopes rows to teams where the viewer is owner/admin — members see an
   // empty list, which matches the invoices tier this module mirrors.
+  //
+  // count: "exact" returns rows + the full match count in one RLS pass;
+  // .range() clips to the load-more window (same shape as /invoices).
   let query = supabase
     .from("proposals")
     .select(
-      "id, proposal_number, title, status, issued_date, valid_until, currency, customers(id, name, logo_url), proposal_line_items(fixed_price, parent_line_item_id)",
+      "id, proposal_number, title, status, issued_date, valid_until, currency, accepted_total, customers(id, name, logo_url), proposal_line_items(fixed_price, parent_line_item_id)",
+      { count: "exact" },
     )
     .order("issued_date", { ascending: false, nullsFirst: false })
     // Tiebreak on creation time, not the random UUID `id` — several proposals
@@ -48,7 +71,8 @@ export default async function ProposalsPage({
     // idx_proposals_team on (team_id, created_at DESC).)
     .order("created_at", { ascending: false });
   if (selectedTeamId) query = query.eq("team_id", selectedTeamId);
-  const { data: rows } = await query;
+  if (filterStatuses) query = query.in("status", filterStatuses);
+  const { data: rows, count: matchingCount } = await query.range(0, limit - 1);
 
   const proposals: ProposalRow[] = (rows ?? []).map((row) => {
     const customer = Array.isArray(row.customers)
@@ -79,10 +103,22 @@ export default async function ProposalsPage({
       currency: (row.currency as string) ?? "USD",
       customer,
       total,
+      accepted_total:
+        row.accepted_total != null ? Number(row.accepted_total) : null,
     };
   });
 
   const canCreate = teams.some((team) => isTeamAdmin(team.role));
+
+  // Read-time expiry + aging both key off the local calendar day —
+  // same derivation as the invoices list's overdue check.
+  const today = todayLocalDate();
+
+  // "$X awaiting signature" — count + summed total of the loaded
+  // in-flight (sent/viewed) rows. Computed from the fetched window so
+  // it always agrees with the rows on screen. Proposals are USD-only
+  // in v1 (DB default, no picker), so one summed figure is honest.
+  const outstanding = summarizeOutstandingProposals(proposals);
 
   return (
     <div>
@@ -93,11 +129,27 @@ export default async function ProposalsPage({
             {t("title")}
           </h1>
           <TeamFilter teams={teams} selectedTeamId={selectedTeamId} />
+          <ProposalStatusFilterChip selected={statusFilter} />
         </div>
         {canCreate && <NewProposalLink label={t("new")} />}
       </div>
       <p className="mt-1 text-body text-content-secondary">{t("subtitle")}</p>
-      <ProposalsTable proposals={proposals} />
+      {outstanding.count > 0 && (
+        <p className="mt-3 inline-flex items-center gap-1.5 text-body text-content-secondary">
+          <Send size={14} aria-hidden="true" className="text-info" />
+          <span>
+            {t("list.outstanding", {
+              count: outstanding.count,
+              total: formatCurrency(outstanding.total, "USD"),
+            })}
+          </span>
+        </p>
+      )}
+      <ProposalsTable
+        proposals={proposals}
+        totalCount={matchingCount ?? proposals.length}
+        today={today}
+      />
     </div>
   );
 }
