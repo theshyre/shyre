@@ -17,6 +17,7 @@ import projects from "@/lib/i18n/locales/en/projects.json";
 import customers from "@/lib/i18n/locales/en/customers.json";
 import proposals from "@/lib/i18n/locales/en/proposals.json";
 import paymentTerms from "@/lib/i18n/locales/en/paymentTerms.json";
+import integrations from "@/lib/i18n/locales/en/integrations.json";
 import reports from "@/lib/i18n/locales/en/reports.json";
 
 export const testMessages = {
@@ -36,6 +37,7 @@ export const testMessages = {
   customers,
   proposals,
   paymentTerms,
+  integrations,
   reports,
 } as const;
 

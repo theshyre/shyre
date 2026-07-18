@@ -25,6 +25,10 @@
         "title": "Plantillas",
         "description": "Atajos reutilizables de proyecto + descripción + facturable."
       },
+      "integrations": {
+        "title": "Integraciones",
+        "description": "Tokens de acceso personal para agentes y herramientas externas. Desactivadas por defecto."
+      },
       "import": {
         "title": "Importar",
         "description": "Trae datos desde Harvest o CSV."

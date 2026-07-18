@@ -7,6 +7,7 @@ import {
   Tags,
   Bookmark,
   UserPlus,
+  Plug,
 } from "lucide-react";
 import { getUserTeams } from "@/lib/team-context";
 import { isSystemAdmin } from "@/lib/system-admin";
@@ -88,6 +89,13 @@ export default async function SettingsHubPage(): Promise<React.JSX.Element> {
       description: t("cards.templates.description"),
       href: "/templates",
       icon: Bookmark,
+    },
+    {
+      id: "integrations",
+      title: t("cards.integrations.title"),
+      description: t("cards.integrations.description"),
+      href: "/settings/integrations",
+      icon: Plug,
     },
     // Import was previously a card here. Promoted to a sidebar entry
     // under the Setup section (see src/lib/modules/registry.ts

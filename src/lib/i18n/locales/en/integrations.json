@@ -1,0 +1,103 @@
+{
+  "title": "Integrations",
+  "description": "Personal access tokens let external tools — coding agents, scripts, MCP clients — read project context and log time on your behalf. Everything they do is attributed to you and audited.",
+  "teamPicker": {
+    "label": "Team"
+  },
+  "noTeam": "You need to belong to a team before you can use integrations.",
+  "loadFailed": "Couldn't load part of this page. Refresh to try again.",
+  "killSwitch": {
+    "heading": "Team integrations",
+    "enabledBadge": "Enabled",
+    "disabledBadge": "Disabled",
+    "defaultClosed": "Integrations are off by default. Nothing outside Shyre can read or write this team's data until an owner or admin turns them on.",
+    "enabledCopy": "External tools with a valid token can read this team's project context and log time for their token's owner.",
+    "disableWarning": "Turning integrations off immediately blocks every existing token for this team.",
+    "memberHint": "Ask your team owner or an admin to enable integrations for this team.",
+    "enable": "Enable integrations",
+    "disable": "Disable integrations",
+    "pending": "Saving…",
+    "saved": "Saved"
+  },
+  "tokens": {
+    "heading": "Access tokens",
+    "yourTokens": "Your tokens",
+    "empty": "No tokens yet. Create one to connect an external tool.",
+    "columns": {
+      "token": "Token",
+      "scopes": "Scopes",
+      "entries": "New entries",
+      "created": "Created",
+      "expires": "Expires",
+      "lastUsed": "Last used",
+      "status": "Status",
+      "actions": "Actions"
+    },
+    "neverUsed": "Never",
+    "billable": "Billable",
+    "nonBillable": "Non-billable",
+    "status": {
+      "active": "Active",
+      "revoked": "Revoked",
+      "expired": "Expired"
+    },
+    "revoke": "Revoke",
+    "revokeConfirmCopy": "Integrations using this token stop working immediately.",
+    "revokeConfirm": "Revoke token",
+    "revokePending": "Revoking…",
+    "revokedToast": "Token revoked.",
+    "revokeFailed": "Couldn't revoke the token. Try again."
+  },
+  "create": {
+    "button": "New token",
+    "nameLabel": "Token name",
+    "namePlaceholder": "e.g. Claude Code on my laptop",
+    "nameRequired": "Give the token a name so you can recognize it later.",
+    "expiryLabel": "Expires after",
+    "expiryOption": "{days} days",
+    "expiryRecommended": "{days} days (recommended)",
+    "expiryHint": "Tokens always expire — one year is the maximum.",
+    "billableLegend": "New entries default to",
+    "billableOption": "Billable",
+    "billableHint": "Time logged through this token counts toward invoiceable work.",
+    "nonBillableOption": "Non-billable",
+    "nonBillableHint": "Time logged through this token is tracked but never invoiced.",
+    "billableExplain": "One-time choice for this token: entries it logs land with this billable state so you don't clean them up per entry.",
+    "scopesLabel": "Scopes",
+    "scopesHint": "Tokens currently receive all four scopes.",
+    "pending": "Creating…",
+    "submit": "Create token",
+    "showOnce": {
+      "heading": "Copy your token now",
+      "warning": "You will not see this token again. Shyre stores only a hash — copy it somewhere safe before closing this box.",
+      "copy": "Copy token",
+      "copied": "Token copied to clipboard.",
+      "copyFailed": "Couldn't copy — select the token text and copy it manually.",
+      "done": "Done"
+    }
+  },
+  "activity": {
+    "heading": "Recent API activity",
+    "description": "The last 20 API calls made with this team's tokens — successes and refusals both.",
+    "empty": "No API activity yet.",
+    "status": {
+      "ok": "OK",
+      "denied": "Denied",
+      "error": "Error"
+    }
+  },
+  "setup": {
+    "heading": "Connect a tool",
+    "docsIntro": "Full setup steps live in the feature guide:",
+    "docsLink": "Integration tokens guide",
+    "mcpIntro": "To connect Claude Code, add Shyre as an MCP server with your token:",
+    "copyCommand": "Copy command",
+    "copiedCommand": "Command copied to clipboard.",
+    "copyFailed": "Couldn't copy — select the command text and copy it manually."
+  },
+  "errors": {
+    "disabled": "Integrations are disabled for this team. An owner or admin has to enable them before tokens can be created.",
+    "adminOnly": "Only team owners and admins can change integrations.",
+    "revokeNotFound": "Token not found or already revoked."
+  }
+}

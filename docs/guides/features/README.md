@@ -15,5 +15,6 @@ How each Shyre feature works. Apply to every user regardless of role; role-speci
 - [Reviewing agent-tracked time](agent-time-review.md)
 - [Proposals](proposals.md)
 - [Imports (Harvest)](imports.md)
+- [Integration tokens](integration-tokens.md)
 - [Integrations API (REST + MCP)](integrations-api.md)
 - [Keyboard shortcuts](keyboard-shortcuts.md)

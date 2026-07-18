@@ -25,6 +25,10 @@
         "title": "Templates",
         "description": "Reusable project + description + billable shortcuts for the timer."
       },
+      "integrations": {
+        "title": "Integrations",
+        "description": "Personal access tokens for agents and external tools. Off by default."
+      },
       "import": {
         "title": "Import",
         "description": "Pull data in from Harvest or CSV."
