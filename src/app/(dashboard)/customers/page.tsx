@@ -143,9 +143,9 @@ export default async function ClientsPage({
     const { data } = await supabase
       .from("customers_v")
       .select(
-        "id, team_id, name, email, default_rate, bounced_at, complained_at, logo_url",
+        "id, team_id, name, email, default_rate, bounced_at, complained_at, logo_url, inactive_at",
       )
-      .eq("archived", false)
+      .eq("archived", showArchived)
       .order("name");
     customers = (data ?? []) as unknown as CustomerRow[];
   }
