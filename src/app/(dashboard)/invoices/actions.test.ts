@@ -114,6 +114,11 @@ const state: {
   /** Rows returned by the `.from("invoice_payments").select("amount").eq(...)`
    *  path used by recordInvoicePaymentAction to compute the running sum. */
   paymentRows: Array<{ amount: number }>;
+  /** Rows returned by the bulk fetch
+   *  `.from("invoices").select("id, team_id, status").in("id", ids)`
+   *  inside bulkUpdateInvoiceStatusAction. The mock applies the id
+   *  filter so a test seeding extra rows still exercises the `.in`. */
+  bulkInvoices: Array<{ id: string; team_id: string; status: string | null }>;
   /** If set, the next invoice_payments insert returns this error. */
   paymentInsertError: { message: string; code: string } | null;
   /** Records every supabase.rpc(name, args) invocation. */
@@ -133,6 +138,7 @@ const state: {
   fetchedInvoice: null,
   paymentCount: 0,
   paymentRows: [],
+  bulkInvoices: [],
   paymentInsertError: null,
   rpcCalls: [],
   rpcError: null,
@@ -349,15 +355,22 @@ function mockSupabase() {
           }),
         };
       },
-      // Read path: select("team_id, status").eq("id", id).maybeSingle()
-      // The tightened updateInvoiceStatusAction uses this to look up
-      // the row's team and current status before role + transition
-      // checks.
+      // Read paths:
+      //  - select("team_id, status").eq("id", id).maybeSingle() — the
+      //    tightened updateInvoiceStatusAction looks up the row's team
+      //    and current status before role + transition checks.
+      //  - select("id, team_id, status").in("id", ids) — the bulk
+      //    action's one-query fetch; the terminal is awaited directly.
       select: (_cols: string) => ({
         eq: (_col: string, _val: string) => ({
           maybeSingle: () =>
             Promise.resolve({ data: state.fetchedInvoice, error: null }),
         }),
+        in: (_col: string, vals: string[]) =>
+          Promise.resolve({
+            data: state.bulkInvoices.filter((r) => vals.includes(r.id)),
+            error: null,
+          }),
       }),
       update: (patch: unknown) => ({
         eq: (col: string, val: string) => {
@@ -365,6 +378,14 @@ function mockSupabase() {
             table: "invoices",
             patch,
             where: { [col]: val },
+          });
+          return Promise.resolve({ data: null, error: null });
+        },
+        in: (col: string, vals: string[]) => {
+          state.updates.push({
+            table: "invoices",
+            patch,
+            where: { [col]: vals },
           });
           return Promise.resolve({ data: null, error: null });
         },
@@ -407,6 +428,7 @@ vi.mock("@/lib/supabase/server", () => ({
 }));
 
 import {
+  bulkUpdateInvoiceStatusAction,
   createInvoiceAction,
   deleteInvoiceAction,
   editInvoicePaidDateAction,
@@ -427,6 +449,7 @@ function resetState() {
   state.fetchedInvoice = null;
   state.paymentCount = 0;
   state.paymentRows = [];
+  state.bulkInvoices = [];
   state.paymentInsertError = null;
   state.rpcCalls = [];
   state.rpcError = null;
@@ -491,6 +514,126 @@ describe("updateInvoiceStatusAction", () => {
 
   it("requires id and status; surfaces a clear error when missing", async () => {
     await expect(updateInvoiceStatusAction(fd({}))).rejects.toThrow(/required/i);
+  });
+});
+
+describe("bulkUpdateInvoiceStatusAction", () => {
+  beforeEach(resetState);
+
+  /** FormData with repeated `id` entries — the bulk action reads
+   *  formData.getAll("id"). */
+  function bulkFd(ids: string[], status?: string): FormData {
+    const f = new FormData();
+    for (const id of ids) f.append("id", id);
+    if (status !== undefined) f.set("status", status);
+    return f;
+  }
+
+  it("updates only rows in teams where the caller is owner/admin — member-team rows are skipped, not failed", async () => {
+    // A batch spanning two teams: caller is admin on team-a, plain
+    // member on team-b. The bookkeeper month-end selection must
+    // partially succeed (team-a rows) without throwing on team-b.
+    state.bulkInvoices = [
+      { id: "inv-a1", team_id: "team-a", status: "sent" },
+      { id: "inv-a2", team_id: "team-a", status: "overdue" },
+      { id: "inv-b1", team_id: "team-b", status: "sent" },
+    ];
+    mockValidateTeamAccess.mockImplementation((teamId: unknown) =>
+      Promise.resolve({
+        userId: fakeUserId,
+        role: teamId === "team-a" ? "admin" : "member",
+      }),
+    );
+
+    await bulkUpdateInvoiceStatusAction(
+      bulkFd(["inv-a1", "inv-a2", "inv-b1"], "paid"),
+    );
+
+    // One batched UPDATE, restricted to the admin-team rows only.
+    expect(state.updates).toEqual([
+      {
+        table: "invoices",
+        patch: { status: "paid" },
+        where: { id: ["inv-a1", "inv-a2"] },
+      },
+    ]);
+    // Role resolved once per team (cached), not once per row.
+    expect(mockValidateTeamAccess).toHaveBeenCalledTimes(2);
+    expect(mockValidateTeamAccess).toHaveBeenCalledWith("team-a");
+    expect(mockValidateTeamAccess).toHaveBeenCalledWith("team-b");
+    expect(mockRevalidatePath).toHaveBeenCalledWith("/invoices");
+  });
+
+  it("filters rows whose transition is illegal — paid → draft never reaches the UPDATE", async () => {
+    state.bulkInvoices = [{ id: "inv-1", team_id: "team-1", status: "paid" }];
+    mockValidateTeamAccess.mockResolvedValue({
+      userId: fakeUserId,
+      role: "owner",
+    });
+
+    await bulkUpdateInvoiceStatusAction(bulkFd(["inv-1"], "draft"));
+
+    // Nothing acceptable → no UPDATE and no revalidate (silent skip is
+    // the documented contract; the toast reports 0 changes).
+    expect(state.updates).toEqual([]);
+    expect(mockRevalidatePath).not.toHaveBeenCalled();
+  });
+
+  it("mixed batch: legal rows update, illegal rows (incl. same-status no-ops) are dropped", async () => {
+    state.bulkInvoices = [
+      { id: "inv-sent", team_id: "team-1", status: "sent" }, // sent → paid legal
+      { id: "inv-paid", team_id: "team-1", status: "paid" }, // paid → paid illegal (no-op)
+      { id: "inv-void", team_id: "team-1", status: "void" }, // void is terminal
+    ];
+    mockValidateTeamAccess.mockResolvedValue({
+      userId: fakeUserId,
+      role: "admin",
+    });
+
+    await bulkUpdateInvoiceStatusAction(
+      bulkFd(["inv-sent", "inv-paid", "inv-void"], "paid"),
+    );
+
+    expect(state.updates).toEqual([
+      {
+        table: "invoices",
+        patch: { status: "paid" },
+        where: { id: ["inv-sent"] },
+      },
+    ]);
+  });
+
+  it("treats a NULL stored status as draft for the transition check", async () => {
+    state.bulkInvoices = [{ id: "inv-legacy", team_id: "team-1", status: null }];
+    mockValidateTeamAccess.mockResolvedValue({
+      userId: fakeUserId,
+      role: "owner",
+    });
+
+    await bulkUpdateInvoiceStatusAction(bulkFd(["inv-legacy"], "sent"));
+
+    // draft → sent is legal, so the legacy NULL-status row updates.
+    expect(state.updates).toEqual([
+      {
+        table: "invoices",
+        patch: { status: "sent" },
+        where: { id: ["inv-legacy"] },
+      },
+    ]);
+  });
+
+  it("no-ops on an empty id list — no fetch, no role check, no write", async () => {
+    await bulkUpdateInvoiceStatusAction(bulkFd([], "paid"));
+    expect(mockValidateTeamAccess).not.toHaveBeenCalled();
+    expect(state.updates).toEqual([]);
+    expect(mockRevalidatePath).not.toHaveBeenCalled();
+  });
+
+  it("requires a target status when ids are present", async () => {
+    await expect(
+      bulkUpdateInvoiceStatusAction(bulkFd(["inv-1"])),
+    ).rejects.toThrow(/Status is required/);
+    expect(state.updates).toEqual([]);
   });
 });
 

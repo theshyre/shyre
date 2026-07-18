@@ -571,6 +571,116 @@ export async function sendProposalAction(formData: FormData): Promise<void> {
   ) as unknown as void;
 }
 
+/**
+ * Re-issue the outstanding sign link(s) for a sent proposal (batch 4a).
+ * "The client lost the email / it went to spam" previously had NO recovery
+ * short of New Version (which renumbers the doc and kills the thread).
+ * Rotation, not resend-of-the-same-URL: raw tokens are never stored (only
+ * sha256), so a fresh link is minted per pending signer and the old one is
+ * revoked FIRST — a leaked older email goes dead the moment this runs.
+ * Consumed (already-signed) links are untouched. Logged as `link_resent`
+ * so the audit trail explains why a signer holds a dead link.
+ */
+export async function resendSignLinksAction(formData: FormData): Promise<void> {
+  return runSafeAction(
+    formData,
+    async (fd, { supabase, userId }) => {
+      const proposalId = fd.get("id");
+      if (typeof proposalId !== "string" || proposalId === "") {
+        throw new Error("Missing proposal id.");
+      }
+      const { data: proposal } = await supabase
+        .from("proposals")
+        .select("id, team_id, status, proposal_number, title, signing_mode")
+        .eq("id", proposalId)
+        .single();
+      if (!proposal) throw new Error("Proposal not found.");
+      await requireTeamAdmin(proposal.team_id as string);
+      const status = (proposal.status as string) ?? "";
+      if (status !== "sent" && status !== "viewed") {
+        throw AppError.refusal(
+          "Only a sent proposal's links can be re-issued.",
+        );
+      }
+
+      const baseUrl = process.env.NEXT_PUBLIC_APP_URL;
+      if (!baseUrl) {
+        throw new Error("NEXT_PUBLIC_APP_URL is not configured.");
+      }
+
+      const admin = createAdminClient();
+      const { data: pending } = await admin
+        .from("proposal_access_tokens")
+        .select("id, signer_id, signer_email, signer_name")
+        .eq("proposal_id", proposalId)
+        .is("consumed_at", null)
+        .is("revoked_at", null);
+      const tokens = pending ?? [];
+      if (tokens.length === 0) {
+        throw AppError.refusal("No outstanding sign links to re-issue.");
+      }
+
+      const expiresAt = new Date(
+        Date.now() + TOKEN_TTL_DAYS * 24 * 60 * 60 * 1000,
+      );
+      const number = proposal.proposal_number as string;
+      const title = proposal.title as string;
+      const safeTitle = escapeHtml(title);
+
+      for (const tok of tokens) {
+        // Revoke FIRST so the old link is dead even if the new send fails —
+        // fail toward "no live link" rather than two live links.
+        assertSupabaseOk(
+          await admin
+            .from("proposal_access_tokens")
+            .update({ revoked_at: new Date().toISOString() })
+            .eq("id", tok.id),
+        );
+        const { raw, hash } = generateSignToken();
+        assertSupabaseOk({
+          data: null,
+          error: (
+            await admin.from("proposal_access_tokens").insert({
+              proposal_id: proposalId,
+              team_id: proposal.team_id,
+              token_hash: hash,
+              signer_id: tok.signer_id,
+              signer_email: tok.signer_email,
+              signer_name: tok.signer_name,
+              expires_at: expiresAt.toISOString(),
+              created_by_user_id: userId,
+            })
+          ).error,
+        });
+        const signUrl = `${baseUrl}/sign/${raw}`;
+        const safeName = escapeHtml((tok.signer_name as string | null) ?? "");
+        await sendProposalEmail(admin, {
+          teamId: proposal.team_id as string,
+          userId,
+          proposalId,
+          kind: "proposal",
+          toEmail: tok.signer_email as string,
+          subject: `Proposal ${number}: ${title}`,
+          bodyHtml: `<p>Hello ${safeName},</p><p>Here is a fresh link to review and sign off on: <strong>${safeTitle}</strong> (${number}).</p><p><a href="${signUrl}">Review &amp; sign the proposal</a></p><p>Any earlier link for this proposal no longer works. Before accepting, we'll email you a one-time code to confirm it's you.</p><p>This link expires on ${expiresAt.toISOString().slice(0, 10)}.</p>`,
+          bodyText: `Here is a fresh link to review and sign off on: ${title} (${number}).\n\nReview & sign: ${signUrl}\n\nAny earlier link for this proposal no longer works. Before accepting, we'll email you a one-time code to confirm it's you.\n\nThis link expires on ${expiresAt.toISOString().slice(0, 10)}.`,
+        });
+      }
+
+      await admin.from("proposal_events").insert({
+        proposal_id: proposalId,
+        team_id: proposal.team_id,
+        event_type: "link_resent",
+        actor_user_id: userId,
+        actor_label: null,
+        metadata: { recipients: tokens.length },
+      });
+
+      revalidatePath(`/proposals/${proposalId}`);
+    },
+    "resendSignLinksAction",
+  ) as unknown as void;
+}
+
 /** Provider counter-signature — both parties on the acceptance record. */
 export async function counterSignProposalAction(
   formData: FormData,

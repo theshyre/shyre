@@ -125,6 +125,7 @@ export const MODULES: ModuleManifest[] = [
     id: "proposals",
     labelKey: "modules.proposals",
     icon: FileSignature,
+    realtimeTables: ["proposals"],
     section: "manage",
     navItems: [
       { labelKey: "proposals", href: "/proposals", icon: FileSignature },

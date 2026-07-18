@@ -16,6 +16,7 @@ import {
   verifySignOtpAction,
   type PublicActionResult,
 } from "./actions";
+import { signFailureKey } from "@/lib/proposals/sign-failure";
 
 interface Props {
   token: string;
@@ -55,24 +56,7 @@ export function SignGate({ token, info }: Props): React.JSX.Element {
   }, [otpRequested]);
 
   function failureMessage(result: PublicActionResult): string {
-    switch (result.reason) {
-      case "otp_invalid":
-        return t("errors.otpInvalid");
-      case "otp_expired":
-        return t("errors.otpExpired");
-      case "otp_locked":
-        return t("errors.otpLocked");
-      case "otp_cooldown":
-        return t("errors.otpCooldown");
-      case "otp_required":
-        return t("errors.otpRequired");
-      case "consumed":
-        return t("errors.consumed");
-      case "email_failed":
-        return t("errors.emailFailed");
-      default:
-        return t("errors.generic");
-    }
+    return t(signFailureKey(result.reason));
   }
 
   function runAction(
