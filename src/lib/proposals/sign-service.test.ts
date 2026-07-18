@@ -722,6 +722,59 @@ describe("recordSignDecision", () => {
     const result = await recordSignDecision(rawToken, decisionInput);
     expect(result).toEqual({ ok: false, reason: "invalid_state" });
   });
+
+  it("rolls back the consume when the acceptance insert fails — token stays retryable, error logged", async () => {
+    // Consume-first (SAL-038) means an insert failure would otherwise
+    // strand a consumed link with NO decision record. The service must
+    // un-consume (consumed_at → null), log, and fail.
+    queues["proposal_access_tokens"] = [
+      { data: verifiedToken(), error: null },
+      { data: [{ id: "tok-1" }], error: null }, // conditional consume wins
+      { data: null, error: null }, // the roll-back update
+    ];
+    queues["proposals"] = [{ data: proposalRow(), error: null }];
+    queues["proposal_line_items"] = [{ data: ITEM_ROWS, error: null }];
+    queues["team_settings"] = [{ data: { tax_rate: 0 }, error: null }];
+    queues["proposal_acceptances"] = [
+      { data: null, error: { message: "duplicate key value violates unique constraint" } },
+    ];
+
+    const result = await recordSignDecision(rawToken, decisionInput);
+    expect(result).toEqual({ ok: false, reason: "invalid_state" });
+    expect(logErrorMock).toHaveBeenCalled();
+
+    // The un-consume fired: an update on the token row nulling consumed_at.
+    const unconsume = calls.find(
+      (c) =>
+        c.table === "proposal_access_tokens" &&
+        c.ops.some(
+          (o) =>
+            o.method === "update" &&
+            (o.args[0] as { consumed_at?: string | null }).consumed_at === null,
+        ),
+    );
+    expect(unconsume).toBeDefined();
+
+    // No status flip and no decision event ride on the failed insert.
+    expect(
+      calls.some(
+        (c) =>
+          c.table === "proposals" &&
+          c.ops.some(
+            (o) =>
+              o.method === "update" &&
+              (o.args[0] as { status?: string }).status === "accepted",
+          ),
+      ),
+    ).toBe(false);
+    expect(
+      calls.some(
+        (c) =>
+          c.table === "proposal_events" &&
+          c.ops.some((o) => o.method === "insert"),
+      ),
+    ).toBe(false);
+  });
 });
 
 describe("maskEmail", () => {
@@ -731,6 +784,28 @@ describe("maskEmail", () => {
   it("degrades safely on a 1-char local part and on non-emails", () => {
     expect(maskEmail("a@b.co")).toBe("a•••@b.co");
     expect(maskEmail("notanemail")).toBe("•••");
+  });
+  it("shows only ONE char of a 2-char local part — never the whole local", () => {
+    // `bo` → `b•••`, not `bo•••` (which would reveal the entire local part).
+    expect(maskEmail("bo@x.com")).toBe("b•••@x.com");
+  });
+  it("keeps a leading astral char intact when the local part is longer (no split surrogate pair)", () => {
+    // "😀" is a surrogate pair (2 UTF-16 units); slice(0, 2) lands exactly
+    // on the pair boundary here, so the shown prefix stays well-formed.
+    expect(maskEmail("😀smith@x.com")).toBe("😀•••@x.com");
+  });
+  it.todo(
+    "BUG: a local part that is a single astral char (e.g. 😀@x.com) is sliced mid-surrogate — " +
+      "local.length is 2 UTF-16 units, so `shown` becomes slice(0, 1) = a lone high surrogate " +
+      "(\\ud83d), an ill-formed string that renders as �. Fix: slice by code points " +
+      "(Array.from(local)) instead of UTF-16 units, then re-check this pins '😀•••@x.com' or '•••'.",
+  );
+  it("masks against the LAST @ when the local part itself contains an @", () => {
+    // The domain shown must be the true domain (`c.com`), never a chunk of
+    // the local part — otherwise `"a@b"@c.com`-style addresses would leak
+    // a fake domain to the gate. The 2-char prefix rule applies to the
+    // full local part `a@b`.
+    expect(maskEmail("a@b@c.com")).toBe("a@•••@c.com");
   });
 });
 
@@ -782,6 +857,34 @@ describe("loadSignGate (SAL-045 identity gate)", () => {
     const result = await loadSignGate(rawToken, secret);
     expect(result.ok).toBe(true);
     if (result.ok) expect(result.value.verified).toBe(true);
+  });
+
+  it("treats a session expiring EXACTLY now as still valid (pins the `<` comparison)", async () => {
+    // Boundary pin: hasValidViewSession expires via
+    //   `new Date(view_session_expires_at).getTime() < Date.now()`
+    // — a strict `<`, so `expires_at === now` is NOT yet expired and the
+    // session is still honored for that final millisecond. This test
+    // freezes Date.now to the exact expiry instant so the behavior is
+    // deliberate, not racy; flipping the comparison to `<=` would fail it.
+    const secret = "browser-session-secret";
+    const nowSpy = vi.spyOn(Date, "now").mockReturnValue(NOW);
+    try {
+      queues["proposal_access_tokens"] = [
+        {
+          data: tokenRow({
+            view_session_hash: sha256Hex(secret),
+            view_session_expires_at: new Date(NOW).toISOString(),
+          }),
+          error: null,
+        },
+      ];
+      queues["team_settings"] = [brandRow];
+      const result = await loadSignGate(rawToken, secret);
+      expect(result.ok).toBe(true);
+      if (result.ok) expect(result.value.verified).toBe(true);
+    } finally {
+      nowSpy.mockRestore();
+    }
   });
 
   it("stays unverified when the view session has expired", async () => {
