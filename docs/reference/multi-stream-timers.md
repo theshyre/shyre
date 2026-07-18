@@ -86,13 +86,13 @@ before inserting the new row. The three start sites are:
 
 If any new code path bypasses these, multi-active rows can already exist today as a bug.
 
-The reader contract is `useRunningEntry()` returning `RunningEntrySummary | null` (`src/hooks/use-running-entry.ts`). The sole UI surface is the sidebar `<Timer>` widget (`src/components/Timer.tsx`).
+The reader contract is `useRunningEntry()` returning `RunningEntrySummary | null` (`src/hooks/use-running-entry.ts`). The sole UI surface is the sidebar `<SidebarTimer>` widget (`src/app/(dashboard)/time-entries/sidebar-timer.tsx`).
 
 ---
 
 ## Current state — what's there now
 
-- **Sidebar widget** (`src/components/Timer.tsx`) shows one active timer: live `HH:MM:SS`, project, customer, description, started-at, author chip, full-width Stop. Roughly 140px tall when populated.
+- **Sidebar widget** (`src/app/(dashboard)/time-entries/sidebar-timer.tsx`) shows one active timer: live `HH:MM:SS`, project, customer, description, started-at, author chip, full-width Stop. Roughly 140px tall when populated.
 - **Keyboard**: `Space` toggles start/stop the active timer when no input is focused.
 - **Timer events** are broadcast across tabs via `src/lib/timer-events.ts` (signal-only; no data payload). This generalizes unchanged.
 - **Hot-path partial index** `idx_time_entries_running` on `(user_id) WHERE end_time IS NULL AND deleted_at IS NULL` (`supabase/migrations/20260504180000_hot_path_indexes.sql`) — a read optimization, not a uniqueness guard.
@@ -467,7 +467,7 @@ PR-shaped sequencing. Each PR is small enough to ship independently. None blocks
 - Migration: add `paused_at`, `accumulated_seconds`, `last_resumed_at` to `time_entries`. Update `idx_time_entries_running` partial index to exclude paused rows.
 - Server actions: new `pauseTimerAction`, `resumeTimerAction`. Modify start paths to pause-instead-of-stop the prior timer.
 - Hook: `useRunningEntry()` continues to return the active row. New `usePausedEntries()` returns paused rows.
-- Sidebar: `<Timer>` widget gains a collapsible "Paused" subsection.
+- Sidebar: `<SidebarTimer>` widget gains a collapsible "Paused" subsection.
 - Keyboard: `R` resumes the most-recently-paused (only when no input focused, no modal open, no Cmd/Ctrl modifier).
 - Tests: every action path; auto-stop after 24h; segment math; race between pause + edit.
 - Docs: update `docs/guides/features/timer.md` (or wherever timer behavior is currently documented; create if absent).
@@ -606,7 +606,7 @@ Eight personas reviewed this design space. Their full takes are preserved separa
 
 ### Files / code surfaces
 
-- `src/components/Timer.tsx` — sidebar widget; only UI surface for active timer today
+- `src/app/(dashboard)/time-entries/sidebar-timer.tsx` — sidebar widget; only UI surface for active timer today
 - `src/hooks/use-running-entry.ts` — the `Timer | null` reader contract
 - `src/app/(dashboard)/time-entries/actions.ts` — three start paths with pre-emptive stop (lines ~505, ~617, ~796)
 - `src/app/(dashboard)/time-entries/running-timer-card.tsx` — running-card component

@@ -11,12 +11,6 @@ vi.mock("@/lib/supabase/client", () => ({
   createClient: () => ({ auth: { signOut: vi.fn() } }),
 }));
 
-// Silence the Timer widget — it mounts its own Supabase subscription which
-// isn't relevant to sidebar rendering.
-vi.mock("@/components/Timer", () => ({
-  default: () => <div data-testid="timer-stub" />,
-}));
-
 // Stub the Theme + TextSize providers so the picker controls render their
 // happy path without localStorage noise.
 vi.mock("@/components/theme-provider", () => ({
@@ -110,6 +104,16 @@ describe("Sidebar", () => {
     // Popover is a labeled group of plain controls now, not a menu —
     // the trigger advertises open/closed state, not a menu contract.
     expect(trigger.getAttribute("aria-expanded")).toBe("false");
+  });
+
+  it("renders the module-owned timer widget passed via timerSlot", () => {
+    // The running timer is time-entries-module code — the sidebar
+    // receives it as a slot from the layout instead of importing it,
+    // keeping shared components module-agnostic.
+    renderWithIntl(
+      <Sidebar {...defaults} timerSlot={<div data-testid="timer-stub" />} />,
+    );
+    expect(screen.getByTestId("timer-stub")).toBeInTheDocument();
   });
 
   it("links the brand row to / and exposes the version via tooltip", () => {

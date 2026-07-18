@@ -49,7 +49,7 @@ import { EntryAuthor } from "@/components/EntryAuthor";
 import { useFormAction } from "@/hooks/use-form-action";
 import { useFormDirty } from "@/hooks/use-form-dirty";
 import { SubmitButton } from "@/components/SubmitButton";
-import { TicketField } from "@/components/TicketField";
+import { TicketField } from "./ticket-field";
 import { Tooltip } from "@/components/Tooltip";
 import {
   inputClass,

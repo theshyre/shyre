@@ -16,7 +16,7 @@ import {
   kbdClass,
 } from "@/lib/form-styles";
 import { TeamSelector } from "@/components/TeamSelector";
-import { TicketField, ticketFieldVisible } from "@/components/TicketField";
+import { TicketField, ticketFieldVisible } from "./ticket-field";
 import {
   ProjectPicker,
   type ProjectPickerOption,
@@ -78,7 +78,7 @@ export function RunningTimerCard({
   });
 
   // Space shortcut: opens the start form when collapsed + no running timer;
-  // submits it when expanded + project selected. The sidebar <Timer>
+  // submits it when expanded + project selected. The sidebar <SidebarTimer>
   // widget owns the running → stopped direction. This component only
   // handles the stopped → start path.
   useEffect(() => {
@@ -124,7 +124,7 @@ export function RunningTimerCard({
     return () => window.removeEventListener("keydown", handleKey);
   }, [running, expanded, selectedProjectId, description, defaultTeamId, teams, startForm]);
 
-  // A running timer is owned by the sidebar <Timer> — this component
+  // A running timer is owned by the sidebar <SidebarTimer> — this component
   // renders nothing in that state so we don't duplicate the surface.
   if (running) return <></>;
 

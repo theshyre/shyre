@@ -3,14 +3,12 @@
 import { useCallback, useMemo, useState, type ComponentType } from "react";
 import { useRouter } from "next/navigation";
 import { useTranslations } from "next-intl";
-import {
-  BookOpen,
-  LayoutDashboard,
-  ShieldAlert,
-  User,
-} from "lucide-react";
 import { CommandPalette, useKeyboardShortcut } from "@theshyre/ui";
-import { navItemsForSection } from "@/lib/modules/registry";
+import {
+  navItemsForSection,
+  shellSurfacesForPlacement,
+  type ShellSurface,
+} from "@/lib/modules/registry";
 
 interface CommandItem {
   id: string;
@@ -74,7 +72,11 @@ export function GlobalCommandPalette({
   const items: CommandItem[] = useMemo(() => {
     // Mirror the sidebar's composition: shell Dashboard + registered
     // modules (track/manage/setup, with the same /business gate) +
-    // shell surfaces (profile, docs) + the sysadmin hub.
+    // identity shell surfaces (profile, docs) + the sysadmin hub.
+    // Every destination DERIVES from the module registry — modules
+    // via navItemsForSection (which already merges the setup-tier
+    // shell surfaces like Teams/Settings), always-on pages via
+    // SHELL_SURFACES placements.
     const registryItems = [
       ...navItemsForSection("track"),
       ...navItemsForSection("manage"),
@@ -82,14 +84,15 @@ export function GlobalCommandPalette({
         (item) => item.href !== "/business" || canManageBusiness,
       ),
     ];
-    const base: CommandItem[] = [
-      {
-        id: "dashboard",
-        label: tNav("dashboard"),
-        href: "/",
-        icon: LayoutDashboard,
-        keywords: KEYWORDS["/"],
-      },
+    const toCommandItem = (s: ShellSurface): CommandItem => ({
+      id: s.id,
+      label: tNav(s.navItem.labelKey),
+      href: s.navItem.href,
+      icon: s.navItem.icon,
+      keywords: KEYWORDS[s.navItem.href],
+    });
+    return [
+      ...shellSurfacesForPlacement("home").map(toCommandItem),
       ...registryItems.map((item) => ({
         id: item.labelKey,
         label: tNav(item.labelKey),
@@ -97,31 +100,11 @@ export function GlobalCommandPalette({
         icon: item.icon,
         keywords: KEYWORDS[item.href],
       })),
-      {
-        id: "profile",
-        label: tNav("profile"),
-        href: "/profile",
-        icon: User,
-        keywords: KEYWORDS["/profile"],
-      },
-      {
-        id: "docs",
-        label: tNav("docs"),
-        href: "/docs",
-        icon: BookOpen,
-        keywords: KEYWORDS["/docs"],
-      },
+      ...shellSurfacesForPlacement("identity").map(toCommandItem),
+      ...shellSurfacesForPlacement("system")
+        .filter((s) => !s.requiresSystemAdmin || isSystemAdmin)
+        .map(toCommandItem),
     ];
-    if (isSystemAdmin) {
-      base.push({
-        id: "systemHub",
-        label: tNav("systemHub"),
-        href: "/system",
-        icon: ShieldAlert,
-        keywords: KEYWORDS["/system"],
-      });
-    }
-    return base;
   }, [isSystemAdmin, canManageBusiness, tNav]);
 
   const onQuery = useCallback(

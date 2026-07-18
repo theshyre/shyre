@@ -1,5 +1,10 @@
 import { describe, it, expect } from "vitest";
 import { BREADCRUMB_ROUTES } from "./registry";
+import {
+  MODULES,
+  PLATFORM_TOOLS,
+  SHELL_SURFACES,
+} from "@/lib/modules/registry";
 
 /**
  * Data-invariants on the breadcrumb registry. The matching logic
@@ -98,6 +103,28 @@ describe("BREADCRUMB_ROUTES registry", () => {
     expect(patterns.has("/customers")).toBe(true);
     expect(patterns.has("/projects")).toBe(true);
     expect(patterns.has("/invoices")).toBe(true);
+  });
+
+  it("covers every nav destination in the module registry (modules + shell surfaces + platform tools)", () => {
+    // Parity with `src/lib/modules/registry.ts` — the sidebar/palette
+    // derive their entries from that registry, so every destination it
+    // declares must have a breadcrumb trail. Exemptions, on purpose:
+    //   - "/"     — the Dashboard renders no breadcrumb (nothing to
+    //               orient; it IS the root).
+    //   - "/docs" — the docs surface renders its own header chrome.
+    const exempt = new Set(["/", "/docs"]);
+    const patterns = new Set(BREADCRUMB_ROUTES.map((r) => r.pattern));
+    const navHrefs = [
+      ...MODULES.flatMap((m) => m.navItems.map((i) => i.href)),
+      ...SHELL_SURFACES.map((s) => s.navItem.href),
+      ...PLATFORM_TOOLS.map((t) => t.navItem.href),
+    ].filter((href) => !exempt.has(href));
+    for (const href of navHrefs) {
+      expect(
+        patterns.has(href),
+        `missing breadcrumb route for ${href}`,
+      ).toBe(true);
+    }
   });
 
   it("at least one structural-parent segment exists (work / setup / system grouping)", () => {

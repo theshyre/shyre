@@ -1,9 +1,9 @@
 import { describe, expect, it, vi } from "vitest";
 import { screen } from "@testing-library/react";
 import { renderWithIntl } from "@/test/intl";
-import { TicketField, ticketFieldVisible } from "./TicketField";
+import { TicketField, ticketFieldVisible } from "./ticket-field";
 
-vi.mock("@/components/TicketChip", () => ({
+vi.mock("./ticket-chip", () => ({
   TicketChip: ({ ticketKey }: { ticketKey: string }) => (
     <span data-testid="chip">{ticketKey}</span>
   ),

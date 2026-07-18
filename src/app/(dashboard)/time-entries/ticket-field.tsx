@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { useTranslations } from "next-intl";
-import { TicketChip } from "@/components/TicketChip";
+import { TicketChip } from "./ticket-chip";
 import { inputClass, labelClass } from "@/lib/form-styles";
 import { formatTicketKeyForInput } from "@/lib/tickets/parse-input";
 
