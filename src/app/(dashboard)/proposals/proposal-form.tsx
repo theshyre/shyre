@@ -29,7 +29,7 @@ import {
 } from "@/lib/proposals/line-items";
 import { proposalDraftSchema } from "@/lib/schemas/proposal";
 import { MarkdownView } from "@/components/MarkdownView";
-import { SIGN_THEMES, type DepositType, type SignTheme } from "./allow-lists";
+import { SIGN_THEMES, type DepositType, type SignTheme } from "@/lib/proposals/allow-lists";
 import { createProposalAction, updateProposalAction } from "./actions";
 
 export interface TeamOption {

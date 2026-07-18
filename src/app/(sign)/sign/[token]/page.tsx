@@ -8,7 +8,7 @@ import { viewSessionCookieName } from "@/lib/proposals/tokens";
 import {
   DEFAULT_SIGN_THEME,
   type SignTheme,
-} from "@/app/(dashboard)/proposals/allow-lists";
+} from "@/lib/proposals/allow-lists";
 import { SignExperience } from "./sign-experience";
 import { SignGate } from "./sign-gate";
 

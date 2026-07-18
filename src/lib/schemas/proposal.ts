@@ -6,7 +6,7 @@ import {
 import {
   DEPOSIT_TYPES,
   SIGN_THEMES,
-} from "@/app/(dashboard)/proposals/allow-lists";
+} from "@/lib/proposals/allow-lists";
 
 const ymd = /^\d{4}-\d{2}-\d{2}$/;
 

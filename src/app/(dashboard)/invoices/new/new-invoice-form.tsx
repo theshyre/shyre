@@ -45,7 +45,7 @@ import {
   resolvePaymentTermsDays,
   resolvePaymentTermsSource,
 } from "@/lib/payment-terms";
-import type { InvoiceGroupingMode } from "../allow-lists";
+import type { InvoiceGroupingMode } from "@/lib/invoices/allow-lists";
 import { createInvoiceAction } from "../actions";
 
 interface CustomerOption {

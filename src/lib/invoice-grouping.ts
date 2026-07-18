@@ -24,7 +24,7 @@
  * not the invoice period — bookkeeper-grade audit alignment.
  */
 
-import type { InvoiceGroupingMode } from "@/app/(dashboard)/invoices/allow-lists";
+import type { InvoiceGroupingMode } from "@/lib/invoices/allow-lists";
 import {
   calculateLineItemAmount,
   minutesToHours,

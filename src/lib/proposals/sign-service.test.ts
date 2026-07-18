@@ -1040,3 +1040,64 @@ describe("re-verify-to-re-view (2026-07-18 decision)", () => {
     expect(result).toEqual({ ok: false, reason: "consumed" });
   });
 });
+
+describe("read-path error logging (batch 5)", () => {
+  it("a transient DB error on the token read is logged, return stays not_found", async () => {
+    queues["proposal_access_tokens"] = [
+      {
+        data: null,
+        error: { code: "57014", message: "canceling statement due to timeout" },
+      },
+    ];
+    const result = await loadSignBundle(rawToken);
+    // The coarse public answer is unchanged…
+    expect(result).toEqual({ ok: false, reason: "not_found" });
+    // …but the failure is now visible in /admin/errors.
+    expect(logErrorMock).toHaveBeenCalledTimes(1);
+    expect(logErrorMock.mock.calls[0]?.[1]).toMatchObject({
+      action: "signService.findValidToken",
+    });
+  });
+
+  it("PGRST116 (zero rows = a probing/stale link) is NOT logged", async () => {
+    queues["proposal_access_tokens"] = [
+      {
+        data: null,
+        error: { code: "PGRST116", message: "JSON object requested, multiple (or no) rows returned" },
+      },
+    ];
+    const result = await loadSignGate(rawToken, null);
+    expect(result).toEqual({ ok: false, reason: "not_found" });
+    expect(logErrorMock).not.toHaveBeenCalled();
+  });
+
+  it("a DB error on the gate's settings read is logged with the token's team", async () => {
+    queues["proposal_access_tokens"] = [{ data: tokenRow(), error: null }];
+    queues["team_settings"] = [
+      { data: null, error: { code: "08006", message: "connection failure" } },
+    ];
+    queues["proposals"] = [{ data: { sign_theme: "light" }, error: null }];
+    const result = await loadSignGate(rawToken, null);
+    // The gate still resolves (branding degrades to nulls — unchanged).
+    expect(result.ok).toBe(true);
+    expect(logErrorMock).toHaveBeenCalledTimes(1);
+    expect(logErrorMock.mock.calls[0]?.[1]).toMatchObject({
+      action: "signService.loadSignGate",
+      teamId: "team-1",
+    });
+  });
+
+  it("a DB error on the bundle's proposal read is logged, return stays not_found", async () => {
+    queues["proposal_access_tokens"] = [{ data: tokenRow(), error: null }];
+    queues["proposals"] = [
+      { data: null, error: { code: "57014", message: "timeout" } },
+    ];
+    const result = await loadSignBundle(rawToken);
+    expect(result).toEqual({ ok: false, reason: "not_found" });
+    expect(logErrorMock).toHaveBeenCalledTimes(1);
+    expect(logErrorMock.mock.calls[0]?.[1]).toMatchObject({
+      action: "signService.loadSignBundle",
+      teamId: "team-1",
+    });
+  });
+});

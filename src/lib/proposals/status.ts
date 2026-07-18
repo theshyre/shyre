@@ -13,7 +13,7 @@
  * declined / converted / superseded are terminal.
  */
 
-import type { ProposalStatus } from "@/app/(dashboard)/proposals/allow-lists";
+import type { ProposalStatus } from "@/lib/proposals/allow-lists";
 
 const ALLOWED_NEXT: Record<ProposalStatus, readonly ProposalStatus[]> = {
   draft: ["sent", "superseded"],

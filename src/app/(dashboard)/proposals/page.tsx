@@ -12,6 +12,7 @@ import {
   summarizeOutstandingProposals,
 } from "@/lib/proposals/list-view";
 import { parseListPagination } from "@/lib/pagination/list-pagination";
+import { unwrapEmbed } from "@/lib/supabase/embed";
 import { formatCurrency } from "@/lib/invoice-utils";
 import { NewProposalLink } from "./new-proposal-link";
 import { ProposalStatusFilterChip } from "./proposals-filters";
@@ -74,18 +75,15 @@ export default async function ProposalsPage({
   if (filterStatuses) query = query.in("status", filterStatuses);
   const { data: rows, count: matchingCount } = await query.range(0, limit - 1);
 
+  interface CustomerCell {
+    id: string;
+    name: string;
+    logo_url: string | null;
+  }
   const proposals: ProposalRow[] = (rows ?? []).map((row) => {
-    const customer = Array.isArray(row.customers)
-      ? ((row.customers[0] ?? null) as {
-          id: string;
-          name: string;
-          logo_url: string | null;
-        } | null)
-      : (row.customers as {
-          id: string;
-          name: string;
-          logo_url: string | null;
-        } | null);
+    const customer = unwrapEmbed(
+      row.customers as CustomerCell | CustomerCell[] | null,
+    );
     const items = (row.proposal_line_items ?? []) as LineItemAgg[];
     // Phases are a breakdown of their parent — only top-level rows count.
     const total = roundMoney(

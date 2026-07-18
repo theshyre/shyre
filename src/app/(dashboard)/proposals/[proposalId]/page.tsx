@@ -7,7 +7,14 @@ import { createClient } from "@/lib/supabase/server";
 import { buttonSecondaryClass } from "@/lib/form-styles";
 import { formatCurrency } from "@/lib/invoice-utils";
 import { formatDisplayDate, formatDisplayDateTime } from "@/lib/format-date";
-import { roundMoney } from "@/lib/proposals/line-items";
+import {
+  roundMoney,
+  buildProposalItemTree,
+  PROPOSAL_ITEM_COLUMNS,
+  type ProposalItemDbRow,
+} from "@/lib/proposals/line-items";
+import { loadProposalRoster } from "@/lib/proposals/roster";
+import { unwrapEmbed } from "@/lib/supabase/embed";
 import type { ProposalPDFItem } from "@/components/ProposalPDF";
 import { CustomerChip } from "@/components/CustomerChip";
 import { MarkdownView } from "@/components/MarkdownView";
@@ -22,7 +29,7 @@ import { CreateInvoiceButton } from "../create-invoice-button";
 import { NewVersionButton } from "../new-version-button";
 import { ResendLinkButton } from "../resend-link-button";
 import { ProposalPdfButton, type ProposalPdfBundle } from "./proposal-pdf-button";
-import { isProposalEditable, type DepositType } from "../allow-lists";
+import { isProposalEditable, type DepositType } from "@/lib/proposals/allow-lists";
 import { proposalSendReadiness } from "@/lib/proposals/readiness";
 
 export async function generateMetadata(): Promise<Metadata> {
@@ -30,19 +37,8 @@ export async function generateMetadata(): Promise<Metadata> {
   return { title: t("title") };
 }
 
-interface LineItemRow {
-  id: string;
-  parent_line_item_id: string | null;
-  sort_order: number;
-  title: string;
-  summary: string | null;
-  body_markdown: string | null;
-  description: string | null;
-  why_it_matters: string | null;
-  out_of_scope: string | null;
-  definition_of_done: string | null;
-  fixed_price: number | string;
-  is_capped: boolean;
+/** Base item columns plus the detail page's convert/billing state. */
+interface LineItemRow extends ProposalItemDbRow {
   converted_project_id: string | null;
   invoiced_at: string | null;
 }
@@ -68,9 +64,7 @@ export default async function ProposalDetailPage({
 
   const { data: itemRows } = await supabase
     .from("proposal_line_items")
-    .select(
-      "id, parent_line_item_id, sort_order, title, summary, body_markdown, description, why_it_matters, out_of_scope, definition_of_done, fixed_price, is_capped, converted_project_id, invoiced_at",
-    )
+    .select(`${PROPOSAL_ITEM_COLUMNS}, converted_project_id, invoiced_at`)
     .eq("proposal_id", proposalId)
     .order("sort_order");
 
@@ -102,30 +96,17 @@ export default async function ProposalDetailPage({
   const acceptance = acceptanceRows?.[0] ?? null;
 
   // Multi-signer roster + per-signer status ("2 of 3 signed").
-  const { data: signerRows } = await supabase
-    .from("proposal_signers")
-    .select("id, sort_order, customer_contacts(name, email, role_label)")
-    .eq("proposal_id", proposalId)
-    .order("sort_order");
   const acceptanceBySigner = new Map(
     (acceptanceRows ?? [])
       .filter((a) => a.signer_id != null)
       .map((a) => [a.signer_id as string, a.decision as string]),
   );
-  const roster = (signerRows ?? []).map((row) => {
-    const c = (
-      Array.isArray(row.customer_contacts)
-        ? row.customer_contacts[0]
-        : row.customer_contacts
-    ) as { name: string; email: string; role_label: string | null } | null;
-    return {
-      id: row.id as string,
-      name: c?.name ?? "—",
-      email: c?.email ?? "",
-      roleLabel: c?.role_label ?? null,
-      decision: acceptanceBySigner.get(row.id as string) ?? null,
-    };
-  });
+  const roster = (await loadProposalRoster(supabase, proposalId)).map(
+    (entry) => ({
+      ...entry,
+      decision: acceptanceBySigner.get(entry.id) ?? null,
+    }),
+  );
   const signedCount = roster.filter((r) => r.decision === "accepted").length;
 
   const { data: eventRows } = await supabase
@@ -161,15 +142,19 @@ export default async function ProposalDetailPage({
     accent_color: string | null;
     logo_url: string | null;
   }
-  const customer = Array.isArray(proposal.customers)
-    ? ((proposal.customers[0] ?? null) as CustomerRow | null)
-    : (proposal.customers as CustomerRow | null);
-  const signer = Array.isArray(proposal.customer_contacts)
-    ? ((proposal.customer_contacts[0] ?? null) as {
-        name: string;
-        email: string;
-      } | null)
-    : (proposal.customer_contacts as { name: string; email: string } | null);
+  const customer = unwrapEmbed(
+    proposal.customers as CustomerRow | CustomerRow[] | null,
+  );
+  interface SignerContactRow {
+    name: string;
+    email: string;
+  }
+  const signer = unwrapEmbed(
+    proposal.customer_contacts as
+      | SignerContactRow
+      | SignerContactRow[]
+      | null,
+  );
 
   // Send-confirm recipients: every rostered signer (2+), else the single
   // primary. Each gets their own sign-off link + one-time code — the confirm
@@ -183,27 +168,12 @@ export default async function ProposalDetailPage({
         ? [{ name: signer.name, email: signer.email }]
         : [];
 
-  // Build the item tree: top-level items in order, phases nested.
+  // Build the item tree: top-level items in order, phases nested. `parents`
+  // stays index-aligned with `items` (both derive from the same row order)
+  // for the converted-project / invoiced-state lookups below.
   const rows = (itemRows ?? []) as LineItemRow[];
   const parents = rows.filter((r) => r.parent_line_item_id === null);
-  const items: ProposalPDFItem[] = parents.map((parent) => ({
-    title: parent.title,
-    summary: parent.summary ?? null,
-    bodyMarkdown: parent.body_markdown,
-    description: parent.description,
-    whyItMatters: parent.why_it_matters,
-    outOfScope: parent.out_of_scope,
-    definitionOfDone: parent.definition_of_done,
-    fixedPrice: Number(parent.fixed_price),
-    isCapped: parent.is_capped,
-    phases: rows
-      .filter((r) => r.parent_line_item_id === parent.id)
-      .map((phase) => ({
-        title: phase.title,
-        description: phase.description,
-        fixedPrice: Number(phase.fixed_price),
-      })),
-  }));
+  const items: ProposalPDFItem[] = buildProposalItemTree(rows);
   const total = roundMoney(items.reduce((sum, i) => sum + i.fixedPrice, 0));
   const currency = (proposal.currency as string) ?? "USD";
   const status = (proposal.status as string) ?? "draft";

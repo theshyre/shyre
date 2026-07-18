@@ -35,6 +35,85 @@ export interface ProposalItemInput {
   phases?: ProposalPhaseInput[];
 }
 
+/**
+ * The `proposal_line_items` columns the item-tree builder consumes — the one
+ * select-string shared by every surface that renders the full document (sign
+ * service, author preview, detail page). Surfaces needing extra columns append
+ * them: `` `${PROPOSAL_ITEM_COLUMNS}, converted_project_id` ``.
+ */
+export const PROPOSAL_ITEM_COLUMNS =
+  "id, parent_line_item_id, sort_order, title, summary, body_markdown, description, why_it_matters, out_of_scope, definition_of_done, fixed_price, is_capped";
+
+/** Flat `proposal_line_items` row as returned by a `PROPOSAL_ITEM_COLUMNS`
+ *  select (NUMERIC comes back as a string over PostgREST). */
+export interface ProposalItemDbRow {
+  id: string;
+  parent_line_item_id: string | null;
+  sort_order: number;
+  title: string;
+  summary: string | null;
+  body_markdown: string | null;
+  description: string | null;
+  why_it_matters: string | null;
+  out_of_scope: string | null;
+  definition_of_done: string | null;
+  fixed_price: number | string;
+  is_capped: boolean;
+}
+
+export interface ProposalItemTreePhase {
+  title: string;
+  description: string | null;
+  fixedPrice: number;
+}
+
+export interface ProposalItemTreeNode {
+  id: string;
+  title: string;
+  summary: string | null;
+  bodyMarkdown: string | null;
+  description: string | null;
+  whyItMatters: string | null;
+  outOfScope: string | null;
+  definitionOfDone: string | null;
+  fixedPrice: number;
+  isCapped: boolean;
+  phases: ProposalItemTreePhase[];
+}
+
+/**
+ * Rebuild the client-facing item tree from flat rows: top-level items in row
+ * order (callers order by `sort_order`), each with its phases nested. NUMERIC
+ * prices are coerced to numbers. The single source for the rows → parents-with-
+ * nested-phases mapping previously triplicated across the sign service, the
+ * author preview, and the detail page.
+ */
+export function buildProposalItemTree(
+  rows: readonly ProposalItemDbRow[],
+): ProposalItemTreeNode[] {
+  return rows
+    .filter((r) => r.parent_line_item_id === null)
+    .map((parent) => ({
+      id: parent.id,
+      title: parent.title,
+      summary: parent.summary ?? null,
+      bodyMarkdown: parent.body_markdown,
+      description: parent.description,
+      whyItMatters: parent.why_it_matters,
+      outOfScope: parent.out_of_scope,
+      definitionOfDone: parent.definition_of_done,
+      fixedPrice: Number(parent.fixed_price),
+      isCapped: parent.is_capped,
+      phases: rows
+        .filter((r) => r.parent_line_item_id === parent.id)
+        .map((phase) => ({
+          title: phase.title,
+          description: phase.description,
+          fixedPrice: Number(phase.fixed_price),
+        })),
+    }));
+}
+
 /** NUMERIC(10,2) upper bound — 8 integer digits. */
 export const MAX_MONEY = 99_999_999.99;
 

@@ -5,8 +5,11 @@ import {
   proposalTotal,
   selectedTotal,
   validateProposalItems,
+  buildProposalItemTree,
+  PROPOSAL_ITEM_COLUMNS,
   MAX_MONEY,
   type ProposalItemInput,
+  type ProposalItemDbRow,
 } from "./line-items";
 
 /** The concrete example the feature is built around (kickoff spec). */
@@ -132,5 +135,115 @@ describe("validateProposalItems", () => {
         { title: "max", fixedPrice: MAX_MONEY },
       ]),
     ).toEqual([]);
+  });
+});
+
+describe("buildProposalItemTree", () => {
+  function dbRow(overrides: Partial<ProposalItemDbRow>): ProposalItemDbRow {
+    return {
+      id: "row-x",
+      parent_line_item_id: null,
+      sort_order: 0,
+      title: "Untitled",
+      summary: null,
+      body_markdown: null,
+      description: null,
+      why_it_matters: null,
+      out_of_scope: null,
+      definition_of_done: null,
+      fixed_price: 0,
+      is_capped: false,
+      ...overrides,
+    };
+  }
+
+  it("keeps top-level items in row order and drops nothing", () => {
+    const tree = buildProposalItemTree([
+      dbRow({ id: "b", sort_order: 0, title: "First" }),
+      dbRow({ id: "a", sort_order: 1, title: "Second" }),
+    ]);
+    // Row order (the caller orders by sort_order) wins — not id order.
+    expect(tree.map((n) => n.id)).toEqual(["b", "a"]);
+    expect(tree.map((n) => n.title)).toEqual(["First", "Second"]);
+  });
+
+  it("nests each phase under its parent, in row order, and excludes it from the top level", () => {
+    const tree = buildProposalItemTree([
+      dbRow({ id: "p1", title: "Phased", fixed_price: 4000, is_capped: true }),
+      dbRow({ id: "p2", title: "Flat", fixed_price: 950 }),
+      dbRow({
+        id: "c1",
+        parent_line_item_id: "p1",
+        title: "Phase A",
+        description: "first",
+        fixed_price: 2500,
+      }),
+      dbRow({
+        id: "c2",
+        parent_line_item_id: "p1",
+        title: "Phase B",
+        fixed_price: 1500,
+      }),
+    ]);
+    expect(tree).toHaveLength(2);
+    expect(tree[0]?.isCapped).toBe(true);
+    expect(tree[0]?.phases).toEqual([
+      { title: "Phase A", description: "first", fixedPrice: 2500 },
+      { title: "Phase B", description: null, fixedPrice: 1500 },
+    ]);
+    expect(tree[1]?.phases).toEqual([]);
+  });
+
+  it("coerces NUMERIC string prices to numbers on items and phases", () => {
+    const tree = buildProposalItemTree([
+      dbRow({ id: "p1", fixed_price: "4000.50" }),
+      dbRow({ id: "c1", parent_line_item_id: "p1", fixed_price: "1000.25" }),
+    ]);
+    expect(tree[0]?.fixedPrice).toBe(4000.5);
+    expect(tree[0]?.phases[0]?.fixedPrice).toBe(1000.25);
+  });
+
+  it("maps snake_case row fields onto the camelCase node shape", () => {
+    const tree = buildProposalItemTree([
+      dbRow({
+        id: "p1",
+        summary: "one-liner",
+        body_markdown: "**body**",
+        description: "desc",
+        why_it_matters: "why",
+        out_of_scope: "not this",
+        definition_of_done: "done when",
+      }),
+    ]);
+    expect(tree[0]).toMatchObject({
+      summary: "one-liner",
+      bodyMarkdown: "**body**",
+      description: "desc",
+      whyItMatters: "why",
+      outOfScope: "not this",
+      definitionOfDone: "done when",
+    });
+  });
+
+  it("returns an empty tree for no rows", () => {
+    expect(buildProposalItemTree([])).toEqual([]);
+  });
+
+  it("select-string covers exactly the fields the builder reads", () => {
+    const columns = PROPOSAL_ITEM_COLUMNS.split(", ");
+    expect(columns).toEqual([
+      "id",
+      "parent_line_item_id",
+      "sort_order",
+      "title",
+      "summary",
+      "body_markdown",
+      "description",
+      "why_it_matters",
+      "out_of_scope",
+      "definition_of_done",
+      "fixed_price",
+      "is_capped",
+    ]);
   });
 });
