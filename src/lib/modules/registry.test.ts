@@ -2,8 +2,10 @@ import { describe, it, expect } from "vitest";
 import {
   MODULES,
   PLATFORM_TOOLS,
+  SHELL_SURFACES,
   getModule,
   navItemsForSection,
+  shellSurfacesForPlacement,
 } from "./registry";
 
 describe("module registry", () => {
@@ -60,14 +62,93 @@ describe("module registry", () => {
       expect(MODULES.find((m) => m.id === "import")).toBeUndefined();
     });
 
-    it("navItemsForSection merges modules and platform tools", () => {
+    it("navItemsForSection merges modules, shell surfaces, and platform tools", () => {
       const setup = navItemsForSection("setup");
       const hrefs = setup.map((i) => i.href);
-      // Modules
+      // Module
       expect(hrefs).toContain("/business");
+      // Shell surfaces
+      expect(hrefs).toContain("/teams");
       expect(hrefs).toContain("/settings");
       // Platform tool
       expect(hrefs).toContain("/import");
+    });
+
+    it("setup section preserves the pre-SHELL_SURFACES sidebar order", () => {
+      // Representation refactor invariant: moving Teams/Settings out
+      // of MODULES must not reorder the rendered sidebar.
+      expect(navItemsForSection("setup").map((i) => i.href)).toEqual([
+        "/business",
+        "/teams",
+        "/settings",
+        "/import",
+      ]);
+    });
+  });
+
+  describe("shell surfaces", () => {
+    it("each surface has a valid placement and complete nav item", () => {
+      for (const s of SHELL_SURFACES) {
+        expect(s.id).toBeTruthy();
+        expect(["track", "manage", "setup", "home", "identity", "system"]).toContain(
+          s.placement,
+        );
+        expect(s.navItem.labelKey).toBeTruthy();
+        expect(s.navItem.href.startsWith("/")).toBe(true);
+        expect(s.navItem.icon).toBeTruthy();
+      }
+    });
+
+    it("Teams and Settings are shell surfaces, NOT modules", () => {
+      // Architectural invariant: always-on platform pages can't be
+      // toggled off and own no vertical domain — registering them in
+      // MODULES would dilute what "module" means.
+      expect(getModule("teams")).toBeUndefined();
+      expect(getModule("settings")).toBeUndefined();
+      const ids = SHELL_SURFACES.map((s) => s.id);
+      expect(ids).toContain("teams");
+      expect(ids).toContain("settings");
+    });
+
+    it("always-on chrome (dashboard / profile / docs / system) is registered", () => {
+      const byId = new Map(SHELL_SURFACES.map((s) => [s.id, s]));
+      expect(byId.get("dashboard")?.navItem.href).toBe("/");
+      expect(byId.get("dashboard")?.placement).toBe("home");
+      expect(byId.get("profile")?.placement).toBe("identity");
+      expect(byId.get("docs")?.placement).toBe("identity");
+      expect(byId.get("systemHub")?.navItem.href).toBe("/system");
+    });
+
+    it("only the system hub requires system admin", () => {
+      for (const s of SHELL_SURFACES) {
+        expect(Boolean(s.requiresSystemAdmin)).toBe(s.placement === "system");
+      }
+    });
+
+    it("shellSurfacesForPlacement filters by placement in declaration order", () => {
+      expect(shellSurfacesForPlacement("identity").map((s) => s.id)).toEqual([
+        "profile",
+        "docs",
+      ]);
+      expect(shellSurfacesForPlacement("home").map((s) => s.id)).toEqual([
+        "dashboard",
+      ]);
+      expect(shellSurfacesForPlacement("track")).toEqual([]);
+    });
+
+    it("ids and hrefs are unique across modules, shell surfaces, and platform tools", () => {
+      const ids = [
+        ...MODULES.map((m) => m.id),
+        ...SHELL_SURFACES.map((s) => s.id),
+        ...PLATFORM_TOOLS.map((t) => t.id),
+      ];
+      expect(new Set(ids).size).toBe(ids.length);
+      const hrefs = [
+        ...MODULES.flatMap((m) => m.navItems.map((i) => i.href)),
+        ...SHELL_SURFACES.map((s) => s.navItem.href),
+        ...PLATFORM_TOOLS.map((t) => t.navItem.href),
+      ];
+      expect(new Set(hrefs).size).toBe(hrefs.length);
     });
   });
 });

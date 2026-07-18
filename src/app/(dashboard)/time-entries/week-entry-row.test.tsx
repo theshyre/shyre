@@ -21,7 +21,7 @@ vi.mock("./actions", () => ({
   updateTimeEntryDurationAction: updateDurationMock,
 }));
 
-vi.mock("@/components/TicketField", () => ({
+vi.mock("./ticket-field", () => ({
   TicketField: () => <input data-testid="ticket-field" name="ticket_ref" />,
   ticketFieldVisible: () => true,
 }));

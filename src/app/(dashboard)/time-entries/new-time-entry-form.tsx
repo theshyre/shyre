@@ -22,7 +22,7 @@ import {
 } from "@/lib/form-styles";
 import { TeamSelector } from "@/components/TeamSelector";
 import { Tooltip } from "@/components/Tooltip";
-import { TicketField, ticketFieldVisible } from "@/components/TicketField";
+import { TicketField, ticketFieldVisible } from "./ticket-field";
 import { DateField } from "@/components/DateField";
 import {
   ProjectPicker,

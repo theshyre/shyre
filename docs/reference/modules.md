@@ -14,14 +14,35 @@ Shyre is a platform for running a consulting business. Stint is one module; Busi
 
 ## Module registry
 
-`src/lib/modules/registry.ts` holds a manifest per module. Sidebar renders by merging each module's nav items into shell sections (`track` / `manage` / `admin`).
+`src/lib/modules/registry.ts` holds a manifest per module. Sidebar renders by merging each module's nav items into shell sections (`track` / `manage` / `setup`).
 
 Add a module:
 1. Edit `src/lib/modules/registry.ts` — append a manifest entry.
 2. Add module-owned routes under `src/app/(dashboard)/`.
 3. Add i18n namespace if the module has its own strings.
 
-Don't hardcode new items into `Sidebar.tsx`; go through the registry.
+Don't hardcode new items into `Sidebar.tsx` or `GlobalCommandPalette.tsx`; go through the registry.
+
+## Shell surfaces — not everything with a nav entry is a module
+
+Always-on platform pages are **shell surfaces**, declared in the registry's `SHELL_SURFACES` export — a parallel list to `MODULES`, same navItem shape, plus a `placement`:
+
+| Surface | Route | Placement | Meaning |
+|---|---|---|---|
+| Dashboard | `/` | `home` | Head of the sidebar Work section + first palette entry |
+| Teams | `/teams` | `setup` | Merged into the Setup nav section after the modules |
+| Settings | `/settings` | `setup` | Same |
+| Profile | `/profile` | `identity` | Profile-popover / palette tail cluster |
+| Docs | `/docs` | `identity` | Same |
+| System hub | `/system` | `system` | Sysadmin-only group (`requiresSystemAdmin: true`) |
+
+Why the distinction matters: shell surfaces can't be toggled off and own no vertical domain. Registering them as `ModuleManifest`s (as `/teams` and `/settings` once were) dilutes what "module" means — the registry would degrade into "anything with a sidebar entry." Consumers (`Sidebar.tsx`, `GlobalCommandPalette.tsx`) derive shell entries via `shellSurfacesForPlacement()` / `navItemsForSection()` (which merges modules → shell surfaces → platform tools per section); the breadcrumb registry test enforces trail parity for every declared destination. The `requiresSystemAdmin` flag is declarative — callers supply the viewer's admin bit; per-request data (like the unresolved-errors badge) stays with the caller.
+
+There are three registry lists, one per kind:
+
+- **`MODULES`** — feature verticals (Stint, Invoicing, …). Own tables, own routes, meaningfully toggleable.
+- **`SHELL_SURFACES`** — always-on platform pages (table above).
+- **`PLATFORM_TOOLS`** — cross-cutting verticals like Import that write into several modules' tables.
 
 ## Platform API modules can use
 
@@ -34,6 +55,10 @@ Don't hardcode new items into `Sidebar.tsx`; go through the registry.
 
 - Import from another module's directory. (`@/app/(dashboard)/invoices/...` inside `business/` is a layer violation.)
 - Invent their own auth, org, or theme logic.
+
+## Shared components must be module-agnostic
+
+The reverse layering rule: nothing under `src/components/` may import module code. Module-specific components live in the module's route directory (e.g. `time-entries/ticket-chip.tsx`, `time-entries/sidebar-timer.tsx`). When shell chrome needs to render a module-owned widget — the sidebar's running timer — the shell component exposes a slot prop (`Sidebar`'s `timerSlot`) and the dashboard layout (the composition root) injects the module component. The layout composing modules is fine; `src/components/` importing them is not.
 
 ## Naming rules
 
@@ -51,11 +76,13 @@ Customers are referenced by Time, Invoicing, and Business. They don't belong to 
 |---|---|---|---|
 | Stint | `modules.stint` | track | Time |
 | Customers | `modules.customers` | manage | Customers |
+| Projects | `modules.projects` | manage | Projects |
 | Invoicing | `modules.invoicing` | manage | Invoices |
 | Proposals | `modules.proposals` | manage | Proposals |
-| Business | `modules.business` | admin | Business |
+| Reports | `modules.reports` | manage | Reports |
+| Business | `modules.business` | setup | Business |
 
-See `src/lib/modules/registry.ts` for the source of truth.
+Teams and Settings render in the Setup section too, but as shell surfaces (see above), not modules. See `src/lib/modules/registry.ts` for the source of truth.
 
 ## Deferred / not-now
 

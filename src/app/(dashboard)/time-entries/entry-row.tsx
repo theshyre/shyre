@@ -7,7 +7,7 @@ import { DollarSign, Minus, Lock, Play, Square } from "lucide-react";
 import { formatDurationHM } from "@/lib/time/week";
 import { EntryAuthor } from "@/components/EntryAuthor";
 import { Tooltip } from "@/components/Tooltip";
-import { TicketChip } from "@/components/TicketChip";
+import { TicketChip } from "./ticket-chip";
 import { CustomerChip } from "@/components/CustomerChip";
 import { EntryKebabMenu } from "./entry-kebab-menu";
 import { InlineEditForm } from "./inline-edit-form";

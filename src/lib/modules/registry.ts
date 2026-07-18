@@ -16,20 +16,29 @@
  *   4. DB tables are prefixed by the module when domain-specific
  *      (e.g. `time_entries`, future `business_expenses`). Shell tables
  *      stay unprefixed (`user_profiles`, `teams`, `customers`).
+ *
+ * Not everything with a nav entry is a module: always-on platform
+ * pages (Dashboard, Teams, Settings, Profile, Docs, System) are
+ * SHELL_SURFACES, and cross-cutting verticals (Import) are
+ * PLATFORM_TOOLS — see those exports below.
  */
 
 import type { ComponentType } from "react";
 import {
+  BarChart3,
+  BookOpen,
+  Briefcase,
   Clock,
+  FileSignature,
   FileText,
+  FolderKanban,
+  LayoutDashboard,
+  Settings,
+  ShieldAlert,
+  Upload,
+  User,
   Users,
   UsersRound,
-  Briefcase,
-  FolderKanban,
-  BarChart3,
-  Settings,
-  Upload,
-  FileSignature,
   type LucideIcon,
 } from "lucide-react";
 
@@ -150,25 +159,84 @@ export const MODULES: ModuleManifest[] = [
     ],
     realtimeTables: ["expenses"],
   },
+];
+
+/**
+ * Where a shell surface renders in the chrome:
+ *   - `"home"`      — head of the sidebar's Work section + first
+ *                     palette entry (the Dashboard).
+ *   - a SidebarSection — merged into that section's nav list right
+ *                     after the modules (Teams + Settings in "setup").
+ *   - `"identity"`  — the profile-popover / palette tail cluster
+ *                     (Profile, Docs); not part of the main nav.
+ *   - `"system"`    — the sysadmin-only System group.
+ */
+export type ShellPlacement = SidebarSection | "home" | "identity" | "system";
+
+/**
+ * An always-on platform page. Shell surfaces are NOT modules: they
+ * can't be toggled off, they own no vertical domain, and modeling
+ * them as `ModuleManifest`s would dilute what "module" means (Teams
+ * and Settings used to be shoehorned into `MODULES` exactly that
+ * way). Consumers (Sidebar, GlobalCommandPalette, breadcrumb parity
+ * tests) derive these entries from here instead of hardcoding them.
+ */
+export interface ShellSurface {
+  /** Stable identifier — also the command-palette item id. */
+  id: string;
+  /** Where the surface renders (see {@link ShellPlacement}). */
+  placement: ShellPlacement;
+  navItem: ModuleNavItem;
+  /** Only rendered for system admins (e.g. /system). Callers supply
+   *  the viewer's admin flag; the registry just declares the gate. */
+  requiresSystemAdmin?: boolean;
+}
+
+/**
+ * Always-on shell surfaces, in display order within their placement.
+ */
+export const SHELL_SURFACES: ShellSurface[] = [
+  {
+    id: "dashboard",
+    placement: "home",
+    navItem: { labelKey: "dashboard", href: "/", icon: LayoutDashboard },
+  },
   {
     id: "teams",
-    labelKey: "modules.teams",
-    icon: UsersRound,
-    section: "setup",
-    navItems: [
-      { labelKey: "teams", href: "/teams", icon: UsersRound },
-    ],
+    placement: "setup",
+    navItem: { labelKey: "teams", href: "/teams", icon: UsersRound },
   },
   {
     id: "settings",
-    labelKey: "modules.admin",
-    icon: Settings,
-    section: "setup",
-    navItems: [
-      { labelKey: "admin", href: "/settings", icon: Settings },
-    ],
+    placement: "setup",
+    navItem: { labelKey: "admin", href: "/settings", icon: Settings },
+  },
+  {
+    id: "profile",
+    placement: "identity",
+    navItem: { labelKey: "profile", href: "/profile", icon: User },
+  },
+  {
+    id: "docs",
+    placement: "identity",
+    navItem: { labelKey: "docs", href: "/docs", icon: BookOpen },
+  },
+  {
+    id: "systemHub",
+    placement: "system",
+    navItem: { labelKey: "systemHub", href: "/system", icon: ShieldAlert },
+    requiresSystemAdmin: true,
   },
 ];
+
+/**
+ * Shell surfaces for a placement, in declaration order.
+ */
+export function shellSurfacesForPlacement(
+  placement: ShellPlacement,
+): ShellSurface[] {
+  return SHELL_SURFACES.filter((s) => s.placement === placement);
+}
 
 /**
  * Platform tools — sidebar entries that don't belong to a single module
@@ -215,9 +283,12 @@ export function realtimeWatchedTables(): string[] {
 }
 
 /**
- * Nav items for a given section, flattened across modules + platform
- * tools. Preserves declaration order within each list (modules first,
- * then platform tools) so the sidebar layout stays predictable.
+ * Nav items for a given section, flattened across modules + shell
+ * surfaces + platform tools. Preserves declaration order within each
+ * list (modules first, then shell surfaces, then platform tools) so
+ * the sidebar layout stays predictable — for "setup" that yields
+ * Business, Teams, Settings, Import, exactly the pre-SHELL_SURFACES
+ * order.
  */
 export function navItemsForSection(
   section: SidebarSection,
@@ -225,8 +296,11 @@ export function navItemsForSection(
   const fromModules = MODULES.filter((m) => m.section === section).flatMap(
     (m) => m.navItems,
   );
+  const fromShellSurfaces = SHELL_SURFACES.filter(
+    (s) => s.placement === section,
+  ).map((s) => s.navItem);
   const fromPlatformTools = PLATFORM_TOOLS.filter(
     (t) => t.section === section,
   ).map((t) => t.navItem);
-  return [...fromModules, ...fromPlatformTools];
+  return [...fromModules, ...fromShellSurfaces, ...fromPlatformTools];
 }
