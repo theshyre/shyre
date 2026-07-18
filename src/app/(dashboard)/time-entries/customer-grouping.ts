@@ -30,6 +30,7 @@ interface Labels {
 interface CustomerBucket {
   customerId: string | null;
   customerName: string | null;
+  customerLogoUrl: string | null;
   isInternal: boolean;
   entries: TimeEntry[];
 }
@@ -65,6 +66,7 @@ export function groupEntriesByCustomer(
       bucket = {
         customerId: customer?.id ?? null,
         customerName: customer?.name ?? null,
+        customerLogoUrl: customer?.logo_url ?? null,
         isInternal,
         entries: [],
       };
@@ -105,6 +107,7 @@ export function groupEntriesByCustomer(
       totalMin: sumDurationMin(sorted),
       billableMin: sumBillableMin(sorted),
       customerId: b.customerId,
+      customerLogoUrl: b.customerLogoUrl,
       isInternalCustomer: b.isInternal,
       railColor: rail,
     };

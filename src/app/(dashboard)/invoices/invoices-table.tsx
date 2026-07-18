@@ -23,7 +23,7 @@ export interface InvoiceRow {
   total: number | string | null;
   currency: string | null;
   imported_from: string | null;
-  customers: { id: string; name: string } | null;
+  customers: { id: string; name: string; logo_url: string | null } | null;
 }
 
 interface Props {
@@ -340,7 +340,8 @@ export function InvoicesTable({
                       <CustomerChip
                         customerId={inv.customers.id}
                         customerName={inv.customers.name}
-                        size={14}
+                        logoUrl={inv.customers.logo_url}
+                        size={24}
                       />
                     ) : null}
                     <span className="truncate">{customerName}</span>

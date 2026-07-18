@@ -1653,6 +1653,7 @@ function TimesheetRow({
                 <CustomerChip
                   customerId={project.customers.id ?? null}
                   customerName={project.customers.name}
+                  logoUrl={project.customers.logo_url ?? null}
                 />
                 <Tooltip label={project.customers.name}>
                   <div className="text-body text-content-secondary truncate min-w-0">
@@ -2264,6 +2265,7 @@ interface CustomerSubGroup {
   /** Customer id, or null for internal/no-customer rows. */
   customerId: string | null;
   customerName: string | null;
+  customerLogoUrl: string | null;
   /** True when the rows in this sub-group belong to projects flagged
    *  is_internal — surfaces as a "Internal" label + Building chip. */
   isInternal: boolean;
@@ -2288,6 +2290,7 @@ function buildCustomerSubGroups(
       sg = {
         customerId: customer?.id ?? null,
         customerName: customer?.name ?? null,
+        customerLogoUrl: customer?.logo_url ?? null,
         isInternal,
         rows: [],
         byDay: Array.from({ length: DAYS_IN_WEEK }, () => 0),
@@ -2540,6 +2543,7 @@ function CustomerSubHeader({
             <CustomerChip
               customerId={subGroup.customerId}
               customerName={subGroup.customerName}
+              logoUrl={subGroup.customerLogoUrl ?? null}
               size={18}
             />
           ) : subGroup.isInternal ? (

@@ -51,7 +51,7 @@ export interface ProjectRow {
    *  immediately below its parent with an indented label so the
    *  hierarchy is visible at a glance. */
   parent_project_id: string | null;
-  customers: { id: string; name: string } | null;
+  customers: { id: string; name: string; logo_url: string | null } | null;
 }
 
 interface CategorySetOption {
@@ -209,6 +209,7 @@ export function ProjectsTable({
     /** Customer id (null on the Internal and No-customer buckets) —
      *  drives the CustomerChip's deterministic color slot. */
     customerId: string | null;
+    customerLogoUrl: string | null;
     isInternal: boolean;
     rows: ProjectRow[];
   }
@@ -223,11 +224,12 @@ export function ProjectsTable({
         ? t("groupInternal")
         : (p.customers?.name ?? t("groupNoCustomer"));
       const customerId = isInternal ? null : (p.customers?.id ?? null);
+      const customerLogoUrl = isInternal ? null : (p.customers?.logo_url ?? null);
       const existing = byKey.get(key);
       if (existing) {
         existing.rows.push(p);
       } else {
-        byKey.set(key, { key, label, customerId, isInternal, rows: [p] });
+        byKey.set(key, { key, label, customerId, customerLogoUrl, isInternal, rows: [p] });
       }
     }
     const groups = Array.from(byKey.values());
@@ -642,6 +644,7 @@ function CustomerGroupRows({
     key: string;
     label: string;
     customerId: string | null;
+    customerLogoUrl: string | null;
     isInternal: boolean;
     rows: ProjectRow[];
   };
@@ -677,8 +680,9 @@ function CustomerGroupRows({
             <CustomerChip
               customerId={group.customerId}
               customerName={group.customerId ? group.label : null}
+              logoUrl={group.customerLogoUrl}
               internal={group.isInternal}
-              size={14}
+              size={24}
             />
             <span className="text-label uppercase tracking-wider font-semibold text-content">
               {group.label}

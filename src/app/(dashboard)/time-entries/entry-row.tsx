@@ -74,6 +74,7 @@ export function EntryRow({
   const projectName = entry.projects?.name ?? "—";
   const customerName = entry.projects?.customers?.name ?? null;
   const customerId = entry.projects?.customers?.id ?? null;
+  const customerLogoUrl = entry.projects?.customers?.logo_url ?? null;
   const projectIsInternal = entry.projects?.is_internal === true;
   const startDate = new Date(entry.start_time);
 
@@ -222,6 +223,7 @@ export function EntryRow({
                 <CustomerChip
                   customerId={customerId}
                   customerName={customerName}
+                  logoUrl={customerLogoUrl}
                   size={14}
                 />
               ) : projectIsInternal ? (

@@ -345,6 +345,7 @@ function GroupBlock({
                 <CustomerChip
                   customerId={group.customerId}
                   customerName={group.label}
+                  logoUrl={group.customerLogoUrl ?? null}
                   size={18}
                 />
               ) : group.isInternalCustomer ? (

@@ -355,6 +355,8 @@ export default async function ProposalDetailPage({
               <CustomerChip
                 customerId={customer?.id}
                 customerName={customer?.name}
+                logoUrl={customer?.logo_url ?? null}
+                size={24}
               />
               {customer?.name ?? "—"}
             </span>
