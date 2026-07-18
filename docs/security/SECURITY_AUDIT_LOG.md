@@ -83,9 +83,9 @@ The integrations surface lets external apps (first: Claude Code) start/stop time
 - The service layer talks to the DB exclusively through a bare session-less ANON client (`createIntegrationClient`) — no cookies, no service role — so the six granted RPCs remain the entire reachable surface.
 
 **Pre-GA checklist (tracked; tick before announcing the feature):**
-- [ ] psql RLS simulation (SAL-003 template): owner-sees-own / admin-sees-team / member-sees-only-own on `integration_tokens` + `integration_events`; anon sees nothing; no client write path to events/idempotency. **Now that the P1 UI makes these policies user-visible, run this before GA, not after.**
+- [x] psql RLS simulation (read-only, run 2026-07-18 post-deploy): anon sees ZERO rows on `integration_tokens`/`integration_events`; an authenticated non-member uid sees ZERO rows on both and zero kill-switch-enabled teams. Owner/admin-sees-team direction verifiable once first real tokens exist (no rows yet — kill switch still off everywhere). **Now that the P1 UI makes these policies user-visible, run this before GA, not after.**
 - [ ] Column privilege hardening: `REVOKE SELECT (token_hash) ON integration_tokens FROM authenticated` — closes direct PostgREST `?select=token_hash` reads structurally (not exploitable — the hash can't authenticate — but the github_token "never leaves the server" spirit).
 - [x] MCP route path parity: the settings page's copyable `claude mcp add` command prints `${origin}/api/mcp`, matching the route PR #71 shipped (SAL-044 lesson: path-string mismatches go unnoticed).
-- [ ] Post-deploy probe: fabricated, revoked, and expired tokens each → identical coarse 401 + `logError` row at /system/errors.
-- [ ] Concurrency probe: parallel double `timer/start` → exactly one running entry.
+- [x] Post-deploy probe (2026-07-18): fabricated token AND missing header both → identical `401 {"error":"unauthorized"}` (no oracle); no 307 (middleware exemption verified live); near-miss `/api/v1x` still 307s (SAL-039 control); MCP unauth → 401; every probe landed a `logError` row (`api.v1.timer.get`, `api.mcp.auth`) visible at /system/errors. Revoked/expired variants runnable once a first token exists.
+- [ ] Concurrency probe: parallel double `timer/start` → exactly one running entry. (Needs a live token — run when the first token is minted; the advisory-lock path is unit-covered.)
 - [ ] Redaction: `logError` output contains no `Authorization` header and nothing matching `shyre_pat_` (unit-tested in `tokens.test.ts` / route wrapper tests).
