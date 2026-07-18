@@ -136,7 +136,7 @@ function SystemSetRow({
             {set.categories.map((c) => (
               <span
                 key={c.id}
-                className="inline-flex items-center gap-1 rounded-full bg-surface-inset px-2 py-0.5 text-[11px] text-content-secondary"
+                className="inline-flex items-center gap-1 rounded-full bg-surface-inset px-2 py-0.5 text-caption text-content-secondary"
               >
                 <span
                   className="h-2 w-2 rounded-full"
@@ -216,7 +216,7 @@ function TeamSetRow({
             {set.categories.map((c) => (
               <span
                 key={c.id}
-                className="inline-flex items-center gap-1 rounded-full bg-surface-inset px-2 py-0.5 text-[11px] text-content-secondary"
+                className="inline-flex items-center gap-1 rounded-full bg-surface-inset px-2 py-0.5 text-caption text-content-secondary"
               >
                 <span
                   className="h-2 w-2 rounded-full"
@@ -226,7 +226,7 @@ function TeamSetRow({
               </span>
             ))}
             {set.categories.length === 0 && (
-              <span className="text-[11px] text-content-muted italic">
+              <span className="text-caption text-content-muted italic">
                 {t("noCategories")}
               </span>
             )}

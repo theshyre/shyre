@@ -18,7 +18,7 @@ import { validateTeamAccess } from "@/lib/team-context";
 export interface LoadedProject {
   id: string;
   row: Record<string, unknown>;
-  customer: { id: string; name: string } | null;
+  customer: { id: string; name: string; logo_url: string | null } | null;
   parent: { id: string; name: string } | null;
   isInternal: boolean;
   callerUserId: string;
@@ -35,7 +35,7 @@ export const loadProject = cache(
 
     const { data: project } = await supabase
       .from("projects_v")
-      .select("*, customers(id, name)")
+      .select("*, customers(id, name, logo_url)")
       .eq("id", id)
       .single();
     if (!project) notFound();
@@ -48,11 +48,19 @@ export const loadProject = cache(
       project.customers &&
       typeof project.customers === "object" &&
       "id" in project.customers
-        ? (project.customers as { id: string | null; name: string | null })
+        ? (project.customers as {
+            id: string | null;
+            name: string | null;
+            logo_url: string | null;
+          })
         : null;
     const customer =
       customerObj?.id && customerObj.name
-        ? { id: customerObj.id, name: customerObj.name }
+        ? {
+            id: customerObj.id,
+            name: customerObj.name,
+            logo_url: customerObj.logo_url ?? null,
+          }
         : null;
 
     let parent: { id: string; name: string } | null = null;

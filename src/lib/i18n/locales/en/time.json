@@ -108,11 +108,25 @@
     "categoryPickProjectFirst": "Pick a project first."
   },
   "table": {
-    "project": "Project",
-    "description": "Description",
-    "date": "Date",
-    "duration": "Duration",
-    "billable": "Billable"
+    "groupLabel": "All entries",
+    "filterRegion": "Filter time entries",
+    "from": "From",
+    "to": "To",
+    "search": "Search descriptions",
+    "searchPlaceholder": "Programming, SHY-1234, …",
+    "clearSearch": "Clear search",
+    "clearAll": "Clear filters",
+    "invoicedFilter": {
+      "label": "Invoice status",
+      "all": "All",
+      "uninvoiced": "Uninvoiced",
+      "invoiced": "Invoiced",
+      "billed_elsewhere": "Billed elsewhere"
+    },
+    "resultCount": "{count, plural, =0 {No entries} one {# entry} other {# entries}}",
+    "totals": "{total} total · {billable} billable · {nonBillable} non-billable",
+    "rangeCaption": "{from} → {to}",
+    "truncated": "Showing the most recent {limit, number} entries — narrow the date range or use search to see older rows."
   },
   "tableHeaders": {
     "time": "Time",
@@ -239,27 +253,6 @@
     "day": "Day",
     "week": "Week",
     "table": "Table"
-  },
-  "table": {
-    "groupLabel": "All entries",
-    "filterRegion": "Filter time entries",
-    "from": "From",
-    "to": "To",
-    "search": "Search descriptions",
-    "searchPlaceholder": "Programming, SHY-1234, …",
-    "clearSearch": "Clear search",
-    "clearAll": "Clear filters",
-    "invoicedFilter": {
-      "label": "Invoice status",
-      "all": "All",
-      "uninvoiced": "Uninvoiced",
-      "invoiced": "Invoiced",
-      "billed_elsewhere": "Billed elsewhere"
-    },
-    "resultCount": "{count, plural, =0 {No entries} one {# entry} other {# entries}}",
-    "totals": "{total} total · {billable} billable · {nonBillable} non-billable",
-    "rangeCaption": "{from} → {to}",
-    "truncated": "Showing the most recent {limit, number} entries — narrow the date range or use search to see older rows."
   },
   "jumpToDate": {
     "popoverTitle": "Jump to date",
@@ -424,5 +417,9 @@
       "startTimer": "Start timer",
       "teamBadge": "Team"
     }
+  },
+  "entryTable": {
+    "emptyTitle": "No entries here",
+    "emptyDescription": "Log time with the timer or add a manual entry — everything you track lands in this list."
   }
 }

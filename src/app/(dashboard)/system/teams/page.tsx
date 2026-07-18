@@ -235,7 +235,7 @@ function StatCell({
     <div className="rounded-lg border border-edge bg-surface p-2">
       <div className="flex items-center gap-1 text-content-muted mb-1">
         <Icon size={10} />
-        <span className="text-[10px] uppercase tracking-wider">{label}</span>
+        <span className="text-label uppercase tracking-wider">{label}</span>
       </div>
       <p className="text-title font-bold font-mono text-content">{count}</p>
     </div>

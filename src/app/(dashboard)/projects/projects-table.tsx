@@ -14,6 +14,7 @@ import {
 } from "lucide-react";
 import { Tooltip } from "@/components/Tooltip";
 import { useToast } from "@/components/Toast";
+import { formatCurrency } from "@/lib/invoice-utils";
 import { CustomerChip } from "@/components/CustomerChip";
 import { StatusBadge } from "@/components/StatusBadge";
 import { OverdueBadge } from "@/components/OverdueBadge";
@@ -51,7 +52,7 @@ export interface ProjectRow {
    *  immediately below its parent with an indented label so the
    *  hierarchy is visible at a glance. */
   parent_project_id: string | null;
-  customers: { id: string; name: string } | null;
+  customers: { id: string; name: string; logo_url: string | null } | null;
 }
 
 interface CategorySetOption {
@@ -209,6 +210,7 @@ export function ProjectsTable({
     /** Customer id (null on the Internal and No-customer buckets) —
      *  drives the CustomerChip's deterministic color slot. */
     customerId: string | null;
+    customerLogoUrl: string | null;
     isInternal: boolean;
     rows: ProjectRow[];
   }
@@ -223,11 +225,12 @@ export function ProjectsTable({
         ? t("groupInternal")
         : (p.customers?.name ?? t("groupNoCustomer"));
       const customerId = isInternal ? null : (p.customers?.id ?? null);
+      const customerLogoUrl = isInternal ? null : (p.customers?.logo_url ?? null);
       const existing = byKey.get(key);
       if (existing) {
         existing.rows.push(p);
       } else {
-        byKey.set(key, { key, label, customerId, isInternal, rows: [p] });
+        byKey.set(key, { key, label, customerId, customerLogoUrl, isInternal, rows: [p] });
       }
     }
     const groups = Array.from(byKey.values());
@@ -568,6 +571,7 @@ export function ProjectsTable({
               currentSort={sort}
               currentDir={dir}
               href={buildSortHref}
+              align="right"
             />
             {showBurnColumn && (
               <th
@@ -642,6 +646,7 @@ function CustomerGroupRows({
     key: string;
     label: string;
     customerId: string | null;
+    customerLogoUrl: string | null;
     isInternal: boolean;
     rows: ProjectRow[];
   };
@@ -677,8 +682,9 @@ function CustomerGroupRows({
             <CustomerChip
               customerId={group.customerId}
               customerName={group.customerId ? group.label : null}
+              logoUrl={group.customerLogoUrl}
               internal={group.isInternal}
-              size={14}
+              size={24}
             />
             <span className="text-label uppercase tracking-wider font-semibold text-content">
               {group.label}
@@ -755,9 +761,9 @@ function CustomerGroupRows({
                 </span>
               </td>
             )}
-            <td className={`${tableBodyCellClass} font-mono`}>
+            <td className={`${tableBodyCellClass} text-right font-mono`}>
               {project.hourly_rate
-                ? `$${Number(project.hourly_rate).toFixed(2)}/hr`
+                ? `${formatCurrency(Number(project.hourly_rate))}/hr`
                 : "—"}
             </td>
             {showBurnColumn && (
@@ -811,6 +817,7 @@ function BurnCell({
   noBudgetMin?: number | null;
   projectName: string;
 }): React.JSX.Element {
+  const tBurn = useTranslations("projects.table");
   // No budget configured → fall back to trailing-90-day hours
   // (persona-converged 2026-05-12). Hours-only: no rate-drift trap,
   // no currency-mixing, works for internal projects without a rate.
@@ -821,14 +828,14 @@ function BurnCell({
     const hours = Math.round(noBudgetMin / 60);
     if (hours === 0) {
       return (
-        <Tooltip label={`${projectName} — no time logged in the last 90 days`}>
+        <Tooltip label={tBurn("burnNoRecent", { project: projectName })}>
           <span className="text-content-muted">—</span>
         </Tooltip>
       );
     }
     return (
       <Tooltip
-        label={`${projectName} — ${hours}h logged in the last 90 days`}
+        label={tBurn("burnRecentHours", { project: projectName, hours })}
       >
         <span className="font-mono tabular-nums text-caption text-content-secondary">
           {hours}h · 90d
@@ -874,7 +881,7 @@ function BurnCell({
       aria-valuenow={rounded}
       aria-valuemin={0}
       aria-valuemax={100}
-      aria-label={`${projectName} budget burn ${rounded}%`}
+      aria-label={tBurn("burnAria", { project: projectName, pct: rounded })}
     >
       <div className="h-1.5 w-16 rounded-full bg-edge overflow-hidden shrink-0">
         <div

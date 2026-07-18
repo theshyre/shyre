@@ -154,7 +154,7 @@ export default async function EditProposalPage({
 
   return (
     <div>
-      <h1 className="mb-[24px] text-page-title font-semibold text-content">
+      <h1 className="mb-[24px] text-page-title font-bold text-content">
         {t("editPageTitle")}
       </h1>
       <ProposalForm

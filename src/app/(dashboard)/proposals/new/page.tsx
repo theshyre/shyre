@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import { FileSignature } from "lucide-react";
 import { redirect } from "next/navigation";
 import { getTranslations } from "next-intl/server";
 import { createClient } from "@/lib/supabase/server";
@@ -73,9 +74,12 @@ export default async function NewProposalPage({
 
   return (
     <div>
-      <h1 className="mb-[24px] text-page-title font-semibold text-content">
-        {t("newPageTitle")}
-      </h1>
+      <div className="mb-[24px] flex items-center gap-3">
+        <FileSignature size={24} className="text-accent" />
+        <h1 className="text-page-title font-bold text-content">
+          {t("newPageTitle")}
+        </h1>
+      </div>
       <ProposalForm
         teams={adminTeams.map((team) => ({ id: team.id, name: team.name }))}
         customers={customers}

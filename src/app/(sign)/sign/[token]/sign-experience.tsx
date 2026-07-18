@@ -9,7 +9,6 @@ import { ProposalSummaryTable } from "@/components/ProposalSummaryTable";
 import {
   CheckCircle2,
   XCircle,
-  MailCheck,
   ShieldCheck,
   TriangleAlert,
   Clock,
@@ -23,14 +22,14 @@ import {
   buttonDangerClass,
 } from "@/lib/form-styles";
 import { formatCurrency } from "@/lib/invoice-utils";
+import { formatDisplayDate } from "@/lib/format-date";
 import { roundMoney } from "@/lib/proposals/line-items";
 import type { SignBundle } from "@/lib/proposals/sign-service";
 import {
-  requestSignOtpAction,
-  verifySignOtpAction,
   submitSignDecisionAction,
   type PublicActionResult,
 } from "./actions";
+import { signFailureKey } from "@/lib/proposals/sign-failure";
 
 interface Props {
   token: string;
@@ -54,46 +53,29 @@ export function SignExperience({ token, bundle }: Props): React.JSX.Element {
   const router = useRouter();
   const [pending, startTransition] = useTransition();
 
-  const [otpRequested, setOtpRequested] = useState(bundle.otpPending);
-  const [otpCode, setOtpCode] = useState("");
   const [error, setError] = useState<string | null>(null);
   // Persistent polite live region (mounted from first render — live regions
   // inserted WITH their content are not reliably announced). Success
   // transitions write here; router.refresh() re-renders in place so the
   // node persists across state flips.
   const [announcement, setAnnouncement] = useState("");
-  const otpInputRef = useRef<HTMLInputElement>(null);
   const signHeadingRef = useRef<HTMLHeadingElement>(null);
   const decidedBannerRef = useRef<HTMLDivElement>(null);
 
   // Focus management across the refresh-driven state transitions: the
   // element the user activated unmounts, so deliberately re-home focus to
   // the next step instead of letting it drop to <body>.
-  const prevVerified = useRef(bundle.otpVerified);
   const prevDecided = useRef(bundle.decided);
   useEffect(() => {
-    if (!prevVerified.current && bundle.otpVerified && !bundle.decided) {
-      signHeadingRef.current?.focus();
-    }
     if (!prevDecided.current && bundle.decided) {
       decidedBannerRef.current?.focus();
     }
-    prevVerified.current = bundle.otpVerified;
     prevDecided.current = bundle.decided;
-  }, [bundle.otpVerified, bundle.decided]);
-
-  // When the code field appears (after "Email me a code"), put the caret in it.
-  const prevRequested = useRef(otpRequested);
-  useEffect(() => {
-    if (!prevRequested.current && otpRequested) {
-      otpInputRef.current?.focus();
-    }
-    prevRequested.current = otpRequested;
-  }, [otpRequested]);
+  }, [bundle.decided]);
 
   // Which action is in flight — drives per-button pending labels.
   const [pendingAction, setPendingAction] = useState<
-    "otp_send" | "otp_verify" | "accept" | "decline" | null
+    "accept" | "decline" | null
   >(null);
 
   // A bound co-signer ('all' mode, after the primary authorized) sees the
@@ -124,34 +106,11 @@ export function SignExperience({ token, bundle }: Props): React.JSX.Element {
 
   /** Map a coarse failure reason onto a translated message. */
   function failureMessage(result: PublicActionResult): string {
-    switch (result.reason) {
-      case "otp_invalid":
-        return t("errors.otpInvalid");
-      case "otp_expired":
-        return t("errors.otpExpired");
-      case "otp_locked":
-        return t("errors.otpLocked");
-      case "otp_cooldown":
-        return t("errors.otpCooldown");
-      case "otp_required":
-        return t("errors.otpRequired");
-      case "consumed":
-        return t("errors.consumed");
-      case "invalid_selection":
-        return t("errors.invalidSelection");
-      case "offer_expired":
-        return t("errors.offerExpired");
-      case "awaiting_primary":
-        return t("awaitingPrimaryNote");
-      case "email_failed":
-        return t("errors.emailFailed");
-      default:
-        return t("errors.generic");
-    }
+    return t(signFailureKey(result.reason));
   }
 
   function runAction(
-    action: "otp_send" | "otp_verify" | "accept" | "decline",
+    action: "accept" | "decline",
     fn: () => Promise<PublicActionResult>,
     onOk?: () => void,
     announce?: string,
@@ -175,7 +134,7 @@ export function SignExperience({ token, bundle }: Props): React.JSX.Element {
   const decidedAccepted = bundle.proposal.status === "accepted";
   // A bound co-signer cannot change the subset — it's the primary's.
   const isBound = bundle.boundSelectedIds !== null;
-  const selectable = !decided && bundle.otpVerified && !isBound;
+  const selectable = !decided && !isBound;
   const acceptMissing: string[] = [];
   // A co-signer whose primary hasn't authorized yet can't sign at all.
   if (bundle.awaitingPrimary) acceptMissing.push(t("awaitingPrimary"));
@@ -230,7 +189,7 @@ export function SignExperience({ token, bundle }: Props): React.JSX.Element {
       <p className="mt-1 font-mono text-caption text-content-secondary">
         {bundle.proposal.proposalNumber}
         {bundle.proposal.validUntil
-          ? ` · ${t("validUntil", { date: bundle.proposal.validUntil })}`
+          ? ` · ${t("validUntil", { date: formatDisplayDate(bundle.proposal.validUntil) })}`
           : ""}
       </p>
 
@@ -281,7 +240,7 @@ export function SignExperience({ token, bundle }: Props): React.JSX.Element {
           className="mt-4 flex items-center gap-2 rounded-lg border border-warning-text bg-warning-soft p-3 text-body text-warning-text"
         >
           <TriangleAlert size={16} aria-hidden="true" />
-          {t("offerExpiredNotice", { date: bundle.proposal.validUntil ?? "" })}
+          {t("offerExpiredNotice", { date: formatDisplayDate(bundle.proposal.validUntil) })}
         </div>
       )}
 
@@ -524,95 +483,9 @@ export function SignExperience({ token, bundle }: Props): React.JSX.Element {
       {/* Sign-off flow */}
       {!decided && (
         <section className="mt-[32px] rounded-lg border border-edge bg-surface-raised p-4">
-          {!bundle.otpVerified ? (
-            <form
-              onSubmit={(e) => {
-                e.preventDefault();
-                if (otpRequested && otpCode.length === 6) {
-                  runAction(
-                    "otp_verify",
-                    () => verifySignOtpAction(token, otpCode),
-                    undefined,
-                    t("announceVerified"),
-                  );
-                } else if (!otpRequested) {
-                  runAction(
-                    "otp_send",
-                    () => requestSignOtpAction(token),
-                    () => setOtpRequested(true),
-                    t("announceCodeSent"),
-                  );
-                }
-              }}
-            >
-              <h2 className="flex items-center gap-2 text-body-lg font-semibold text-content">
-                <MailCheck size={16} aria-hidden="true" />
-                {t("otpHeading")}
-              </h2>
-              <p className="mt-1 text-body text-content-secondary">
-                {t("otpHint", { email: bundle.signerEmail })}
-              </p>
-              <div className="mt-3 flex flex-wrap items-end gap-3">
-                <button
-                  type={otpRequested ? "button" : "submit"}
-                  // The single forward action pre-request → primary; demoted
-                  // once the code entry becomes the main path.
-                  className={
-                    otpRequested ? buttonSecondaryClass : buttonPrimaryClass
-                  }
-                  disabled={pending}
-                  onClick={
-                    otpRequested
-                      ? () =>
-                          runAction(
-                            "otp_send",
-                            () => requestSignOtpAction(token),
-                            undefined,
-                            t("announceCodeSent"),
-                          )
-                      : undefined
-                  }
-                >
-                  {pendingAction === "otp_send"
-                    ? t("otpSending")
-                    : otpRequested
-                      ? t("otpResend")
-                      : t("otpSend")}
-                </button>
-                {otpRequested && (
-                  <>
-                    <div>
-                      <label htmlFor="sign-otp" className={labelClass}>
-                        {t("otpLabel")}
-                      </label>
-                      <input
-                        id="sign-otp"
-                        ref={otpInputRef}
-                        className={`${inputClass} w-[140px] font-mono tracking-widest`}
-                        inputMode="numeric"
-                        autoComplete="one-time-code"
-                        maxLength={6}
-                        value={otpCode}
-                        onChange={(e) =>
-                          setOtpCode(e.target.value.replace(/\D/g, ""))
-                        }
-                      />
-                    </div>
-                    <button
-                      type="submit"
-                      className={buttonPrimaryClass}
-                      disabled={pending || otpCode.length !== 6}
-                    >
-                      <ShieldCheck size={16} aria-hidden="true" />
-                      {pendingAction === "otp_verify"
-                        ? t("otpVerifying")
-                        : t("otpVerify")}
-                    </button>
-                  </>
-                )}
-              </div>
-            </form>
-          ) : (
+          {/* The identity gate (SignGate) owns OTP now — by the time this
+              component renders, the browser is verified. The old inline OTP
+              branch was unreachable AND a drift-prone copy of the live one. */}
             <form
               onSubmit={(e) => {
                 e.preventDefault();
@@ -766,7 +639,6 @@ export function SignExperience({ token, bundle }: Props): React.JSX.Element {
                 </p>
               )}
             </form>
-          )}
 
           {error && (
             <p

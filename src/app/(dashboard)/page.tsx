@@ -36,6 +36,7 @@ import { roundMoney } from "@/lib/proposals/line-items";
 import { summarizeOutstandingProposals } from "@/lib/proposals/list-view";
 import { ExpiringCredentialsBanner } from "@/components/ExpiringCredentialsBanner";
 import { EntryAuthor, type EntryAuthorInfo } from "@/components/EntryAuthor";
+import { CustomerChip } from "@/components/CustomerChip";
 
 export default async function DashboardPage(): Promise<React.JSX.Element> {
   const supabase = await createClient();
@@ -116,7 +117,7 @@ export default async function DashboardPage(): Promise<React.JSX.Element> {
       supabase
         .from("time_entries")
         .select(
-          "id, description, start_time, end_time, duration_min, user_id, projects(name)",
+          "id, description, start_time, end_time, duration_min, user_id, projects(name, customers(id, name, logo_url))",
         )
 
         .is("deleted_at", null)
@@ -358,11 +359,22 @@ export default async function DashboardPage(): Promise<React.JSX.Element> {
         {recentEntries.data && recentEntries.data.length > 0 ? (
           <ul className="mt-3 space-y-2">
             {recentEntries.data.map((entry) => {
-              const projectName =
-                entry.projects &&
-                typeof entry.projects === "object" &&
-                "name" in entry.projects
-                  ? (entry.projects as { name: string }).name
+              interface RecentProject {
+                name: string;
+                customers:
+                  | { id: string; name: string; logo_url: string | null }
+                  | Array<{ id: string; name: string; logo_url: string | null }>
+                  | null;
+              }
+              const proj =
+                entry.projects && typeof entry.projects === "object"
+                  ? (entry.projects as unknown as RecentProject)
+                  : null;
+              const recentCustomer = Array.isArray(proj?.customers)
+                ? (proj?.customers[0] ?? null)
+                : (proj?.customers ?? null);
+              const projectName = proj
+                  ? proj.name
                   : "—";
               const isRunning = !entry.end_time;
               const hours = entry.duration_min
@@ -400,7 +412,15 @@ export default async function DashboardPage(): Promise<React.JSX.Element> {
                       <span className="text-body text-content">
                         {entry.description || "—"}
                       </span>
-                      <span className="ml-2 text-caption text-content-muted">
+                      <span className="ml-2 inline-flex items-center gap-1.5 text-caption text-content-muted">
+                        {recentCustomer && (
+                          <CustomerChip
+                            customerId={recentCustomer.id}
+                            customerName={recentCustomer.name}
+                            logoUrl={recentCustomer.logo_url}
+                            size={16}
+                          />
+                        )}
                         {projectName}
                       </span>
                     </div>

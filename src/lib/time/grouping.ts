@@ -37,6 +37,8 @@ export interface EntryGroup<T extends GroupableEntry> {
    *  the rows beneath inherit `railColor`. Drives the unified
    *  customer-grouping visual across week / day views. */
   customerId?: string | null;
+  /** Customer's uploaded logo — the stronger identity-mark when set. */
+  customerLogoUrl?: string | null;
   isInternalCustomer?: boolean;
   /** Hashed AVATAR_PRESETS bg color for the customer — applied as a
    *  4px left rail on every row in the group so contiguous same-

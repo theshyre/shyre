@@ -6,6 +6,7 @@ import { formatDate } from "@theshyre/ui";
 import { createClient } from "@/lib/supabase/server";
 import { CustomerChip } from "@/components/CustomerChip";
 import { LinkPendingSpinner } from "@/components/LinkPendingSpinner";
+import { formatDisplayDate } from "@/lib/format-date";
 import { StatusBadge } from "@/components/StatusBadge";
 import { OverdueBadge } from "@/components/OverdueBadge";
 import { isProjectOverdue } from "@/lib/projects/lifecycle";
@@ -94,7 +95,8 @@ export default async function ProjectDetailLayout({
             <CustomerChip
               customerId={project.customer.id}
               customerName={project.customer.name}
-              size={14}
+              logoUrl={project.customer.logo_url}
+              size={16}
             />
             <span>
               {t("editSubtitleWithCustomer", {
@@ -124,7 +126,7 @@ export default async function ProjectDetailLayout({
             <OverdueBadge
               label={t("overdue")}
               tooltip={t("overdueTooltip", {
-                date: formatDate(projectedEndDate),
+                date: formatDisplayDate(projectedEndDate),
               })}
             />
           )}

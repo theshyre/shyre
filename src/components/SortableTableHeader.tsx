@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { useTranslations } from "next-intl";
 import { ChevronUp, ChevronDown, ChevronsUpDown } from "lucide-react";
 import { tableHeaderCellClass } from "@/lib/table-styles";
 
@@ -33,6 +34,7 @@ export function SortableTableHeader({
   href,
   align = "left",
 }: Props): React.JSX.Element {
+  const t = useTranslations("common.table");
   const isActive = currentSort === sortKey;
   const nextDir: "asc" | "desc" =
     isActive && currentDir === "asc" ? "desc" : "asc";
@@ -57,10 +59,12 @@ export function SortableTableHeader({
         className={`group inline-flex items-center gap-1 ${justifyClass} hover:text-content transition-colors`}
         aria-label={
           isActive
-            ? `${label}, sorted ${ariaSort}. Click to sort ${
-                nextDir === "asc" ? "ascending" : "descending"
-              }.`
-            : `Sort by ${label}`
+            ? t("sortedState", {
+                label,
+                dir: t(ariaSort === "ascending" ? "ascending" : "descending"),
+                next: t(nextDir === "asc" ? "ascending" : "descending"),
+              })
+            : t("sortBy", { label })
         }
       >
         {label}

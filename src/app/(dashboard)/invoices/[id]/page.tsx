@@ -26,7 +26,8 @@ export async function generateMetadata({
   }
   return { title: invoice.invoice_number as string };
 }
-import { formatDate, Avatar, resolveAvatarUrl } from "@theshyre/ui";
+import { Avatar, resolveAvatarUrl } from "@theshyre/ui";
+import { formatDisplayDate } from "@/lib/format-date";
 import { formatCurrency, summarizePayments } from "@/lib/invoice-utils";
 import {
   groupEntriesIntoLineItems,
@@ -77,7 +78,7 @@ export default async function InvoiceDetailPage({
   const { data: invoice } = await supabase
     .from("invoices")
     .select(
-      "*, customers(id, name, email, address, show_country_on_invoice)",
+      "*, customers(id, name, email, address, show_country_on_invoice, logo_url)",
     )
     .eq("id", id)
     .single();
@@ -486,7 +487,8 @@ export default async function InvoiceDetailPage({
               <CustomerChip
                 customerId={client.id}
                 customerName={client.name}
-                size={20}
+                logoUrl={(client as { logo_url?: string | null }).logo_url ?? null}
+                size={24}
               />
             ) : null}
             <p className="font-medium text-content">{client?.name ?? "—"}</p>
@@ -532,11 +534,11 @@ export default async function InvoiceDetailPage({
       <div className="mt-4 flex flex-wrap gap-6 text-body text-content-secondary">
         <div>
           <span className="text-content-muted">{t("pdf.date")}:</span>{" "}
-          {invoice.issued_date ? formatDate(invoice.issued_date) : "—"}
+          {formatDisplayDate(invoice.issued_date as string | null)}
         </div>
         <div>
           <span className="text-content-muted">{t("pdf.dueDate")}:</span>{" "}
-          {invoice.due_date ? formatDate(invoice.due_date) : "—"}
+          {formatDisplayDate(invoice.due_date as string | null)}
           {invoice.payment_terms_label ? (
             <span className="text-content-muted">
               {" "}
@@ -550,11 +552,11 @@ export default async function InvoiceDetailPage({
               {t("servicePeriod")}:
             </span>{" "}
             {invoice.period_start
-              ? formatDate(invoice.period_start as string)
+              ? formatDisplayDate(invoice.period_start as string)
               : "—"}{" "}
             →{" "}
             {invoice.period_end
-              ? formatDate(invoice.period_end as string)
+              ? formatDisplayDate(invoice.period_end as string)
               : "—"}
           </div>
         )}

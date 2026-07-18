@@ -120,7 +120,7 @@ export default async function TeamDetailPage({
   // Org's customers — top 6 active.
   const { data: customers } = await supabase
     .from("customers_v")
-    .select("id, name, email, default_rate")
+    .select("id, name, email, default_rate, logo_url")
     .eq("team_id", id)
     .eq("archived", false)
     .order("name");
@@ -129,7 +129,7 @@ export default async function TeamDetailPage({
   const { data: projects } = await supabase
     .from("projects_v")
     .select(
-      "id, name, status, hourly_rate, customer_id, is_internal, customers(id, name)",
+      "id, name, status, hourly_rate, customer_id, is_internal, customers(id, name, logo_url)",
     )
     .eq("team_id", id)
     .neq("status", "archived")
@@ -183,7 +183,7 @@ export default async function TeamDetailPage({
         <Building2 size={24} className="text-accent" />
         <h1 className="text-page-title font-bold text-content">{org.name}</h1>
         <span className="inline-flex items-center gap-1.5 rounded-full bg-surface-inset px-2.5 py-0.5 text-caption font-medium text-content-muted">
-          {role}
+          {tc(`roles.${role}`)}
         </span>
       </div>
 
@@ -215,6 +215,8 @@ export default async function TeamDetailPage({
                 <CustomerChip
                   customerId={client.id}
                   customerName={client.name}
+                  logoUrl={(client as { logo_url?: string | null }).logo_url ?? null}
+                  size={24}
                 />
                 <span className="font-medium text-content truncate">
                   {client.name}
@@ -266,6 +268,13 @@ export default async function TeamDetailPage({
                 "id" in project.customers
                   ? (project.customers as { id: string }).id
                   : null;
+              const customerLogoUrl =
+                project.customers &&
+                typeof project.customers === "object" &&
+                "logo_url" in project.customers
+                  ? ((project.customers as { logo_url: string | null })
+                      .logo_url ?? null)
+                  : null;
               const projectIsInternal = project.is_internal === true;
               return (
                 <Link
@@ -277,6 +286,8 @@ export default async function TeamDetailPage({
                     <CustomerChip
                       customerId={customerId}
                       customerName={customerName}
+                      logoUrl={customerLogoUrl}
+                      size={24}
                     />
                   ) : projectIsInternal ? (
                     <CustomerChip

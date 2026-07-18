@@ -182,12 +182,12 @@ export function ProjectFilter({
                       )}
                     </span>
                     {p.customer_name && (
-                      <span className="block truncate text-content-muted text-[11px]">
+                      <span className="block truncate text-content-muted text-caption">
                         {p.customer_name}
                       </span>
                     )}
                     {p.is_internal && (
-                      <span className="block truncate text-content-muted text-[11px]">
+                      <span className="block truncate text-content-muted text-caption">
                         {t("internal")}
                       </span>
                     )}

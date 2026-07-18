@@ -246,5 +246,7 @@
   "bulkMarkPaidIneligibleHint": "Only sent or overdue invoices can be marked paid in bulk. Narrow the selection.",
   "bulkPaidToast": "{count, plural, one {1 invoice marked paid} other {# invoices marked paid}}",
   "bulkPaidFailed": "Couldn't mark invoices paid.",
-  "fromProposal": "From proposal"
+  "fromProposal": "From proposal",
+  "emptyTitle": "No invoices yet",
+  "emptyDescription": "Create an invoice from tracked time, expenses, or an accepted proposal."
 }

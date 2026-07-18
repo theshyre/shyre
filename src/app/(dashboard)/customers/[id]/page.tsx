@@ -13,6 +13,7 @@ import {
   Users,
 } from "lucide-react";
 import { StatusBadge } from "@/components/StatusBadge";
+import { CustomerChip } from "@/components/CustomerChip";
 import { LinkPendingSpinner } from "@/components/LinkPendingSpinner";
 import { buttonSecondaryClass } from "@/lib/form-styles";
 import { formatCurrency } from "@/lib/invoice-utils";
@@ -400,7 +401,14 @@ export default async function ClientDetailPage({
   return (
     <div>
       <div className="flex items-center gap-3">
-        <Users size={24} className="text-accent" />
+        {/* The customer's own identity-mark, not a generic icon — this is
+            the one page that IS the customer (entity-identity rule). */}
+        <CustomerChip
+          customerId={client.id as string}
+          customerName={customerName}
+          logoUrl={(client.logo_url as string | null) ?? null}
+          size={24}
+        />
         <h1 className="text-page-title font-bold text-content break-words">
           {customerName}
         </h1>

@@ -144,7 +144,10 @@
     "hourlyRate": "Tarifa por hora",
     "budgetHours": "Presupuesto",
     "status": "Estado",
-    "noCustomerInternal": "— interno —"
+    "noCustomerInternal": "— interno —",
+    "burnNoRecent": "{project} — sin tiempo registrado en los últimos 90 días",
+    "burnRecentHours": "{project} — {hours}h registradas en los últimos 90 días",
+    "burnAria": "consumo de presupuesto de {project}: {pct}%"
   },
   "classification": {
     "heading": "Clasificación",

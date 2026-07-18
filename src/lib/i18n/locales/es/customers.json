@@ -62,5 +62,7 @@
     "heading": "Marca",
     "help": "Marca opcional del cliente mostrada en las propuestas preparadas para él (PDF y página de firma).",
     "logoLabel": "Logo"
-  }
+  },
+  "emptyTitle": "Aún no hay clientes",
+  "emptyDescription": "Añade tu primer cliente para empezar a registrar trabajo y enviar facturas."
 }

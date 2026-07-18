@@ -215,7 +215,8 @@
     "partyProvider": "Provider",
     "sigSignature": "Signature",
     "sigNameTitle": "Name / Title",
-    "sigDate": "Date"
+    "sigDate": "Date",
+    "loading": "Loading proposal…"
   },
   "activity": {
     "heading": "Activity",
@@ -317,7 +318,11 @@
     "primarySigner": "Primary",
     "signerSigned": "Signed",
     "signerDeclined": "Declined",
-    "signerPending": "Pending"
+    "signerPending": "Pending",
+    "resendLink": "Resend link",
+    "resending": "Resending…",
+    "resendSuccess": "Fresh sign link(s) emailed. Earlier links no longer work.",
+    "resendFailed": "Resend failed"
   },
   "pdf": {
     "documentTitle": "Proposal",

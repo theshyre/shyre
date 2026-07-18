@@ -135,7 +135,7 @@ export function CategoryBadge({
   category: CategoryOption;
 }): React.JSX.Element {
   return (
-    <span className="inline-flex items-center gap-1 rounded-full bg-surface-inset px-1.5 py-0.5 text-[10px] text-content-secondary">
+    <span className="inline-flex items-center gap-1 rounded-full bg-surface-inset px-1.5 py-0.5 text-label text-content-secondary">
       <span
         className="h-1.5 w-1.5 rounded-full"
         style={{ backgroundColor: category.color }}

@@ -215,7 +215,8 @@
     "partyProvider": "Proveedor",
     "sigSignature": "Firma",
     "sigNameTitle": "Nombre / Cargo",
-    "sigDate": "Fecha"
+    "sigDate": "Fecha",
+    "loading": "Cargando propuesta…"
   },
   "activity": {
     "heading": "Actividad",
@@ -317,7 +318,11 @@
     "primarySigner": "Principal",
     "signerSigned": "Firmado",
     "signerDeclined": "Rechazado",
-    "signerPending": "Pendiente"
+    "signerPending": "Pendiente",
+    "resendLink": "Reenviar enlace",
+    "resending": "Reenviando…",
+    "resendSuccess": "Enlace(s) de firma nuevos enviados. Los enlaces anteriores ya no funcionan.",
+    "resendFailed": "Error al reenviar"
   },
   "pdf": {
     "documentTitle": "Propuesta",

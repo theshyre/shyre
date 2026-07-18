@@ -5,6 +5,7 @@ import { useTranslations } from "next-intl";
 import Link from "next/link";
 import {
   Archive,
+  Users,
   MailWarning,
   Share2,
   ShieldAlert,
@@ -13,6 +14,8 @@ import { Tooltip } from "@/components/Tooltip";
 import { useToast } from "@/components/Toast";
 import { CustomerChip } from "@/components/CustomerChip";
 import { PaginationFooter } from "@/components/PaginationFooter";
+import { formatDisplayDateTime } from "@/lib/format-date";
+import { formatCurrency } from "@/lib/invoice-utils";
 import { tableClass } from "@/lib/table-styles";
 import { ArchiveButton } from "./archive-button";
 import {
@@ -167,9 +170,17 @@ export function CustomersTable({
 
   if (customers.length === 0) {
     return (
-      <p className="mt-6 text-body text-content-muted">
-        {t("noCustomers")}
-      </p>
+      <div className="mt-6 rounded-lg border border-edge bg-surface-raised p-8 text-center">
+        <div className="mx-auto mb-3 flex h-10 w-10 items-center justify-center rounded-full bg-accent-soft">
+          <Users size={20} className="text-accent" aria-hidden="true" />
+        </div>
+        <h3 className="text-body-lg font-medium text-content">
+          {t("emptyTitle")}
+        </h3>
+        <p className="mt-1 text-caption text-content-muted max-w-md mx-auto">
+          {t("emptyDescription")}
+        </p>
+      </div>
     );
   }
 
@@ -269,7 +280,7 @@ export function CustomersTable({
             </th>
             <th
               scope="col"
-              className="px-4 py-3 text-left text-label font-semibold uppercase tracking-wider text-content-muted"
+              className="px-4 py-3 text-right text-label font-semibold uppercase tracking-wider text-content-muted"
             >
               {t("table.defaultRate")}
             </th>
@@ -332,7 +343,7 @@ export function CustomersTable({
                     {client.bounced_at && (
                       <Tooltip
                         label={t("bouncedRowTooltip", {
-                          when: client.bounced_at,
+                          when: formatDisplayDateTime(client.bounced_at),
                         })}
                       >
                         <span className="inline-flex items-center gap-1 rounded-full bg-warning-soft px-2 py-0.5 text-label font-medium text-warning-text">
@@ -344,7 +355,7 @@ export function CustomersTable({
                     {client.complained_at && (
                       <Tooltip
                         label={t("complainedRowTooltip", {
-                          when: client.complained_at,
+                          when: formatDisplayDateTime(client.complained_at),
                         })}
                       >
                         <span className="inline-flex items-center gap-1 rounded-full bg-error-soft px-2 py-0.5 text-label font-medium text-error-text">
@@ -358,9 +369,9 @@ export function CustomersTable({
                 <td className="px-4 py-3 text-body text-content-secondary">
                   {client.email ?? "—"}
                 </td>
-                <td className="px-4 py-3 text-body text-content-secondary font-mono">
+                <td className="px-4 py-3 text-right text-body text-content-secondary font-mono">
                   {client.default_rate
-                    ? `$${Number(client.default_rate).toFixed(2)}/hr`
+                    ? `${formatCurrency(Number(client.default_rate))}/hr`
                     : "—"}
                 </td>
                 <td className="px-4 py-3 text-right">

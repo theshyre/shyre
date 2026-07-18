@@ -11,6 +11,7 @@ export async function generateMetadata(): Promise<Metadata> {
 import { Avatar, resolveAvatarUrl } from "@theshyre/ui";
 import { formatCurrency } from "@/lib/invoice-utils";
 import { TeamFilter } from "@/components/TeamFilter";
+import { CustomerChip } from "@/components/CustomerChip";
 import {
   ProjectFilter,
   type ProjectFilterOption,
@@ -25,6 +26,8 @@ import { ReportsPeriodFilter } from "./reports-period-filter";
 
 interface ClientSummary {
   name: string;
+  customerId: string | null;
+  customerLogoUrl: string | null;
   totalMinutes: number;
   billableMinutes: number;
   entryCount: number;
@@ -34,6 +37,8 @@ interface ClientSummary {
 interface ProjectSummary {
   name: string;
   customerName: string;
+  customerId: string | null;
+  customerLogoUrl: string | null;
   totalMinutes: number;
   billableMinutes: number;
   entryCount: number;
@@ -135,7 +140,7 @@ export default async function ReportsPage({
   let entriesQuery = supabase
     .from("time_entries")
     .select(
-      "user_id, duration_min, billable, projects(name, hourly_rate, is_internal, customers(name, default_rate))",
+      "user_id, duration_min, billable, projects(name, hourly_rate, is_internal, customers(id, name, logo_url, default_rate))",
     )
     .not("end_time", "is", null)
     .not("duration_min", "is", null)
@@ -169,7 +174,12 @@ export default async function ReportsPage({
       name: string;
       hourly_rate: number | null;
       is_internal: boolean | null;
-      customers: { name: string; default_rate: number | null } | null;
+      customers: {
+        id: string;
+        name: string;
+        logo_url: string | null;
+        default_rate: number | null;
+      } | null;
     } | null;
 
     // Distinguish "Internal" (is_internal=true, no customer by
@@ -203,6 +213,8 @@ export default async function ReportsPage({
     } else {
       clientMap.set(customerName, {
         name: customerName,
+        customerId: proj?.customers?.id ?? null,
+        customerLogoUrl: proj?.customers?.logo_url ?? null,
         totalMinutes: mins,
         billableMinutes: isBillable ? mins : 0,
         entryCount: 1,
@@ -222,6 +234,8 @@ export default async function ReportsPage({
       projectMap.set(projKey, {
         name: projectName,
         customerName,
+        customerId: proj?.customers?.id ?? null,
+        customerLogoUrl: proj?.customers?.logo_url ?? null,
         totalMinutes: mins,
         billableMinutes: isBillable ? mins : 0,
         entryCount: 1,
@@ -355,7 +369,15 @@ export default async function ReportsPage({
                       className="border-b border-edge last:border-0 hover:bg-hover transition-colors"
                     >
                       <td className="px-4 py-3 font-medium text-content">
-                        {c.name}
+                        <span className="inline-flex items-center gap-2">
+                          <CustomerChip
+                            customerId={c.customerId}
+                            customerName={c.name}
+                            logoUrl={c.customerLogoUrl}
+                            size={24}
+                          />
+                          {c.name}
+                        </span>
                       </td>
                       <td className="px-4 py-3 text-right font-mono text-content-secondary">
                         {fmtHours(c.totalMinutes)}
@@ -428,7 +450,15 @@ export default async function ReportsPage({
                         {p.name}
                       </td>
                       <td className="px-4 py-3 text-content-secondary">
-                        {p.customerName}
+                        <span className="inline-flex items-center gap-2">
+                          <CustomerChip
+                            customerId={p.customerId}
+                            customerName={p.customerName}
+                            logoUrl={p.customerLogoUrl}
+                            size={16}
+                          />
+                          {p.customerName}
+                        </span>
                       </td>
                       <td className="px-4 py-3 text-right font-mono text-content-secondary">
                         {fmtHours(p.totalMinutes)}

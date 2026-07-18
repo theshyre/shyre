@@ -1,5 +1,6 @@
 import { describe, it, expect, vi } from "vitest";
-import { act, fireEvent, render, waitFor } from "@testing-library/react";
+import { act, fireEvent, waitFor } from "@testing-library/react";
+import { renderWithIntl as render } from "@/test/intl";
 import { EditableCell } from "./EditableCell";
 
 /**

@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useTranslations } from "next-intl";
-import { BadgeCheck, Trash2, X } from "lucide-react";
+import { BadgeCheck, Trash2, X, Clock } from "lucide-react";
 import { formatDurationHM } from "@/lib/time/week";
 import type { EntryGroup } from "@/lib/time/grouping";
 import { EntryRow } from "./entry-row";
@@ -52,6 +52,7 @@ export function EntryTable({
 }: Props): React.JSX.Element {
   const t = useTranslations("time");
   const tToast = useTranslations("time.toast");
+  const tc = useTranslations("common");
   const toast = useToast();
 
   // Multi-row selection for bulk delete. Keyed by entry id; cleared
@@ -156,8 +157,16 @@ export function EntryTable({
 
   if (groups.length === 0 || groups.every((g) => g.entries.length === 0)) {
     return (
-      <div className="rounded-lg border border-edge bg-surface-raised p-6 text-center text-body text-content-muted">
-        {t("noEntries")}
+      <div className="rounded-lg border border-edge bg-surface-raised p-8 text-center">
+        <div className="mx-auto mb-3 flex h-10 w-10 items-center justify-center rounded-full bg-accent-soft">
+          <Clock size={20} className="text-accent" aria-hidden="true" />
+        </div>
+        <h3 className="text-body-lg font-medium text-content">
+          {t("entryTable.emptyTitle")}
+        </h3>
+        <p className="mt-1 text-caption text-content-muted max-w-md mx-auto">
+          {t("entryTable.emptyDescription")}
+        </p>
       </div>
     );
   }
@@ -220,7 +229,7 @@ export function EntryTable({
             <th className="w-20 px-2 py-2 text-center text-label font-semibold uppercase tracking-wider text-content-muted">
               {t("tableHeaders.billable")}
             </th>
-            <th className="w-16 px-2 py-2" aria-label="actions" />
+            <th className="w-16 px-2 py-2" aria-label={tc("table.actions")} />
           </tr>
         </thead>
         <tbody>
@@ -345,6 +354,7 @@ function GroupBlock({
                 <CustomerChip
                   customerId={group.customerId}
                   customerName={group.label}
+                  logoUrl={group.customerLogoUrl ?? null}
                   size={18}
                 />
               ) : group.isInternalCustomer ? (

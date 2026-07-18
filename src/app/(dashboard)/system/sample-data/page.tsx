@@ -143,7 +143,7 @@ export default async function SampleDataPage({
               <Building2 size={28} className="text-accent" />
             </div>
             <div className="min-w-0 flex-1">
-              <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-accent">
+              <p className="text-caption font-semibold uppercase tracking-[0.18em] text-accent">
                 {t("operatingOn")}
               </p>
               <h2 className="mt-0.5 text-page-title font-bold text-content break-words">
@@ -157,7 +157,7 @@ export default async function SampleDataPage({
             </div>
             {multipleOrgs && (
               <div className="shrink-0">
-                <p className="mb-1 text-[10px] font-semibold uppercase tracking-wider text-content-muted">
+                <p className="mb-1 text-label font-semibold uppercase tracking-wider text-content-muted">
                   {t("switchTeam")}
                 </p>
                 <TeamFilter teams={teams} selectedTeamId={selectedTeamId} />
@@ -233,7 +233,7 @@ function CountBlock({
 }): React.JSX.Element {
   return (
     <div className="rounded-md border border-edge bg-surface p-3">
-      <dt className="text-[11px] font-semibold uppercase tracking-wider text-content-muted">
+      <dt className="text-caption font-semibold uppercase tracking-wider text-content-muted">
         {label}
       </dt>
       <dd className="mt-1">

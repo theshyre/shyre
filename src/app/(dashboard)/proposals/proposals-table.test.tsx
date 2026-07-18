@@ -56,7 +56,8 @@ describe("ProposalsTable", () => {
     expect(screen.getByText("EyeReg Consulting")).toBeInTheDocument();
     expect(screen.getByText("Draft")).toBeInTheDocument();
     expect(screen.getByText("$4,950.00")).toBeInTheDocument();
-    expect(screen.getByText("2026-07-16")).toBeInTheDocument();
+    // Dates render localized via the shared formatDate, not raw ISO.
+    expect(screen.getByText("Jul 16, 2026")).toBeInTheDocument();
   });
 
   it("renders a dash for a missing customer", () => {

@@ -235,14 +235,14 @@ export function DayView({
                     : "border-transparent text-content-secondary hover:bg-hover"
                 }`}
               >
-                <span className="text-[10px] font-semibold uppercase">
+                <span className="text-label font-semibold uppercase">
                   {dateObj.toLocaleDateString(undefined, { weekday: "short" })}
                 </span>
                 <span className="text-body-lg font-semibold mt-0.5">
                   {d}
                 </span>
                 <span
-                  className={`font-mono text-[11px] tabular-nums mt-0.5 ${
+                  className={`font-mono text-caption tabular-nums mt-0.5 ${
                     isCurrent ? "opacity-90" : "text-content-muted"
                   }`}
                 >
@@ -252,7 +252,7 @@ export function DayView({
             );
           })}
           <div className="flex flex-col items-center justify-center border-l border-edge pl-2">
-            <span className="text-[10px] font-semibold uppercase text-content-muted">
+            <span className="text-label font-semibold uppercase text-content-muted">
               {t("weekTotal")}
             </span>
             <span className="font-mono text-body-lg font-semibold tabular-nums text-content mt-0.5">
@@ -409,6 +409,7 @@ function GhostRow({
         <CustomerChip
           customerId={customer.id ?? null}
           customerName={customer.name}
+          logoUrl={customer.logo_url ?? null}
           size={14}
         />
       ) : (

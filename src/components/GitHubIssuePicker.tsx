@@ -203,7 +203,7 @@ export function GitHubIssuePicker({
                       {issue.labels.slice(0, 3).map((label) => (
                         <span
                           key={label.name}
-                          className="rounded-full px-1.5 py-0.5 text-[10px] font-medium"
+                          className="rounded-full px-1.5 py-0.5 text-label font-medium"
                           style={{
                             backgroundColor: `#${label.color}20`,
                             color: `#${label.color}`,

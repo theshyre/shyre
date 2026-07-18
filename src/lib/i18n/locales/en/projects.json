@@ -144,7 +144,10 @@
     "hourlyRate": "Hourly Rate",
     "budgetHours": "Budget",
     "status": "Status",
-    "noCustomerInternal": "— internal —"
+    "noCustomerInternal": "— internal —",
+    "burnNoRecent": "{project} — no time logged in the last 90 days",
+    "burnRecentHours": "{project} — {hours}h logged in the last 90 days",
+    "burnAria": "{project} budget burn {pct}%"
   },
   "classification": {
     "heading": "Classification",

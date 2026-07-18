@@ -129,6 +129,7 @@ const supabaseStub = {
 };
 
 import {
+  resendSignLinksAction,
   createProposalAction,
   updateProposalAction,
   deleteProposalAction,
@@ -522,6 +523,74 @@ describe("sendProposalAction", () => {
     ]);
     // One sign-link email per signer.
     expect(sendProposalEmailMock).toHaveBeenCalledTimes(2);
+  });
+
+  it("refuses the whole send when ANY roster contact belongs to a different customer — no tokens, no emails", async () => {
+    // Cross-customer contact smuggled into the roster (e.g. a stale
+    // roster row after the contact was moved): the send must refuse
+    // atomically. In particular the FIRST (valid) signer must not have
+    // already received a live sign link.
+    queues["proposals"] = [
+      { data: { ...draftProposal, signing_mode: "all" }, error: null },
+    ];
+    queues["proposal_line_items"] = [
+      {
+        data: [
+          { id: "li-1", parent_line_item_id: null, sort_order: 0, title: "Work", fixed_price: 1000 },
+        ],
+        error: null,
+      },
+    ];
+    queues["proposal_signers"] = [
+      {
+        data: [
+          { id: "sgnr-1", sort_order: 0, customer_contacts: { name: "Ada", email: "ada@eyereg.example", customer_id: CUSTOMER } },
+          { id: "sgnr-2", sort_order: 1, customer_contacts: { name: "Mallory", email: "mallory@other.example", customer_id: "not-this-customer" } },
+        ],
+        error: null,
+      },
+    ];
+
+    await expect(
+      sendProposalAction(formWith({ id: "prop-1" })),
+    ).rejects.toThrow(/does not belong to this customer/);
+
+    // Nothing left the building: no access token minted (not even for
+    // the valid first signer), no email, no status flip.
+    expect(insertedRows("proposal_access_tokens")).toHaveLength(0);
+    expect(sendProposalEmailMock).not.toHaveBeenCalled();
+    expect(
+      calls.some(
+        (c) =>
+          c.table === "proposals" && c.ops.some((o) => o.method === "update"),
+      ),
+    ).toBe(false);
+  });
+
+  it("refuses a roster row whose contact join came back empty (deleted contact)", async () => {
+    queues["proposals"] = [
+      { data: { ...draftProposal, signing_mode: "all" }, error: null },
+    ];
+    queues["proposal_line_items"] = [
+      {
+        data: [
+          { id: "li-1", parent_line_item_id: null, sort_order: 0, title: "Work", fixed_price: 1000 },
+        ],
+        error: null,
+      },
+    ];
+    queues["proposal_signers"] = [
+      {
+        data: [{ id: "sgnr-1", sort_order: 0, customer_contacts: null }],
+        error: null,
+      },
+    ];
+
+    await expect(
+      sendProposalAction(formWith({ id: "prop-1" })),
+    ).rejects.toThrow(/does not belong to this customer/);
+    expect(insertedRows("proposal_access_tokens")).toHaveLength(0);
+    expect(sendProposalEmailMock).not.toHaveBeenCalled();
   });
 
   it("refuses without a signer contact (readiness gate)", async () => {
@@ -1120,5 +1189,70 @@ describe("deleteProposalAction", () => {
     await expect(
       deleteProposalAction(formWith({ id: "prop-1" })),
     ).rejects.toThrow(/Only draft proposals can be deleted/);
+  });
+});
+
+describe("resendSignLinksAction", () => {
+  const sentProposalRow = {
+    id: "prop-1",
+    team_id: TEAM,
+    status: "sent",
+    proposal_number: "PROP-2026-007",
+    title: "Modernization",
+    signing_mode: "first",
+  };
+
+  it("revokes outstanding tokens, mints + emails fresh ones, logs link_resent", async () => {
+    queues["proposals"] = [{ data: sentProposalRow, error: null }];
+    queues["proposal_access_tokens"] = [
+      {
+        data: [
+          { id: "tok-1", signer_id: null, signer_email: "j@x.com", signer_name: "Jordan" },
+        ],
+        error: null,
+      }, // pending lookup
+      { data: null, error: null }, // revoke update
+      { data: null, error: null }, // fresh insert
+    ];
+    queues["proposal_events"] = [{ data: null, error: null }];
+
+    await resendSignLinksAction(formWith({ id: "prop-1" }));
+
+    // Old token revoked BEFORE the new one exists.
+    const revoke = calls.find(
+      (c) =>
+        c.table === "proposal_access_tokens" &&
+        c.ops.some(
+          (o) =>
+            o.method === "update" &&
+            (o.args[0] as { revoked_at?: string }).revoked_at,
+        ),
+    );
+    expect(revoke).toBeDefined();
+    const minted = insertedRows("proposal_access_tokens");
+    expect(minted).toHaveLength(1);
+    expect(minted[0]).toMatchObject({ signer_email: "j@x.com" });
+    // A fresh HASH is stored, never a raw token.
+    expect(String(minted[0]!.token_hash)).toMatch(/^[0-9a-f]{64}$/);
+    expect(sendProposalEmailMock).toHaveBeenCalledTimes(1);
+    expect(insertedRows("proposal_events")[0]?.event_type).toBe("link_resent");
+  });
+
+  it("refuses when there are no outstanding links", async () => {
+    queues["proposals"] = [{ data: sentProposalRow, error: null }];
+    queues["proposal_access_tokens"] = [{ data: [], error: null }];
+    await expect(
+      resendSignLinksAction(formWith({ id: "prop-1" })),
+    ).rejects.toThrow(/No outstanding/);
+    expect(sendProposalEmailMock).not.toHaveBeenCalled();
+  });
+
+  it("refuses on a draft (nothing sent yet)", async () => {
+    queues["proposals"] = [
+      { data: { ...sentProposalRow, status: "draft" }, error: null },
+    ];
+    await expect(
+      resendSignLinksAction(formWith({ id: "prop-1" })),
+    ).rejects.toThrow(/sent proposal/);
   });
 });

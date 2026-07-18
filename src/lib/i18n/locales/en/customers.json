@@ -62,5 +62,7 @@
     "heading": "Branding",
     "help": "Optional co-brand shown on proposals prepared for this customer (PDF + sign page).",
     "logoLabel": "Logo"
-  }
+  },
+  "emptyTitle": "No customers yet",
+  "emptyDescription": "Add your first customer to start tracking work and sending invoices."
 }
