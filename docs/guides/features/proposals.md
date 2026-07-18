@@ -228,6 +228,16 @@ Each line item links to its created project ("View project"), and the
 proposal moves to `converted`. Items the client didn't select are not
 converted.
 
+### Billing the deposit
+
+When a proposal carries a deposit term, an accepted proposal's detail page
+offers **Bill deposit** next to the full bill: it creates a one-line invoice
+("Deposit (50%) — PROP-007") computed off the **accepted** total at the tax
+rate frozen at signing. Only one deposit invoice can exist per proposal —
+voiding or deleting it frees the term to re-bill. When you later **Create
+invoice** for the full amount, the billed deposit is automatically netted out
+as a negative line, so the client is never charged twice.
+
 ## Billing the fixed price
 
 **Create invoice** (accepted or converted) drafts an invoice with one

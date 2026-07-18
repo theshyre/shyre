@@ -942,11 +942,14 @@ export async function createInvoiceFromProposalAction(
     async (formData, { supabase, userId }) => {
       const proposalId = formData.get("id") as string;
       if (!proposalId) throw new Error("Missing proposal id.");
+      // "full" (default) bills the accepted items; "deposit" bills the
+      // deposit term as ONE manual line (2026-07-18 decision, SAL-049).
+      const mode = formData.get("mode") === "deposit" ? "deposit" : "full";
 
       const { data: proposal } = await supabase
         .from("proposals")
         .select(
-          "id, team_id, status, customer_id, proposal_number, title, currency, payment_terms_days, payment_terms_label",
+          "id, team_id, status, customer_id, proposal_number, title, currency, payment_terms_days, payment_terms_label, deposit_type, deposit_value, accepted_total, deposit_invoice_id",
         )
         .eq("id", proposalId)
         .single();
@@ -961,6 +964,121 @@ export async function createInvoiceFromProposalAction(
 
       const { selectedIds, taxRate: acceptedTaxRate, items } =
         await loadAcceptedSelection(supabase, proposalId);
+
+      if (mode === "deposit") {
+        const depositType = (proposal.deposit_type as string) ?? "none";
+        const depositValue =
+          proposal.deposit_value != null ? Number(proposal.deposit_value) : null;
+        const acceptedTotal =
+          proposal.accepted_total != null
+            ? Number(proposal.accepted_total)
+            : null;
+        if (depositType === "none" || !depositValue || !acceptedTotal) {
+          throw AppError.refusal("This proposal has no deposit term to bill.");
+        }
+        if (proposal.deposit_invoice_id) {
+          throw AppError.refusal(
+            "The deposit has already been billed for this proposal.",
+          );
+        }
+        const depositAmount = roundMoney(
+          depositType === "percent"
+            ? (acceptedTotal * depositValue) / 100
+            : Math.min(depositValue, acceptedTotal),
+        );
+        if (depositAmount <= 0) {
+          throw AppError.refusal("The deposit term computes to zero.");
+        }
+
+        const { data: settings } = await supabase
+          .from("team_settings")
+          .select("invoice_prefix, invoice_next_num, tax_rate")
+          .eq("team_id", proposal.team_id as string)
+          .single();
+        const prefix = settings?.invoice_prefix ?? "INV";
+        const nextNum = settings?.invoice_next_num ?? 1;
+        const taxRate = acceptedTaxRate ?? Number(settings?.tax_rate ?? 0);
+        const number = proposal.proposal_number as string;
+        const depositLabel =
+          depositType === "percent" ? `${depositValue}%` : "fixed";
+        const line = {
+          description: `Deposit (${depositLabel}) — ${number}: ${proposal.title as string}`,
+          quantity: 1,
+          unitPrice: depositAmount,
+          amount: depositAmount,
+        };
+        const totals = calculateInvoiceTotals([line], taxRate);
+        const termsDays =
+          (proposal.payment_terms_days as number | null) ?? null;
+        const dueDate =
+          termsDays != null
+            ? computeDueDate(new Date().toISOString().slice(0, 10), termsDays)
+            : null;
+
+        const { data: invoice, error } = await supabase
+          .from("invoices")
+          .insert({
+            team_id: proposal.team_id,
+            user_id: userId,
+            customer_id: proposal.customer_id,
+            proposal_id: proposal.id,
+            currency: (proposal.currency as string | null) ?? "USD",
+            invoice_number: generateInvoiceNumber(prefix, nextNum),
+            due_date: dueDate,
+            status: "draft",
+            subtotal: totals.subtotal,
+            discount_amount: totals.discountAmount,
+            discount_rate: totals.discountRate,
+            tax_rate: totals.taxRate,
+            tax_amount: totals.taxAmount,
+            total: totals.total,
+            notes: `Deposit per proposal ${number}: ${proposal.title as string}`,
+            grouping_mode: "detailed",
+            payment_terms_days: termsDays,
+            payment_terms_label:
+              (proposal.payment_terms_label as string | null) ??
+              (termsDays != null ? paymentTermsLabel(termsDays) : null),
+          })
+          .select("id")
+          .single();
+        assertSupabaseOk({ data: invoice, error });
+        const depositInvoiceId = (invoice as { id: string }).id;
+        assertSupabaseOk(
+          await supabase.from("invoice_line_items").insert({
+            invoice_id: depositInvoiceId,
+            description: line.description,
+            quantity: line.quantity,
+            unit_price: line.unitPrice,
+            amount: line.amount,
+            time_entry_id: null,
+            expense_id: null,
+            proposal_line_item_id: null,
+          }),
+        );
+        // CLAIM the one-deposit slot conditionally (SAL-040 claim doctrine):
+        // if a concurrent deposit-bill won the slot first, delete OUR invoice
+        // (lines cascade) and refuse — never two live deposit invoices.
+        const { data: claimedProposal } = await supabase
+          .from("proposals")
+          .update({ deposit_invoice_id: depositInvoiceId })
+          .eq("id", proposalId)
+          .is("deposit_invoice_id", null)
+          .select("id");
+        if (!claimedProposal || claimedProposal.length === 0) {
+          await supabase.from("invoices").delete().eq("id", depositInvoiceId);
+          throw AppError.refusal(
+            "The deposit has already been billed for this proposal.",
+          );
+        }
+        await supabase
+          .from("team_settings")
+          .update({ invoice_next_num: nextNum + 1 })
+          .eq("team_id", proposal.team_id as string);
+
+        revalidatePath("/invoices");
+        revalidatePath(`/proposals/${proposalId}`);
+        redirect(`/invoices/${depositInvoiceId}`);
+      }
       const candidateIds = items
         .filter(
           (item) =>
@@ -1019,13 +1137,45 @@ export async function createInvoiceFromProposalAction(
         const invoiceNumber = generateInvoiceNumber(prefix, nextNum);
 
         const number = proposal.proposal_number as string;
-        const lines = claimed.map((item) => ({
-          proposalLineItemId: item.id,
+        const lines: Array<{
+          proposalLineItemId: string | null;
+          description: string;
+          quantity: number;
+          unitPrice: number;
+          amount: number;
+        }> = claimed.map((item) => ({
+          proposalLineItemId: item.id as string | null,
           description: `${number} — ${item.title}`,
           quantity: 1,
           unitPrice: roundMoney(Number(item.fixed_price)),
           amount: roundMoney(Number(item.fixed_price)),
         }));
+
+        // NET OUT a billed (non-void) deposit as a negative manual line —
+        // both invoices tax their subtotals at the same frozen rate, so
+        // netting pre-tax keeps the combined tax exactly right and the
+        // client never pays the deposit twice (SAL-049).
+        if (proposal.deposit_invoice_id) {
+          const { data: depositInvoice } = await supabase
+            .from("invoices")
+            .select("id, invoice_number, subtotal, status")
+            .eq("id", proposal.deposit_invoice_id as string)
+            .single();
+          if (depositInvoice && depositInvoice.status !== "void") {
+            const depositSubtotal = roundMoney(
+              Number(depositInvoice.subtotal ?? 0),
+            );
+            if (depositSubtotal > 0) {
+              lines.push({
+                proposalLineItemId: null,
+                description: `Less deposit billed (${depositInvoice.invoice_number as string})`,
+                quantity: 1,
+                unitPrice: -depositSubtotal,
+                amount: -depositSubtotal,
+              });
+            }
+          }
+        }
         const totals = calculateInvoiceTotals(lines, taxRate);
 
         // Terms carry over from the proposal (the cascade's highest-priority
