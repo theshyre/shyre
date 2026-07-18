@@ -30,7 +30,7 @@ describe("SetupHelp", () => {
       'Authorization: Bearer shyre_pat_...',
     );
     // jsdom origin (http://localhost:3000 by default) lands after mount.
-    expect(command.textContent).toContain("/api/v1/mcp");
+    expect(command.textContent).toContain("/api/mcp");
   });
 
   it("copies the command to the clipboard", () => {

@@ -81,7 +81,7 @@ The integrations surface lets external apps (first: Claude Code) start/stop time
 **Pre-GA checklist (tracked; tick before announcing the feature):**
 - [ ] psql RLS simulation (SAL-003 template): owner-sees-own / admin-sees-team / member-sees-only-own on `integration_tokens` + `integration_events`; anon sees nothing; no client write path to events/idempotency. **Now that the P1 UI makes these policies user-visible, run this before GA, not after.**
 - [ ] Column privilege hardening: `REVOKE SELECT (token_hash) ON integration_tokens FROM authenticated` — closes direct PostgREST `?select=token_hash` reads structurally (not exploitable — the hash can't authenticate — but the github_token "never leaves the server" spirit).
-- [ ] P2 must land the MCP route at exactly `${origin}/api/v1/mcp` — the path the settings page's copyable `claude mcp add` command prints (SAL-044 lesson: path-string mismatches go unnoticed).
+- [x] MCP route path parity: the settings page's copyable `claude mcp add` command prints `${origin}/api/mcp`, matching the route PR #71 shipped (SAL-044 lesson: path-string mismatches go unnoticed).
 - [ ] Post-deploy probe: fabricated, revoked, and expired tokens each → identical coarse 401 + `logError` row at /system/errors.
 - [ ] Concurrency probe: parallel double `timer/start` → exactly one running entry.
 - [ ] Redaction: `logError` output contains no `Authorization` header and nothing matching `shyre_pat_` (unit-tested in `tokens.test.ts` / route wrapper tests).

@@ -33,7 +33,7 @@ export function SetupHelp(): React.JSX.Element {
   );
   const [copied, setCopied] = useState(false);
 
-  const command = `claude mcp add shyre --transport http ${origin}/api/v1/mcp --header "Authorization: Bearer shyre_pat_..."`;
+  const command = `claude mcp add shyre --transport http ${origin}/api/mcp --header "Authorization: Bearer shyre_pat_..."`;
 
   const copyCommand = async (): Promise<void> => {
     try {
