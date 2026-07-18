@@ -339,7 +339,14 @@ export default async function ProposalDetailPage({
           )}
           {(status === "accepted" || status === "converted") &&
             hasUnbilledAccepted && (
-              <CreateInvoiceButton proposalId={proposalId} />
+              <CreateInvoiceButton
+                proposalId={proposalId}
+                depositAvailable={
+                  (proposal.deposit_type as string) !== "none" &&
+                  proposal.deposit_value != null &&
+                  proposal.deposit_invoice_id == null
+                }
+              />
             )}
           {(status === "sent" || status === "viewed" || status === "declined") &&
             !supersededBy && <NewVersionButton proposalId={proposalId} />}
