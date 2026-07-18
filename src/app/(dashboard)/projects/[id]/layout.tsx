@@ -73,7 +73,8 @@ export default async function ProjectDetailLayout({
             <CustomerChip
               customerId={project.customer.id}
               customerName={project.customer.name}
-              size={14}
+              logoUrl={project.customer.logo_url}
+              size={16}
             />
             <span>
               {t("editSubtitleWithCustomer", {

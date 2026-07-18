@@ -398,6 +398,7 @@ function GhostRow({
         <CustomerChip
           customerId={customer.id ?? null}
           customerName={customer.name}
+          logoUrl={customer.logo_url ?? null}
           size={14}
         />
       ) : (

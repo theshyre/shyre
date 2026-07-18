@@ -39,7 +39,12 @@ interface Props {
    *  don't have a customer by design — surfacing them with the
    *  same `?` we use for missing data reads as broken. */
   internal?: boolean;
-  /** Pixel size. Default 16 for compact list contexts. */
+  /** Pixel size. Canonical ladder (documented after the 2026-07-17
+   *  consistency audit found five drifting sizes):
+   *    24 — identity cells (list rows, page headers, detail meta)
+   *    16 — inline meta (default; dense adjacent-to-text contexts)
+   *    14 — ultra-dense (filters, group sub-rows)
+   *  Pick from the ladder; don't invent new sizes. */
   size?: number;
   /** Optional className for layout adjustments (margin, etc.). */
   className?: string;
@@ -129,7 +134,11 @@ export function CustomerChip({
     return (
       <span
         aria-hidden="true"
-        className={`inline-flex items-center justify-center overflow-hidden rounded-[3px] shrink-0 border border-edge bg-surface-raised ${className}`}
+        // Constant WHITE plate (like the MFA QR): logos are arbitrary
+        // uploads with no contrast guarantee per theme — a white-on-
+        // transparent logo vanishes on light surfaces, a black one on
+        // dark. A fixed plate keeps the mark legible in every theme.
+        className={`inline-flex items-center justify-center overflow-hidden rounded-[3px] shrink-0 border border-edge bg-white ${className}`}
         style={{ width: size, height: size }}
       >
         {/* Stored public URL rendered as a plain <img> — the avatar/logo

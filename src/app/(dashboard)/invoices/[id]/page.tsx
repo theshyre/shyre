@@ -75,7 +75,7 @@ export default async function InvoiceDetailPage({
   const { data: invoice } = await supabase
     .from("invoices")
     .select(
-      "*, customers(id, name, email, address, show_country_on_invoice)",
+      "*, customers(id, name, email, address, show_country_on_invoice, logo_url)",
     )
     .eq("id", id)
     .single();
@@ -451,7 +451,8 @@ export default async function InvoiceDetailPage({
               <CustomerChip
                 customerId={client.id}
                 customerName={client.name}
-                size={20}
+                logoUrl={(client as { logo_url?: string | null }).logo_url ?? null}
+                size={24}
               />
             ) : null}
             <p className="font-medium text-content">{client?.name ?? "—"}</p>

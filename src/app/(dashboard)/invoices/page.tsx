@@ -67,7 +67,7 @@ export default async function InvoicesPage({
   // writes.
   let query = supabase
     .from("invoices")
-    .select("*, customers(id, name)", { count: "exact" })
+    .select("*, customers(id, name, logo_url)", { count: "exact" })
     .order("issued_date", { ascending: false, nullsFirst: false })
     .order("id", { ascending: false });
   if (selectedTeamId) query = query.eq("team_id", selectedTeamId);

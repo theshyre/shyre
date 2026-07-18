@@ -306,7 +306,7 @@ export default async function TimeEntriesPage({
     let q = supabase
       .from("projects")
       .select(
-        "id, name, github_repo, jira_project_key, team_id, category_set_id, require_timestamps, is_internal, default_billable, parent_project_id, customers(id, name)",
+        "id, name, github_repo, jira_project_key, team_id, category_set_id, require_timestamps, is_internal, default_billable, parent_project_id, customers(id, name, logo_url)",
       )
       .eq("status", "active")
       .in("team_id", userTeamIds)
@@ -453,7 +453,7 @@ export default async function TimeEntriesPage({
   ).toISOString();
 
   const ENTRY_SELECT =
-    "*, projects(id, name, github_repo, jira_project_key, category_set_id, require_timestamps, is_internal, default_billable, customers(id, name)), invoices(invoice_number)";
+    "*, projects(id, name, github_repo, jira_project_key, category_set_id, require_timestamps, is_internal, default_billable, customers(id, name, logo_url)), invoices(invoice_number)";
 
   // Build week query — fetched on Day (for the weekly-totals strip) and
   // Week (for the grid). Skipped on Log to avoid a 7-day scan that view
@@ -735,7 +735,7 @@ export default async function TimeEntriesPage({
   );
 
   // Customer-filter source — derived from the project list (every
-  // project carries its `customers(id, name)` join), de-duped, sorted
+  // project carries its `customers(id, name, logo_url)` join), de-duped, sorted
   // by name. No separate `customers` round-trip needed. Internal
   // projects have no customer FK so they don't contribute a row here.
   const customerById = new Map<string, { id: string; name: string }>();

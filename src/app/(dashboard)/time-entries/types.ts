@@ -5,6 +5,7 @@
 export interface CustomerRef {
   id: string;
   name: string;
+  logo_url?: string | null;
 }
 
 export interface ProjectInfo {
