@@ -16,7 +16,7 @@ import {
 import { loadProposalRoster } from "@/lib/proposals/roster";
 import { unwrapEmbed } from "@/lib/supabase/embed";
 import type { ProposalPDFItem } from "@/components/ProposalPDF";
-import { CustomerChip } from "@/components/CustomerChip";
+import { CustomerChip } from "@theshyre/ui";
 import { MarkdownView } from "@/components/MarkdownView";
 import { ProposalItemBody } from "@/components/ProposalItemBody";
 import { ProposalSummaryTable } from "@/components/ProposalSummaryTable";

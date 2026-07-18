@@ -12,7 +12,7 @@ import {
   Plus,
 } from "lucide-react";
 import { StatusBadge } from "@/components/StatusBadge";
-import { CustomerChip } from "@/components/CustomerChip";
+import { CustomerChip } from "@theshyre/ui";
 import { CustomerLifecycleButton } from "./customer-lifecycle-button";
 import { LinkPendingSpinner } from "@/components/LinkPendingSpinner";
 import { buttonSecondaryClass } from "@/lib/form-styles";

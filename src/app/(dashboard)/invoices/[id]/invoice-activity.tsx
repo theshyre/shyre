@@ -13,7 +13,7 @@ import {
   ShieldAlert,
 } from "lucide-react";
 import { formatCurrency } from "@/lib/invoice-utils";
-import { LocalDateTime } from "@/components/LocalDateTime";
+import { LocalDateTime } from "@theshyre/ui";
 import { Tooltip } from "@/components/Tooltip";
 import {
   buildInvoiceActivity,

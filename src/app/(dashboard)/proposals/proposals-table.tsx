@@ -1,7 +1,7 @@
 import Link from "next/link";
 import { useTranslations } from "next-intl";
 import { FileSignature } from "lucide-react";
-import { CustomerChip } from "@/components/CustomerChip";
+import { CustomerChip } from "@theshyre/ui";
 import { PaginationFooter } from "@/components/PaginationFooter";
 import {
   tableClass,

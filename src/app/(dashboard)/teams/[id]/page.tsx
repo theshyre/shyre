@@ -29,7 +29,7 @@ import {
   type LucideIcon,
 } from "lucide-react";
 import { LinkPendingSpinner } from "@/components/LinkPendingSpinner";
-import { CustomerChip } from "@/components/CustomerChip";
+import { CustomerChip } from "@theshyre/ui";
 
 /**
  * Team overview — the at-a-glance landing for a team.

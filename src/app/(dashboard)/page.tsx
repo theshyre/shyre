@@ -36,7 +36,7 @@ import { roundMoney } from "@/lib/proposals/line-items";
 import { summarizeOutstandingProposals } from "@/lib/proposals/list-view";
 import { ExpiringCredentialsBanner } from "@/components/ExpiringCredentialsBanner";
 import { EntryAuthor, type EntryAuthorInfo } from "@/components/EntryAuthor";
-import { CustomerChip } from "@/components/CustomerChip";
+import { CustomerChip } from "@theshyre/ui";
 
 export default async function DashboardPage(): Promise<React.JSX.Element> {
   const supabase = await createClient();

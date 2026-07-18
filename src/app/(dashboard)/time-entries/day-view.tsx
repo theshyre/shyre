@@ -12,7 +12,7 @@ import { anyDialogOpen } from "@/lib/dialog-open";
 import { EntryTable } from "./entry-table";
 import { JumpToDate } from "./jump-to-date";
 import { groupEntriesByCustomer } from "./customer-grouping";
-import { CustomerChip } from "@/components/CustomerChip";
+import { CustomerChip } from "@theshyre/ui";
 import { Tooltip } from "@/components/Tooltip";
 import { startTimerAction } from "./actions";
 import { notifyTimerChanged } from "@/lib/timer-events";

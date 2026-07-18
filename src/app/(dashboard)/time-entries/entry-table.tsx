@@ -6,7 +6,7 @@ import { BadgeCheck, Trash2, X, Clock } from "lucide-react";
 import { formatDurationHM } from "@/lib/time/week";
 import type { EntryGroup } from "@/lib/time/grouping";
 import { EntryRow } from "./entry-row";
-import { CustomerChip } from "@/components/CustomerChip";
+import { CustomerChip } from "@theshyre/ui";
 import { Tooltip } from "@/components/Tooltip";
 import { useToast } from "@/components/Toast";
 import {

@@ -16,7 +16,7 @@
  */
 
 import type { EntryGroup } from "@/lib/time/grouping";
-import { customerRailColor } from "@/components/CustomerChip";
+import { customerRailColor } from "@theshyre/ui";
 import { sumBillableMin, sumDurationMin } from "@/lib/time/week";
 import type { ProjectOption, TimeEntry } from "./types";
 
