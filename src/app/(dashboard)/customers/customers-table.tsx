@@ -239,10 +239,12 @@ export function CustomersTable({
           <Users size={20} className="text-accent" aria-hidden="true" />
         </div>
         <h3 className="text-body-lg font-medium text-content">
-          {t("emptyTitle")}
+          {t(view === "archived" ? "archivedEmptyTitle" : "emptyTitle")}
         </h3>
         <p className="mt-1 text-caption text-content-muted max-w-md mx-auto">
-          {t("emptyDescription")}
+          {t(
+            view === "archived" ? "archivedEmptyDescription" : "emptyDescription",
+          )}
         </p>
       </div>
     );
