@@ -45,4 +45,18 @@ describe("updateSession auth gate", () => {
     expect(await redirectsToLogin("/api/invoices/csv")).toBe(true);
     expect(await redirectsToLogin("/api/messaging/webhook/resendX")).toBe(true);
   });
+
+  it("does NOT redirect the integrations API surface (self-authenticates via PAT — SAL-051)", async () => {
+    expect(await redirectsToLogin("/api/v1")).toBe(false);
+    expect(await redirectsToLogin("/api/v1/timer")).toBe(false);
+    expect(await redirectsToLogin("/api/v1/timer/start")).toBe(false);
+    expect(await redirectsToLogin("/api/mcp")).toBe(false);
+    expect(await redirectsToLogin("/api/mcp/sse")).toBe(false);
+  });
+
+  it("exact-segment discipline: near-miss paths STILL redirect (SAL-039)", async () => {
+    expect(await redirectsToLogin("/api/v10/timer")).toBe(true);
+    expect(await redirectsToLogin("/api/v1x")).toBe(true);
+    expect(await redirectsToLogin("/api/mcpx")).toBe(true);
+  });
 });

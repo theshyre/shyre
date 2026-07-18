@@ -175,3 +175,13 @@ trigger `public.broadcast_team_change()` on `time_entries`, `invoices`, and
 ## Allow-list parity
 
 Every CHECK-constrained enum column has a TS allow-list set in the relevant module's `allow-lists.ts`. The parity test at `src/__tests__/db-parity.test.ts` enforces the two-sided contract — adding a value to the constraint requires updating the TS allow-list in the same PR (and vice versa). Coverage as of 2026-05-05: 22 paired enums.
+
+## Integrations surface (SAL-051, `20260718150000`)
+
+| Table | Purpose |
+|---|---|
+| `integration_tokens` | Per-user, per-team personal access tokens (`shyre_pat_…`, sha256 at rest, prefix for display, scopes array CHECK-constrained ↔ `ALLOWED_API_SCOPES`, `default_billable` chosen at creation, 90d default / 1y max expiry, revoke-only). RLS: owner + team owner/admin SELECT/revoke; INSERT self-only, membership-checked, and only while `team_settings.integrations_enabled` is true. |
+| `integration_events` | Append-only API audit log (action, ok/denied/error, target, detail). Written only by the definer RPCs; SELECT for token owner + team owner/admin. |
+| `integration_idempotency` | (token, key) → entry dedupe for agent retries. RPC-internal; no client policies. |
+
+`team_settings.integrations_enabled` (default **false**) is the team kill switch, enforced per-request in `api_resolve_token` (also appended to `team_settings_v`). `time_entries` gains immutable attribution: `started_by_kind` (`user|agent|integration|import` ↔ `ALLOWED_STARTED_BY_KINDS`), `started_by_ref` (session id), `agent_label`, `created_via_token_id`. RPCs: `api_whoami`, `api_list_projects` (rate-free), `api_get_timer`, `api_start_timer`, `api_stop_timer`, `api_log_entry`.

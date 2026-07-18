@@ -58,6 +58,9 @@ import {
   ALLOWED_ACCEPTANCE_DECISIONS,
 } from "@/lib/proposals/allow-lists";
 import {
+  ALLOWED_STARTED_BY_KINDS,
+} from "@/lib/integrations/allow-lists";
+import {
   ALLOWED_OUTBOX_STATUS,
   ALLOWED_RELATED_KINDS,
   ALLOWED_DOMAIN_STATUS,
@@ -308,6 +311,12 @@ const PAIRS: Pair[] = [
     appSet: ALLOWED_SIGN_THEMES,
     column: "sign_theme",
     table: "proposals",
+  },
+  {
+    // ALTER TABLE ADD COLUMN inline CHECK — whole-SQL scan (no table scope).
+    name: "startedByKinds",
+    appSet: ALLOWED_STARTED_BY_KINDS,
+    column: "started_by_kind",
   },
 ];
 
