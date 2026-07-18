@@ -31,6 +31,25 @@
     "billablePercent": "Billable %"
   },
   "noData": "No time entries for this period.",
+  "source": {
+    "label": "Source",
+    "all": "All sources",
+    "human": "Human",
+    "agent": "Agent"
+  },
+  "periodFilter": {
+    "presetsAria": "Date range presets",
+    "this_month": "This Month",
+    "last_month": "Last Month",
+    "this_quarter": "This Quarter",
+    "last_quarter": "Last Quarter",
+    "this_year": "This Year",
+    "from": "From",
+    "fromAria": "From date",
+    "to": "To",
+    "toAria": "To date",
+    "apply": "Apply"
+  },
   "collected": {
     "heading": "Collected (cash basis)",
     "subtitle": "Payments recorded in this period — includes fixed-price and proposal-derived invoices. Each currency stands alone.",

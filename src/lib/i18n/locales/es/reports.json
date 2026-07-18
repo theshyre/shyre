@@ -31,6 +31,25 @@
     "billablePercent": "% Facturable"
   },
   "noData": "No hay registros de tiempo para este período.",
+  "source": {
+    "label": "Origen",
+    "all": "Todos los orígenes",
+    "human": "Humano",
+    "agent": "Agente"
+  },
+  "periodFilter": {
+    "presetsAria": "Rangos de fechas predefinidos",
+    "this_month": "Este Mes",
+    "last_month": "Mes Pasado",
+    "this_quarter": "Este Trimestre",
+    "last_quarter": "Trimestre Pasado",
+    "this_year": "Este Año",
+    "from": "Desde",
+    "fromAria": "Fecha de inicio",
+    "to": "Hasta",
+    "toAria": "Fecha de fin",
+    "apply": "Aplicar"
+  },
   "collected": {
     "heading": "Cobrado (base de caja)",
     "subtitle": "Pagos registrados en este período — incluye facturas de precio fijo y derivadas de propuestas. Cada moneda por separado.",

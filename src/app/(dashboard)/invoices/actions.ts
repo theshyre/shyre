@@ -46,6 +46,15 @@ export async function createInvoiceAction(formData: FormData): Promise<void> {
     const project_ids = formData.getAll("project_ids[]").filter(
       (v): v is string => typeof v === "string" && v.length > 0,
     );
+    // Agent-review exclusions (SAL-051 P3): entry ids the user
+    // removed from the builder's selection — typically agent-tracked
+    // entries that overlap their own time. Excluded entries are
+    // simply skipped (they stay uninvoiced, no mutation) so the
+    // posted invoice matches the preview rail. Unknown / stale ids
+    // are harmless: they just won't match any candidate.
+    const excluded_entry_ids = formData
+      .getAll("excluded_entry_ids[]")
+      .filter((v): v is string => typeof v === "string" && v.length > 0);
     const notes = (formData.get("notes") as string) || null;
     const due_date = (formData.get("due_date") as string) || null;
     const taxRateStr = formData.get("tax_rate") as string;
@@ -213,6 +222,8 @@ export async function createInvoiceAction(formData: FormData): Promise<void> {
     // pre-migration row with mismatched flags doesn't leak through).
     let filteredEntries;
     const projectIdSet = project_ids.length > 0 ? new Set(project_ids) : null;
+    const excludedIdSet =
+      excluded_entry_ids.length > 0 ? new Set(excluded_entry_ids) : null;
     if (customer_id) {
       // Client invoice: only entries from this client's projects, and
       // only client (non-internal) projects. When project_ids is
@@ -245,6 +256,13 @@ export async function createInvoiceAction(formData: FormData): Promise<void> {
         }
         return true;
       });
+    }
+    // Drop entries the user excluded in the agent-review step. Runs
+    // after both branches so client and org-wide invoices honor it.
+    if (excludedIdSet) {
+      filteredEntries = filteredEntries.filter(
+        (e) => !excludedIdSet.has(e.id as string),
+      );
     }
 
     // Phase 2 expense candidates — fetched alongside time entries

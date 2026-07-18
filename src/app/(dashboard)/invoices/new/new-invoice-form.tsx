@@ -11,6 +11,7 @@ import {
   CheckSquare,
   FileSearch,
   Eye,
+  Bot,
 } from "lucide-react";
 import { AlertBanner } from "@theshyre/ui";
 import { useFormAction } from "@/hooks/use-form-action";
@@ -46,6 +47,12 @@ import {
   resolvePaymentTermsSource,
 } from "@/lib/payment-terms";
 import type { InvoiceGroupingMode } from "@/lib/invoices/allow-lists";
+import {
+  detectAgentOverlaps,
+  sumAgentMinutes,
+} from "@/lib/invoices/agent-overlap";
+import { formatDurationShort } from "@/lib/time/week";
+import { AgentEntryReview, type AgentReviewRow } from "./agent-entry-review";
 import { createInvoiceAction } from "../actions";
 
 interface CustomerOption {
@@ -72,6 +79,20 @@ export interface PreviewCandidate extends EntryCandidate {
   /** Team scope so the form can ignore entries from other teams when
    *  the user picks a specific team via the TeamSelector. */
   teamId: string;
+  /** Author of the entry — drives the same-user axis of the
+   *  agent-vs-human overlap warning. */
+  userId: string;
+  /** Full ISO timestamps (timestamptz strings) for wall-clock
+   *  overlap detection. Compared via getTime(), never as strings. */
+  startTime: string | null;
+  endTime: string | null;
+  /** `time_entries.started_by_kind` — 'user' | 'agent' |
+   *  'integration' | 'import'. Display + review metadata only;
+   *  never touches rate or invoice math. */
+  startedByKind: string;
+  /** `time_entries.agent_label` — e.g. "Claude Code". Null for
+   *  non-agent entries. */
+  agentLabel: string | null;
 }
 
 /** Phase-2 expense candidate streamed alongside time entries so the
@@ -417,9 +438,72 @@ export function NewInvoiceForm({
     });
   }, [candidates, customerId, selectedProjectIds, range.start, range.end]);
 
+  // Agent-time review (SAL-051 P3): the invoice flow is the ONLY
+  // human gate for agent-tracked time — no approval queue by design.
+  // The user can exclude an agent entry from THIS invoice; nothing
+  // is mutated, the entry just stays uninvoiced. Exclusions ride to
+  // the server action as excluded_entry_ids[] so preview === posted.
+  const [excludedEntryIds, setExcludedEntryIds] = useState<
+    ReadonlySet<string>
+  >(new Set());
+
+  // Entries actually going onto the invoice = scope filter minus
+  // manual exclusions. Everything downstream (grouping, totals,
+  // period inference) runs on this selection.
+  const selected = useMemo(
+    () =>
+      excludedEntryIds.size === 0
+        ? filtered
+        : filtered.filter((c) => !excludedEntryIds.has(c.id)),
+    [filtered, excludedEntryIds],
+  );
+
+  // Wall-clock overlap between agent entries and the same user's own
+  // entries on the same project, computed over the full candidate
+  // scope (including excluded rows so a re-included entry keeps its
+  // warning). Pure client-side detection — warn, never block.
+  const agentOverlaps = useMemo(
+    () => detectAgentOverlaps(filtered),
+    [filtered],
+  );
+
+  const agentReviewRows = useMemo<AgentReviewRow[]>(() => {
+    const byId = new Map(filtered.map((c) => [c.id, c]));
+    return filtered
+      .filter((c) => c.startedByKind === "agent")
+      .map((c) => {
+        const conflict = agentOverlaps.get(c.id) ?? null;
+        const conflictingEntry = conflict
+          ? (byId.get(conflict.conflictingEntryId) ?? null)
+          : null;
+        return {
+          id: c.id,
+          agentLabel: c.agentLabel,
+          userId: c.userId,
+          personName: c.personName,
+          description: c.description,
+          projectName: c.projectName,
+          date: c.date,
+          durationMin: c.durationMin,
+          excluded: excludedEntryIds.has(c.id),
+          conflict: conflict
+            ? {
+                description: conflict.conflictingDescription,
+                date: conflict.conflictingDate,
+                personName: conflictingEntry?.personName ?? c.personName,
+              }
+            : null,
+        };
+      });
+  }, [filtered, agentOverlaps, excludedEntryIds]);
+
+  // "Agent hours" subtotal — only the entries still selected count,
+  // and the line renders only when > 0.
+  const agentMinutes = useMemo(() => sumAgentMinutes(selected), [selected]);
+
   const lines = useMemo(
-    () => groupEntriesIntoLineItems(filtered, grouping),
-    [filtered, grouping],
+    () => groupEntriesIntoLineItems(selected, grouping),
+    [selected, grouping],
   );
 
   // Phase 2: include billable expenses by default. Customer scope is
@@ -550,7 +634,7 @@ export function NewInvoiceForm({
   // the user wants to see what range their invoice will actually
   // cover (min/max of included entry dates).
   const inferredPeriod = useMemo(() => {
-    const dates = filtered
+    const dates = selected
       .map((c) => c.date)
       .filter((d) => d.length > 0)
       .sort();
@@ -559,11 +643,11 @@ export function NewInvoiceForm({
       start: dates[0]!,
       end: dates[dates.length - 1]!,
     };
-  }, [filtered]);
+  }, [selected]);
 
   const totalHours = useMemo(
-    () => filtered.reduce((sum, c) => sum + c.durationMin, 0) / 60,
-    [filtered],
+    () => selected.reduce((sum, c) => sum + c.durationMin, 0) / 60,
+    [selected],
   );
 
   // Safety net: when a date filter is active for the selected customer,
@@ -625,6 +709,18 @@ export function NewInvoiceForm({
         name="include_expenses"
         value={includeExpenses ? "true" : "false"}
       />
+      {/* Agent-review exclusions — entry ids the user removed from
+          this invoice's selection. The server action skips them so
+          the posted invoice matches the preview. No data mutation:
+          excluded entries simply stay uninvoiced. */}
+      {Array.from(excludedEntryIds).map((id) => (
+        <input
+          key={id}
+          type="hidden"
+          name="excluded_entry_ids[]"
+          value={id}
+        />
+      ))}
 
       <div className="grid gap-4 lg:grid-cols-[1fr_320px]">
         {/* Left column — configuration */}
@@ -644,8 +740,11 @@ export function NewInvoiceForm({
                     setCustomerId(next);
                     // Reset project scope on customer change — the
                     // previous selection's project ids belong to a
-                    // different customer's project set.
+                    // different customer's project set. Same for
+                    // agent-review exclusions: they were decisions
+                    // about the previous customer's candidate set.
                     setSelectedProjectIds([]);
+                    setExcludedEntryIds(new Set());
                     applyCustomerCascade(next);
                     if (!dirty) setDirty(true);
                   }}
@@ -968,6 +1067,22 @@ export function NewInvoiceForm({
             )}
           </section>
 
+          <AgentEntryReview
+            rows={agentReviewRows}
+            onToggleExclude={(id, excluded) => {
+              setExcludedEntryIds((cur) => {
+                const next = new Set(cur);
+                if (excluded) {
+                  next.add(id);
+                } else {
+                  next.delete(id);
+                }
+                return next;
+              });
+              if (!dirty) setDirty(true);
+            }}
+          />
+
           <section className="rounded-lg border border-edge bg-surface-raised p-4">
             <label className="flex items-start gap-2 cursor-pointer">
               <input
@@ -1173,7 +1288,7 @@ export function NewInvoiceForm({
                     {tNew("preview.entries")}
                   </span>
                   <span className="font-mono tabular-nums">
-                    {filtered.length}
+                    {selected.length}
                   </span>
                 </div>
                 <div className="flex justify-between">
@@ -1184,6 +1299,20 @@ export function NewInvoiceForm({
                     {totalHours.toFixed(2)}
                   </span>
                 </div>
+                {/* Agent-tracked subtotal — icon + text (≥2 channels);
+                    rendered only when agent time is actually on the
+                    invoice. */}
+                {agentMinutes > 0 && (
+                  <div className="flex justify-between">
+                    <span className="inline-flex items-center gap-1.5 text-content-muted">
+                      <Bot size={12} aria-hidden />
+                      {tNew("preview.agentHours")}
+                    </span>
+                    <span className="font-mono tabular-nums">
+                      {formatDurationShort(agentMinutes)}
+                    </span>
+                  </div>
+                )}
                 <div className="flex justify-between">
                   <span className="text-content-muted">
                     {tNew("preview.lines")}

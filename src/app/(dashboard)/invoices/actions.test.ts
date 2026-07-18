@@ -957,6 +957,124 @@ describe("createInvoiceAction", () => {
     expect(counterUpdate?.patch).toEqual({ invoice_next_num: 10 });
   });
 
+  it("skips entries listed in excluded_entry_ids[] (agent-review exclusion) — no invoice line, no invoiced flag", async () => {
+    mockValidateTeamAccess.mockResolvedValue({ userId: fakeUserId, role: "owner" });
+    state.settings = {
+      invoice_prefix: "INV",
+      invoice_next_num: 1,
+      default_rate: 100,
+    };
+    state.invoiceIdToInsert = "inv-new";
+    state.timeEntries = [
+      {
+        id: "e1",
+        duration_min: 60,
+        description: "human work",
+        projects: {
+          name: "P",
+          hourly_rate: 100,
+          customer_id: null,
+          customers: null,
+        },
+      },
+      {
+        // Agent-tracked entry the user excluded in the review step.
+        id: "e2-agent",
+        duration_min: 30,
+        description: "agent work",
+        projects: {
+          name: "P",
+          hourly_rate: 100,
+          customer_id: null,
+          customers: null,
+        },
+      },
+    ];
+    const formData = fd({ team_id: "team-1" });
+    formData.append("excluded_entry_ids[]", "e2-agent");
+    try {
+      await createInvoiceAction(formData);
+    } catch {
+      // redirect
+    }
+    // Only e1 billed: 60min @ $100 = $100 — the excluded 30min never
+    // reaches the subtotal, so posted === preview.
+    const inv = state.inserts.find((i) => i.table === "invoices");
+    expect((inv?.rows as { subtotal: number }).subtotal).toBe(100);
+    // And only e1 gets marked invoiced — the excluded entry stays
+    // uninvoiced (no data mutation, available for a later invoice).
+    const entryUpdate = state.updates.find(
+      (u) => u.table === "time_entries",
+    );
+    expect(entryUpdate?.where.id).toEqual(["e1"]);
+  });
+
+  it("ignores stale / unknown excluded_entry_ids (harmless no-op)", async () => {
+    mockValidateTeamAccess.mockResolvedValue({ userId: fakeUserId, role: "owner" });
+    state.settings = {
+      invoice_prefix: "INV",
+      invoice_next_num: 1,
+      default_rate: 100,
+    };
+    state.timeEntries = [
+      {
+        id: "e1",
+        duration_min: 60,
+        description: "kept",
+        projects: {
+          name: "P",
+          hourly_rate: 100,
+          customer_id: null,
+          customers: null,
+        },
+      },
+    ];
+    const formData = fd({ team_id: "team-1" });
+    // The form only clears exclusions on customer change — a project
+    // or date-range change can legitimately post ids that no longer
+    // match any candidate. They must not affect the invoice.
+    formData.append("excluded_entry_ids[]", "ghost-id");
+    try {
+      await createInvoiceAction(formData);
+    } catch {
+      // redirect
+    }
+    const inv = state.inserts.find((i) => i.table === "invoices");
+    expect((inv?.rows as { subtotal: number }).subtotal).toBe(100);
+    const entryUpdate = state.updates.find(
+      (u) => u.table === "time_entries",
+    );
+    expect(entryUpdate?.where.id).toEqual(["e1"]);
+  });
+
+  it("throws when exclusions empty out the selection entirely", async () => {
+    mockValidateTeamAccess.mockResolvedValue({ userId: fakeUserId, role: "owner" });
+    state.settings = {
+      invoice_prefix: "INV",
+      invoice_next_num: 1,
+      default_rate: 100,
+    };
+    state.timeEntries = [
+      {
+        id: "e1",
+        duration_min: 60,
+        description: "only entry",
+        projects: {
+          name: "P",
+          hourly_rate: 100,
+          customer_id: null,
+          customers: null,
+        },
+      },
+    ];
+    const formData = fd({ team_id: "team-1" });
+    formData.append("excluded_entry_ids[]", "e1");
+    await expect(createInvoiceAction(formData)).rejects.toThrow(
+      /No unbilled time entries/,
+    );
+    expect(state.inserts.find((i) => i.table === "invoices")).toBeUndefined();
+  });
+
   it("revalidates /invoices + /time-entries and redirects to the new invoice detail", async () => {
     mockValidateTeamAccess.mockResolvedValue({ userId: fakeUserId, role: "owner" });
     state.settings = {
@@ -2034,6 +2152,51 @@ describe("createInvoiceAction — phase 2 expense inclusion", () => {
       invoiced: true,
       invoice_id: "inv-1",
     });
+  });
+
+  it("still posts an expense-only invoice when exclusions remove every time entry (customer branch)", async () => {
+    seedHappyPath();
+    state.timeEntries = [
+      {
+        id: "t1",
+        duration_min: 60,
+        description: "agent work the user excluded",
+        projects: {
+          name: "Proj",
+          hourly_rate: 100,
+          customer_id: "cust-1",
+          customers: null,
+        },
+      },
+    ];
+    state.expenses = [expenseRow({ id: "e1", amount: 50 })];
+    const formData = fd({ team_id: "team-1", customer_id: "cust-1" });
+    formData.append("excluded_entry_ids[]", "t1");
+    try {
+      await createInvoiceAction(formData);
+    } catch {
+      // redirect
+    }
+    // Exclusion runs on the customer branch too, and it must not
+    // block the expense side of the invoice: 0 time lines, 1 expense
+    // line, subtotal = expense amount only.
+    const lineInsert = state.inserts.find(
+      (i) => i.table === "invoice_line_items",
+    );
+    const rows = lineInsert?.rows as Array<{
+      time_entry_id: string | null;
+      expense_id: string | null;
+      amount: number;
+    }>;
+    expect(rows).toHaveLength(1);
+    expect(rows[0]?.expense_id).toBe("e1");
+    expect(rows[0]?.time_entry_id).toBeNull();
+    const inv = state.inserts.find((i) => i.table === "invoices");
+    expect((inv?.rows as { subtotal: number }).subtotal).toBe(50);
+    // The excluded entry is never marked invoiced.
+    expect(
+      state.updates.find((u) => u.table === "time_entries"),
+    ).toBeUndefined();
   });
 
   it("omits expenses entirely when include_expenses=false (opt-out)", async () => {
