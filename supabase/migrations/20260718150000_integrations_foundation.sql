@@ -21,6 +21,43 @@
 -- 1. Token + audit tables
 -- ============================================================
 
+-- The kill switch must exist BEFORE the token policies that reference it.
+ALTER TABLE team_settings
+  ADD COLUMN IF NOT EXISTS integrations_enabled BOOLEAN NOT NULL DEFAULT false;
+
+-- team_settings_v has a FROZEN column list (the customer-logo-blank
+-- incident, PR #34): appending the new column requires CREATE OR REPLACE
+-- in the SAME migration or the settings UI reads nothing. Exact prior
+-- definition from 20260716130000, + integrations_enabled appended.
+CREATE OR REPLACE VIEW public.team_settings_v
+  WITH (security_invoker = true, security_barrier = true)
+AS
+SELECT
+  ts.team_id,
+  ts.business_name,
+  ts.business_email,
+  ts.business_address,
+  ts.business_phone,
+  ts.logo_url,
+  CASE WHEN public.can_view_team_rate(ts.team_id) THEN ts.default_rate ELSE NULL END AS default_rate,
+  ts.invoice_prefix,
+  ts.invoice_next_num,
+  ts.tax_rate,
+  ts.wordmark_primary,
+  ts.wordmark_secondary,
+  ts.brand_color,
+  ts.default_payment_terms_days,
+  ts.show_country_on_invoice,
+  ts.created_at,
+  ts.updated_at,
+  ts.rate_visibility,
+  ts.rate_editability,
+  ts.proposal_prefix,
+  ts.proposal_next_num,
+  ts.integrations_enabled
+FROM public.team_settings ts;
+
+
 CREATE TABLE IF NOT EXISTS integration_tokens (
   id            UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   user_id       UUID NOT NULL REFERENCES auth.users(id) ON DELETE CASCADE,
@@ -193,43 +230,9 @@ ALTER TABLE integration_idempotency ENABLE ROW LEVEL SECURITY;
 -- No client policies at all: purely RPC-internal.
 
 -- ============================================================
--- 2. Team kill switch + time_entries attribution
+-- 2. time_entries attribution
 -- ============================================================
 
-ALTER TABLE team_settings
-  ADD COLUMN IF NOT EXISTS integrations_enabled BOOLEAN NOT NULL DEFAULT false;
-
--- team_settings_v has a FROZEN column list (the customer-logo-blank
--- incident, PR #34): appending the new column requires CREATE OR REPLACE
--- in the SAME migration or the settings UI reads nothing. Exact prior
--- definition from 20260716130000, + integrations_enabled appended.
-CREATE OR REPLACE VIEW public.team_settings_v
-  WITH (security_invoker = true, security_barrier = true)
-AS
-SELECT
-  ts.team_id,
-  ts.business_name,
-  ts.business_email,
-  ts.business_address,
-  ts.business_phone,
-  ts.logo_url,
-  CASE WHEN public.can_view_team_rate(ts.team_id) THEN ts.default_rate ELSE NULL END AS default_rate,
-  ts.invoice_prefix,
-  ts.invoice_next_num,
-  ts.tax_rate,
-  ts.wordmark_primary,
-  ts.wordmark_secondary,
-  ts.brand_color,
-  ts.default_payment_terms_days,
-  ts.show_country_on_invoice,
-  ts.created_at,
-  ts.updated_at,
-  ts.rate_visibility,
-  ts.rate_editability,
-  ts.proposal_prefix,
-  ts.proposal_next_num,
-  ts.integrations_enabled
-FROM public.team_settings ts;
 
 ALTER TABLE time_entries
   ADD COLUMN IF NOT EXISTS started_by_kind TEXT NOT NULL DEFAULT 'user'
