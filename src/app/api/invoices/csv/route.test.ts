@@ -1,3 +1,4 @@
+import { escapeCsvField } from "@/lib/time/csv";
 import { describe, it, expect, vi, beforeEach } from "vitest";
 
 // Queue-per-table thenable builder — the route awaits filter chains
@@ -138,10 +139,10 @@ describe("GET /api/invoices/csv", () => {
     });
   });
 
-  it.todo(
-    "FINDING: fields starting with = + - @ are NOT formula-escaped — escapeCsvField " +
-      "(src/lib/time/csv.ts) only does RFC-4180 quoting, so a note like '=HYPERLINK(...)' " +
-      "exports as a live formula in Excel/Sheets (CSV injection). If escaping is added, " +
-      "turn this into a real assertion on the escaped output.",
-  );
+  it("formula-leading fields are escaped in the export (SAL-048)", () => {
+    // The route funnels every cell through escapeCsvField, which (since
+    // SAL-048) apostrophe-prefixes leading = + - @ on string inputs.
+    expect(escapeCsvField("=HYPERLINK(\"http://evil\")")).toMatch(/^"'=/);
+    expect(escapeCsvField("@SUM(A1)")).toBe("'@SUM(A1)");
+  });
 });
