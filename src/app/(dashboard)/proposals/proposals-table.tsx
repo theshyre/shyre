@@ -2,6 +2,15 @@ import Link from "next/link";
 import { useTranslations } from "next-intl";
 import { FileSignature } from "lucide-react";
 import { CustomerChip } from "@/components/CustomerChip";
+import {
+  tableClass,
+  tableWrapperClass,
+  tableHeaderRowClass,
+  tableHeaderCellClass,
+  tableBodyRowClass,
+  tableBodyCellClass,
+} from "@/lib/table-styles";
+import { formatDisplayDate } from "@/lib/format-date";
 import { formatCurrency } from "@/lib/invoice-utils";
 import { ProposalStatusBadge } from "./proposal-status-badge";
 
@@ -46,27 +55,24 @@ export function ProposalsTable({ proposals }: Props): React.JSX.Element {
   }
 
   return (
-    <div className="mt-[16px] overflow-x-auto rounded-lg border border-edge">
-      <table className="w-full text-body">
+    <div className={`mt-[16px] overflow-x-auto ${tableWrapperClass}`}>
+      <table className={tableClass}>
         <thead>
-          <tr className="border-b border-edge bg-surface-inset text-left text-caption text-content-secondary">
-            <th className="px-3 py-2 font-medium">{t("table.number")}</th>
-            <th className="px-3 py-2 font-medium">{t("table.title")}</th>
-            <th className="px-3 py-2 font-medium">{t("table.customer")}</th>
-            <th className="px-3 py-2 font-medium">{t("table.status")}</th>
-            <th className="px-3 py-2 text-right font-medium">
+          <tr className={`${tableHeaderRowClass} text-left`}>
+            <th className={tableHeaderCellClass}>{t("table.number")}</th>
+            <th className={tableHeaderCellClass}>{t("table.title")}</th>
+            <th className={tableHeaderCellClass}>{t("table.customer")}</th>
+            <th className={tableHeaderCellClass}>{t("table.status")}</th>
+            <th className={`${tableHeaderCellClass} text-right`}>
               {t("table.total")}
             </th>
-            <th className="px-3 py-2 font-medium">{t("table.issued")}</th>
+            <th className={tableHeaderCellClass}>{t("table.issued")}</th>
           </tr>
         </thead>
         <tbody>
           {proposals.map((p) => (
-            <tr
-              key={p.id}
-              className="border-b border-edge last:border-b-0 hover:bg-hover"
-            >
-              <td className="px-3 py-2 font-mono text-caption">
+            <tr key={p.id} className={tableBodyRowClass}>
+              <td className={`${tableBodyCellClass} font-mono text-caption`}>
                 <Link
                   href={`/proposals/${p.id}`}
                   className="text-accent hover:underline"
@@ -74,12 +80,12 @@ export function ProposalsTable({ proposals }: Props): React.JSX.Element {
                   {p.proposal_number}
                 </Link>
               </td>
-              <td className="px-3 py-2">
+              <td className={`${tableBodyCellClass} text-content`}>
                 <Link href={`/proposals/${p.id}`} className="hover:underline">
                   {p.title}
                 </Link>
               </td>
-              <td className="px-3 py-2">
+              <td className={tableBodyCellClass}>
                 <span className="inline-flex items-center gap-2">
                   <CustomerChip
                     customerId={p.customer?.id}
@@ -90,14 +96,14 @@ export function ProposalsTable({ proposals }: Props): React.JSX.Element {
                   <span>{p.customer?.name ?? "—"}</span>
                 </span>
               </td>
-              <td className="px-3 py-2">
+              <td className={tableBodyCellClass}>
                 <ProposalStatusBadge status={p.status} />
               </td>
-              <td className="px-3 py-2 text-right font-mono">
+              <td className={`${tableBodyCellClass} text-right font-mono`}>
                 {formatCurrency(p.total, p.currency)}
               </td>
-              <td className="px-3 py-2 text-content-secondary">
-                {p.issued_date ?? "—"}
+              <td className={tableBodyCellClass}>
+                {formatDisplayDate(p.issued_date)}
               </td>
             </tr>
           ))}

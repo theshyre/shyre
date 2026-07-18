@@ -108,11 +108,25 @@
     "categoryPickProjectFirst": "Selecciona un proyecto primero."
   },
   "table": {
-    "project": "Proyecto",
-    "description": "Descripción",
-    "date": "Fecha",
-    "duration": "Duración",
-    "billable": "Facturable"
+    "groupLabel": "Todas las entradas",
+    "filterRegion": "Filtrar entradas de tiempo",
+    "from": "Desde",
+    "to": "Hasta",
+    "search": "Buscar descripciones",
+    "searchPlaceholder": "Programación, SHY-1234, …",
+    "clearSearch": "Limpiar búsqueda",
+    "clearAll": "Limpiar filtros",
+    "invoicedFilter": {
+      "label": "Estado de facturación",
+      "all": "Todas",
+      "uninvoiced": "Sin facturar",
+      "invoiced": "Facturadas",
+      "billed_elsewhere": "Facturadas en otro sitio"
+    },
+    "resultCount": "{count, plural, =0 {Sin entradas} one {# entrada} other {# entradas}}",
+    "totals": "{total} total · {billable} facturable · {nonBillable} no facturable",
+    "rangeCaption": "{from} → {to}",
+    "truncated": "Mostrando las {limit, number} entradas más recientes — reduce el rango de fechas o usa la búsqueda para ver registros más antiguos."
   },
   "tableHeaders": {
     "time": "Hora",
@@ -239,27 +253,6 @@
     "day": "Día",
     "week": "Semana",
     "table": "Tabla"
-  },
-  "table": {
-    "groupLabel": "Todas las entradas",
-    "filterRegion": "Filtrar entradas de tiempo",
-    "from": "Desde",
-    "to": "Hasta",
-    "search": "Buscar descripciones",
-    "searchPlaceholder": "Programación, SHY-1234, …",
-    "clearSearch": "Limpiar búsqueda",
-    "clearAll": "Limpiar filtros",
-    "invoicedFilter": {
-      "label": "Estado de facturación",
-      "all": "Todas",
-      "uninvoiced": "Sin facturar",
-      "invoiced": "Facturadas",
-      "billed_elsewhere": "Facturadas en otro sitio"
-    },
-    "resultCount": "{count, plural, =0 {Sin entradas} one {# entrada} other {# entradas}}",
-    "totals": "{total} total · {billable} facturable · {nonBillable} no facturable",
-    "rangeCaption": "{from} → {to}",
-    "truncated": "Mostrando las {limit, number} entradas más recientes — reduce el rango de fechas o usa la búsqueda para ver registros más antiguos."
   },
   "jumpToDate": {
     "popoverTitle": "Saltar a fecha",
@@ -424,5 +417,9 @@
       "startTimer": "Iniciar cronómetro",
       "teamBadge": "Equipo"
     }
+  },
+  "entryTable": {
+    "emptyTitle": "No hay registros aquí",
+    "emptyDescription": "Registra tiempo con el temporizador o añade una entrada manual — todo lo que registres aparece en esta lista."
   }
 }

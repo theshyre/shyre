@@ -287,13 +287,13 @@ export function TeamSection({
                     </p>
                     <div className="flex items-center gap-1.5 flex-wrap">
                       <span
-                        className={`inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[10px] font-medium ${roleColor}`}
+                        className={`inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-label font-medium ${roleColor}`}
                       >
                         <RoleIcon size={10} />
                         {isOwner ? "Team owner" : member.role}
                       </span>
                       {member.is_shell && (
-                        <span className="inline-flex items-center gap-1 rounded-full bg-surface-inset px-2 py-0.5 text-[10px] font-medium text-content-muted border border-edge-muted">
+                        <span className="inline-flex items-center gap-1 rounded-full bg-surface-inset px-2 py-0.5 text-label font-medium text-content-muted border border-edge-muted">
                           Imported · no login
                         </span>
                       )}

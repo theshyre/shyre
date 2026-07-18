@@ -62,7 +62,7 @@ export default async function OrganizationsPage(): Promise<React.JSX.Element> {
                 className={`inline-flex items-center gap-1.5 rounded-full px-2.5 py-0.5 text-caption font-medium ${roleColor}`}
               >
                 <RoleIcon size={12} />
-                {org.role}
+                {tc(`roles.${org.role}`)}
               </span>
             </Link>
           );
@@ -70,7 +70,7 @@ export default async function OrganizationsPage(): Promise<React.JSX.Element> {
 
         {teams.length === 0 && (
           <p className="text-body-lg text-content-muted">
-            No teams yet. Create one to get started.
+            {tc("teamsPage.empty")}
           </p>
         )}
       </div>

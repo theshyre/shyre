@@ -152,7 +152,11 @@
     "name": "Nombre",
     "email": "Correo electrónico",
     "actions": "Acciones",
-    "noData": "No hay datos para mostrar."
+    "noData": "No hay datos para mostrar.",
+    "sortBy": "Ordenar por {label}",
+    "sortedState": "{label}, ordenado {dir}. Activa para ordenar {next}.",
+    "ascending": "ascendente",
+    "descending": "descendente"
   },
   "confirm": {
     "archive": "¿Archivar este {item}?"
@@ -254,5 +258,22 @@
     "errorType": "Tipo de archivo no admitido. Usa PNG, JPG, WebP o SVG.",
     "errorSize": "Archivo demasiado grande. Máx. 2 MB.",
     "helpText": "PNG, JPG, WebP o SVG · hasta 2 MB"
+  },
+  "roles": {
+    "owner": "Propietario",
+    "admin": "Administrador",
+    "member": "Miembro"
+  },
+  "teamsPage": {
+    "empty": "Aún no hay equipos. Crea uno para empezar."
+  },
+  "a11y": {
+    "skipToContent": "Saltar al contenido principal"
+  },
+  "dateField": {
+    "openCalendar": "Abrir calendario",
+    "calendar": "Calendario",
+    "prevMonth": "Mes anterior, {month}",
+    "nextMonth": "Mes siguiente, {month}"
   }
 }

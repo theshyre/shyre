@@ -29,6 +29,7 @@ import {
   useState,
 } from "react";
 import { Calendar, ChevronLeft, ChevronRight } from "lucide-react";
+import { useLocale, useTranslations } from "next-intl";
 import { inputClass, kbdClass } from "@/lib/form-styles";
 
 // Internal "no edit in progress" sentinel for the editing-text state.
@@ -214,23 +215,26 @@ function buildMonthGrid(year: number, month0: number): DayCell[] {
   return cells;
 }
 
-const WEEKDAYS = ["Su", "Mo", "Tu", "We", "Th", "Fr", "Sa"] as const;
-const MONTH_NAMES = [
-  "January",
-  "February",
-  "March",
-  "April",
-  "May",
-  "June",
-  "July",
-  "August",
-  "September",
-  "October",
-  "November",
-  "December",
-] as const;
+/** Locale-driven weekday + month names (was a hardcoded English array —
+ *  an i18n violation AND an SR-language mismatch for es users). Computed
+ *  once per locale via Intl; the 2020 anchor dates are arbitrary. */
+function localeWeekdays(locale: string): string[] {
+  const fmt = new Intl.DateTimeFormat(locale, { weekday: "narrow" });
+  // 2020-03-01 was a Sunday.
+  return Array.from({ length: 7 }, (_, i) =>
+    fmt.format(new Date(2020, 2, 1 + i)),
+  );
+}
+function localeMonths(locale: string): string[] {
+  const fmt = new Intl.DateTimeFormat(locale, { month: "long" });
+  return Array.from({ length: 12 }, (_, i) => fmt.format(new Date(2020, i, 1)));
+}
 
 export function DateField(props: DateFieldProps): React.JSX.Element {
+  const tDate = useTranslations("common.dateField");
+  const locale = useLocale();
+  const MONTH_NAMES = useMemo(() => localeMonths(locale), [locale]);
+  const WEEKDAYS = useMemo(() => localeWeekdays(locale), [locale]);
   const {
     value,
     onChange,
@@ -607,7 +611,7 @@ export function DateField(props: DateFieldProps): React.JSX.Element {
         <button
           ref={triggerRef}
           type="button"
-          aria-label="Open calendar"
+          aria-label={tDate("openCalendar")}
           aria-haspopup="dialog"
           aria-expanded={open}
           aria-controls={popoverId}
@@ -623,7 +627,7 @@ export function DateField(props: DateFieldProps): React.JSX.Element {
         <div
           id={popoverId}
           role="dialog"
-          aria-label="Calendar"
+          aria-label={tDate("calendar")}
           className="absolute right-0 top-full z-50 mt-[4px] w-[260px] max-w-[calc(100vw-16px)] rounded-md border border-edge bg-surface-raised p-[8px] shadow-lg"
         >
           {/* Header — month label + prev/next month. Per-button accessible
@@ -631,7 +635,7 @@ export function DateField(props: DateFieldProps): React.JSX.Element {
           <div className="flex items-center justify-between mb-[6px]">
             <button
               type="button"
-              aria-label={`Previous month, ${prevMonthLabel(view)}`}
+              aria-label={tDate("prevMonth", { month: prevMonthLabel(view, MONTH_NAMES) })}
               onClick={() => navMonth(-1)}
               className="rounded p-[4px] text-content-secondary hover:bg-hover focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus-ring"
             >
@@ -645,7 +649,7 @@ export function DateField(props: DateFieldProps): React.JSX.Element {
             </div>
             <button
               type="button"
-              aria-label={`Next month, ${nextMonthLabel(view)}`}
+              aria-label={tDate("nextMonth", { month: nextMonthLabel(view, MONTH_NAMES) })}
               onClick={() => navMonth(1)}
               className="rounded p-[4px] text-content-secondary hover:bg-hover focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus-ring"
             >
@@ -786,13 +790,19 @@ export function DateField(props: DateFieldProps): React.JSX.Element {
   );
 }
 
-function prevMonthLabel(v: { year: number; month: number }): string {
+function prevMonthLabel(
+  v: { year: number; month: number },
+  months: string[],
+): string {
   const m = (v.month + 11) % 12;
   const y = v.month === 0 ? v.year - 1 : v.year;
-  return `${MONTH_NAMES[m]} ${y}`;
+  return `${months[m]} ${y}`;
 }
-function nextMonthLabel(v: { year: number; month: number }): string {
+function nextMonthLabel(
+  v: { year: number; month: number },
+  months: string[],
+): string {
   const m = (v.month + 1) % 12;
   const y = v.month === 11 ? v.year + 1 : v.year;
-  return `${MONTH_NAMES[m]} ${y}`;
+  return `${months[m]} ${y}`;
 }

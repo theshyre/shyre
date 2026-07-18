@@ -197,7 +197,8 @@
     "partyProvider": "Proveedor",
     "sigSignature": "Firma",
     "sigNameTitle": "Nombre / Cargo",
-    "sigDate": "Fecha"
+    "sigDate": "Fecha",
+    "loading": "Cargando propuesta…"
   },
   "activity": {
     "heading": "Actividad",

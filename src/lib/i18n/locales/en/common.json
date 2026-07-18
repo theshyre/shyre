@@ -152,7 +152,11 @@
     "name": "Name",
     "email": "Email",
     "actions": "Actions",
-    "noData": "No data to display."
+    "noData": "No data to display.",
+    "sortBy": "Sort by {label}",
+    "sortedState": "{label}, sorted {dir}. Activate to sort {next}.",
+    "ascending": "ascending",
+    "descending": "descending"
   },
   "confirm": {
     "archive": "Archive this {item}?"
@@ -254,5 +258,22 @@
     "errorType": "Unsupported file type. Use PNG, JPG, WebP, or SVG.",
     "errorSize": "File too large. Max 2 MB.",
     "helpText": "PNG, JPG, WebP, or SVG · up to 2 MB"
+  },
+  "roles": {
+    "owner": "Owner",
+    "admin": "Admin",
+    "member": "Member"
+  },
+  "teamsPage": {
+    "empty": "No teams yet. Create one to get started."
+  },
+  "a11y": {
+    "skipToContent": "Skip to main content"
+  },
+  "dateField": {
+    "openCalendar": "Open calendar",
+    "calendar": "Calendar",
+    "prevMonth": "Previous month, {month}",
+    "nextMonth": "Next month, {month}"
   }
 }

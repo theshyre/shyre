@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import { FileSignature } from "lucide-react";
 import { getTranslations } from "next-intl/server";
 import { createClient } from "@/lib/supabase/server";
 import { getUserTeams, isTeamAdmin } from "@/lib/team-context";
@@ -87,7 +88,8 @@ export default async function ProposalsPage({
     <div>
       <div className="flex flex-wrap items-center justify-between gap-2">
         <div className="flex flex-wrap items-center gap-3">
-          <h1 className="text-page-title font-semibold text-content">
+          <FileSignature size={24} className="text-accent" />
+          <h1 className="text-page-title font-bold text-content">
             {t("title")}
           </h1>
           <TeamFilter teams={teams} selectedTeamId={selectedTeamId} />

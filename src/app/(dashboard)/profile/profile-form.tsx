@@ -32,6 +32,7 @@ import {
 import { AlertBanner } from "@theshyre/ui";
 import { MfaSetup } from "@/components/MfaSetup";
 import { useFormAction } from "@/hooks/use-form-action";
+import { useUnsavedChanges } from "@/hooks/use-unsaved-changes";
 import { SubmitButton } from "@/components/SubmitButton";
 import { Tooltip } from "@/components/Tooltip";
 import { DateField } from "@/components/DateField";
@@ -129,9 +130,18 @@ export function ProfileForm({
     getDetectedTzServer,
   );
 
-  const profileForm = useFormAction({ action: updateProfileAction });
+  const profileForm = useFormAction({
+    action: updateProfileAction,
+    onSuccess: () => setFormDirty(false),
+  });
+  // Unsaved-changes guard across both forms on this page.
+  const [formDirty, setFormDirty] = useState(false);
   const tokenForm = useFormAction({ action: updateUserSettingsAction });
-  const prefsForm = useFormAction({ action: updatePreferencesAction });
+  const prefsForm = useFormAction({
+    action: updatePreferencesAction,
+    onSuccess: () => setFormDirty(false),
+  });
+  useUnsavedChanges(formDirty && !profileForm.pending && !prefsForm.pending);
 
   // Apply theme changes optimistically + persist to DB without requiring the
   // user to click "Save preferences". Saving here re-submits the current
@@ -186,7 +196,11 @@ export function ProfileForm({
         </div>
 
         {/* Name + email form */}
-        <form action={profileForm.handleSubmit} className="space-y-3">
+        <form
+          action={profileForm.handleSubmit}
+          onChange={() => setFormDirty(true)}
+          className="space-y-3"
+        >
           {profileForm.serverError && (
             <ErrorBanner text={profileForm.serverError} />
           )}
@@ -232,7 +246,7 @@ export function ProfileForm({
       </section>
 
       {/* ───── Preferences ───── */}
-      <form action={prefsForm.handleSubmit}>
+      <form action={prefsForm.handleSubmit} onChange={() => setFormDirty(true)}>
         <section className="rounded-lg border border-edge bg-surface-raised p-4 space-y-5">
           <SectionHeader icon={Palette} label={t("sections.preferences")} />
           {prefsForm.serverError && <ErrorBanner text={prefsForm.serverError} />}

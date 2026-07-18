@@ -4,6 +4,7 @@ import { getTranslations } from "next-intl/server";
 import { FolderKanban } from "lucide-react";
 import { formatDate } from "@theshyre/ui";
 import { CustomerChip } from "@/components/CustomerChip";
+import { formatDisplayDate } from "@/lib/format-date";
 import { StatusBadge } from "@/components/StatusBadge";
 import { OverdueBadge } from "@/components/OverdueBadge";
 import { isProjectOverdue } from "@/lib/projects/lifecycle";
@@ -104,7 +105,7 @@ export default async function ProjectDetailLayout({
             <OverdueBadge
               label={t("overdue")}
               tooltip={t("overdueTooltip", {
-                date: formatDate(projectedEndDate),
+                date: formatDisplayDate(projectedEndDate),
               })}
             />
           )}
