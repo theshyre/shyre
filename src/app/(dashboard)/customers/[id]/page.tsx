@@ -10,7 +10,6 @@ import {
   FileText,
   FolderKanban,
   Plus,
-  Users,
 } from "lucide-react";
 import { StatusBadge } from "@/components/StatusBadge";
 import { CustomerChip } from "@/components/CustomerChip";
