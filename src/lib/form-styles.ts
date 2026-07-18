@@ -12,6 +12,7 @@ export {
   inputClass,
   textareaClass,
   searchInputClass,
+  kbdClass,
 } from "@theshyre/ui";
 
 /**
@@ -74,9 +75,6 @@ export const buttonGhostClass = [
   "hover:bg-hover hover:text-content transition-colors",
   "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus-ring focus-visible:ring-offset-2",
 ].join(" ");
-
-export const kbdClass =
-  "rounded border border-edge bg-surface-inset px-1.5 py-0.5 text-label text-content-muted font-mono";
 
 /**
  * 12-column form grid + span helpers.

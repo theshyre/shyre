@@ -6,7 +6,7 @@ import Link from "next/link";
 import { CheckCircle, Download, FileText } from "lucide-react";
 import { Tooltip } from "@/components/Tooltip";
 import { useToast } from "@/components/Toast";
-import { CustomerChip } from "@/components/CustomerChip";
+import { CustomerChip } from "@theshyre/ui";
 import { formatDisplayDate } from "@/lib/format-date";
 import { PaginationFooter } from "@/components/PaginationFooter";
 import { InvoiceStatusBadge } from "./invoice-status-badge";

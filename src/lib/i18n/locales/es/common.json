@@ -274,6 +274,10 @@
     "openCalendar": "Abrir calendario",
     "calendar": "Calendario",
     "prevMonth": "Mes anterior, {month}",
-    "nextMonth": "Mes siguiente, {month}"
+    "nextMonth": "Mes siguiente, {month}",
+    "clear": "Borrar",
+    "today": "Hoy",
+    "toOpenHint": "para abrir",
+    "todayCell": "{iso}, hoy"
   }
 }

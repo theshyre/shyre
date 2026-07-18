@@ -4,7 +4,7 @@ import { getTranslations } from "next-intl/server";
 import { FolderKanban, FileSignature } from "lucide-react";
 import { formatDate } from "@theshyre/ui";
 import { createClient } from "@/lib/supabase/server";
-import { CustomerChip } from "@/components/CustomerChip";
+import { CustomerChip } from "@theshyre/ui";
 import { LinkPendingSpinner } from "@/components/LinkPendingSpinner";
 import { formatDisplayDate } from "@/lib/format-date";
 import { StatusBadge } from "@/components/StatusBadge";

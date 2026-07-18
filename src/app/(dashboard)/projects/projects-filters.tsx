@@ -17,7 +17,7 @@ import {
   Users,
 } from "lucide-react";
 import { kbdClass } from "@/lib/form-styles";
-import { CustomerChip } from "@/components/CustomerChip";
+import { CustomerChip } from "@theshyre/ui";
 
 interface CustomerOption {
   id: string;

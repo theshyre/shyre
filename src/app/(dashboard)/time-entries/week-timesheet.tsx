@@ -74,7 +74,7 @@ import { Tooltip } from "@/components/Tooltip";
 import { useAutosaveStatus } from "@/hooks/useAutosaveStatus";
 import { useToast } from "@/components/Toast";
 import { EntryAuthor } from "@/components/EntryAuthor";
-import { CustomerChip, customerRailColor } from "@/components/CustomerChip";
+import { CustomerChip, customerRailColor } from "@theshyre/ui";
 import { JumpToDate } from "./jump-to-date";
 import type { AuthorInfo, CategoryOption, ProjectOption, TimeEntry } from "./types";
 

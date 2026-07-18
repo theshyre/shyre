@@ -1,6 +1,6 @@
 "use client";
 
-import { CustomerChip } from "@/components/CustomerChip";
+import { CustomerChip } from "@theshyre/ui";
 import { useCallback, useEffect, useState, useTransition } from "react";
 import { useTranslations } from "next-intl";
 import { RotateCcw } from "lucide-react";

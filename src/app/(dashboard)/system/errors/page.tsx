@@ -12,7 +12,7 @@ import {
   Clock,
 } from "lucide-react";
 import { ResolveButton } from "./resolve-button";
-import { LocalDateTime } from "@/components/LocalDateTime";
+import { LocalDateTime } from "@theshyre/ui";
 
 const SEVERITY_CONFIG: Record<
   string,

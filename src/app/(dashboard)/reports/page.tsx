@@ -11,7 +11,7 @@ export async function generateMetadata(): Promise<Metadata> {
 import { Avatar, resolveAvatarUrl } from "@theshyre/ui";
 import { formatCurrency } from "@/lib/invoice-utils";
 import { TeamFilter } from "@/components/TeamFilter";
-import { CustomerChip } from "@/components/CustomerChip";
+import { CustomerChip } from "@theshyre/ui";
 import { summarizeCollectedPayments } from "@/lib/reports/collected-revenue";
 import {
   ProjectFilter,

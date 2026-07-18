@@ -42,7 +42,7 @@ import { InvoicePdfButton } from "./invoice-pdf-button";
 import { SendInvoiceButton } from "./send-invoice-button";
 import { InvoiceStatusBadge } from "../invoice-status-badge";
 import { PaidDateBlock } from "./paid-date-block";
-import { CustomerChip } from "@/components/CustomerChip";
+import { CustomerChip } from "@theshyre/ui";
 /**
  * Drop the country line from a multi-line formatted address unless
  * the caller wants to show it. `formatAddressMultiLine` returns

@@ -132,3 +132,12 @@ is clear at design time.
 | `Modal` | Evaluate — the focus-trap/return-focus fixes here should land upstream in the `@theshyre/ui` Modal instead of promoting a fork. |
 | `MarkdownView` | Only if Liv needs markdown (adds react-markdown + remark-gfm to the package). |
 | `LogoPicker` | **Not ready** — imports `@/lib/supabase/client`; needs an upload-callback split first. |
+
+### 2026-07-18 — batch executed
+
+`DateField`, `CustomerChip`, `LocalDateTime`, and `kbdClass` promoted in
+`@theshyre/ui` 0.12.0. Shyre keeps `src/components/DateField.tsx` as the
+i18n-injecting wrapper (labels from `common.dateField`, locale from
+next-intl); CustomerChip/LocalDateTime call sites import from
+`@theshyre/ui` directly. The promotion also fixed four hardcoded English
+strings in DateField (Clear / Today / to open / ", today").

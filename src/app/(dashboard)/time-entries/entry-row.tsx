@@ -8,7 +8,7 @@ import { formatDurationHM } from "@/lib/time/week";
 import { EntryAuthor } from "@/components/EntryAuthor";
 import { Tooltip } from "@/components/Tooltip";
 import { TicketChip } from "./ticket-chip";
-import { CustomerChip } from "@/components/CustomerChip";
+import { CustomerChip } from "@theshyre/ui";
 import { EntryKebabMenu } from "./entry-kebab-menu";
 import { InlineEditForm } from "./inline-edit-form";
 import { useFormAction } from "@/hooks/use-form-action";
