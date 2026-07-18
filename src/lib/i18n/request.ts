@@ -26,6 +26,7 @@ export default getRequestConfig(async () => {
     paymentTerms,
     messaging,
     proposals,
+    integrations,
   ] = await Promise.all([
     import(`./locales/${locale}/common.json`),
     import(`./locales/${locale}/auth.json`),
@@ -49,6 +50,7 @@ export default getRequestConfig(async () => {
     import(`./locales/${locale}/paymentTerms.json`),
     import(`./locales/${locale}/messaging.json`),
     import(`./locales/${locale}/proposals.json`),
+    import(`./locales/${locale}/integrations.json`),
   ]);
 
   return {
@@ -76,6 +78,7 @@ export default getRequestConfig(async () => {
       paymentTerms: paymentTerms.default,
       messaging: messaging.default,
       proposals: proposals.default,
+      integrations: integrations.default,
     },
   };
 });

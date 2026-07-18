@@ -1,0 +1,103 @@
+{
+  "title": "Integraciones",
+  "description": "Los tokens de acceso personal permiten que herramientas externas — agentes de código, scripts, clientes MCP — lean el contexto de proyectos y registren tiempo en tu nombre. Todo lo que hacen queda atribuido a ti y auditado.",
+  "teamPicker": {
+    "label": "Equipo"
+  },
+  "noTeam": "Necesitas pertenecer a un equipo para usar integraciones.",
+  "loadFailed": "No se pudo cargar parte de esta página. Recarga para reintentar.",
+  "killSwitch": {
+    "heading": "Integraciones del equipo",
+    "enabledBadge": "Activadas",
+    "disabledBadge": "Desactivadas",
+    "defaultClosed": "Las integraciones están desactivadas por defecto. Nada fuera de Shyre puede leer ni escribir los datos de este equipo hasta que un propietario o administrador las active.",
+    "enabledCopy": "Las herramientas externas con un token válido pueden leer el contexto de proyectos de este equipo y registrar tiempo para el dueño de su token.",
+    "disableWarning": "Desactivar las integraciones bloquea inmediatamente todos los tokens existentes de este equipo.",
+    "memberHint": "Pide al propietario o a un administrador de tu equipo que active las integraciones.",
+    "enable": "Activar integraciones",
+    "disable": "Desactivar integraciones",
+    "pending": "Guardando…",
+    "saved": "Guardado"
+  },
+  "tokens": {
+    "heading": "Tokens de acceso",
+    "yourTokens": "Tus tokens",
+    "empty": "Aún no hay tokens. Crea uno para conectar una herramienta externa.",
+    "columns": {
+      "token": "Token",
+      "scopes": "Alcances",
+      "entries": "Entradas nuevas",
+      "created": "Creado",
+      "expires": "Expira",
+      "lastUsed": "Último uso",
+      "status": "Estado",
+      "actions": "Acciones"
+    },
+    "neverUsed": "Nunca",
+    "billable": "Facturable",
+    "nonBillable": "No facturable",
+    "status": {
+      "active": "Activo",
+      "revoked": "Revocado",
+      "expired": "Expirado"
+    },
+    "revoke": "Revocar",
+    "revokeConfirmCopy": "Las integraciones que usan este token dejan de funcionar inmediatamente.",
+    "revokeConfirm": "Revocar token",
+    "revokePending": "Revocando…",
+    "revokedToast": "Token revocado.",
+    "revokeFailed": "No se pudo revocar el token. Inténtalo de nuevo."
+  },
+  "create": {
+    "button": "Nuevo token",
+    "nameLabel": "Nombre del token",
+    "namePlaceholder": "p. ej. Claude Code en mi portátil",
+    "nameRequired": "Dale un nombre al token para reconocerlo después.",
+    "expiryLabel": "Expira después de",
+    "expiryOption": "{days} días",
+    "expiryRecommended": "{days} días (recomendado)",
+    "expiryHint": "Los tokens siempre expiran — un año es el máximo.",
+    "billableLegend": "Las entradas nuevas son por defecto",
+    "billableOption": "Facturable",
+    "billableHint": "El tiempo registrado con este token cuenta como trabajo facturable.",
+    "nonBillableOption": "No facturable",
+    "nonBillableHint": "El tiempo registrado con este token se registra pero nunca se factura.",
+    "billableExplain": "Decisión única para este token: las entradas que registre llegan con este estado de facturación para que no tengas que limpiarlas una por una.",
+    "scopesLabel": "Alcances",
+    "scopesHint": "Los tokens reciben actualmente los cuatro alcances.",
+    "pending": "Creando…",
+    "submit": "Crear token",
+    "showOnce": {
+      "heading": "Copia tu token ahora",
+      "warning": "No volverás a ver este token. Shyre solo guarda un hash — cópialo en un lugar seguro antes de cerrar este cuadro.",
+      "copy": "Copiar token",
+      "copied": "Token copiado al portapapeles.",
+      "copyFailed": "No se pudo copiar — selecciona el texto del token y cópialo manualmente.",
+      "done": "Listo"
+    }
+  },
+  "activity": {
+    "heading": "Actividad reciente de la API",
+    "description": "Las últimas 20 llamadas a la API hechas con los tokens de este equipo — tanto éxitos como rechazos.",
+    "empty": "Aún no hay actividad de la API.",
+    "status": {
+      "ok": "OK",
+      "denied": "Denegado",
+      "error": "Error"
+    }
+  },
+  "setup": {
+    "heading": "Conectar una herramienta",
+    "docsIntro": "Los pasos completos de configuración están en la guía:",
+    "docsLink": "Guía de tokens de integración",
+    "mcpIntro": "Para conectar Claude Code, añade Shyre como servidor MCP con tu token:",
+    "copyCommand": "Copiar comando",
+    "copiedCommand": "Comando copiado al portapapeles.",
+    "copyFailed": "No se pudo copiar — selecciona el texto del comando y cópialo manualmente."
+  },
+  "errors": {
+    "disabled": "Las integraciones están desactivadas para este equipo. Un propietario o administrador debe activarlas antes de poder crear tokens.",
+    "adminOnly": "Solo los propietarios y administradores del equipo pueden cambiar las integraciones.",
+    "revokeNotFound": "Token no encontrado o ya revocado."
+  }
+}
