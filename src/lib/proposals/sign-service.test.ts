@@ -792,14 +792,16 @@ describe("maskEmail", () => {
   it("keeps a leading astral char intact when the local part is longer (no split surrogate pair)", () => {
     // "😀" is a surrogate pair (2 UTF-16 units); slice(0, 2) lands exactly
     // on the pair boundary here, so the shown prefix stays well-formed.
-    expect(maskEmail("😀smith@x.com")).toBe("😀•••@x.com");
+    // Two code POINTS shown — same rule as "jo•••", astral-safe.
+    expect(maskEmail("😀smith@x.com")).toBe("😀s•••@x.com");
   });
-  it.todo(
-    "BUG: a local part that is a single astral char (e.g. 😀@x.com) is sliced mid-surrogate — " +
-      "local.length is 2 UTF-16 units, so `shown` becomes slice(0, 1) = a lone high surrogate " +
-      "(\\ud83d), an ill-formed string that renders as �. Fix: slice by code points " +
-      "(Array.from(local)) instead of UTF-16 units, then re-check this pins '😀•••@x.com' or '•••'.",
-  );
+  it("a single-astral local part masks without splitting the surrogate pair", () => {
+    // Fixed 2026-07-18: slice by code points (Array.from), not UTF-16 units.
+    const masked = maskEmail("😀@x.com");
+    expect(masked).toBe("😀•••@x.com");
+    // Well-formed: no lone surrogates anywhere in the output.
+    expect(/[\ud800-\udbff](?![\udc00-\udfff])/.test(masked)).toBe(false);
+  });
   it("masks against the LAST @ when the local part itself contains an @", () => {
     // The domain shown must be the true domain (`c.com`), never a chunk of
     // the local part — otherwise `"a@b"@c.com`-style addresses would leak

@@ -157,7 +157,12 @@ export function maskEmail(email: string): string {
   const domain = email.slice(at + 1);
   // Show at most 2 chars, and never the WHOLE local part when there's more
   // than one char to hide behind — `bo` → `b•••`, `jordan` → `jo•••`.
-  const shown = local.slice(0, Math.min(2, Math.max(1, local.length - 1)));
+  // Code-POINT slice, not UTF-16 units: a single-astral local part like
+  // 😀@x.com would otherwise split the surrogate pair into mojibake.
+  const points = Array.from(local);
+  const shown = points
+    .slice(0, Math.min(2, Math.max(1, points.length - 1)))
+    .join("");
   return `${shown}•••@${domain}`;
 }
 
