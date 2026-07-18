@@ -12,6 +12,7 @@ import { Avatar, resolveAvatarUrl } from "@theshyre/ui";
 import { formatCurrency } from "@/lib/invoice-utils";
 import { TeamFilter } from "@/components/TeamFilter";
 import { CustomerChip } from "@/components/CustomerChip";
+import { summarizeCollectedPayments } from "@/lib/reports/collected-revenue";
 import {
   ProjectFilter,
   type ProjectFilterOption,
@@ -296,6 +297,37 @@ export default async function ReportsPage({
   const totalMinutes = clientSummaries.reduce((s, c) => s + c.totalMinutes, 0);
   const totalBillable = clientSummaries.reduce((s, c) => s + c.billableMinutes, 0);
   const totalRevenue = clientSummaries.reduce((s, c) => s + c.revenue, 0);
+
+  // Cash-basis collected revenue: recorded payments whose paid_on falls in
+  // the period. Per-currency buckets — never summed across currencies.
+  let paymentsQuery = supabase
+    .from("invoice_payments")
+    .select("amount, currency, paid_on, invoices(customer_id, customers(name))")
+    .gte("paid_on", period.from)
+    .lte("paid_on", period.to);
+  if (selectedTeamId) {
+    paymentsQuery = paymentsQuery.eq("team_id", selectedTeamId);
+  } else if (userTeamIds.length > 0) {
+    paymentsQuery = paymentsQuery.in("team_id", userTeamIds);
+  }
+  const { data: paymentRows } = await paymentsQuery;
+  const collected = summarizeCollectedPayments(
+    (paymentRows ?? []).map((row) => {
+      const inv = Array.isArray(row.invoices)
+        ? (row.invoices[0] ?? null)
+        : (row.invoices as { customers?: unknown } | null);
+      const cust = inv
+        ? Array.isArray((inv as { customers: unknown }).customers)
+          ? ((inv as { customers: Array<{ name: string }> }).customers[0] ?? null)
+          : ((inv as { customers: { name: string } | null }).customers ?? null)
+        : null;
+      return {
+        amount: Number(row.amount ?? 0),
+        currency: (row.currency as string) ?? "USD",
+        customerName: cust?.name ?? "—",
+      };
+    }),
+  );
   const billablePercent = totalMinutes > 0 ? Math.round((totalBillable / totalMinutes) * 100) : 0;
 
   const fmtHours = (mins: number): string => `${(mins / 60).toFixed(1)}h`;
@@ -331,6 +363,51 @@ export default async function ReportsPage({
         <SummaryCard label={t("totals.totalRevenue")} value={formatCurrency(Math.round(totalRevenue * 100) / 100)} />
         <SummaryCard label={t("totals.billablePercent")} value={`${billablePercent}%`} />
       </div>
+
+      {/* Collected (cash basis) — per-currency, payments recorded in the
+          period. The honest companion to Time-Based Revenue: fixed-price and
+          proposal-derived income shows up HERE when the cash arrives. */}
+      {collected.length > 0 && (
+        <div className="mt-8">
+          <h2 className="text-title font-semibold text-content">
+            {t("collected.heading")}
+          </h2>
+          <p className="mt-1 text-caption text-content-secondary">
+            {t("collected.subtitle")}
+          </p>
+          <div className="mt-3 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+            {collected.map((bucket) => (
+              <div
+                key={bucket.currency}
+                className="rounded-lg border border-edge bg-surface-raised p-4"
+              >
+                <p className="text-caption font-semibold uppercase tracking-wider text-content-muted">
+                  {t("collected.cardLabel", { currency: bucket.currency })}
+                </p>
+                <p className="mt-1 text-title font-bold font-mono text-content">
+                  {formatCurrency(bucket.total, bucket.currency)}
+                </p>
+                <p className="text-caption text-content-muted">
+                  {t("collected.paymentCount", { count: bucket.paymentCount })}
+                </p>
+                <ul className="mt-2 space-y-0.5">
+                  {bucket.byClient.slice(0, 4).map((c) => (
+                    <li
+                      key={c.customerName}
+                      className="flex justify-between gap-2 text-caption text-content-secondary"
+                    >
+                      <span className="truncate">{c.customerName}</span>
+                      <span className="font-mono">
+                        {formatCurrency(c.total, bucket.currency)}
+                      </span>
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
 
       {clientSummaries.length === 0 ? (
         <p className="mt-8 text-body text-content-muted">{t("noData")}</p>

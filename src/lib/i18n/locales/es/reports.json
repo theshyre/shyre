@@ -30,5 +30,11 @@
     "totalRevenue": "Ingresos por Horas",
     "billablePercent": "% Facturable"
   },
-  "noData": "No hay registros de tiempo para este período."
+  "noData": "No hay registros de tiempo para este período.",
+  "collected": {
+    "heading": "Cobrado (base de caja)",
+    "subtitle": "Pagos registrados en este período — incluye facturas de precio fijo y derivadas de propuestas. Cada moneda por separado.",
+    "cardLabel": "Cobrado · {currency}",
+    "paymentCount": "{count, plural, =1 {1 pago} other {# pagos}}"
+  }
 }
