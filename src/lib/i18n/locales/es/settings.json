@@ -129,7 +129,12 @@
     "enterCode": "Ingresa el código de 6 dígitos de tu aplicación",
     "codePlaceholder": "000000",
     "verify": "Verificar y Habilitar",
-    "verified": "MFA se ha habilitado exitosamente."
+    "verified": "MFA se ha habilitado exitosamente.",
+    "secretLabel": "¿No puedes escanear? Introduce esta clave en tu aplicación:",
+    "copySecret": "Copiar clave",
+    "copy": "Copiar",
+    "copied": "¡Copiado!",
+    "download": "Descargar"
   },
   "saveSettings": "Guardar Configuración",
   "restoreDefaults": "Restaurar Valores por Defecto",

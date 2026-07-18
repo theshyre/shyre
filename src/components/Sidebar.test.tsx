@@ -107,7 +107,9 @@ describe("Sidebar", () => {
     const trigger = screen.getByRole("button", { name: /your profile/i });
     expect(trigger).toBeInTheDocument();
     expect(trigger).toHaveTextContent("Marcus");
-    expect(trigger.getAttribute("aria-haspopup")).toBe("menu");
+    // Popover is a labeled group of plain controls now, not a menu —
+    // the trigger advertises open/closed state, not a menu contract.
+    expect(trigger.getAttribute("aria-expanded")).toBe("false");
   });
 
   it("links the brand row to / and exposes the version via tooltip", () => {

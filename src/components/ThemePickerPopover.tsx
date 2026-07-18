@@ -78,6 +78,17 @@ export function ThemePickerPopover(): React.JSX.Element {
 
   const close = useCallback(() => setOpen(false), []);
 
+  // Move focus into the panel on open (the active theme's button) so
+  // keyboard/SR users land inside the popover instead of the portal
+  // dumping them at the end of the document.
+  useEffect(() => {
+    if (!open) return;
+    const active = panelRef.current?.querySelector<HTMLButtonElement>(
+      "button[aria-pressed='true']",
+    );
+    (active ?? panelRef.current?.querySelector("button"))?.focus();
+  }, [open]);
+
   // Compute panel position relative to the trigger at click time so
   // there's no need to setState inside a layout effect (lint rule
   // react-hooks/set-state-in-effect bans that pattern). Same shape
@@ -139,7 +150,12 @@ export function ThemePickerPopover(): React.JSX.Element {
   const panel = open && panelPos && (
     <div
       ref={panelRef}
-      role="menu"
+      // Not role="menu": a menu contract promises arrow-key navigation and
+      // menuitem semantics this list never implemented — SRs announced a
+      // pattern the keyboard couldn't deliver. A labeled group of plain
+      // toggle buttons is honest and fully keyboardable via Tab.
+      role="group"
+      data-popover-panel
       aria-label={t("title")}
       style={{ top: panelPos.top, left: panelPos.left, width: PANEL_WIDTH }}
       className="fixed z-50 rounded-lg border border-edge bg-surface-raised shadow-lg overflow-hidden"
@@ -151,8 +167,7 @@ export function ThemePickerPopover(): React.JSX.Element {
           <button
             key={opt.key}
             type="button"
-            role="menuitemradio"
-            aria-checked={isActive}
+            aria-pressed={isActive}
             onClick={() => {
               setTheme(opt.key);
               close();

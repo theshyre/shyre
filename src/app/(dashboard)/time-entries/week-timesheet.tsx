@@ -65,6 +65,7 @@ import {
   selectClass,
   kbdClass,
 } from "@/lib/form-styles";
+import { anyDialogOpen } from "@/lib/dialog-open";
 import { useKeyboardShortcut } from "@theshyre/ui";
 import { InlineDeleteButton } from "@/components/InlineDeleteButton";
 import { InlineDeleteRowConfirm } from "@/components/InlineDeleteRowConfirm";
@@ -861,6 +862,10 @@ export function WeekTimesheet({
       )
         return;
       if (e.metaKey || e.ctrlKey || e.altKey) return;
+      // Page shortcuts stay inert while any modal is open (project
+      // keyboard rule) — `n` used to open the add-row underneath the
+      // `?` help dialog.
+      if (anyDialogOpen()) return;
       const k = e.key.toLowerCase();
       if (e.shiftKey && k === "e") {
         e.preventDefault();
@@ -889,8 +894,18 @@ export function WeekTimesheet({
   // Arrow-key shortcuts to match the DayView's navigation feel (← prev
   // week, → next week). Bailing inside input/textarea/select is handled
   // by the shared hook.
-  useKeyboardShortcut({ key: "ArrowLeft", onTrigger: prevWeek });
-  useKeyboardShortcut({ key: "ArrowRight", onTrigger: nextWeek });
+  useKeyboardShortcut({
+    key: "ArrowLeft",
+    onTrigger: () => {
+      if (!anyDialogOpen()) prevWeek();
+    },
+  });
+  useKeyboardShortcut({
+    key: "ArrowRight",
+    onTrigger: () => {
+      if (!anyDialogOpen()) nextWeek();
+    },
+  });
 
   // Count rows the user is seeing this week ONLY because of pin /
   // team-default / recent-activity inference (no entries this week

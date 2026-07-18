@@ -543,7 +543,7 @@ export default async function InvoiceDetailPage({
             className="pointer-events-none absolute inset-0 flex items-center justify-center z-10"
           >
             <span
-              className={`select-none -rotate-12 border-4 px-7 py-2.5 rounded-md text-[3rem] font-extrabold tracking-[0.25em] opacity-30 ${
+              className={`-rotate-12 border-4 px-7 py-2.5 rounded-md text-[3rem] font-extrabold tracking-[0.25em] opacity-30 ${
                 status === "paid"
                   ? "border-success text-success"
                   : "border-warning text-warning"

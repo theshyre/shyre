@@ -46,6 +46,13 @@ export function EntryKebabMenu({ entry, onEdit }: Props): React.JSX.Element {
   const triggerRef = useRef<HTMLButtonElement>(null);
   const panelRef = useRef<HTMLDivElement>(null);
 
+  // Move focus into the portaled panel on open — without this, Tab
+  // order jumps to the end of the document and Escape strands focus.
+  useEffect(() => {
+    if (!open) return;
+    panelRef.current?.querySelector("button")?.focus();
+  }, [open]);
+
   useEffect(() => {
     if (!open) return;
     function handleClick(e: MouseEvent): void {
@@ -64,6 +71,7 @@ export function EntryKebabMenu({ entry, onEdit }: Props): React.JSX.Element {
       if (e.key === "Escape") {
         setOpen(false);
         setConfirmDelete(false);
+        triggerRef.current?.focus();
       }
     }
     function handleScrollOrResize(): void {
@@ -179,6 +187,8 @@ export function EntryKebabMenu({ entry, onEdit }: Props): React.JSX.Element {
   const panel = open && panelPos && (
     <div
       ref={panelRef}
+      role="group"
+      aria-label={t("actionsLabel")}
       className="fixed z-50 w-[160px] rounded-lg border border-edge bg-surface-raised shadow-lg overflow-hidden"
       style={
         panelPos.kind === "below"
@@ -280,7 +290,8 @@ export function EntryKebabMenu({ entry, onEdit }: Props): React.JSX.Element {
           setOpen((o) => !o);
         }}
         aria-label={t("actionsLabel")}
-        className="rounded p-1 text-content-muted hover:bg-hover hover:text-content"
+        aria-expanded={open}
+        className="rounded p-1.5 text-content-muted hover:bg-hover hover:text-content"
       >
         <MoreVertical size={14} />
       </button>

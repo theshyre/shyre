@@ -8,6 +8,7 @@ import { formatDurationHMZero } from "@/lib/time/week";
 import { addLocalDays, utcToLocalDateStr } from "@/lib/time/tz";
 import { localDayBoundsIso } from "@/lib/local-day-bounds";
 import { Spinner, useKeyboardShortcut } from "@theshyre/ui";
+import { anyDialogOpen } from "@/lib/dialog-open";
 import { EntryTable } from "./entry-table";
 import { JumpToDate } from "./jump-to-date";
 import { groupEntriesByCustomer } from "./customer-grouping";
@@ -136,8 +137,18 @@ export function DayView({
     navigateToDay(addLocalDays(visibleDay, 1));
   }, [visibleDay, navigateToDay]);
 
-  useKeyboardShortcut({ key: "ArrowLeft", onTrigger: goPrev });
-  useKeyboardShortcut({ key: "ArrowRight", onTrigger: goNext });
+  useKeyboardShortcut({
+    key: "ArrowLeft",
+    onTrigger: () => {
+      if (!anyDialogOpen()) goPrev();
+    },
+  });
+  useKeyboardShortcut({
+    key: "ArrowRight",
+    onTrigger: () => {
+      if (!anyDialogOpen()) goNext();
+    },
+  });
 
   const titleLabel = formatDayTitle(visibleDay, todayStr);
 

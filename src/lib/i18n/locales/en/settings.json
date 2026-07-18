@@ -129,7 +129,12 @@
     "enterCode": "Enter the 6-digit code from your app",
     "codePlaceholder": "000000",
     "verify": "Verify & Enable",
-    "verified": "MFA has been enabled successfully."
+    "verified": "MFA has been enabled successfully.",
+    "secretLabel": "Can't scan? Enter this key in your app instead:",
+    "copySecret": "Copy key",
+    "copy": "Copy",
+    "copied": "Copied!",
+    "download": "Download"
   },
   "saveSettings": "Save Settings",
   "restoreDefaults": "Restore Defaults",
