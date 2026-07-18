@@ -150,7 +150,7 @@ export async function importExpensesCsvAction(
         defaultCategory: DEFAULT_IMPORTED_CATEGORY,
       };
 
-      await supabase
+      const { error: completeError } = await supabase
         .from("import_runs")
         .update({
           status: "completed",
@@ -158,6 +158,16 @@ export async function importExpensesCsvAction(
           summary,
         })
         .eq("id", importRunId);
+      if (completeError) {
+        // The expenses landed; only the history row is stale ("running"
+        // forever). Don't fail the import over it — log so /system/errors
+        // shows why the run never closed.
+        logError(completeError, {
+          userId: user.id,
+          teamId,
+          action: "importExpensesCsv.completeRun",
+        });
+      }
 
       revalidatePath("/business");
       revalidatePath("/import");
@@ -166,7 +176,7 @@ export async function importExpensesCsvAction(
     } catch (err) {
       // Mark the run as failed so the user sees what happened in
       // /import history. Outer catch logs to error_logs.
-      await supabase
+      const { error: failMarkError } = await supabase
         .from("import_runs")
         .update({
           status: "failed",
@@ -181,6 +191,13 @@ export async function importExpensesCsvAction(
           },
         })
         .eq("id", importRunId);
+      if (failMarkError) {
+        logError(failMarkError, {
+          userId: user.id,
+          teamId,
+          action: "importExpensesCsv.markRunFailed",
+        });
+      }
       throw err;
     }
   } catch (err) {
@@ -249,7 +266,9 @@ async function insertExpenseBatch(
   if (error.code === "23505") {
     let imported = 0;
     let alreadyImported = 0;
-    let lastError: string | null = null;
+    // Collect DISTINCT messages — previously only the last row error
+    // survived, so three different hard failures reported as one.
+    const rowErrors = new Set<string>();
     for (const row of rows) {
       const { error: rowErr } = await supabase.from("expenses").insert(row);
       if (!rowErr) {
@@ -257,10 +276,14 @@ async function insertExpenseBatch(
       } else if (rowErr.code === "23505") {
         alreadyImported += 1;
       } else {
-        lastError = rowErr.message;
+        rowErrors.add(rowErr.message);
       }
     }
-    return { imported, alreadyImported, error: lastError };
+    return {
+      imported,
+      alreadyImported,
+      error: rowErrors.size > 0 ? Array.from(rowErrors).join("; ") : null,
+    };
   }
 
   return {

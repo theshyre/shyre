@@ -59,6 +59,10 @@ const state: {
   duplicateSourceIds: Set<string>;
   /** import_source_ids whose per-row insert fails hard. */
   hardFailSourceIds: Set<string>;
+  /** Per-source-id hard-fail message override (defaults to "row exploded"). */
+  hardFailMessageById: Map<string, string>;
+  /** Error returned by import_runs UPDATE (completion / failed marking). */
+  runUpdateError: { message: string } | null;
 } = {
   user: { id: "u-importer" },
   runInserts: [],
@@ -70,6 +74,8 @@ const state: {
   batchThrows: false,
   duplicateSourceIds: new Set(),
   hardFailSourceIds: new Set(),
+  hardFailMessageById: new Map(),
+  runUpdateError: null,
 };
 
 function mockSupabase() {
@@ -87,7 +93,7 @@ function mockSupabase() {
           update: (patch: Record<string, unknown>) => ({
             eq: (_col: string, id: string) => {
               state.runUpdates.push({ patch, id });
-              return Promise.resolve({ data: null, error: null });
+              return Promise.resolve({ data: null, error: state.runUpdateError });
             },
           }),
         };
@@ -123,7 +129,12 @@ function mockSupabase() {
             }
             if (state.hardFailSourceIds.has(rows.import_source_id)) {
               return Promise.resolve({
-                error: { message: "row exploded", code: "XX000" },
+                error: {
+                  message:
+                    state.hardFailMessageById.get(rows.import_source_id) ??
+                    "row exploded",
+                  code: "XX000",
+                },
               });
             }
             return Promise.resolve({ error: null });
@@ -157,6 +168,8 @@ function resetState(): void {
   state.batchThrows = false;
   state.duplicateSourceIds = new Set();
   state.hardFailSourceIds = new Set();
+  state.hardFailMessageById = new Map();
+  state.runUpdateError = null;
   mockValidateTeamAccess.mockReset();
   mockValidateTeamAccess.mockResolvedValue({
     userId: "u-importer",
@@ -381,6 +394,55 @@ describe("importExpensesCsvAction — dedupe & failure paths", () => {
     }
     expect(state.batchInserts).toEqual([]);
     expect(mockLogError).toHaveBeenCalledTimes(1);
+  });
+
+  it("joins DISTINCT per-row failure messages instead of keeping only the last", async () => {
+    state.batchError = { message: "duplicate key", code: "23505" };
+    const parsed = parseExpenseCsv(GOOD_CSV);
+    const ids = parsed.rows
+      .map((r) => r.import_source_id)
+      .filter((v): v is string => typeof v === "string");
+    expect(ids.length).toBe(2);
+    state.hardFailSourceIds = new Set(ids);
+    state.hardFailMessageById = new Map([
+      [ids[0]!, "value too long for description"],
+      [ids[1]!, "value too long for description"],
+    ]);
+    // Same message on both rows → deduped to ONE entry, not two.
+    const res = await importExpensesCsvAction(
+      fd({ team_id: "t1", csv: GOOD_CSV }),
+    );
+    expect(res.success).toBe(true);
+    if (!res.success) return;
+    expect(res.summary.errors).toEqual(["value too long for description"]);
+
+    resetState();
+    state.batchError = { message: "duplicate key", code: "23505" };
+    state.hardFailSourceIds = new Set(ids);
+    state.hardFailMessageById = new Map([
+      [ids[0]!, "bad currency"],
+      [ids[1]!, "bad amount"],
+    ]);
+    const res2 = await importExpensesCsvAction(
+      fd({ team_id: "t1", csv: GOOD_CSV }),
+    );
+    expect(res2.success).toBe(true);
+    if (!res2.success) return;
+    // Distinct messages both survive (joined in one summary entry).
+    expect(res2.summary.errors).toEqual(["bad currency; bad amount"]);
+  });
+
+  it("logs (but does not fail the import) when the completion update on import_runs errors", async () => {
+    state.runUpdateError = { message: "permission denied for import_runs" };
+    const res = await importExpensesCsvAction(
+      fd({ team_id: "t1", csv: GOOD_CSV }),
+    );
+    // Expenses landed — the import is still a success for the user.
+    expect(res.success).toBe(true);
+    expect(mockLogError).toHaveBeenCalledWith(
+      expect.objectContaining({ message: "permission denied for import_runs" }),
+      expect.objectContaining({ action: "importExpensesCsv.completeRun" }),
+    );
   });
 
   it("marks the run failed and returns a failure envelope on a mid-import crash", async () => {
