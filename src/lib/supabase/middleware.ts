@@ -50,7 +50,16 @@ export async function updateSession(request: NextRequest) {
     !request.nextUrl.pathname.startsWith("/sign/") &&
     // Exact path — the webhook verifies its own HMAC; no other /api route is
     // public (the rest are session-gated user exports/imports).
-    request.nextUrl.pathname !== "/api/messaging/webhook/resend"
+    request.nextUrl.pathname !== "/api/messaging/webhook/resend" &&
+    // The integrations API surface (SAL-051): session-less by design, every
+    // route self-authenticates via bearer PAT + SECURITY DEFINER RPCs and
+    // returns 401 JSON, never a 307. Exact-segment discipline (SAL-039):
+    // bare startsWith("/api/v1") would also exempt a future /api/v10.
+    request.nextUrl.pathname !== "/api/v1" &&
+    !request.nextUrl.pathname.startsWith("/api/v1/") &&
+    // The MCP endpoint is the same surface over Streamable HTTP.
+    request.nextUrl.pathname !== "/api/mcp" &&
+    !request.nextUrl.pathname.startsWith("/api/mcp/")
   ) {
     const url = request.nextUrl.clone();
     url.pathname = "/login";
