@@ -253,3 +253,27 @@ never superseded — follow-on work is a new proposal.
 expiry notice and **acceptance is blocked** (server-side too) — though the
 client can still record a decline. Issue a new version to re-offer with a
 fresh window.
+
+## Finding proposals around the app
+
+The module is surfaced outside its own pages:
+
+- **List filters & aging** — the `/proposals` list has a status filter chip
+  (All / Draft / Sent & viewed / Accepted / Declined / History, where History
+  folds superseded + converted), a "$X awaiting signature" rollup above the
+  table, and a subtle "sent Nd ago" caption on in-flight rows so a quote
+  that's been sitting for two weeks stands out. An in-flight proposal whose
+  `Valid until` has passed shows an **Expired** badge (clock icon, warning
+  tone) — a read-time cue only; the stored status stays sent/viewed. Once a
+  client authorizes a subset, the Total column shows the **accepted** total,
+  not the full quote. Long lists load 50 rows at a time with a
+  "Load more" footer.
+- **Dashboard** — two money cards: **Outstanding Invoices** (summed total of
+  sent invoices) and **Awaiting Signature** (summed total + count of
+  sent/viewed proposals).
+- **Customer detail** — each customer page lists their recent proposals and
+  invoices (capped at 6, with "View all" links) and offers a **New proposal**
+  button that opens `/proposals/new` with that customer preselected.
+- **Cross-links** — an invoice raised from a proposal shows a
+  "From proposal PROP-…" link under its header, and a project created by
+  converting a proposal line item links back the same way from its header.

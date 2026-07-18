@@ -14,9 +14,14 @@ export async function generateMetadata(): Promise<Metadata> {
   return { title: t("newPageTitle") };
 }
 
-export default async function NewProposalPage(): Promise<React.JSX.Element> {
+export default async function NewProposalPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ customerId?: string }>;
+}): Promise<React.JSX.Element> {
   const supabase = await createClient();
   const teams = await getUserTeams();
+  const sp = await searchParams;
   const t = await getTranslations("proposals");
 
   const adminTeams = teams.filter((team) => isTeamAdmin(team.role));
@@ -54,6 +59,18 @@ export default async function NewProposalPage(): Promise<React.JSX.Element> {
     role_label: (c.role_label as string | null) ?? null,
   }));
 
+  // ?customerId= preselects the customer (the "New proposal" button
+  // on a customer detail page). Only honored when the id is in the
+  // fetched list — which is already scoped to teams the viewer can
+  // author for, so a pasted foreign id silently falls back to the
+  // empty picker instead of leaking anything.
+  const requestedCustomerId = sp.customerId?.trim() || null;
+  const defaultCustomerId =
+    requestedCustomerId &&
+    customers.some((c) => c.id === requestedCustomerId)
+      ? requestedCustomerId
+      : null;
+
   return (
     <div>
       <h1 className="mb-[24px] text-page-title font-semibold text-content">
@@ -63,6 +80,7 @@ export default async function NewProposalPage(): Promise<React.JSX.Element> {
         teams={adminTeams.map((team) => ({ id: team.id, name: team.name }))}
         customers={customers}
         contacts={contacts}
+        defaultCustomerId={defaultCustomerId}
       />
     </div>
   );

@@ -15,7 +15,8 @@
     "accepted": "Accepted",
     "declined": "Declined",
     "converted": "Converted",
-    "superseded": "Superseded"
+    "superseded": "Superseded",
+    "expired": "Expired"
   },
   "table": {
     "number": "Number",
@@ -24,6 +25,23 @@
     "status": "Status",
     "total": "Total",
     "issued": "Issued"
+  },
+  "filters": {
+    "status": {
+      "listboxLabel": "Filter by status",
+      "label": {
+        "all": "All statuses",
+        "draft": "Draft",
+        "sent": "Sent & viewed",
+        "accepted": "Accepted",
+        "declined": "Declined",
+        "history": "History"
+      }
+    }
+  },
+  "list": {
+    "outstanding": "{total} awaiting signature ({count, plural, one {# proposal} other {# proposals}})",
+    "sentDaysAgo": "sent {days}d ago"
   },
   "form": {
     "team": "Team",

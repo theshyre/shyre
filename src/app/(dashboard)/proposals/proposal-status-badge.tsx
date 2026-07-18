@@ -1,5 +1,6 @@
 import { useTranslations } from "next-intl";
 import {
+  Clock,
   FileEdit,
   Send,
   Eye,
@@ -15,6 +16,13 @@ interface Props {
   /** "default" = list-row pill; "prominent" = detail-header chip
    *  (larger type + icon), mirroring InvoiceStatusBadge's sizing. */
   size?: "default" | "prominent";
+  /** Read-time expiry cue (computed by the caller via
+   *  `isProposalExpired` — the DB status is untouched). When true on
+   *  an in-flight (sent/viewed) proposal, the badge renders as
+   *  "Expired" with a clock icon + warning tone instead of
+   *  Sent/Viewed. Ignored for any other status so a stale flag can
+   *  never mislabel a decided proposal. */
+  expired?: boolean;
 }
 
 /** Three-channel proposal status indicator (icon + text + color) per the
@@ -23,11 +31,16 @@ interface Props {
 export function ProposalStatusBadge({
   status,
   size = "default",
+  expired = false,
 }: Props): React.JSX.Element {
   const t = useTranslations("proposals.status");
-  const meta = STATUS_META[status] ?? STATUS_META.draft!;
+  const showExpired =
+    expired && (status === "sent" || status === "viewed");
+  const meta = showExpired
+    ? EXPIRED_META
+    : (STATUS_META[status] ?? STATUS_META.draft!);
   const Icon = meta.icon;
-  const label = t(status);
+  const label = showExpired ? t("expired") : t(status);
 
   const sizingClasses =
     size === "prominent"
@@ -51,6 +64,13 @@ interface StatusMeta {
   classes: string;
   strikeLabel?: boolean;
 }
+
+/** Read-time "offer lapsed" cue — warning tone (attention, not
+ *  failure) so it reads distinctly from declined's error tone. */
+const EXPIRED_META: StatusMeta = {
+  icon: Clock,
+  classes: "bg-warning-soft text-warning-text",
+};
 
 const STATUS_META: Record<string, StatusMeta> = {
   draft: { icon: FileEdit, classes: "bg-surface-inset text-content-muted" },

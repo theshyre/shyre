@@ -10,6 +10,7 @@ export async function generateMetadata(): Promise<Metadata> {
 }
 import { Users, MailWarning, Download } from "lucide-react";
 import { TeamFilter } from "@/components/TeamFilter";
+import { parseListPagination } from "@/lib/pagination/list-pagination";
 import { NewCustomerForm } from "./new-customer-form";
 import { CustomersTable } from "./customers-table";
 import { buttonSecondaryClass } from "@/lib/form-styles";
@@ -50,14 +51,23 @@ interface CustomerRow {
   logo_url: string | null;
 }
 
+interface SearchParams {
+  [key: string]: string | string[] | undefined;
+  org?: string;
+  bounced?: string;
+  limit?: string;
+}
+
 export default async function ClientsPage({
   searchParams,
 }: {
-  searchParams: Promise<{ org?: string; bounced?: string }>;
+  searchParams: Promise<SearchParams>;
 }): Promise<React.JSX.Element> {
   const supabase = await createClient();
   const teams = await getUserTeams();
-  const { org: selectedTeamId, bounced: bouncedFilter } = await searchParams;
+  const sp = await searchParams;
+  const { org: selectedTeamId, bounced: bouncedFilter } = sp;
+  const { limit } = parseListPagination(sp);
   const t = await getTranslations("customers");
   // ?bounced=1 narrows the list to customers Resend has flagged
   // (hard bounce or spam complaint). Surfaces who needs a fresh
@@ -137,6 +147,15 @@ export default async function ClientsPage({
     );
   }
 
+  // Load-more pagination (parseListPagination + PaginationFooter,
+  // same as /invoices) — applied AFTER the merge/filter step rather
+  // than as a DB .range() because (a) the org branch merges owned +
+  // shared rows client-side, so a per-query range would paginate the
+  // wrong universe, and (b) the bounced banner must count the FULL
+  // set regardless of the visible window.
+  const totalCount = customers.length;
+  customers = customers.slice(0, limit);
+
   // Share counts for all visible customers
   const customerIds = customers.map((c) => c.id);
   const shareCounts = new Map<string, number>();
@@ -189,6 +208,7 @@ export default async function ClientsPage({
 
       <CustomersTable
         customers={customers ?? []}
+        totalCount={totalCount}
         shareCounts={shareCounts}
         teamNameById={
           new Map(

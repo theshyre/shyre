@@ -107,6 +107,11 @@ interface Props {
   customers: CustomerOption[];
   contacts: ContactOption[];
   initial?: ProposalFormInitial;
+  /** Preselects the customer (and its team) on a NEW proposal —
+   *  the customer-detail "New proposal" entry point. The page has
+   *  already validated the id belongs to an authorable team.
+   *  Ignored when editing (`initial` wins). */
+  defaultCustomerId?: string | null;
 }
 
 /** Proposals are USD-only in v1 (DB default, no picker) — one constant so a
@@ -192,6 +197,7 @@ export function ProposalForm({
   customers,
   contacts,
   initial,
+  defaultCustomerId,
 }: Props): React.JSX.Element {
   const t = useTranslations("proposals.form");
   const tv = useTranslations("proposals.validation");
@@ -201,9 +207,21 @@ export function ProposalForm({
   const keyCounter = useRef(0);
   const nextKey = useCallback((): string => `new-${++keyCounter.current}`, []);
 
+  // Preselected customer (new-proposal-from-customer-page entry
+  // point). Also pins the team so the customer picker actually
+  // contains the preselected customer.
+  const defaultCustomer =
+    !initial && defaultCustomerId
+      ? (customers.find((c) => c.id === defaultCustomerId) ?? null)
+      : null;
+
   // ---- header state
-  const [teamId, setTeamId] = useState(initial?.team_id ?? teams[0]?.id ?? "");
-  const [customerId, setCustomerId] = useState(initial?.customer_id ?? "");
+  const [teamId, setTeamId] = useState(
+    initial?.team_id ?? defaultCustomer?.team_id ?? teams[0]?.id ?? "",
+  );
+  const [customerId, setCustomerId] = useState(
+    initial?.customer_id ?? defaultCustomer?.id ?? "",
+  );
   // Signer roster (ordered contact ids; entry 0 is the primary). Seeded from
   // an explicit roster, else the single signer_contact_id, else empty.
   const [signers, setSigners] = useState<string[]>(

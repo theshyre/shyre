@@ -310,5 +310,6 @@
     "notAdmin": "El historial del proyecto solo es visible para propietario / administrador.",
     "notFound": "Proyecto no encontrado.",
     "loadMore": "Cargar más"
-  }
+  },
+  "fromProposal": "De la propuesta"
 }

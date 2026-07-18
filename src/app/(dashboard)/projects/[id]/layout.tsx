@@ -1,9 +1,11 @@
 import type { ReactNode } from "react";
 import Link from "next/link";
 import { getTranslations } from "next-intl/server";
-import { FolderKanban } from "lucide-react";
+import { FolderKanban, FileSignature } from "lucide-react";
 import { formatDate } from "@theshyre/ui";
+import { createClient } from "@/lib/supabase/server";
 import { CustomerChip } from "@/components/CustomerChip";
+import { LinkPendingSpinner } from "@/components/LinkPendingSpinner";
 import { StatusBadge } from "@/components/StatusBadge";
 import { OverdueBadge } from "@/components/OverdueBadge";
 import { isProjectOverdue } from "@/lib/projects/lifecycle";
@@ -37,6 +39,25 @@ export default async function ProjectDetailLayout({
   const project = await loadProject(id);
   const t = await getTranslations("projects");
   const tc = await getTranslations("common");
+
+  // Provenance: a project created by converting an accepted proposal
+  // line item carries `converted_project_id` on that line — resolve
+  // the proposal number for the "From proposal PROP-…" back-link.
+  // RLS hides proposals from the member tier, so the line simply
+  // doesn't render for viewers who can't open the proposal anyway.
+  const supabase = await createClient();
+  const { data: sourceLine } = await supabase
+    .from("proposal_line_items")
+    .select("proposal_id, proposals(id, proposal_number)")
+    .eq("converted_project_id", id)
+    .limit(1)
+    .maybeSingle();
+  const sourceProposalRaw = sourceLine?.proposals ?? null;
+  const sourceProposal = (
+    Array.isArray(sourceProposalRaw)
+      ? (sourceProposalRaw[0] ?? null)
+      : sourceProposalRaw
+  ) as { id: string; proposal_number: string } | null;
 
   const projectName = (project.row.name as string | null) ?? t("untitled");
   const status = (project.row.status as string | null) ?? "active";
@@ -110,6 +131,23 @@ export default async function ProjectDetailLayout({
           {status === "completed" && closedAt && (
             <span className="text-caption text-content-muted">
               {t("closedOn", { date: formatDate(closedAt) })}
+            </span>
+          )}
+          {sourceProposal && (
+            <span className="inline-flex items-center gap-1.5 text-caption text-content-secondary">
+              <FileSignature
+                size={12}
+                aria-hidden="true"
+                className="text-content-muted"
+              />
+              <span>{t("fromProposal")}</span>
+              <Link
+                href={`/proposals/${sourceProposal.id}`}
+                className="inline-flex items-center gap-1 font-mono text-accent hover:underline"
+              >
+                {sourceProposal.proposal_number}
+                <LinkPendingSpinner />
+              </Link>
             </span>
           )}
         </div>

@@ -245,5 +245,6 @@
   "bulkMarkPaid": "{count, plural, one {Marcar 1 pagada} other {Marcar # pagadas}}",
   "bulkMarkPaidIneligibleHint": "Solo facturas enviadas o vencidas pueden marcarse pagadas en lote. Reduce la selección.",
   "bulkPaidToast": "{count, plural, one {1 factura marcada como pagada} other {# facturas marcadas como pagadas}}",
-  "bulkPaidFailed": "No se pudieron marcar las facturas como pagadas."
+  "bulkPaidFailed": "No se pudieron marcar las facturas como pagadas.",
+  "fromProposal": "De la propuesta"
 }

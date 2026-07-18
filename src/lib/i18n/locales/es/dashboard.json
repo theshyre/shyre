@@ -8,7 +8,10 @@
     "activeTimers": "Cronómetros Activos",
     "unbilledHours": "Horas No Facturadas",
     "totalClients": "Clientes",
-    "totalProjects": "Proyectos Activos"
+    "totalProjects": "Proyectos Activos",
+    "outstandingInvoices": "Facturas Pendientes",
+    "awaitingSignature": "Pendiente de Firma",
+    "awaitingSignatureCount": "{count, plural, one {# propuesta} other {# propuestas}}"
   },
   "recentActivity": "Actividad Reciente",
   "noRecentActivity": "No hay registros de tiempo recientes.",

@@ -1,9 +1,11 @@
 import type { Metadata } from "next";
+import Link from "next/link";
 import { createClient } from "@/lib/supabase/server";
 import { getTranslations } from "next-intl/server";
 import { notFound } from "next/navigation";
-import { FileText, Download, Receipt } from "lucide-react";
+import { FileText, FileSignature, Download, Receipt } from "lucide-react";
 import { Tooltip } from "@/components/Tooltip";
+import { LinkPendingSpinner } from "@/components/LinkPendingSpinner";
 import { InvoiceActivity } from "./invoice-activity";
 
 export async function generateMetadata({
@@ -81,6 +83,20 @@ export default async function InvoiceDetailPage({
     .single();
 
   if (!invoice) notFound();
+
+  // Provenance: an invoice raised from an accepted proposal carries
+  // proposal_id — resolve the human-readable number for the
+  // "From proposal PROP-…" cross-link under the header. RLS may hide
+  // the proposal from this viewer (member tier), in which case the
+  // line simply doesn't render.
+  const proposalId = (invoice.proposal_id as string | null) ?? null;
+  const { data: sourceProposal } = proposalId
+    ? await supabase
+        .from("proposals")
+        .select("id, proposal_number")
+        .eq("id", proposalId)
+        .maybeSingle()
+    : { data: null };
 
   // Line items, history, payments, and entry-authors-on-this-invoice
   // are independent reads — fire them in parallel rather than
@@ -439,6 +455,25 @@ export default async function InvoiceDetailPage({
           <InvoiceStatusBadge status={status} size="prominent" />
         </div>
       ) : null}
+
+      {/* Provenance line — this invoice was raised from a proposal. */}
+      {sourceProposal && (
+        <p className="mt-2 inline-flex items-center gap-1.5 text-body text-content-secondary">
+          <FileSignature
+            size={14}
+            aria-hidden="true"
+            className="text-content-muted"
+          />
+          <span>{t("fromProposal")}</span>
+          <Link
+            href={`/proposals/${sourceProposal.id as string}`}
+            className="inline-flex items-center gap-1 font-mono text-accent hover:underline"
+          >
+            {sourceProposal.proposal_number as string}
+            <LinkPendingSpinner />
+          </Link>
+        </p>
+      )}
 
       {/* Invoice details */}
       <div className="mt-6 grid gap-6 sm:grid-cols-2">

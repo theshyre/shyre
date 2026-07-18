@@ -245,5 +245,6 @@
   "bulkMarkPaid": "{count, plural, one {Mark 1 paid} other {Mark # paid}}",
   "bulkMarkPaidIneligibleHint": "Only sent or overdue invoices can be marked paid in bulk. Narrow the selection.",
   "bulkPaidToast": "{count, plural, one {1 invoice marked paid} other {# invoices marked paid}}",
-  "bulkPaidFailed": "Couldn't mark invoices paid."
+  "bulkPaidFailed": "Couldn't mark invoices paid.",
+  "fromProposal": "From proposal"
 }
