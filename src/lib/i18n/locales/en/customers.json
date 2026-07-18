@@ -65,6 +65,8 @@
   },
   "emptyTitle": "No customers yet",
   "emptyDescription": "Add your first customer to start tracking work and sending invoices.",
+  "archivedEmptyTitle": "No archived customers",
+  "archivedEmptyDescription": "Archiving hides a customer everywhere — lists, pickers, reports. Use the trash icon on the customer list to archive one; anyone archived shows up here with a Restore button. For a dormant client you still want visible, use Mark inactive instead.",
   "filter": {
     "all": "All",
     "active": "Active",

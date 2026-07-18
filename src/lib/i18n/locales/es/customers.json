@@ -65,6 +65,8 @@
   },
   "emptyTitle": "Aún no hay clientes",
   "emptyDescription": "Añade tu primer cliente para empezar a registrar trabajo y enviar facturas.",
+  "archivedEmptyTitle": "No hay clientes archivados",
+  "archivedEmptyDescription": "Archivar oculta al cliente en todas partes: listas, selectores e informes. Usa el icono de papelera en la lista de clientes para archivar; los clientes archivados aparecen aquí con un botón Restaurar. Para un cliente inactivo que quieras seguir viendo, usa Marcar inactivo.",
   "filter": {
     "all": "Todos",
     "active": "Activos",
