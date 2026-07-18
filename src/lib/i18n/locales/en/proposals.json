@@ -216,7 +216,8 @@
     "sigSignature": "Signature",
     "sigNameTitle": "Name / Title",
     "sigDate": "Date",
-    "loading": "Loading proposal…"
+    "loading": "Loading proposal…",
+    "gateDecidedViewable": "A decision has already been recorded for this proposal. Verify it's you to view the signed record."
   },
   "activity": {
     "heading": "Activity",

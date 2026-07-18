@@ -562,7 +562,10 @@ export async function issueSignOtp(
   const tokenResult = await findValidToken(admin, rawToken);
   if (!tokenResult.ok) return tokenResult;
   const token = tokenResult.value;
-  if (token.consumed_at) return { ok: false, reason: "consumed" };
+  // Consumed (decided) links may still request codes: per the 2026-07-18
+  // product decision, a signer can always RE-VERIFY TO RE-VIEW the record
+  // they signed. Signing stays locked — recordSignDecision refuses consumed
+  // tokens unconditionally.
 
   // Cooldown: a still-fresh code issued < 60s ago blocks a re-issue.
   if (token.otp_expires_at) {
@@ -621,7 +624,7 @@ export async function verifySignOtp(
   const tokenResult = await findValidToken(admin, rawToken);
   if (!tokenResult.ok) return tokenResult;
   const token = tokenResult.value;
-  if (token.consumed_at) return { ok: false, reason: "consumed" };
+  // Consumed links verify too — view-session minting only (see issueSignOtp).
   if (!token.otp_code_hash || !token.otp_expires_at) {
     return { ok: false, reason: "otp_required" };
   }
