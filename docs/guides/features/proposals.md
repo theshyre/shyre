@@ -167,6 +167,19 @@ On the signing page the client:
 The link expires after 30 days, works once (a recorded decision consumes it),
 and requires `NEXT_PUBLIC_APP_URL` to be configured.
 
+### Resending a lost link
+
+**Resend link** on a sent proposal's detail page re-issues the outstanding
+sign link(s): every earlier link is revoked first, each pending signer gets a
+fresh email, and the rotation is logged in the activity trail. Use it when the
+client lost the email or it landed in spam — no need to version the proposal.
+
+### You're notified of progress
+
+You get an email when your proposal is **first viewed** and when a client
+**accepts or declines** — no more polling the dashboard. The proposals list
+also live-refreshes via the team broadcast when a decision lands.
+
 ## Multiple signers
 
 A proposal can require more than one person to sign. On the form, add each

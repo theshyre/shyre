@@ -3,6 +3,7 @@ import "server-only";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { logError } from "@/lib/logger";
 import { sendProposalEmail } from "@/lib/messaging/send-proposal";
+import { escapeHtml } from "@/lib/messaging/escape-html";
 import {
   sha256Hex,
   generateOtpCode,
@@ -218,6 +219,55 @@ async function insertEvent(
   }
 }
 
+/**
+ * Fire-and-forget owner notification (batch 4a): the author is emailed when
+ * their proposal is first viewed and when a decision lands — previously the
+ * only way to learn a deal signed was to poll the dashboard. Failures are
+ * logged, never surfaced to the signer's flow, and the email carries no
+ * pricing (subject lines leak into lock screens / mail logs).
+ */
+async function notifyOwner(
+  admin: Admin,
+  token: TokenRow,
+  proposal: { user_id?: unknown; proposal_number?: unknown },
+  event: "viewed" | "accepted" | "declined",
+  actorLabel: string,
+): Promise<void> {
+  try {
+    const ownerId = (proposal.user_id as string | null) ?? null;
+    if (!ownerId) return;
+    const { data: u } = await admin.auth.admin.getUserById(ownerId);
+    const email = u?.user?.email;
+    if (!email) return;
+    const number = (proposal.proposal_number as string | null) ?? "";
+    const base = process.env.NEXT_PUBLIC_APP_URL ?? "";
+    const url = `${base}/proposals/${token.proposal_id}`;
+    const verb =
+      event === "viewed"
+        ? "was viewed"
+        : event === "accepted"
+          ? "was accepted"
+          : "was declined";
+    await sendProposalEmail(admin, {
+      teamId: token.team_id,
+      userId: null,
+      proposalId: token.proposal_id,
+      kind: "proposal",
+      toEmail: email,
+      subject: `Proposal ${number} ${verb}`,
+      bodyHtml: `<p>Proposal <strong>${number}</strong> ${verb} by ${escapeHtml(actorLabel)}.</p><p><a href="${url}">Open the proposal</a></p>`,
+      bodyText: `Proposal ${number} ${verb} by ${actorLabel}.
+
+${url}`,
+    });
+  } catch (err) {
+    logError(err, {
+      teamId: token.team_id,
+      action: "signService.notifyOwner",
+    });
+  }
+}
+
 interface LineItemRow {
   id: string;
   parent_line_item_id: string | null;
@@ -367,7 +417,7 @@ export async function loadSignBundle(
   const { data: proposal } = await admin
     .from("proposals")
     .select(
-      "id, team_id, proposal_number, title, status, issued_date, valid_until, payment_terms_label, deposit_type, deposit_value, warranty_days, terms_notes, currency, accepted_total, signing_mode, overview_markdown, sign_theme, customers(name, accent_color, logo_url)",
+      "id, team_id, user_id, proposal_number, title, status, issued_date, valid_until, payment_terms_label, deposit_type, deposit_value, warranty_days, terms_notes, currency, accepted_total, signing_mode, overview_markdown, sign_theme, customers(name, accent_color, logo_url)",
     )
     .eq("id", token.proposal_id)
     .single();
@@ -381,6 +431,13 @@ export async function loadSignBundle(
       .update({ first_viewed_at: new Date().toISOString() })
       .eq("id", token.id);
     await insertEvent(admin, token, "viewed");
+    await notifyOwner(
+      admin,
+      token,
+      proposal,
+      "viewed",
+      token.signer_name ?? token.signer_email,
+    );
     if (
       proposal.status === "sent" &&
       isValidProposalStatusTransition("sent", "viewed")
@@ -666,7 +723,7 @@ export async function recordSignDecision(
   const { data: proposal } = await admin
     .from("proposals")
     .select(
-      "id, status, proposal_number, title, payment_terms_label, deposit_type, deposit_value, warranty_days, terms_notes, currency, valid_until, signing_mode",
+      "id, user_id, status, proposal_number, title, payment_terms_label, deposit_type, deposit_value, warranty_days, terms_notes, currency, valid_until, signing_mode",
     )
     .eq("id", token.proposal_id)
     .single();
@@ -874,6 +931,7 @@ export async function recordSignDecision(
     accepted_total: acceptedTotal,
     selected_count: input.decision === "accepted" ? selected.length : 0,
   });
+  await notifyOwner(admin, token, proposal, input.decision, input.signerName);
 
   return { ok: true, value: { decision: input.decision } };
 }
