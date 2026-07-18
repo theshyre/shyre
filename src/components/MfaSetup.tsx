@@ -32,6 +32,11 @@ type MfaStep = "idle" | "verifying" | "show-backup-codes" | "enabled";
 export function MfaSetup(): React.JSX.Element {
   const [step, setStep] = useState<MfaStep>("idle");
   const [qrUri, setQrUri] = useState<string | null>(null);
+  // Raw TOTP secret for the "can't scan?" path — a QR-only enrollment
+  // locks out blind users, screen-magnifier users, and anyone whose
+  // authenticator lives on the same device (WCAG 1.1.1).
+  const [totpSecret, setTotpSecret] = useState<string | null>(null);
+  const [secretCopied, setSecretCopied] = useState(false);
   const [factorId, setFactorId] = useState<string | null>(null);
   const [code, setCode] = useState("");
   const [error, setError] = useState<string | null>(null);
@@ -106,6 +111,7 @@ export function MfaSetup(): React.JSX.Element {
         issuer: "malcom.io",
       });
       setQrUri(rewrittenUri);
+      setTotpSecret(data.totp.secret ?? null);
       setFactorId(data.id);
       setStep("verifying");
     }
@@ -309,14 +315,14 @@ export function MfaSetup(): React.JSX.Element {
               className={buttonPrimaryClass}
             >
               <Download size={16} />
-              Download
+              {t("download")}
             </button>
             <button
               onClick={handleCopyCodes}
               className={buttonSecondaryClass}
             >
               <Copy size={16} />
-              {copied ? "Copied!" : "Copy"}
+              {copied ? t("copied") : t("copy")}
             </button>
             <button
               onClick={() => {
@@ -384,6 +390,30 @@ export function MfaSetup(): React.JSX.Element {
           <div className="rounded-lg bg-white p-3">
             <QRCodeSVG value={qrUri} size={200} />
           </div>
+          {totpSecret && (
+            <div className="w-full">
+              <p className="text-caption text-content-secondary text-center">
+                {t("secretLabel")}
+              </p>
+              <div className="mt-1 flex items-center justify-center gap-2">
+                <code className="select-all break-all rounded-md bg-surface-inset px-2 py-1 font-mono text-body text-content">
+                  {totpSecret}
+                </code>
+                <button
+                  type="button"
+                  className={buttonSecondaryClass}
+                  onClick={async () => {
+                    await navigator.clipboard.writeText(totpSecret);
+                    setSecretCopied(true);
+                    setTimeout(() => setSecretCopied(false), 2000);
+                  }}
+                >
+                  <Copy size={14} />
+                  {secretCopied ? t("copied") : t("copySecret")}
+                </button>
+              </div>
+            </div>
+          )}
         </div>
 
         <div>

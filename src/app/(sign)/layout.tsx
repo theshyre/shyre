@@ -7,7 +7,8 @@ import type { ReactNode } from "react";
  * UI it inherits its type scale from (dashboard body text is ~13px, right for
  * a data-dense app, too small for a proposal a client reads and signs). Every
  * sign-page element uses the rem-based semantic type tokens, and layout
- * dimensions are px per CLAUDE.md, so bumping the ROOT font-size here scales
+ * dimensions are px per CLAUDE.md, so bumping the ROOT font-size here (in %, so the visitor's own
+ * browser default-font-size preference still compounds — WCAG 1.4.4) scales
  * the whole document's TYPE up uniformly while the 720px reading column stays
  * put — exactly "make the text bigger, not the box."
  *
@@ -30,7 +31,7 @@ export default function SignLayout({
     <>
       <style
         dangerouslySetInnerHTML={{
-          __html: "html,html[data-text-size]{font-size:20px}",
+          __html: "html,html[data-text-size]{font-size:125%}",
         }}
       />
       {children}

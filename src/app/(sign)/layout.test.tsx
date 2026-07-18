@@ -18,7 +18,9 @@ describe("SignLayout", () => {
     expect(style).not.toBeNull();
     // Bumps the root font-size so the rem-based type tokens scale uniformly,
     // and covers both the no-attribute and stored-preference cases.
-    expect(style?.innerHTML).toContain("font-size:20px");
+    // %-based so the visitor's browser default-font-size preference
+    // still applies (WCAG 1.4.4) — 125% of the default 16px = 20px.
+    expect(style?.innerHTML).toContain("font-size:125%");
     expect(style?.innerHTML).toContain("html[data-text-size]");
   });
 });

@@ -34,7 +34,7 @@ export function FieldError({
       id={id}
       role="alert"
       aria-live="assertive"
-      className="mt-1 flex items-center gap-1 text-caption text-error"
+      className="mt-1 flex items-center gap-1 text-caption text-error-text"
     >
       <AlertCircle size={12} className="shrink-0" />
       {error}

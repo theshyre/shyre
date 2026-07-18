@@ -87,7 +87,11 @@ export function Modal({
     if (!open || !contentRef.current) return;
     const root = contentRef.current;
     const heading = titleId ? root.querySelector<HTMLElement>(`#${CSS.escape(titleId)}`) : null;
-    if (heading && heading.tabIndex >= 0) {
+    // hasAttribute, not tabIndex >= 0: focusable headings conventionally
+    // carry tabIndex={-1} (focusable programmatically, not in tab order),
+    // and the DOM property is -1 by default anyway — the old >= 0 check
+    // made this branch dead code.
+    if (heading && heading.hasAttribute("tabindex")) {
       heading.focus();
       return;
     }
