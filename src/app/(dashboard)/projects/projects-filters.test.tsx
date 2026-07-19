@@ -64,6 +64,14 @@ describe("StatusFilter", () => {
     fireEvent.click(screen.getByRole("option", { name: "Active" }));
     expect(mockPush).toHaveBeenCalledWith("/projects?q=x");
   });
+
+  it("resets ?limit= on change (list-pages.md rule 1)", () => {
+    mockSearchParams = new URLSearchParams("limit=200&org=t-1");
+    renderWithIntl(<StatusFilter selected="active" />);
+    fireEvent.click(screen.getByRole("button", { name: "Status: Active" }));
+    fireEvent.click(screen.getByRole("option", { name: "Paused" }));
+    expect(mockPush).toHaveBeenCalledWith("/projects?org=t-1&status=paused");
+  });
 });
 
 describe("CustomerFilter", () => {
@@ -131,6 +139,18 @@ describe("CustomerFilter", () => {
     fireEvent.click(screen.getByRole("option", { name: "All customers" }));
     expect(mockPush).toHaveBeenCalledWith("/projects?");
   });
+
+  it("resets ?limit= on change (list-pages.md rule 1)", () => {
+    mockSearchParams = new URLSearchParams("limit=200");
+    renderWithIntl(
+      <CustomerFilter selection={{ kind: "all" }} customers={customers} />,
+    );
+    fireEvent.click(
+      screen.getByRole("button", { name: "Customer: All customers" }),
+    );
+    fireEvent.click(screen.getByRole("option", { name: "Globex" }));
+    expect(mockPush).toHaveBeenCalledWith("/projects?customer=c-2");
+  });
 });
 
 describe("ProjectSearchInput", () => {
@@ -161,6 +181,20 @@ describe("ProjectSearchInput", () => {
     fireEvent.keyDown(input, { key: "Escape" });
     expect(mockPush).toHaveBeenCalledWith("/projects?");
   });
+
+  it("resets ?limit= on commit (list-pages.md rule 1)", () => {
+    vi.useFakeTimers();
+    mockSearchParams = new URLSearchParams("limit=200");
+    renderWithIntl(<ProjectSearchInput initialQuery="" />);
+    fireEvent.change(
+      screen.getByRole("searchbox", { name: "Search projects by name" }),
+      { target: { value: "atlas" } },
+    );
+    act(() => {
+      vi.advanceTimersByTime(300);
+    });
+    expect(mockPush).toHaveBeenCalledWith("/projects?q=atlas");
+  });
 });
 
 describe("ProjectFiltersClearHint", () => {
@@ -169,9 +203,9 @@ describe("ProjectFiltersClearHint", () => {
     expect(container.firstChild).toBeNull();
   });
 
-  it("clears status, customer, and q in one push", () => {
+  it("clears status, customer, q, and limit in one push", () => {
     mockSearchParams = new URLSearchParams(
-      "status=archived&customer=c-1&q=x&org=t-1",
+      "status=archived&customer=c-1&q=x&org=t-1&limit=200",
     );
     renderWithIntl(<ProjectFiltersClearHint active />);
     fireEvent.click(screen.getByRole("button", { name: "Clear filters" }));
