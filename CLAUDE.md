@@ -82,6 +82,10 @@ Apply to EVERY form and button. Highlights:
 - Buttons use shared classes, look like their state, never silently succeed/fail.
 - Destructive flows are tiered (inline `[Confirm][Cancel]` → typed-`delete` → typed-name) and ALWAYS pair with soft-delete + Undo toast where data could be wanted back. `/trash` exists for post-toast recovery.
 
+## List pages — MANDATORY → `docs/reference/list-pages.md`
+
+One grammar for every list page: chip filters (instant-apply, URL-driven, no Apply button), primary action top-right (+ Export CSV beside it), `checkboxClass` on every selection checkbox (bare `<input type="checkbox">` banned), bulk-strip buttons via `bulkStripButtonClass`/`bulkStripDangerButtonClass` (no soft-fill), table chrome from `table-styles.ts`, `<FilterChip>`/`<ListSearchInput>` primitives. Read it before touching any list surface.
+
 ## Multi-select tables — MANDATORY → `docs/reference/multi-select-tables.md`
 
 Two patterns by column count:

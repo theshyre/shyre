@@ -10,9 +10,16 @@ import {
   buttonDangerClass,
   buttonGhostClass,
   kbdClass,
+  checkboxClass,
 } from "./form-styles";
 
 describe("form-styles", () => {
+  it("checkboxClass is the canonical 16px tokened checkbox (list-pages.md rule 4)", () => {
+    expect(checkboxClass).toContain("h-4 w-4");
+    expect(checkboxClass).toContain("focus:ring-focus-ring");
+    expect(checkboxClass).toContain("border-edge");
+  });
+
   describe("inputClass", () => {
     it("includes border and background tokens", () => {
       expect(inputClass).toContain("border-edge");
