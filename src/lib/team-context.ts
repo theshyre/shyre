@@ -1,4 +1,5 @@
 import { createClient } from "@/lib/supabase/server";
+import { AppError } from "@/lib/errors";
 import { redirect } from "next/navigation";
 import { cache } from "react";
 import { isTeamAdmin, type TeamAdminRole } from "@/lib/team-roles";
@@ -183,7 +184,7 @@ export async function validateBusinessAccess(
   const { data, error } = await supabase.rpc("user_business_role", {
     business_id: businessId,
   });
-  if (error) throw error;
+  if (error) throw AppError.fromSupabase(error);
 
   const role = data as "owner" | "admin" | "member" | null;
   if (!role) {

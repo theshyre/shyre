@@ -1,6 +1,7 @@
 "use server";
 
 import { runSafeAction } from "@/lib/safe-action";
+import { AppError } from "@/lib/errors";
 import { revalidatePath } from "next/cache";
 
 export async function grantPermissionAction(
@@ -44,7 +45,7 @@ export async function grantPermissionAction(
         p_principal_id: finalId,
         p_level: level,
       });
-      if (error) throw new Error(error.message);
+      if (error) throw AppError.fromSupabase(error);
 
       revalidatePath(`/customers/${customerId}`);
     },
@@ -72,7 +73,7 @@ export async function revokePermissionAction(
         "user_customer_permission",
         { p_customer_id: customerId },
       );
-      if (roleErr) throw new Error(roleErr.message);
+      if (roleErr) throw AppError.fromSupabase(roleErr);
       if (roleRow !== "admin") {
         throw new Error(
           "Only customer admins can revoke permissions on this customer.",
@@ -83,7 +84,7 @@ export async function revokePermissionAction(
         .from("customer_permissions")
         .delete()
         .eq("id", permissionId);
-      if (error) throw new Error(error.message);
+      if (error) throw AppError.fromSupabase(error);
 
       revalidatePath(`/customers/${customerId}`);
     },

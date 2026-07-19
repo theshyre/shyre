@@ -1,7 +1,7 @@
 "use server";
 
 import { runSafeAction } from "@/lib/safe-action";
-import { assertSupabaseOk } from "@/lib/errors";
+import { AppError, assertSupabaseOk } from "@/lib/errors";
 import { validateTeamAccess } from "@/lib/team-context";
 import { revalidatePath } from "next/cache";
 
@@ -51,7 +51,7 @@ export async function cloneCategorySetAction(formData: FormData): Promise<void> 
       .from("categories")
       .select("name, color, sort_order")
       .eq("category_set_id", sourceId);
-    if (catsErr) throw new Error(catsErr.message);
+    if (catsErr) throw AppError.fromSupabase(catsErr);
 
     const { data: created, error: insertErr } = await supabase
       .from("category_sets")
@@ -64,7 +64,8 @@ export async function cloneCategorySetAction(formData: FormData): Promise<void> 
       })
       .select("id")
       .single();
-    if (insertErr || !created) throw new Error(insertErr?.message ?? "Insert failed");
+    if (insertErr) throw AppError.fromSupabase(insertErr);
+    if (!created) throw new Error("Insert failed");
 
     if (cats && cats.length > 0) {
       assertSupabaseOk(

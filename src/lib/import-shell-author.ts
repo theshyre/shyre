@@ -1,5 +1,6 @@
 import "server-only";
 import type { SupabaseClient } from "@supabase/supabase-js";
+import { AppError } from "@/lib/errors";
 
 /** A shell account is created for the duration of an import to anchor
  *  time entries from a Harvest user who won't sign in to Shyre. The
@@ -152,7 +153,7 @@ export async function materializeHarvestShellAccount(
     .update({ display_name: args.displayName, is_shell: true })
     .eq("user_id", userId);
   if (profileErr) {
-    throw new Error(`user_profiles update failed: ${profileErr.message}`);
+    throw AppError.fromSupabase(profileErr);
   }
 
   const { error: memberErr } = await admin.from("team_members").insert({
@@ -161,7 +162,7 @@ export async function materializeHarvestShellAccount(
     role: "member",
   });
   if (memberErr) {
-    throw new Error(`team_members insert failed: ${memberErr.message}`);
+    throw AppError.fromSupabase(memberErr);
   }
 
   return userId;

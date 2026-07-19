@@ -22,7 +22,7 @@ vi.mock("next/cache", () => ({
 
 const state: {
   rpcCalls: { name: string; args: unknown }[];
-  rpcError: { message: string } | null;
+  rpcError: { message: string; code?: string } | null;
   /** Role returned by the user_customer_permission RPC pre-flight
    *  check on the destructive paths (remove / update). Defaults to
    *  "admin" so existing happy-path tests pass. */
@@ -157,6 +157,39 @@ describe("addCustomerShareAction", () => {
         fd({ customer_id: "c1", team_id: "t1" }),
       ),
     ).rejects.toThrow(/permission denied/);
+  });
+
+  // SAL-052: raw Postgres text (constraint names, syntax errors) must
+  // never reach the client shape, while the RPC's deliberate RAISE
+  // EXCEPTION refusals (P0001) must keep surfacing verbatim.
+  it("sanitizes raw Postgres text — the client shape carries only the i18n key", async () => {
+    state.rpcError = {
+      message: 'duplicate key value violates unique constraint "uq_customer_shares"',
+      code: "23505",
+    };
+    try {
+      await addCustomerShareAction(fd({ customer_id: "c1", team_id: "t1" }));
+      expect.unreachable("should have thrown");
+    } catch (err) {
+      const safe = (err as import("@/lib/errors").AppError).toUserSafe();
+      expect(safe.userMessageKey).toBe("errors.conflict");
+      expect(safe.message).toBeUndefined();
+      expect(JSON.stringify(safe)).not.toContain("uq_customer_shares");
+    }
+  });
+
+  it("still forwards the RPC's deliberate P0001 refusal message to the client shape", async () => {
+    state.rpcError = {
+      message: "only customer admins can add shares",
+      code: "P0001",
+    };
+    try {
+      await addCustomerShareAction(fd({ customer_id: "c1", team_id: "t1" }));
+      expect.unreachable("should have thrown");
+    } catch (err) {
+      const safe = (err as import("@/lib/errors").AppError).toUserSafe();
+      expect(safe.message).toBe("only customer admins can add shares");
+    }
   });
 
   it("revalidates the customer page on success", async () => {

@@ -36,7 +36,7 @@ async function loadCustomerForAdmin(
     .select("id, team_id")
     .eq("id", customerId)
     .maybeSingle();
-  if (error) throw error;
+  if (error) throw AppError.fromSupabase(error);
   if (!data) throw AppError.notFound("Customer");
 
   const { role } = await validateTeamAccess(data.team_id as string);
@@ -108,7 +108,7 @@ export async function updateCustomerContactAction(
         .select("id, customer_id, team_id")
         .eq("id", contactId)
         .maybeSingle();
-      if (loadErr) throw loadErr;
+      if (loadErr) throw AppError.fromSupabase(loadErr);
       if (!existing) throw AppError.notFound("Contact");
 
       await loadCustomerForAdmin(
@@ -164,7 +164,7 @@ export async function deleteCustomerContactAction(
         .select("id, customer_id, team_id")
         .eq("id", contactId)
         .maybeSingle();
-      if (loadErr) throw loadErr;
+      if (loadErr) throw AppError.fromSupabase(loadErr);
       if (!existing) throw AppError.notFound("Contact");
 
       await loadCustomerForAdmin(
@@ -199,7 +199,7 @@ export async function setInvoiceRecipientAction(
         .select("id, customer_id, team_id, is_invoice_recipient")
         .eq("id", contactId)
         .maybeSingle();
-      if (loadErr) throw loadErr;
+      if (loadErr) throw AppError.fromSupabase(loadErr);
       if (!existing) throw AppError.notFound("Contact");
 
       await loadCustomerForAdmin(

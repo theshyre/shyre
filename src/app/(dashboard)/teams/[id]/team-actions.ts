@@ -1,7 +1,7 @@
 "use server";
 
 import { runSafeAction } from "@/lib/safe-action";
-import { assertSupabaseOk } from "@/lib/errors";
+import { AppError, assertSupabaseOk } from "@/lib/errors";
 import { isTeamAdmin, validateTeamAccess } from "@/lib/team-context";
 import { revalidatePath } from "next/cache";
 
@@ -173,7 +173,7 @@ export async function transferOwnershipAction(
         p_team_id: teamId,
         p_new_owner_user_id: newOwnerUserId,
       });
-      if (error) throw new Error(error.message);
+      if (error) throw AppError.fromSupabase(error);
 
       revalidatePath(`/teams/${teamId}`);
       revalidatePath(`/teams`);
@@ -213,7 +213,7 @@ export async function updateMemberRoleAction(
         p_member_id: memberId,
         p_new_role: newRole,
       });
-      if (error) throw new Error(error.message);
+      if (error) throw AppError.fromSupabase(error);
 
       revalidatePath(`/teams/${teamId}`);
     },

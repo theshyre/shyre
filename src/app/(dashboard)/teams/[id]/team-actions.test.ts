@@ -29,7 +29,7 @@ vi.mock("next/cache", () => ({
 
 const state: {
   rpcCalls: { name: string; args: unknown }[];
-  rpcError: { message: string } | null;
+  rpcError: { message: string; code?: string } | null;
   /** What `.from("user_profiles").select("display_name").eq("user_id",
    *  uid).maybeSingle()` returns when transferOwnershipAction looks
    *  up the target's name for the typed-confirm comparison. */
@@ -319,5 +319,52 @@ describe("updateMemberRoleAction", () => {
         }),
       ),
     ).rejects.toThrow(/your own role/);
+  });
+
+  // SAL-052: the role-transition RPCs raise deliberate refusals with
+  // ERRCODE 22023 — those must keep reaching the client verbatim,
+  // while raw Postgres text (constraint names) must not.
+  it("forwards the RPC's 22023 refusal verbatim through the sanctioned CONFLICT path", async () => {
+    mockValidateTeamAccess.mockResolvedValue({
+      userId: fakeUserId,
+      role: "owner",
+    });
+    state.rpcError = {
+      message: "update_team_member_role: member does not belong to this team",
+      code: "22023",
+    };
+    try {
+      await updateMemberRoleAction(
+        fd({ team_id: "team-1", member_id: "m-1", new_role: "member" }),
+      );
+      expect.unreachable("should have thrown");
+    } catch (err) {
+      const safe = (err as import("@/lib/errors").AppError).toUserSafe();
+      expect(safe.message).toBe(
+        "update_team_member_role: member does not belong to this team",
+      );
+    }
+  });
+
+  it("sanitizes raw Postgres text from the RPC — client shape carries only the i18n key", async () => {
+    mockValidateTeamAccess.mockResolvedValue({
+      userId: fakeUserId,
+      role: "owner",
+    });
+    state.rpcError = {
+      message: 'duplicate key value violates unique constraint "team_members_pkey"',
+      code: "23505",
+    };
+    try {
+      await updateMemberRoleAction(
+        fd({ team_id: "team-1", member_id: "m-1", new_role: "member" }),
+      );
+      expect.unreachable("should have thrown");
+    } catch (err) {
+      const safe = (err as import("@/lib/errors").AppError).toUserSafe();
+      expect(safe.userMessageKey).toBe("errors.conflict");
+      expect(safe.message).toBeUndefined();
+      expect(JSON.stringify(safe)).not.toContain("team_members_pkey");
+    }
   });
 });

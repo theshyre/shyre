@@ -1,5 +1,6 @@
 import "server-only";
 import { createCipheriv, createDecipheriv, randomBytes } from "node:crypto";
+import { AppError } from "@/lib/errors";
 import type { SupabaseClient } from "@supabase/supabase-js";
 
 /**
@@ -304,7 +305,9 @@ export async function getOrCreateTeamDek(
       { onConflict: "team_id" },
     );
   if (error) {
-    throw new Error(`Failed to persist team DEK: ${error.message}`);
+    // Classify instead of interpolating raw PostgREST text into a
+    // plain Error that email-settings actions would forward (SAL-052).
+    throw AppError.fromSupabase(error);
   }
   return dek;
 }

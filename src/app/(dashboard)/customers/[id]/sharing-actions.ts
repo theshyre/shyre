@@ -1,6 +1,7 @@
 "use server";
 
 import { runSafeAction } from "@/lib/safe-action";
+import { AppError } from "@/lib/errors";
 import { revalidatePath } from "next/cache";
 import type { SupabaseClient } from "@supabase/supabase-js";
 
@@ -14,7 +15,7 @@ async function assertCustomerAdmin(
   const { data, error } = await supabase.rpc("user_customer_permission", {
     p_customer_id: customerId,
   });
-  if (error) throw new Error(error.message);
+  if (error) throw AppError.fromSupabase(error);
   if (data !== "admin") {
     throw new Error(
       "Only customer admins can manage sharing on this customer.",
@@ -38,7 +39,7 @@ export async function addCustomerShareAction(formData: FormData): Promise<void> 
         p_team_id: organizationId,
         p_can_see_others: canSeeOthers,
       });
-      if (error) throw new Error(error.message);
+      if (error) throw AppError.fromSupabase(error);
 
       revalidatePath(`/customers/${customerId}`);
     },
@@ -63,7 +64,7 @@ export async function removeCustomerShareAction(
         .from("customer_shares")
         .delete()
         .eq("id", shareId);
-      if (error) throw new Error(error.message);
+      if (error) throw AppError.fromSupabase(error);
 
       revalidatePath(`/customers/${customerId}`);
     },
@@ -89,7 +90,7 @@ export async function updateShareVisibilityAction(
         .from("customer_shares")
         .update({ can_see_others_entries: canSeeOthers })
         .eq("id", shareId);
-      if (error) throw new Error(error.message);
+      if (error) throw AppError.fromSupabase(error);
 
       revalidatePath(`/customers/${customerId}`);
     },

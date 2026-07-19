@@ -2075,6 +2075,51 @@ describe("editInvoicePaidDateAction", () => {
       ),
     ).rejects.toThrow(/2 payments dated/);
   });
+
+  // SAL-052: the RPC error now classifies through AppError.fromSupabase.
+  // The RPC's own RAISE messages (SQLSTATE 23514 = check_violation) must
+  // keep reaching the client shape; raw Postgres text must not.
+  it("forwards the RPC's 23514 RAISE message to the client shape", async () => {
+    state.rpcError = {
+      message: "Paid date (2026-05-04) cannot precede the issued date (2026-05-10).",
+      code: "23514",
+    };
+    try {
+      await editInvoicePaidDateAction(
+        fd({
+          invoice_id: "inv-1",
+          new_paid_on: "2026-05-04",
+          reason: "Correcting to the actual bank-clear date",
+        }),
+      );
+      expect.unreachable("should have thrown");
+    } catch (err) {
+      const safe = (err as import("@/lib/errors").AppError).toUserSafe();
+      expect(safe.message).toContain("cannot precede the issued date");
+    }
+  });
+
+  it("sanitizes raw Postgres text from the RPC — only the i18n key reaches the client shape", async () => {
+    state.rpcError = {
+      message: 'invalid input syntax for type uuid: "attacker-string"',
+      code: "22P02",
+    };
+    try {
+      await editInvoicePaidDateAction(
+        fd({
+          invoice_id: "inv-1",
+          new_paid_on: "2026-05-04",
+          reason: "Valid ten-plus character correction reason",
+        }),
+      );
+      expect.unreachable("should have thrown");
+    } catch (err) {
+      const safe = (err as import("@/lib/errors").AppError).toUserSafe();
+      expect(safe.userMessageKey).toBe("errors.database");
+      expect(safe.message).toBeUndefined();
+      expect(JSON.stringify(safe)).not.toContain("attacker-string");
+    }
+  });
 });
 
 describe("createInvoiceAction — phase 2 expense inclusion", () => {

@@ -62,6 +62,13 @@ export class AppError extends Error {
   readonly details: Record<string, unknown>;
   readonly severity: ErrorSeverity;
   readonly cause?: unknown;
+  /** When false, `toUserSafe()` withholds the literal message even for
+   *  UNKNOWN/CONFLICT codes. Used for raw Postgres text (e.g. a 23505
+   *  "duplicate key value violates unique constraint …") that classifies
+   *  to CONFLICT but was written by Postgres, not for users (SAL-052).
+   *  Defaults to true — messages authored by our own code keep
+   *  surfacing. */
+  readonly forwardMessage: boolean;
 
   constructor(opts: {
     code: ErrorCode;
@@ -71,6 +78,7 @@ export class AppError extends Error {
     details?: Record<string, unknown>;
     severity?: ErrorSeverity;
     cause?: unknown;
+    forwardMessage?: boolean;
   }) {
     super(opts.message);
     this.name = "AppError";
@@ -80,6 +88,7 @@ export class AppError extends Error {
     this.details = opts.details ?? {};
     this.severity = opts.severity ?? "error";
     this.cause = opts.cause;
+    this.forwardMessage = opts.forwardMessage ?? true;
   }
 
   /** Safe representation for client transport — never leaks internals */
@@ -103,7 +112,8 @@ export class AppError extends Error {
     // libraries can't slip through.
     if (
       (this.code === "UNKNOWN" || this.code === "CONFLICT") &&
-      this.message
+      this.message &&
+      this.forwardMessage
     ) {
       result.message = this.message;
     }
@@ -242,13 +252,19 @@ export class AppError extends Error {
   }): AppError {
     const pgCode = pgError.code ?? "";
 
-    // Unique violation
+    // Unique violation. The message is Postgres-authored ("duplicate
+    // key value violates unique constraint \"…\"" — constraint names
+    // are internals), so it must NOT ride the CONFLICT message
+    // forwarding to the client (SAL-052). The i18n conflict key
+    // carries the user-facing meaning; the raw text stays on the
+    // AppError for logError/admin triage.
     if (pgCode === "23505") {
       return new AppError({
         code: "CONFLICT",
         message: pgError.message,
         userMessageKey: "errors.conflict",
         details: { pgCode, hint: pgError.hint },
+        forwardMessage: false,
       });
     }
 
@@ -273,6 +289,37 @@ export class AppError extends Error {
         code: "CONFLICT",
         message: pgError.message,
         userMessageKey: "errors.conflict",
+        details: { pgCode },
+      });
+    }
+
+    // Deliberate RAISE EXCEPTION from our own PL/pgSQL:
+    //  - P0001 (raise_exception, the default ERRCODE) — legacy RPCs
+    //    like add_customer_share ("only customer admins can add
+    //    shares") raise user-meaningful refusals without an explicit
+    //    ERRCODE.
+    //  - 22023 (invalid_parameter_value) — the team-role-transition
+    //    RPCs' convention for caller mistakes ("cannot transfer to
+    //    yourself").
+    // Both texts are authored by us for the user, never by Postgres
+    // itself, so they surface verbatim via the CONFLICT forwarding —
+    // same rationale as 23514 above (SAL-052).
+    if (pgCode === "P0001" || pgCode === "22023") {
+      return new AppError({
+        code: "CONFLICT",
+        message: pgError.message,
+        userMessageKey: "errors.conflict",
+        details: { pgCode },
+      });
+    }
+
+    // no_data_found — RPCs raise this for "target row doesn't exist"
+    // (e.g. edit_invoice_paid_date's "Invoice not found.").
+    if (pgCode === "P0002") {
+      return new AppError({
+        code: "NOT_FOUND",
+        message: pgError.message,
+        userMessageKey: "errors.notFound",
         details: { pgCode },
       });
     }
@@ -322,10 +369,43 @@ export function assertSupabaseOk<T>(result: {
 }
 
 /**
+ * Detect a PostgREST/Postgres error that was thrown raw instead of
+ * being classified through `assertSupabaseOk` / `AppError.fromSupabase`.
+ *
+ * `PostgrestError` extends `Error` and always carries string `code`,
+ * `details`, and `hint` properties — no other error type in the app
+ * has that shape (Node errors have `code` but never `details`+`hint`;
+ * GoTrue's AuthError has `code`+`status` but no `details`/`hint`).
+ */
+function isPostgrestErrorShape(err: unknown): err is {
+  message: string;
+  code: string;
+  details?: string;
+  hint?: string;
+} {
+  if (typeof err !== "object" || err === null) return false;
+  const candidate = err as Record<string, unknown>;
+  return (
+    typeof candidate.message === "string" &&
+    typeof candidate.code === "string" &&
+    "details" in candidate &&
+    "hint" in candidate
+  );
+}
+
+/**
  * Normalize any caught value into an AppError.
+ *
+ * PostgREST error objects are routed through `fromSupabase` so a raw
+ * `throw error` at a call site can never reach the client as an
+ * UNKNOWN-coded error whose verbatim Postgres message gets forwarded
+ * (SAL-030/SAL-052 class). This is the systemic backstop; call sites
+ * should still classify explicitly via `assertSupabaseOk` /
+ * `AppError.fromSupabase`.
  */
 export function toAppError(err: unknown): AppError {
   if (err instanceof AppError) return err;
+  if (isPostgrestErrorShape(err)) return AppError.fromSupabase(err);
   if (err instanceof Error) return AppError.unknown(err);
   return AppError.unknown(String(err));
 }

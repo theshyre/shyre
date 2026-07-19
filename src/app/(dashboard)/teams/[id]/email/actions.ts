@@ -177,7 +177,7 @@ export async function addEmailDomainAction(formData: FormData): Promise<void> {
         p_failure_reason: status.failureReason ?? null,
       },
     );
-    if (rpcError) throw rpcError;
+    if (rpcError) throw AppError.fromSupabase(rpcError);
 
     revalidatePath(`/teams/${teamId}/email`);
   }, "addEmailDomainAction") as unknown as void;
@@ -247,7 +247,7 @@ export async function verifyEmailDomainAction(
         p_failure_reason: status.failureReason ?? null,
       },
     );
-    if (rpcError) throw rpcError;
+    if (rpcError) throw AppError.fromSupabase(rpcError);
 
     // ALWAYS revalidate before branching — every path here mutated
     // the row, so the client must re-render against fresh server

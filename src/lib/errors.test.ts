@@ -153,6 +153,52 @@ describe("AppError.fromSupabase", () => {
     expect(e.details.hint).toBe("Try a different value");
   });
 
+  it("23505 withholds the Postgres-authored message from the client shape (SAL-052)", () => {
+    const e = AppError.fromSupabase({
+      message: 'duplicate key value violates unique constraint "xyz"',
+      code: "23505",
+    });
+    const safe = e.toUserSafe();
+    // The i18n conflict key is the only client-facing channel — the
+    // constraint name is an internal detail.
+    expect(safe.userMessageKey).toBe("errors.conflict");
+    expect(safe.message).toBeUndefined();
+    // The raw text stays on the AppError itself for logError/triage.
+    expect(e.message).toContain('unique constraint "xyz"');
+  });
+
+  it("P0001 (RAISE EXCEPTION default errcode) → CONFLICT forwarding the RPC's user-authored message", () => {
+    const e = AppError.fromSupabase({
+      message: "only customer admins can add shares",
+      code: "P0001",
+    });
+    expect(e.code).toBe("CONFLICT");
+    expect(e.toUserSafe().message).toBe(
+      "only customer admins can add shares",
+    );
+  });
+
+  it("22023 (invalid_parameter_value RPC convention) → CONFLICT forwarding the message", () => {
+    const e = AppError.fromSupabase({
+      message: "transfer_team_ownership: cannot transfer to yourself",
+      code: "22023",
+    });
+    expect(e.code).toBe("CONFLICT");
+    expect(e.toUserSafe().message).toBe(
+      "transfer_team_ownership: cannot transfer to yourself",
+    );
+  });
+
+  it("P0002 (no_data_found) → NOT_FOUND with the i18n key only", () => {
+    const e = AppError.fromSupabase({
+      message: "Invoice not found.",
+      code: "P0002",
+    });
+    expect(e.code).toBe("NOT_FOUND");
+    expect(e.toUserSafe().userMessageKey).toBe("errors.notFound");
+    expect(e.toUserSafe().message).toBeUndefined();
+  });
+
   it("23503 (FK violation) → NOT_FOUND", () => {
     const e = AppError.fromSupabase({
       message: "FK violation",
@@ -251,5 +297,58 @@ describe("toAppError", () => {
     expect(toAppError(42).message).toBe("42");
     // `null` → `String(null)` → "null" inside AppError.unknown(String(err)).
     expect(toAppError(null).message).toBe("null");
+  });
+
+  // SAL-052 backstop: a raw `throw error` of a PostgREST error object
+  // must classify through fromSupabase, never become an UNKNOWN whose
+  // verbatim Postgres message is forwarded to the client.
+  it("routes a PostgrestError-shaped throw through fromSupabase — raw duplicate-key text never reaches the client shape", () => {
+    const wrapped = toAppError({
+      name: "PostgrestError",
+      message: 'duplicate key value violates unique constraint "xyz"',
+      code: "23505",
+      details: "Key (name)=(x) already exists.",
+      hint: null,
+    });
+    expect(wrapped.code).toBe("CONFLICT");
+    expect(wrapped.toUserSafe().message).toBeUndefined();
+    expect(wrapped.toUserSafe().userMessageKey).toBe("errors.conflict");
+  });
+
+  it("routes a PostgrestError-shaped trigger RAISE (P0001) through fromSupabase — the user-authored message still surfaces", () => {
+    const wrapped = toAppError({
+      name: "PostgrestError",
+      message: "only customer admins can add shares",
+      code: "P0001",
+      details: null,
+      hint: null,
+    });
+    expect(wrapped.code).toBe("CONFLICT");
+    expect(wrapped.toUserSafe().message).toBe(
+      "only customer admins can add shares",
+    );
+  });
+
+  it("classifies a PostgrestError-shaped unknown SQLSTATE to DATABASE_ERROR (message withheld)", () => {
+    const wrapped = toAppError({
+      message: 'invalid input syntax for type uuid: "attacker-string"',
+      code: "22P02",
+      details: null,
+      hint: null,
+    });
+    expect(wrapped.code).toBe("DATABASE_ERROR");
+    expect(wrapped.toUserSafe().message).toBeUndefined();
+    expect(wrapped.toUserSafe().userMessageKey).toBe("errors.database");
+  });
+
+  it("does NOT treat a Node-style Error with a code but no details/hint as PostgREST", () => {
+    const nodeErr = Object.assign(new Error("ENOENT: no such file"), {
+      code: "ENOENT",
+    });
+    const wrapped = toAppError(nodeErr);
+    // Falls through to UNKNOWN — the existing verbatim-forwarding
+    // contract for our own thrown Errors is unchanged.
+    expect(wrapped.code).toBe("UNKNOWN");
+    expect(wrapped.toUserSafe().message).toBe("ENOENT: no such file");
   });
 });

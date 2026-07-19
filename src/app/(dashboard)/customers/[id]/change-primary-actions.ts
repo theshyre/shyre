@@ -1,6 +1,7 @@
 "use server";
 
 import { runSafeAction } from "@/lib/safe-action";
+import { AppError } from "@/lib/errors";
 import { revalidatePath } from "next/cache";
 
 export async function changePrimaryTeamAction(
@@ -18,7 +19,7 @@ export async function changePrimaryTeamAction(
         p_customer_id: customerId,
         p_new_team_id: newTeamId,
       });
-      if (error) throw new Error(error.message);
+      if (error) throw AppError.fromSupabase(error);
 
       revalidatePath(`/customers/${customerId}`);
       revalidatePath("/customers");

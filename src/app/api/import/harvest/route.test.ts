@@ -638,7 +638,8 @@ describe("POST /api/import/harvest — action=import", () => {
     expect(res.status).toBe(500);
     const json = (await res.json()) as { error: string };
     expect(json.error).toContain("Could not record import run");
-    expect(json.error).toContain("rls denied");
+    // The raw PostgREST text is logged, never returned (SAL-052).
+    expect(json.error).not.toContain("rls denied");
     expect(loggedActions()).toEqual(["harvestImportRunInsert"]);
   });
 
