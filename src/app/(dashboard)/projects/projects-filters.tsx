@@ -48,6 +48,9 @@ export function StatusFilter({
     } else {
       params.set("status", next);
     }
+    // Reset pagination — a narrower filter with an inherited big
+    // `limit` would silently over-fetch (list-pages.md rule 1).
+    params.delete("limit");
     router.push(`${pathname}?${params.toString()}`);
   }
 
@@ -102,6 +105,9 @@ export function CustomerFilter({
       // "internal" and customer ids share the ?customer= param.
       params.set("customer", key);
     }
+    // Reset pagination — a narrower filter with an inherited big
+    // `limit` would silently over-fetch (list-pages.md rule 1).
+    params.delete("limit");
     router.push(`${pathname}?${params.toString()}`);
   }
 
@@ -198,6 +204,9 @@ export function ProjectSearchInput({
       } else {
         params.set("q", next);
       }
+      // Reset pagination — a narrower filter with an inherited big
+      // `limit` would silently over-fetch (list-pages.md rule 1).
+      params.delete("limit");
       router.push(`${pathname}?${params.toString()}`);
     },
     [router, pathname, searchParams],
@@ -233,6 +242,9 @@ export function ProjectFiltersClearHint({
     params.delete("status");
     params.delete("customer");
     params.delete("q");
+    // Changing any filter resets `limit` (list-pages.md rule 1) —
+    // clearing them all is no exception.
+    params.delete("limit");
     router.push(`${pathname}?${params.toString()}`);
   }
   return (

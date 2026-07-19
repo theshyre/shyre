@@ -21,7 +21,11 @@ import { OverdueBadge } from "@/components/OverdueBadge";
 import { SortableTableHeader } from "@/components/SortableTableHeader";
 import { PaginationFooter } from "@/components/PaginationFooter";
 import { isProjectOverdue } from "@/lib/projects/lifecycle";
+import { isTextEditingTarget } from "@/lib/is-text-editing-target";
+import { checkboxClass } from "@/lib/form-styles";
 import {
+  bulkStripButtonClass,
+  bulkStripDangerButtonClass,
   tableClass,
   tableHeaderCellClass,
   tableHeaderRowClass,
@@ -120,7 +124,17 @@ export function ProjectsTable({
   const [, startTransition] = useTransition();
   const [selected, setSelected] = useState<Set<string>>(new Set());
   const [setPickerOpen, setSetPickerOpen] = useState(false);
+  // Tier-1 inline confirm for the bulk close-out — closing is a
+  // reversible one-way flip (list-pages.md rule 5), so the Close
+  // button arms an inline [Confirm][Cancel] pair instead of acting
+  // immediately. Armed state is keyed on a snapshot of the selected
+  // ids: if the selection changes, the key no longer matches and the
+  // confirm disarms by derivation (no setState-in-effect) — a confirm
+  // armed for one set of projects can never fire against another.
+  const [closeArmedKey, setCloseArmedKey] = useState<string | null>(null);
   const setPickerRef = useRef<HTMLDivElement>(null);
+  const setPickerTriggerRef = useRef<HTMLButtonElement>(null);
+  const closeConfirmRef = useRef<HTMLButtonElement>(null);
 
   // Close the bulk-switch dropdown on outside-click. Hooked
   // unconditionally so the call count stays stable between the
@@ -137,6 +151,23 @@ export function ProjectsTable({
     }
     document.addEventListener("mousedown", handleClick);
     return () => document.removeEventListener("mousedown", handleClick);
+  }, [setPickerOpen]);
+
+  // Escape closes the bulk-switch dropdown AND returns focus to its
+  // trigger. Capture phase + stopPropagation so the consumed keypress
+  // never reaches the page-level "clear selection" handler below —
+  // an open panel is the more specific overlay (list-pages.md rule 5).
+  useEffect(() => {
+    if (!setPickerOpen) return;
+    function handleKey(e: KeyboardEvent): void {
+      if (e.key !== "Escape") return;
+      e.preventDefault();
+      e.stopPropagation();
+      setSetPickerOpen(false);
+      setPickerTriggerRef.current?.focus();
+    }
+    document.addEventListener("keydown", handleKey, true);
+    return () => document.removeEventListener("keydown", handleKey, true);
   }, [setPickerOpen]);
 
   const buildSortHref = useCallback(
@@ -259,14 +290,49 @@ export function ProjectsTable({
     if (selectedCount === 0) return;
     const onKey = (e: KeyboardEvent): void => {
       if (e.key !== "Escape") return;
-      const target = e.target as HTMLElement | null;
-      const tag = target?.tagName ?? "";
-      if (tag === "INPUT" || tag === "TEXTAREA" || tag === "SELECT") return;
+      // Guard on text-EDITING controls only (list-pages.md rule 5) —
+      // a focused checkbox is an <input> too, and Escape from it
+      // should still clear the selection.
+      if (isTextEditingTarget(e.target)) return;
       setSelected(new Set());
     };
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
   }, [selectedCount]);
+
+  // Stable snapshot of the current selection — the arm key for the
+  // close-out confirm above, so disarm-on-selection-change falls out
+  // of render derivation instead of an effect.
+  const selectionKey = useMemo(
+    () => Array.from(selected).sort().join(","),
+    [selected],
+  );
+  const closeArmed = closeArmedKey !== null && closeArmedKey === selectionKey;
+
+  // Move focus onto the just-armed Confirm button so the keyboard
+  // path (Tab → Close → Enter → Enter) stays continuous after the
+  // trigger is replaced by the confirm pair.
+  useEffect(() => {
+    if (closeArmed) closeConfirmRef.current?.focus();
+  }, [closeArmed]);
+
+  // ONE polite live region per list (list-pages.md a11y invariants):
+  // announces the result count after a filter commit, and "N selected"
+  // (debounced) while a selection is active. The debounce lives in
+  // state (updated only inside the timeout callback — never
+  // synchronously in the effect body); the message itself is derived
+  // at render.
+  const [debouncedSelectedCount, setDebouncedSelectedCount] = useState(0);
+  useEffect(() => {
+    const id = setTimeout(() => {
+      setDebouncedSelectedCount(selectedCount);
+    }, 300);
+    return () => clearTimeout(id);
+  }, [selectedCount]);
+  const liveMessage =
+    debouncedSelectedCount > 0
+      ? t("liveSelected", { count: debouncedSelectedCount })
+      : t("liveResultCount", { count: totalCount });
 
   const toggleAll = useCallback(() => {
     setSelected((prev) =>
@@ -400,9 +466,21 @@ export function ProjectsTable({
     [someSelected],
   );
 
+  // Parent-name lookup for the sub-project sr-only context on the
+  // indented name cell ("Sub-project of {parent}"). Built from the
+  // visible page — when the parent is filtered/paginated out the
+  // child already renders as a top-level row without the label.
+  const projectNameById = useMemo(
+    () => new Map(projects.map((p) => [p.id, p.name])),
+    [projects],
+  );
+
   if (projects.length === 0) {
     return (
       <div className="mt-6 rounded-lg border border-edge bg-surface-raised p-8 text-center">
+        <p role="status" aria-live="polite" className="sr-only">
+          {t("liveResultCount", { count: totalCount })}
+        </p>
         <div className="mx-auto mb-3 flex h-10 w-10 items-center justify-center rounded-full bg-accent-soft">
           <FolderKanban size={20} className="text-accent" aria-hidden="true" />
         </div>
@@ -418,6 +496,9 @@ export function ProjectsTable({
 
   return (
     <div className={`mt-6 ${tableWrapperClass}`}>
+      <p role="status" aria-live="polite" className="sr-only">
+        {liveMessage}
+      </p>
       <div
         role="toolbar"
         aria-label={t("bulkToolbarAriaLabel")}
@@ -428,6 +509,7 @@ export function ProjectsTable({
           checked={allSelected}
           ref={stripMasterRef}
           onChange={toggleAll}
+          className={checkboxClass}
           aria-label={
             allSelected
               ? t("bulkDeselectAllAria")
@@ -442,6 +524,13 @@ export function ProjectsTable({
                 total: projects.length,
               })}
             </span>
+            <button
+              type="button"
+              onClick={() => setSelected(new Set())}
+              className="text-caption text-content-secondary hover:text-content hover:underline"
+            >
+              {t("bulkClear")}
+            </button>
             <div
               ref={setPickerRef}
               className="ml-auto relative inline-flex items-center gap-2"
@@ -449,13 +538,14 @@ export function ProjectsTable({
               {categorySets.length > 0 && (
                 <>
                   <button
+                    ref={setPickerTriggerRef}
                     type="button"
                     onClick={() => setSetPickerOpen((o) => !o)}
                     aria-haspopup="listbox"
                     aria-expanded={setPickerOpen}
-                    className="inline-flex items-center gap-1.5 rounded-md border border-edge bg-surface px-3 py-1.5 text-caption font-medium text-content-secondary hover:bg-hover"
+                    className={bulkStripButtonClass}
                   >
-                    <FolderTree size={14} />
+                    <FolderTree size={14} aria-hidden="true" />
                     {t("bulkSwitchSet", { count: selectedCount })}
                   </button>
                   {setPickerOpen && (
@@ -498,20 +588,47 @@ export function ProjectsTable({
                   )}
                 </>
               )}
-              <button
-                type="button"
-                onClick={onBulkClose}
-                className="inline-flex items-center gap-1.5 rounded-md border border-edge bg-surface px-3 py-1.5 text-caption font-medium text-content-secondary hover:bg-hover"
-              >
-                <CircleCheck size={14} />
-                {t("bulkClose", { count: selectedCount })}
-              </button>
+              {closeArmed ? (
+                // Tier-1 inline confirm — closing out is a reversible
+                // one-way flip (list-pages.md rule 5), so the action
+                // takes an explicit second click, not a typed confirm.
+                <>
+                  <button
+                    ref={closeConfirmRef}
+                    type="button"
+                    onClick={() => {
+                      setCloseArmedKey(null);
+                      onBulkClose();
+                    }}
+                    className={bulkStripButtonClass}
+                  >
+                    <CircleCheck size={14} aria-hidden="true" />
+                    {t("bulkCloseConfirm", { count: selectedCount })}
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setCloseArmedKey(null)}
+                    className={bulkStripButtonClass}
+                  >
+                    {tc("actions.cancel")}
+                  </button>
+                </>
+              ) : (
+                <button
+                  type="button"
+                  onClick={() => setCloseArmedKey(selectionKey)}
+                  className={bulkStripButtonClass}
+                >
+                  <CircleCheck size={14} aria-hidden="true" />
+                  {t("bulkClose", { count: selectedCount })}
+                </button>
+              )}
               <button
                 type="button"
                 onClick={onBulkArchive}
-                className="inline-flex items-center gap-1.5 rounded-md border border-error/40 bg-error-soft px-3 py-1.5 text-caption font-semibold text-error-text hover:bg-error/10"
+                className={bulkStripDangerButtonClass}
               >
-                <Archive size={14} />
+                <Archive size={14} aria-hidden="true" />
                 {t("bulkArchive", { count: selectedCount })}
               </button>
             </div>
@@ -543,6 +660,7 @@ export function ProjectsTable({
                 checked={allSelected}
                 ref={masterRef}
                 onChange={toggleAll}
+                className={checkboxClass}
                 aria-label={
                   allSelected
                     ? t("bulkDeselectAllAria")
@@ -603,6 +721,7 @@ export function ProjectsTable({
               noBudgetMinById={noBudgetMinById}
               selected={selected}
               toggleOne={toggleOne}
+              projectNameById={projectNameById}
               t={t}
               tc={tc}
             />
@@ -617,9 +736,9 @@ export function ProjectsTable({
 /**
  * One customer group: header row + every project row underneath.
  *
- * Header row uses `<th scope="rowgroup">` semantics rendered as a
- * `<tr>` so screen readers announce "row group: Acme Corp" before
- * the data rows. Visually it's a span-the-table band with a folder
+ * Header row is a full-width `<th scope="rowgroup" colSpan>` so
+ * screen readers announce "row group: Acme Corp" before the data
+ * rows. Visually it's a span-the-table band with a folder
  * icon + customer name + project count — three channels (icon /
  * text / typography weight) so the grouping doesn't rely on
  * background color alone.
@@ -639,6 +758,7 @@ function CustomerGroupRows({
   noBudgetMinById,
   selected,
   toggleOne,
+  projectNameById,
   t,
   tc,
 }: {
@@ -658,6 +778,9 @@ function CustomerGroupRows({
   noBudgetMinById: Record<string, number>;
   selected: Set<string>;
   toggleOne: (id: string) => void;
+  /** id → name for every visible project — resolves the sub-project
+   *  rows' sr-only "Sub-project of {parent}" context. */
+  projectNameById: Map<string, string>;
   t: ReturnType<typeof useTranslations>;
   tc: ReturnType<typeof useTranslations>;
 }): React.JSX.Element {
@@ -672,7 +795,16 @@ function CustomerGroupRows({
         // table runs past the viewport).
         className="border-b border-edge bg-surface-inset sticky top-0 z-10"
       >
-        <td colSpan={colSpan} className="px-4 py-2 bg-surface-inset">
+        {/* <th scope="rowgroup"> per list-pages.md sanctioned
+            exceptions — the group header labels the rows beneath it,
+            so it must be a header cell, not a <td>. font-normal +
+            text-left neutralize the browser's default th styling;
+            the visual treatment lives on the inner span. */}
+        <th
+          scope="rowgroup"
+          colSpan={colSpan}
+          className="px-4 py-2 bg-surface-inset text-left font-normal"
+        >
           <div className="flex items-center gap-2">
             {/* Customer identity per the Entity Identity rule —
                 square initials chip from the AVATAR_PRESETS palette,
@@ -693,16 +825,18 @@ function CustomerGroupRows({
               {t("groupCount", { count: group.rows.length })}
             </span>
           </div>
-        </td>
+        </th>
       </tr>
       {group.rows.map((project) => {
         const isInternal = project.is_internal === true;
         const isSelected = selected.has(project.id);
         const isChild = project.parent_project_id !== null;
+        const parentName = project.parent_project_id
+          ? projectNameById.get(project.parent_project_id) ?? null
+          : null;
         return (
           <tr
             key={project.id}
-            aria-level={isChild ? 2 : 1}
             className={
               isSelected
                 ? `${tableBodyRowClass} bg-accent-soft/30`
@@ -714,6 +848,7 @@ function CustomerGroupRows({
                 type="checkbox"
                 checked={isSelected}
                 onChange={() => toggleOne(project.id)}
+                className={checkboxClass}
                 aria-label={t("bulkRowAria", { name: project.name })}
               />
             </td>
@@ -722,6 +857,16 @@ function CustomerGroupRows({
                 isChild ? "border-l-2 border-edge-muted" : ""
               }`}
             >
+              {/* sr-only hierarchy context — the visual indent + ↳
+                  glyph are aria-hidden, so screen readers get the
+                  parent relationship in words instead. Outside the
+                  Link so the link's accessible name stays the
+                  project's own name. */}
+              {isChild && parentName && (
+                <span className="sr-only">
+                  {t("subProjectOf", { parent: parentName })}
+                </span>
+              )}
               <Link
                 href={`/projects/${project.id}`}
                 className={`text-accent hover:underline font-medium ${
@@ -729,8 +874,9 @@ function CustomerGroupRows({
                 }`}
               >
                 {/* Visual indent + ↳ glyph for sub-project rows.
-                    aria-level on the <tr> communicates the
-                    hierarchy to AT users; the border-l-2 on the
+                    The sr-only "Sub-project of {parent}" span above
+                    carries the hierarchy to AT users (aria-level is
+                    inert on plain-table rows); the border-l-2 on the
                     cell renders as a tree line so the relationship
                     reads at a glance, not just via the glyph. */}
                 {isChild && (

@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { createContext, useContext, useState } from "react";
 import { useTranslations } from "next-intl";
 import { Plus, Building2, Sparkles } from "lucide-react";
 import { AlertBanner, useKeyboardShortcut } from "@theshyre/ui";
@@ -31,6 +31,78 @@ interface CustomerOption {
   name: string;
   /** Dormant customer — bottom-grouped in the picker, still selectable. */
   inactive_at?: string | null;
+}
+
+/**
+ * Shared open/closed state between the header-cluster trigger and the
+ * inline-expansion form body. Per list-pages.md rule 2, only the
+ * trigger lives in the header Row 1; the expanded form keeps
+ * rendering below the filter row — so the two live in different
+ * subtrees of the (server) page and need a client context to share
+ * the toggle.
+ */
+interface NewProjectFormState {
+  open: boolean;
+  setOpen: (open: boolean) => void;
+}
+
+const NewProjectFormContext = createContext<NewProjectFormState | null>(null);
+
+export function NewProjectFormProvider({
+  children,
+}: {
+  children: React.ReactNode;
+}): React.JSX.Element {
+  const [open, setOpen] = useState(false);
+  return (
+    <NewProjectFormContext.Provider value={{ open, setOpen }}>
+      {children}
+    </NewProjectFormContext.Provider>
+  );
+}
+
+function useNewProjectForm(): NewProjectFormState {
+  const ctx = useContext(NewProjectFormContext);
+  if (!ctx) {
+    throw new Error(
+      "AddProjectTrigger / NewProjectForm must render inside <NewProjectFormProvider>",
+    );
+  }
+  return ctx;
+}
+
+/**
+ * The header-cluster primary action: `[Plus] Add Project [kbd N]`
+ * (list-pages.md rule 2 — reference: invoices' new-invoice-link).
+ * Toggles the inline-expansion form rendered by <NewProjectForm>.
+ */
+export function AddProjectTrigger(): React.JSX.Element {
+  const { open, setOpen } = useNewProjectForm();
+  const t = useTranslations("projects");
+
+  useKeyboardShortcut({
+    key: "n",
+    // React Compiler memoizes inline callbacks at the call site;
+    // a manual useCallback here triggered the "inferred deps don't
+    // match" rule because setOpen is a deps-relevant identifier.
+    // Inline is correct.
+    onTrigger: () => setOpen(true),
+    enabled: !open,
+  });
+
+  return (
+    <button
+      type="button"
+      onClick={() => setOpen(!open)}
+      aria-expanded={open}
+      aria-controls={open ? "new-project-form" : undefined}
+      className={buttonPrimaryClass}
+    >
+      <Plus size={16} />
+      {t("addProject")}
+      <kbd className={kbdClass}>N</kbd>
+    </button>
+  );
 }
 
 interface ParentProjectOption {
@@ -67,8 +139,8 @@ export function NewProjectForm({
    *  (parent + child must share customer_id, enforced server-side
    *  by the projects_enforce_parent_invariants trigger). */
   eligibleParents?: ParentProjectOption[];
-}): React.JSX.Element {
-  const [open, setOpen] = useState(false);
+}): React.JSX.Element | null {
+  const { open, setOpen } = useNewProjectForm();
   // is_internal drives whether the customer picker is hidden and
   // whether default_billable is forced off. Local state only — the
   // form submits the checkbox value and the server normalizes.
@@ -176,31 +248,11 @@ export function NewProjectForm({
     setParentDefaultsApplied(appliedAny);
   }
 
-  useKeyboardShortcut({
-    key: "n",
-    // React Compiler memoizes inline callbacks at the call site;
-    // a manual useCallback here triggered the "inferred deps don't
-    // match" rule because setOpen is a deps-relevant identifier.
-    // Inline is correct.
-    onTrigger: () => setOpen(true),
-    enabled: !open,
-  });
-
-  if (!open) {
-    return (
-      <button
-        onClick={() => setOpen(true)}
-        className={`${buttonPrimaryClass} mt-4`}
-      >
-        <Plus size={16} />
-        {t("addProject")}
-        <kbd className={kbdClass}>N</kbd>
-      </button>
-    );
-  }
+  if (!open) return null;
 
   return (
     <form
+      id="new-project-form"
       action={handleSubmit}
       className="mt-4 space-y-3 rounded-lg border border-edge bg-surface-raised p-4"
     >

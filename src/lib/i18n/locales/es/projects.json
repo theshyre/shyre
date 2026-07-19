@@ -267,6 +267,10 @@
     "duplicateWarning": "\"{name}\" ya existe en el conjunto base. Renómbrala para evitar confusión."
   },
   "bulkToolbarAriaLabel": "Acciones masivas de proyectos",
+  "bulkClear": "Quitar selección",
+  "liveResultCount": "{count, plural, one {# proyecto en la lista} other {# proyectos en la lista}}",
+  "liveSelected": "{count, plural, one {# proyecto seleccionado} other {# proyectos seleccionados}}",
+  "subProjectOf": "Subproyecto de {parent}",
   "bulkSelectAllAria": "Seleccionar todos los proyectos",
   "bulkDeselectAllAria": "Deseleccionar todos los proyectos",
   "bulkRowAria": "Seleccionar {name}",
@@ -285,6 +289,7 @@
   "bulkSwitchSetFailed": "No se pudo cambiar el conjunto de categorías.",
   "archiveFailed": "No se pudo archivar el proyecto.",
   "bulkClose": "{count, plural, one {Cerrar 1} other {Cerrar #}}",
+  "bulkCloseConfirm": "{count, plural, one {Confirmar cierre de 1} other {Confirmar cierre de #}}",
   "bulkClosedToast": "{count, plural, one {1 proyecto cerrado} other {# proyectos cerrados}}",
   "bulkReopenedToast": "{count, plural, one {1 proyecto reabierto} other {# proyectos reabiertos}}",
   "closeFailed": "No se pudo cerrar el proyecto.",
