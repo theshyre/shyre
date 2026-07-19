@@ -2,6 +2,7 @@
 
 import { useTranslations } from "next-intl";
 import { useTextSize, type TextSize } from "./text-size-provider";
+import { setAppearancePreferenceAction } from "@/app/(dashboard)/profile/actions";
 import { Tooltip } from "./Tooltip";
 
 const SIZES: TextSize[] = ["compact", "regular", "large"];
@@ -47,7 +48,12 @@ export function TextSizeSwitcher({ dense = false }: Props): React.JSX.Element {
               role="radio"
               aria-checked={isActive}
               aria-label={t(s)}
-              onClick={() => setTextSize(s)}
+              onClick={() => {
+                setTextSize(s);
+                const fd = new FormData();
+                fd.set("text_size", s);
+                void setAppearancePreferenceAction(fd);
+              }}
               className={`${sizeClass} inline-flex items-center justify-center rounded-md font-semibold transition-colors ${
                 isActive
                   ? "bg-accent text-content-inverse"

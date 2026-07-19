@@ -16,6 +16,11 @@ vi.mock("@/components/theme-provider", () => ({
 
 import { ThemePickerPopover } from "./ThemePickerPopover";
 
+vi.mock("@/app/(dashboard)/profile/actions", () => ({
+  setAppearancePreferenceAction: vi.fn().mockResolvedValue(undefined),
+}));
+
+
 describe("ThemePickerPopover", () => {
   beforeEach(() => setThemeSpy.mockClear());
 
@@ -29,12 +34,12 @@ describe("ThemePickerPopover", () => {
     expect(screen.queryByRole("group")).not.toBeInTheDocument();
   });
 
-  it("opens a menu with all 5 themes on click; current one is checked", async () => {
+  it("opens a menu with all 6 themes on click; current one is checked", async () => {
     const user = userEvent.setup();
     renderWithIntl(<ThemePickerPopover />);
     await user.click(screen.getByRole("button", { name: /theme.*dark/i }));
     const items = within(screen.getByRole("group")).getAllByRole("button");
-    expect(items).toHaveLength(5);
+    expect(items).toHaveLength(6);
     const dark = within(screen.getByRole("group")).getByRole("button", { name: /dark/i });
     expect(dark).toHaveAttribute("aria-pressed", "true");
   });
@@ -55,7 +60,7 @@ describe("ThemePickerPopover", () => {
     const user = userEvent.setup();
     renderWithIntl(<ThemePickerPopover />);
     await user.click(screen.getByRole("button", { name: /theme.*dark/i }));
-    expect(within(screen.getByRole("group")).getAllByRole("button")).toHaveLength(5);
+    expect(within(screen.getByRole("group")).getAllByRole("button")).toHaveLength(6);
     await user.keyboard("{Escape}");
     await waitFor(() => {
       expect(screen.queryByRole("group")).not.toBeInTheDocument();
