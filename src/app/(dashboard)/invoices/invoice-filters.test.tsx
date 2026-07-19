@@ -242,3 +242,17 @@ describe("InvoiceFiltersNoResultsHint", () => {
     expect(mockPush).toHaveBeenCalledWith("/invoices?org=t-1");
   });
 });
+
+describe("server/client boundary (2026-07-19 outage regression)", () => {
+  it("page.tsx imports hasActiveInvoiceFilters from the server-safe module, not the client one", async () => {
+    const { readFileSync } = await import("node:fs");
+    const { join } = await import("node:path");
+    const page = readFileSync(
+      join(process.cwd(), "src/app/(dashboard)/invoices/page.tsx"),
+      "utf8",
+    );
+    const clientImport = page.match(/import \{[^}]*\} from "\.\/invoice-filters"/s);
+    expect(clientImport?.[0] ?? "").not.toContain("hasActiveInvoiceFilters");
+    expect(page).toContain('from "./invoice-list-filters"');
+  });
+});
