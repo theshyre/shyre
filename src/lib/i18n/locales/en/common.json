@@ -212,6 +212,7 @@
     "loadAll": "Load all {count, number}"
   },
   "viewAll": "View all",
+  "viewAllSection": "View all — {section}",
   "teamHub": {
     "configureHeading": "Configure",
     "general": {
@@ -222,7 +223,11 @@
       "title": "Members",
       "description": "Invite teammates, assign roles, transfer ownership.",
       "unnamed": "Unnamed",
-      "shell": "shell"
+      "shellChip": "Imported",
+      "shellTooltip": "Imported author — no login; anchors imported historical time entries."
+    },
+    "projects": {
+      "subprojectOf": "Sub-project of {parent}"
     },
     "relationships": {
       "title": "Team relationships",

@@ -22,6 +22,7 @@ export async function generateMetadata({
 import {
   Building2,
   Users,
+  UsersRound,
   FolderKanban,
   ArrowRight,
   Mail,
@@ -29,7 +30,22 @@ import {
   type LucideIcon,
 } from "lucide-react";
 import { LinkPendingSpinner } from "@/components/LinkPendingSpinner";
-import { CustomerChip } from "@theshyre/ui";
+import {
+  HubCustomerList,
+  HubMemberList,
+  HubProjectList,
+  type HubCustomerItem,
+  type HubMemberItem,
+  type HubProjectItem,
+} from "./hub-sections";
+
+/** Preview size for each cross-cutting section. */
+const PREVIEW_LIMIT = 6;
+
+/** "View all →" header-link treatment (dashboard convention) + the
+ *  standard focus ring so keyboard visibility matches the row links. */
+const viewAllLinkClass =
+  "flex items-center gap-1 rounded text-body-lg text-accent hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus-ring focus-visible:ring-offset-2";
 
 /**
  * Team overview — the at-a-glance landing for a team.
@@ -38,7 +54,10 @@ import { CustomerChip } from "@theshyre/ui";
  *
  *   1. Cross-cutting previews (Customers, Projects, Members) — these
  *      summarize work that lives in other top-level pages and act as
- *      shortcuts. Top 6 of each + "View all →".
+ *      shortcuts. Top 6 of each + "View all →". Row rendering lives
+ *      in `hub-sections.tsx` and converges on the app's standard
+ *      identity/status treatments (CustomerChip, StatusBadge,
+ *      sub-project nesting, Avatar + role badge).
  *
  *   2. Configure card grid — entry points for team-scoped settings
  *      that used to all live inline on this page (back when it had
@@ -70,9 +89,9 @@ export default async function TeamDetailPage({
 
   if (!org) notFound();
 
-  // Members preview — top five active members, sorted owner → admin
-  // → member. Owners/admins can jump to /members for the full
-  // management surface.
+  // Members preview — active members first, sorted owner → admin
+  // → member, shell accounts last. Owners/admins can jump to
+  // /members for the full management surface.
   const { data: rawMembers } = await supabase
     .from("team_members")
     .select("id, user_id, role, joined_at")
@@ -82,24 +101,26 @@ export default async function TeamDetailPage({
     memberUserIds.length > 0
       ? await supabase
           .from("user_profiles")
-          .select("user_id, display_name, is_shell")
+          .select("user_id, display_name, avatar_url, is_shell")
           .in("user_id", memberUserIds)
       : { data: [] };
   const profileByUserId = new Map<
     string,
-    { display_name: string | null; is_shell: boolean }
+    { display_name: string | null; avatar_url: string | null; is_shell: boolean }
   >(
     (profileRows ?? []).map((p) => [
       p.user_id as string,
       {
         display_name: (p.display_name as string | null) ?? null,
+        avatar_url:
+          ((p as { avatar_url?: string | null }).avatar_url ?? null),
         is_shell:
           ((p as { is_shell?: boolean | null }).is_shell ?? false) === true,
       },
     ]),
   );
   const ROLE_RANK: Record<string, number> = { owner: 0, admin: 1, member: 2 };
-  const memberPreview = (rawMembers ?? [])
+  const memberPreview: HubMemberItem[] = (rawMembers ?? [])
     .map((m) => {
       const prof = profileByUserId.get(m.user_id as string);
       return {
@@ -107,6 +128,7 @@ export default async function TeamDetailPage({
         userId: m.user_id as string,
         role: m.role as string,
         displayName: prof?.display_name ?? null,
+        avatarUrl: prof?.avatar_url ?? null,
         isShell: prof?.is_shell ?? false,
       };
     })
@@ -114,29 +136,67 @@ export default async function TeamDetailPage({
       if (a.isShell !== b.isShell) return a.isShell ? 1 : -1;
       return (ROLE_RANK[a.role] ?? 99) - (ROLE_RANK[b.role] ?? 99);
     })
-    .slice(0, 6);
+    .slice(0, PREVIEW_LIMIT);
   const memberCount = (rawMembers ?? []).length;
 
-  // Org's customers — top 6 active.
+  // Org's customers — top 6 by name, non-archived. Inactive
+  // (dormant) customers stay visible with their lifecycle badge.
   const { data: customers } = await supabase
     .from("customers_v")
-    .select("id, name, email, default_rate, logo_url")
+    .select("id, name, email, default_rate, logo_url, inactive_at")
     .eq("team_id", id)
     .eq("archived", false)
     .order("name");
+  const customerCount = (customers ?? []).length;
+  const customerPreview: HubCustomerItem[] = (customers ?? [])
+    .slice(0, PREVIEW_LIMIT)
+    .map((c) => ({
+      id: c.id as string,
+      name: c.name as string,
+      defaultRate:
+        c.default_rate === null || c.default_rate === undefined
+          ? null
+          : Number(c.default_rate),
+      logoUrl: ((c as { logo_url?: string | null }).logo_url ?? null),
+      inactiveAt: ((c as { inactive_at?: string | null }).inactive_at ?? null),
+    }));
 
-  // Org's projects — top 6 non-archived.
+  // Org's projects — newest first, non-archived. The FULL set goes
+  // to the client list so sub-projects can nest under their parents
+  // before the preview slice (slicing first could strand a child
+  // whose parent sorts later).
   const { data: projects } = await supabase
     .from("projects_v")
     .select(
-      "id, name, status, hourly_rate, customer_id, is_internal, customers(id, name, logo_url)",
+      "id, name, status, parent_project_id, is_internal, customers(id, name, logo_url)",
     )
     .eq("team_id", id)
     .neq("status", "archived")
     .order("created_at", { ascending: false });
+  const projectItems: HubProjectItem[] = (projects ?? []).map((p) => {
+    const rawCustomer = Array.isArray(p.customers)
+      ? (p.customers[0] ?? null)
+      : (p.customers ?? null);
+    const customer =
+      rawCustomer && typeof rawCustomer === "object" && "id" in rawCustomer
+        ? {
+            id: (rawCustomer as { id: string }).id,
+            name: (rawCustomer as { name: string }).name,
+            logo_url:
+              ((rawCustomer as { logo_url?: string | null }).logo_url ?? null),
+          }
+        : null;
+    return {
+      id: p.id as string,
+      name: p.name as string,
+      status: (p.status as string | null) ?? null,
+      isInternal: p.is_internal === true,
+      parentProjectId: (p.parent_project_id as string | null) ?? null,
+      customer,
+    };
+  });
 
   const tc = await getTranslations("common");
-  const tp = await getTranslations("projects");
   const th = await getTranslations("common.teamHub");
 
   interface ConfigCard {
@@ -159,7 +219,10 @@ export default async function TeamDetailPage({
       title: th("members.title"),
       description: th("members.description"),
       href: `/teams/${id}/members`,
-      icon: Users,
+      // UsersRound (not Users) — Users is the customers-module icon
+      // app-wide; the two member surfaces on this page use a distinct
+      // people glyph so the icon channel stays a signal.
+      icon: UsersRound,
     },
     {
       id: "relationships",
@@ -180,7 +243,7 @@ export default async function TeamDetailPage({
   return (
     <div className="space-y-8">
       <div className="flex items-center gap-3">
-        <Building2 size={24} className="text-accent" />
+        <Building2 size={24} className="text-accent" aria-hidden="true" />
         <h1 className="text-page-title font-bold text-content">{org.name}</h1>
         <span className="inline-flex items-center gap-1.5 rounded-full bg-surface-inset px-2.5 py-0.5 text-caption font-medium text-content-muted">
           {tc(`roles.${role}`)}
@@ -191,44 +254,28 @@ export default async function TeamDetailPage({
       <section>
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-2">
-            <Users size={18} className="text-accent" />
-            <h2 className="text-body-lg font-semibold uppercase tracking-wider text-content-muted">
+            <Users size={18} className="text-accent" aria-hidden="true" />
+            <h2 className="text-title font-semibold text-content">
               {tc("nav.customers")}
             </h2>
+            {customerCount > 0 && (
+              <span className="text-body text-content-muted">
+                ({customerCount})
+              </span>
+            )}
           </div>
           <Link
             href={`/customers?org=${id}`}
-            className="flex items-center gap-1 text-caption text-accent hover:underline"
+            aria-label={tc("viewAllSection", { section: tc("nav.customers") })}
+            className={viewAllLinkClass}
           >
             <LinkPendingSpinner />
-            {tc("viewAll")} <ArrowRight size={12} />
+            {tc("viewAll")}
+            <ArrowRight size={14} aria-hidden="true" />
           </Link>
         </div>
-        {customers && customers.length > 0 ? (
-          <div className="mt-2 grid gap-2 sm:grid-cols-2">
-            {customers.slice(0, 6).map((client) => (
-              <Link
-                key={client.id}
-                href={`/customers/${client.id}`}
-                className="flex items-center gap-2 rounded-lg border border-edge bg-surface-raised px-3 py-2 text-body-lg hover:bg-hover transition-colors"
-              >
-                <CustomerChip
-                  customerId={client.id}
-                  customerName={client.name}
-                  logoUrl={(client as { logo_url?: string | null }).logo_url ?? null}
-                  size={24}
-                />
-                <span className="font-medium text-content truncate">
-                  {client.name}
-                </span>
-                {client.default_rate && (
-                  <span className="ml-auto text-caption text-content-muted font-mono">
-                    ${Number(client.default_rate).toFixed(0)}/hr
-                  </span>
-                )}
-              </Link>
-            ))}
-          </div>
+        {customerPreview.length > 0 ? (
+          <HubCustomerList customers={customerPreview} />
         ) : (
           <p className="mt-2 text-body-lg text-content-muted">
             {th("empty.customers")}
@@ -240,72 +287,28 @@ export default async function TeamDetailPage({
       <section>
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-2">
-            <FolderKanban size={18} className="text-accent" />
-            <h2 className="text-body-lg font-semibold uppercase tracking-wider text-content-muted">
+            <FolderKanban size={18} className="text-accent" aria-hidden="true" />
+            <h2 className="text-title font-semibold text-content">
               {tc("nav.projects")}
             </h2>
+            {projectItems.length > 0 && (
+              <span className="text-body text-content-muted">
+                ({projectItems.length})
+              </span>
+            )}
           </div>
           <Link
             href={`/projects?org=${id}`}
-            className="flex items-center gap-1 text-caption text-accent hover:underline"
+            aria-label={tc("viewAllSection", { section: tc("nav.projects") })}
+            className={viewAllLinkClass}
           >
             <LinkPendingSpinner />
-            {tc("viewAll")} <ArrowRight size={12} />
+            {tc("viewAll")}
+            <ArrowRight size={14} aria-hidden="true" />
           </Link>
         </div>
-        {projects && projects.length > 0 ? (
-          <div className="mt-2 grid gap-2 sm:grid-cols-2">
-            {projects.slice(0, 6).map((project) => {
-              const customerName =
-                project.customers &&
-                typeof project.customers === "object" &&
-                "name" in project.customers
-                  ? (project.customers as { name: string }).name
-                  : null;
-              const customerId =
-                project.customers &&
-                typeof project.customers === "object" &&
-                "id" in project.customers
-                  ? (project.customers as { id: string }).id
-                  : null;
-              const customerLogoUrl =
-                project.customers &&
-                typeof project.customers === "object" &&
-                "logo_url" in project.customers
-                  ? ((project.customers as { logo_url: string | null })
-                      .logo_url ?? null)
-                  : null;
-              const projectIsInternal = project.is_internal === true;
-              return (
-                <Link
-                  key={project.id}
-                  href={`/projects/${project.id}`}
-                  className="flex items-center gap-2 rounded-lg border border-edge bg-surface-raised px-3 py-2 text-body-lg hover:bg-hover transition-colors"
-                >
-                  {customerName ? (
-                    <CustomerChip
-                      customerId={customerId}
-                      customerName={customerName}
-                      logoUrl={customerLogoUrl}
-                      size={24}
-                    />
-                  ) : projectIsInternal ? (
-                    <CustomerChip
-                      customerId={null}
-                      customerName={null}
-                      internal
-                    />
-                  ) : null}
-                  <span className="font-medium text-content truncate">
-                    {project.name}
-                  </span>
-                  <span className="ml-auto text-caption text-content-muted truncate">
-                    {customerName ?? tp("internal")}
-                  </span>
-                </Link>
-              );
-            })}
-          </div>
+        {projectItems.length > 0 ? (
+          <HubProjectList projects={projectItems} limit={PREVIEW_LIMIT} />
         ) : (
           <p className="mt-2 text-body-lg text-content-muted">
             {th("empty.projects")}
@@ -317,45 +320,28 @@ export default async function TeamDetailPage({
       <section>
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-2">
-            <Users size={18} className="text-accent" />
-            <h2 className="text-body-lg font-semibold uppercase tracking-wider text-content-muted">
+            <UsersRound size={18} className="text-accent" aria-hidden="true" />
+            <h2 className="text-title font-semibold text-content">
               {th("members.title")}
-              {memberCount > 0 && (
-                <span className="ml-2 normal-case font-normal text-content-muted">
-                  ({memberCount})
-                </span>
-              )}
             </h2>
+            {memberCount > 0 && (
+              <span className="text-body text-content-muted">
+                ({memberCount})
+              </span>
+            )}
           </div>
           <Link
             href={`/teams/${id}/members`}
-            className="flex items-center gap-1 text-caption text-accent hover:underline"
+            aria-label={tc("viewAllSection", { section: th("members.title") })}
+            className={viewAllLinkClass}
           >
             <LinkPendingSpinner />
-            {tc("viewAll")} <ArrowRight size={12} />
+            {tc("viewAll")}
+            <ArrowRight size={14} aria-hidden="true" />
           </Link>
         </div>
         {memberPreview.length > 0 ? (
-          <div className="mt-2 grid gap-2 sm:grid-cols-2">
-            {memberPreview.map((m) => (
-              <div
-                key={m.id}
-                className="flex items-center justify-between rounded-lg border border-edge bg-surface-raised px-3 py-2 text-body-lg"
-              >
-                <span className="font-medium text-content truncate">
-                  {m.displayName ?? th("members.unnamed")}
-                  {m.isShell && (
-                    <span className="ml-1.5 text-caption text-content-muted italic">
-                      ({th("members.shell")})
-                    </span>
-                  )}
-                </span>
-                <span className="ml-2 inline-flex items-center gap-1.5 rounded-full bg-surface-inset px-2 py-0.5 text-caption text-content-muted">
-                  {m.role}
-                </span>
-              </div>
-            ))}
-          </div>
+          <HubMemberList members={memberPreview} />
         ) : (
           <p className="mt-2 text-body-lg text-content-muted">
             {th("empty.members")}
@@ -365,11 +351,9 @@ export default async function TeamDetailPage({
 
       {/* Configure */}
       <section>
-        <div className="flex items-center gap-2 mb-3">
-          <h2 className="text-body-lg font-semibold uppercase tracking-wider text-content-muted">
-            {th("configureHeading")}
-          </h2>
-        </div>
+        <h2 className="text-title font-semibold text-content mb-3">
+          {th("configureHeading")}
+        </h2>
         <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-2">
           {configCards.map((card) => {
             const Icon = card.icon;
@@ -377,9 +361,9 @@ export default async function TeamDetailPage({
               <Link
                 key={card.id}
                 href={card.href}
-                className="group flex items-start gap-3 rounded-lg border border-edge bg-surface-raised p-4 transition-colors hover:border-accent/40 hover:bg-hover"
+                className="group flex items-start gap-3 rounded-lg border border-edge bg-surface-raised p-4 transition-colors hover:border-accent/40 hover:bg-hover focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus-ring focus-visible:ring-offset-2"
               >
-                <Icon size={20} className="mt-0.5 text-accent shrink-0" />
+                <Icon size={20} className="mt-0.5 text-accent shrink-0" aria-hidden="true" />
                 <div className="flex-1 min-w-0">
                   <div className="flex items-center gap-2">
                     <span className="text-body-lg font-semibold text-content">
