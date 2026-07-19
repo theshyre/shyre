@@ -14,12 +14,6 @@ import {
   Shield,
   Link2,
   User,
-  Sun,
-  Moon,
-  Monitor,
-  Eye,
-  BookOpen,
-  Leaf,
   Globe,
   Clock,
   Languages,
@@ -44,6 +38,7 @@ import {
   buttonSecondaryClass,
 } from "@/lib/form-styles";
 import { useTheme } from "@/components/theme-provider";
+import { THEME_OPTIONS } from "@/components/theme-options";
 import {
   useTextSize,
   type TextSize,
@@ -62,29 +57,13 @@ import { AvatarPicker } from "./avatar-picker";
 
 type Theme = "system" | "light" | "dark" | "high-contrast" | "warm" | "malcom";
 
-const THEME_OPTIONS: ReadonlyArray<{
-  key: Theme;
-  icon: ComponentType<{ size?: number }>;
-}> = [
-  { key: "system", icon: Monitor },
-  { key: "light", icon: Sun },
-  { key: "dark", icon: Moon },
-  { key: "high-contrast", icon: Eye },
-  // Selector key stays "warm" so stored prefs survive — only the user-
-  // facing label and icon change. Cream paper palette, low glare.
-  { key: "warm", icon: BookOpen },
-  // Brand theme — the Malcom IO palette (green accent, green-gray light
-  // surfaces) from malcom.io, shipped in design-tokens 0.7.0.
-  { key: "malcom", icon: Leaf },
-];
+
 
 // Selector keys → i18n keys. The DB / data-theme selector is the source
 // of truth; the i18n key tracks the user-facing label, which can drift
 // (warm → reading) without breaking stored prefs.
 function themeI18nKey(key: Theme): string {
-  if (key === "high-contrast") return "highContrast";
-  if (key === "warm") return "reading";
-  return key;
+  return THEME_OPTIONS.find((o) => o.key === key)?.i18nKey ?? key;
 }
 
 interface Props {

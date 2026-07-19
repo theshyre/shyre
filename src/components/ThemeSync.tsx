@@ -1,20 +1,14 @@
 "use client";
 
 import { useEffect, useRef } from "react";
-import { useTheme } from "./theme-provider";
+import { useTheme, type Theme } from "./theme-provider";
 
 interface Props {
   /**
    * The theme the server read from user_settings.preferred_theme. `null` means
    * the user hasn't picked one — follow the client's local preference / system.
    */
-  preferredTheme:
-    | "system"
-    | "light"
-    | "dark"
-    | "high-contrast"
-    | "warm"
-    | null;
+  preferredTheme: Theme | null;
 }
 
 /**

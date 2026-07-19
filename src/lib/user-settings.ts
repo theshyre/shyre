@@ -9,7 +9,8 @@ export type PreferredTheme =
   | "light"
   | "dark"
   | "high-contrast"
-  | "warm";
+  | "warm"
+  | "malcom";
 
 export interface UserSettings {
   preferredTheme: PreferredTheme | null;

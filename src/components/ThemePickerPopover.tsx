@@ -5,39 +5,20 @@ import {
   useEffect,
   useRef,
   useState,
-  type ComponentType,
 } from "react";
 import { createPortal } from "react-dom";
 import { useTranslations } from "next-intl";
 import {
   Palette,
-  Monitor,
-  Sun,
-  Moon,
-  Contrast,
-  BookOpen,
   Check,
 } from "lucide-react";
 import { useTheme } from "./theme-provider";
 import { Tooltip } from "./Tooltip";
 
-type Theme = "system" | "light" | "dark" | "high-contrast" | "warm";
+import { THEME_OPTIONS } from "./theme-options";
+import { setAppearancePreferenceAction } from "@/app/(dashboard)/profile/actions";
 
-interface Option {
-  key: Theme;
-  icon: ComponentType<{ size?: number; className?: string }>;
-  i18nKey: string;
-}
-
-const OPTIONS: Option[] = [
-  { key: "system", icon: Monitor, i18nKey: "system" },
-  { key: "light", icon: Sun, i18nKey: "light" },
-  { key: "dark", icon: Moon, i18nKey: "dark" },
-  { key: "high-contrast", icon: Contrast, i18nKey: "highContrast" },
-  // Selector key stays "warm" so stored prefs survive — only the user-
-  // facing label and icon change. Cream paper palette, low glare.
-  { key: "warm", icon: BookOpen, i18nKey: "reading" },
-];
+const OPTIONS = THEME_OPTIONS;
 
 const PANEL_WIDTH = 176;
 const PANEL_GAP = 8;
@@ -170,6 +151,11 @@ export function ThemePickerPopover(): React.JSX.Element {
             aria-pressed={isActive}
             onClick={() => {
               setTheme(opt.key);
+              // Persist — the sidebar picker previously wrote localStorage
+              // only, so a refresh snapped back to the stale DB value.
+              const fd = new FormData();
+              fd.set("preferred_theme", opt.key);
+              void setAppearancePreferenceAction(fd);
               close();
             }}
             className={`flex w-full items-center gap-2 px-3 py-2 text-body text-left transition-colors ${

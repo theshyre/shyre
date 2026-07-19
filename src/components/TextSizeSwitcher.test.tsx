@@ -17,6 +17,11 @@ vi.mock("./text-size-provider", () => ({
 
 import { TextSizeSwitcher } from "./TextSizeSwitcher";
 
+vi.mock("@/app/(dashboard)/profile/actions", () => ({
+  setAppearancePreferenceAction: vi.fn().mockResolvedValue(undefined),
+}));
+
+
 beforeEach(() => {
   mockedTextSize = "regular";
   setTextSizeMock.mockReset();

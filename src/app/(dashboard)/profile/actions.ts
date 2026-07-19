@@ -229,6 +229,41 @@ function normalizeStr(value: FormDataEntryValue | null): string | null {
  * Update per-user preferences: theme, timezone, locale, week_start, time_format.
  * Each field is optional — submitting an empty value resets to "auto" (NULL).
  */
+
+/**
+ * Narrow appearance persistence for the SIDEBAR pickers (theme popover +
+ * text-size switcher). Upserts ONLY the provided keys so the sidebar can
+ * persist a theme click without knowing (or clobbering) timezone/locale/
+ * week-start — the bug class where the popover's checkmark said "saved"
+ * while writing localStorage only, and every refresh reverted to the DB
+ * value (2026-07-18).
+ */
+export async function setAppearancePreferenceAction(
+  formData: FormData,
+): Promise<void> {
+  return runSafeAction(formData, async (formData, { supabase, userId }) => {
+    const theme = normalizeStr(formData.get("preferred_theme"));
+    const text_size = normalizeStr(formData.get("text_size"));
+    if (!theme && !text_size) return;
+    if (theme && !ALLOWED_THEMES.has(theme)) {
+      throw new Error(`Invalid theme: ${theme}`);
+    }
+    if (text_size && !ALLOWED_TEXT_SIZES.has(text_size)) {
+      throw new Error(`Invalid text_size: ${text_size}`);
+    }
+    const patch: Record<string, string> = { user_id: userId };
+    if (theme) patch.preferred_theme = theme;
+    if (text_size) patch.text_size = text_size;
+    assertSupabaseOk(
+      await supabase
+        .from("user_settings")
+        .upsert(patch, { onConflict: "user_id" }),
+    );
+    // No revalidatePath: the click already applied optimistically via the
+    // theme/text-size providers; a route re-render would reset scroll.
+  }, "setAppearancePreferenceAction") as unknown as void;
+}
+
 export async function updatePreferencesAction(
   formData: FormData,
 ): Promise<void> {
