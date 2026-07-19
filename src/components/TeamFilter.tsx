@@ -52,6 +52,9 @@ export function TeamFilter({
     } else {
       params.set("org", key);
     }
+    // Changing any filter resets the load-more window
+    // (docs/reference/list-pages.md rule 1).
+    params.delete("limit");
     router.push(`${pathname}?${params.toString()}`);
   }
 

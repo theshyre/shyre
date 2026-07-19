@@ -110,15 +110,21 @@
   "projectFilterClear": "Clear",
   "exportCsv": "Export CSV",
   "filters": {
-    "heading": "Filters",
-    "status": "Status",
-    "customer": "Customer",
+    "status": {
+      "dimension": "Status",
+      "listboxLabel": "Filter by status",
+      "all": "Any status"
+    },
+    "customer": {
+      "dimension": "Customer",
+      "listboxLabel": "Filter by customer",
+      "all": "Any customer",
+      "unknown": "Unknown customer"
+    },
     "from": "Issued from",
     "to": "Issued to",
-    "anyStatus": "Any status",
-    "anyCustomer": "Any customer",
-    "apply": "Apply filters",
-    "clear": "Clear filters"
+    "clearAll": "Clear all",
+    "noResultsHint": "No invoices match the current filters."
   },
   "unbilledTime": "Unbilled Time Entries",
   "noUnbilledTime": "No unbilled time entries for this customer.",
@@ -264,5 +270,13 @@
   "bulkPaidFailed": "Couldn't mark invoices paid.",
   "fromProposal": "From proposal",
   "emptyTitle": "No invoices yet",
-  "emptyDescription": "Create an invoice from tracked time, expenses, or an accepted proposal."
+  "emptyDescription": "Create an invoice from tracked time, expenses, or an accepted proposal.",
+  "bulkClear": "Clear",
+  "bulkMarkPaidConfirm": "{count, plural, one {Mark 1 invoice paid?} other {Mark # invoices paid?}}",
+  "bulkMarkPaidConfirmCta": "Confirm",
+  "bulkMarkPaidCancel": "Cancel",
+  "liveResultCount": "{count, plural, one {1 invoice shown} other {# invoices shown}}",
+  "liveSelected": "{count, plural, one {1 invoice selected} other {# invoices selected}}",
+  "emptyFilteredTitle": "No invoices match the current filters",
+  "emptyFilteredDescription": "Try a different status, customer, or date range."
 }

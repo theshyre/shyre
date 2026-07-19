@@ -110,15 +110,21 @@
   "projectFilterClear": "Limpiar",
   "exportCsv": "Exportar CSV",
   "filters": {
-    "heading": "Filtros",
-    "status": "Estado",
-    "customer": "Cliente",
+    "status": {
+      "dimension": "Estado",
+      "listboxLabel": "Filtrar por estado",
+      "all": "Cualquier estado"
+    },
+    "customer": {
+      "dimension": "Cliente",
+      "listboxLabel": "Filtrar por cliente",
+      "all": "Cualquier cliente",
+      "unknown": "Cliente desconocido"
+    },
     "from": "Emitida desde",
     "to": "Emitida hasta",
-    "anyStatus": "Cualquier estado",
-    "anyCustomer": "Cualquier cliente",
-    "apply": "Aplicar filtros",
-    "clear": "Limpiar filtros"
+    "clearAll": "Limpiar todo",
+    "noResultsHint": "Ninguna factura coincide con los filtros actuales."
   },
   "unbilledTime": "Registros de Tiempo No Facturados",
   "noUnbilledTime": "No hay registros de tiempo no facturados para este cliente.",
@@ -264,5 +270,13 @@
   "bulkPaidFailed": "No se pudieron marcar las facturas como pagadas.",
   "fromProposal": "De la propuesta",
   "emptyTitle": "Aún no hay facturas",
-  "emptyDescription": "Crea una factura a partir del tiempo registrado, gastos o una propuesta aceptada."
+  "emptyDescription": "Crea una factura a partir del tiempo registrado, gastos o una propuesta aceptada.",
+  "bulkClear": "Limpiar",
+  "bulkMarkPaidConfirm": "{count, plural, one {¿Marcar 1 factura como pagada?} other {¿Marcar # facturas como pagadas?}}",
+  "bulkMarkPaidConfirmCta": "Confirmar",
+  "bulkMarkPaidCancel": "Cancelar",
+  "liveResultCount": "{count, plural, one {1 factura mostrada} other {# facturas mostradas}}",
+  "liveSelected": "{count, plural, one {1 factura seleccionada} other {# facturas seleccionadas}}",
+  "emptyFilteredTitle": "Ninguna factura coincide con los filtros actuales",
+  "emptyFilteredDescription": "Prueba con otro estado, cliente o rango de fechas."
 }

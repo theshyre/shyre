@@ -1,170 +1,257 @@
 "use client";
 
-import { useRouter, useSearchParams } from "next/navigation";
-import { useState } from "react";
 import { useTranslations } from "next-intl";
-import { Filter, X } from "lucide-react";
-import {
-  selectClass,
-  labelClass,
-  buttonGhostClass,
-  buttonPrimaryClass,
-} from "@/lib/form-styles";
-import { INVOICE_STATUSES } from "@/lib/invoice-status";
+import { useRouter, usePathname, useSearchParams } from "next/navigation";
+import { CheckCircle, Users } from "lucide-react";
+import { FilterChip, type FilterChipOption } from "@/components/FilterChip";
+import { CustomerChip } from "@theshyre/ui";
 import { DateField } from "@/components/DateField";
+import {
+  INVOICE_STATUSES,
+  type InvoiceStatus,
+} from "@/lib/invoice-status";
+
+/**
+ * Row-3 filters for the invoice list, on the canonical list-page
+ * grammar (docs/reference/list-pages.md rule 1): inline chips +
+ * a labeled DateField pair, all instant-apply via URL push — no
+ * boxed panel, no Apply button. Default values are stripped from
+ * the URL; every change resets `?limit=` so "Load more" state
+ * never leaks across filter changes.
+ */
 
 interface CustomerOption {
   id: string;
   name: string;
+  logo_url?: string | null;
 }
 
-interface Props {
-  selectedTeamId: string | null;
-  customers: CustomerOption[];
-  currentFilters: {
-    status: string | null;
-    customerId: string | null;
-    from: string | null;
-    to: string | null;
+export interface InvoiceListFilters {
+  status: InvoiceStatus | null;
+  customerId: string | null;
+  from: string | null;
+  to: string | null;
+}
+
+/** Sentinel for "no filter" — statuses are a closed lowercase set and
+ *  customer ids are UUIDs, so this can never collide. */
+const ALL_KEY = "__all";
+
+function usePatchInvoiceUrl(): (
+  patch: Partial<Record<"status" | "customerId" | "from" | "to", string>>,
+) => void {
+  const router = useRouter();
+  const pathname = usePathname();
+  const searchParams = useSearchParams();
+  return (patch) => {
+    const params = new URLSearchParams(searchParams.toString());
+    for (const [key, value] of Object.entries(patch)) {
+      if (value) {
+        params.set(key, value);
+      } else {
+        params.delete(key);
+      }
+    }
+    // Any filter change resets the load-more window.
+    params.delete("limit");
+    router.push(`${pathname}?${params.toString()}`);
   };
 }
 
-/** Filter pill for the invoice list. URL-driven so filters survive
- *  reload + back. Submitting pushes a new query string and the page
- *  re-renders with filtered data. */
-export function InvoiceFilters({
-  selectedTeamId,
-  customers,
-  currentFilters,
-}: Props): React.JSX.Element {
-  const t = useTranslations("invoices.filters");
+/** Status chip — "Any status" (default, stripped from the URL) or one
+ *  of the five invoice statuses. */
+export function InvoiceStatusFilter({
+  selected,
+}: {
+  selected: InvoiceStatus | null;
+}): React.JSX.Element {
+  const t = useTranslations("invoices.filters.status");
   const tStatus = useTranslations("invoices.status");
-  const router = useRouter();
-  const searchParams = useSearchParams();
-
-  const [status, setStatus] = useState(currentFilters.status ?? "");
-  const [customerId, setCustomerId] = useState(
-    currentFilters.customerId ?? "",
-  );
-  const [from, setFrom] = useState(currentFilters.from ?? "");
-  const [to, setTo] = useState(currentFilters.to ?? "");
-
-  const hasAny =
-    !!currentFilters.status ||
-    !!currentFilters.customerId ||
-    !!currentFilters.from ||
-    !!currentFilters.to;
-
-  function apply(e: React.FormEvent<HTMLFormElement>): void {
-    e.preventDefault();
-    const params = new URLSearchParams(searchParams.toString());
-    setOrDelete(params, "status", status);
-    setOrDelete(params, "customerId", customerId);
-    setOrDelete(params, "from", from);
-    setOrDelete(params, "to", to);
-    if (selectedTeamId) params.set("org", selectedTeamId);
-    router.push(`/invoices${params.toString() ? `?${params.toString()}` : ""}`);
-  }
-
-  function clear(): void {
-    setStatus("");
-    setCustomerId("");
-    setFrom("");
-    setTo("");
-    const params = new URLSearchParams();
-    if (selectedTeamId) params.set("org", selectedTeamId);
-    router.push(`/invoices${params.toString() ? `?${params.toString()}` : ""}`);
-  }
+  const patchUrl = usePatchInvoiceUrl();
 
   return (
-    <form
-      onSubmit={apply}
-      className="rounded-lg border border-edge bg-surface-raised p-4 space-y-3"
-    >
-      <div className="flex items-center gap-2 text-label font-semibold uppercase tracking-wider text-content-muted">
-        <Filter size={12} />
-        {t("heading")}
-      </div>
-
-      <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
-        <div>
-          <label className={labelClass} htmlFor="if-status">
-            {t("status")}
-          </label>
-          <select
-            id="if-status"
-            value={status}
-            onChange={(e) => setStatus(e.target.value)}
-            className={selectClass}
-          >
-            <option value="">{t("anyStatus")}</option>
-            {INVOICE_STATUSES.map((s) => (
-              <option key={s} value={s}>
-                {tStatus(s)}
-              </option>
-            ))}
-          </select>
-        </div>
-        <div>
-          <label className={labelClass} htmlFor="if-customer">
-            {t("customer")}
-          </label>
-          <select
-            id="if-customer"
-            value={customerId}
-            onChange={(e) => setCustomerId(e.target.value)}
-            className={selectClass}
-          >
-            <option value="">{t("anyCustomer")}</option>
-            {customers.map((c) => (
-              <option key={c.id} value={c.id}>
-                {c.name}
-              </option>
-            ))}
-          </select>
-        </div>
-        <div>
-          <label className={labelClass} htmlFor="if-from">
-            {t("from")}
-          </label>
-          <DateField id="if-from" value={from} onChange={setFrom} />
-        </div>
-        <div>
-          <label className={labelClass} htmlFor="if-to">
-            {t("to")}
-          </label>
-          <DateField id="if-to" value={to} onChange={setTo} />
-        </div>
-      </div>
-
-      <div className="flex items-center gap-2">
-        <button type="submit" className={buttonPrimaryClass}>
-          {t("apply")}
-        </button>
-        {hasAny && (
-          <button
-            type="button"
-            onClick={clear}
-            className={`${buttonGhostClass} inline-flex items-center gap-1.5`}
-          >
-            <X size={12} />
-            {t("clear")}
-          </button>
-        )}
-      </div>
-    </form>
+    <FilterChip
+      icon={<CheckCircle size={12} aria-hidden="true" />}
+      dimensionLabel={t("dimension")}
+      valueLabel={selected ? tStatus(selected) : t("all")}
+      listboxLabel={t("listboxLabel")}
+      customized={selected !== null}
+      panelClassName="w-[180px]"
+      options={[
+        { key: ALL_KEY, label: t("all"), selected: selected === null },
+        ...INVOICE_STATUSES.map((s) => ({
+          key: s,
+          label: tStatus(s),
+          selected: selected === s,
+        })),
+      ]}
+      onPick={(key) => patchUrl({ status: key === ALL_KEY ? "" : key })}
+    />
   );
 }
 
-function setOrDelete(
-  params: URLSearchParams,
-  key: string,
-  value: string,
-): void {
-  const trimmed = value.trim();
-  if (trimmed) {
-    params.set(key, trimmed);
-  } else {
-    params.delete(key);
-  }
+/** Customer chip — "Any customer" (default, stripped) or a single
+ *  customer, with the CustomerChip identity-mark on each option. */
+export function InvoiceCustomerFilter({
+  selectedCustomerId,
+  customers,
+}: {
+  selectedCustomerId: string | null;
+  customers: CustomerOption[];
+}): React.JSX.Element | null {
+  const t = useTranslations("invoices.filters.customer");
+  const patchUrl = usePatchInvoiceUrl();
+
+  if (customers.length === 0) return null;
+
+  const selectedName = selectedCustomerId
+    ? (customers.find((c) => c.id === selectedCustomerId)?.name ??
+      t("unknown"))
+    : t("all");
+
+  const options: FilterChipOption[] = [
+    {
+      key: ALL_KEY,
+      label: t("all"),
+      icon: (
+        <Users size={12} className="text-content-muted" aria-hidden="true" />
+      ),
+      selected: selectedCustomerId === null,
+      labelClassName: "font-medium text-content",
+      separatorAfter: true,
+    },
+    ...customers.map((c) => ({
+      key: c.id,
+      label: c.name,
+      icon: (
+        <CustomerChip
+          customerId={c.id}
+          customerName={c.name}
+          logoUrl={c.logo_url ?? null}
+          size={14}
+        />
+      ),
+      selected: selectedCustomerId === c.id,
+      labelClassName: "font-medium text-content truncate",
+    })),
+  ];
+
+  return (
+    <FilterChip
+      icon={<Users size={12} aria-hidden="true" />}
+      dimensionLabel={t("dimension")}
+      valueLabel={selectedName}
+      valueClassName="truncate max-w-[160px]"
+      listboxLabel={t("listboxLabel")}
+      customized={selectedCustomerId !== null}
+      panelClassName="w-[260px] max-h-[360px] overflow-auto"
+      options={options}
+      onPick={(key) => patchUrl({ customerId: key === ALL_KEY ? "" : key })}
+    />
+  );
+}
+
+/** Labeled issued-date range pair. Instant-apply like the chips; an
+ *  empty value strips the param. */
+export function InvoiceIssuedDateFilter({
+  from,
+  to,
+}: {
+  from: string | null;
+  to: string | null;
+}): React.JSX.Element {
+  const t = useTranslations("invoices.filters");
+  const patchUrl = usePatchInvoiceUrl();
+
+  return (
+    <div className="flex items-center gap-1.5">
+      <label
+        htmlFor="invoice-filter-from"
+        className="text-caption text-content-muted whitespace-nowrap"
+      >
+        {t("from")}
+      </label>
+      <DateField
+        id="invoice-filter-from"
+        value={from ?? ""}
+        onChange={(next) => patchUrl({ from: next })}
+      />
+      <label
+        htmlFor="invoice-filter-to"
+        className="text-caption text-content-muted whitespace-nowrap"
+      >
+        {t("to")}
+      </label>
+      <DateField
+        id="invoice-filter-to"
+        value={to ?? ""}
+        onChange={(next) => patchUrl({ to: next })}
+      />
+    </div>
+  );
+}
+
+export function hasActiveInvoiceFilters(
+  filters: InvoiceListFilters,
+): boolean {
+  return (
+    filters.status !== null ||
+    filters.customerId !== null ||
+    filters.from !== null ||
+    filters.to !== null
+  );
+}
+
+/** Ghost "Clear all" link at the end of the filter row — rendered only
+ *  while at least one filter is off its default. Keeps `?org=` (the
+ *  team scope has its own "All" affordance in the TeamFilter chip). */
+export function InvoiceFiltersClearAll({
+  filters,
+}: {
+  filters: InvoiceListFilters;
+}): React.JSX.Element | null {
+  const t = useTranslations("invoices.filters");
+  const patchUrl = usePatchInvoiceUrl();
+
+  if (!hasActiveInvoiceFilters(filters)) return null;
+
+  return (
+    <button
+      type="button"
+      onClick={() =>
+        patchUrl({ status: "", customerId: "", from: "", to: "" })
+      }
+      className="text-caption text-content-secondary hover:text-content hover:underline"
+    >
+      {t("clearAll")}
+    </button>
+  );
+}
+
+/** Hint below a filtered-empty table: names the situation and offers
+ *  the one-click way out (mirrors projects' ProjectFiltersClearHint). */
+export function InvoiceFiltersNoResultsHint({
+  active,
+}: {
+  active: boolean;
+}): React.JSX.Element | null {
+  const t = useTranslations("invoices.filters");
+  const patchUrl = usePatchInvoiceUrl();
+
+  if (!active) return null;
+
+  return (
+    <div className="mt-3 inline-flex items-center gap-2 text-caption text-content-muted">
+      <span>{t("noResultsHint")}</span>
+      <button
+        type="button"
+        onClick={() =>
+          patchUrl({ status: "", customerId: "", from: "", to: "" })
+        }
+        className="text-accent hover:underline"
+      >
+        {t("clearAll")}
+      </button>
+    </div>
+  );
 }
