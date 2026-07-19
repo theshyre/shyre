@@ -80,19 +80,28 @@ Keep each guide ≤ ~200 lines. If a feature grows beyond one guide, split by su
 - **Don't leave stale guides.** If a feature is removed, its guide is removed (or moved to a "Deprecated" section with the removal date).
 - **Don't skip guides because the feature is "simple".** The guide is how someone NEW to Shyre learns it exists.
 
-## Reachability — every guide must be findable from the hub
+## Online docs are part of "documented" (rule added 2026-07-18)
 
-The `/docs` landing page (`src/app/(dashboard)/docs/page.tsx`) is a **curated
-nav**, not an auto-generated index. Curation is allowed to prioritize; it is
-not allowed to orphan. Two invariants, both enforced by
-`src/__tests__/docs-links.test.ts`:
+The `docs/` tree deploys with the app and renders at `/docs` — but the docs
+hub (`src/app/(dashboard)/docs/page.tsx`) is a **curated nav, not an auto
+index**. Curation is allowed to prioritize; it is not allowed to orphan: a
+guide that exists on disk but isn't reachable from a hub card is invisible
+to users. Therefore, for every user-facing feature:
 
-1. **Hub → files**: every `/docs/...` href in the hub page resolves to a real
-   file under `docs/` (either `<path>.md` or `<path>/README.md`).
-2. **Files → hub**: every `.md` under `docs/guides/**` is reachable from the
-   hub by following links — either linked directly from a hub card, or linked
-   from a README / guide that is itself reachable from the hub. Deliberate
-   exceptions go in the test's explicit allow-list with a comment saying why.
+1. Guide in `docs/guides/features/` (same commit as the feature — existing rule).
+2. Linked from `docs/guides/features/README.md` (existing rule).
+3. **Reachable from the docs hub page** (this rule): the configuration/how-to
+   guide is the card's `primary`; API/reference material goes in `more`. New
+   surface areas get their own card.
+
+Both directions are enforced by `src/__tests__/docs-links.test.ts`:
+
+- **Hub → files**: every `/docs/...` href in the hub page resolves to a real
+  file under `docs/` (either `<path>.md` or `<path>/README.md`).
+- **Files → hub**: every `.md` under `docs/guides/**` is reachable from the
+  hub by following links — either linked directly from a hub card, or linked
+  from a README / guide that is itself reachable from the hub. Deliberate
+  exceptions go in the test's explicit allow-list with a comment saying why.
 
 Additionally, every guide directory that has a `README.md` must link **all**
 of its sibling `.md` files from that README — the section index is the

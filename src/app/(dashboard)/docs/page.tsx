@@ -2,7 +2,6 @@ import type { Metadata } from "next";
 import {
   BarChart3,
   BookOpen,
-  Bot,
   Clock,
   Users,
   Briefcase,
@@ -14,6 +13,7 @@ import {
   Compass,
   ArrowRight,
   Building2,
+  Plug,
 } from "lucide-react";
 import Link from "next/link";
 import { getUserTeams } from "@/lib/team-context";
@@ -43,6 +43,21 @@ const MODULES: ModuleCard[] = [
         href: "/docs/guides/features/sub-project-rollup-filter",
       },
       { title: "Imports (Harvest)", href: "/docs/guides/features/imports" },
+    ],
+  },
+  {
+    name: "Integrations",
+    blurb: "Let Claude and other apps track time for you.",
+    icon: Plug,
+    primary: {
+      title: "Setup: tokens & the team switch",
+      href: "/docs/guides/features/integration-tokens",
+    },
+    more: [
+      { title: "API reference (REST + MCP)", href: "/docs/guides/features/integrations-api" },
+      { title: "Claude Code hooks kit", href: "/docs/guides/features/claude-code-hooks-kit" },
+      { title: "Agent attribution", href: "/docs/guides/features/agent-attribution" },
+      { title: "Reviewing agent time on invoices", href: "/docs/guides/features/agent-time-review" },
     ],
   },
   {
@@ -96,27 +111,6 @@ const MODULES: ModuleCard[] = [
     icon: BarChart3,
     primary: { title: "Reports", href: "/docs/guides/features/reports" },
     more: [],
-  },
-  {
-    name: "Agents & integrations",
-    blurb: "Let Claude and other agents track time via the API — reviewed, attributed, revocable.",
-    icon: Bot,
-    primary: {
-      title: "Integrations API (REST + MCP)",
-      href: "/docs/guides/features/integrations-api",
-    },
-    more: [
-      { title: "Integration tokens", href: "/docs/guides/features/integration-tokens" },
-      {
-        title: "Agent attribution on time entries",
-        href: "/docs/guides/features/agent-attribution",
-      },
-      { title: "Reviewing agent-tracked time", href: "/docs/guides/features/agent-time-review" },
-      {
-        title: "Claude Code hooks kit",
-        href: "/docs/guides/features/claude-code-hooks-kit",
-      },
-    ],
   },
 ];
 
