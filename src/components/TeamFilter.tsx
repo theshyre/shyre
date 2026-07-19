@@ -1,8 +1,9 @@
 "use client";
 
 import { useRouter, usePathname, useSearchParams } from "next/navigation";
-import { Building2, ChevronDown } from "lucide-react";
-import { useEffect, useRef, useState } from "react";
+import { useTranslations } from "next-intl";
+import { Building2 } from "lucide-react";
+import { FilterChip } from "@/components/FilterChip";
 import type { TeamListItem } from "@/lib/team-context";
 
 interface TeamFilterProps {
@@ -10,10 +11,14 @@ interface TeamFilterProps {
   selectedTeamId: string | null;
 }
 
+/** Sentinel option key for "All teams" — team ids are UUIDs, so this
+ *  can never collide with a real team. */
+const ALL_KEY = "__all";
+
 /**
- * Filter pill for list pages. Shows "All" or selected org name.
- * Uses URL search param `?team=<id>` so it's page-local.
- * Hidden when user has only 1 org.
+ * Filter pill for list pages, on the shared <FilterChip> scaffold.
+ * Shows "All" or the selected org name. Uses URL search param
+ * `?org=<id>` so it's page-local. Hidden when user has only 1 org.
  */
 export function TeamFilter({
   teams,
@@ -22,21 +27,7 @@ export function TeamFilter({
   const router = useRouter();
   const pathname = usePathname();
   const searchParams = useSearchParams();
-  const [open, setOpen] = useState(false);
-  const ref = useRef<HTMLDivElement>(null);
-
-  // Close on outside click. Hook is called unconditionally so the early-
-  // return path below doesn't change the hook count across renders.
-  useEffect(() => {
-    if (!open) return;
-    function handleClick(e: MouseEvent): void {
-      if (ref.current && !ref.current.contains(e.target as Node)) {
-        setOpen(false);
-      }
-    }
-    document.addEventListener("mousedown", handleClick);
-    return () => document.removeEventListener("mousedown", handleClick);
-  }, [open]);
+  const t = useTranslations("common.teamFilter");
 
   const selectedTeam = teams.find((o) => o.id === selectedTeamId);
 
@@ -45,70 +36,46 @@ export function TeamFilter({
     const singleOrg = teams[0];
     return (
       <span className="inline-flex items-center gap-1.5 rounded-full border border-edge bg-surface-inset px-3 py-1 text-caption font-medium text-content-secondary">
-        <Building2 size={12} />
+        <Building2 size={12} aria-hidden="true" />
         {singleOrg?.name ?? ""}
       </span>
     );
   }
 
-  const label = selectedTeam ? selectedTeam.name : "All";
-
-  function selectTeam(teamId: string | null): void {
+  function pick(key: string): void {
     const params = new URLSearchParams(searchParams.toString());
     // Note: URL param is "org" for legacy reasons — all list pages read
     // from `searchParams.org`. Renaming everywhere would be a coordinated
     // change; for now this writer has to match that reader.
-    if (teamId) {
-      params.set("org", teamId);
-    } else {
+    if (key === ALL_KEY) {
       params.delete("org");
+    } else {
+      params.set("org", key);
     }
     router.push(`${pathname}?${params.toString()}`);
-    setOpen(false);
   }
 
   return (
-    <div ref={ref} className="relative">
-      <button
-        onClick={() => setOpen(!open)}
-        className={`inline-flex items-center gap-1.5 rounded-full px-3 py-1 text-caption font-medium transition-colors ${
-          selectedTeamId
-            ? "bg-accent-soft text-accent-text border border-accent/30"
-            : "bg-surface-inset text-content-secondary border border-edge hover:bg-hover"
-        }`}
-      >
-        <Building2 size={12} />
-        {label}
-        <ChevronDown size={10} />
-      </button>
-
-      {open && (
-        <div className="absolute left-0 top-full z-30 mt-1 w-[192px] rounded-lg border border-edge bg-surface-raised shadow-lg overflow-hidden">
-          <button
-            onClick={() => selectTeam(null)}
-            className={`flex items-center gap-2 w-full px-3 py-2 text-body-lg text-left transition-colors ${
-              !selectedTeamId
-                ? "bg-accent-soft text-accent-text"
-                : "text-content-secondary hover:bg-hover"
-            }`}
-          >
-            All
-          </button>
-          {teams.map((org) => (
-            <button
-              key={org.id}
-              onClick={() => selectTeam(org.id)}
-              className={`flex items-center gap-2 w-full px-3 py-2 text-body-lg text-left transition-colors ${
-                org.id === selectedTeamId
-                  ? "bg-accent-soft text-accent-text"
-                  : "text-content-secondary hover:bg-hover"
-              }`}
-            >
-              {org.name}
-            </button>
-          ))}
-        </div>
-      )}
-    </div>
+    <FilterChip
+      icon={<Building2 size={12} aria-hidden="true" />}
+      dimensionLabel={t("dimension")}
+      valueLabel={selectedTeam ? selectedTeam.name : t("all")}
+      listboxLabel={t("listboxLabel")}
+      customized={Boolean(selectedTeamId)}
+      panelClassName="w-[192px]"
+      options={[
+        {
+          key: ALL_KEY,
+          label: t("all"),
+          selected: !selectedTeamId,
+        },
+        ...teams.map((org) => ({
+          key: org.id,
+          label: org.name,
+          selected: org.id === selectedTeamId,
+        })),
+      ]}
+      onPick={pick}
+    />
   );
 }

@@ -200,6 +200,11 @@
     "cannotLeaveOwner": "Transfiere la propiedad antes de abandonar.",
     "dangerZone": "Zona de Peligro"
   },
+  "teamFilter": {
+    "dimension": "Equipo",
+    "all": "Todos",
+    "listboxLabel": "Filtrar por equipo"
+  },
   "pagination": {
     "ariaLabel": "Cargar más filas",
     "loadedOf": "Mostrando {loaded, number} de {total, number}",

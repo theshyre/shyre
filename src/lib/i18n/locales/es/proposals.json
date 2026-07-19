@@ -28,6 +28,7 @@
   },
   "filters": {
     "status": {
+      "dimension": "Estado",
       "listboxLabel": "Filtrar por estado",
       "label": {
         "all": "Todos los estados",

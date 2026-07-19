@@ -200,6 +200,11 @@
     "cannotLeaveOwner": "Transfer ownership before leaving.",
     "dangerZone": "Danger Zone"
   },
+  "teamFilter": {
+    "dimension": "Team",
+    "all": "All",
+    "listboxLabel": "Filter by team"
+  },
   "pagination": {
     "ariaLabel": "Load more rows",
     "loadedOf": "Showing {loaded, number} of {total, number}",

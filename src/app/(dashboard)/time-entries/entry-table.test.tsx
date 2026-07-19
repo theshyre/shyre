@@ -327,6 +327,115 @@ describe("EntryTable", () => {
     expect(toolbar.closest("thead")).toBeNull();
   });
 
+  it("moves focus to the overlay strip's master checkbox when selection starts from the thead master (B1)", () => {
+    const { container } = renderTable(
+      <EntryTable
+        groups={[group("g1", "T", [makeEntry("a"), makeEntry("b")])]}
+        projects={[]}
+        categories={[]}
+        expandedEntryId={null}
+        onToggleExpand={() => {}}
+        hideGroupHeaders
+      />,
+    );
+    const theadMaster = container.querySelector<HTMLInputElement>(
+      "thead input[type='checkbox']",
+    );
+    expect(theadMaster).not.toBeNull();
+    // Keyboard user: focus sits on the thead master when they toggle it.
+    theadMaster!.focus();
+    fireEvent.click(theadMaster!);
+    // The thead is now aria-hidden; focus must have moved to the
+    // surviving master inside the overlay strip.
+    expect(container.querySelector("thead")).toHaveAttribute(
+      "aria-hidden",
+      "true",
+    );
+    const stripMaster = screen
+      .getByRole("toolbar", { name: /bulk/i })
+      .querySelector<HTMLInputElement>("input[type='checkbox']");
+    expect(stripMaster).not.toBeNull();
+    expect(document.activeElement).toBe(stripMaster);
+  });
+
+  it("hands focus back to the thead master when the selection is cleared from within the strip", () => {
+    const { container } = renderTable(
+      <EntryTable
+        groups={[group("g1", "T", [makeEntry("a"), makeEntry("b")])]}
+        projects={[]}
+        categories={[]}
+        expandedEntryId={null}
+        onToggleExpand={() => {}}
+        hideGroupHeaders
+      />,
+    );
+    const theadMaster = container.querySelector<HTMLInputElement>(
+      "thead input[type='checkbox']",
+    );
+    theadMaster!.focus();
+    fireEvent.click(theadMaster!);
+    const toolbar = screen.getByRole("toolbar", { name: /bulk/i });
+    const stripMaster = toolbar.querySelector<HTMLInputElement>(
+      "input[type='checkbox']",
+    );
+    expect(document.activeElement).toBe(stripMaster);
+    // Unchecking the strip master clears the selection and unmounts the
+    // strip — focus must land back on the (again-tabbable) thead
+    // master, not fall to <body>.
+    fireEvent.click(stripMaster!);
+    expect(
+      screen.queryByRole("toolbar", { name: /bulk/i }),
+    ).not.toBeInTheDocument();
+    expect(document.activeElement).toBe(theadMaster);
+  });
+
+  it("leaves focus alone when a row checkbox clears the last selection", () => {
+    const { container } = renderTable(
+      <EntryTable
+        groups={[group("g1", "T", [makeEntry("a"), makeEntry("b")])]}
+        projects={[]}
+        categories={[]}
+        expandedEntryId={null}
+        onToggleExpand={() => {}}
+        hideGroupHeaders
+      />,
+    );
+    const rowCheckbox = container.querySelector<HTMLInputElement>(
+      "tbody input[type='checkbox']",
+    );
+    rowCheckbox!.focus();
+    fireEvent.click(rowCheckbox!);
+    expect(screen.getByRole("toolbar", { name: /bulk/i })).toBeInTheDocument();
+    fireEvent.click(rowCheckbox!);
+    expect(
+      screen.queryByRole("toolbar", { name: /bulk/i }),
+    ).not.toBeInTheDocument();
+    // The row checkbox survived the strip unmount and keeps focus.
+    expect(document.activeElement).toBe(rowCheckbox);
+  });
+
+  it("leaves focus alone when selection starts from a row checkbox", () => {
+    const { container } = renderTable(
+      <EntryTable
+        groups={[group("g1", "T", [makeEntry("a"), makeEntry("b")])]}
+        projects={[]}
+        categories={[]}
+        expandedEntryId={null}
+        onToggleExpand={() => {}}
+        hideGroupHeaders
+      />,
+    );
+    const rowCheckbox = container.querySelector<HTMLInputElement>(
+      "tbody input[type='checkbox']",
+    );
+    expect(rowCheckbox).not.toBeNull();
+    rowCheckbox!.focus();
+    fireEvent.click(rowCheckbox!);
+    // Strip appears, but the row checkbox the user is on stays focused.
+    expect(screen.getByRole("toolbar", { name: /bulk/i })).toBeInTheDocument();
+    expect(document.activeElement).toBe(rowCheckbox);
+  });
+
   it("renders the edit form spanning the table width when expanded", () => {
     renderTable(
       <EntryTable

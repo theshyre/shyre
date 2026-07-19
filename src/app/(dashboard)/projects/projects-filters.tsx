@@ -1,27 +1,17 @@
 "use client";
 
-import {
-  useCallback,
-  useEffect,
-  useRef,
-  useState,
-} from "react";
+import { useCallback } from "react";
 import { useTranslations } from "next-intl";
 import { useRouter, usePathname, useSearchParams } from "next/navigation";
-import {
-  Building2,
-  CheckCircle,
-  ChevronDown,
-  Pause,
-  Search,
-  Users,
-} from "lucide-react";
-import { kbdClass } from "@/lib/form-styles";
+import { Building2, CheckCircle, Users } from "lucide-react";
+import { FilterChip, type FilterChipOption } from "@/components/FilterChip";
+import { ListSearchInput } from "@/components/ListSearchInput";
 import { CustomerChip } from "@theshyre/ui";
 
 interface CustomerOption {
   id: string;
   name: string;
+  logo_url?: string | null;
 }
 
 const STATUS_KEYS = [
@@ -47,19 +37,6 @@ export function StatusFilter({
   const pathname = usePathname();
   const searchParams = useSearchParams();
   const t = useTranslations("projects.filters.status");
-  const [open, setOpen] = useState(false);
-  const ref = useRef<HTMLDivElement>(null);
-
-  useEffect(() => {
-    if (!open) return;
-    function handleClick(e: MouseEvent): void {
-      if (ref.current && !ref.current.contains(e.target as Node)) {
-        setOpen(false);
-      }
-    }
-    document.addEventListener("mousedown", handleClick);
-    return () => document.removeEventListener("mousedown", handleClick);
-  }, [open]);
 
   function pick(next: StatusKey): void {
     const params = new URLSearchParams(searchParams.toString());
@@ -72,54 +49,23 @@ export function StatusFilter({
       params.set("status", next);
     }
     router.push(`${pathname}?${params.toString()}`);
-    setOpen(false);
   }
 
-  const isCustomized = selected !== "active";
-
   return (
-    <div ref={ref} className="relative">
-      <button
-        type="button"
-        onClick={() => setOpen((o) => !o)}
-        aria-haspopup="listbox"
-        aria-expanded={open}
-        className={`inline-flex items-center gap-1.5 rounded-full px-3 py-1 text-caption font-medium border transition-colors ${
-          isCustomized
-            ? "bg-accent-soft text-accent-text border-accent/30"
-            : "bg-surface-inset text-content-secondary border-edge hover:bg-hover"
-        }`}
-      >
-        <CheckCircle size={12} aria-hidden="true" />
-        {t(`label.${selected}`)}
-        <ChevronDown size={12} aria-hidden="true" />
-      </button>
-      {open && (
-        <div
-          role="listbox"
-          aria-label={t("listboxLabel")}
-          className="absolute left-0 top-full mt-1 w-[180px] rounded-lg border border-edge bg-surface-raised shadow-lg p-1 z-20"
-        >
-          {STATUS_KEYS.map((s) => (
-            <button
-              key={s}
-              type="button"
-              role="option"
-              aria-selected={selected === s}
-              onClick={() => pick(s)}
-              className="flex w-full items-center gap-2 rounded-md px-2 py-1.5 text-left text-caption hover:bg-hover"
-            >
-              <span className="w-3 shrink-0">
-                {selected === s && (
-                  <CheckCircle size={12} aria-hidden="true" />
-                )}
-              </span>
-              <span className="text-content">{t(`label.${s}`)}</span>
-            </button>
-          ))}
-        </div>
-      )}
-    </div>
+    <FilterChip<StatusKey>
+      icon={<CheckCircle size={12} aria-hidden="true" />}
+      dimensionLabel={t("dimension")}
+      valueLabel={t(`label.${selected}`)}
+      listboxLabel={t("listboxLabel")}
+      customized={selected !== "active"}
+      panelClassName="w-[180px]"
+      options={STATUS_KEYS.map((s) => ({
+        key: s,
+        label: t(`label.${s}`),
+        selected: selected === s,
+      }))}
+      onPick={pick}
+    />
   );
 }
 
@@ -145,33 +91,18 @@ export function CustomerFilter({
   const pathname = usePathname();
   const searchParams = useSearchParams();
   const t = useTranslations("projects.filters.customer");
-  const [open, setOpen] = useState(false);
-  const ref = useRef<HTMLDivElement>(null);
-
-  useEffect(() => {
-    if (!open) return;
-    function handleClick(e: MouseEvent): void {
-      if (ref.current && !ref.current.contains(e.target as Node)) {
-        setOpen(false);
-      }
-    }
-    document.addEventListener("mousedown", handleClick);
-    return () => document.removeEventListener("mousedown", handleClick);
-  }, [open]);
 
   if (customers.length === 0) return null;
 
-  function pick(next: CustomerFilterSelection): void {
+  function pick(key: string): void {
     const params = new URLSearchParams(searchParams.toString());
-    if (next.kind === "all") {
+    if (key === "all") {
       params.delete("customer");
-    } else if (next.kind === "internal") {
-      params.set("customer", "internal");
     } else {
-      params.set("customer", next.id);
+      // "internal" and customer ids share the ?customer= param.
+      params.set("customer", key);
     }
     router.push(`${pathname}?${params.toString()}`);
-    setOpen(false);
   }
 
   const label = (() => {
@@ -183,128 +114,73 @@ export function CustomerFilter({
     );
   })();
 
-  const isCustomized = selection.kind !== "all";
+  const options: FilterChipOption[] = [
+    {
+      key: "all",
+      label: t("label.all"),
+      icon: (
+        <Users size={12} className="text-content-muted" aria-hidden="true" />
+      ),
+      selected: selection.kind === "all",
+      labelClassName: "font-medium text-content",
+    },
+    {
+      key: "internal",
+      label: t("label.internal"),
+      icon: (
+        <Building2
+          size={12}
+          className="text-content-muted"
+          aria-hidden="true"
+        />
+      ),
+      selected: selection.kind === "internal",
+      labelClassName: "font-medium text-content",
+      separatorAfter: true,
+    },
+    ...customers.map((c) => ({
+      key: c.id,
+      label: c.name,
+      icon: (
+        <CustomerChip
+          customerId={c.id}
+          customerName={c.name}
+          logoUrl={c.logo_url ?? null}
+          size={14}
+        />
+      ),
+      selected: selection.kind === "id" && selection.id === c.id,
+      labelClassName: "font-medium text-content truncate",
+    })),
+  ];
 
   return (
-    <div ref={ref} className="relative">
-      <button
-        type="button"
-        onClick={() => setOpen((o) => !o)}
-        aria-haspopup="listbox"
-        aria-expanded={open}
-        className={`inline-flex items-center gap-1.5 rounded-full px-3 py-1 text-caption font-medium border transition-colors ${
-          isCustomized
-            ? "bg-accent-soft text-accent-text border-accent/30"
-            : "bg-surface-inset text-content-secondary border-edge hover:bg-hover"
-        }`}
-      >
-        {selection.kind === "internal" ? (
+    <FilterChip
+      icon={
+        selection.kind === "internal" ? (
           <Building2 size={12} aria-hidden="true" />
         ) : (
           <Users size={12} aria-hidden="true" />
-        )}
-        <span className="truncate max-w-[160px]">{label}</span>
-        <ChevronDown size={12} aria-hidden="true" />
-      </button>
-      {open && (
-        <div
-          role="listbox"
-          aria-label={t("listboxLabel")}
-          className="absolute left-0 top-full mt-1 w-[260px] max-h-[360px] overflow-auto rounded-lg border border-edge bg-surface-raised shadow-lg p-1 z-20"
-        >
-          <button
-            type="button"
-            role="option"
-            aria-selected={selection.kind === "all"}
-            onClick={() => pick({ kind: "all" })}
-            className="flex w-full items-center gap-2 rounded-md px-2 py-1.5 text-left text-caption hover:bg-hover"
-          >
-            <span className="w-3 shrink-0">
-              {selection.kind === "all" && (
-                <CheckCircle size={12} aria-hidden="true" />
-              )}
-            </span>
-            <Users size={12} className="text-content-muted" aria-hidden="true" />
-            <span className="font-medium text-content">
-              {t("label.all")}
-            </span>
-          </button>
-          <button
-            type="button"
-            role="option"
-            aria-selected={selection.kind === "internal"}
-            onClick={() => pick({ kind: "internal" })}
-            className="flex w-full items-center gap-2 rounded-md px-2 py-1.5 text-left text-caption hover:bg-hover"
-          >
-            <span className="w-3 shrink-0">
-              {selection.kind === "internal" && (
-                <CheckCircle size={12} aria-hidden="true" />
-              )}
-            </span>
-            <Building2
-              size={12}
-              className="text-content-muted"
-              aria-hidden="true"
-            />
-            <span className="font-medium text-content">
-              {t("label.internal")}
-            </span>
-          </button>
-          <div className="my-1 border-t border-edge-muted" />
-          {customers.map((c) => (
-            <button
-              key={c.id}
-              type="button"
-              role="option"
-              aria-selected={
-                selection.kind === "id" && selection.id === c.id
-              }
-              onClick={() => pick({ kind: "id", id: c.id })}
-              className="flex w-full items-center gap-2 rounded-md px-2 py-1.5 text-left text-caption hover:bg-hover"
-            >
-              <span className="w-3 shrink-0">
-                {selection.kind === "id" && selection.id === c.id && (
-                  <CheckCircle size={12} aria-hidden="true" />
-                )}
-              </span>
-              <CustomerChip
-                customerId={c.id}
-                customerName={c.name}
-                logoUrl={(c as { logo_url?: string | null }).logo_url ?? null}
-                size={14}
-              />
-              <span className="font-medium text-content truncate">
-                {c.name}
-              </span>
-            </button>
-          ))}
-        </div>
-      )}
-    </div>
+        )
+      }
+      dimensionLabel={t("dimension")}
+      valueLabel={label}
+      valueClassName="truncate max-w-[160px]"
+      listboxLabel={t("listboxLabel")}
+      customized={selection.kind !== "all"}
+      panelClassName="w-[260px] max-h-[360px] overflow-auto"
+      options={options}
+      onPick={pick}
+    />
   );
 }
 
 /**
- * Free-text search box for project names. Submits on Enter so the
- * URL only updates when the user commits — avoids per-keystroke
- * server round-trips. `/` keyboard shortcut focuses the input;
- * Escape blurs and clears the local edit (URL keeps its current q).
+ * Free-text search box for project names, on the shared
+ * <ListSearchInput> primitive: 300ms debounced instant-apply, Enter
+ * commits immediately, Escape clears, `/` focuses (with kbd hint).
  */
 export function ProjectSearchInput({
-  initialQuery,
-}: {
-  initialQuery: string;
-}): React.JSX.Element {
-  // Wrapper component so the URL-driven `initialQuery` can act as a
-  // remount key. Lets the inner form pick up external URL changes
-  // (e.g. the Clear-filters button) without a setState-in-effect
-  // sync hook (which the React-purity lint rule blocks).
-  return (
-    <ProjectSearchInputBody key={initialQuery} initialQuery={initialQuery} />
-  );
-}
-
-function ProjectSearchInputBody({
   initialQuery,
 }: {
   initialQuery: string;
@@ -313,36 +189,14 @@ function ProjectSearchInputBody({
   const pathname = usePathname();
   const searchParams = useSearchParams();
   const t = useTranslations("projects.filters.search");
-  const inputRef = useRef<HTMLInputElement>(null);
-  const [value, setValue] = useState(initialQuery);
 
-  // `/` shortcut focuses the search input — same convention as
-  // most list pages in Shyre. Skip when another input is already
-  // focused or a modifier is held so we don't hijack typing.
-  useEffect(() => {
-    function onKey(e: KeyboardEvent): void {
-      if (e.key !== "/") return;
-      if (e.metaKey || e.ctrlKey || e.altKey) return;
-      const target = e.target as HTMLElement | null;
-      const tag = target?.tagName ?? "";
-      if (tag === "INPUT" || tag === "TEXTAREA" || tag === "SELECT") return;
-      if (target?.isContentEditable) return;
-      e.preventDefault();
-      inputRef.current?.focus();
-      inputRef.current?.select();
-    }
-    window.addEventListener("keydown", onKey);
-    return () => window.removeEventListener("keydown", onKey);
-  }, []);
-
-  const submit = useCallback(
+  const commit = useCallback(
     (next: string): void => {
       const params = new URLSearchParams(searchParams.toString());
-      const trimmed = next.trim();
-      if (trimmed.length === 0) {
+      if (next.length === 0) {
         params.delete("q");
       } else {
-        params.set("q", trimmed);
+        params.set("q", next);
       }
       router.push(`${pathname}?${params.toString()}`);
     },
@@ -350,42 +204,12 @@ function ProjectSearchInputBody({
   );
 
   return (
-    <form
-      onSubmit={(e) => {
-        e.preventDefault();
-        submit(value);
-      }}
-      className="relative inline-flex items-center"
-      role="search"
-    >
-      <Search
-        size={12}
-        className="absolute left-3 text-content-muted pointer-events-none"
-        aria-hidden="true"
-      />
-      <input
-        ref={inputRef}
-        type="search"
-        value={value}
-        onChange={(e) => setValue(e.target.value)}
-        onKeyDown={(e) => {
-          if (e.key === "Escape") {
-            e.preventDefault();
-            setValue(initialQuery);
-            inputRef.current?.blur();
-          }
-        }}
-        placeholder={t("placeholder")}
-        aria-label={t("ariaLabel")}
-        className="rounded-full border border-edge bg-surface pl-7 pr-12 py-1 text-caption text-content placeholder:text-content-muted focus:outline-none focus:ring-1 focus:ring-focus-ring w-[220px]"
-      />
-      <kbd
-        className={`${kbdClass} absolute right-2 pointer-events-none`}
-        aria-hidden="true"
-      >
-        /
-      </kbd>
-    </form>
+    <ListSearchInput
+      value={initialQuery}
+      onCommit={commit}
+      placeholder={t("placeholder")}
+      ariaLabel={t("ariaLabel")}
+    />
   );
 }
 
@@ -423,11 +247,4 @@ export function ProjectFiltersClearHint({
       </button>
     </div>
   );
-}
-
-/** Compact pause-icon badge — surfaced when the active status filter
- *  is one of the named pinned values, as a redundant visual cue. */
-export function StatusBadgeIconForKey(key: StatusKey): React.JSX.Element {
-  if (key === "paused") return <Pause size={12} aria-hidden="true" />;
-  return <CheckCircle size={12} aria-hidden="true" />;
 }

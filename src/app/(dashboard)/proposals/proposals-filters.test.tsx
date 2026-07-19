@@ -58,4 +58,29 @@ describe("ProposalStatusFilterChip", () => {
     fireEvent.click(screen.getByRole("option", { name: /All statuses/ }));
     expect(mockPush).toHaveBeenCalledWith("/proposals?");
   });
+
+  it("names the trigger '{dimension}: {value}' with haspopup/expanded semantics", () => {
+    renderWithIntl(<ProposalStatusFilterChip selected="accepted" />);
+    const trigger = screen.getByRole("button", { name: "Status: Accepted" });
+    expect(trigger).toHaveAttribute("aria-haspopup", "listbox");
+    expect(trigger).toHaveAttribute("aria-expanded", "false");
+    fireEvent.click(trigger);
+    expect(trigger).toHaveAttribute("aria-expanded", "true");
+    const selected = screen.getByRole("option", { name: "Accepted" });
+    expect(selected.querySelector("svg.lucide-circle-check-big")).not.toBeNull();
+  });
+
+  it("closes on Escape and returns focus to the trigger; picking also restores focus", () => {
+    renderWithIntl(<ProposalStatusFilterChip selected="all" />);
+    const trigger = screen.getByRole("button", { name: /All statuses/ });
+    fireEvent.click(trigger);
+    fireEvent.keyDown(document, { key: "Escape" });
+    expect(screen.queryByRole("listbox")).not.toBeInTheDocument();
+    expect(document.activeElement).toBe(trigger);
+
+    fireEvent.click(trigger);
+    fireEvent.click(screen.getByRole("option", { name: /Declined/ }));
+    expect(screen.queryByRole("listbox")).not.toBeInTheDocument();
+    expect(document.activeElement).toBe(trigger);
+  });
 });
