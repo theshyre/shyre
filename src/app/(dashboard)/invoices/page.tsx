@@ -17,8 +17,10 @@ import {
   InvoiceFiltersNoResultsHint,
   InvoiceIssuedDateFilter,
   InvoiceStatusFilter,
-  hasActiveInvoiceFilters,
 } from "./invoice-filters";
+import {
+  hasActiveInvoiceFilters,
+} from "./invoice-list-filters";
 import { isInvoiceStatus } from "@/lib/invoice-status";
 import { parseListPagination } from "@/lib/pagination/list-pagination";
 import { InvoicesTable, type InvoiceRow } from "./invoices-table";

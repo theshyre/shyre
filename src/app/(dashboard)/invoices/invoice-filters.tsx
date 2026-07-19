@@ -1,6 +1,11 @@
 "use client";
 
 import { useTranslations } from "next-intl";
+import {
+  hasActiveInvoiceFilters,
+  type InvoiceListFilters,
+} from "./invoice-list-filters";
+export { hasActiveInvoiceFilters, type InvoiceListFilters } from "./invoice-list-filters";
 import { useRouter, usePathname, useSearchParams } from "next/navigation";
 import { CheckCircle, Users } from "lucide-react";
 import { FilterChip, type FilterChipOption } from "@/components/FilterChip";
@@ -26,12 +31,7 @@ interface CustomerOption {
   logo_url?: string | null;
 }
 
-export interface InvoiceListFilters {
-  status: InvoiceStatus | null;
-  customerId: string | null;
-  from: string | null;
-  to: string | null;
-}
+
 
 /** Sentinel for "no filter" — statuses are a closed lowercase set and
  *  customer ids are UUIDs, so this can never collide. */
@@ -191,16 +191,7 @@ export function InvoiceIssuedDateFilter({
   );
 }
 
-export function hasActiveInvoiceFilters(
-  filters: InvoiceListFilters,
-): boolean {
-  return (
-    filters.status !== null ||
-    filters.customerId !== null ||
-    filters.from !== null ||
-    filters.to !== null
-  );
-}
+
 
 /** Ghost "Clear all" link at the end of the filter row — rendered only
  *  while at least one filter is off its default. Keeps `?org=` (the
