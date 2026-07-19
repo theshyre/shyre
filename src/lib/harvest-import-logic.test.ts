@@ -773,6 +773,20 @@ describe("buildTimeEntryRow", () => {
     1: "u-alice",
   };
 
+  it("stamps started_by_kind='import' so imported rows carry truthful attribution", () => {
+    const out = buildTimeEntryRow({
+      entry: baseEntry,
+      projectId: "proj-1",
+      projectHourlyRate: 150,
+      userMapping,
+      categoryIdByTaskName,
+      ctx,
+      timeZone: "America/New_York",
+    });
+    if ("skipped" in out) throw new Error("expected row");
+    expect(out.started_by_kind).toBe("import");
+  });
+
   it("builds a complete row for a mapped user + mapped project", () => {
     const out = buildTimeEntryRow({
       entry: baseEntry,
