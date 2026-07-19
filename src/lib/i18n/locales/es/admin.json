@@ -58,5 +58,36 @@
         "description": "Cada token y clave de API que Shyre rastrea, con estado de rotación. El banner del dashboard resalta lo que está por expirar."
       }
     }
+  },
+  "errorLog": {
+    "title": "Registro de errores",
+    "unresolvedBadge": "{count} sin resolver",
+    "filters": {
+      "unresolved": "Sin resolver",
+      "all": "Todos",
+      "errors": "Errores",
+      "warnings": "Advertencias",
+      "resolved": "Resueltos"
+    },
+    "resolveAll": "Resolver todo",
+    "resolveAllConfirm": "{count, plural, one {Resolver # error} other {Resolver # errores}}",
+    "resolveAllSuccess": "Todo resuelto",
+    "markResolved": "{count, plural, one {Marcar como resuelto} other {Marcar # como resueltos}}",
+    "resolvedConfirmation": "Resuelto",
+    "resolvedChip": "Resuelto",
+    "occurrenceBadge": "×{count}",
+    "occurrenceBadgeLabel": "{count} ocurrencias",
+    "occurrencesTitle": "Ocurrencias ({count})",
+    "firstSeen": "Visto por primera vez",
+    "lastSeen": "Visto por última vez",
+    "fieldErrorCode": "Código de error",
+    "fieldSeverity": "Severidad",
+    "fieldUserId": "ID de usuario",
+    "fieldOrgId": "ID de organización",
+    "fieldUrl": "URL",
+    "fieldMessage": "Mensaje",
+    "fieldDetails": "Detalles",
+    "fieldStackTrace": "Traza de pila",
+    "empty": "No se encontraron errores."
   }
 }

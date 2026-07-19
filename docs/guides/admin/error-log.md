@@ -25,13 +25,20 @@ Client-side errors are not logged here. Add them explicitly from components that
 
 ## Filters on the page
 
-- **Severity**: Errors / Warnings / Info / All
-- **Status**: Unresolved / Resolved / All
-- **Page**: 50 per page
+- **Severity**: Errors / Warnings
+- **Status**: Unresolved (default) / Resolved / All
+- **Page**: 25 rows per page
+
+## Duplicate grouping
+
+Identical errors — same `error_code` + `message` + `action` + `url` — collapse into one card with an occurrence-count badge ("×5"), first-seen and last-seen timestamps, and the newest available stack trace in the expandable detail. Expanding the card lists every individual occurrence's timestamp (with a Resolved chip on already-resolved ones). Grouping happens within the current page of results.
 
 ## Resolving
 
-Click **Resolve** on any row. Marks it resolved with `resolved_at = now()` and `resolved_by = you`. Doesn't delete. The audit log is append-only by policy — never delete rows, just resolve.
+- **Mark resolved** on a card resolves every unresolved occurrence in that group with `resolved_at = now()` and `resolved_by = you`. Already-resolved rows keep their original resolver and timestamp.
+- **Resolve all** (header, top-right) sweeps every unresolved error matching the active filter — all of them on the Unresolved/All views, or only the filtered severity on Errors/Warnings. It arms an inline Confirm/Cancel before acting.
+
+Nothing is deleted. The log is append-only by policy — never delete rows, just resolve.
 
 ## Triage guidance
 
