@@ -107,3 +107,12 @@ export const formSpanHalf = "col-span-12 sm:col-span-6";
 export const formSpanThird = "col-span-12 sm:col-span-4";
 export const formSpanQuarter = "col-span-6 sm:col-span-3";
 export const formSpanCompact = "col-span-6 sm:col-span-2";
+
+/**
+ * Selection checkbox — THE one treatment for every list-page checkbox
+ * (row + masters) and form checkboxes. 16×16 visual; the ≥24×24 hit area
+ * comes from the padded cell/label around it. Bare <input type="checkbox">
+ * is banned (docs/reference/list-pages.md rule 4).
+ */
+export const checkboxClass =
+  "h-4 w-4 rounded border-edge text-accent focus:ring-focus-ring cursor-pointer";

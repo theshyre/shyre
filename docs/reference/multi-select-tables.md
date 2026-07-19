@@ -42,3 +42,13 @@ Wide tables where each column carries distinct semantic content (Date / Category
 ## Promotion
 
 Both patterns: do not extract to `@theshyre/ui` yet. Shyre owns this pattern via in-place implementation until Liv adopts it.
+
+
+## Criterion clarification (2026-07-18)
+
+The real A-vs-B criterion — and the one the Surfaces list actually applies —
+is **whether the column headers are restate-able by the overlay strip**
+(restate-able → Pattern A) **vs distinct semantic headers that must stay
+visible** (→ Pattern B). Column count is a proxy that the list above
+contradicts (invoices and customers are ≤8 columns and correctly Pattern B).
+Pick by header semantics.

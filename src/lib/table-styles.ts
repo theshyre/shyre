@@ -56,3 +56,14 @@ export const tableBodyCellClass = "px-4 py-3 text-content-secondary";
  */
 export const tableWrapperClass =
   "overflow-hidden rounded-lg border border-edge bg-surface-raised";
+
+/**
+ * Bulk-strip buttons — neutral chrome, intent via colored text/icon.
+ * Soft-fill backgrounds are banned in strips (multi-select-tables.md
+ * rule 3; list-pages.md rule 5).
+ */
+export const bulkStripButtonClass =
+  "inline-flex items-center gap-1.5 rounded-md border border-edge bg-surface px-2.5 py-1 text-caption font-medium text-content-secondary hover:bg-hover hover:text-content transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus-ring disabled:opacity-50";
+
+export const bulkStripDangerButtonClass =
+  "inline-flex items-center gap-1.5 rounded-md border border-edge bg-surface px-2.5 py-1 text-caption font-medium text-error hover:bg-error-soft/40 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus-ring disabled:opacity-50";

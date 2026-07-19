@@ -6,6 +6,8 @@ import {
   tableBodyRowClass,
   tableBodyCellClass,
   tableWrapperClass,
+  bulkStripButtonClass,
+  bulkStripDangerButtonClass,
 } from "./table-styles";
 
 /**
@@ -23,6 +25,8 @@ const allConstants = [
   tableBodyRowClass,
   tableBodyCellClass,
   tableWrapperClass,
+  bulkStripButtonClass,
+  bulkStripDangerButtonClass,
 ];
 
 describe("table style constants", () => {
