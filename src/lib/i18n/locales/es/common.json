@@ -212,6 +212,7 @@
     "loadAll": "Cargar las {count, number}"
   },
   "viewAll": "Ver todo",
+  "viewAllSection": "Ver todo — {section}",
   "teamHub": {
     "configureHeading": "Configurar",
     "general": {
@@ -222,7 +223,11 @@
       "title": "Miembros",
       "description": "Invita compañeros, asigna roles, transfiere la propiedad.",
       "unnamed": "Sin nombre",
-      "shell": "shell"
+      "shellChip": "Importado",
+      "shellTooltip": "Autor importado — sin acceso; ancla entradas de tiempo importadas."
+    },
+    "projects": {
+      "subprojectOf": "Subproyecto de {parent}"
     },
     "relationships": {
       "title": "Relaciones de equipo",
