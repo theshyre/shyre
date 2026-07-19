@@ -5,17 +5,11 @@ import {
   useEffect,
   useRef,
   useState,
-  type ComponentType,
 } from "react";
 import { createPortal } from "react-dom";
 import { useTranslations } from "next-intl";
 import {
   Palette,
-  Monitor,
-  Sun,
-  Moon,
-  Contrast,
-  BookOpen,
   Check,
 } from "lucide-react";
 import { useTheme } from "./theme-provider";
