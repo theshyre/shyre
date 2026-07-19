@@ -13,6 +13,7 @@ export const ALLOWED_THEMES = new Set([
   "dark",
   "high-contrast",
   "warm",
+  "malcom",
 ]);
 export const ALLOWED_LOCALES = new Set(["en", "es"]);
 export const ALLOWED_WEEK_STARTS = new Set(["monday", "sunday"]);

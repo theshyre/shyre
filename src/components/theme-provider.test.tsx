@@ -37,7 +37,7 @@ describe("ThemeProvider", () => {
         <TestConsumer />
       </ThemeProvider>
     );
-    expect(screen.getByTestId("theme-count").textContent).toBe("5");
+    expect(screen.getByTestId("theme-count").textContent).toBe("6");
   });
 
   it("switches theme and persists to localStorage", async () => {

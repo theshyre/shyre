@@ -17,6 +17,7 @@ Five options:
 | **Dark**         | Slate-blue dark palette, reduced contrast for long sessions. |
 | **High contrast**| WCAG AAA-friendly; pure black-on-white with a deep blue accent. |
 | **Warm**         | Reduced blue light, warm stone/amber palette. Easier on the eyes in the evening. |
+| **Malcom IO**    | The Malcom IO brand palette from malcom.io — light green-gray surfaces with the brand-green accent. |
 
 Clicking a theme applies it instantly and saves it to your account — no separate "Save" step. The choice is mirrored to localStorage for anti-flash on next page load.
 

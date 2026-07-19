@@ -19,6 +19,7 @@ import {
   Monitor,
   Eye,
   BookOpen,
+  Leaf,
   Globe,
   Clock,
   Languages,
@@ -59,7 +60,7 @@ import {
 import { AvatarPicker } from "./avatar-picker";
 // Note: exported as `ProfileForm` — aligned with the /profile route.
 
-type Theme = "system" | "light" | "dark" | "high-contrast" | "warm";
+type Theme = "system" | "light" | "dark" | "high-contrast" | "warm" | "malcom";
 
 const THEME_OPTIONS: ReadonlyArray<{
   key: Theme;
@@ -72,6 +73,9 @@ const THEME_OPTIONS: ReadonlyArray<{
   // Selector key stays "warm" so stored prefs survive — only the user-
   // facing label and icon change. Cream paper palette, low glare.
   { key: "warm", icon: BookOpen },
+  // Brand theme — the Malcom IO palette (green accent, green-gray light
+  // surfaces) from malcom.io, shipped in design-tokens 0.7.0.
+  { key: "malcom", icon: Leaf },
 ];
 
 // Selector keys → i18n keys. The DB / data-theme selector is the source
