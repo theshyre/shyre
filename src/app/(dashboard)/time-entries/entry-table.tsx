@@ -97,6 +97,35 @@ export function EntryTable({
     visibleIds.length > 0 && visibleIds.every((id) => selectedIds.has(id));
   const someSelected = selectedIds.size > 0;
 
+  // Pattern-A focus handoff (list-pages.md rule 4), both directions.
+  // Start (0→N): the thead goes aria-hidden and its master checkbox
+  // drops to tabIndex -1 — if focus is sitting on that master
+  // (keyboard select-all), it would be trapped on a hidden control, so
+  // it moves to the surviving master in the overlay strip. Focus
+  // elsewhere (e.g. a row checkbox the user just clicked) is left
+  // alone. End (N→0): the strip unmounts; if it held focus, focus has
+  // already fallen to <body> by the time this effect runs — hand it
+  // back to the thead master (tabbable again) so Tab doesn't restart
+  // from the top of the document. Focus that survived the unmount
+  // (e.g. on a row checkbox) is left alone.
+  const theadMasterRef = useRef<HTMLInputElement | null>(null);
+  const stripMasterRef = useRef<HTMLInputElement | null>(null);
+  const prevSomeSelectedRef = useRef(false);
+  useEffect(() => {
+    const was = prevSomeSelectedRef.current;
+    prevSomeSelectedRef.current = someSelected;
+    const active = document.activeElement;
+    if (someSelected && !was) {
+      if (active && theadRef.current?.contains(active)) {
+        stripMasterRef.current?.focus();
+      }
+    } else if (!someSelected && was) {
+      if (!active || active === document.body) {
+        theadMasterRef.current?.focus();
+      }
+    }
+  }, [someSelected]);
+
   const toggleAll = useCallback(() => {
     setSelectedIds((prev) => {
       // If any are selected, clear everything; otherwise select every
@@ -201,6 +230,7 @@ export function EntryTable({
                 type="checkbox"
                 checked={allSelected}
                 ref={(el) => {
+                  theadMasterRef.current = el;
                   if (el) el.indeterminate = !allSelected && someSelected;
                 }}
                 onChange={toggleAll}
@@ -268,6 +298,7 @@ export function EntryTable({
             type="checkbox"
             checked={allSelected}
             ref={(el) => {
+              stripMasterRef.current = el;
               if (el) el.indeterminate = !allSelected && someSelected;
             }}
             onChange={toggleAll}

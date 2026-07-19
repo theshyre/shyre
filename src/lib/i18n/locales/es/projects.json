@@ -17,6 +17,7 @@
     "noResultsHint": "Ningún proyecto coincide con estos filtros.",
     "clearAll": "Limpiar filtros",
     "status": {
+      "dimension": "Estado",
       "listboxLabel": "Filtrar por estado",
       "label": {
         "all": "Todos los estados",
@@ -27,6 +28,7 @@
       }
     },
     "customer": {
+      "dimension": "Cliente",
       "listboxLabel": "Filtrar por cliente",
       "label": {
         "all": "Todos los clientes",

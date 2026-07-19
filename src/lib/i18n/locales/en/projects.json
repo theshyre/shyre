@@ -17,6 +17,7 @@
     "noResultsHint": "No projects match these filters.",
     "clearAll": "Clear filters",
     "status": {
+      "dimension": "Status",
       "listboxLabel": "Filter by status",
       "label": {
         "all": "All statuses",
@@ -27,6 +28,7 @@
       }
     },
     "customer": {
+      "dimension": "Customer",
       "listboxLabel": "Filter by customer",
       "label": {
         "all": "All customers",

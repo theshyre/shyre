@@ -28,6 +28,7 @@
   },
   "filters": {
     "status": {
+      "dimension": "Status",
       "listboxLabel": "Filter by status",
       "label": {
         "all": "All statuses",
