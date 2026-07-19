@@ -1,6 +1,12 @@
 "use client";
 
-import { useCallback, useState } from "react";
+import {
+  createContext,
+  useCallback,
+  useContext,
+  useMemo,
+  useState,
+} from "react";
 import { useTranslations } from "next-intl";
 import { Plus } from "lucide-react";
 import { AlertBanner, useKeyboardShortcut } from "@theshyre/ui";
@@ -22,14 +28,86 @@ import { deserializeAddress } from "@/lib/schemas/address";
 import type { TeamListItem } from "@/lib/team-context";
 import { createCustomerAction } from "./actions";
 
+interface NewCustomerOpenState {
+  open: boolean;
+  setOpen: (open: boolean) => void;
+}
+
+const NewCustomerOpenContext = createContext<NewCustomerOpenState | null>(
+  null,
+);
+
+function useNewCustomerOpen(): NewCustomerOpenState {
+  const ctx = useContext(NewCustomerOpenContext);
+  if (!ctx) {
+    throw new Error(
+      "NewCustomerTrigger/NewCustomerForm must render inside <NewCustomerProvider>",
+    );
+  }
+  return ctx;
+}
+
+/**
+ * Shares the open/closed state between the header trigger and the
+ * inline form panel (list-pages.md rule 2: the trigger lives in the
+ * header-right cluster, the inline-expansion form keeps rendering
+ * below the header). Wrap both slots in the page with this provider.
+ */
+export function NewCustomerProvider({
+  children,
+}: {
+  children: React.ReactNode;
+}): React.JSX.Element {
+  const [open, setOpen] = useState(false);
+  const value = useMemo(() => ({ open, setOpen }), [open]);
+  return (
+    <NewCustomerOpenContext.Provider value={value}>
+      {children}
+    </NewCustomerOpenContext.Provider>
+  );
+}
+
+const FORM_PANEL_ID = "new-customer-form-panel";
+
+/**
+ * Header-cluster primary action: `[Plus] Add Customer [kbd N]`.
+ * Toggles the inline form below the header; stays visible while the
+ * form is open (aria-expanded carries the state) so the header never
+ * shifts.
+ */
+export function NewCustomerTrigger(): React.JSX.Element {
+  const { open, setOpen } = useNewCustomerOpen();
+  const t = useTranslations("customers");
+
+  useKeyboardShortcut({
+    key: "n",
+    onTrigger: useCallback(() => setOpen(true), [setOpen]),
+    enabled: !open,
+  });
+
+  return (
+    <button
+      type="button"
+      onClick={() => setOpen(!open)}
+      aria-expanded={open}
+      aria-controls={open ? FORM_PANEL_ID : undefined}
+      className={buttonPrimaryClass}
+    >
+      <Plus size={16} />
+      {t("addCustomer")}
+      <kbd className={kbdClass}>N</kbd>
+    </button>
+  );
+}
+
 export function NewCustomerForm({
   teams,
   defaultTeamId,
 }: {
   teams: TeamListItem[];
   defaultTeamId?: string;
-}): React.JSX.Element {
-  const [open, setOpen] = useState(false);
+}): React.JSX.Element | null {
+  const { open, setOpen } = useNewCustomerOpen();
   const t = useTranslations("customers");
   const tc = useTranslations("common");
 
@@ -57,29 +135,13 @@ export function NewCustomerForm({
       onSuccess: () => setOpen(false),
     });
 
-  useKeyboardShortcut({
-    key: "n",
-    onTrigger: useCallback(() => setOpen(true), []),
-    enabled: !open,
-  });
-
-  if (!open) {
-    return (
-      <button
-        onClick={() => setOpen(true)}
-        className={`${buttonPrimaryClass} mt-4`}
-      >
-        <Plus size={16} />
-        {t("addCustomer")}
-        <kbd className={kbdClass}>N</kbd>
-      </button>
-    );
-  }
+  if (!open) return null;
 
   const emptyAddress = deserializeAddress(null);
 
   return (
     <form
+      id={FORM_PANEL_ID}
       action={handleSubmit}
       className="mt-4 space-y-3 rounded-lg border border-edge bg-surface-raised p-4"
     >

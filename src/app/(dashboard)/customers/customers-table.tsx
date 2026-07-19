@@ -15,7 +15,16 @@ import { CustomerChip } from "@theshyre/ui";
 import { PaginationFooter } from "@/components/PaginationFooter";
 import { formatDisplayDateTime } from "@/lib/format-date";
 import { formatCurrency } from "@/lib/invoice-utils";
-import { tableClass } from "@/lib/table-styles";
+import {
+  bulkStripButtonClass,
+  bulkStripDangerButtonClass,
+  tableBodyCellClass,
+  tableClass,
+  tableHeaderCellClass,
+  tableHeaderRowClass,
+  tableWrapperClass,
+} from "@/lib/table-styles";
+import { checkboxClass } from "@/lib/form-styles";
 import { ArchiveButton } from "./archive-button";
 import { RestoreCustomerButton } from "./restore-customer-button";
 import { StatusBadge } from "@/components/StatusBadge";
@@ -37,6 +46,33 @@ export interface CustomerRow {
   logo_url: string | null;
   /** Dormant-relationship marker (NULL = active). Lifecycle feature 2026-07-18. */
   inactive_at: string | null;
+}
+
+/**
+ * Escape-clears-selection guard (list-pages.md rule 5): only
+ * text-editing controls swallow Escape. Checkboxes are `<input>`s
+ * too — Escape from a focused row checkbox must still clear the
+ * selection, so a bare tagName check is not enough.
+ */
+const NON_TEXT_INPUT_TYPES = new Set([
+  "checkbox",
+  "radio",
+  "button",
+  "submit",
+  "reset",
+  "range",
+  "file",
+  "color",
+  "image",
+]);
+
+function isTextEditingTarget(target: EventTarget | null): boolean {
+  if (!(target instanceof HTMLElement)) return false;
+  if (target.isContentEditable) return true;
+  const tag = target.tagName;
+  if (tag === "TEXTAREA" || tag === "SELECT") return true;
+  if (tag !== "INPUT") return false;
+  return !NON_TEXT_INPUT_TYPES.has((target as HTMLInputElement).type);
 }
 
 interface Props {
@@ -88,16 +124,15 @@ export function CustomersTable({
   const allSelected = loadedCount > 0 && selectedCount === loadedCount;
   const someSelected = selectedCount > 0 && !allSelected;
 
-  // Escape clears the selection (Pattern A/B contract). Only fires
-  // when no other handler intercepts — text inputs etc. handle
-  // Escape themselves.
+  // Escape clears the selection (Pattern A/B contract). Text-editing
+  // controls keep Escape for themselves; more specific overlays (e.g.
+  // an open FilterChip panel) consume it in the capture phase before
+  // this listener sees it.
   useEffect(() => {
     if (selectedCount === 0) return;
     const onKey = (e: KeyboardEvent): void => {
       if (e.key !== "Escape") return;
-      const target = e.target as HTMLElement | null;
-      const tag = target?.tagName ?? "";
-      if (tag === "INPUT" || tag === "TEXTAREA" || tag === "SELECT") return;
+      if (isTextEditingTarget(e.target)) return;
       setSelected(new Set());
     };
     window.addEventListener("keydown", onKey);
@@ -232,9 +267,32 @@ export function CustomersTable({
     [showOrgColumn],
   );
 
+  // The page's ONE polite live region (list-pages.md a11y invariants):
+  // announces the result count after a filter commit and "N selected"
+  // on selection change. Debounced so shift-click runs and rapid
+  // toggling don't spam AT with intermediate counts.
+  const [announcement, setAnnouncement] = useState("");
+  useEffect(() => {
+    const id = setTimeout(() => {
+      setAnnouncement(
+        selectedCount > 0
+          ? t("liveSelected", { count: selectedCount })
+          : t("liveResults", { count: totalCount }),
+      );
+    }, 300);
+    return () => clearTimeout(id);
+  }, [selectedCount, totalCount, t]);
+
+  const liveRegion = (
+    <span className="sr-only" role="status" aria-live="polite">
+      {announcement}
+    </span>
+  );
+
   if (customers.length === 0) {
     return (
-      <div className="mt-6 rounded-lg border border-edge bg-surface-raised p-8 text-center">
+      <div className={`mt-6 ${tableWrapperClass} p-8 text-center`}>
+        {liveRegion}
         <div className="mx-auto mb-3 flex h-10 w-10 items-center justify-center rounded-full bg-accent-soft">
           <Users size={20} className="text-accent" aria-hidden="true" />
         </div>
@@ -251,12 +309,15 @@ export function CustomersTable({
   }
 
   return (
-    <div className="mt-6 overflow-hidden rounded-lg border border-edge bg-surface-raised">
+    <div className={`mt-6 ${tableWrapperClass}`}>
+      {liveRegion}
       {/* Bulk action strip — sibling above the <table>, same
           bg-surface-inset + border-b tokens as the thead so it
           reads as a continuation. Always rendered (no layout
           shift); the action row swaps content based on whether
-          a selection exists. */}
+          a selection exists. Buttons use the shared bulk-strip
+          classes — neutral chrome, intent via colored text/icon
+          (list-pages.md rule 5). */}
       <div
         role="toolbar"
         aria-label={t("bulkToolbarAriaLabel")}
@@ -267,6 +328,7 @@ export function CustomersTable({
           checked={allSelected}
           ref={stripMasterRef}
           onChange={toggleAll}
+          className={checkboxClass}
           aria-label={
             allSelected
               ? t("bulkDeselectAllAria")
@@ -281,38 +343,48 @@ export function CustomersTable({
                 total: loadedCount,
               })}
             </span>
-            {view === "archived" ? (
-              <button
-                type="button"
-                onClick={onBulkRestore}
-                className="ml-auto inline-flex items-center gap-1.5 rounded-md border border-edge bg-surface-raised px-3 py-1.5 text-caption font-semibold text-content hover:bg-hover"
-              >
-                <RotateCcw size={14} />
-                {t("bulkRestore", { count: selectedCount })}
-              </button>
-            ) : (
-              <>
-                {/* Neutral styling on purpose — non-destructive, unlike the
-                    red Archive beside it; the color contrast teaches the
-                    Inactive-vs-Archive distinction. */}
+            <button
+              type="button"
+              onClick={() => setSelected(new Set())}
+              className="text-caption text-content-secondary hover:text-content hover:underline"
+            >
+              {t("bulkClear")}
+            </button>
+            <div className="ml-auto flex items-center gap-2">
+              {view === "archived" ? (
                 <button
                   type="button"
-                  onClick={onBulkDeactivate}
-                  className="ml-auto inline-flex items-center gap-1.5 rounded-md border border-edge bg-surface-raised px-3 py-1.5 text-caption font-semibold text-content hover:bg-hover"
+                  onClick={onBulkRestore}
+                  className={bulkStripButtonClass}
                 >
-                  <Moon size={14} />
-                  {t("bulkDeactivate", { count: selectedCount })}
+                  <RotateCcw size={14} />
+                  {t("bulkRestore", { count: selectedCount })}
                 </button>
-                <button
-                  type="button"
-                  onClick={onBulkArchive}
-                  className="inline-flex items-center gap-1.5 rounded-md border border-error/40 bg-error-soft px-3 py-1.5 text-caption font-semibold text-error-text hover:bg-error/10"
-                >
-                  <Archive size={14} />
-                  {t("bulkArchive", { count: selectedCount })}
-                </button>
-              </>
-            )}
+              ) : (
+                <>
+                  {/* Mark-inactive is neutral, Archive is the danger
+                      variant (red TEXT on neutral chrome — soft-fill
+                      backgrounds are banned in strips); the contrast
+                      teaches the Inactive-vs-Archive distinction. */}
+                  <button
+                    type="button"
+                    onClick={onBulkDeactivate}
+                    className={bulkStripButtonClass}
+                  >
+                    <Moon size={14} />
+                    {t("bulkDeactivate", { count: selectedCount })}
+                  </button>
+                  <button
+                    type="button"
+                    onClick={onBulkArchive}
+                    className={bulkStripDangerButtonClass}
+                  >
+                    <Archive size={14} />
+                    {t("bulkArchive", { count: selectedCount })}
+                  </button>
+                </>
+              )}
+            </div>
           </>
         ) : (
           <span className="text-caption text-content-muted">
@@ -331,16 +403,14 @@ export function CustomersTable({
           <col style={{ width: "120px" }} />
         </colgroup>
         <thead>
-          <tr className="border-b border-edge bg-surface-inset">
-            <th
-              scope="col"
-              className="px-4 py-3 text-left text-label font-semibold uppercase tracking-wider text-content-muted"
-            >
+          <tr className={tableHeaderRowClass}>
+            <th scope="col" className={`${tableHeaderCellClass} text-left`}>
               <input
                 type="checkbox"
                 checked={allSelected}
                 ref={masterRef}
                 onChange={toggleAll}
+                className={checkboxClass}
                 aria-label={
                   allSelected
                     ? t("bulkDeselectAllAria")
@@ -349,35 +419,20 @@ export function CustomersTable({
               />
             </th>
             {showOrgColumn && (
-              <th
-                scope="col"
-                className="px-4 py-3 text-left text-label font-semibold uppercase tracking-wider text-content-muted"
-              >
+              <th scope="col" className={`${tableHeaderCellClass} text-left`}>
                 {t("table.org")}
               </th>
             )}
-            <th
-              scope="col"
-              className="px-4 py-3 text-left text-label font-semibold uppercase tracking-wider text-content-muted"
-            >
+            <th scope="col" className={`${tableHeaderCellClass} text-left`}>
               {tc("table.name")}
             </th>
-            <th
-              scope="col"
-              className="px-4 py-3 text-left text-label font-semibold uppercase tracking-wider text-content-muted"
-            >
+            <th scope="col" className={`${tableHeaderCellClass} text-left`}>
               {tc("table.email")}
             </th>
-            <th
-              scope="col"
-              className="px-4 py-3 text-right text-label font-semibold uppercase tracking-wider text-content-muted"
-            >
+            <th scope="col" className={`${tableHeaderCellClass} text-right`}>
               {t("table.defaultRate")}
             </th>
-            <th
-              scope="col"
-              className="px-4 py-3 text-right text-label font-semibold uppercase tracking-wider text-content-muted"
-            >
+            <th scope="col" className={`${tableHeaderCellClass} text-right`}>
               {tc("table.actions")}
             </th>
           </tr>
@@ -398,11 +453,12 @@ export function CustomersTable({
                     type="checkbox"
                     checked={isSelected}
                     onChange={() => toggleOne(client.id)}
+                    className={checkboxClass}
                     aria-label={t("bulkRowAria", { name: client.name })}
                   />
                 </td>
                 {showOrgColumn && (
-                  <td className="px-4 py-3 text-body text-content-secondary">
+                  <td className={tableBodyCellClass}>
                     {teamNameById.get(client.team_id) ?? "—"}
                   </td>
                 )}
@@ -467,10 +523,10 @@ export function CustomersTable({
                     )}
                   </div>
                 </td>
-                <td className="px-4 py-3 text-body text-content-secondary">
+                <td className={tableBodyCellClass}>
                   {client.email ?? "—"}
                 </td>
-                <td className="px-4 py-3 text-right text-body text-content-secondary font-mono">
+                <td className={`${tableBodyCellClass} text-right font-mono`}>
                   {client.default_rate
                     ? `${formatCurrency(Number(client.default_rate))}/hr`
                     : "—"}

@@ -27,6 +27,9 @@
   "bulkRowAria": "Seleccionar {name}",
   "bulkSelectHint": "Selecciona filas para archivar en lote",
   "bulkSelectedLabel": "{count} de {total} seleccionados",
+  "bulkClear": "Limpiar selección",
+  "liveResults": "{count, plural, one {# cliente mostrado} other {# clientes mostrados}}",
+  "liveSelected": "{count, plural, one {# cliente seleccionado} other {# clientes seleccionados}}",
   "bulkArchive": "{count, plural, one {Archivar 1} other {Archivar #}}",
   "bulkArchivedToast": "{count, plural, one {1 cliente archivado} other {# clientes archivados}}",
   "bulkRestoredToast": "{count, plural, one {1 cliente restaurado} other {# clientes restaurados}}",
@@ -72,6 +75,10 @@
     "active": "Activos",
     "inactive": "Inactivos",
     "archived": "Archivados"
+  },
+  "statusFilter": {
+    "dimension": "Estado",
+    "listboxLabel": "Filtrar por estado"
   },
   "status": {
     "active": "Activo",
