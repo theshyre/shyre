@@ -32,8 +32,13 @@ Attribution is written once, at creation time, by the integration RPCs
 introduced with the integrations foundation (SAL-051):
 
 - `started_by_kind` — `user` (default), `agent`, `integration`, or
-  `import`. Imported entries (e.g. Harvest) show no badge — they're
-  historical data you already own, not live automation.
+  `import`. Today only `user` and `agent` are ever written: the
+  integration RPCs stamp `agent`, and everything else (including
+  Harvest imports) records as `user`. The `integration` and `import`
+  kinds are reserved — the schema, badge logic, and exports already
+  handle them for when a write path produces them. Imported entries
+  show no badge either way — they're historical data you already own,
+  not live automation.
 - `agent_label` — the human-readable agent name, e.g. "Claude Code".
 - `started_by_ref` — an opaque session/run reference for audit trails.
 
@@ -43,8 +48,9 @@ invoice math, and a database trigger makes them immutable after insert.
 ## Exports
 
 The time-entries CSV export includes a trailing **Source** column:
-`user`, `agent (Claude Code)`, `integration (…)`, or `import` — so
-agent-logged hours are separable in any spreadsheet without new tooling.
+`user` or `agent (Claude Code)` in practice (`integration`/`import`
+are reserved kinds — see above) — so agent-logged hours are separable
+in any spreadsheet without new tooling.
 The column is last so existing positional templates keep working, and
 values pass through the standard CSV formula-injection defense.
 

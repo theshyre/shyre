@@ -81,7 +81,8 @@ Notes:
   retried or double-fired hook can't double-log.
 - **Overlap refusal is expected behavior**: if you were driving Claude
   interactively *with your own timer running on the same window*, the API
-  returns 409 `overlaps_existing` and the session is simply not logged —
+  returns `409 { "error": "conflict" }` (audit reason `overlaps_existing`
+  in the events log) and the session is simply not logged —
   your human entry already covers the time. That's the double-billing
   guard working, not a bug.
 - **Better descriptions**: the static description above is the floor. For

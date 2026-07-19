@@ -201,6 +201,173 @@ async function audit(): Promise<{
   return reports;
 }
 
+/* ------------------------------------------------------------------ *
+ * Hub reachability audit (docs/reference/documentation.md →
+ * "Reachability — every guide must be findable from the hub").
+ *
+ * Direction 1 (hub → files): every /docs/... href in the hub page
+ * resolves to a real file under docs/.
+ * Direction 2 (files → hub): every .md under docs/guides/** is
+ * reachable from the hub by following rendered markdown links,
+ * starting from the hub's hrefs.
+ * ------------------------------------------------------------------ */
+
+const HUB_PAGE = resolve(process.cwd(), "src/app/(dashboard)/docs/page.tsx");
+
+/**
+ * Deliberately-unlisted guides. Every entry needs a comment saying
+ * why it is exempt from hub reachability. Keep this empty unless a
+ * guide genuinely must not be linked.
+ */
+const REACHABILITY_ALLOW_LIST: ReadonlySet<string> = new Set<string>([]);
+
+async function hubHrefs(): Promise<string[]> {
+  const src = await readFile(HUB_PAGE, "utf8");
+  const re = /["'](\/docs(?:\/[^"'\s#]*)?)(#[^"'\s]*)?["']/g;
+  const out = new Set<string>();
+  let m: RegExpExecArray | null;
+  while ((m = re.exec(src)) !== null) {
+    if (m[1]) out.add(m[1]);
+  }
+  return [...out];
+}
+
+/** Resolve a /docs/... route to the file the slug renderer would serve. */
+async function resolveDocRoute(href: string): Promise<string | null> {
+  const rel = href.replace(/^\/docs\/?/, "");
+  if (rel === "") return null; // the hub page itself
+  const base = resolve(process.cwd(), "docs", rel);
+  try {
+    const s = await stat(`${base}.md`);
+    if (s.isFile()) return `${base}.md`;
+  } catch {
+    // fall through to README resolution
+  }
+  return fileOrDirReadme(base);
+}
+
+/** Rendered relative markdown link targets of one docs .md file. */
+async function outboundDocLinks(filePath: string): Promise<string[]> {
+  const content = await readFile(filePath, "utf8");
+  const lines = content.split("\n");
+  const fileDir = dirname(filePath);
+  const targets: string[] = [];
+  const linkRe = /\[([^\]]*)\]\(([^)]+)\)/g;
+  let inFence = false;
+  for (const line of lines) {
+    if (/^```/.test(line)) {
+      inFence = !inFence;
+      continue;
+    }
+    if (inFence) continue;
+    let m: RegExpExecArray | null;
+    linkRe.lastIndex = 0;
+    while ((m = linkRe.exec(line)) !== null) {
+      if (insideBackticks(line, m.index)) continue;
+      const href = (m[2] ?? "").trim();
+      if (/^(https?:|mailto:|\/|#)/.test(href)) continue;
+      const pathPart = href.split("#")[0];
+      if (!pathPart) continue;
+      const resolvedFile = await fileOrDirReadme(resolve(fileDir, pathPart));
+      if (resolvedFile) targets.push(resolvedFile);
+    }
+  }
+  return targets;
+}
+
+async function reachableFromHub(): Promise<Set<string>> {
+  const seen = new Set<string>();
+  const queue: string[] = [];
+  for (const href of await hubHrefs()) {
+    const file = await resolveDocRoute(href);
+    if (file && !seen.has(file)) {
+      seen.add(file);
+      queue.push(file);
+    }
+  }
+  while (queue.length > 0) {
+    const current = queue.shift();
+    if (!current) break;
+    for (const target of await outboundDocLinks(current)) {
+      if (!seen.has(target)) {
+        seen.add(target);
+        queue.push(target);
+      }
+    }
+  }
+  return seen;
+}
+
+describe("docs hub reachability", () => {
+  it("every /docs href in the hub page resolves to a real doc file", async () => {
+    const broken: string[] = [];
+    for (const href of await hubHrefs()) {
+      if (href === "/docs") continue; // the hub itself
+      const file = await resolveDocRoute(href);
+      if (!file) broken.push(href);
+    }
+    if (broken.length > 0) {
+      throw new Error(
+        `Hub links point at missing docs:\n${broken.map((h) => `  ${h}`).join("\n")}`,
+      );
+    }
+    expect(broken).toHaveLength(0);
+  });
+
+  it("every guide under docs/guides/** is reachable from the hub", async () => {
+    const reachable = await reachableFromHub();
+    const guidesRoot = resolve(process.cwd(), "docs", "guides");
+    const orphans: string[] = [];
+    for await (const filePath of walk(guidesRoot)) {
+      const rel = relative(guidesRoot, filePath);
+      if (REACHABILITY_ALLOW_LIST.has(rel)) continue;
+      if (!reachable.has(filePath)) orphans.push(rel);
+    }
+    if (orphans.length > 0) {
+      throw new Error(
+        `Guides not reachable from the /docs hub (add a hub card entry ` +
+          `or link them from a reachable README):\n${orphans
+            .map((o) => `  guides/${o}`)
+            .join("\n")}`,
+      );
+    }
+    expect(orphans).toHaveLength(0);
+  });
+
+  it("every section README links all of its sibling guides", async () => {
+    const guidesRoot = resolve(process.cwd(), "docs", "guides");
+    const entries = await readdir(guidesRoot, { withFileTypes: true });
+    const missing: string[] = [];
+    for (const e of entries) {
+      if (!e.isDirectory()) continue;
+      const dir = join(guidesRoot, e.name);
+      const readme = join(dir, "README.md");
+      let readmeLinks: string[];
+      try {
+        await stat(readme);
+        readmeLinks = await outboundDocLinks(readme);
+      } catch {
+        continue; // dirs without a README are covered by the transitive check
+      }
+      const linked = new Set(readmeLinks);
+      const siblings = await readdir(dir, { withFileTypes: true });
+      for (const s of siblings) {
+        if (!s.isFile() || !s.name.endsWith(".md") || s.name === "README.md") continue;
+        const abs = join(dir, s.name);
+        if (!linked.has(abs)) missing.push(`guides/${e.name}/${s.name}`);
+      }
+    }
+    if (missing.length > 0) {
+      throw new Error(
+        `Section READMEs missing links to sibling guides:\n${missing
+          .map((f) => `  ${f}`)
+          .join("\n")}`,
+      );
+    }
+    expect(missing).toHaveLength(0);
+  });
+});
+
 describe("docs link audit", () => {
   it("every relative .md link in docs/ resolves to a real file", async () => {
     const result = await audit();

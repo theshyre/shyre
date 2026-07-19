@@ -6,7 +6,7 @@ Every primary action has a shortcut with a visible `<kbd>` badge next to the tri
 
 | Key | Action | Where |
 |---|---|---|
-| `/` | Focus the search/filter field | Any list page |
+| `/` | Focus the search/filter field | List pages that have a search field (e.g. Projects, Expenses) |
 
 ## Time tracking
 

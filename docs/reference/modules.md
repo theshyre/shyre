@@ -6,11 +6,14 @@ Shyre is a platform for running a consulting business. Stint is one module; Busi
 
 **Shell** (platform-level): auth, user profile, teams, `user_settings`, layout, theme. Shell code lives under `src/app/(dashboard)/` at the top level (`profile/`, `settings/`, `teams/`) plus `src/lib/` helpers. Modules never reach into other modules; they go through the platform API.
 
-**Modules** (feature verticals): siblings of each other.
-- **Stint** — time tracking (`time-entries/`, `categories/`, `templates/`, `reports/` — time-related portions)
-- **Business** — `/business`, `/business/expenses`, business identity, expenses, future people module
+**Modules** (feature verticals): siblings of each other. Seven registered today (see the "Current modules" table below for the full list):
+- **Stint** — time tracking (`time-entries/`, `categories/`, `templates/`)
 - **Customers** — `/customers`, customer unification across modules
+- **Projects** — `/projects`, project list + detail + sub-projects
 - **Invoicing** — `/invoices`, `/invoices/new`, `/invoices/[id]`
+- **Proposals** — `/proposals`, fixed-price quotes + public sign flow
+- **Reports** — `/reports`, its own module (not part of Stint)
+- **Business** — `/business`, business identity, people, expenses, period locks
 
 ## Module registry
 
@@ -63,7 +66,7 @@ The reverse layering rule: nothing under `src/components/` may import module cod
 ## Naming rules
 
 - Shell tables: unprefixed. `user_profiles`, `teams`, `team_settings`, `customers`.
-- Module tables: prefixed when clearly module-owned. `time_entries`, `time_templates`, future `invoicing_*`, future `business_expenses_*` if Business grows.
+- Module tables: prefixed when clearly module-owned. `time_entries`, `time_templates`, future `invoicing_*`, future `business_expenses_*` if Business grows. **Exception:** the `expenses` table is unprefixed for historical reasons — it predates the module-prefix rule and renaming it is an expand-contract migration nobody has needed yet (`docs/reference/database-schema.md` points here for this).
 - Every user-data table must have `user_id` and `team_id` columns. Ownership + partitioning always explicit.
 
 ## Customer is platform-level

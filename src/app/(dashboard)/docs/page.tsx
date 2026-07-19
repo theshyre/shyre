@@ -1,10 +1,12 @@
 import type { Metadata } from "next";
 import {
+  BarChart3,
   BookOpen,
   Clock,
   Users,
   Briefcase,
   FileText,
+  FileSignature,
   Shield,
   Receipt,
   Sparkles,
@@ -34,6 +36,12 @@ const MODULES: ModuleCard[] = [
     more: [
       { title: "Categories", href: "/docs/guides/features/categories" },
       { title: "Templates", href: "/docs/guides/features/templates" },
+      { title: "Live updates & day rollover", href: "/docs/guides/features/live-updates" },
+      { title: "Ticket linking (Jira + GitHub)", href: "/docs/guides/features/ticket-linking" },
+      {
+        title: "Sub-project rollup filter",
+        href: "/docs/guides/features/sub-project-rollup-filter",
+      },
       { title: "Imports (Harvest)", href: "/docs/guides/features/imports" },
     ],
   },
@@ -58,23 +66,51 @@ const MODULES: ModuleCard[] = [
     icon: Users,
     primary: { title: "Customers", href: "/docs/guides/features/customers" },
     more: [
+      {
+        title: "Customer lifecycle (Active / Inactive / Archived)",
+        href: "/docs/guides/features/customer-lifecycle",
+      },
       { title: "Projects", href: "/docs/guides/features/projects" },
+      { title: "Internal projects", href: "/docs/guides/features/internal-projects" },
       { title: "Customer sharing", href: "/docs/guides/agency/customer-sharing" },
     ],
   },
   {
     name: "Business",
-    blurb: "Your company's legal identity, expenses, and (soon) people.",
+    blurb: "Your company's legal identity, people, and expenses.",
     icon: Briefcase,
     primary: { title: "Business identity", href: "/docs/guides/features/business-identity" },
-    more: [{ title: "Expenses", href: "/docs/guides/features/expenses" }],
+    more: [
+      { title: "People", href: "/docs/guides/features/business-people" },
+      { title: "State registrations", href: "/docs/guides/features/state-registrations" },
+      { title: "Expenses", href: "/docs/guides/features/expenses" },
+      { title: "Expense categories", href: "/docs/guides/features/expense-categories" },
+      { title: "Expense CSV import", href: "/docs/guides/features/expense-csv-import" },
+    ],
   },
   {
     name: "Invoicing",
     blurb: "Bill your customers from tracked time and expenses.",
     icon: FileText,
     primary: { title: "Invoicing", href: "/docs/guides/features/invoicing" },
-    more: [{ title: "Exports for bookkeeping", href: "/docs/guides/bookkeeper/exports" }],
+    more: [
+      { title: "Period locks", href: "/docs/guides/features/period-locks" },
+      { title: "Exports for bookkeeping", href: "/docs/guides/bookkeeper/exports" },
+    ],
+  },
+  {
+    name: "Proposals",
+    blurb: "Quote fixed-price work, get it signed, convert it into billable projects.",
+    icon: FileSignature,
+    primary: { title: "Proposals", href: "/docs/guides/features/proposals" },
+    more: [],
+  },
+  {
+    name: "Reports",
+    blurb: "Hours, billability, estimated revenue, and collected cash — sliceable by period, project, and source.",
+    icon: BarChart3,
+    primary: { title: "Reports", href: "/docs/guides/features/reports" },
+    more: [],
   },
 ];
 
@@ -111,6 +147,11 @@ function buildPersonalLinks(opts: {
       title: "Keyboard shortcuts",
       href: "/docs/guides/features/keyboard-shortcuts",
       blurb: "Every shortcut in the app, in one cheatsheet.",
+    },
+    {
+      title: "Appearance",
+      href: "/docs/guides/features/appearance",
+      blurb: "Theme and text size — set once, follows your account.",
     },
   ];
 
@@ -183,6 +224,12 @@ const ROLE_BROWSE = [
     icon: Shield,
     href: "/docs/guides/admin",
     blurb: "Tools behind the System Admin sidebar section.",
+  },
+  {
+    label: "All guides",
+    icon: BookOpen,
+    href: "/docs/guides",
+    blurb: "The full index — every feature and role guide on one page.",
   },
 ];
 

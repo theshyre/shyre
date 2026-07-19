@@ -4,7 +4,7 @@ Business expenses — subscriptions, hardware, travel, meals, fees. Tracked per 
 
 ## Where it lives
 
-Sidebar → **Business** → **Expenses** tile → `/business/expenses`. The tile on `/business` shows this month's count and total at a glance.
+Sidebar → **Business** → pick your business → **Expenses** tab → `/business/<businessId>/expenses`. The business card on `/business` shows the period's expense total at a glance.
 
 ## Summary tiles
 
@@ -96,7 +96,7 @@ If you've loaded sample data from `/admin/sample-data`, you'll see a green "samp
 
 ## Categories and tax
 
-Categories map to the IRS schedule-C-ish buckets most bookkeepers use. Fixed enum for now; ping the admin if you need a new one added to the list.
+Categories map to the IRS schedule-C-ish buckets most bookkeepers use. Fixed enum for now; ping the admin if you need a new one added to the list. See [Expense categories](expense-categories.md) for which category fits which kind of expense, with examples.
 
 ## Who can do what
 
@@ -132,6 +132,8 @@ invoice detail page's actions menu. Voiding releases every expense
 
 ## Related
 
+- [Expense categories](expense-categories.md) — which category fits which expense
+- [Expense CSV import](expense-csv-import.md) — bulk-import historical expenses from a spreadsheet
 - [Business identity](business-identity.md)
 - [Projects](projects.md) — link billable expenses to projects
 - [Project page → Expenses section](projects.md#expenses-on-a-project) — read + add + delete project-scoped expenses inline on the project detail page

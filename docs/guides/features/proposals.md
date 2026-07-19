@@ -158,7 +158,10 @@ On the signing page the client:
    re-sendable after a minute). This gates *viewing*, not just signing: a
    forwarded link on a device that never enters the code can't read the
    document. After verifying, the browser stays "in" for 24 hours; opening the
-   link fresh (or on another device) prompts for a new code.
+   link fresh (or on another device) prompts for a new code. This also applies
+   *after* a decision: a signer returning to an already-signed (consumed) link
+   re-verifies with a fresh code and gets a **read-only** view of the record —
+   signing stays locked.
 2. Reviews the full document (items, phases, terms, prices).
 3. **Checks the line items they authorize** — any combination; the accepted
    total updates live.
@@ -232,7 +235,7 @@ converted.
 
 When a proposal carries a deposit term, an accepted proposal's detail page
 offers **Bill deposit** next to the full bill: it creates a one-line invoice
-("Deposit (50%) — PROP-007") computed off the **accepted** total at the tax
+("Deposit (50%) — PROP-2026-007: Website rebuild") computed off the **accepted** total at the tax
 rate frozen at signing. Only one deposit invoice can exist per proposal —
 voiding or deleting it frees the term to re-bill. When you later **Create
 invoice** for the full amount, the billed deposit is automatically netted out

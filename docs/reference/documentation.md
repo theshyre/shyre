@@ -16,7 +16,9 @@ docs/
 │   ├── features/            # Cross-role feature docs (apply to every user)
 │   ├── agency/              # Role-specific: Agency Owner
 │   ├── bookkeeper/          # Role-specific: Bookkeeper
-│   └── admin/               # Role-specific: System Admin
+│   ├── admin/               # Role-specific: System Admin
+│   ├── team-admin/          # Audience-split leaf docs routed from admin/ (email setup)
+│   └── system-admin/        # Audience-split leaf docs routed from admin/ (email infrastructure)
 ├── reference/               # technical
 │   ├── architecture.md
 │   ├── database-schema.md
@@ -82,14 +84,29 @@ Keep each guide ≤ ~200 lines. If a feature grows beyond one guide, split by su
 
 The `docs/` tree deploys with the app and renders at `/docs` — but the docs
 hub (`src/app/(dashboard)/docs/page.tsx`) is a **curated nav, not an auto
-index**. A guide that exists on disk but isn't linked from a hub card is
-invisible to users. Therefore, for every user-facing feature:
+index**. Curation is allowed to prioritize; it is not allowed to orphan: a
+guide that exists on disk but isn't reachable from a hub card is invisible
+to users. Therefore, for every user-facing feature:
 
 1. Guide in `docs/guides/features/` (same commit as the feature — existing rule).
 2. Linked from `docs/guides/features/README.md` (existing rule).
-3. **Linked from a card on the docs hub page** (this rule): the
-   configuration/how-to guide is the card's `primary`; API/reference
-   material goes in `more`. New surface areas get their own card.
+3. **Reachable from the docs hub page** (this rule): the configuration/how-to
+   guide is the card's `primary`; API/reference material goes in `more`. New
+   surface areas get their own card.
 
-A follow-up test should eventually enforce #3 (hub hrefs ⊆ existing files
-is covered by docs-links; files ⊆ hub is the missing direction).
+Both directions are enforced by `src/__tests__/docs-links.test.ts`:
+
+- **Hub → files**: every `/docs/...` href in the hub page resolves to a real
+  file under `docs/` (either `<path>.md` or `<path>/README.md`).
+- **Files → hub**: every `.md` under `docs/guides/**` is reachable from the
+  hub by following links — either linked directly from a hub card, or linked
+  from a README / guide that is itself reachable from the hub. Deliberate
+  exceptions go in the test's explicit allow-list with a comment saying why.
+
+Additionally, every guide directory that has a `README.md` must link **all**
+of its sibling `.md` files from that README — the section index is the
+canonical table of contents for its directory.
+
+Practical consequence: when you add a guide, add it to its section README in
+the same commit, and add a hub card entry when the guide starts a new surface
+area (new module, new top-level concept). The test fails the build otherwise.

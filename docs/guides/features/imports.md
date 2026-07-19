@@ -70,7 +70,7 @@ Two additional optimizations happen automatically:
 ## What isn't imported
 
 - **Invoices** — ongoing billing should be done in Shyre, not imported mid-flight.
-- **Expenses** — on the roadmap; Harvest's categorization doesn't map cleanly to Shyre's expense taxonomy yet.
+- **Expenses** — Harvest expense import is on the roadmap; Harvest's categorization doesn't map cleanly to Shyre's expense taxonomy yet. Bulk expense import from a spreadsheet already exists — see [Expense CSV import](expense-csv-import.md).
 
 ## Before you run the import
 

@@ -10,12 +10,11 @@ On first sign-in, a **personal team** is created automatically. You are its owne
 
 ## 2. The sidebar
 
-- **Track** — Dashboard, Time
-- **Manage** — Customers, Projects, Invoices, Reports
-- **Admin** — Teams, Security Groups, Categories, Templates, Import, Business
-- **System Admin** — only visible if you are a platform administrator
+- **Work** — Dashboard, Time, Customers, Projects, Invoices, Proposals, Reports
+- **Setup** — Teams, Settings, Business, Import
+- **System** — only visible if you are a platform administrator
 
-Your profile lives behind your name/avatar at the top of the sidebar.
+Your profile lives behind your name/avatar in the bottom block of the sidebar (with theme controls, docs, and sign-out).
 
 ## 3. Create your first customer
 

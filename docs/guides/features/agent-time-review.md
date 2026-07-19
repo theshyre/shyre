@@ -1,7 +1,8 @@
 # Reviewing agent-tracked time
 
-When AI agents (or integrations) track time on your behalf through
-the API, those entries flow into the same invoicing pipeline as your
+When AI agents track time on your behalf through the API
+(`started_by_kind = "agent"` — the only automated kind produced
+today), those entries flow into the same invoicing pipeline as your
 own. By design there is **no approval queue** — the invoice builder
 is the one human gate where agent-tracked time gets reviewed before
 it reaches a customer (see `docs/reference/multi-stream-timers.md`).
