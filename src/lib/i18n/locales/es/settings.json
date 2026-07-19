@@ -109,7 +109,8 @@
     "light": "Claro",
     "dark": "Oscuro",
     "highContrast": "Alto Contraste",
-    "reading": "Lectura"
+    "reading": "Lectura",
+    "malcom": "Malcom IO"
   },
   "textSize": {
     "title": "Tamaño de Texto",

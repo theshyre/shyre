@@ -22,7 +22,7 @@ vi.mock("@/components/theme-provider", () => ({
     theme: "system",
     setTheme: setThemeSpy,
     applyExternalTheme: vi.fn(),
-    themes: ["system", "light", "dark", "high-contrast", "warm"] as const,
+    themes: ["system", "light", "dark", "high-contrast", "warm", "malcom"] as const,
   }),
 }));
 const setTextSizeSpy = vi.fn();
@@ -76,7 +76,7 @@ describe("ProfileForm", () => {
     ).toBeInTheDocument();
   });
 
-  it("renders all five theme buttons", () => {
+  it("renders all six theme buttons", () => {
     renderWithIntl(<ProfileForm {...defaultProps} />);
     expect(screen.getByRole("button", { name: /system/i })).toBeInTheDocument();
     expect(screen.getByRole("button", { name: /light/i })).toBeInTheDocument();
@@ -86,6 +86,9 @@ describe("ProfileForm", () => {
     ).toBeInTheDocument();
     // Visible label is "Reading" — selector key stays "warm".
     expect(screen.getByRole("button", { name: /reading/i })).toBeInTheDocument();
+    expect(
+      screen.getByRole("button", { name: /malcom io/i }),
+    ).toBeInTheDocument();
   });
 
   it("renders three text-size buttons", () => {
