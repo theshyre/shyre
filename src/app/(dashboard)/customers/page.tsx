@@ -11,8 +11,13 @@ export async function generateMetadata(): Promise<Metadata> {
 import { Users, MailWarning, Download } from "lucide-react";
 import { TeamFilter } from "@/components/TeamFilter";
 import { parseListPagination } from "@/lib/pagination/list-pagination";
-import { NewCustomerForm } from "./new-customer-form";
+import {
+  NewCustomerForm,
+  NewCustomerProvider,
+  NewCustomerTrigger,
+} from "./new-customer-form";
 import { CustomersTable } from "./customers-table";
+import { CustomerStatusFilter } from "./customers-filters";
 import { buttonSecondaryClass } from "@/lib/form-styles";
 
 async function CustomersExportLink({
@@ -191,16 +196,23 @@ export default async function ClientsPage({
 
   return (
     <div>
-      <div className="flex items-center gap-3">
-        <Users size={24} className="text-accent" />
-        <h1 className="text-page-title font-bold text-content">{t("title")}</h1>
-        <TeamFilter teams={teams} selectedTeamId={selectedTeamId ?? null} />
-        <div className="ml-auto">
-          <CustomersExportLink selectedTeamId={selectedTeamId} />
+      {/* Row 1 header — primary action top-right with Export CSV
+          immediately left of it (list-pages.md rule 2). The trigger
+          and the inline form below share open state via the provider. */}
+      <NewCustomerProvider>
+        <div className="flex items-center gap-3">
+          <Users size={24} className="text-accent" />
+          <h1 className="text-page-title font-bold text-content">
+            {t("title")}
+          </h1>
+          <div className="ml-auto flex items-center gap-2">
+            <CustomersExportLink selectedTeamId={selectedTeamId} />
+            <NewCustomerTrigger />
+          </div>
         </div>
-      </div>
 
-      <NewCustomerForm teams={teams} defaultTeamId={selectedTeamId} />
+        <NewCustomerForm teams={teams} defaultTeamId={selectedTeamId} />
+      </NewCustomerProvider>
 
       {bouncedCount > 0 && (
         <div className="mt-4 rounded-md border border-warning/40 bg-warning-soft/30 px-4 py-3 text-body text-content flex items-center gap-2">
@@ -226,32 +238,13 @@ export default async function ClientsPage({
         </div>
       )}
 
-      {/* Lifecycle filter chips — always visible (context is never hidden).
-          "Archived" doubles as the restore surface. */}
+      {/* Row 3 filters — TeamFilter first, then the lifecycle Status
+          chip (list-pages.md rule 1). "Archived" doubles as the
+          restore surface, driven by ?status=archived exactly as the
+          old pill links were. */}
       <div className="mt-4 flex flex-wrap items-center gap-2">
-        {(["all", "active", "inactive", "archived"] as const).map((opt) => {
-          const isCurrent = statusFilter === opt;
-          const params = new URLSearchParams();
-          if (selectedTeamId) params.set("org", selectedTeamId);
-          if (opt !== "all") params.set("status", opt);
-          const href = params.size
-            ? `/customers?${params.toString()}`
-            : "/customers";
-          return (
-            <Link
-              key={opt}
-              href={href}
-              aria-current={isCurrent ? "true" : undefined}
-              className={`rounded-full border px-3 py-1 text-caption font-medium transition-colors ${
-                isCurrent
-                  ? "border-accent bg-accent-soft text-accent-text"
-                  : "border-edge text-content-secondary hover:bg-hover"
-              }`}
-            >
-              {t(`filter.${opt}`)}
-            </Link>
-          );
-        })}
+        <TeamFilter teams={teams} selectedTeamId={selectedTeamId ?? null} />
+        <CustomerStatusFilter selected={statusFilter} />
       </div>
 
       <CustomersTable

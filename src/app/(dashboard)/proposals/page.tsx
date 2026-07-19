@@ -131,7 +131,6 @@ export default async function ProposalsPage({
         </div>
         {canCreate && <NewProposalLink label={t("new")} />}
       </div>
-      <p className="mt-1 text-body text-content-secondary">{t("subtitle")}</p>
       {outstanding.count > 0 && (
         <p className="mt-3 inline-flex items-center gap-1.5 text-body text-content-secondary">
           <Send size={14} aria-hidden="true" className="text-info" />

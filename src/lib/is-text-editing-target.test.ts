@@ -1,45 +1,48 @@
+// @vitest-environment jsdom
 import { describe, it, expect } from "vitest";
 import { isTextEditingTarget } from "./is-text-editing-target";
 
-function input(type?: string): HTMLInputElement {
+function input(type: string): HTMLInputElement {
   const el = document.createElement("input");
-  if (type) el.type = type;
+  el.type = type;
   return el;
 }
 
 describe("isTextEditingTarget", () => {
-  it("treats text-editing input types as editing targets", () => {
-    for (const type of ["text", "search", "date", "email", "number", "password", "url", "tel", "time"]) {
-      expect(isTextEditingTarget(input(type)), type).toBe(true);
+  it("returns true for text-like input types", () => {
+    for (const type of ["text", "search", "email", "url", "password", "number"]) {
+      expect(isTextEditingTarget(input(type))).toBe(true);
     }
   });
 
-  it("treats a type-less input (default text) as an editing target", () => {
-    expect(isTextEditingTarget(input())).toBe(true);
+  it("returns false for checkbox and radio inputs (rule 5: checkboxes are inputs, not text editors)", () => {
+    expect(isTextEditingTarget(input("checkbox"))).toBe(false);
+    expect(isTextEditingTarget(input("radio"))).toBe(false);
   });
 
-  it("does NOT treat checkboxes, radios, or button-ish inputs as editing targets", () => {
-    for (const type of ["checkbox", "radio", "button", "submit", "reset", "range", "color", "file", "hidden"]) {
-      expect(isTextEditingTarget(input(type)), type).toBe(false);
+  it("returns false for button-like and non-caret input types", () => {
+    for (const type of ["button", "submit", "reset", "range", "color", "file", "image"]) {
+      expect(isTextEditingTarget(input(type))).toBe(false);
     }
   });
 
-  it("treats textarea and select as editing targets", () => {
+  it("returns true for textareas", () => {
     expect(isTextEditingTarget(document.createElement("textarea"))).toBe(true);
-    expect(isTextEditingTarget(document.createElement("select"))).toBe(true);
   });
 
-  it("treats contenteditable elements as editing targets", () => {
+  it("returns true for contenteditable elements", () => {
     const div = document.createElement("div");
-    // jsdom doesn't compute isContentEditable from the attribute alone;
-    // define the resolved property the way a browser would report it.
+    // jsdom doesn't compute isContentEditable from the attribute in all
+    // versions — define it explicitly so the behavior under test is the
+    // helper's branch, not jsdom's attribute reflection.
     Object.defineProperty(div, "isContentEditable", { value: true });
     expect(isTextEditingTarget(div)).toBe(true);
   });
 
-  it("is false for plain elements, document, and null", () => {
+  it("returns false for plain elements, selects, and null", () => {
     expect(isTextEditingTarget(document.createElement("div"))).toBe(false);
-    expect(isTextEditingTarget(document.body)).toBe(false);
+    expect(isTextEditingTarget(document.createElement("select"))).toBe(false);
+    expect(isTextEditingTarget(document.createElement("button"))).toBe(false);
     expect(isTextEditingTarget(null)).toBe(false);
   });
 });

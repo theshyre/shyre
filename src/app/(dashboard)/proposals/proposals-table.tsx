@@ -55,17 +55,18 @@ export function ProposalsTable({
   const t = useTranslations("proposals");
 
   if (proposals.length === 0) {
+    // Bordered-card + icon-circle empty state — the one list-page
+    // treatment (docs/reference/list-pages.md rule 6; reference:
+    // invoices-table.tsx).
     return (
-      <div className="mt-[48px] flex flex-col items-center gap-2 text-center">
-        <FileSignature
-          size={32}
-          aria-hidden="true"
-          className="text-content-muted"
-        />
-        <p className="text-body-lg font-medium text-content">
+      <div className="mt-[16px] rounded-lg border border-edge bg-surface-raised p-8 text-center">
+        <div className="mx-auto mb-3 flex h-10 w-10 items-center justify-center rounded-full bg-accent-soft">
+          <FileSignature size={20} className="text-accent" aria-hidden="true" />
+        </div>
+        <h3 className="text-body-lg font-medium text-content">
           {t("empty.heading")}
-        </p>
-        <p className="max-w-[480px] text-body text-content-secondary">
+        </h3>
+        <p className="mt-1 text-caption text-content-muted max-w-md mx-auto">
           {t("empty.body")}
         </p>
       </div>

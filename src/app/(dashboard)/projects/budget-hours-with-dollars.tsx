@@ -203,7 +203,7 @@ export function BudgetHoursWithDollars({
         />
         <span
           aria-hidden="true"
-          className="text-content-muted text-body select-none px-1"
+          className="text-content-muted text-body px-1"
         >
           ≈
         </span>

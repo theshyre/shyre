@@ -5,6 +5,7 @@ import { useTranslations } from "next-intl";
 import Link from "next/link";
 import { DollarSign, Minus, Lock, Play, Square } from "lucide-react";
 import { formatDurationHM } from "@/lib/time/week";
+import { checkboxClass } from "@/lib/form-styles";
 import { EntryAuthor } from "@/components/EntryAuthor";
 import { Tooltip } from "@/components/Tooltip";
 import { TicketChip } from "./ticket-chip";
@@ -131,6 +132,15 @@ export function EntryRow({
     ? categories.find((c) => c.id === entry.category_id)
     : null;
 
+  // Entity name for the row checkbox's accessible name (list-pages.md
+  // rule 4 — never a generic "Select entry"): the description when the
+  // entry has one, otherwise project + locale-formatted date so AT
+  // users can still tell rows apart.
+  const trimmedDescription = entry.description?.trim();
+  const selectName = trimmedDescription
+    ? trimmedDescription
+    : `${projectName} · ${startDate.toLocaleDateString()}`;
+
   // Live-tick when running. Interval only binds while isRunning so we
   // don't burn cycles on every stopped row in the grid.
   const [nowMs, setNowMs] = useState<number>(() => Date.now());
@@ -175,8 +185,8 @@ export function EntryRow({
             type="checkbox"
             checked={selected}
             onChange={() => onToggleSelect(entry.id)}
-            aria-label={t("entry.select")}
-            className="h-4 w-4 rounded border-edge text-accent focus:ring-focus-ring cursor-pointer"
+            aria-label={t("entry.select", { name: selectName })}
+            className={checkboxClass}
           />
         </td>
         {/* Category — hero column */}

@@ -267,6 +267,10 @@
     "duplicateWarning": "\"{name}\" already exists in the base set. Rename it to avoid confusion in the picker."
   },
   "bulkToolbarAriaLabel": "Project bulk actions",
+  "bulkClear": "Clear selection",
+  "liveResultCount": "{count, plural, one {# project listed} other {# projects listed}}",
+  "liveSelected": "{count, plural, one {# project selected} other {# projects selected}}",
+  "subProjectOf": "Sub-project of {parent}",
   "bulkSelectAllAria": "Select all projects",
   "bulkDeselectAllAria": "Deselect all projects",
   "bulkRowAria": "Select {name}",
@@ -285,6 +289,7 @@
   "bulkSwitchSetFailed": "Couldn't switch the category set.",
   "archiveFailed": "Couldn't archive project.",
   "bulkClose": "{count, plural, one {Close out 1} other {Close out #}}",
+  "bulkCloseConfirm": "{count, plural, one {Confirm close-out of 1} other {Confirm close-out of #}}",
   "bulkClosedToast": "{count, plural, one {1 project closed out} other {# projects closed out}}",
   "bulkReopenedToast": "{count, plural, one {1 project reopened} other {# projects reopened}}",
   "closeFailed": "Couldn't close out the project.",

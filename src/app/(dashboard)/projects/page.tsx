@@ -22,7 +22,11 @@ import {
   computeProjectPeriodBurn,
   type BudgetPeriod,
 } from "@/lib/projects/budget-period";
-import { NewProjectForm } from "./new-project-form";
+import {
+  AddProjectTrigger,
+  NewProjectForm,
+  NewProjectFormProvider,
+} from "./new-project-form";
 import { parseListPagination } from "@/lib/pagination/list-pagination";
 import { ProjectsTable, type ProjectRow } from "./projects-table";
 import {
@@ -351,10 +355,17 @@ export default async function ProjectsPage({
     searchQuery.length > 0;
 
   return (
+    <NewProjectFormProvider>
     <div>
+      {/* Row 1 — header: icon + H1, primary action right-aligned in
+          the header cluster (list-pages.md rule 2). No Export slot:
+          projects has no CSV route today, and the slot is optional. */}
       <div className="flex items-center gap-3">
         <FolderKanban size={24} className="text-accent" />
         <h1 className="text-page-title font-bold text-content">{t("title")}</h1>
+        <div className="ml-auto">
+          <AddProjectTrigger />
+        </div>
       </div>
 
       <div className="mt-3 flex items-center gap-2 flex-wrap">
@@ -409,6 +420,7 @@ export default async function ProjectsPage({
         <ProjectFiltersClearHint active={filtersActive} />
       )}
     </div>
+    </NewProjectFormProvider>
   );
 }
 

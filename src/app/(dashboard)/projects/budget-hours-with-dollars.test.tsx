@@ -22,6 +22,21 @@ describe("BudgetHoursWithDollars", () => {
     expect(dollars).toBeTruthy();
   });
 
+  it("renders the ≈ glyph selectable (no select-none — audited C9)", () => {
+    const { container } = renderWithIntl(
+      <BudgetHoursWithDollars
+        idPrefix="t1"
+        hourlyRate="135"
+        isInternal={false}
+      />,
+    );
+    const glyph = Array.from(container.querySelectorAll("span")).find(
+      (s) => s.textContent === "≈",
+    );
+    expect(glyph).toBeTruthy();
+    expect(glyph?.className).not.toContain("select-none");
+  });
+
   it("submits the hours value (not dollars) via the hidden name attribute", () => {
     const { container } = renderWithIntl(
       <BudgetHoursWithDollars
