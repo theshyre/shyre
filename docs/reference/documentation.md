@@ -77,3 +77,19 @@ Keep each guide ≤ ~200 lines. If a feature grows beyond one guide, split by su
 - **Don't duplicate content across guides.** If solo and agency both need to know how customers work, write it once (solo), and link from agency.
 - **Don't leave stale guides.** If a feature is removed, its guide is removed (or moved to a "Deprecated" section with the removal date).
 - **Don't skip guides because the feature is "simple".** The guide is how someone NEW to Shyre learns it exists.
+
+## Online docs are part of "documented" (rule added 2026-07-18)
+
+The `docs/` tree deploys with the app and renders at `/docs` — but the docs
+hub (`src/app/(dashboard)/docs/page.tsx`) is a **curated nav, not an auto
+index**. A guide that exists on disk but isn't linked from a hub card is
+invisible to users. Therefore, for every user-facing feature:
+
+1. Guide in `docs/guides/features/` (same commit as the feature — existing rule).
+2. Linked from `docs/guides/features/README.md` (existing rule).
+3. **Linked from a card on the docs hub page** (this rule): the
+   configuration/how-to guide is the card's `primary`; API/reference
+   material goes in `more`. New surface areas get their own card.
+
+A follow-up test should eventually enforce #3 (hub hrefs ⊆ existing files
+is covered by docs-links; files ⊆ hub is the missing direction).

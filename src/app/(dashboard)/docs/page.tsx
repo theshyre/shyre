@@ -11,6 +11,7 @@ import {
   Compass,
   ArrowRight,
   Building2,
+  Plug,
 } from "lucide-react";
 import Link from "next/link";
 import { getUserTeams } from "@/lib/team-context";
@@ -34,7 +35,21 @@ const MODULES: ModuleCard[] = [
       { title: "Categories", href: "/docs/guides/features/categories" },
       { title: "Templates", href: "/docs/guides/features/templates" },
       { title: "Imports (Harvest)", href: "/docs/guides/features/imports" },
-      { title: "Integrations API (REST + MCP)", href: "/docs/guides/features/integrations-api" },
+    ],
+  },
+  {
+    name: "Integrations",
+    blurb: "Let Claude and other apps track time for you.",
+    icon: Plug,
+    primary: {
+      title: "Setup: tokens & the team switch",
+      href: "/docs/guides/features/integration-tokens",
+    },
+    more: [
+      { title: "API reference (REST + MCP)", href: "/docs/guides/features/integrations-api" },
+      { title: "Claude Code hooks kit", href: "/docs/guides/features/claude-code-hooks-kit" },
+      { title: "Agent attribution", href: "/docs/guides/features/agent-attribution" },
+      { title: "Reviewing agent time on invoices", href: "/docs/guides/features/agent-time-review" },
     ],
   },
   {

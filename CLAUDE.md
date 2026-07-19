@@ -220,7 +220,7 @@ Every user-facing string uses translation keys. No hardcoded text.
 
 ## Documentation — MANDATORY → `docs/reference/documentation.md`
 
-"Shipped but undocumented" is not shipped. Every user-facing feature gets a guide in `docs/guides/features/` in the **same commit** as the feature. Schema/migration → `docs/reference/database-schema.md`. New module → `docs/reference/modules.md`. New env var → `.env.example` AND `docs/guides/admin/env-configuration.md`. Security change → append to `docs/security/SECURITY_AUDIT_LOG.md`. Don't duplicate across guides — write once, link.
+"Shipped but undocumented" is not shipped. Every user-facing feature gets a guide in `docs/guides/features/` in the **same commit** as the feature. **A guide that isn't reachable in the online docs isn't published**: `docs/` is served in-app at `/docs`, but the hub page (`src/app/(dashboard)/docs/page.tsx`) is a curated nav — every new guide must be added to a card there (and to `docs/guides/features/README.md`) in the same commit, or users can never find it. Configuration/how-to guides are the card's PRIMARY link; API/reference material goes under "more". Schema/migration → `docs/reference/database-schema.md`. New module → `docs/reference/modules.md`. New env var → `.env.example` AND `docs/guides/admin/env-configuration.md`. Security change → append to `docs/security/SECURITY_AUDIT_LOG.md`. Don't duplicate across guides — write once, link.
 
 ## Personas — MANDATORY → `docs/personas/README.md`
 
