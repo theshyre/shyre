@@ -114,7 +114,6 @@
     "to": "To",
     "search": "Search descriptions",
     "searchPlaceholder": "Programming, SHY-1234, …",
-    "clearSearch": "Clear search",
     "clearAll": "Clear filters",
     "invoicedFilter": {
       "label": "Invoice status",
@@ -126,7 +125,11 @@
     "resultCount": "{count, plural, =0 {No entries} one {# entry} other {# entries}}",
     "totals": "{total} total · {billable} billable · {nonBillable} non-billable",
     "rangeCaption": "{from} → {to}",
-    "truncated": "Showing the most recent {limit, number} entries — narrow the date range or use search to see older rows."
+    "truncated": "Showing the most recent {limit, number} entries — narrow the date range or use search to see older rows.",
+    "live": {
+      "results": "{count, plural, =0 {No entries shown} one {# entry shown} other {# entries shown}}",
+      "selected": "{count, plural, one {# entry selected} other {# entries selected}}"
+    }
   },
   "tableHeaders": {
     "time": "Time",
@@ -229,7 +232,7 @@
   },
   "entry": {
     "edit": "Edit",
-    "select": "Select entry",
+    "select": "Select {name}",
     "startTimer": "Start timer",
     "stopTimer": "Stop timer",
     "stopTimerFromRow": "Stop running timer",

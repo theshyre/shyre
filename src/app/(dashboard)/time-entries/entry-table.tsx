@@ -4,6 +4,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useTranslations } from "next-intl";
 import { BadgeCheck, Trash2, X, Clock } from "lucide-react";
 import { formatDurationHM } from "@/lib/time/week";
+import { checkboxClass } from "@/lib/form-styles";
 import type { EntryGroup } from "@/lib/time/grouping";
 import { EntryRow } from "./entry-row";
 import { CustomerChip } from "@theshyre/ui";
@@ -34,10 +35,39 @@ interface Props {
    *  a row's date through structure (i.e. the flat Table view).
    *  Default false. */
   showDate?: boolean;
+  /** Reports the bulk-selection size on every change (including the
+   *  initial 0) so the host view can fold "N selected" into its
+   *  polite live region (list-pages.md a11y invariants). */
+  onSelectionCountChange?: (count: number) => void;
 }
 
 // Leading select column + 6 content columns + kebab column.
 const COLUMN_COUNT = 8;
+
+// Input types where Escape means "leave my text alone", not "clear the
+// table selection". Everything NOT in this set (checkbox, radio,
+// button-likes, range, …) is a non-text control, so Escape falls
+// through to the selection-clearing handler.
+const NON_TEXT_INPUT_TYPES = new Set([
+  "button",
+  "checkbox",
+  "color",
+  "file",
+  "radio",
+  "range",
+  "reset",
+  "submit",
+]);
+
+function isTextEditingTarget(target: EventTarget | null): boolean {
+  if (!(target instanceof HTMLElement)) return false;
+  if (target.isContentEditable) return true;
+  if (target instanceof HTMLTextAreaElement) return true;
+  if (target instanceof HTMLInputElement) {
+    return !NON_TEXT_INPUT_TYPES.has(target.type);
+  }
+  return false;
+}
 
 export function EntryTable({
   groups,
@@ -49,6 +79,7 @@ export function EntryTable({
   tzOffsetMin,
   viewerUserId = null,
   showDate = false,
+  onSelectionCountChange,
 }: Props): React.JSX.Element {
   const t = useTranslations("time");
   const tToast = useTranslations("time.toast");
@@ -97,6 +128,10 @@ export function EntryTable({
     visibleIds.length > 0 && visibleIds.every((id) => selectedIds.has(id));
   const someSelected = selectedIds.size > 0;
 
+  useEffect(() => {
+    onSelectionCountChange?.(selectedIds.size);
+  }, [selectedIds, onSelectionCountChange]);
+
   // Pattern-A focus handoff (list-pages.md rule 4), both directions.
   // Start (0→N): the thead goes aria-hidden and its master checkbox
   // drops to tabIndex -1 — if focus is sitting on that master
@@ -137,10 +172,17 @@ export function EntryTable({
 
   // Escape clears an active selection. Only bound while someSelected so
   // we never swallow Escape when there's nothing to cancel out of.
+  // Skipped while focus sits in a text-editing control (list-pages.md
+  // rule 5): Escape there belongs to the control — e.g. collapsing the
+  // bulk typed-delete confirm — not to the selection. Guarded per input
+  // type, not `tagName === "INPUT"`, because checkboxes are inputs too
+  // and Escape from a checkbox SHOULD clear.
   useEffect(() => {
     if (!someSelected) return;
     function onKey(e: KeyboardEvent): void {
-      if (e.key === "Escape") setSelectedIds(new Set());
+      if (e.key !== "Escape") return;
+      if (isTextEditingTarget(e.target)) return;
+      setSelectedIds(new Set());
     }
     document.addEventListener("keydown", onKey);
     return () => document.removeEventListener("keydown", onKey);
@@ -226,18 +268,25 @@ export function EntryTable({
         >
           <tr>
             <th className="w-10 pl-4 py-2 text-left">
-              <input
-                type="checkbox"
-                checked={allSelected}
-                ref={(el) => {
-                  theadMasterRef.current = el;
-                  if (el) el.indeterminate = !allSelected && someSelected;
-                }}
-                onChange={toggleAll}
-                aria-label={t("bulk.selectAll")}
-                tabIndex={someSelected ? -1 : 0}
-                className="h-4 w-4 rounded border-edge text-accent focus:ring-focus-ring"
-              />
+              {/* ≥24px hit area (list-pages.md rule 4): the wrapping
+                  label is 24×24 with negative margins so the 16px
+                  checkbox stays exactly where it sat — clicks on the
+                  padding toggle via native label semantics, zero
+                  layout shift. */}
+              <label className="-m-1 flex h-6 w-6 cursor-pointer items-center justify-center">
+                <input
+                  type="checkbox"
+                  checked={allSelected}
+                  ref={(el) => {
+                    theadMasterRef.current = el;
+                    if (el) el.indeterminate = !allSelected && someSelected;
+                  }}
+                  onChange={toggleAll}
+                  aria-label={t("bulk.selectAll")}
+                  tabIndex={someSelected ? -1 : 0}
+                  className={checkboxClass}
+                />
+              </label>
             </th>
             <th className="w-[192px] py-2 pr-3 text-left text-label font-semibold uppercase tracking-wider text-content-muted">
               {t("tableHeaders.category")}
@@ -294,17 +343,19 @@ export function EntryTable({
           className="absolute left-0 right-0 top-0 z-10 flex items-center gap-4 bg-surface-inset border-b border-edge px-4"
           style={theadHeight > 0 ? { height: theadHeight } : undefined}
         >
-          <input
-            type="checkbox"
-            checked={allSelected}
-            ref={(el) => {
-              stripMasterRef.current = el;
-              if (el) el.indeterminate = !allSelected && someSelected;
-            }}
-            onChange={toggleAll}
-            aria-label={t("bulk.selectAll")}
-            className="h-4 w-4 rounded border-edge text-accent focus:ring-focus-ring"
-          />
+          <label className="-m-1 flex h-6 w-6 shrink-0 cursor-pointer items-center justify-center">
+            <input
+              type="checkbox"
+              checked={allSelected}
+              ref={(el) => {
+                stripMasterRef.current = el;
+                if (el) el.indeterminate = !allSelected && someSelected;
+              }}
+              onChange={toggleAll}
+              aria-label={t("bulk.selectAll")}
+              className={checkboxClass}
+            />
+          </label>
           <span className="text-body font-medium text-accent-text">
             {t("bulk.selectedCount", { count: selectedIds.size })}
           </span>

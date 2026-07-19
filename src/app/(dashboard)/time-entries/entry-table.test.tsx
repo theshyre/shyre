@@ -36,7 +36,7 @@ function renderTable(ui: React.ReactElement): ReturnType<typeof renderWithIntl> 
 }
 
 function makeEntry(id: string, opts?: {
-  description?: string;
+  description?: string | null;
   start?: Date;
   durationMin?: number;
   billable?: boolean;
@@ -51,7 +51,8 @@ function makeEntry(id: string, opts?: {
     team_id: "o1",
     user_id: "u1",
     project_id: "p1",
-    description: opts?.description ?? `entry ${id}`,
+    description:
+      opts?.description === undefined ? `entry ${id}` : opts.description,
     start_time: start.toISOString(),
     end_time: end.toISOString(),
     duration_min: dur,
@@ -434,6 +435,145 @@ describe("EntryTable", () => {
     // Strip appears, but the row checkbox the user is on stays focused.
     expect(screen.getByRole("toolbar", { name: /bulk/i })).toBeInTheDocument();
     expect(document.activeElement).toBe(rowCheckbox);
+  });
+
+  it("names the entity in each row checkbox's accessible name", () => {
+    renderTable(
+      <EntryTable
+        groups={[
+          group("g1", "T", [
+            makeEntry("a", { description: "Quarterly audit" }),
+            // No description → falls back to project + date.
+            makeEntry("b", { description: null, projectName: "Alpha" }),
+          ]),
+        ]}
+        projects={[]}
+        categories={[]}
+        expandedEntryId={null}
+        onToggleExpand={() => {}}
+        hideGroupHeaders
+      />,
+    );
+    expect(
+      screen.getByRole("checkbox", { name: "Select Quarterly audit" }),
+    ).toBeInTheDocument();
+    // Locale-formatted date — don't pin the exact format, just the
+    // project name inside a "Select …" label.
+    expect(
+      screen.getByRole("checkbox", { name: /select alpha ·/i }),
+    ).toBeInTheDocument();
+    // The generic label is gone.
+    expect(
+      screen.queryByRole("checkbox", { name: /^select entry$/i }),
+    ).toBeNull();
+  });
+
+  it("renders both master checkboxes with the shared class inside a 24px hit-area label", () => {
+    const { container } = renderTable(
+      <EntryTable
+        groups={[group("g1", "T", [makeEntry("a"), makeEntry("b")])]}
+        projects={[]}
+        categories={[]}
+        expandedEntryId={null}
+        onToggleExpand={() => {}}
+        hideGroupHeaders
+      />,
+    );
+    const theadMaster = container.querySelector<HTMLInputElement>(
+      "thead input[type='checkbox']",
+    );
+    expect(theadMaster?.className).toContain("cursor-pointer");
+    const theadWrapper = theadMaster?.closest("label");
+    expect(theadWrapper?.className).toMatch(/h-6/);
+    expect(theadWrapper?.className).toMatch(/w-6/);
+
+    // Open the overlay strip and check its surviving master too.
+    const rowCheckbox = container.querySelector<HTMLInputElement>(
+      "tbody input[type='checkbox']",
+    );
+    fireEvent.click(rowCheckbox as HTMLInputElement);
+    const stripMaster = screen
+      .getByRole("toolbar", { name: /bulk/i })
+      .querySelector<HTMLInputElement>("input[type='checkbox']");
+    expect(stripMaster?.className).toContain("cursor-pointer");
+    const stripWrapper = stripMaster?.closest("label");
+    expect(stripWrapper?.className).toMatch(/h-6/);
+    expect(stripWrapper?.className).toMatch(/w-6/);
+  });
+
+  it("Escape clears the selection when focus is not in a text-editing control", () => {
+    const { container } = renderTable(
+      <EntryTable
+        groups={[group("g1", "T", [makeEntry("a"), makeEntry("b")])]}
+        projects={[]}
+        categories={[]}
+        expandedEntryId={null}
+        onToggleExpand={() => {}}
+        hideGroupHeaders
+      />,
+    );
+    const rowCheckbox = container.querySelector<HTMLInputElement>(
+      "tbody input[type='checkbox']",
+    );
+    fireEvent.click(rowCheckbox as HTMLInputElement);
+    expect(screen.getByRole("toolbar", { name: /bulk/i })).toBeInTheDocument();
+    // Escape from a checkbox (an input, but NOT text-editing) clears.
+    fireEvent.keyDown(rowCheckbox as HTMLInputElement, { key: "Escape" });
+    expect(
+      screen.queryByRole("toolbar", { name: /bulk/i }),
+    ).not.toBeInTheDocument();
+  });
+
+  it("Escape inside the typed-delete input collapses the confirm WITHOUT clearing the selection", () => {
+    const { container } = renderTable(
+      <EntryTable
+        groups={[group("g1", "T", [makeEntry("a"), makeEntry("b")])]}
+        projects={[]}
+        categories={[]}
+        expandedEntryId={null}
+        onToggleExpand={() => {}}
+        hideGroupHeaders
+      />,
+    );
+    const rowCheckboxes = container.querySelectorAll<HTMLInputElement>(
+      "tbody input[type='checkbox']",
+    );
+    rowCheckboxes[0]!.click();
+    rowCheckboxes[1]!.click();
+    fireEvent.click(screen.getByRole("button", { name: /delete selected/i }));
+    const typedInput = screen.getByLabelText(/type delete to confirm/i);
+    // Escape while typing in the confirm input belongs to the confirm
+    // (text-editing-control guard, list-pages.md rule 5) …
+    fireEvent.keyDown(typedInput, { key: "Escape" });
+    expect(screen.queryByLabelText(/type delete to confirm/i)).toBeNull();
+    // … the selection itself survives.
+    expect(screen.getByText(/2 selected/i)).toBeInTheDocument();
+    expect(screen.getByRole("toolbar", { name: /bulk/i })).toBeInTheDocument();
+  });
+
+  it("reports the selection size through onSelectionCountChange", () => {
+    const onCount = vi.fn();
+    const { container } = renderTable(
+      <EntryTable
+        groups={[group("g1", "T", [makeEntry("a"), makeEntry("b")])]}
+        projects={[]}
+        categories={[]}
+        expandedEntryId={null}
+        onToggleExpand={() => {}}
+        hideGroupHeaders
+        onSelectionCountChange={onCount}
+      />,
+    );
+    expect(onCount).toHaveBeenLastCalledWith(0);
+    const rowCheckboxes = container.querySelectorAll<HTMLInputElement>(
+      "tbody input[type='checkbox']",
+    );
+    rowCheckboxes[0]!.click();
+    expect(onCount).toHaveBeenLastCalledWith(1);
+    rowCheckboxes[1]!.click();
+    expect(onCount).toHaveBeenLastCalledWith(2);
+    rowCheckboxes[0]!.click();
+    expect(onCount).toHaveBeenLastCalledWith(1);
   });
 
   it("renders the edit form spanning the table width when expanded", () => {
