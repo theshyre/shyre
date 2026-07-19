@@ -29,12 +29,12 @@ export default defineConfig({
         // floor here in the same PR. Never lower a floor to make a
         // build pass. Target (per CLAUDE.md) is 90%+; we'll get there
         // by ratcheting, not by wishing.
-        statements: 56,
-        branches: 46,
-        functions: 50,
-        lines: 56,
-        // Note: ratcheted on the integrations-settings PR (SAL-051 P1,
-        // measured 56.76/47.40/51.52/57.52) — floors set just below the
+        statements: 62,
+        branches: 51,
+        functions: 56,
+        lines: 63,
+        // Note: ratcheted on the coverage-grind-3 PR (measured
+        // 62.58/51.72/56.33/63.49) — floors set just below the
         // measured numbers per the ratchet rule above.
       },
     },

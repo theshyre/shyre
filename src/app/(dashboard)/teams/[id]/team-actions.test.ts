@@ -34,31 +34,80 @@ const state: {
    *  uid).maybeSingle()` returns when transferOwnershipAction looks
    *  up the target's name for the typed-confirm comparison. */
   targetProfile: { display_name: string | null } | null;
+  /** team_members role lookup (.single) inside removeMemberAction. */
+  memberRow: { role: string } | null;
+  memberError: { message: string; code?: string } | null;
+  /** team_members team_id lookup (.single) inside setMemberRateAction. */
+  membershipRow: { team_id: string } | null;
+  /** can_set_member_rate RPC answer. */
+  canSetMemberRate: boolean;
+  inserts: { table: string; rows: unknown }[];
+  updates: {
+    table: string;
+    patch: Record<string, unknown>;
+    where: [string, unknown][];
+  }[];
+  deletes: { table: string; where: [string, unknown][] }[];
 } = {
   rpcCalls: [],
   rpcError: null,
   targetProfile: null,
+  memberRow: null,
+  memberError: null,
+  membershipRow: null,
+  canSetMemberRate: true,
+  inserts: [],
+  updates: [],
+  deletes: [],
 };
 
 function mockSupabase() {
   return {
     rpc: (name: string, args: unknown) => {
       state.rpcCalls.push({ name, args });
+      if (name === "can_set_member_rate") {
+        return Promise.resolve({ data: state.canSetMemberRate, error: null });
+      }
       return Promise.resolve({ data: null, error: state.rpcError });
     },
-    from: (table: string) => {
-      if (table !== "user_profiles") {
-        throw new Error(`unexpected table ${table}`);
-      }
-      return {
-        select: () => ({
-          eq: () => ({
-            maybeSingle: () =>
-              Promise.resolve({ data: state.targetProfile }),
-          }),
+    from: (table: string) => ({
+      select: (cols?: string) => ({
+        eq: () => ({
+          maybeSingle: () => Promise.resolve({ data: state.targetProfile }),
+          single: () => {
+            if (table === "team_members" && cols === "role") {
+              return Promise.resolve({
+                data: state.memberRow,
+                error: state.memberError,
+              });
+            }
+            if (table === "team_members" && cols === "team_id") {
+              return Promise.resolve({
+                data: state.membershipRow,
+                error: null,
+              });
+            }
+            return Promise.resolve({ data: null, error: null });
+          },
         }),
-      };
-    },
+      }),
+      insert: (rows: unknown) => {
+        state.inserts.push({ table, rows });
+        return Promise.resolve({ data: null, error: null });
+      },
+      update: (patch: Record<string, unknown>) => ({
+        eq: (col: string, val: unknown) => {
+          state.updates.push({ table, patch, where: [[col, val]] });
+          return Promise.resolve({ data: null, error: null });
+        },
+      }),
+      delete: () => ({
+        eq: (col: string, val: unknown) => {
+          state.deletes.push({ table, where: [[col, val]] });
+          return Promise.resolve({ data: null, error: null });
+        },
+      }),
+    }),
   };
 }
 
@@ -67,14 +116,26 @@ vi.mock("@/lib/supabase/server", () => ({
 }));
 
 import {
+  inviteMemberAction,
+  removeMemberAction,
+  revokeInviteAction,
+  updateTeamNameAction,
   transferOwnershipAction,
   updateMemberRoleAction,
+  setMemberRateAction,
 } from "./team-actions";
 
 function reset(): void {
   state.rpcCalls = [];
   state.rpcError = null;
   state.targetProfile = null;
+  state.memberRow = { role: "member" };
+  state.memberError = null;
+  state.membershipRow = { team_id: "team-1" };
+  state.canSetMemberRate = true;
+  state.inserts = [];
+  state.updates = [];
+  state.deletes = [];
   mockValidateTeamAccess.mockReset();
   mockRevalidatePath.mockReset();
 }
@@ -366,5 +427,245 @@ describe("updateMemberRoleAction", () => {
       expect(safe.message).toBeUndefined();
       expect(JSON.stringify(safe)).not.toContain("team_members_pkey");
     }
+  });
+});
+
+describe("inviteMemberAction", () => {
+  beforeEach(reset);
+
+  it("inserts a team_invites row with the caller as inviter", async () => {
+    mockValidateTeamAccess.mockResolvedValue({
+      userId: fakeUserId,
+      role: "admin",
+    });
+    await inviteMemberAction(
+      fd({ team_id: "team-1", email: "new@acme.test", role: "admin" }),
+    );
+    expect(state.inserts).toEqual([
+      {
+        table: "team_invites",
+        rows: {
+          team_id: "team-1",
+          email: "new@acme.test",
+          role: "admin",
+          invited_by: fakeUserId,
+        },
+      },
+    ]);
+    expect(mockRevalidatePath).toHaveBeenCalledWith("/teams/team-1");
+  });
+
+  it("defaults a missing role to member", async () => {
+    mockValidateTeamAccess.mockResolvedValue({
+      userId: fakeUserId,
+      role: "owner",
+    });
+    await inviteMemberAction(fd({ team_id: "team-1", email: "n@a.io" }));
+    expect(state.inserts[0]?.rows).toMatchObject({ role: "member" });
+  });
+
+  it("rejects an attempt to invite an owner (role smuggling)", async () => {
+    mockValidateTeamAccess.mockResolvedValue({
+      userId: fakeUserId,
+      role: "owner",
+    });
+    await expect(
+      inviteMemberAction(
+        fd({ team_id: "team-1", email: "x@a.io", role: "owner" }),
+      ),
+    ).rejects.toThrow(/Invalid role/);
+    expect(state.inserts).toHaveLength(0);
+  });
+
+  it("denies plain members before any insert", async () => {
+    mockValidateTeamAccess.mockResolvedValue({
+      userId: fakeUserId,
+      role: "member",
+    });
+    await expect(
+      inviteMemberAction(fd({ team_id: "team-1", email: "x@a.io" })),
+    ).rejects.toThrow(/Only owners and admins/);
+    expect(state.inserts).toHaveLength(0);
+  });
+});
+
+describe("removeMemberAction", () => {
+  beforeEach(() => {
+    reset();
+    mockValidateTeamAccess.mockResolvedValue({
+      userId: fakeUserId,
+      role: "owner",
+    });
+  });
+
+  it("deletes a plain member's membership row", async () => {
+    await removeMemberAction(
+      fd({ team_id: "team-1", member_id: "m-2", member_user_id: "u-other" }),
+    );
+    expect(state.deletes).toEqual([
+      { table: "team_members", where: [["id", "m-2"]] },
+    ]);
+    expect(mockRevalidatePath).toHaveBeenCalledWith("/teams/team-1");
+  });
+
+  it("refuses to remove yourself", async () => {
+    await expect(
+      removeMemberAction(
+        fd({ team_id: "team-1", member_id: "m-1", member_user_id: fakeUserId }),
+      ),
+    ).rejects.toThrow(/cannot remove yourself/);
+    expect(state.deletes).toHaveLength(0);
+  });
+
+  it("refuses to remove the team owner", async () => {
+    state.memberRow = { role: "owner" };
+    await expect(
+      removeMemberAction(
+        fd({
+          team_id: "team-1",
+          member_id: "m-owner",
+          member_user_id: "u-owner",
+        }),
+      ),
+    ).rejects.toThrow(/Cannot remove the team owner/);
+    expect(state.deletes).toHaveLength(0);
+  });
+
+  it("fails closed when the role lookup errors — the delete must NOT proceed (regression: unchecked .single())", async () => {
+    state.memberRow = null;
+    state.memberError = { message: "permission denied", code: "42501" };
+    await expect(
+      removeMemberAction(
+        fd({ team_id: "team-1", member_id: "m-2", member_user_id: "u-other" }),
+      ),
+    ).rejects.toThrow();
+    expect(state.deletes).toHaveLength(0);
+  });
+
+  it("denies plain members", async () => {
+    mockValidateTeamAccess.mockResolvedValue({
+      userId: fakeUserId,
+      role: "member",
+    });
+    await expect(
+      removeMemberAction(
+        fd({ team_id: "team-1", member_id: "m-2", member_user_id: "u-other" }),
+      ),
+    ).rejects.toThrow(/Only owners and admins/);
+    expect(state.deletes).toHaveLength(0);
+  });
+});
+
+describe("revokeInviteAction", () => {
+  beforeEach(reset);
+
+  it("deletes the invite for owner/admin callers", async () => {
+    mockValidateTeamAccess.mockResolvedValue({
+      userId: fakeUserId,
+      role: "admin",
+    });
+    await revokeInviteAction(fd({ team_id: "team-1", invite_id: "i-3" }));
+    expect(state.deletes).toEqual([
+      { table: "team_invites", where: [["id", "i-3"]] },
+    ]);
+    expect(mockRevalidatePath).toHaveBeenCalledWith("/teams/team-1");
+  });
+
+  it("denies plain members without deleting", async () => {
+    mockValidateTeamAccess.mockResolvedValue({
+      userId: fakeUserId,
+      role: "member",
+    });
+    await expect(
+      revokeInviteAction(fd({ team_id: "team-1", invite_id: "i-3" })),
+    ).rejects.toThrow(/Only owners and admins/);
+    expect(state.deletes).toHaveLength(0);
+  });
+});
+
+describe("updateTeamNameAction", () => {
+  beforeEach(reset);
+
+  it("admins can rename the team", async () => {
+    mockValidateTeamAccess.mockResolvedValue({
+      userId: fakeUserId,
+      role: "admin",
+    });
+    await updateTeamNameAction(
+      fd({ team_id: "team-1", team_name: "New Name" }),
+    );
+    expect(state.updates).toEqual([
+      {
+        table: "teams",
+        patch: { name: "New Name" },
+        where: [["id", "team-1"]],
+      },
+    ]);
+    expect(mockRevalidatePath).toHaveBeenCalledWith("/teams/team-1");
+  });
+
+  it("plain members cannot rename", async () => {
+    mockValidateTeamAccess.mockResolvedValue({
+      userId: fakeUserId,
+      role: "member",
+    });
+    await expect(
+      updateTeamNameAction(fd({ team_id: "team-1", team_name: "Nope" })),
+    ).rejects.toThrow(/owner or admin/);
+    expect(state.updates).toHaveLength(0);
+  });
+});
+
+describe("setMemberRateAction", () => {
+  beforeEach(reset);
+
+  it("writes the parsed rate when can_set_member_rate allows it", async () => {
+    await setMemberRateAction(
+      fd({ membership_id: "m-2", default_rate: "182.50" }),
+    );
+    expect(state.updates).toEqual([
+      {
+        table: "team_members",
+        patch: { default_rate: 182.5 },
+        where: [["id", "m-2"]],
+      },
+    ]);
+    expect(mockRevalidatePath).toHaveBeenCalledWith("/teams/team-1");
+  });
+
+  it("clears the rate when default_rate is blank", async () => {
+    await setMemberRateAction(fd({ membership_id: "m-2", default_rate: "" }));
+    expect(state.updates[0]?.patch).toEqual({ default_rate: null });
+  });
+
+  it("rejects a non-numeric rate instead of writing NaN (regression)", async () => {
+    await expect(
+      setMemberRateAction(fd({ membership_id: "m-2", default_rate: "abc" })),
+    ).rejects.toThrow(/not a valid rate/);
+    expect(state.updates).toHaveLength(0);
+  });
+
+  it("refuses when the permission RPC denies, without writing", async () => {
+    state.canSetMemberRate = false;
+    await expect(
+      setMemberRateAction(fd({ membership_id: "m-2", default_rate: "100" })),
+    ).rejects.toThrow(/Not authorized/);
+    expect(state.updates).toHaveLength(0);
+  });
+
+  it("requires membership_id before the permission check", async () => {
+    await expect(
+      setMemberRateAction(fd({ default_rate: "100" })),
+    ).rejects.toThrow(/membership_id is required/);
+    expect(state.rpcCalls).toHaveLength(0);
+  });
+
+  it("still writes but skips revalidation when the team lookup returns nothing", async () => {
+    state.membershipRow = null;
+    await setMemberRateAction(
+      fd({ membership_id: "m-2", default_rate: "100" }),
+    );
+    expect(state.updates).toHaveLength(1);
+    expect(mockRevalidatePath).not.toHaveBeenCalled();
   });
 });
