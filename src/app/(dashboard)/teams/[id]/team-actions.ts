@@ -50,11 +50,15 @@ export async function removeMemberAction(formData: FormData): Promise<void> {
       throw new Error("You cannot remove yourself.");
     }
 
-    const { data: member } = await supabase
+    // The owner guard depends on this read succeeding — an unchecked
+    // failure here (RLS-hidden row, transient error) would skip the
+    // guard and let the delete proceed. Fail closed instead.
+    const { data: member, error: memberErr } = await supabase
       .from("team_members")
       .select("role")
       .eq("id", memberId)
       .single();
+    if (memberErr) throw AppError.fromSupabase(memberErr);
 
     if (member?.role === "owner") {
       throw new Error("Cannot remove the team owner.");
@@ -235,6 +239,11 @@ export async function setMemberRateAction(formData: FormData): Promise<void> {
 
     const rateStr = formData.get("default_rate") as string;
     const default_rate = rateStr ? parseFloat(rateStr) : null;
+    // parseFloat("abc") is NaN and Postgres numeric ACCEPTS NaN —
+    // an unchecked write would corrupt the member's rate.
+    if (default_rate !== null && !Number.isFinite(default_rate)) {
+      throw new Error(`"${rateStr}" is not a valid rate.`);
+    }
 
     // Look up team_id so the revalidation targets the right page. The
     // caller has already passed the can_set_member_rate check, so
