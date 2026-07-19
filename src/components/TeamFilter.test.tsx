@@ -118,6 +118,22 @@ describe("TeamFilter", () => {
     expect(pushMock.mock.calls[0]?.[0]).not.toContain("org=");
   });
 
+  it("resets ?limit= when the team changes (filter change resets the load-more window)", () => {
+    searchParamsToString.mockReturnValue("limit=150&status=active");
+    renderWithIntl(
+      <TeamFilter
+        teams={[team("t-1", "Acme"), team("t-2", "Beta")]}
+        selectedTeamId={null}
+      />,
+    );
+    fireEvent.click(screen.getByRole("button", { name: "Team: All" }));
+    fireEvent.click(screen.getByRole("option", { name: "Acme" }));
+    const url = pushMock.mock.calls[0]?.[0] as string;
+    expect(url).not.toContain("limit=");
+    expect(url).toContain("status=active");
+    expect(url).toContain("org=t-1");
+  });
+
   it("preserves other URL params when toggling the team filter", () => {
     searchParamsToString.mockReturnValue("status=active&sort=name");
     renderWithIntl(

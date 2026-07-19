@@ -11,7 +11,15 @@ export async function generateMetadata(): Promise<Metadata> {
 import { buttonSecondaryClass } from "@/lib/form-styles";
 import { TeamFilter } from "@/components/TeamFilter";
 import { NewInvoiceLink } from "./new-invoice-link";
-import { InvoiceFilters } from "./invoice-filters";
+import {
+  InvoiceCustomerFilter,
+  InvoiceFiltersClearAll,
+  InvoiceFiltersNoResultsHint,
+  InvoiceIssuedDateFilter,
+  InvoiceStatusFilter,
+  hasActiveInvoiceFilters,
+} from "./invoice-filters";
+import { isInvoiceStatus } from "@/lib/invoice-status";
 import { parseListPagination } from "@/lib/pagination/list-pagination";
 import { InvoicesTable, type InvoiceRow } from "./invoices-table";
 
@@ -47,8 +55,12 @@ export default async function InvoicesPage({
   const t = await getTranslations("invoices");
 
   const selectedTeamId = sp.org ?? null;
+  // Status is a closed set — whitelist URL input before it reaches the
+  // query builder OR the chip label lookup (an unknown value would
+  // otherwise throw in the translator).
+  const rawStatus = pickString(sp.status);
   const filters = {
-    status: pickString(sp.status),
+    status: rawStatus && isInvoiceStatus(rawStatus) ? rawStatus : null,
     customerId: pickString(sp.customerId),
     from: pickString(sp.from),
     to: pickString(sp.to),
@@ -118,11 +130,10 @@ export default async function InvoicesPage({
     <div>
       <div className="flex items-center justify-between flex-wrap gap-2">
         <div className="flex items-center gap-3 flex-wrap">
-          <FileText size={24} className="text-accent" />
+          <FileText size={24} className="text-accent" aria-hidden="true" />
           <h1 className="text-page-title font-bold text-content">
             {t("title")}
           </h1>
-          <TeamFilter teams={teams} selectedTeamId={selectedTeamId} />
         </div>
         <div className="flex items-center gap-2 flex-wrap">
           {invoices && invoices.length > 0 && (
@@ -131,7 +142,7 @@ export default async function InvoicesPage({
               download
               className={`${buttonSecondaryClass} inline-flex items-center gap-1.5`}
             >
-              <Download size={14} />
+              <Download size={14} aria-hidden="true" />
               {t("exportCsv")}
             </a>
           )}
@@ -139,12 +150,17 @@ export default async function InvoicesPage({
         </div>
       </div>
 
-      <div className="mt-4">
-        <InvoiceFilters
-          selectedTeamId={selectedTeamId}
+      {/* Row 3 — filter chips, instant-apply + URL-driven
+          (docs/reference/list-pages.md rule 1). */}
+      <div className="mt-3 flex items-center gap-2 flex-wrap">
+        <TeamFilter teams={teams} selectedTeamId={selectedTeamId} />
+        <InvoiceStatusFilter selected={filters.status} />
+        <InvoiceCustomerFilter
+          selectedCustomerId={filters.customerId}
           customers={customers}
-          currentFilters={filters}
         />
+        <InvoiceIssuedDateFilter from={filters.from} to={filters.to} />
+        <InvoiceFiltersClearAll filters={filters} />
       </div>
 
       <InvoicesTable
@@ -153,7 +169,13 @@ export default async function InvoicesPage({
         teamNameById={teamNameById}
         today={today}
         importedTooltip={t("table.importedFromHarvest")}
+        filtersActive={hasActiveInvoiceFilters(filters)}
       />
+      {(invoices?.length ?? 0) === 0 && (
+        <InvoiceFiltersNoResultsHint
+          active={hasActiveInvoiceFilters(filters)}
+        />
+      )}
     </div>
   );
 }
