@@ -4,7 +4,10 @@ import { render, screen } from "@testing-library/react";
 /**
  * Server-component render harness for the admin error dashboard —
  * called out in the coverage plan because triage UI that breaks
- * silently means production errors go unseen.
+ * silently means production errors go unseen. Extended for the
+ * duplicate-grouping + resolve-all upgrade: identical errors collapse
+ * into one card with an occurrence count, and the header carries a
+ * filter-scoped Resolve all.
  */
 
 const mockRequireSystemAdmin = vi.fn();
@@ -13,13 +16,47 @@ vi.mock("@/lib/system-admin", () => ({
 }));
 
 vi.mock("./resolve-button", () => ({
-  ResolveButton: ({ errorId }: { errorId: string }) => (
-    <button type="button">resolve:{errorId}</button>
+  ResolveButton: ({ errorIds }: { errorIds: string[] }) => (
+    <button type="button">resolve:{errorIds.join("|")}</button>
+  ),
+}));
+
+vi.mock("./resolve-all-button", () => ({
+  ResolveAllButton: ({
+    severity,
+    count,
+  }: {
+    severity: string | null;
+    count: number;
+  }) => (
+    <button type="button">
+      resolve-all:{severity ?? "all"}:{count}
+    </button>
   ),
 }));
 
 vi.mock("@theshyre/ui", () => ({
   LocalDateTime: ({ value }: { value: string }) => <time>{value}</time>,
+}));
+
+// Server-side translator backed by the real en catalog so assertions
+// exercise the shipped strings. The page only uses simple {var}
+// interpolation (plural ICU lives in the mocked client buttons).
+vi.mock("next-intl/server", () => ({
+  getTranslations: async (namespace: string) => {
+    const admin = (await import("@/lib/i18n/locales/en/admin.json"))
+      .default as Record<string, unknown>;
+    return (key: string, vars?: Record<string, unknown>): string => {
+      const path = [...namespace.split(".").slice(1), ...key.split(".")];
+      let cur: unknown = admin;
+      for (const part of path) {
+        cur = (cur as Record<string, unknown>)[part];
+      }
+      return String(cur).replace(/\{(\w+)\}/g, (_m, name: string) =>
+        String(vars?.[name] ?? ""),
+      );
+    };
+  },
 }));
 
 interface Filter {
@@ -31,11 +68,15 @@ interface Filter {
 const state: {
   listResult: { data: Record<string, unknown>[] | null; count: number | null };
   unresolvedCount: number;
+  scopedUnresolvedCount: number;
   listFilters: Filter[];
+  headFilters: Filter[][];
 } = {
   listResult: { data: [], count: 0 },
   unresolvedCount: 0,
+  scopedUnresolvedCount: 0,
   listFilters: [],
+  headFilters: [],
 };
 
 function makeListChain(): Record<string, unknown> {
@@ -66,15 +107,38 @@ function makeListChain(): Record<string, unknown> {
   return chain;
 }
 
+function makeHeadChain(): Record<string, unknown> {
+  const filters: Filter[] = [];
+  state.headFilters.push(filters);
+  const chain: Record<string, unknown> = {
+    is: (col: string, value: unknown) => {
+      filters.push({ op: "is", col, value });
+      return chain;
+    },
+    eq: (col: string, value: unknown) => {
+      filters.push({ op: "eq", col, value });
+      return chain;
+    },
+    then: (
+      onF: (v: unknown) => unknown,
+      onR?: (e: unknown) => unknown,
+    ): Promise<unknown> => {
+      const scoped = filters.some((f) => f.col === "severity");
+      const count = scoped
+        ? state.scopedUnresolvedCount
+        : state.unresolvedCount;
+      return Promise.resolve({ count, error: null }).then(onF, onR);
+    },
+  };
+  return chain;
+}
+
 vi.mock("@/lib/supabase/server", () => ({
   createClient: async () => ({
     from: () => ({
       select: (_cols: string, opts?: { head?: boolean }) => {
         if (opts?.head) {
-          return {
-            is: () =>
-              Promise.resolve({ count: state.unresolvedCount, error: null }),
-          };
+          return makeHeadChain();
         }
         return makeListChain();
       },
@@ -114,7 +178,9 @@ async function renderPage(
 beforeEach(() => {
   state.listResult = { data: [], count: 0 };
   state.unresolvedCount = 0;
+  state.scopedUnresolvedCount = 0;
   state.listFilters = [];
+  state.headFilters = [];
   mockRequireSystemAdmin.mockReset();
   mockRequireSystemAdmin.mockResolvedValue({ userId: "u-admin" });
 });
@@ -184,7 +250,87 @@ describe("ErrorDashboardPage", () => {
     expect(screen.getByText("resolve:e-1")).toBeInTheDocument();
   });
 
-  it("a resolved error shows the Resolved chip and hides the resolve button", async () => {
+  it("collapses identical errors into ONE card with the ×N badge, first/last seen and all occurrence timestamps", async () => {
+    state.listResult = {
+      data: [
+        errRow({ id: "a", created_at: "2026-07-03T10:00:00+00:00" }),
+        errRow({
+          id: "b",
+          created_at: "2026-07-02T10:00:00+00:00",
+          stack_trace: "at newestWithStack()",
+        }),
+        errRow({ id: "c", created_at: "2026-07-01T10:00:00+00:00" }),
+      ],
+      count: 3,
+    };
+    state.unresolvedCount = 3;
+    await renderPage();
+
+    // One card, not three: the message renders twice (summary + detail)
+    // for a single group.
+    expect(screen.getAllByText("connection refused")).toHaveLength(2);
+    expect(screen.getByText("×3")).toBeInTheDocument();
+    expect(screen.getByText(/First seen/)).toBeInTheDocument();
+    expect(screen.getByText(/Last seen/)).toBeInTheDocument();
+    // Newest available stack trace shown in the detail.
+    expect(screen.getByText("at newestWithStack()")).toBeInTheDocument();
+    // Occurrence list: every individual timestamp appears (newest also
+    // shows in the summary, so ≥1 render each).
+    expect(screen.getByText(/Occurrences \(3\)/)).toBeInTheDocument();
+    expect(
+      screen.getAllByText("2026-07-03T10:00:00+00:00").length,
+    ).toBeGreaterThan(0);
+    expect(
+      screen.getAllByText("2026-07-02T10:00:00+00:00").length,
+    ).toBeGreaterThan(0);
+    expect(
+      screen.getAllByText("2026-07-01T10:00:00+00:00").length,
+    ).toBeGreaterThan(0);
+    // Group-level resolve targets all three ids.
+    expect(screen.getByText("resolve:a|b|c")).toBeInTheDocument();
+  });
+
+  it("does NOT merge errors that differ only by url — two separate cards", async () => {
+    state.listResult = {
+      data: [
+        errRow({ id: "a", url: "/customers" }),
+        errRow({ id: "b", url: "/projects" }),
+      ],
+      count: 2,
+    };
+    state.unresolvedCount = 2;
+    await renderPage();
+    expect(screen.getByText("resolve:a")).toBeInTheDocument();
+    expect(screen.getByText("resolve:b")).toBeInTheDocument();
+    expect(screen.queryByText("×2")).not.toBeInTheDocument();
+  });
+
+  it("shows the filter-scoped Resolve all in the header (severity scope + scoped count)", async () => {
+    state.unresolvedCount = 9;
+    state.scopedUnresolvedCount = 4;
+    await renderPage({ severity: "warning" });
+    expect(screen.getByText("resolve-all:warning:4")).toBeInTheDocument();
+  });
+
+  it("Resolve all on the default view sweeps all unresolved (unscoped count)", async () => {
+    state.unresolvedCount = 9;
+    await renderPage();
+    expect(screen.getByText("resolve-all:all:9")).toBeInTheDocument();
+  });
+
+  it("hides Resolve all on the resolved view and when nothing is unresolved", async () => {
+    state.unresolvedCount = 9;
+    await renderPage({ resolved: "true" });
+    expect(screen.queryByText(/resolve-all:/)).not.toBeInTheDocument();
+  });
+
+  it("hides Resolve all when the unresolved count is zero", async () => {
+    state.unresolvedCount = 0;
+    await renderPage();
+    expect(screen.queryByText(/resolve-all:/)).not.toBeInTheDocument();
+  });
+
+  it("a fully-resolved group shows the Resolved chip and hides the resolve button", async () => {
     state.listResult = {
       data: [
         errRow({
@@ -200,6 +346,14 @@ describe("ErrorDashboardPage", () => {
     expect(screen.queryByText("resolve:e-1")).not.toBeInTheDocument();
     // Stack trace section renders when present.
     expect(screen.getByText("at boom()")).toBeInTheDocument();
+  });
+
+  it("filter pills carry aria-current on the active view", async () => {
+    await renderPage({ severity: "error" });
+    const active = screen.getByRole("link", { name: /Errors/ });
+    expect(active).toHaveAttribute("aria-current", "page");
+    const inactive = screen.getByRole("link", { name: /Warnings/ });
+    expect(inactive).not.toHaveAttribute("aria-current");
   });
 
   it("paginates: page=2 requests rows 25-49 and renders page links preserving filters", async () => {

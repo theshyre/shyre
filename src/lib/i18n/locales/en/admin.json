@@ -58,5 +58,36 @@
         "description": "Every API token + key Shyre tracks, with rotate-by status. Banner on the dashboard surfaces anything expiring soon."
       }
     }
+  },
+  "errorLog": {
+    "title": "Error Log",
+    "unresolvedBadge": "{count} unresolved",
+    "filters": {
+      "unresolved": "Unresolved",
+      "all": "All",
+      "errors": "Errors",
+      "warnings": "Warnings",
+      "resolved": "Resolved"
+    },
+    "resolveAll": "Resolve all",
+    "resolveAllConfirm": "{count, plural, one {Resolve # error} other {Resolve # errors}}",
+    "resolveAllSuccess": "All resolved",
+    "markResolved": "{count, plural, one {Mark resolved} other {Mark # resolved}}",
+    "resolvedConfirmation": "Resolved",
+    "resolvedChip": "Resolved",
+    "occurrenceBadge": "×{count}",
+    "occurrenceBadgeLabel": "{count} occurrences",
+    "occurrencesTitle": "Occurrences ({count})",
+    "firstSeen": "First seen",
+    "lastSeen": "Last seen",
+    "fieldErrorCode": "Error code",
+    "fieldSeverity": "Severity",
+    "fieldUserId": "User ID",
+    "fieldOrgId": "Org ID",
+    "fieldUrl": "URL",
+    "fieldMessage": "Message",
+    "fieldDetails": "Details",
+    "fieldStackTrace": "Stack trace",
+    "empty": "No errors found."
   }
 }
