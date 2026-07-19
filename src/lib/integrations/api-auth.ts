@@ -124,7 +124,12 @@ export async function runIntegrationRoute<Body = undefined>(
         code: "AUTH_UNAUTHORIZED",
         message: "integration request without a well-formed bearer PAT",
         userMessageKey: "errors.authUnauthorized",
-        severity: "warning",
+        // "info" = not persisted (logger drops info): a request with NO
+        // Authorization header at all is scanner/browser noise with zero
+        // forensic value — it was landing an unresolved warning per hit.
+        // Token-SHAPED but invalid attempts (the brute-force signal) still
+        // log at warning via the invalid-token path.
+        severity: "info",
       }),
       { url, action },
     );

@@ -89,3 +89,10 @@ The integrations surface lets external apps (first: Claude Code) start/stop time
 - [x] Post-deploy probe (2026-07-18): fabricated token AND missing header both → identical `401 {"error":"unauthorized"}` (no oracle); no 307 (middleware exemption verified live); near-miss `/api/v1x` still 307s (SAL-039 control); MCP unauth → 401; every probe landed a `logError` row (`api.v1.timer.get`, `api.mcp.auth`) visible at /system/errors. Revoked/expired variants runnable once a first token exists.
 - [ ] Concurrency probe: parallel double `timer/start` → exactly one running entry. (Needs a live token — run when the first token is minted; the advisory-lock path is unit-covered.)
 - [ ] Redaction: `logError` output contains no `Authorization` header and nothing matching `shyre_pat_` (unit-tested in `tokens.test.ts` / route wrapper tests).
+
+**SAL-051 refinement (2026-07-18, append):** requests with NO Authorization
+header at all on /api/v1/* and /api/mcp no longer persist error-log rows
+(severity info = dropped by the logger) — public-internet scanner noise was
+landing an unresolved warning per hit with zero forensic value. Requests
+bearing a token-shaped-but-invalid credential — the brute-force signal —
+still log at warning. The uniform 401 body is unchanged in both cases.

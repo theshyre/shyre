@@ -59,6 +59,13 @@ describe("runIntegrationRoute — bearer extraction", () => {
     });
     expect(res.status).toBe(401);
     expect(await res.json()).toEqual({ error: "unauthorized" });
+    // Header-absent = scanner noise: severity info, which the logger
+    // drops — no unresolved-warning row per internet ping (SAL-051
+    // refinement 2026-07-18).
+    const logged = logErrorMock.mock.calls.at(-1)?.[0] as
+      | { severity?: string }
+      | undefined;
+    expect(logged?.severity).toBe("info");
     expect(invoke).not.toHaveBeenCalled();
     expect(logErrorMock).toHaveBeenCalledTimes(1);
   });
