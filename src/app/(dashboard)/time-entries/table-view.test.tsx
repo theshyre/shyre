@@ -90,6 +90,17 @@ describe("TableView", () => {
     expect(screen.getByText("Meeting")).toBeInTheDocument();
   });
 
+  it("exposes the filter region as an unboxed role=search landmark", () => {
+    renderTable();
+    const region = screen.getByRole("search", {
+      name: /filter time entries/i,
+    });
+    // The boxed FILTERS panel is dissolved (list-pages.md rule 1) —
+    // the region is a plain toolbar row, not an inset card.
+    expect(region.className).not.toMatch(/bg-surface-inset/);
+    expect(region.className).not.toMatch(/border/);
+  });
+
   it("renders the invoice-status filter with the active state pressed", () => {
     renderTable({ invoicedFilter: "uninvoiced" });
     const button = screen.getByRole("button", { name: /^uninvoiced$/i });
@@ -139,10 +150,24 @@ describe("TableView", () => {
     renderTable();
     const input = screen.getByLabelText(/search descriptions/i);
     fireEvent.change(input, { target: { value: "Audit" } });
-    fireEvent.keyDown(input, { key: "Enter" });
-    // The debounce timer is racing, but Enter commits synchronously.
+    // Enter submits the ListSearchInput form, committing synchronously.
+    const form = input.closest("form");
+    expect(form).not.toBeNull();
+    fireEvent.submit(form as HTMLFormElement);
     const call = pushMock.mock.calls.find((c) => /q=Audit/.test(c[0] as string));
     expect(call).toBeTruthy();
+  });
+
+  it("renders the visible / kbd hint and the shortcut focuses the search input", () => {
+    renderTable();
+    const input = screen.getByLabelText(/search descriptions/i);
+    const form = input.closest("form") as HTMLFormElement;
+    // Visible kbd hint (aria-hidden, so query by tag).
+    const kbd = form.querySelector("kbd");
+    expect(kbd?.textContent).toBe("/");
+    // Pressing / outside any input focuses the search field.
+    fireEvent.keyDown(document.body, { key: "/" });
+    expect(document.activeElement).toBe(input);
   });
 
   it("Escape on the search input clears local state and URL", () => {
@@ -164,15 +189,20 @@ describe("TableView", () => {
       makeEntry(String(i), `entry ${i}`),
     );
     renderTable({ entries: lots, rowLimit: 500 });
-    expect(screen.getByRole("status")).toHaveTextContent(/most recent 500/i);
+    expect(screen.getByText(/most recent 500/i)).toBeInTheDocument();
+    // The banner keeps its own status role alongside the live region.
+    const statuses = screen.getAllByRole("status");
+    expect(
+      statuses.some((el) => /most recent 500/i.test(el.textContent ?? "")),
+    ).toBe(true);
   });
 
   it("does NOT render the truncation notice when below the cap", () => {
     renderTable();
-    expect(screen.queryByRole("status")).toBeNull();
+    expect(screen.queryByText(/most recent/i)).toBeNull();
   });
 
-  it("Clear filters resets search input, URL, and is hidden when nothing is filtered", () => {
+  it("Clear filters resets the URL and is hidden when nothing is filtered", () => {
     // No filters → no Clear button visible.
     renderTable();
     expect(
@@ -202,6 +232,40 @@ describe("TableView", () => {
     expect(screen.getAllByText(/no entries/i).length).toBeGreaterThan(0);
     renderTable({ entries: [makeEntry("a", "Solo")] });
     expect(screen.getByText(/1 entry/)).toBeInTheDocument();
+  });
+
+  it("announces the result count, then N selected, through one polite live region", () => {
+    vi.useFakeTimers();
+    try {
+      const { container } = renderTable();
+      // Debounced announce settles on the result count.
+      act(() => {
+        vi.advanceTimersByTime(350);
+      });
+      const region = screen
+        .getAllByRole("status")
+        .find((el) => el.getAttribute("aria-live") === "polite");
+      expect(region).toBeTruthy();
+      expect(region).toHaveTextContent(/2 entries shown/i);
+      // Selecting a row flips the announcement to "N selected".
+      const rowCheckbox = container.querySelector<HTMLInputElement>(
+        "tbody input[type='checkbox']",
+      );
+      expect(rowCheckbox).not.toBeNull();
+      fireEvent.click(rowCheckbox as HTMLInputElement);
+      act(() => {
+        vi.advanceTimersByTime(350);
+      });
+      expect(region).toHaveTextContent(/1 entry selected/i);
+      // Clearing the selection falls back to the result count.
+      fireEvent.click(rowCheckbox as HTMLInputElement);
+      act(() => {
+        vi.advanceTimersByTime(350);
+      });
+      expect(region).toHaveTextContent(/2 entries shown/i);
+    } finally {
+      vi.useRealTimers();
+    }
   });
 
   it("renders each row's date inline with the time-of-day", () => {

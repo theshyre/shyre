@@ -42,9 +42,24 @@ function renderTable(
 }
 
 describe("ProposalsTable", () => {
-  it("shows the empty state when there are no proposals", () => {
-    renderTable([]);
-    expect(screen.getByText("No proposals yet")).toBeInTheDocument();
+  it("shows the empty state as a bordered card with an icon circle", () => {
+    const { container } = renderWithIntl(
+      <ProposalsTable proposals={[]} totalCount={0} today={TODAY} />,
+    );
+    const heading = screen.getByText("No proposals yet");
+    expect(heading).toBeInTheDocument();
+    // The former marketing subtitle's copy lives here now.
+    expect(
+      screen.getByText(/draft a fixed-price quote, send it for sign-off/i),
+    ).toBeInTheDocument();
+    // Bordered-card + icon-circle treatment (list-pages.md rule 6,
+    // reference: invoices-table.tsx).
+    const card = heading.closest("div");
+    expect(card?.className).toMatch(/border-edge/);
+    expect(card?.className).toMatch(/rounded-lg/);
+    expect(card?.querySelector(".rounded-full svg")).not.toBeNull();
+    // No table is rendered.
+    expect(container.querySelector("table")).toBeNull();
   });
 
   it("renders number, title, customer, status, and formatted total", () => {

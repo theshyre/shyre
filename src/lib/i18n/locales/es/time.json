@@ -114,7 +114,6 @@
     "to": "Hasta",
     "search": "Buscar descripciones",
     "searchPlaceholder": "Programación, SHY-1234, …",
-    "clearSearch": "Limpiar búsqueda",
     "clearAll": "Limpiar filtros",
     "invoicedFilter": {
       "label": "Estado de facturación",
@@ -126,7 +125,11 @@
     "resultCount": "{count, plural, =0 {Sin entradas} one {# entrada} other {# entradas}}",
     "totals": "{total} total · {billable} facturable · {nonBillable} no facturable",
     "rangeCaption": "{from} → {to}",
-    "truncated": "Mostrando las {limit, number} entradas más recientes — reduce el rango de fechas o usa la búsqueda para ver registros más antiguos."
+    "truncated": "Mostrando las {limit, number} entradas más recientes — reduce el rango de fechas o usa la búsqueda para ver registros más antiguos.",
+    "live": {
+      "results": "{count, plural, =0 {Sin entradas mostradas} one {# entrada mostrada} other {# entradas mostradas}}",
+      "selected": "{count, plural, one {# entrada seleccionada} other {# entradas seleccionadas}}"
+    }
   },
   "tableHeaders": {
     "time": "Hora",
@@ -229,7 +232,7 @@
   },
   "entry": {
     "edit": "Editar",
-    "select": "Seleccionar registro",
+    "select": "Seleccionar {name}",
     "startTimer": "Iniciar cronómetro",
     "stopTimer": "Detener cronómetro",
     "stopTimerFromRow": "Detener cronómetro en ejecución",
