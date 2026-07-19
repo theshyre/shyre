@@ -10,13 +10,13 @@ Both authenticate with a **personal access token** (PAT, `shyre_pat_…`) sent a
 ## Prerequisites
 
 1. **Team kill switch** — integrations are default-OFF per team. A team owner/admin must enable `integrations_enabled` in team settings before any token works. Flipping it off later dead-ends every existing token instantly.
-2. **A personal access token** — bound to one (user, team) at creation, shown exactly once, 90-day default expiry (1-year max), revocable but never deletable (audit forensics). The token-management screen ships in the next integrations phase; until then tokens are minted by a platform admin.
+2. **A personal access token** — bound to one (user, team) at creation, shown exactly once, 90-day default expiry (1-year max), revocable but never deletable (audit forensics). Mint your own at **Settings → Integrations** (`/settings/integrations`) — see [Integration tokens](integration-tokens.md).
 
 Token properties that shape API behavior:
 
 - **Scopes** — `context:read`, `timer:read`, `timer:write`, `entries:write` (all four by default). A call outside the token's scopes returns `403 { "error": "forbidden" }`.
 - **Default billable** — chosen at token creation; applies to every entry the token creates unless `billable` is passed explicitly on `/api/v1/entries`.
-- **Rate limit** — 120 requests/minute/token → `429 { "error": "rate_limited" }`.
+- **Rate limit** — 120 requests per token per fixed 60-second window → `429 { "error": "rate_limited" }`. (Fixed window, not rolling — bursts can straddle a window boundary.)
 
 Every call — success or failure — is appended to the team-visible `integration_events` audit log, and every entry created through the API carries immutable attribution (`started_by_kind: "agent"`, the agent label, the session ref, the creating token).
 
@@ -111,11 +111,11 @@ curl -X POST https://shyre.malcom.io/api/v1/entries \
   }'
 ```
 
-Required: `project_id`, `start_time`/`end_time` (ISO 8601 **with timezone**), `description` (≥ 8 meaningful characters). Optional: `agent_label`, `session_ref`, `idempotency_key`, `billable` (overrides the token default). Refused with `400` when the range is inverted, longer than 24h, more than 7 days back, or in the future; `409` when it overlaps any of the user's existing entries.
+Required: `project_id`, `start_time`/`end_time` (ISO 8601 **with timezone**), `description` (≥ 8 meaningful characters). Optional: `agent_label`, `session_ref`, `idempotency_key`, `billable` (overrides the token default). Refused with `400` when the range is inverted, longer than 24h, more than 7 days back, or ends more than 5 minutes in the future (small clock skew is tolerated); `409` when it overlaps any of the user's existing entries.
 
 ### Idempotency
 
-`idempotency_key` (≤ 128 chars) dedupes retries on both write endpoints: replaying the same key on the same token returns the originally created entry instead of double-logging.
+`idempotency_key` (≤ 128 chars) dedupes retries on the two creating endpoints — `timer/start` and `entries`: replaying the same key on the same token returns the originally created entry instead of double-logging. `timer/stop` takes no idempotency key (stopping an already-stopped timer is a plain `404 not_found`).
 
 ## MCP server (Claude Code and friends)
 
@@ -124,9 +124,11 @@ The MCP endpoint exposes five tools backed by the exact same service layer as RE
 One-liner setup:
 
 ```bash
-claude mcp add --transport http shyre https://shyre.malcom.io/api/mcp \
+claude mcp add shyre --transport http https://shyre.malcom.io/api/mcp \
   --header "Authorization: Bearer ${SHYRE_API_KEY}"
 ```
+
+(The same command, pre-filled with your instance's origin, is copyable from **Settings → Integrations**.) The endpoint speaks Streamable HTTP: `GET`/`POST` for the protocol plus `DELETE` for session teardown.
 
 Or the equivalent project-scoped `.mcp.json`:
 

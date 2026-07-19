@@ -1,15 +1,18 @@
 # Invoicing
 
-Generate and send invoices from tracked time. This surface is early — the basics are in; late fees, recurring invoices, multi-currency, and payment collection are planned.
+Generate and send invoices from tracked time. Late fees, recurring invoices, multi-currency, and payment **collection** (Stripe / ACH) are planned; payment **recording** is built (see below).
 
 ## Creating an invoice
 
 1. Sidebar → **Invoices**
 2. Click **New invoice**
 3. Pick the customer
-4. Shyre shows uninvoiced, billable time entries for that customer. Select the ones you want on this invoice.
-5. Review line items. Amount = hours × rate per entry. Manual override per line is possible.
-6. Save as **draft**, or send directly.
+4. Shyre shows uninvoiced, billable time entries for that customer. Select the date range (chips below) and, when the customer has sub-projects, optionally scope to a subset via the **project chips**.
+5. Pick a **grouping mode** — by project, by task, by person, or detailed (one line per entry). The choice persists for next time. Line amounts are derived (hours × rate); there is no per-line manual override — use a detailed grouping or adjust the underlying entries instead.
+6. Optionally add a **discount** — a rate or a fixed amount (amount wins), with a reason.
+7. If any selected time was tracked by an **agent**, the **agent-tracked time review** section gates creation — approve or exclude those entries first, and watch for overlap warnings. See [Reviewing agent-tracked time](agent-time-review.md).
+8. The **preview rail** shows totals live (including an Agent hours subtotal and warnings for orphaned entries or excluded non-USD expenses); open the full preview modal for the customer-facing render.
+9. Click **Create invoice** — the invoice is created as a **draft** and you land on its detail page. Sending is a separate step from there.
 
 ### Date-range presets
 
@@ -181,10 +184,14 @@ Invoices are numbered sequentially per team, in the format `INV-{YYYY}-{NNN}`. N
 
 ## Void vs delete
 
-Only drafts can be deleted. Sent or paid invoices can only be **voided** — the row is preserved with a void marker so the audit trail stays intact.
+Deleting is a two-step, owner/admin-only flow: **void first, then delete**. Only `void` invoices can be hard-deleted (the void records the status transition + actor in the history), and a void invoice with recorded payments refuses deletion so the payment audit trail is never lost. Every other status — draft, sent, paid, overdue — can only be **voided**.
+
+The invoice list also supports **bulk status changes** on selected rows.
 
 ## Related
 
 - [Customers](customers.md)
 - [Time tracking](time-tracking.md)
+- [Proposals](proposals.md) — deposit invoices and fixed-price billing land here as proposal-linked invoices
+- [Reviewing agent-tracked time](agent-time-review.md) — the review gate in the invoice builder
 - Bookkeeper's [exports guide](../bookkeeper/exports.md)

@@ -16,7 +16,9 @@ docs/
 │   ├── features/            # Cross-role feature docs (apply to every user)
 │   ├── agency/              # Role-specific: Agency Owner
 │   ├── bookkeeper/          # Role-specific: Bookkeeper
-│   └── admin/               # Role-specific: System Admin
+│   ├── admin/               # Role-specific: System Admin
+│   ├── team-admin/          # Audience-split leaf docs routed from admin/ (email setup)
+│   └── system-admin/        # Audience-split leaf docs routed from admin/ (email infrastructure)
 ├── reference/               # technical
 │   ├── architecture.md
 │   ├── database-schema.md
@@ -77,3 +79,25 @@ Keep each guide ≤ ~200 lines. If a feature grows beyond one guide, split by su
 - **Don't duplicate content across guides.** If solo and agency both need to know how customers work, write it once (solo), and link from agency.
 - **Don't leave stale guides.** If a feature is removed, its guide is removed (or moved to a "Deprecated" section with the removal date).
 - **Don't skip guides because the feature is "simple".** The guide is how someone NEW to Shyre learns it exists.
+
+## Reachability — every guide must be findable from the hub
+
+The `/docs` landing page (`src/app/(dashboard)/docs/page.tsx`) is a **curated
+nav**, not an auto-generated index. Curation is allowed to prioritize; it is
+not allowed to orphan. Two invariants, both enforced by
+`src/__tests__/docs-links.test.ts`:
+
+1. **Hub → files**: every `/docs/...` href in the hub page resolves to a real
+   file under `docs/` (either `<path>.md` or `<path>/README.md`).
+2. **Files → hub**: every `.md` under `docs/guides/**` is reachable from the
+   hub by following links — either linked directly from a hub card, or linked
+   from a README / guide that is itself reachable from the hub. Deliberate
+   exceptions go in the test's explicit allow-list with a comment saying why.
+
+Additionally, every guide directory that has a `README.md` must link **all**
+of its sibling `.md` files from that README — the section index is the
+canonical table of contents for its directory.
+
+Practical consequence: when you add a guide, add it to its section README in
+the same commit, and add a hub card entry when the guide starts a new surface
+area (new module, new top-level concept). The test fails the build otherwise.

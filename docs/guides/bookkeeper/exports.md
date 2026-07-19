@@ -4,36 +4,28 @@ Every entity that matters for reconciliation has a CSV export. Totals on the exp
 
 ## What's exportable today
 
-- **Time entries** — Time page → **Export** button (top right). Respects current filters (org, week, billable, category).
-- **Customers** — Customers page → **Export** (planned — currently manual via DB if needed; tell the admin).
-- **Invoices** — Invoices page → **Export** (in progress).
+- **Time entries** — Time page → **Export** button (top right). Respects the team filter, billable filter, and the current day/week view + anchor date. (The category filter is not applied to the export.)
+- **Customers** — Customers page → **Export CSV** button. Honors the current filter, includes inactive customers, and carries an `inactive_at` column.
+- **Invoices** — Invoices page → **Export CSV** button.
 - **Expenses** — Expenses page → **Export CSV** button. Respects current filters (team, date range, category, project, billable, and the free-text search).
 
 ## Time entries CSV format
 
-Columns:
-- `id`
-- `user_id`
-- `user_email`
-- `team_id`
-- `team_name`
-- `customer_id`
-- `customer_name`
-- `project_id`
-- `project_name`
-- `category_id`
-- `category_name`
-- `description`
-- `start_time` (ISO 8601 UTC)
-- `end_time` (ISO 8601 UTC)
-- `duration_min`
-- `duration_hours` (rounded to 2dp)
-- `billable` (true/false)
-- `github_issue`
-- `invoiced` (true/false)
-- `invoice_id`
+Columns (human-readable headers, in order): `Date (UTC)`, `Start (UTC)`, `End (UTC)`, `Duration (min)`, `Project`, `Client`, `Category`, `Category Set`, `Period Budget Type`, `Period Budget Hours Cap`, `Period Budget Dollars Cap`, `Description`, `Billable`, `GitHub Issue`, `Ticket Key`, `Ticket Provider`, `Start ISO 8601`, `End ISO 8601`, `Entry ID`, `User ID`, `User`, `Team ID`, `Project ID`, `Customer ID`, `Invoice ID`, `Invoiced`, `Source`.
 
-Downloaded as `time-entries-YYYY-MM-DD.csv`.
+- `Source` records who logged the entry — human, agent (with the agent label), integration, or import. See [agent attribution](../features/agent-attribution.md).
+- There is no hours column; compute hours as `Duration (min) / 60`.
+
+Downloaded as `shyre-time-<rangeStart>-to-<rangeEnd>.csv`.
+
+## Invoices CSV format
+
+Columns: `invoice_id`, `invoice_number`, `team`, `customer`, `customer_email`, `status`, `issued_date`, `due_date`, `sent_at`, `paid_at`, `voided_at`, `currency`, `subtotal`, `discount_rate`, `discount_amount`, `tax_rate`, `tax_amount`, `total`, `payments_total`, `amount_due`, `imported_from`, `notes`, `customer_id`, `team_id`.
+
+- `status` is the **effective** status — a past-due `sent` invoice exports as `overdue`.
+- `amount_due` = `total − payments_total`; payments in a different currency than the invoice are skipped from `payments_total` rather than mis-summed.
+
+Downloaded as `shyre-invoices-YYYY-MM-DD.csv`.
 
 ## Expenses CSV format
 
@@ -48,7 +40,7 @@ Downloaded as `shyre-expenses-YYYY-MM-DD.csv`.
 
 These hold for every export, always:
 
-1. Sum of `duration_hours` × rate per line = amount shown on the invoice (where invoiced).
+1. Sum of (`Duration (min)` / 60) × rate per line = amount shown on the invoice (where invoiced).
 2. Sum of `duration_min` across all rows for a period = the period total shown on the UI.
 3. Category names are snapshots at export time — a later rename of the category won't retroactively change the CSV.
 4. Timezone: `start_time` and `end_time` are always UTC. Day boundaries in the UI use the operator's business fiscal-year / timezone setting.

@@ -16,7 +16,7 @@ How each Shyre feature works. See [features/](features/) for the full list.
 
 **New Shyre user:** getting-started → features/time-tracking → features/customers → features/projects → features/invoicing.
 
-**Just invited to an existing org:** getting-started → features/time-tracking → agency/orgs-and-roles.
+**Just invited to an existing org:** getting-started → features/time-tracking → agency/teams-and-roles.
 
 **Bookkeeper onboarded to reconcile:** bookkeeper/exports → bookkeeper/period-close → features/business-identity.
 

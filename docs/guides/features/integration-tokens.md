@@ -1,6 +1,8 @@
 # Integration tokens
 
-Personal access tokens (PATs) let external tools — coding agents, scripts, MCP clients — read your project context and log time on your behalf through Shyre's API. This guide covers **managing tokens** at **Settings → Integrations** (`/settings/integrations`). The API itself (endpoints, scopes in depth, request/response shapes) is documented separately in the upcoming API guide.
+Personal access tokens (PATs) let external tools — coding agents, scripts, MCP clients — read your project context and log time on your behalf through Shyre's API. This guide covers **managing tokens** at **Settings → Integrations** (`/settings/integrations`). The API itself (endpoints, scopes in depth, request/response shapes) is documented in the [Integrations API guide](integrations-api.md).
+
+The page is **scoped to one team at a time** (each token is bound to a single user + team pair). If you belong to multiple teams, team pills at the top switch the view — the kill switch, token list, and activity log all reflect the selected team.
 
 ## The team kill switch — off by default
 
@@ -26,7 +28,7 @@ After creation the raw token (`shyre_pat_…`) appears **exactly once** in a cop
 
 ## The token list
 
-Each token shows its name, display prefix (`shyre_pat_ab34cd…`), scopes, billable default, created / expires dates, **last used** ("Never" until its first API call), and a status badge: **Active**, **Expired**, or **Revoked**.
+Each token shows its name, display prefix (`shyre_pat_ab34cd…`), scopes, billable default (the **New entries** column: "Billable" / "Non-billable"), created / expires dates, **last used** ("Never" until its first API call), and a status badge: **Active**, **Expired**, or **Revoked**.
 
 ### Who sees what
 
@@ -45,8 +47,8 @@ Tokens also die automatically when:
 
 ## Recent API activity
 
-The Integrations page shows the last API calls made with visible tokens — action, outcome (OK / Denied / Error), who, and when. Members see their own activity; owners and admins see the whole team's. Every API call is recorded, including refusals, so "what did this token do?" is always answerable.
+The Integrations page shows the last **20** API calls made with visible tokens — action, outcome (OK / Denied / Error), who, and when. Members see their own activity; owners and admins see the whole team's. Every API call is recorded, including refusals, so "what did this token do?" is always answerable.
 
 ## Connecting a tool
 
-The page includes a copyable `claude mcp add` one-liner for connecting Claude Code. Endpoint details and the full API reference land in the separate API guide.
+The page includes a copyable `claude mcp add` one-liner for connecting Claude Code. Endpoint details and the full API reference are in the [Integrations API guide](integrations-api.md).
