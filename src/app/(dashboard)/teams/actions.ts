@@ -1,6 +1,7 @@
 "use server";
 
 import { runSafeAction } from "@/lib/safe-action";
+import { AppError } from "@/lib/errors";
 import { validateTeamAccess } from "@/lib/team-context";
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
@@ -17,7 +18,7 @@ export async function createTeamAction(formData: FormData): Promise<void> {
       team_name: name.trim(),
     });
 
-    if (error) throw new Error(error.message);
+    if (error) throw AppError.fromSupabase(error);
 
     revalidatePath("/");
     redirect("/teams");
@@ -48,7 +49,7 @@ export async function leaveTeamAction(formData: FormData): Promise<void> {
       .eq("team_id", teamId)
       .eq("user_id", userId);
 
-    if (leaveError) throw new Error(leaveError.message);
+    if (leaveError) throw AppError.fromSupabase(leaveError);
     if (count === 0) {
       throw new Error("Leave failed — membership was not removed.");
     }
@@ -106,7 +107,7 @@ export async function deleteTeamAction(formData: FormData): Promise<void> {
       .delete({ count: "exact" })
       .eq("id", teamId);
 
-    if (deleteError) throw new Error(deleteError.message);
+    if (deleteError) throw AppError.fromSupabase(deleteError);
     if (count === 0) {
       throw new Error(
         "Delete failed — the team was not removed. You may not have permission to delete it."

@@ -1,7 +1,7 @@
 "use server";
 
 import { runSafeAction } from "@/lib/safe-action";
-import { assertSupabaseOk } from "@/lib/errors";
+import { AppError, assertSupabaseOk } from "@/lib/errors";
 import { revalidatePath } from "next/cache";
 import { createClient } from "@/lib/supabase/server";
 import { validateBusinessAccess } from "@/lib/team-context";
@@ -118,7 +118,7 @@ export async function getPersonHistoryAction(
     .select("id, operation, changed_at, changed_by_user_id, previous_state")
     .eq("business_person_id", personId)
     .order("changed_at", { ascending: false });
-  if (error) throw error;
+  if (error) throw AppError.fromSupabase(error);
 
   const actorIds = Array.from(
     new Set(
@@ -221,7 +221,7 @@ export async function getBusinessPeopleHistoryAction(
   const { data: rows, error } = await query
     .order("changed_at", { ascending: false })
     .range(offset, offset + limit);
-  if (error) throw error;
+  if (error) throw AppError.fromSupabase(error);
 
   const trimmed = (rows ?? []).slice(0, limit);
   const hasMore = (rows ?? []).length > limit;

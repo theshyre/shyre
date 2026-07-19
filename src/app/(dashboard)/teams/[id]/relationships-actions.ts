@@ -1,6 +1,7 @@
 "use server";
 
 import { runSafeAction } from "@/lib/safe-action";
+import { AppError } from "@/lib/errors";
 import { revalidatePath } from "next/cache";
 
 export async function proposeTeamShareAction(
@@ -22,7 +23,7 @@ export async function proposeTeamShareAction(
         p_child_team_id: childTeamId,
         p_sharing_level: sharingLevel,
       });
-      if (error) throw new Error(error.message);
+      if (error) throw AppError.fromSupabase(error);
 
       revalidatePath(`/teams/${parentTeamId}`);
       revalidatePath(`/teams/${childTeamId}`);
@@ -44,7 +45,7 @@ export async function acceptTeamShareAction(
       const { error } = await supabase.rpc("accept_team_share", {
         p_share_id: shareId,
       });
-      if (error) throw new Error(error.message);
+      if (error) throw AppError.fromSupabase(error);
 
       if (teamId) revalidatePath(`/teams/${teamId}`);
     },
@@ -66,7 +67,7 @@ export async function removeTeamShareAction(
         .from("team_shares")
         .delete()
         .eq("id", shareId);
-      if (error) throw new Error(error.message);
+      if (error) throw AppError.fromSupabase(error);
 
       if (teamId) revalidatePath(`/teams/${teamId}`);
     },

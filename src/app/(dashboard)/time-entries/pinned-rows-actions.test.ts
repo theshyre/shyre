@@ -92,9 +92,16 @@ vi.mock("next/cache", () => ({
   revalidatePath: (path: string) => revalidatePathMock(path),
 }));
 
-vi.mock("@/lib/errors", () => ({
-  assertSupabaseOk: (r: unknown) => assertSupabaseOkMock(r),
-}));
+vi.mock("@/lib/errors", async (importOriginal) => {
+  // Keep the real AppError (the actions classify raw PostgREST errors
+  // through AppError.fromSupabase — SAL-052) but stub assertSupabaseOk
+  // so the harness can observe the calls.
+  const actual = await importOriginal<typeof import("@/lib/errors")>();
+  return {
+    ...actual,
+    assertSupabaseOk: (r: unknown) => assertSupabaseOkMock(r),
+  };
+});
 
 import {
   pinRowAction,
@@ -164,11 +171,15 @@ describe("pinRowAction", () => {
     expect(revalidatePathMock).toHaveBeenCalled();
   });
 
-  it("rethrows non-23505 errors", async () => {
+  it("rethrows non-23505 errors classified through AppError (raw text off the client shape — SAL-052)", async () => {
     state.insertError = { code: "42501", message: "RLS denied" };
     await expect(
       pinRowAction(fd({ team_id: "t-1", project_id: "p-1" })),
-    ).rejects.toMatchObject({ message: "RLS denied" });
+    ).rejects.toMatchObject({
+      name: "AppError",
+      code: "AUTH_FORBIDDEN",
+      userMessageKey: "errors.authForbidden",
+    });
   });
 
   it("rejects when team_id is missing", async () => {

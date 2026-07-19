@@ -1,7 +1,7 @@
 "use server";
 
 import { runSafeAction } from "@/lib/safe-action";
-import { assertSupabaseOk } from "@/lib/errors";
+import { AppError, assertSupabaseOk } from "@/lib/errors";
 import { validateTeamAccess, requireTeamAdmin } from "@/lib/team-context";
 import { isTeamAdmin } from "@/lib/team-roles";
 import { revalidatePath } from "next/cache";
@@ -1173,7 +1173,7 @@ export async function getProjectUnbilledSummaryAction(
     .not("end_time", "is", null)
     .is("deleted_at", null)
     .order("start_time", { ascending: false });
-  if (timeError) throw timeError;
+  if (timeError) throw AppError.fromSupabase(timeError);
   const times = (timeRows ?? []) as Array<{
     id: string;
     start_time: string | null;
@@ -1189,7 +1189,7 @@ export async function getProjectUnbilledSummaryAction(
     .eq("invoiced", false)
     .eq("billable", true)
     .is("deleted_at", null);
-  if (expenseError) throw expenseError;
+  if (expenseError) throw AppError.fromSupabase(expenseError);
 
   return {
     timeMinutes,
@@ -1241,7 +1241,7 @@ export async function getProjectHistoryAction(
     .eq("project_id", projectId)
     .order("changed_at", { ascending: false })
     .range(offset, offset + fetchSize - 1);
-  if (error) throw error;
+  if (error) throw AppError.fromSupabase(error);
 
   const rows = data ?? [];
   const hasMore = rows.length > limit;

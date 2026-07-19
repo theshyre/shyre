@@ -1,6 +1,7 @@
 import "server-only";
 
 import { createAdminClient } from "@/lib/supabase/admin";
+import { AppError } from "@/lib/errors";
 import { logError } from "@/lib/logger";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import type { OutboundMessage, SendResult } from "./sender";
@@ -158,13 +159,13 @@ export async function enqueue(input: EnqueueInput): Promise<OutboxRow> {
         .eq("idempotency_key", input.idempotencyKey)
         .single();
       if (existing.error || !existing.data) {
-        throw new Error(
-          `Idempotent enqueue collided but lookup failed: ${error.message}`,
-        );
+        // Raw PostgREST text must not ride a plain Error into a
+        // user-visible path (SAL-052) — classify instead.
+        throw AppError.fromSupabase(existing.error ?? error);
       }
       return existing.data as OutboxRow;
     }
-    throw new Error(`Failed to enqueue message: ${error.message}`);
+    throw AppError.fromSupabase(error);
   }
   if (!data) throw new Error("Enqueue returned no row.");
   return data as OutboxRow;

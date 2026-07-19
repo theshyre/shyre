@@ -1,7 +1,7 @@
 "use server";
 
 import { runSafeAction } from "@/lib/safe-action";
-import { assertSupabaseOk } from "@/lib/errors";
+import { AppError, assertSupabaseOk } from "@/lib/errors";
 import { validateTeamAccess } from "@/lib/team-context";
 import { revalidatePath } from "next/cache";
 
@@ -44,7 +44,7 @@ export async function deleteGroupAction(formData: FormData): Promise<void> {
       .eq("id", groupId)
       .eq("team_id", teamId);
 
-    if (error) throw new Error(error.message);
+    if (error) throw AppError.fromSupabase(error);
     if (count === 0) throw new Error("Group not found or permission denied.");
 
     revalidatePath("/security-groups");
@@ -100,7 +100,7 @@ export async function removeGroupMemberAction(formData: FormData): Promise<void>
       .delete()
       .eq("group_id", groupId)
       .eq("user_id", memberUserId);
-    if (error) throw new Error(error.message);
+    if (error) throw AppError.fromSupabase(error);
 
     revalidatePath("/security-groups");
   }, "removeGroupMemberAction") as unknown as void;

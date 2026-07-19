@@ -234,7 +234,13 @@ describe("materializeHarvestShellAccount", () => {
         harvestUserId: 5,
         displayName: "Jane Ex",
       }),
-    ).rejects.toThrow(/user_profiles update failed: no row/);
+    ).rejects.toMatchObject({
+      name: "AppError",
+      code: "DATABASE_ERROR",
+      // Raw PostgREST text stays server-side (SAL-052): toUserSafe()
+      // carries only the i18n key, never the message.
+      userMessageKey: "errors.database",
+    });
   });
 
   it("throws when the team_members insert fails", async () => {
@@ -250,6 +256,10 @@ describe("materializeHarvestShellAccount", () => {
         harvestUserId: 5,
         displayName: "Jane Ex",
       }),
-    ).rejects.toThrow(/team_members insert failed: duplicate key/);
+    ).rejects.toMatchObject({
+      name: "AppError",
+      code: "DATABASE_ERROR",
+      userMessageKey: "errors.database",
+    });
   });
 });

@@ -1,7 +1,7 @@
 "use server";
 
 import { runSafeAction } from "@/lib/safe-action";
-import { assertSupabaseOk } from "@/lib/errors";
+import { AppError, assertSupabaseOk } from "@/lib/errors";
 import { validateTeamAccess } from "@/lib/team-context";
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
@@ -637,7 +637,7 @@ export async function updateInvoiceStatusAction(
       .select("team_id, status")
       .eq("id", id)
       .maybeSingle();
-    if (fetchError) throw fetchError;
+    if (fetchError) throw AppError.fromSupabase(fetchError);
     if (!row) throw new Error("Invoice not found.");
 
     const teamId = row.team_id as string;
@@ -701,7 +701,7 @@ export async function deleteInvoiceAction(
         .select("team_id, status")
         .eq("id", id)
         .maybeSingle();
-      if (fetchError) throw fetchError;
+      if (fetchError) throw AppError.fromSupabase(fetchError);
       if (!row) throw new Error("Invoice not found.");
 
       const teamId = row.team_id as string;
@@ -781,7 +781,7 @@ export async function bulkUpdateInvoiceStatusAction(
         .from("invoices")
         .select("id, team_id, status")
         .in("id", ids);
-      if (error) throw error;
+      if (error) throw AppError.fromSupabase(error);
       if (!rows || rows.length === 0) return;
 
       // Cache role per team to avoid repeated validateTeamAccess
@@ -859,7 +859,7 @@ export async function recordInvoicePaymentAction(
         .select("team_id, status, total, currency")
         .eq("id", id)
         .maybeSingle();
-      if (fetchError) throw fetchError;
+      if (fetchError) throw AppError.fromSupabase(fetchError);
       if (!invoice) throw new Error("Invoice not found.");
 
       const teamId = invoice.team_id as string;
@@ -907,7 +907,7 @@ export async function recordInvoicePaymentAction(
           .from("invoice_payments")
           .select("amount")
           .eq("invoice_id", id);
-        if (sumError) throw sumError;
+        if (sumError) throw AppError.fromSupabase(sumError);
         const runningTotal = (rows ?? []).reduce(
           (acc, r) => acc + Number(r.amount ?? 0),
           0,
@@ -975,7 +975,7 @@ export async function editInvoicePaidDateAction(
         p_new_paid_on: newPaidOn,
         p_reason: reason,
       });
-      if (error) throw error;
+      if (error) throw AppError.fromSupabase(error);
 
       revalidatePath("/invoices");
       revalidatePath(`/invoices/${id}`);

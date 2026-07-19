@@ -2,7 +2,7 @@
 
 import { revalidatePath } from "next/cache";
 import { runSafeAction } from "@/lib/safe-action";
-import { assertSupabaseOk } from "@/lib/errors";
+import { AppError, assertSupabaseOk } from "@/lib/errors";
 import { validateTeamAccess, requireTeamAdmin } from "@/lib/team-context";
 
 /**
@@ -49,7 +49,7 @@ export async function pinRowAction(formData: FormData): Promise<void> {
         category_id: categoryId,
       });
       if (error && error.code !== "23505") {
-        throw error;
+        throw AppError.fromSupabase(error);
       }
       revalidatePath("/time-entries");
     },
@@ -126,7 +126,7 @@ export async function setTeamDefaultRowAction(
           created_by_user_id: userId,
         });
       if (error && error.code !== "23505") {
-        throw error;
+        throw AppError.fromSupabase(error);
       }
       revalidatePath("/time-entries");
     },

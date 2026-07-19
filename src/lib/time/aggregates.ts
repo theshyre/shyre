@@ -28,6 +28,7 @@
  */
 
 import type { SupabaseClient } from "@supabase/supabase-js";
+import { AppError } from "@/lib/errors";
 
 export type AggregateGroupBy = "day" | "week" | "month";
 
@@ -92,7 +93,7 @@ export async function timeEntriesAggregate(
   }
 
   const { data, error } = await q;
-  if (error) throw error;
+  if (error) throw AppError.fromSupabase(error);
   return rollUp((data as RawRow[]) ?? [], input.groupBy);
 }
 

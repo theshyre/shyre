@@ -1,7 +1,7 @@
 "use server";
 
 import { runSafeAction } from "@/lib/safe-action";
-import { assertSupabaseOk } from "@/lib/errors";
+import { AppError, assertSupabaseOk } from "@/lib/errors";
 import { validateTeamAccess } from "@/lib/team-context";
 import { localDateMidnightUtc } from "@/lib/time/tz";
 import {
@@ -544,7 +544,7 @@ export async function updateTimeEntryDurationAction(
       .select("user_id, start_time, invoiced, invoice_id")
       .eq("id", id)
       .maybeSingle();
-    if (existingErr) throw existingErr;
+    if (existingErr) throw AppError.fromSupabase(existingErr);
     if (!existing) throw new Error("Entry not found");
     if (existing.user_id !== userId) {
       throw new Error("Only the entry's author can edit it.");
@@ -1095,7 +1095,7 @@ export async function duplicateTimeEntryAction(formData: FormData): Promise<void
       .eq("user_id", userId)
       .is("deleted_at", null)
       .single();
-    if (fetchErr) throw fetchErr;
+    if (fetchErr) throw AppError.fromSupabase(fetchErr);
     if (!source) throw new Error("Entry not found");
 
     const now = new Date().toISOString();
@@ -1338,7 +1338,7 @@ export async function upsertTimesheetCellAction(
     if (category_id) q = q.eq("category_id", category_id);
     else q = q.is("category_id", null);
     const { data: existing, error: existingErr } = await q;
-    if (existingErr) throw existingErr;
+    if (existingErr) throw AppError.fromSupabase(existingErr);
 
     // Refuse early when any entry in the cell is invoiced. The DB
     // trigger added in 20260501040000 would also block this, but

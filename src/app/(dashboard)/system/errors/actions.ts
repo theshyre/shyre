@@ -1,6 +1,7 @@
 "use server";
 
 import { createClient } from "@/lib/supabase/server";
+import { AppError } from "@/lib/errors";
 import { requireSystemAdmin } from "@/lib/system-admin";
 import { revalidatePath } from "next/cache";
 
@@ -18,6 +19,6 @@ export async function resolveErrorAction(formData: FormData): Promise<void> {
     })
     .eq("id", errorId);
 
-  if (error) throw new Error(error.message);
+  if (error) throw AppError.fromSupabase(error);
   revalidatePath("/system/errors");
 }

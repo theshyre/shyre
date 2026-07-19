@@ -2,6 +2,7 @@ import { createClient } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { validateTeamAccess } from "@/lib/team-context";
 import { logError } from "@/lib/logger";
+import { toAppError } from "@/lib/errors";
 import { materializeHarvestShellAccount } from "@/lib/import-shell-author";
 import {
   validateHarvestCredentials,
@@ -75,9 +76,15 @@ function errorResponse(
       { status: 502 },
     );
   }
+  // Normalize through toAppError so raw PostgREST/Postgres error text
+  // never lands in the JSON body (SAL-052). toUserSafe() forwards the
+  // literal message only for UNKNOWN/CONFLICT-coded errors — i.e. text
+  // our own code (or a trigger RAISE) deliberately wrote for the user;
+  // classified database errors fall back to a generic message.
+  const safe = toAppError(err).toUserSafe();
   return NextResponse.json(
     {
-      error: err instanceof Error ? err.message : "Import failed",
+      error: safe.message ?? "Import failed",
       errorCode: "unknown",
     },
     { status: 500 },
@@ -325,8 +332,11 @@ export async function POST(request: Request): Promise<NextResponse> {
         url: "/api/import/harvest",
         action: "harvestImportRunInsert",
       });
+      // Don't interpolate the raw PostgREST message into the body —
+      // constraint / RLS details are internals (SAL-052). The full
+      // error is in error_logs via the logError above.
       return NextResponse.json(
-        { error: `Could not record import run: ${runInsertError.message}` },
+        { error: "Could not record import run. Try again or check the error log." },
         { status: 500 },
       );
     }
