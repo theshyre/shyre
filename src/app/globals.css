@@ -42,6 +42,17 @@
   --error-text: #fca5a5;
   --info-text: #93c5fd;
 }
+/* malcom is a dark theme with the dark theme's soft fills — same light
+ * text shades (all pairs ≥5.2:1 on their softs). MISSING THIS BLOCK was
+ * the 2026-07-18 badge bug: the theme fell through to :root's LIGHT
+ * values → brown-on-brown/blue-on-navy unreadable badges. Any new theme
+ * MUST add a block here (or inherit deliberately). */
+[data-theme="malcom"] {
+  --success-text: #86efac;
+  --warning-text: #fcd34d;
+  --error-text: #fca5a5;
+  --info-text: #93c5fd;
+}
 [data-theme="warm"] {
   --success-text: #166534;
   --warning-text: #92400e;
