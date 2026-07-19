@@ -891,6 +891,7 @@ export function buildTimeEntryRow(args: {
       imported_at: string;
       import_run_id: string;
       import_source_id: string;
+      started_by_kind: "import";
     }
   | { skipped: true; reason: string } {
   if (args.projectId === null) {
@@ -1016,6 +1017,10 @@ export function buildTimeEntryRow(args: {
     imported_at: args.ctx.importedAt,
     import_run_id: args.ctx.importRunId,
     import_source_id: String(args.entry.id),
+    // Imported rows are attributed to the import pipeline, not typed by a
+    // human — 'import' is one of ALLOWED_STARTED_BY_KINDS and, before this
+    // stamp, was documented-but-never-written (2026-07-18 docs audit).
+    started_by_kind: "import",
   };
 }
 
