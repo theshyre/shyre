@@ -521,7 +521,10 @@ function RecordPaymentButton({
             onClick={() => setOpen(false)}
           />
           <div
-            className="absolute right-0 top-full z-30 mt-1 flex w-[300px] flex-col gap-2 rounded-md border border-edge bg-surface-raised p-3 shadow-lg"
+            // rem width (not px) so the panel scales with the user's text-size
+            // preference — at "large" text a fixed 300px cramped the date
+            // field's icon and wrapped the Record-payment button.
+            className="absolute right-0 top-full z-30 mt-1 flex w-[21rem] max-w-[calc(100vw-2rem)] flex-col gap-2 rounded-md border border-edge bg-surface-raised p-3 shadow-lg"
             onKeyDown={onAnyKey}
             role="dialog"
             aria-label={t("formAriaLabel")}
@@ -606,13 +609,15 @@ function RecordPaymentButton({
         />
       </label>
 
-      <div className="flex items-center gap-2 mt-1">
+      {/* flex-wrap + whitespace-nowrap: at large text the label must stay
+          on one line and Cancel wraps below if needed, never "Record\npayment". */}
+      <div className="mt-1 flex flex-wrap items-center gap-2">
         <button
           type="button"
           onClick={() => void fire()}
           disabled={!armed}
           aria-label={t("recordButton")}
-          className={buttonPrimaryClass}
+          className={`${buttonPrimaryClass} whitespace-nowrap`}
         >
           <CheckCircle size={16} />
           {pending ? `${t("recordButton")}…` : t("recordButton")}
@@ -624,7 +629,7 @@ function RecordPaymentButton({
             setError(null);
           }}
           disabled={pending}
-          className={buttonSecondaryClass}
+          className={`${buttonSecondaryClass} whitespace-nowrap`}
         >
           {tc("actions.cancel")}
         </button>
