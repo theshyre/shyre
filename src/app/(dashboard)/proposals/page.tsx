@@ -9,6 +9,7 @@ import { roundMoney } from "@/lib/proposals/line-items";
 import {
   parseProposalStatusFilter,
   proposalFilterStatuses,
+  partialSignoffProgress,
   summarizeOutstandingProposals,
 } from "@/lib/proposals/list-view";
 import { parseListPagination } from "@/lib/pagination/list-pagination";
@@ -63,7 +64,7 @@ export default async function ProposalsPage({
   let query = supabase
     .from("proposals")
     .select(
-      "id, proposal_number, title, status, issued_date, valid_until, currency, accepted_total, customers(id, name, logo_url), proposal_line_items(fixed_price, parent_line_item_id)",
+      "id, proposal_number, title, status, issued_date, valid_until, currency, accepted_total, signing_mode, customers(id, name, logo_url), proposal_line_items(fixed_price, parent_line_item_id), proposal_signers(id), proposal_acceptances(decision, signer_id)",
       { count: "exact" },
     )
     .order("issued_date", { ascending: false, nullsFirst: false })
@@ -91,11 +92,22 @@ export default async function ProposalsPage({
         .filter((li) => li.parent_line_item_id === null)
         .reduce((sum, li) => sum + Number(li.fixed_price), 0),
     );
+    // "N of M signed" projection for in-flight multi-signer rows.
+    const signerCount = (
+      (row.proposal_signers ?? []) as Array<{ id: string }>
+    ).length;
+    const signedCount = (
+      (row.proposal_acceptances ?? []) as Array<{
+        decision: string;
+        signer_id: string | null;
+      }>
+    ).filter((a) => a.signer_id != null && a.decision === "accepted").length;
+    const status = (row.status as string) ?? "draft";
     return {
       id: row.id as string,
       proposal_number: row.proposal_number as string,
       title: row.title as string,
-      status: (row.status as string) ?? "draft",
+      status,
       issued_date: (row.issued_date as string | null) ?? null,
       valid_until: (row.valid_until as string | null) ?? null,
       currency: (row.currency as string) ?? "USD",
@@ -103,6 +115,12 @@ export default async function ProposalsPage({
       total,
       accepted_total:
         row.accepted_total != null ? Number(row.accepted_total) : null,
+      signoff: partialSignoffProgress(
+        status,
+        (row.signing_mode as string | null) ?? null,
+        signedCount,
+        signerCount,
+      ),
     };
   });
 

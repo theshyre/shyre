@@ -15,7 +15,8 @@
     "declined": "Declined",
     "converted": "Converted",
     "superseded": "Superseded",
-    "expired": "Expired"
+    "expired": "Expired",
+    "partiallySigned": "{signed} of {total} signed"
   },
   "table": {
     "number": "Number",
@@ -233,7 +234,9 @@
       "declined": "Declined",
       "countersigned": "Counter-signed",
       "converted": "Converted to project(s)",
-      "superseded": "Superseded by a new version"
+      "superseded": "Superseded by a new version",
+      "signoff_overridden": "Sign-off completed by override",
+      "link_resent": "Sign-off link re-sent"
     }
   },
   "detail": {
@@ -284,7 +287,7 @@
     "billFailed": "Invoice creation failed",
     "viewProject": "View project →",
     "edit": "Edit",
-    "delete": "Delete draft",
+    "delete": "Delete",
     "deleteConfirm": "Delete forever",
     "deleteCancel": "Cancel",
     "deleteFailed": "Delete failed",
@@ -324,7 +327,20 @@
     "resending": "Resending…",
     "resendSuccess": "Fresh sign link(s) emailed. Earlier links no longer work.",
     "resendFailed": "Resend failed",
-    "billDeposit": "Bill deposit"
+    "billDeposit": "Bill deposit",
+    "authorizedItemsLabel": "{count, plural, =1 {Authorized item} other {Authorized items}}",
+    "itemAuthorized": "Authorized",
+    "override": "Override sign-off",
+    "overrideConfirmTitle": "Complete this sign-off without the remaining signers?",
+    "overrideWaiving": "Waiving: {names}",
+    "overrideNoteLabel": "Reason for the override",
+    "overrideNotePlaceholder": "Why are you completing this without every signature? (recorded)",
+    "overrideNoteHint": "Add a short reason (at least 5 characters) to continue.",
+    "overrideConfirm": "Complete sign-off",
+    "overrideCancel": "Cancel",
+    "overrideFailed": "Couldn't override the sign-off. Try again.",
+    "overriddenCalloutTitle": "Sign-off completed by override",
+    "overriddenWaived": "Waived: {names}"
   },
   "pdf": {
     "documentTitle": "Proposal",

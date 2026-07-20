@@ -17,6 +17,7 @@ import {
   proposalSendReadiness,
   type ReadinessIssue,
 } from "@/lib/proposals/readiness";
+import { loadProposalRoster } from "@/lib/proposals/roster";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { generateSignToken, TOKEN_TTL_DAYS } from "@/lib/proposals/tokens";
 import { isValidProposalStatusTransition } from "@/lib/proposals/status";
@@ -24,7 +25,10 @@ import { sendProposalEmail } from "@/lib/messaging/send-proposal";
 import { escapeHtml } from "@/lib/messaging/escape-html";
 import { unwrapEmbed } from "@/lib/supabase/embed";
 import { pickVersionCopyColumns } from "@/lib/proposals/version-copy";
-import { isProposalEditable } from "@/lib/proposals/allow-lists";
+import {
+  isProposalEditable,
+  isProposalDeletable,
+} from "@/lib/proposals/allow-lists";
 
 /**
  * Parse the structured form payload (the authoring form posts one JSON field —
@@ -1456,9 +1460,9 @@ export async function deleteProposalAction(formData: FormData): Promise<void> {
         .single();
       if (!existing) throw new Error("Proposal not found.");
       await requireTeamAdmin(existing.team_id);
-      if (existing.status !== "draft") {
+      if (!isProposalDeletable(existing.status)) {
         throw AppError.refusal(
-          "Only draft proposals can be deleted. Sent and signed proposals are part of the audit record.",
+          "Only draft or superseded proposals can be deleted. Sent and signed proposals are part of the audit record.",
         );
       }
 
@@ -1470,5 +1474,144 @@ export async function deleteProposalAction(formData: FormData): Promise<void> {
       redirect("/proposals");
     },
     "deleteProposalAction",
+  ) as unknown as void;
+}
+
+/** Minimum characters for the override justification — an override waives a
+ *  co-signer's decision, so it must carry a real reason for the audit trail,
+ *  not a rubber-stamp. */
+const OVERRIDE_NOTE_MIN = 5;
+
+/**
+ * Owner/admin override of a stalled multi-signer sign-off.
+ *
+ * When a proposal is in `all` mode and one signer will never sign (they've
+ * left the company, the deal changed, whatever), the deal is stuck: the
+ * status can't reach `accepted` because completion requires every rostered
+ * signer. This lets an owner/admin complete it on the strength of the
+ * signatures already in hand — flipping to `accepted` with the primary
+ * signer's bound total — while recording WHO overrode, WHY (a required
+ * note), and WHICH signers were waived, as a first-class audited event
+ * (`signoff_overridden`). It never fabricates a signature: the waived
+ * signers stay un-signed on the record; the override is the honest,
+ * attributable act of an authorized human deciding to proceed anyway.
+ *
+ * Preconditions (all enforced): caller is owner/admin; the proposal is in
+ * `all` mode and still in flight (sent/viewed); at least one signer has
+ * accepted (there must be a real acceptance to anchor the total) and at
+ * least one has NOT (otherwise it would have completed on its own).
+ */
+export async function overrideProposalSignoffAction(
+  formData: FormData,
+): Promise<void> {
+  return runSafeAction(
+    formData,
+    async (formData, { supabase, userId }) => {
+      const proposalId = formData.get("id") as string;
+      if (!proposalId) throw new Error("Missing proposal id.");
+      const note = ((formData.get("note") as string) ?? "").trim();
+      if (note.length < OVERRIDE_NOTE_MIN) {
+        throw AppError.refusal(
+          "An override needs a short reason for the record.",
+        );
+      }
+
+      const { data: proposal } = await supabase
+        .from("proposals")
+        .select("id, team_id, status, signing_mode")
+        .eq("id", proposalId)
+        .single();
+      if (!proposal) throw new Error("Proposal not found.");
+      await requireTeamAdmin(proposal.team_id as string);
+
+      if ((proposal.signing_mode as string | null) !== "all") {
+        throw AppError.refusal(
+          "Override only applies to proposals that require every signer.",
+        );
+      }
+      const status = (proposal.status as string) ?? "draft";
+      if (status !== "sent" && status !== "viewed") {
+        throw AppError.refusal(
+          "Only an in-flight proposal awaiting signatures can be overridden.",
+        );
+      }
+
+      // The roster and every decision so far. We need: at least one accepted
+      // (to anchor the total + prove there's something to stand on) and at
+      // least one not-yet-signed (otherwise the deal would already be
+      // accepted and there's nothing to override).
+      const roster = await loadProposalRoster(supabase, proposalId);
+      const { data: acceptanceRows } = await supabase
+        .from("proposal_acceptances")
+        .select("signer_id, decision, accepted_total, signer_name")
+        .eq("proposal_id", proposalId)
+        .order("occurred_at", { ascending: true });
+      const acceptances = (acceptanceRows ?? []) as Array<{
+        signer_id: string | null;
+        decision: string;
+        accepted_total: number | null;
+        signer_name: string | null;
+      }>;
+      const accepted = acceptances.filter((a) => a.decision === "accepted");
+      if (accepted.length === 0) {
+        throw AppError.refusal(
+          "No one has signed yet — there's nothing to override to. Decline or resend instead.",
+        );
+      }
+      if (roster.length > 0 && accepted.length >= roster.length) {
+        throw AppError.refusal(
+          "Every signer has already signed; no override is needed.",
+        );
+      }
+
+      // Anchor the total on the PRIMARY's bound acceptance (roster sort_order
+      // 0), matching the sign-service completion rule — every 'all'-mode
+      // acceptance carries the same bound subset, so the primary's total is
+      // the authorized amount. Fall back to the first acceptance if the
+      // primary's isn't found (defensive; shouldn't happen post-send-lock).
+      const primaryId = roster[0]?.id ?? null;
+      const anchor =
+        accepted.find((a) => a.signer_id === primaryId) ?? accepted[0]!;
+      const acceptedTotal = Number(anchor.accepted_total ?? 0);
+
+      const signedIds = new Set(
+        accepted.map((a) => a.signer_id).filter((v): v is string => v != null),
+      );
+      const waivedSigners = roster
+        .filter((r) => !signedIds.has(r.id))
+        .map((r) => r.name);
+
+      assertSupabaseOk(
+        await supabase
+          .from("proposals")
+          .update({ status: "accepted", accepted_total: acceptedTotal })
+          .eq("id", proposalId),
+      );
+
+      const admin = createAdminClient();
+      // The holdout's sign link is now moot — revoke any outstanding tokens
+      // so a late click can't mint a competing decision.
+      await admin
+        .from("proposal_access_tokens")
+        .update({ revoked_at: new Date().toISOString() })
+        .eq("proposal_id", proposalId)
+        .is("revoked_at", null);
+      await admin.from("proposal_events").insert({
+        proposal_id: proposalId,
+        team_id: proposal.team_id as string,
+        event_type: "signoff_overridden",
+        actor_user_id: userId,
+        actor_label: null,
+        metadata: {
+          note,
+          waived_signers: waivedSigners,
+          accepted_total: acceptedTotal,
+        },
+      });
+
+      revalidatePath("/proposals");
+      revalidatePath(`/proposals/${proposalId}`);
+    },
+    "overrideProposalSignoffAction",
   ) as unknown as void;
 }

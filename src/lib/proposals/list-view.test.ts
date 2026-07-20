@@ -7,7 +7,42 @@ import {
   isProposalExpired,
   summarizeOutstandingProposals,
   displayProposalTotal,
+  partialSignoffProgress,
 } from "./list-view";
+
+describe("partialSignoffProgress", () => {
+  it("reports N-of-M for an in-flight all-mode proposal partway signed", () => {
+    expect(partialSignoffProgress("viewed", "all", 1, 2)).toEqual({
+      signed: 1,
+      total: 2,
+    });
+    expect(partialSignoffProgress("sent", "all", 2, 3)).toEqual({
+      signed: 2,
+      total: 3,
+    });
+  });
+
+  it("returns null when nobody or everybody has signed", () => {
+    expect(partialSignoffProgress("viewed", "all", 0, 2)).toBeNull();
+    expect(partialSignoffProgress("viewed", "all", 2, 2)).toBeNull();
+  });
+
+  it("returns null outside all-mode (first / single-signer never partial)", () => {
+    expect(partialSignoffProgress("viewed", "first", 1, 2)).toBeNull();
+    expect(partialSignoffProgress("viewed", null, 1, 2)).toBeNull();
+  });
+
+  it("returns null for a single-signer roster", () => {
+    expect(partialSignoffProgress("viewed", "all", 1, 1)).toBeNull();
+  });
+
+  it("returns null once the proposal is decided (never mislabels)", () => {
+    // A stale count can't resurrect a projection on an accepted/declined doc.
+    expect(partialSignoffProgress("accepted", "all", 1, 2)).toBeNull();
+    expect(partialSignoffProgress("declined", "all", 1, 2)).toBeNull();
+    expect(partialSignoffProgress("draft", "all", 1, 2)).toBeNull();
+  });
+});
 
 describe("parseProposalStatusFilter", () => {
   it("accepts every declared filter value", () => {
