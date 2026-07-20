@@ -108,6 +108,7 @@
     "to": "Hasta",
     "active": "Filtros:",
     "clearAll": "Limpiar todo",
+    "removeFilter": "Quitar {label}",
     "resultCount": "{hasFilter, select, true {{shown, plural, =0 {Sin coincidencias} =1 {1 coincidencia} other {# coincidencias}} de {total, number} gastos} other {{total, plural, =0 {Aún no hay gastos} =1 {1 gasto} other {# gastos}}}}"
   },
   "bulk": {

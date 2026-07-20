@@ -5,6 +5,7 @@ import { KeyRound, Check, AlertCircle, Clock } from "lucide-react";
 import { createClient } from "@/lib/supabase/server";
 import { requireSystemAdmin } from "@/lib/system-admin";
 import { formatDisplayDate } from "@/lib/format-date";
+import { Tooltip } from "@/components/Tooltip";
 import {
   scanCredentials,
   type CredentialItem,
@@ -120,7 +121,7 @@ function CredentialGroup({
             key={`${item.kind}:${item.scopeId ?? ""}`}
             className="flex items-center gap-3 py-2 first:pt-0 last:pb-0"
           >
-            <SeverityIcon severity={item.severity} />
+            <SeverityIcon severity={item.severity} t={t} />
             <div className="flex-1 min-w-0">
               <p className="text-body font-medium text-content truncate">
                 {item.label}
@@ -154,27 +155,54 @@ function CredentialGroup({
 
 function SeverityIcon({
   severity,
+  t,
 }: {
   severity: Severity;
+  t: PageTranslator;
 }): React.JSX.Element {
+  // Reuses the same group-heading strings ("Expired" / "Expiring
+  // within 7 days" / "Healthy") so the icon's tooltip never drifts
+  // out of sync with the section it sits in. tabIndex makes the
+  // otherwise-inert glyph keyboard-reachable so the tooltip opens on
+  // focus, not hover-only (same pattern as invoices-table's imported
+  // badge).
+  const label = t(`groups.${severity}`);
   if (severity === "ok") {
     return (
-      <span className="inline-flex h-6 w-6 items-center justify-center rounded-full bg-success-soft text-success-text shrink-0">
-        <Check size={12} aria-hidden="true" />
-      </span>
+      <Tooltip label={label} labelMode="label">
+        <span
+          role="img"
+          tabIndex={0}
+          className="inline-flex h-6 w-6 items-center justify-center rounded-full bg-success-soft text-success-text shrink-0 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus-ring"
+        >
+          <Check size={12} aria-hidden="true" />
+        </span>
+      </Tooltip>
     );
   }
   if (severity === "warning") {
     return (
-      <span className="inline-flex h-6 w-6 items-center justify-center rounded-full bg-warning-soft text-warning-text shrink-0">
-        <Clock size={12} aria-hidden="true" />
-      </span>
+      <Tooltip label={label} labelMode="label">
+        <span
+          role="img"
+          tabIndex={0}
+          className="inline-flex h-6 w-6 items-center justify-center rounded-full bg-warning-soft text-warning-text shrink-0 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus-ring"
+        >
+          <Clock size={12} aria-hidden="true" />
+        </span>
+      </Tooltip>
     );
   }
   return (
-    <span className="inline-flex h-6 w-6 items-center justify-center rounded-full bg-error-soft text-error-text shrink-0">
-      <AlertCircle size={12} aria-hidden="true" />
-    </span>
+    <Tooltip label={label} labelMode="label">
+      <span
+        role="img"
+        tabIndex={0}
+        className="inline-flex h-6 w-6 items-center justify-center rounded-full bg-error-soft text-error-text shrink-0 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus-ring"
+      >
+        <AlertCircle size={12} aria-hidden="true" />
+      </span>
+    </Tooltip>
   );
 }
 

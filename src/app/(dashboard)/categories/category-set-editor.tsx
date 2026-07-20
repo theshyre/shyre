@@ -13,6 +13,8 @@ import {
 } from "@/lib/form-styles";
 import { useFormAction } from "@/hooks/use-form-action";
 import { SubmitButton } from "@/components/SubmitButton";
+import { Tooltip } from "@/components/Tooltip";
+import { InlineCancelButton } from "@/components/InlineCancelButton";
 import {
   updateCategorySetAction,
   createCategoryAction,
@@ -138,14 +140,11 @@ function CategoryRow({ category }: { category: Category }): React.JSX.Element {
           aria-label="sort order"
         />
         <SubmitButton label={t("save")} pending={updateForm.pending} icon={Save} />
-        <button
-          type="button"
-          disabled={updateForm.pending}
+        <InlineCancelButton
           onClick={() => setEditing(false)}
+          disabled={updateForm.pending}
           className={buttonGhostClass}
-        >
-          <X size={14} />
-        </button>
+        />
       </form>
     );
   }
@@ -169,14 +168,15 @@ function CategoryRow({ category }: { category: Category }): React.JSX.Element {
       </button>
       <form action={deleteForm.handleSubmit}>
         <input type="hidden" name="id" value={category.id} />
-        <button
-          type="submit"
-          disabled={deleteForm.pending}
-          className={buttonGhostClass}
-          aria-label={t("delete")}
-        >
-          <Trash2 size={14} className="text-error" />
-        </button>
+        <Tooltip label={t("delete")} labelMode="label">
+          <button
+            type="submit"
+            disabled={deleteForm.pending}
+            className={buttonGhostClass}
+          >
+            <Trash2 size={14} className="text-error" />
+          </button>
+        </Tooltip>
       </form>
     </div>
   );

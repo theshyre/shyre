@@ -14,6 +14,7 @@ import {
 } from "@/lib/form-styles";
 import { useFormAction } from "@/hooks/use-form-action";
 import { InlineDeleteRowConfirm } from "@/components/InlineDeleteRowConfirm";
+import { Tooltip } from "@/components/Tooltip";
 import {
   upsertProjectCategoriesAction,
   deleteProjectCategoriesAction,
@@ -262,14 +263,15 @@ export function ProjectCategoriesEditor({
                     isDuplicate ? "border-error" : ""
                   }`}
                 />
-                <button
-                  type="button"
-                  onClick={() => removeRow(i)}
-                  aria-label={t("removeCategory")}
-                  className="rounded p-1 text-content-muted hover:bg-hover hover:text-error transition-colors"
-                >
-                  <Trash2 size={14} />
-                </button>
+                <Tooltip label={t("removeCategory")} labelMode="label">
+                  <button
+                    type="button"
+                    onClick={() => removeRow(i)}
+                    className="rounded p-1 text-content-muted hover:bg-hover hover:text-error transition-colors"
+                  >
+                    <Trash2 size={14} />
+                  </button>
+                </Tooltip>
               </div>
               {isDuplicate && (
                 <p className="text-caption text-error pl-10">
@@ -369,30 +371,32 @@ function ColorSwatchPicker({
   value: string;
   onChange: (c: string) => void;
 }): React.JSX.Element {
+  const t = useTranslations("projects.projectCategories");
   const [open, setOpen] = useState(false);
   return (
     <div className="relative">
-      <button
-        type="button"
-        aria-label="Pick color"
-        onClick={() => setOpen((p) => !p)}
-        className="h-8 w-8 rounded-md border border-edge shrink-0"
-        style={{ backgroundColor: value }}
-      />
+      <Tooltip label={t("pickColor")} labelMode="label">
+        <button
+          type="button"
+          onClick={() => setOpen((p) => !p)}
+          className="h-8 w-8 rounded-md border border-edge shrink-0"
+          style={{ backgroundColor: value }}
+        />
+      </Tooltip>
       {open && (
         <div className="absolute z-10 mt-1 flex flex-wrap gap-1 rounded-md border border-edge bg-surface-raised p-2 w-[192px] shadow-lg">
           {PALETTE.map((c) => (
-            <button
-              key={c}
-              type="button"
-              onClick={() => {
-                onChange(c);
-                setOpen(false);
-              }}
-              className="h-6 w-6 rounded"
-              style={{ backgroundColor: c }}
-              aria-label={c}
-            />
+            <Tooltip key={c} label={t("colorSwatch", { hex: c })} labelMode="label">
+              <button
+                type="button"
+                onClick={() => {
+                  onChange(c);
+                  setOpen(false);
+                }}
+                className="h-6 w-6 rounded"
+                style={{ backgroundColor: c }}
+              />
+            </Tooltip>
           ))}
         </div>
       )}

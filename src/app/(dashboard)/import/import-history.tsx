@@ -9,9 +9,9 @@ import {
   Undo2,
   Loader2,
   AlertTriangle,
-  X,
 } from "lucide-react";
 import { InlineErrorCard } from "@/components/InlineErrorCard";
+import { InlineCancelButton } from "@/components/InlineCancelButton";
 import {
   buttonDangerClass,
   buttonGhostClass,
@@ -522,15 +522,12 @@ function UndoConfirmInline({
         <Undo2 size={12} />
         {pending ? t("undoing") : t("undoButton")}
       </button>
-      <button
-        type="button"
+      <InlineCancelButton
         onClick={onCancel}
         disabled={pending}
+        label={t("confirm.cancel")}
         className={buttonGhostClass}
-        aria-label={t("confirm.cancel")}
-      >
-        <X size={14} />
-      </button>
+      />
     </div>
   );
 }

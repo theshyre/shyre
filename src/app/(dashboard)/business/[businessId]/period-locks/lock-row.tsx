@@ -2,10 +2,11 @@
 
 import { useState } from "react";
 import { useTranslations } from "next-intl";
-import { Lock, Unlock, X } from "lucide-react";
+import { Lock, Unlock } from "lucide-react";
 import { AlertBanner } from "@theshyre/ui";
 import { useFormAction } from "@/hooks/use-form-action";
 import { SubmitButton } from "@/components/SubmitButton";
+import { InlineCancelButton } from "@/components/InlineCancelButton";
 import {
   inputClass,
   labelClass,
@@ -118,17 +119,14 @@ export function LockRow({
               disabled={!armed}
               className={buttonDangerClass}
             />
-            <button
-              type="button"
+            <InlineCancelButton
               onClick={() => {
                 setConfirming(false);
                 setConfirmValue("");
               }}
               className={buttonGhostClass}
-              aria-label={t("actions.cancelUnlock")}
-            >
-              <X size={14} aria-hidden="true" />
-            </button>
+              label={t("actions.cancelUnlock")}
+            />
           </div>
         </form>
       )}

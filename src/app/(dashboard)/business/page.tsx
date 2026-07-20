@@ -12,6 +12,7 @@ import {
 import { createClient } from "@/lib/supabase/server";
 import { getUserTeams, type TeamListItem } from "@/lib/team-context";
 import { LinkPendingSpinner } from "@/components/LinkPendingSpinner";
+import { Tooltip } from "@/components/Tooltip";
 import { FinancialDisclosure } from "./financial-disclosure";
 import { buttonSecondaryClass } from "@/lib/form-styles";
 import {
@@ -267,9 +268,11 @@ function BusinessCard({
             {biz.legalName ?? biz.name}
           </h2>
           {biz.legalName && biz.legalName !== biz.name && (
-            <p className="text-caption text-content-muted truncate">
-              {biz.name}
-            </p>
+            <Tooltip label={biz.name} labelMode="label">
+              <p className="text-caption text-content-muted truncate">
+                {biz.name}
+              </p>
+            </Tooltip>
           )}
           <div className="mt-1 flex items-center gap-1.5 flex-wrap">
             {biz.entityType && (

@@ -37,5 +37,9 @@
     },
     "attemptedVsLanded": "{attempted} entries from Harvest · only {landed} landed in Shyre",
     "skippedSummary": "Skipped {count, plural, =1 {# time entry} other {# time entries}}"
+  },
+  "reconciliation": {
+    "match": "Match",
+    "mismatch": "Mismatch"
   }
 }

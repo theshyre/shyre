@@ -165,4 +165,27 @@ describe("FilterChip", () => {
     expect(trigger.className).toContain("bg-accent-soft");
     expect(trigger.className).toContain("border-accent/30");
   });
+
+  it("shows a tooltip with the full value on focus when customized (truncation fix-once)", async () => {
+    renderChip({ customized: true, valueLabel: "A Very Long Customer Name Inc." });
+    const trigger = screen.getByRole("button", {
+      name: "Status: A Very Long Customer Name Inc.",
+    });
+    fireEvent.focus(trigger);
+    const tooltip = await screen.findByRole("tooltip");
+    expect(tooltip).toHaveTextContent("A Very Long Customer Name Inc.");
+    // describe mode supplements the aria-label rather than replacing it —
+    // the trigger keeps its full "{dimension}: {value}" accessible name.
+    expect(trigger).toHaveAttribute(
+      "aria-label",
+      "Status: A Very Long Customer Name Inc.",
+    );
+  });
+
+  it("does not render a tooltip when the value is the default (not customized)", () => {
+    renderChip({ customized: false });
+    const trigger = screen.getByRole("button", { name: "Status: Active" });
+    fireEvent.focus(trigger);
+    expect(screen.queryByRole("tooltip")).not.toBeInTheDocument();
+  });
 });

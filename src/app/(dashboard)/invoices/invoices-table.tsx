@@ -10,8 +10,9 @@ import {
 } from "react";
 import { useTranslations } from "next-intl";
 import Link from "next/link";
-import { CheckCircle, Download, FileText, X } from "lucide-react";
+import { CheckCircle, Download, FileText } from "lucide-react";
 import { Tooltip } from "@/components/Tooltip";
+import { InlineCancelButton } from "@/components/InlineCancelButton";
 import { useToast } from "@/components/Toast";
 import { CustomerChip } from "@theshyre/ui";
 import { formatDisplayDate } from "@/lib/format-date";
@@ -575,14 +576,11 @@ function InlineMarkPaidButton({
         <CheckCircle size={12} aria-hidden="true" />
         {t("bulkMarkPaidConfirmCta")}
       </button>
-      <button
-        type="button"
+      <InlineCancelButton
         onClick={cancel}
-        aria-label={t("bulkMarkPaidCancel")}
-        className="rounded p-0.5 text-content-muted hover:bg-hover transition-colors"
-      >
-        <X size={12} aria-hidden="true" />
-      </button>
+        label={t("bulkMarkPaidCancel")}
+        iconSize={12}
+      />
     </div>
   );
 }

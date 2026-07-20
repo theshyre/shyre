@@ -14,6 +14,7 @@ import {
   Layers,
 } from "lucide-react";
 import { LocalDateTime } from "@theshyre/ui";
+import { Tooltip } from "@/components/Tooltip";
 import { ResolveButton } from "./resolve-button";
 import { ResolveAllButton } from "./resolve-all-button";
 import { groupErrorRows, type ErrorLogRow } from "./group-errors";
@@ -214,9 +215,11 @@ export default async function ErrorDashboardPage({
                         </span>
                       )}
                     </div>
-                    <p className="text-body text-content truncate">
-                      {err.message}
-                    </p>
+                    <Tooltip label={err.message} labelMode="label">
+                      <p className="text-body text-content truncate">
+                        {err.message}
+                      </p>
+                    </Tooltip>
                   </div>
                   <div className="text-right shrink-0">
                     <p className="text-caption text-content-muted flex items-center justify-end gap-1">

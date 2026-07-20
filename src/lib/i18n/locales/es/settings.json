@@ -30,7 +30,19 @@
       "orPickPreset": "O elige un color:",
       "helpText": "PNG, JPG, WebP o GIF · hasta 2 MB",
       "errorType": "Tipo de archivo no admitido. Usa PNG, JPG, WebP o GIF.",
-      "errorSize": "Archivo demasiado grande. Máx. 2 MB."
+      "errorSize": "Archivo demasiado grande. Máx. 2 MB.",
+      "presetColors": {
+        "blue": "Azul",
+        "violet": "Violeta",
+        "pink": "Rosa",
+        "red": "Rojo",
+        "orange": "Naranja",
+        "amber": "Ámbar",
+        "emerald": "Esmeralda",
+        "teal": "Verde azulado",
+        "slate": "Pizarra",
+        "zinc": "Zinc"
+      }
     }
   },
   "preferences": {

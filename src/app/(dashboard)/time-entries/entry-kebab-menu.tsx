@@ -5,6 +5,7 @@ import { createPortal } from "react-dom";
 import { useTranslations } from "next-intl";
 import { MoreVertical, Pencil, Play, Square, Copy, Trash2 } from "lucide-react";
 import { useToast } from "@/components/Toast";
+import { Tooltip } from "@/components/Tooltip";
 import { assertActionResult } from "@/lib/action-result";
 import { notifyTimerChanged } from "@/lib/timer-events";
 import { localDayBoundsIso } from "@/lib/local-day-bounds";
@@ -262,39 +263,43 @@ export function EntryKebabMenu({ entry, onEdit }: Props): React.JSX.Element {
 
   return (
     <>
-      <button
-        ref={triggerRef}
-        type="button"
-        onClick={(e) => {
-          e.stopPropagation();
-          if (!open && triggerRef.current) {
-            // Measure once at open-time so the portaled panel lands
-            // exactly next to the trigger. Estimate is only used to
-            // decide the flip direction — actual placement anchors
-            // to either top or bottom, so menu-height variance can't
-            // leave a gap or overlap.
-            const rect = triggerRef.current.getBoundingClientRect();
-            const menuH = 180;
-            const spaceBelow = window.innerHeight - rect.bottom;
-            const right = window.innerWidth - rect.right;
-            if (spaceBelow >= menuH) {
-              setPanelPos({ kind: "below", top: rect.bottom + 4, right });
-            } else {
-              setPanelPos({
-                kind: "above",
-                bottom: window.innerHeight - rect.top + 4,
-                right,
-              });
+      {/* labelMode="label" — this trigger has no other text source;
+          the previous hand-rolled aria-label is now redundant with
+          the tooltip and has been dropped in favor of it. */}
+      <Tooltip label={t("actionsLabel")} labelMode="label">
+        <button
+          ref={triggerRef}
+          type="button"
+          onClick={(e) => {
+            e.stopPropagation();
+            if (!open && triggerRef.current) {
+              // Measure once at open-time so the portaled panel lands
+              // exactly next to the trigger. Estimate is only used to
+              // decide the flip direction — actual placement anchors
+              // to either top or bottom, so menu-height variance can't
+              // leave a gap or overlap.
+              const rect = triggerRef.current.getBoundingClientRect();
+              const menuH = 180;
+              const spaceBelow = window.innerHeight - rect.bottom;
+              const right = window.innerWidth - rect.right;
+              if (spaceBelow >= menuH) {
+                setPanelPos({ kind: "below", top: rect.bottom + 4, right });
+              } else {
+                setPanelPos({
+                  kind: "above",
+                  bottom: window.innerHeight - rect.top + 4,
+                  right,
+                });
+              }
             }
-          }
-          setOpen((o) => !o);
-        }}
-        aria-label={t("actionsLabel")}
-        aria-expanded={open}
-        className="rounded p-1.5 text-content-muted hover:bg-hover hover:text-content"
-      >
-        <MoreVertical size={14} />
-      </button>
+            setOpen((o) => !o);
+          }}
+          aria-expanded={open}
+          className="rounded p-1.5 text-content-muted hover:bg-hover hover:text-content"
+        >
+          <MoreVertical size={14} />
+        </button>
+      </Tooltip>
       {/* Portal the panel to document.body so table card's
           overflow-hidden can't clip it. SSR-safe: createPortal is
           called only when `open` is true (client-side). */}

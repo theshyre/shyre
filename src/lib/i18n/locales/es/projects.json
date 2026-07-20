@@ -264,7 +264,9 @@
     "removeCategory": "Quitar categoría",
     "deleteSet": "Eliminar categorías específicas",
     "deleteSummary": "categorías extra del proyecto",
-    "duplicateWarning": "\"{name}\" ya existe en el conjunto base. Renómbrala para evitar confusión."
+    "duplicateWarning": "\"{name}\" ya existe en el conjunto base. Renómbrala para evitar confusión.",
+    "pickColor": "Elegir color",
+    "colorSwatch": "Color {hex}"
   },
   "bulkToolbarAriaLabel": "Acciones masivas de proyectos",
   "bulkClear": "Quitar selección",

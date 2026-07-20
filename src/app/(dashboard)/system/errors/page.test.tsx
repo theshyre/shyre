@@ -37,6 +37,21 @@ vi.mock("./resolve-all-button", () => ({
 
 vi.mock("@theshyre/ui", () => ({
   LocalDateTime: ({ value }: { value: string }) => <time>{value}</time>,
+  // Minimal passthrough so the truncated-message tooltip added to this
+  // page still renders its trigger (and carries the label as an
+  // aria-label, matching labelMode="label") without pulling in the
+  // real Tooltip's portal/timer machinery.
+  Tooltip: ({
+    children,
+    label,
+  }: {
+    children: React.ReactElement<{ "aria-label"?: string }>;
+    label: string;
+  }) => (
+    <span aria-label={label} data-testid="tooltip-mock">
+      {children}
+    </span>
+  ),
 }));
 
 // Server-side translator backed by the real en catalog so assertions

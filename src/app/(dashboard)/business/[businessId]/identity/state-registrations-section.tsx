@@ -8,6 +8,7 @@ import { useFormAction } from "@/hooks/use-form-action";
 import { SubmitButton } from "@/components/SubmitButton";
 import { DateField } from "@/components/DateField";
 import { InlineDeleteRowConfirm } from "@/components/InlineDeleteRowConfirm";
+import { Tooltip } from "@/components/Tooltip";
 import {
   inputClass,
   labelClass,
@@ -177,6 +178,7 @@ function RegistrationRow({
   onEdit: () => void;
 }): React.JSX.Element {
   const t = useTranslations("business.stateRegistrations");
+  const tc = useTranslations("common.actions");
   const [deleting, setDeleting] = useState(false);
 
   return (
@@ -221,22 +223,26 @@ function RegistrationRow({
 
       {canEdit && !deleting ? (
         <div className="flex items-center gap-1 shrink-0">
-          <button
-            type="button"
-            onClick={onEdit}
-            className={`${buttonGhostClass} inline-flex items-center gap-1`}
-            aria-label={`Edit ${row.state} registration`}
-          >
-            <Pencil size={14} />
-          </button>
-          <button
-            type="button"
-            onClick={() => setDeleting(true)}
-            className={`${buttonGhostClass} inline-flex items-center gap-1 text-error-text hover:bg-error-soft`}
-            aria-label={`Delete ${row.state} registration`}
-          >
-            <X size={14} />
-          </button>
+          <Tooltip label={tc("edit")} labelMode="describe">
+            <button
+              type="button"
+              onClick={onEdit}
+              className={`${buttonGhostClass} inline-flex items-center gap-1`}
+              aria-label={`Edit ${row.state} registration`}
+            >
+              <Pencil size={14} />
+            </button>
+          </Tooltip>
+          <Tooltip label={tc("delete")} labelMode="describe">
+            <button
+              type="button"
+              onClick={() => setDeleting(true)}
+              className={`${buttonGhostClass} inline-flex items-center gap-1 text-error-text hover:bg-error-soft`}
+              aria-label={`Delete ${row.state} registration`}
+            >
+              <X size={14} />
+            </button>
+          </Tooltip>
         </div>
       ) : null}
 

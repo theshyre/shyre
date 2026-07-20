@@ -108,6 +108,7 @@
     "to": "To",
     "active": "Filters:",
     "clearAll": "Clear all",
+    "removeFilter": "Remove {label}",
     "resultCount": "{hasFilter, select, true {{shown, plural, =0 {No matches} =1 {1 match} other {# matches}} of {total, number} expenses} other {{total, plural, =0 {No expenses yet} =1 {1 expense} other {# expenses}}}}"
   },
   "bulk": {

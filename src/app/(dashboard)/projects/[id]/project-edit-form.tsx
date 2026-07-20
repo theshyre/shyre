@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { useTranslations } from "next-intl";
-import { Building2, Sparkles, X } from "lucide-react";
+import { Building2, Sparkles } from "lucide-react";
 import { AlertBanner } from "@theshyre/ui";
 import { useFormAction } from "@/hooks/use-form-action";
 import { useUnsavedChanges } from "@/hooks/use-unsaved-changes";
@@ -10,6 +10,7 @@ import { SubmitButton } from "@/components/SubmitButton";
 import { FieldError } from "@/components/FieldError";
 import { DateField } from "@/components/DateField";
 import { StatusBadge } from "@/components/StatusBadge";
+import { InlineCancelButton } from "@/components/InlineCancelButton";
 import {
   inputClass,
   textareaClass,
@@ -386,14 +387,11 @@ export function ProjectEditForm({
                       <Sparkles size={12} aria-hidden="true" />
                       {t("fields.applyParentSettingsApply")}
                     </button>
-                    <button
-                      type="button"
+                    <InlineCancelButton
                       onClick={() => setConfirmingApply(false)}
                       className={buttonGhostClass}
-                      aria-label={tc("actions.cancel")}
-                    >
-                      <X size={14} />
-                    </button>
+                      label={tc("actions.cancel")}
+                    />
                   </div>
                 </div>
               )}

@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import Link from "next/link";
+import { useTranslations } from "next-intl";
 import {
   CheckCircle,
   ArrowRight,
@@ -24,6 +25,7 @@ import {
 } from "@/lib/form-styles";
 import { InlineErrorCard } from "@/components/InlineErrorCard";
 import { DateField, type DateFieldPreset } from "@/components/DateField";
+import { Tooltip } from "@/components/Tooltip";
 import type { TeamListItem } from "@/lib/team-context";
 
 type Step = "credentials" | "preview" | "importing" | "done";
@@ -1100,6 +1102,7 @@ function ReconciliationSection({
 }: {
   recon: Reconciliation;
 }): React.JSX.Element {
+  const t = useTranslations("import.reconciliation");
   const [expanded, setExpanded] = useState(false);
   const mismatches = recon.perCustomer.filter((c) => !c.match);
   const mismatchCount = mismatches.length;
@@ -1209,17 +1212,25 @@ function ReconciliationSection({
                       </td>
                       <td className="py-1 pl-4">
                         {c.match ? (
-                          <CheckCircle
-                            size={12}
-                            className="text-success inline"
-                            aria-label="Match"
-                          />
+                          <Tooltip label={t("match")} labelMode="label">
+                            <span role="img" tabIndex={0} className="inline-flex focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus-ring rounded">
+                              <CheckCircle
+                                size={12}
+                                className="text-success"
+                                aria-hidden="true"
+                              />
+                            </span>
+                          </Tooltip>
                         ) : (
-                          <AlertTriangle
-                            size={12}
-                            className="text-warning inline"
-                            aria-label="Mismatch"
-                          />
+                          <Tooltip label={t("mismatch")} labelMode="label">
+                            <span role="img" tabIndex={0} className="inline-flex focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus-ring rounded">
+                              <AlertTriangle
+                                size={12}
+                                className="text-warning"
+                                aria-hidden="true"
+                              />
+                            </span>
+                          </Tooltip>
                         )}
                       </td>
                     </tr>
@@ -1245,6 +1256,7 @@ function ReconRow({
   shyre: string | number;
   match: boolean;
 }): React.JSX.Element {
+  const t = useTranslations("import.reconciliation");
   return (
     <tr className="border-b border-edge-muted last:border-b-0">
       <td className="py-1.5 pr-4 text-content">{label}</td>
@@ -1256,17 +1268,17 @@ function ReconRow({
       </td>
       <td className="py-1.5 pl-4">
         {match ? (
-          <CheckCircle
-            size={14}
-            className="text-success inline"
-            aria-label="Match"
-          />
+          <Tooltip label={t("match")} labelMode="label">
+            <span role="img" tabIndex={0} className="inline-flex focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus-ring rounded">
+              <CheckCircle size={14} className="text-success" aria-hidden="true" />
+            </span>
+          </Tooltip>
         ) : (
-          <AlertTriangle
-            size={14}
-            className="text-warning inline"
-            aria-label="Mismatch"
-          />
+          <Tooltip label={t("mismatch")} labelMode="label">
+            <span role="img" tabIndex={0} className="inline-flex focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus-ring rounded">
+              <AlertTriangle size={14} className="text-warning" aria-hidden="true" />
+            </span>
+          </Tooltip>
         )}
       </td>
     </tr>

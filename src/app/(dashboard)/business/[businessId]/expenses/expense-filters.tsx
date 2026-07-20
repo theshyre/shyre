@@ -438,17 +438,19 @@ function ActiveChip({
   label: string;
   onRemove: () => void;
 }): React.JSX.Element {
+  const t = useTranslations("expenses.filters");
   return (
     <span className="inline-flex items-center gap-1 rounded-full border border-edge bg-surface-raised px-2 py-0.5 text-caption text-content-secondary">
       {label}
-      <button
-        type="button"
-        onClick={onRemove}
-        aria-label="Remove filter"
-        className="inline-flex items-center text-content-muted hover:text-content"
-      >
-        <X size={10} />
-      </button>
+      <Tooltip label={t("removeFilter", { label })} labelMode="label">
+        <button
+          type="button"
+          onClick={onRemove}
+          className="inline-flex items-center text-content-muted hover:text-content"
+        >
+          <X size={10} />
+        </button>
+      </Tooltip>
     </span>
   );
 }

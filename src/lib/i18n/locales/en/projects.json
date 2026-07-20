@@ -264,7 +264,9 @@
     "removeCategory": "Remove category",
     "deleteSet": "Delete project-specific categories",
     "deleteSummary": "project's extra categories",
-    "duplicateWarning": "\"{name}\" already exists in the base set. Rename it to avoid confusion in the picker."
+    "duplicateWarning": "\"{name}\" already exists in the base set. Rename it to avoid confusion in the picker.",
+    "pickColor": "Pick color",
+    "colorSwatch": "Color {hex}"
   },
   "bulkToolbarAriaLabel": "Project bulk actions",
   "bulkClear": "Clear selection",
