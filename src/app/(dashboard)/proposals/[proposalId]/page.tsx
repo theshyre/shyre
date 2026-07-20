@@ -58,6 +58,7 @@ export default async function ProposalDetailPage({
   const supabase = await createClient();
   const t = await getTranslations("proposals.detail");
   const tActivity = await getTranslations("proposals.activity");
+  const tStatus = await getTranslations("proposals.status");
 
   const { data: proposal } = await supabase
     .from("proposals")
@@ -599,21 +600,6 @@ export default async function ProposalDetailPage({
                 key={signer.id}
                 className="flex items-center gap-2 rounded-lg border border-edge bg-surface-raised p-3"
               >
-                {signer.decision === "accepted" ? (
-                  <CheckCircle2
-                    size={16}
-                    aria-hidden="true"
-                    className="text-success"
-                  />
-                ) : signer.decision === "declined" ? (
-                  <XCircle size={16} aria-hidden="true" className="text-error" />
-                ) : (
-                  <Clock
-                    size={16}
-                    aria-hidden="true"
-                    className="text-content-muted"
-                  />
-                )}
                 <span className="flex-1 text-body text-content">
                   {signer.name}
                   {signer.roleLabel ? (
@@ -625,13 +611,24 @@ export default async function ProposalDetailPage({
                     </span>
                   ) : null}
                 </span>
-                <span className="text-caption text-content-secondary">
-                  {signer.decision === "accepted"
-                    ? t("signerSigned")
-                    : signer.decision === "declined"
-                      ? t("signerDeclined")
-                      : t("signerPending")}
-                </span>
+                {/* Status pill — same icon+color+text chip idiom as the
+                    sign-off card so the roster reads as one system. */}
+                {signer.decision === "accepted" ? (
+                  <span className="inline-flex items-center gap-1.5 rounded-full bg-success-soft px-2.5 py-0.5 text-caption font-medium text-success-text">
+                    <CheckCircle2 size={13} aria-hidden="true" />
+                    {t("signerSigned")}
+                  </span>
+                ) : signer.decision === "declined" ? (
+                  <span className="inline-flex items-center gap-1.5 rounded-full bg-error-soft px-2.5 py-0.5 text-caption font-medium text-error-text">
+                    <XCircle size={13} aria-hidden="true" />
+                    {t("signerDeclined")}
+                  </span>
+                ) : (
+                  <span className="inline-flex items-center gap-1.5 rounded-full bg-surface-inset px-2.5 py-0.5 text-caption font-medium text-content-muted">
+                    <Clock size={13} aria-hidden="true" />
+                    {t("signerPending")}
+                  </span>
+                )}
               </li>
             ))}
           </ul>
@@ -691,13 +688,32 @@ export default async function ProposalDetailPage({
             </div>
           )}
           {acceptance && (
-            <div className="mt-2 rounded-lg border border-edge bg-surface-raised p-4">
-              <p className="text-body-lg font-semibold text-content">
-                {acceptance.decision === "accepted"
-                  ? t("acceptedBy", { name: acceptance.signer_name as string })
-                  : t("declinedBy", { name: acceptance.signer_name as string })}
-              </p>
-              <dl className="mt-2 grid grid-cols-1 gap-x-8 gap-y-1 text-body sm:grid-cols-2">
+            <div
+              className={`mt-2 rounded-lg border bg-surface-raised p-4 ${
+                acceptance.decision === "accepted"
+                  ? "border-success/40"
+                  : "border-error/40"
+              }`}
+            >
+              {/* Status header: icon + colored word + name = three
+                  encoding channels (was a bare white line). */}
+              <div className="flex flex-wrap items-center gap-x-2 gap-y-1">
+                {acceptance.decision === "accepted" ? (
+                  <span className="inline-flex items-center gap-1.5 rounded-full bg-success-soft px-2.5 py-0.5 text-caption font-semibold text-success-text">
+                    <CheckCircle2 size={13} aria-hidden="true" />
+                    {tStatus("accepted")}
+                  </span>
+                ) : (
+                  <span className="inline-flex items-center gap-1.5 rounded-full bg-error-soft px-2.5 py-0.5 text-caption font-semibold text-error-text">
+                    <XCircle size={13} aria-hidden="true" />
+                    {tStatus("declined")}
+                  </span>
+                )}
+                <span className="text-body-lg font-semibold text-content">
+                  {t("signoffBy", { name: acceptance.signer_name as string })}
+                </span>
+              </div>
+              <dl className="mt-3 grid grid-cols-1 gap-x-8 gap-y-1 text-body sm:grid-cols-2">
                 {acceptance.signer_title && (
                   <div className="flex gap-2">
                     <dt className="text-content-secondary">
@@ -778,7 +794,7 @@ export default async function ProposalDetailPage({
                   <dt className="text-content-secondary">
                     {t("recordHash")}:
                   </dt>
-                  <dd className="break-all font-mono text-label text-content-muted">
+                  <dd className="break-all font-mono text-caption text-content-muted">
                     {acceptance.content_sha256 as string}
                   </dd>
                 </div>
