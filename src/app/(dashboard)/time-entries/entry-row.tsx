@@ -394,24 +394,22 @@ export function EntryRow({
                 the Week view's expanded sub-rows already have. */}
             {!locked &&
               (isRunning ? (
-                <Tooltip label={t("entry.stopTimer")}>
+                <Tooltip label={t("entry.stopTimer")} labelMode="label">
                   <button
                     type="button"
                     onClick={handleStop}
                     disabled={stop.pending}
-                    aria-label={t("entry.stopTimer")}
                     className="rounded p-1 text-error-text hover:bg-error-soft transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-error disabled:opacity-50"
                   >
                     <Square size={14} className="fill-current" />
                   </button>
                 </Tooltip>
               ) : (
-                <Tooltip label={t("entry.startTimer")}>
+                <Tooltip label={t("entry.startTimer")} labelMode="label">
                   <button
                     type="button"
                     onClick={handleStart}
                     disabled={start.pending}
-                    aria-label={t("entry.startTimer")}
                     className="rounded p-1 text-content-muted hover:bg-hover hover:text-accent transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent disabled:opacity-50"
                   >
                     <Play size={14} />

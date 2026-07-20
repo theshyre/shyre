@@ -42,7 +42,6 @@ const PANEL_GAP = 8;
 export function ThemePickerPopover(): React.JSX.Element {
   const t = useTranslations("settings.theme");
   const toast = useToast();
-  const tCommon = useTranslations("common");
   const { theme, setTheme } = useTheme();
   const [open, setOpen] = useState(false);
   // Wrap-span ref instead of a direct ref on the button — Tooltip's
@@ -100,7 +99,15 @@ export function ThemePickerPopover(): React.JSX.Element {
   useEffect(() => {
     if (!open) return;
     function onKey(e: KeyboardEvent): void {
-      if (e.key === "Escape") close();
+      if (e.key === "Escape") {
+        close();
+        // Restore focus to the trigger so keyboard users don't lose
+        // their place in the tab order. Queried via the wrapper span
+        // instead of a dedicated ref for the same reason as the
+        // `triggerRef` comment above — Tooltip's cloneElement reads
+        // `child.ref`. Mirrors ProfilePopover.tsx's identical pattern.
+        triggerRef.current?.querySelector("button")?.focus();
+      }
     }
     function onClick(e: MouseEvent): void {
       const target = e.target as Node;
@@ -173,9 +180,10 @@ export function ThemePickerPopover(): React.JSX.Element {
           >
             <Icon size={14} className="shrink-0" />
             <span className="flex-1">{t(opt.i18nKey)}</span>
-            {isActive && (
-              <Check size={12} aria-label={tCommon("actions.saved")} />
-            )}
+            {/* aria-pressed on the button already announces the
+                selected state — a second aria-label on this icon
+                would double-announce "saved" right after it. */}
+            {isActive && <Check size={12} aria-hidden="true" />}
           </button>
         );
       })}

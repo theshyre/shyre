@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { useTranslations } from "next-intl";
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { createClient } from "@/lib/supabase/client";
 import { Building2, Menu } from "lucide-react";
 import type { ComponentType } from "react";
@@ -68,11 +68,15 @@ function renderNavLink(
       <Icon size={18} className="shrink-0" />
       <span className="flex-1">{t(`nav.${item.labelKey}`)}</span>
       {showBadge ? (
-        <span
-          aria-label={t("nav.unresolvedBadge", { count: item.badge! })}
-          className="inline-flex h-5 min-w-5 items-center justify-center rounded-full bg-error px-1 text-caption font-bold text-content-inverse"
-        >
-          {item.badge}
+        // Visible number stays aria-hidden (a bare integer isn't
+        // self-explanatory to AT); the sr-only span carries the full
+        // "N unresolved items" phrase instead of duplicating it as a
+        // redundant aria-label on the same element.
+        <span className="inline-flex h-5 min-w-5 items-center justify-center rounded-full bg-error px-1 text-caption font-bold text-content-inverse">
+          <span aria-hidden="true">{item.badge}</span>
+          <span className="sr-only">
+            {t("nav.unresolvedBadge", { count: item.badge! })}
+          </span>
         </span>
       ) : (
         <LinkPendingSpinner />
@@ -143,6 +147,7 @@ export default function Sidebar({
   // on the <aside> below) and on Escape so the user lands on their
   // destination without the drawer covering it.
   const [mobileOpen, setMobileOpen] = useState(false);
+  const asideRef = useRef<HTMLElement>(null);
   useEffect(() => {
     if (!mobileOpen) return;
     const onKey = (e: KeyboardEvent): void => {
@@ -150,6 +155,36 @@ export default function Sidebar({
     };
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
+  }, [mobileOpen]);
+
+  // Opening the drawer moves focus to its first real nav item (not
+  // the wordmark/team-chip links above it) so keyboard/SR users land
+  // inside the menu they just opened instead of the hamburger button
+  // silently staying focused off-screen under the overlay.
+  useEffect(() => {
+    if (!mobileOpen) return;
+    asideRef.current
+      ?.querySelector<HTMLAnchorElement>("nav a[href]")
+      ?.focus();
+  }, [mobileOpen]);
+
+  // While the mobile drawer is open it's a modal-like overlay on top
+  // of the page — `<main>` behind it must not be reachable by
+  // keyboard/AT (WCAG 2.4.3) until the drawer closes. Toggled via
+  // direct DOM query rather than prop-threading through the layout
+  // since the shell's <main> and this sidebar are siblings composed
+  // in a separate (server) layout file.
+  useEffect(() => {
+    const main = document.getElementById("main-content");
+    if (!main) return;
+    if (mobileOpen) {
+      main.setAttribute("inert", "");
+    } else {
+      main.removeAttribute("inert");
+    }
+    return () => {
+      main.removeAttribute("inert");
+    };
   }, [mobileOpen]);
 
   // Below md the CLOSED drawer is -translate-x-full — visually gone but,
@@ -262,6 +297,7 @@ export default function Sidebar({
       )}
 
       <aside
+        ref={asideRef}
         id="primary-sidebar"
         aria-hidden={mobileOpen ? false : undefined}
         inert={isMobileViewport && !mobileOpen ? true : undefined}

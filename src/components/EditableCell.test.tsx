@@ -1,5 +1,5 @@
 import { describe, it, expect, vi } from "vitest";
-import { act, fireEvent, waitFor } from "@testing-library/react";
+import { act, fireEvent, screen, waitFor } from "@testing-library/react";
 import { renderWithIntl as render } from "@/test/intl";
 import { EditableCell } from "./EditableCell";
 
@@ -366,6 +366,99 @@ describe("EditableCell — textarea variant", () => {
     await waitFor(() => {
       expect(onCommit).toHaveBeenCalledWith("hello world");
     });
+  });
+});
+
+describe("EditableCell — focus management", () => {
+  it("refocuses the display button after Escape-cancel", () => {
+    const { getByRole, getByLabelText } = render(
+      <EditableCell
+        variant="text"
+        value="Linode"
+        ariaLabel="Edit vendor"
+        onCommit={async () => {}}
+      />,
+    );
+    fireEvent.click(getByRole("button"));
+    const input = getByLabelText("Edit vendor") as HTMLInputElement;
+    fireEvent.keyDown(input, { key: "Escape" });
+    expect(getByRole("button", { name: "Edit vendor" })).toHaveFocus();
+  });
+
+  it("refocuses the display button after a successful commit", async () => {
+    const onCommit = vi.fn(async () => {});
+    const { getByRole, getByLabelText } = render(
+      <EditableCell
+        variant="text"
+        value="Linode"
+        ariaLabel="Edit vendor"
+        onCommit={onCommit}
+      />,
+    );
+    fireEvent.click(getByRole("button"));
+    const input = getByLabelText("Edit vendor") as HTMLInputElement;
+    fireEvent.change(input, { target: { value: "Akamai" } });
+    await act(async () => {
+      fireEvent.keyDown(input, { key: "Enter" });
+    });
+    await waitFor(() => {
+      expect(getByRole("button", { name: "Edit vendor" })).toHaveFocus();
+    });
+  });
+
+  it("refocuses the display button on a no-op commit (value unchanged)", async () => {
+    const onCommit = vi.fn(async () => {});
+    const { getByRole, getByLabelText } = render(
+      <EditableCell
+        variant="text"
+        value="Linode"
+        ariaLabel="Edit vendor"
+        onCommit={onCommit}
+      />,
+    );
+    fireEvent.click(getByRole("button"));
+    const input = getByLabelText("Edit vendor") as HTMLInputElement;
+    fireEvent.keyDown(input, { key: "Enter" });
+    await waitFor(() => {
+      expect(getByRole("button", { name: "Edit vendor" })).toHaveFocus();
+    });
+  });
+});
+
+describe("EditableCell — disabled with a reason", () => {
+  it("the disabled-reason tooltip trigger is keyboard-reachable (not stranded behind hover-only)", async () => {
+    const { container } = render(
+      <EditableCell
+        variant="text"
+        value="Locked value"
+        ariaLabel="Edit vendor"
+        onCommit={async () => {}}
+        disabled
+        disabledReason="This period is locked."
+      />,
+    );
+    // showOnDisabled wraps the inert <span> in a focusable trigger —
+    // find it and confirm it accepts keyboard focus.
+    const trigger = container.querySelector("[tabindex='0']");
+    expect(trigger).not.toBeNull();
+    (trigger as HTMLElement).focus();
+    expect(trigger).toHaveFocus();
+    const tooltip = await screen.findByRole("tooltip");
+    expect(tooltip).toHaveTextContent("This period is locked.");
+  });
+
+  it("disabled with no reason renders no tooltip and stays a plain non-interactive span", () => {
+    const { container, queryByRole } = render(
+      <EditableCell
+        variant="text"
+        value="Locked value"
+        ariaLabel="Edit vendor"
+        onCommit={async () => {}}
+        disabled
+      />,
+    );
+    expect(container.querySelector("[tabindex='0']")).toBeNull();
+    expect(queryByRole("tooltip")).toBeNull();
   });
 });
 

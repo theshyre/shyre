@@ -1,5 +1,5 @@
-import { describe, it, expect, vi, beforeEach } from "vitest";
-import { screen } from "@testing-library/react";
+import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
+import { screen, fireEvent, waitFor } from "@testing-library/react";
 import { renderWithIntl } from "@/test/intl";
 
 // Next navigation + Supabase client are heavy; stub them at module level.
@@ -123,5 +123,46 @@ describe("Sidebar", () => {
     renderWithIntl(<Sidebar {...defaults} />);
     const brandLink = screen.getByRole("link", { name: /shyre/i });
     expect(brandLink).toHaveAttribute("href", "/");
+  });
+
+  it("the unresolved-count badge exposes the full phrase to AT via an sr-only span, not a duplicated aria-label", () => {
+    renderWithIntl(
+      <Sidebar {...defaults} isSystemAdmin unresolvedErrorCount={3} />,
+    );
+    const system = screen.getByRole("link", { name: /^system/i });
+    // Accessible name is built from visible content — the bare "3" is
+    // aria-hidden (excluded from name computation) and the sr-only
+    // span alone supplies "3 unresolved items" once, not stacked on
+    // top of a separate aria-label repeating the same count.
+    expect(system).toHaveAccessibleName("System3 unresolved items");
+  });
+
+  describe("mobile drawer", () => {
+    afterEach(() => {
+      document.getElementById("main-content")?.remove();
+    });
+
+    it("opening the drawer moves focus to its first real nav item", async () => {
+      renderWithIntl(<Sidebar {...defaults} />);
+      fireEvent.click(screen.getByRole("button", { name: /open menu/i }));
+      await waitFor(() => {
+        expect(screen.getByRole("link", { name: /dashboard/i })).toHaveFocus();
+      });
+    });
+
+    it("applies inert to #main-content while the drawer is open, and removes it on close", async () => {
+      const main = document.createElement("main");
+      main.id = "main-content";
+      document.body.appendChild(main);
+
+      renderWithIntl(<Sidebar {...defaults} />);
+      expect(main).not.toHaveAttribute("inert");
+
+      fireEvent.click(screen.getByRole("button", { name: /open menu/i }));
+      await waitFor(() => expect(main).toHaveAttribute("inert"));
+
+      fireEvent.click(screen.getByRole("button", { name: /close menu/i }));
+      await waitFor(() => expect(main).not.toHaveAttribute("inert"));
+    });
   });
 });

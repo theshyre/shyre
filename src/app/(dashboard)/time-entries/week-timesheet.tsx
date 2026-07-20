@@ -68,6 +68,7 @@ import {
   buttonSecondaryClass,
   selectClass,
   kbdClass,
+  checkboxToggleClass,
 } from "@/lib/form-styles";
 import { anyDialogOpen } from "@/lib/dialog-open";
 import { useKeyboardShortcut } from "@theshyre/ui";
@@ -982,7 +983,7 @@ export function WeekTimesheet({
                 type="checkbox"
                 checked={mergeSameTitle}
                 onChange={(e) => setMergeSameTitle(e.target.checked)}
-                className="h-3.5 w-3.5 rounded border-edge text-accent focus:ring-focus-ring"
+                className={checkboxToggleClass}
               />
               <span>{t("mergeSameTitle.label")}</span>
             </label>
@@ -1861,10 +1862,9 @@ function TimesheetRow({
               // state (native title= is unreliable across AT and
               // never exposed on touch — also banned by the project
               // ESLint rule for new TSX).
-              <Tooltip label={tLock("locked")}>
+              <Tooltip label={tLock("locked")} labelMode="label">
                 <Link
                   href={`/invoices/${row.invoiceIdByDay[i]}`}
-                  aria-label={tLock("locked")}
                   className="flex w-full items-center justify-end gap-1.5 py-1 font-mono text-title tabular-nums text-content-muted hover:text-content"
                 >
                   <Lock size={12} aria-hidden="true" className="text-warning" />
@@ -2849,13 +2849,12 @@ function PinRowButton({
     }
   }, [pending, optimistic, teamId, projectId, categoryId]);
   return (
-    <Tooltip label={optimistic ? t("unpin") : t("pin")}>
+    <Tooltip label={optimistic ? t("unpin") : t("pin")} labelMode="label">
       <button
         type="button"
         onClick={handleClick}
         disabled={pending}
         aria-pressed={optimistic}
-        aria-label={optimistic ? t("unpin") : t("pin")}
         className={`mt-1 inline-flex shrink-0 items-center rounded p-0.5 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent disabled:opacity-50 ${
           optimistic
             ? "text-accent hover:bg-hover"
@@ -2994,15 +2993,13 @@ function TeamDefaultRowButton({
       label={
         optimistic ? t("teamDefaultUnset") : t("teamDefaultSet")
       }
+      labelMode="label"
     >
       <button
         type="button"
         onClick={handleClick}
         disabled={pending}
         aria-pressed={optimistic}
-        aria-label={
-          optimistic ? t("teamDefaultUnset") : t("teamDefaultSet")
-        }
         className={`mt-1 inline-flex shrink-0 items-center rounded p-0.5 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent disabled:opacity-50 ${
           optimistic
             ? "text-accent hover:bg-hover"

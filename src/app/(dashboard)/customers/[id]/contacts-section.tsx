@@ -15,6 +15,7 @@ import {
   buttonPrimaryClass,
   buttonSecondaryClass,
   buttonGhostClass,
+  checkboxToggleClass,
 } from "@/lib/form-styles";
 import {
   createCustomerContactAction,
@@ -360,7 +361,7 @@ function ContactForm({
           type="checkbox"
           checked={isRecipient}
           onChange={(e) => setIsRecipient(e.target.checked)}
-          className="mt-0.5"
+          className={`mt-0.5 ${checkboxToggleClass}`}
         />
         <span className="text-body-lg text-content">
           Send invoices to this contact

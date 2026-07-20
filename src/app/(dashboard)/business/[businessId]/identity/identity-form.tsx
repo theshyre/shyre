@@ -4,6 +4,7 @@ import { useState } from "react";
 import { useTranslations } from "next-intl";
 import { AlertBanner } from "@theshyre/ui";
 import { useFormAction } from "@/hooks/use-form-action";
+import { useUnsavedChanges } from "@/hooks/use-unsaved-changes";
 import { SubmitButton } from "@/components/SubmitButton";
 import { DateField } from "@/components/DateField";
 import {
@@ -65,8 +66,18 @@ export function IdentityForm({
   // below) re-seeds this state from the latest prop on revalidate.
   const [incorporated, setIncorporated] = useState(dateIncorporated);
   const { pending, success, serverError, handleSubmit } = useFormAction({
+    onSuccess: () => setFormDirty(false),
     action: updateBusinessIdentityAction,
   });
+  // Unsaved-changes guard (CLAUDE.md UX rule). Form-level onChange
+  // covers the uncontrolled text/select fields; DateField is
+  // controlled and doesn't bubble a native change event through the
+  // form (its onChange is a plain callback), so it marks dirty
+  // explicitly below. The keyed remount on save also resets this to
+  // false as a backstop, but onSuccess covers the gap before that
+  // remount lands.
+  const [formDirty, setFormDirty] = useState(false);
+  useUnsavedChanges(formDirty && !pending);
 
   // React 19 auto-resets uncontrolled fields after a successful
   // <form action> submission. `defaultValue` only takes effect on
@@ -90,6 +101,7 @@ export function IdentityForm({
     <form
       key={formKey}
       action={handleSubmit}
+      onChange={() => setFormDirty(true)}
       className="space-y-4 rounded-lg border border-edge bg-surface-raised p-5"
     >
       <input type="hidden" name="business_id" value={businessId} />
@@ -164,7 +176,10 @@ export function IdentityForm({
                 id="identity-identity-form-dateIncorporated"
                 name="date_incorporated"
                 value={incorporated}
-                onChange={setIncorporated}
+                onChange={(next) => {
+                  setIncorporated(next);
+                  setFormDirty(true);
+                }}
               />
             </div>
 

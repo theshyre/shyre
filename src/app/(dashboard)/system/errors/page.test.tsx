@@ -379,4 +379,52 @@ describe("ErrorDashboardPage", () => {
     await renderPage();
     expect(screen.getAllByText("—")).toHaveLength(2);
   });
+
+  describe("FilterLink hrefs preserve the other dimension's params", () => {
+    it("switching severity while viewing Resolved keeps resolved=true", async () => {
+      await renderPage({ resolved: "true" });
+      expect(
+        screen.getByRole("link", { name: /Errors/ }),
+      ).toHaveAttribute("href", "/system/errors?severity=error&resolved=true");
+      expect(
+        screen.getByRole("link", { name: /Warnings/ }),
+      ).toHaveAttribute(
+        "href",
+        "/system/errors?severity=warning&resolved=true",
+      );
+    });
+
+    it("switching to 'All' while filtered to a severity keeps that severity", async () => {
+      await renderPage({ severity: "warning" });
+      expect(
+        screen.getByRole("link", { name: /^All$/ }),
+      ).toHaveAttribute("href", "/system/errors?severity=warning&resolved=all");
+      expect(
+        screen.getByRole("link", { name: /Resolved/ }),
+      ).toHaveAttribute(
+        "href",
+        "/system/errors?severity=warning&resolved=true",
+      );
+    });
+
+    it("'Unresolved' clears the resolved param but keeps the active severity", async () => {
+      await renderPage({ severity: "error", resolved: "all" });
+      expect(
+        screen.getByRole("link", { name: /Unresolved/ }),
+      ).toHaveAttribute("href", "/system/errors?severity=error");
+    });
+
+    it("clicking a filter with no other dimension active links to the bare path", async () => {
+      await renderPage();
+      expect(
+        screen.getByRole("link", { name: /Unresolved/ }),
+      ).toHaveAttribute("href", "/system/errors");
+    });
+  });
+
+  it("generateMetadata resolves the translated title", async () => {
+    const { generateMetadata } = await import("./page");
+    const metadata = await generateMetadata();
+    expect(metadata.title).toBe("Error Log");
+  });
 });

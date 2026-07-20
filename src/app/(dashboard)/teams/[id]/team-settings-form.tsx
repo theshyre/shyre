@@ -5,6 +5,7 @@ import { useTranslations } from "next-intl";
 import { Building2, Lock, Palette } from "lucide-react";
 import { AlertBanner } from "@theshyre/ui";
 import { useFormAction } from "@/hooks/use-form-action";
+import { useUnsavedChanges } from "@/hooks/use-unsaved-changes";
 import { SubmitButton } from "@/components/SubmitButton";
 import { FieldError } from "@/components/FieldError";
 import { AddressFields } from "@/components/AddressFields";
@@ -87,12 +88,21 @@ export function TeamSettingsForm({
   const businessAddress = deserializeAddress(org.business_address ?? null);
 
   const { pending, success, serverError, fieldErrors, handleSubmit } = useFormAction({
+    onSuccess: () => setFormDirty(false),
     action: updateTeamSettingsAction,
   });
+  // Unsaved-changes guard (CLAUDE.md UX rule): any edit arms the
+  // browser's native "Leave page?" confirm until a successful save.
+  // Form-level onChange covers the uncontrolled inputs; the two
+  // controlled fields (payment terms, rate-visibility selects use
+  // native onChange too) all bubble through the same form handler.
+  const [formDirty, setFormDirty] = useState(false);
+  useUnsavedChanges(formDirty && !pending);
 
   return (
     <form
       action={handleSubmit}
+      onChange={() => setFormDirty(true)}
       className="mt-6 space-y-6"
     >
       {serverError && (

@@ -14,7 +14,16 @@ import { InlineDeleteButton } from "@/components/InlineDeleteButton";
 import { InlineDeleteRowConfirm } from "@/components/InlineDeleteRowConfirm";
 import { useToast } from "@/components/Toast";
 import { assertActionResult } from "@/lib/action-result";
-import { tableClass } from "@/lib/table-styles";
+import { checkboxClass } from "@/lib/form-styles";
+import {
+  tableClass,
+  tableHeaderRowClass,
+  tableHeaderCellClass,
+  tableBodyRowClass,
+  tableBodyCellClass,
+  bulkStripButtonClass,
+} from "@/lib/table-styles";
+import { formatDisplayDate, formatDisplayDateTime } from "@/lib/format-date";
 
 interface TrashEntry {
   id: string;
@@ -179,6 +188,7 @@ export function TrashList({ entries, formatDuration }: Props): React.JSX.Element
               ? t("bulkDeselectAllAria")
               : t("bulkSelectAllAria")
           }
+          className={checkboxClass}
         />
         {selectedCount > 0 ? (
           <>
@@ -193,7 +203,7 @@ export function TrashList({ entries, formatDuration }: Props): React.JSX.Element
                 type="button"
                 onClick={onBulkRestore}
                 disabled={pending}
-                className="inline-flex items-center gap-1.5 rounded-md border border-accent/40 bg-accent-soft px-3 py-1.5 text-caption font-semibold text-accent hover:bg-accent/10 disabled:opacity-50"
+                className={bulkStripButtonClass}
               >
                 <RotateCcw size={14} />
                 {t("bulkRestore", { count: selectedCount })}
@@ -226,11 +236,8 @@ export function TrashList({ entries, formatDuration }: Props): React.JSX.Element
           <col style={{ width: "180px" }} />
         </colgroup>
         <thead>
-          <tr className="border-b border-edge bg-surface-inset">
-            <th
-              scope="col"
-              className="px-4 py-2 text-left text-label font-semibold uppercase tracking-wider text-content-muted"
-            >
+          <tr className={tableHeaderRowClass}>
+            <th scope="col" className={tableHeaderCellClass}>
               <input
                 type="checkbox"
                 checked={allSelected}
@@ -241,39 +248,25 @@ export function TrashList({ entries, formatDuration }: Props): React.JSX.Element
                     ? t("bulkDeselectAllAria")
                     : t("bulkSelectAllAria")
                 }
+                className={checkboxClass}
               />
             </th>
-            <th
-              scope="col"
-              className="px-4 py-2 text-left text-label font-semibold uppercase tracking-wider text-content-muted"
-            >
+            <th scope="col" className={`${tableHeaderCellClass} text-left`}>
               {t("columns.deletedAt")}
             </th>
-            <th
-              scope="col"
-              className="px-4 py-2 text-left text-label font-semibold uppercase tracking-wider text-content-muted"
-            >
+            <th scope="col" className={`${tableHeaderCellClass} text-left`}>
               {t("columns.category")}
             </th>
-            <th
-              scope="col"
-              className="px-4 py-2 text-left text-label font-semibold uppercase tracking-wider text-content-muted"
-            >
+            <th scope="col" className={`${tableHeaderCellClass} text-left`}>
               {t("columns.project")}
             </th>
-            <th
-              scope="col"
-              className="px-4 py-2 text-left text-label font-semibold uppercase tracking-wider text-content-muted"
-            >
+            <th scope="col" className={`${tableHeaderCellClass} text-left`}>
               {t("columns.entryDate")}
             </th>
-            <th
-              scope="col"
-              className="px-4 py-2 text-right text-label font-semibold uppercase tracking-wider text-content-muted"
-            >
+            <th scope="col" className={`${tableHeaderCellClass} text-right`}>
               {t("columns.duration")}
             </th>
-            <th scope="col" className="px-4 py-2">
+            <th scope="col" className={tableHeaderCellClass}>
               <span className="sr-only">{t("columns.actions")}</span>
             </th>
           </tr>
@@ -287,10 +280,10 @@ export function TrashList({ entries, formatDuration }: Props): React.JSX.Element
               className={
                 isSelected
                   ? "border-b border-edge last:border-0 bg-accent-soft/30"
-                  : "border-b border-edge last:border-0 hover:bg-hover"
+                  : tableBodyRowClass
               }
             >
-              <td className="px-4 py-2">
+              <td className="px-4 py-3">
                 <input
                   type="checkbox"
                   checked={isSelected}
@@ -298,12 +291,13 @@ export function TrashList({ entries, formatDuration }: Props): React.JSX.Element
                   aria-label={t("bulkRowAria", {
                     project: e.project_name,
                   })}
+                  className={checkboxClass}
                 />
               </td>
-              <td className="px-4 py-2 text-caption text-content-muted whitespace-nowrap">
-                {e.deleted_at ? new Date(e.deleted_at).toLocaleString() : "—"}
+              <td className={`${tableBodyCellClass} text-caption whitespace-nowrap`}>
+                {e.deleted_at ? formatDisplayDateTime(e.deleted_at) : "—"}
               </td>
-              <td className="px-4 py-2">
+              <td className="px-4 py-3">
                 {e.category ? (
                   <span className="inline-flex items-center gap-1.5">
                     <span
@@ -316,7 +310,7 @@ export function TrashList({ entries, formatDuration }: Props): React.JSX.Element
                   <span className="text-body-lg text-content-muted italic">—</span>
                 )}
               </td>
-              <td className="px-4 py-2 text-body-lg text-content">
+              <td className="px-4 py-3 text-body-lg text-content">
                 {e.project_name}
                 {e.customer && (
                   <span className="inline-flex items-center gap-1.5 text-content-muted">
@@ -337,13 +331,13 @@ export function TrashList({ entries, formatDuration }: Props): React.JSX.Element
                   </div>
                 )}
               </td>
-              <td className="px-4 py-2 text-caption text-content-secondary whitespace-nowrap">
-                {new Date(e.start_time).toLocaleDateString()}
+              <td className={`${tableBodyCellClass} text-caption whitespace-nowrap`}>
+                {formatDisplayDate(e.start_time)}
               </td>
-              <td className="px-4 py-2 text-right font-mono text-caption tabular-nums text-content">
+              <td className="px-4 py-3 text-right font-mono text-caption tabular-nums text-content">
                 {formatDuration(e.duration_min)}
               </td>
-              <td className="px-4 py-2 text-right">
+              <td className="px-4 py-3 text-right">
                 <div className="inline-flex items-center gap-2">
                   <button
                     type="button"

@@ -450,12 +450,11 @@ function GhostRow({
         </span>
       )}
       <span className="ml-auto inline-flex items-center gap-2">
-        <Tooltip label={t("startTimer")}>
+        <Tooltip label={t("startTimer")} labelMode="label">
           <button
             type="button"
             onClick={handleStart}
             disabled={pending}
-            aria-label={t("startTimer")}
             className="rounded p-1.5 text-content-muted hover:bg-hover hover:text-accent transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent disabled:opacity-50"
           >
             <Play size={14} />

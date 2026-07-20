@@ -13,7 +13,8 @@
     "addMember": "Add Member",
     "removeMember": "Remove",
     "noMembers": "No members yet. Add users from this team.",
-    "confirmDelete": "Delete this group? This will revoke any permissions granted via this group."
+    "deleteGroupAria": "Delete {name}",
+    "deleteGroupSummaryWithMembers": "{name} · {count, plural, =1 {1 member} other {# members}}"
   },
   "clientSharing": {
     "title": "Sharing",

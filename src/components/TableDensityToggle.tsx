@@ -1,6 +1,7 @@
 "use client";
 
 import { useTransition } from "react";
+import { useTranslations } from "next-intl";
 import { Rows4, Rows3, Rows2 } from "lucide-react";
 import { Tooltip } from "@/components/Tooltip";
 import {
@@ -29,6 +30,7 @@ interface Props {
 export function TableDensityToggle({ className = "" }: Props): React.JSX.Element {
   const { density, setDensity } = useTableDensity();
   const [, startTransition] = useTransition();
+  const t = useTranslations("common.tableDensity");
 
   const change = (next: TableDensity): void => {
     if (next === density) return;
@@ -48,25 +50,25 @@ export function TableDensityToggle({ className = "" }: Props): React.JSX.Element
   return (
     <div
       role="group"
-      aria-label="Table density"
+      aria-label={t("ariaLabel")}
       className={`inline-flex items-center rounded-md border border-edge bg-surface-raised p-0.5 ${className}`}
     >
       <DensityButton
         active={density === "compact"}
         onClick={() => change("compact")}
-        label="Compact"
+        label={t("compact")}
         Icon={Rows4}
       />
       <DensityButton
         active={density === "regular"}
         onClick={() => change("regular")}
-        label="Regular"
+        label={t("regular")}
         Icon={Rows3}
       />
       <DensityButton
         active={density === "comfortable"}
         onClick={() => change("comfortable")}
-        label="Comfortable"
+        label={t("comfortable")}
         Icon={Rows2}
       />
     </div>
@@ -92,7 +94,7 @@ function DensityButton({
         aria-pressed={active}
         className={`inline-flex items-center justify-center rounded-sm px-1.5 py-1 transition-colors ${
           active
-            ? "bg-accent text-accent-text"
+            ? "bg-accent text-content-inverse"
             : "text-content-muted hover:bg-hover hover:text-content"
         }`}
       >

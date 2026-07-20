@@ -95,6 +95,14 @@ const ROLE_COLORS: Record<string, string> = {
   member: "text-content-muted bg-surface-inset",
 };
 
+/** Translated role display text. Defaults unrecognized values to
+ *  "member" — matches ROLE_ICONS/ROLE_COLORS' own defensive fallback,
+ *  since `member.role` is a raw `string` from the DB, not a union. */
+function roleLabel(role: string, tc: ReturnType<typeof useTranslations>): string {
+  const key = role === "owner" || role === "admin" ? role : "member";
+  return tc(`roles.${key}`);
+}
+
 export function TeamSection({
   teamName,
   teamId,
@@ -129,7 +137,7 @@ export function TeamSection({
           message:
             err instanceof Error
               ? err.message
-              : "Couldn't remove member.",
+              : tc("team.couldNotRemoveMember"),
         });
       }
     });
@@ -143,7 +151,7 @@ export function TeamSection({
       fd.set("new_role", newRole);
       try {
         await updateMemberRoleAction(fd);
-        toast.push({ kind: "success", message: "Role updated." });
+        toast.push({ kind: "success", message: tc("team.roleUpdated") });
       } catch (err) {
         const isRedirect =
           err instanceof Error && err.message.includes("NEXT_REDIRECT");
@@ -151,7 +159,7 @@ export function TeamSection({
         toast.push({
           kind: "error",
           message:
-            err instanceof Error ? err.message : "Couldn't update role.",
+            err instanceof Error ? err.message : tc("team.couldNotUpdateRole"),
         });
       }
     });
@@ -170,14 +178,17 @@ export function TeamSection({
           <div className="flex items-center gap-2 mb-2">
             <Building2 size={18} className="text-accent" />
             <h2 className="text-body-lg font-semibold uppercase tracking-wider text-content-muted">
-              Team
+              {tc("team.sectionHeading")}
             </h2>
           </div>
           <form action={updateTeamNameAction} className="flex gap-3 items-end">
             <input type="hidden" name="team_id" value={teamId} />
             <div className="flex-1">
-              <label className={labelClass}>Team Name</label>
+              <label htmlFor="team-section-team-name" className={labelClass}>
+                {tc("team.teamNameLabel")}
+              </label>
               <input
+                id="team-section-team-name"
                 name="team_name"
                 required
                 defaultValue={teamName}
@@ -185,7 +196,7 @@ export function TeamSection({
               />
             </div>
             <button type="submit" className={buttonSecondaryClass}>
-              Rename
+              {tc("team.rename")}
             </button>
           </form>
         </section>
@@ -197,7 +208,7 @@ export function TeamSection({
           <div className="flex items-center gap-2">
             <Users size={18} className="text-accent" />
             <h2 className="text-body-lg font-semibold uppercase tracking-wider text-content-muted">
-              Team Members
+              {tc("team.membersHeading")}
             </h2>
           </div>
           {isAdmin && (
@@ -206,7 +217,7 @@ export function TeamSection({
               className={buttonPrimaryClass}
             >
               <UserPlus size={16} />
-              Invite
+              {tc("team.inviteButton")}
             </button>
           )}
         </div>
@@ -236,25 +247,30 @@ export function TeamSection({
             )}
             <input type="hidden" name="team_id" value={teamId} />
             <div className="flex-1">
-              <label className={labelClass}>Email</label>
+              <label htmlFor="team-section-invite-email" className={labelClass}>
+                {tc("team.emailLabel")}
+              </label>
               <input
+                id="team-section-invite-email"
                 name="email"
                 type="email"
                 required
-                placeholder="colleague@example.com"
+                placeholder={tc("team.emailPlaceholder")}
                 className={inputClass}
               />
             </div>
             <div className="w-32">
-              <label className={labelClass}>Role</label>
-              <select name="role" className={selectClass}>
-                <option value="member">Member</option>
-                <option value="admin">Admin</option>
+              <label htmlFor="team-section-invite-role" className={labelClass}>
+                {tc("team.roleLabel")}
+              </label>
+              <select id="team-section-invite-role" name="role" className={selectClass}>
+                <option value="member">{tc("roles.member")}</option>
+                <option value="admin">{tc("roles.admin")}</option>
               </select>
             </div>
             <button type="submit" className={buttonPrimaryClass}>
               <Mail size={16} />
-              Send
+              {tc("team.send")}
             </button>
             <button
               type="button"
@@ -271,10 +287,7 @@ export function TeamSection({
         {!hasOwner && (
           <div className="flex items-start gap-2 rounded-lg border border-error/40 bg-error-soft px-3 py-2 text-body text-error-text">
             <AlertTriangle size={16} className="shrink-0 mt-0.5" />
-            <span>
-              This team has no owner. Contact support — transferring
-              ownership is blocked until this is resolved.
-            </span>
+            <span>{tc("team.noOwnerWarning")}</span>
           </div>
         )}
 
@@ -309,7 +322,7 @@ export function TeamSection({
                       {displayName ?? member.user_id.slice(0, 8) + "..."}
                       {isSelf && (
                         <span className="ml-2 text-caption text-content-muted">
-                          (you)
+                          {tc("team.you")}
                         </span>
                       )}
                     </p>
@@ -318,11 +331,11 @@ export function TeamSection({
                         className={`inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-label font-medium ${roleColor}`}
                       >
                         <RoleIcon size={10} />
-                        {isOwner ? "Team owner" : member.role}
+                        {isOwner ? tc("team.teamOwnerBadge") : roleLabel(member.role, tc)}
                       </span>
                       {member.is_shell && (
                         <span className="inline-flex items-center gap-1 rounded-full bg-surface-inset px-2 py-0.5 text-label font-medium text-content-muted border border-edge-muted">
-                          Imported · no login
+                          {tc("team.importedNoLogin")}
                         </span>
                       )}
                     </div>
@@ -339,7 +352,9 @@ export function TeamSection({
                     {(currentRole === "owner" ||
                       member.role === "admin") && (
                       <label className="sr-only" htmlFor={`role-${member.id}`}>
-                        Change role for {displayName ?? "member"}
+                        {tc("team.changeRoleForAria", {
+                          name: displayName ?? tc("roles.member"),
+                        })}
                       </label>
                     )}
                     {(currentRole === "owner" ||
@@ -354,24 +369,28 @@ export function TeamSection({
                           )
                         }
                         className={selectClass}
-                        aria-label={`Role: ${member.role}`}
+                        aria-label={tc("team.roleAria", {
+                          role: roleLabel(member.role, tc),
+                        })}
                       >
                         {/* Owner sees both options; admin viewing
                             another admin sees only "member" (demote)
                             because they can't keep the row at admin
                             without re-promoting. */}
                         {currentRole === "owner" && (
-                          <option value="admin">admin</option>
+                          <option value="admin">{tc("roles.admin")}</option>
                         )}
                         {currentRole !== "owner" &&
                           member.role === "admin" && (
-                            <option value="admin">admin</option>
+                            <option value="admin">{tc("roles.admin")}</option>
                           )}
-                        <option value="member">member</option>
+                        <option value="member">{tc("roles.member")}</option>
                       </select>
                     )}
                     <InlineDeleteRowConfirm
-                      ariaLabel={`Remove ${displayName ?? "member"}`}
+                      ariaLabel={tc("team.removeMemberAria", {
+                        name: displayName ?? tc("roles.member"),
+                      })}
                       onConfirm={() => removeMember(member.id, member.user_id)}
                       summary={displayName ?? member.user_id.slice(0, 8)}
                     />
@@ -386,7 +405,7 @@ export function TeamSection({
         {invites.length > 0 && (
           <div className="mt-4 pt-4 border-t border-edge">
             <h3 className="text-caption font-semibold uppercase tracking-wider text-content-muted mb-2">
-              Pending Invites
+              {tc("team.pendingInvites")}
             </h3>
             <ul className="space-y-2">
               {invites.map((invite) => (
@@ -401,8 +420,10 @@ export function TeamSection({
                     <div>
                       <p className="text-body-lg text-content">{invite.email}</p>
                       <p className="text-caption text-content-muted">
-                        {invite.role} · expires{" "}
-                        {formatDate(invite.expires_at)}
+                        {tc("team.inviteExpiresLabel", {
+                          role: roleLabel(invite.role, tc),
+                          date: formatDate(invite.expires_at),
+                        })}
                       </p>
                     </div>
                   </div>
@@ -418,7 +439,7 @@ export function TeamSection({
                         />
                         <button type="submit" className={buttonDangerClass}>
                           <X size={14} />
-                          Revoke
+                          {tc("team.revoke")}
                         </button>
                       </form>
                     </div>
@@ -547,7 +568,7 @@ function LeaveTeamFlow({
         <div>
           <p className="text-body-lg font-medium text-content">{tc("team.leave")}</p>
           <p className="text-caption text-content-muted">
-            You will lose access to all data in this team.
+            {tc("team.leaveWarning")}
           </p>
         </div>
         <button
@@ -613,6 +634,7 @@ function TransferOwnershipFlow({
   const [, startTransition] = useTransition();
   const [newOwnerUserId, setNewOwnerUserId] = useState("");
   const [confirmName, setConfirmName] = useState("");
+  const tc = useTranslations("common");
 
   // Eligible recipients: every member except the current owner and
   // shell accounts (which can't sign in to act on the team).
@@ -657,7 +679,7 @@ function TransferOwnershipFlow({
           err instanceof Error && err.message.includes("NEXT_REDIRECT");
         if (isRedirect) throw err;
         setServerError(
-          err instanceof Error ? err.message : "Couldn't transfer ownership.",
+          err instanceof Error ? err.message : tc("team.couldNotTransferOwnership"),
         );
       }
     });
@@ -667,9 +689,11 @@ function TransferOwnershipFlow({
     return (
       <div className="flex items-center justify-between gap-3">
         <div>
-          <p className="text-body-lg font-medium text-content">Transfer ownership</p>
+          <p className="text-body-lg font-medium text-content">
+            {tc("team.transferTitle")}
+          </p>
           <p className="text-caption text-content-muted">
-            Hand the team off to another member. You become an admin.
+            {tc("team.transferHint")}
           </p>
         </div>
         <button
@@ -679,7 +703,7 @@ function TransferOwnershipFlow({
           className={buttonDangerClass}
         >
           <Crown size={16} />
-          Transfer
+          {tc("team.transferTrigger")}
         </button>
       </div>
     );
@@ -689,12 +713,11 @@ function TransferOwnershipFlow({
     <div className="rounded-lg border border-warning/30 bg-warning-soft/30 p-4 space-y-3">
       {serverError && <AlertBanner tone="error">{serverError}</AlertBanner>}
       <p className="text-body-lg text-content">
-        Pick the member who will become the new owner, then type their
-        name to confirm. You will be demoted to admin in the same step.
+        {tc("team.transferConfirmIntro")}
       </p>
       <div>
         <label htmlFor="transfer-target" className={labelClass}>
-          New owner
+          {tc("team.newOwnerLabel")}
         </label>
         <select
           id="transfer-target"
@@ -705,7 +728,7 @@ function TransferOwnershipFlow({
           }}
           className={selectClass}
         >
-          <option value="">Pick a member…</option>
+          <option value="">{tc("team.pickMember")}</option>
           {candidates.map((m) => (
             <option key={m.id} value={m.user_id}>
               {nameFor(m) || m.user_id.slice(0, 8) + "…"}
@@ -716,7 +739,7 @@ function TransferOwnershipFlow({
       {target && expectedName && (
         <div>
           <label htmlFor="transfer-confirm" className={labelClass}>
-            Type <span className="font-mono">{expectedName}</span> to confirm
+            {tc("team.typeToConfirm", { name: expectedName })}
           </label>
           <input
             id="transfer-confirm"
@@ -740,7 +763,7 @@ function TransferOwnershipFlow({
           }}
           className={buttonSecondaryClass}
         >
-          Cancel
+          {tc("actions.cancel")}
         </button>
         <button
           type="button"
@@ -749,7 +772,7 @@ function TransferOwnershipFlow({
           className={buttonDangerClass}
         >
           <Crown size={16} />
-          Transfer ownership
+          {tc("team.transferSubmit")}
         </button>
       </div>
     </div>
@@ -782,7 +805,7 @@ function DeleteTeamFlow({
             {tc("team.delete")}
           </p>
           <p className="text-caption text-content-muted">
-            This will permanently delete all data, members, and settings.
+            {tc("team.deleteWarning")}
           </p>
         </div>
         <button
@@ -821,7 +844,7 @@ function DeleteTeamFlow({
       />
       <div className="flex gap-2">
         <SubmitButton
-          label="Permanently Delete"
+          label={tc("team.deleteSubmit")}
           pending={pending}
           icon={Trash2}
           disabled={!canDelete}

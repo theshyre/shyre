@@ -218,7 +218,7 @@ export default async function BusinessOverviewPage({
               {t("identityCta.summary")}
             </p>
           </div>
-          <span className="inline-flex items-center rounded-md bg-accent px-3 py-1.5 text-body font-medium text-accent-text group-hover:opacity-90 transition-opacity">
+          <span className="inline-flex items-center rounded-md bg-accent px-3 py-1.5 text-body font-medium text-content-inverse group-hover:opacity-90 transition-opacity">
             {t("identityCta.action")}
           </span>
         </Link>

@@ -5,7 +5,6 @@ import { useTranslations } from "next-intl";
 import {
   Plus,
   ShieldCheck,
-  Trash2,
   Users,
   UserPlus,
   X,
@@ -13,6 +12,8 @@ import {
 import { AlertBanner, useKeyboardShortcut } from "@theshyre/ui";
 import { useFormAction } from "@/hooks/use-form-action";
 import { SubmitButton } from "@/components/SubmitButton";
+import { InlineDeleteButton } from "@/components/InlineDeleteButton";
+import { InlineDeleteRowConfirm } from "@/components/InlineDeleteRowConfirm";
 import {
   inputClass,
   labelClass,
@@ -245,6 +246,13 @@ function GroupCard({
     (om) => !memberUserIds.has(om.user_id),
   );
 
+  async function confirmDeleteGroup(): Promise<void> {
+    const fd = new FormData();
+    fd.set("group_id", group.id);
+    fd.set("team_id", group.team_id);
+    await handleDelete(fd);
+  }
+
   return (
     <div className="rounded-lg border border-edge bg-surface-raised p-4">
       <div className="flex items-start justify-between gap-3">
@@ -264,24 +272,29 @@ function GroupCard({
             )}
           </div>
         </div>
-        <form action={handleDelete}>
-          <input type="hidden" name="group_id" value={group.id} />
-          <input
-            type="hidden"
-            name="team_id"
-            value={group.team_id}
-          />
-          <button
-            type="submit"
+        {/* Destructive tiers (forms-and-buttons.md): a group with members
+            deletes real access grants for real people, so it takes the
+            typed-"delete" tier; an empty group is cheap to recreate and
+            gets the lighter inline [Confirm][Cancel]. Native confirm()
+            retired — mirrors customers/[id]/contacts-section.tsx. */}
+        {members.length > 0 ? (
+          <InlineDeleteRowConfirm
+            ariaLabel={t("deleteGroupAria", { name: group.name })}
+            onConfirm={confirmDeleteGroup}
+            summary={t("deleteGroupSummaryWithMembers", {
+              name: group.name,
+              count: members.length,
+            })}
             disabled={deletePending}
-            className={buttonGhostClass}
-            onClick={(e) => {
-              if (!confirm(t("confirmDelete"))) e.preventDefault();
-            }}
-          >
-            <Trash2 size={14} />
-          </button>
-        </form>
+          />
+        ) : (
+          <InlineDeleteButton
+            ariaLabel={t("deleteGroupAria", { name: group.name })}
+            onConfirm={confirmDeleteGroup}
+            confirmDescription={group.name}
+            disabled={deletePending}
+          />
+        )}
       </div>
 
       {deleteError && (

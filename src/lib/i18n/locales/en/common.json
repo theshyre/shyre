@@ -191,6 +191,7 @@
   },
   "team": {
     "create": "Create Team",
+    "createSubmit": "Create",
     "leave": "Leave Team",
     "delete": "Delete Team",
     "personal": "Personal",
@@ -200,6 +201,40 @@
     "cannotDeletePersonal": "Your personal team cannot be deleted.",
     "cannotLeaveOwner": "Transfer ownership before leaving.",
     "dangerZone": "Danger Zone",
+    "sectionHeading": "Team",
+    "membersHeading": "Team Members",
+    "teamNameLabel": "Team Name",
+    "rename": "Rename",
+    "inviteButton": "Invite",
+    "emailLabel": "Email",
+    "emailPlaceholder": "colleague@example.com",
+    "roleLabel": "Role",
+    "send": "Send",
+    "noOwnerWarning": "This team has no owner. Contact support — transferring ownership is blocked until this is resolved.",
+    "you": "(you)",
+    "teamOwnerBadge": "Team owner",
+    "importedNoLogin": "Imported · no login",
+    "changeRoleForAria": "Change role for {name}",
+    "roleAria": "Role: {role}",
+    "removeMemberAria": "Remove {name}",
+    "pendingInvites": "Pending Invites",
+    "inviteExpiresLabel": "{role} · expires {date}",
+    "revoke": "Revoke",
+    "leaveWarning": "You will lose access to all data in this team.",
+    "transferTitle": "Transfer ownership",
+    "transferHint": "Hand the team off to another member. You become an admin.",
+    "transferTrigger": "Transfer",
+    "transferConfirmIntro": "Pick the member who will become the new owner, then type their name to confirm. You will be demoted to admin in the same step.",
+    "newOwnerLabel": "New owner",
+    "pickMember": "Pick a member…",
+    "typeToConfirm": "Type {name} to confirm",
+    "transferSubmit": "Transfer ownership",
+    "deleteWarning": "This will permanently delete all data, members, and settings.",
+    "deleteSubmit": "Permanently Delete",
+    "couldNotRemoveMember": "Couldn't remove member.",
+    "roleUpdated": "Role updated.",
+    "couldNotUpdateRole": "Couldn't update role.",
+    "couldNotTransferOwnership": "Couldn't transfer ownership.",
     "invite": {
       "emailNotConfiguredHint": "Email isn't set up for this team yet, so invites won't be sent automatically. Copy the invite link below and share it directly.",
       "emailNotConfiguredCta": "Set up email",
@@ -219,6 +254,12 @@
     "loadedOf": "Showing {loaded, number} of {total, number}",
     "loadNMore": "Load {count, number} more",
     "loadAll": "Load all {count, number}"
+  },
+  "tableDensity": {
+    "ariaLabel": "Table density",
+    "compact": "Compact",
+    "regular": "Regular",
+    "comfortable": "Comfortable"
   },
   "viewAll": "View all",
   "viewAllSection": "View all — {section}",
@@ -253,12 +294,14 @@
     }
   },
   "projectFilter": {
+    "dimension": "Project",
     "all": "All projects",
     "listboxLabel": "Filter by project",
     "internal": "Internal",
     "includesSub": "(+{count, plural, =1 {# sub-project} other {# sub-projects}})"
   },
   "customerFilter": {
+    "dimension": "Customer",
     "all": "All customers",
     "listboxLabel": "Filter by customer"
   },
@@ -291,7 +334,8 @@
     "member": "Member"
   },
   "teamsPage": {
-    "empty": "No teams yet. Create one to get started."
+    "emptyTitle": "No teams yet",
+    "emptyDescription": "Create a team to invite colleagues, share customers and projects, and track time together."
   },
   "a11y": {
     "skipToContent": "Skip to main content"

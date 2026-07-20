@@ -1,9 +1,9 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
 import { useRouter, usePathname, useSearchParams } from "next/navigation";
 import { useTranslations } from "next-intl";
-import { Check, ChevronDown, FolderKanban, FolderTree } from "lucide-react";
+import { FolderKanban, FolderTree } from "lucide-react";
+import { FilterChip, type FilterChipOption } from "@/components/FilterChip";
 import { countSubProjects } from "@/lib/projects/expand-filter";
 
 export interface ProjectFilterOption {
@@ -11,9 +11,9 @@ export interface ProjectFilterOption {
   name: string;
   /** When non-null, this project is a sub-project of `parent_project_id`. */
   parent_project_id: string | null;
-  /** Customer name (or null for internal projects). Surfaced as a small
-   *  caption so two projects named "Phase 1" under different customers
-   *  can be told apart in the picker. */
+  /** Customer name (or null for internal projects). Surfaced next to
+   *  the project name so two projects named "Phase 1" under different
+   *  customers can be told apart in the picker. */
   customer_name: string | null;
   is_internal: boolean;
 }
@@ -29,6 +29,10 @@ interface Props {
    *  `src/lib/projects/expand-filter.ts`. */
   selectedId: string | null;
 }
+
+/** Sentinel key for the "All projects" option — project ids are
+ *  UUIDs so this can't collide with a real row. */
+const ALL_KEY = "__all__";
 
 /**
  * URL-driven project picker for /time-entries (and /reports).
@@ -46,6 +50,15 @@ interface Props {
  * use case ("phases 1 and 2 but not 3") that nobody has asked
  * for — see `docs/reference/sub-projects-roadmap.md` Phase C
  * "out of scope" for the rationale.
+ *
+ * Built on the shared `<FilterChip>` scaffold (list-pages.md rule 1 +
+ * a11y invariants) instead of a hand-rolled dropdown — the previous
+ * implementation only closed on outside click, so Escape did nothing
+ * and focus never returned to the trigger. The parent/child hierarchy
+ * (customer name, sub-project count, Internal tag) now folds into
+ * each option's single-string label since `<FilterChip>` renders one
+ * text node per row — indentation on children still reads as a tree
+ * via `labelClassName`.
  */
 export function ProjectFilter({
   projects,
@@ -54,20 +67,7 @@ export function ProjectFilter({
   const router = useRouter();
   const pathname = usePathname();
   const searchParams = useSearchParams();
-  const [open, setOpen] = useState(false);
-  const ref = useRef<HTMLDivElement>(null);
   const t = useTranslations("common.projectFilter");
-
-  useEffect(() => {
-    if (!open) return;
-    function handleClick(e: MouseEvent): void {
-      if (ref.current && !ref.current.contains(e.target as Node)) {
-        setOpen(false);
-      }
-    }
-    document.addEventListener("mousedown", handleClick);
-    return () => document.removeEventListener("mousedown", handleClick);
-  }, [open]);
 
   if (projects.length === 0) return null;
 
@@ -77,15 +77,14 @@ export function ProjectFilter({
       : null;
   const subCount = selected ? countSubProjects(projects, selected.id) : 0;
 
-  function pick(id: string | null): void {
+  function pick(key: string): void {
     const params = new URLSearchParams(searchParams.toString());
-    if (id === null) {
+    if (key === ALL_KEY) {
       params.delete("project");
     } else {
-      params.set("project", id);
+      params.set("project", key);
     }
     router.push(`${pathname}?${params.toString()}`);
-    setOpen(false);
   }
 
   // Render order: each top-level project, then its children indented
@@ -103,120 +102,66 @@ export function ProjectFilter({
     }
   }
 
-  function buttonLabel(): string {
+  function valueLabel(): string {
     if (!selected) return t("all");
+    if (subCount > 0) return `${selected.name} ${t("includesSub", { count: subCount })}`;
     return selected.name;
   }
 
+  const options: FilterChipOption[] = [
+    {
+      key: ALL_KEY,
+      label: t("all"),
+      selected: selected === null,
+      labelClassName: "font-medium text-content",
+      separatorAfter: true,
+    },
+  ];
+  for (const p of topLevel) {
+    const kids = childrenByParent.get(p.id) ?? [];
+    const parts = [p.name];
+    if (kids.length > 0) parts.push(t("includesSub", { count: kids.length }));
+    if (p.customer_name) parts.push(p.customer_name);
+    if (p.is_internal) parts.push(t("internal"));
+    options.push({
+      key: p.id,
+      label: parts.join(" · "),
+      icon:
+        kids.length > 0 ? (
+          <FolderTree size={12} className="text-content-muted shrink-0" aria-hidden="true" />
+        ) : (
+          <FolderKanban size={12} className="text-content-muted shrink-0" aria-hidden="true" />
+        ),
+      selected: selected?.id === p.id,
+      labelClassName: "text-content",
+    });
+    for (const c of kids) {
+      options.push({
+        key: c.id,
+        label: c.customer_name ? `${c.name} · ${c.customer_name}` : c.name,
+        selected: selected?.id === c.id,
+        labelClassName: "pl-4 text-content-secondary",
+      });
+    }
+  }
+
   return (
-    <div ref={ref} className="relative">
-      <button
-        type="button"
-        onClick={() => setOpen((o) => !o)}
-        aria-haspopup="listbox"
-        aria-expanded={open}
-        className={`inline-flex items-center gap-1.5 rounded-full px-3 py-1 text-caption font-medium transition-colors border ${
-          selected
-            ? "bg-accent-soft text-accent-text border-accent/30"
-            : "bg-surface-inset text-content-secondary border-edge hover:bg-hover"
-        }`}
-      >
-        {selected && subCount > 0 ? (
+    <FilterChip
+      icon={
+        selected && subCount > 0 ? (
           <FolderTree size={12} aria-hidden="true" />
         ) : (
           <FolderKanban size={12} aria-hidden="true" />
-        )}
-        <span className="truncate max-w-[180px]">{buttonLabel()}</span>
-        {selected && subCount > 0 && (
-          <span className="text-content-muted">
-            {t("includesSub", { count: subCount })}
-          </span>
-        )}
-        <ChevronDown size={12} aria-hidden="true" />
-      </button>
-
-      {open && (
-        <div
-          role="listbox"
-          aria-label={t("listboxLabel")}
-          className="absolute z-20 mt-1 w-[280px] max-h-[360px] overflow-auto rounded-lg border border-edge bg-surface-raised shadow-lg p-1"
-        >
-          <button
-            type="button"
-            role="option"
-            aria-selected={selected === null}
-            onClick={() => pick(null)}
-            className="flex w-full items-center gap-2 rounded-md px-2 py-1.5 text-left text-caption hover:bg-hover"
-          >
-            <span className="w-3 shrink-0">
-              {selected === null && <Check size={12} aria-hidden="true" />}
-            </span>
-            <span className="font-medium text-content">{t("all")}</span>
-          </button>
-
-          <div className="my-1 border-t border-edge-muted" />
-
-          {topLevel.map((p) => {
-            const kids = childrenByParent.get(p.id) ?? [];
-            return (
-              <div key={p.id}>
-                <button
-                  type="button"
-                  role="option"
-                  aria-selected={selected?.id === p.id}
-                  onClick={() => pick(p.id)}
-                  className="flex w-full items-start gap-2 rounded-md px-2 py-1.5 text-left text-caption hover:bg-hover"
-                >
-                  <span className="w-3 shrink-0 mt-0.5">
-                    {selected?.id === p.id && (
-                      <Check size={12} aria-hidden="true" />
-                    )}
-                  </span>
-                  <span className="flex-1 min-w-0">
-                    <span className="block truncate text-content">
-                      {p.name}
-                      {kids.length > 0 && (
-                        <span className="ml-1 text-content-muted">
-                          {t("includesSub", { count: kids.length })}
-                        </span>
-                      )}
-                    </span>
-                    {p.customer_name && (
-                      <span className="block truncate text-content-muted text-caption">
-                        {p.customer_name}
-                      </span>
-                    )}
-                    {p.is_internal && (
-                      <span className="block truncate text-content-muted text-caption">
-                        {t("internal")}
-                      </span>
-                    )}
-                  </span>
-                </button>
-                {kids.map((c) => (
-                  <button
-                    key={c.id}
-                    type="button"
-                    role="option"
-                    aria-selected={selected?.id === c.id}
-                    onClick={() => pick(c.id)}
-                    className="flex w-full items-start gap-2 rounded-md pl-7 pr-2 py-1.5 text-left text-caption hover:bg-hover"
-                  >
-                    <span className="w-3 shrink-0 mt-0.5">
-                      {selected?.id === c.id && (
-                        <Check size={12} aria-hidden="true" />
-                      )}
-                    </span>
-                    <span className="block truncate text-content-secondary">
-                      {c.name}
-                    </span>
-                  </button>
-                ))}
-              </div>
-            );
-          })}
-        </div>
-      )}
-    </div>
+        )
+      }
+      dimensionLabel={t("dimension")}
+      valueLabel={valueLabel()}
+      valueClassName="truncate max-w-[180px]"
+      listboxLabel={t("listboxLabel")}
+      customized={selected !== null}
+      panelClassName="w-[280px] max-h-[360px] overflow-auto"
+      options={options}
+      onPick={pick}
+    />
   );
 }

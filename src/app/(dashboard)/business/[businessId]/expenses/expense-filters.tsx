@@ -313,8 +313,8 @@ export function ExpenseFilters({
               className={`inline-flex items-center rounded-full border px-2 py-0.5 text-caption font-medium transition-colors ${
                 active
                   ? isOtherWarning
-                    ? "border-warning bg-warning text-content-inverse"
-                    : "border-accent bg-accent text-accent-text"
+                    ? "border-warning bg-warning-soft text-warning-text font-semibold"
+                    : "border-accent bg-accent text-content-inverse"
                   : isOtherWarning
                     ? "border-warning/40 bg-warning-soft text-warning-text hover:bg-warning-soft/70"
                     : "border-edge bg-surface-raised text-content-secondary hover:bg-hover"

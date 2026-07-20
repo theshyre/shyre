@@ -1,9 +1,8 @@
 import type { Metadata } from "next";
+import Link from "next/link";
 import { getTranslations } from "next-intl/server";
 import { createClient } from "@/lib/supabase/server";
 import { requireSystemAdmin } from "@/lib/system-admin";
-
-export const metadata: Metadata = { title: "Error log" };
 import {
   Shield,
   AlertTriangle,
@@ -18,6 +17,11 @@ import { LocalDateTime } from "@theshyre/ui";
 import { ResolveButton } from "./resolve-button";
 import { ResolveAllButton } from "./resolve-all-button";
 import { groupErrorRows, type ErrorLogRow } from "./group-errors";
+
+export async function generateMetadata(): Promise<Metadata> {
+  const t = await getTranslations("admin.errorLog");
+  return { title: t("title") };
+}
 
 const SEVERITY_CONFIG: Record<
   string,
@@ -96,6 +100,27 @@ export default async function ErrorDashboardPage({
   const rows: ErrorLogRow[] = errors ?? [];
   const groups = groupErrorRows(rows);
 
+  // Filter pills sit on two independent dimensions (severity: none/
+  // error/warning; resolved: unresolved/all/true) — clicking one must
+  // preserve whatever the OTHER dimension is currently set to, or
+  // e.g. picking "Errors" while viewing "Resolved" would silently
+  // drop back to the unresolved-only default. `undefined` in an
+  // override means "keep the current value"; `null` means "clear it."
+  function buildFilterHref(overrides: {
+    severity?: string | null;
+    resolved?: string | null;
+  }): string {
+    const severity =
+      overrides.severity === undefined ? params.severity : overrides.severity;
+    const resolved =
+      overrides.resolved === undefined ? params.resolved : overrides.resolved;
+    const qp = new URLSearchParams();
+    if (severity) qp.set("severity", severity);
+    if (resolved) qp.set("resolved", resolved);
+    const qs = qp.toString();
+    return qs ? `/system/errors?${qs}` : "/system/errors";
+  }
+
   return (
     <div>
       <div className="flex items-center gap-3">
@@ -117,7 +142,7 @@ export default async function ErrorDashboardPage({
       {/* Filters */}
       <div className="mt-4 flex gap-2 flex-wrap">
         <FilterLink
-          href="/system/errors"
+          href={buildFilterHref({ resolved: null })}
           label={t("filters.unresolved")}
           active={
             !params.severity &&
@@ -126,22 +151,22 @@ export default async function ErrorDashboardPage({
           }
         />
         <FilterLink
-          href="/system/errors?resolved=all"
+          href={buildFilterHref({ resolved: "all" })}
           label={t("filters.all")}
           active={params.resolved === "all"}
         />
         <FilterLink
-          href="/system/errors?severity=error"
+          href={buildFilterHref({ severity: "error" })}
           label={t("filters.errors")}
           active={params.severity === "error"}
         />
         <FilterLink
-          href="/system/errors?severity=warning"
+          href={buildFilterHref({ severity: "warning" })}
           label={t("filters.warnings")}
           active={params.severity === "warning"}
         />
         <FilterLink
-          href="/system/errors?resolved=true"
+          href={buildFilterHref({ resolved: "true" })}
           label={t("filters.resolved")}
           active={params.resolved === "true"}
         />
@@ -316,7 +341,7 @@ export default async function ErrorDashboardPage({
       {totalPages > 1 && (
         <div className="mt-6 flex gap-2 justify-center">
           {Array.from({ length: totalPages }, (_, i) => (
-            <a
+            <Link
               key={i}
               href={`/system/errors?page=${i + 1}${params.severity ? `&severity=${params.severity}` : ""}${params.resolved ? `&resolved=${params.resolved}` : ""}`}
               className={`px-3 py-1 rounded text-body ${
@@ -327,7 +352,7 @@ export default async function ErrorDashboardPage({
               aria-current={page === i + 1 ? "page" : undefined}
             >
               {i + 1}
-            </a>
+            </Link>
           ))}
         </div>
       )}
@@ -351,7 +376,7 @@ function FilterLink({
   active: boolean;
 }): React.JSX.Element {
   return (
-    <a
+    <Link
       href={href}
       aria-current={active ? "page" : undefined}
       className={`inline-flex items-center gap-1.5 rounded-full px-3 py-1 text-caption font-medium border transition-colors ${
@@ -362,6 +387,6 @@ function FilterLink({
     >
       {active && <Check size={12} aria-hidden="true" />}
       {label}
-    </a>
+    </Link>
   );
 }

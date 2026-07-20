@@ -7,6 +7,8 @@ import { Avatar, resolveAvatarUrl, formatDate } from "@theshyre/ui";
 import { tableClass } from "@/lib/table-styles";
 import { createClient } from "@/lib/supabase/server";
 import { getUserSettings } from "@/lib/user-settings";
+import { parseListPagination } from "@/lib/pagination/list-pagination";
+import { PaginationFooter } from "@/components/PaginationFooter";
 import {
   TZ_COOKIE_NAME,
   parseTzOffset,
@@ -60,10 +62,14 @@ interface AuthorEntry {
  */
 export default async function ProjectTimePage({
   params,
+  searchParams,
 }: {
   params: Promise<{ id: string }>;
+  searchParams: Promise<Record<string, string | string[] | undefined>>;
 }): Promise<React.JSX.Element> {
   const { id } = await params;
+  const rawSearchParams = await searchParams;
+  const { limit } = parseListPagination(rawSearchParams);
   const project = await loadProject(id);
   const supabase = await createClient();
   const t = await getTranslations("projects");
@@ -78,6 +84,12 @@ export default async function ProjectTimePage({
     .is("deleted_at", null)
     .order("start_time", { ascending: false });
   const allEntries = (entries ?? []) as Array<Record<string, unknown>>;
+  // The masthead / period-burn / by-ticket rollup below are lifetime
+  // aggregates and need every row regardless of pagination. Only the
+  // flat "what got logged" list at the bottom of the page is bounded —
+  // it was rendering every entry ever logged on the project with no
+  // cap, which turns into thousands of <li>s on a mature project.
+  const visibleEntries = allEntries.slice(0, limit);
 
   // Author bulk fetch — one query for every distinct user_id.
   const userIds = Array.from(
@@ -343,7 +355,7 @@ export default async function ProjectTimePage({
           </p>
         ) : (
           <ul className="mt-3 space-y-2">
-            {allEntries.map((entry) => {
+            {visibleEntries.map((entry) => {
               const author = authorById.get(entry.user_id as string);
               const hours = entry.duration_min
                 ? Math.floor((entry.duration_min as number) / 60)
@@ -392,6 +404,7 @@ export default async function ProjectTimePage({
             })}
           </ul>
         )}
+        <PaginationFooter total={allEntries.length} loaded={visibleEntries.length} />
         {allEntries.length > 0 && (
           <p className="mt-3 text-caption text-content-muted">
             <Link

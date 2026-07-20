@@ -70,4 +70,27 @@ describe("ThemePickerPopover", () => {
       expect(screen.queryByRole("group")).not.toBeInTheDocument();
     });
   });
+
+  it("Escape restores focus to the trigger so keyboard users don't lose their place", async () => {
+    const user = userEvent.setup();
+    renderWithIntl(<ThemePickerPopover />);
+    const trigger = screen.getByRole("button", { name: /theme.*dark/i });
+    await user.click(trigger);
+    await user.keyboard("{Escape}");
+    await waitFor(() => {
+      expect(trigger).toHaveFocus();
+    });
+  });
+
+  it("the active theme's Check icon is aria-hidden — aria-pressed alone carries the selected state", async () => {
+    const user = userEvent.setup();
+    renderWithIntl(<ThemePickerPopover />);
+    await user.click(screen.getByRole("button", { name: /theme.*dark/i }));
+    const dark = within(screen.getByRole("group")).getByRole("button", {
+      name: "Dark",
+    });
+    // Accessible name is exactly the theme label — no "Saved" suffix
+    // double-announcing what aria-pressed already communicates.
+    expect(dark).toHaveAccessibleName("Dark");
+  });
 });

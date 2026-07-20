@@ -25,8 +25,10 @@ interface Props {
 /**
  * Three-button A/A/A text-size control. Used in the sidebar footer and on
  * the profile Appearance section. Each button is icon-free (the letter A
- * is the icon); `aria-label` + `title` provide the text channel for the
- * redundant-encoding rule.
+ * is the visual) — the wrapping `<Tooltip labelMode="label">` supplies
+ * BOTH the visible hover/focus bubble and the accessible name, so there
+ * is exactly one source of truth for the label (a separate manual
+ * `aria-label` on the button would double-announce the same text).
  */
 export function TextSizeSwitcher({ dense = false }: Props): React.JSX.Element {
   const t = useTranslations("settings.textSize");
@@ -44,12 +46,11 @@ export function TextSizeSwitcher({ dense = false }: Props): React.JSX.Element {
       {SIZES.map((s) => {
         const isActive = textSize === s;
         return (
-          <Tooltip key={s} label={t(s)}>
+          <Tooltip key={s} label={t(s)} labelMode="label">
             <button
               type="button"
               role="radio"
               aria-checked={isActive}
-              aria-label={t(s)}
               onClick={() => {
                 setTextSize(s);
                 const fd = new FormData();

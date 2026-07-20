@@ -1,5 +1,6 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
-import { render, screen, fireEvent } from "@testing-library/react";
+import { screen, fireEvent } from "@testing-library/react";
+import { renderWithIntl } from "@/test/intl";
 import { TableDensityProvider } from "./table-density-provider";
 
 const updateMock = vi.fn<(fd: FormData) => Promise<void>>(async () => undefined);
@@ -25,7 +26,7 @@ beforeEach(() => {
 
 describe("TableDensityToggle", () => {
   it("renders the three density buttons with aria-pressed reflecting the current value", () => {
-    render(wrapped());
+    renderWithIntl(wrapped());
     const buttons = screen.getAllByRole("button");
     expect(buttons).toHaveLength(3);
     // Default density is "regular" → middle button is pressed.
@@ -34,7 +35,7 @@ describe("TableDensityToggle", () => {
   });
 
   it("clicking 'Compact' flips the active button and persists to localStorage", () => {
-    render(wrapped());
+    renderWithIntl(wrapped());
     const buttons = screen.getAllByRole("button");
     fireEvent.click(buttons[0]!);
     expect(buttons[0]?.getAttribute("aria-pressed")).toBe("true");
@@ -42,7 +43,7 @@ describe("TableDensityToggle", () => {
   });
 
   it("clicking the already-active button is a no-op (no server action fired)", () => {
-    render(wrapped());
+    renderWithIntl(wrapped());
     const buttons = screen.getAllByRole("button");
     fireEvent.click(buttons[1]!);
     // "regular" was already active.
@@ -50,7 +51,7 @@ describe("TableDensityToggle", () => {
   });
 
   it("clicking a non-active button fires the server action with the new density", () => {
-    render(wrapped());
+    renderWithIntl(wrapped());
     const buttons = screen.getAllByRole("button");
     fireEvent.click(buttons[2]!);
     expect(updateMock).toHaveBeenCalledTimes(1);
@@ -60,7 +61,7 @@ describe("TableDensityToggle", () => {
 
   it("server-action rejection does NOT crash or revert local state (fire-and-forget)", async () => {
     updateMock.mockRejectedValueOnce(new Error("server failed"));
-    render(wrapped());
+    renderWithIntl(wrapped());
     const buttons = screen.getAllByRole("button");
     fireEvent.click(buttons[0]!);
     expect(buttons[0]?.getAttribute("aria-pressed")).toBe("true");
