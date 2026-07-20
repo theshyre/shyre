@@ -1,13 +1,16 @@
 import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 import Link from "next/link";
-import { BookOpen } from "lucide-react";
+import { getTranslations } from "next-intl/server";
+import { BookOpen, ChevronLeft, ChevronRight } from "lucide-react";
 import fs from "fs/promises";
 import path from "path";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
 import rehypeSlug from "rehype-slug";
 import { tableClass } from "@/lib/table-styles";
+import { LinkPendingSpinner } from "@/components/LinkPendingSpinner";
+import { findArticleContext } from "@/lib/docs/topics";
 
 export async function generateMetadata({
   params,
@@ -93,6 +96,14 @@ export default async function DocPage({
     lastSlash >= 0 ? result.relativePath.slice(0, lastSlash + 1) : "";
 
   const breadcrumbs = buildBreadcrumbs(slug);
+
+  // Manifest hrefs are clean app routes ("/docs/guides/features/foo"),
+  // never README-based — so this only resolves for slugs that point
+  // directly at a manifest article. Docs outside any topic (reference
+  // pages, role-browse READMEs, …) get null and render no prev/next,
+  // per documentation.md's topic-navigation rules.
+  const articleContext = findArticleContext(`/docs/${slug.join("/")}`);
+  const t = await getTranslations("docs");
 
   return (
     <div>
@@ -225,6 +236,52 @@ export default async function DocPage({
           {result.content}
         </ReactMarkdown>
       </article>
+
+      {articleContext && (articleContext.prev || articleContext.next) && (
+        <nav
+          aria-label="Article navigation"
+          className="mt-10 flex items-stretch gap-3 border-t border-edge pt-6"
+        >
+          {articleContext.prev ? (
+            <Link
+              href={articleContext.prev.href}
+              className="flex flex-1 items-center gap-2 rounded-lg border border-edge bg-surface-raised p-3 hover:bg-hover transition-colors"
+            >
+              <ChevronLeft size={16} className="shrink-0 text-content-muted" aria-hidden="true" />
+              <span className="min-w-0">
+                <span className="block text-caption text-content-muted">
+                  {t("prevNext.previous")}
+                </span>
+                <span className="block truncate text-body-lg font-medium text-accent">
+                  {articleContext.prev.title}
+                </span>
+              </span>
+              <LinkPendingSpinner />
+            </Link>
+          ) : (
+            <span className="flex-1" aria-hidden="true" />
+          )}
+          {articleContext.next ? (
+            <Link
+              href={articleContext.next.href}
+              className="flex flex-1 items-center justify-end gap-2 rounded-lg border border-edge bg-surface-raised p-3 text-right hover:bg-hover transition-colors"
+            >
+              <span className="min-w-0">
+                <span className="block text-caption text-content-muted">
+                  {t("prevNext.next")}
+                </span>
+                <span className="block truncate text-body-lg font-medium text-accent">
+                  {articleContext.next.title}
+                </span>
+              </span>
+              <ChevronRight size={16} className="shrink-0 text-content-muted" aria-hidden="true" />
+              <LinkPendingSpinner />
+            </Link>
+          ) : (
+            <span className="flex-1" aria-hidden="true" />
+          )}
+        </nav>
+      )}
     </div>
   );
 }

@@ -110,3 +110,42 @@ canonical table of contents for its directory.
 Practical consequence: when you add a guide, add it to its section README in
 the same commit, and add a hub card entry when the guide starts a new surface
 area (new module, new top-level concept). The test fails the build otherwise.
+
+## Topic navigation & quick guides — MANDATORY
+
+The hub organizes docs into **topics** (the hub cards: Stint, Integrations,
+Customers, Business, Invoicing, Proposals, Reports, …). A reader must be able
+to see everything a topic contains, walk it end-to-end, and get oriented in
+under a minute. Four rules make that true everywhere the app renders docs.
+
+1. **Topic manifest is the single source of truth.** Every topic's articles
+   are an ORDERED list defined ONCE, in `src/lib/docs/topics.ts`
+   (`DOC_TOPICS: DocTopic[]`). The hub, the topic-index route, and the
+   article prev/next footer all import this manifest — never a second
+   hand-maintained list. Adding an article means adding it to the manifest
+   in the same commit as the guide (the "shipped but undocumented" rule
+   above still applies in full: guide file + `README.md` entry + manifest
+   entry, one commit).
+2. **Every topic has a topic-index page** at `/docs/topics/<slug>` listing
+   ALL of that topic's articles in manifest order, each with its one-line
+   blurb — the "see everything in this topic" view Marcus asked for. The
+   hub card links both its title and a "See all N articles →" affordance to
+   this index; a reader is never more than one click from the full list.
+3. **Every article page shows Previous / Next within its topic**, derived
+   from manifest order, in addition to breadcrumbs — so a reader can walk a
+   topic start to finish without bouncing back to the hub. The lookup is by
+   the article's `/docs/...` href against the manifest; articles that
+   aren't in any topic (e.g. role-browse or reference pages reached other
+   ways) simply render no prev/next.
+4. **Every topic leads with a Quick guide.** Position zero in a topic's
+   `articles` array is always its Quick guide (`quick: true`) — a short,
+   task-first "get started" article that fits roughly on one screen.
+   Deeper reference and configuration articles follow it. The Quick guide
+   is visually distinguished on the topic-index page (not just another row
+   in the list) and is the CTA surfaced directly on the hub card, ahead of
+   the "see all" link. A Quick guide is short by design — do not pad it to
+   look more thorough.
+
+Manifest integrity (every article href resolves to a real file under
+`docs/`, the Quick guide is first and unique per topic, no duplicate hrefs)
+is enforced by `src/lib/docs/topics.test.ts`.

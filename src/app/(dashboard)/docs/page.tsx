@@ -1,118 +1,20 @@
 import type { Metadata } from "next";
 import {
-  BarChart3,
   BookOpen,
-  Clock,
   Users,
-  Briefcase,
-  FileText,
-  FileSignature,
   Shield,
   Receipt,
   Sparkles,
   Compass,
   ArrowRight,
   Building2,
-  Plug,
 } from "lucide-react";
 import Link from "next/link";
+import { getTranslations } from "next-intl/server";
 import { getUserTeams } from "@/lib/team-context";
 import { isSystemAdmin } from "@/lib/system-admin";
-
-interface ModuleCard {
-  name: string;
-  blurb: string;
-  icon: typeof Clock;
-  primary: { title: string; href: string };
-  more: Array<{ title: string; href: string }>;
-}
-
-const MODULES: ModuleCard[] = [
-  {
-    name: "Stint",
-    blurb: "Time tracking. The daily-driver module.",
-    icon: Clock,
-    primary: { title: "Time tracking", href: "/docs/guides/features/time-tracking" },
-    more: [
-      { title: "Categories", href: "/docs/guides/features/categories" },
-      { title: "Templates", href: "/docs/guides/features/templates" },
-      { title: "Live updates & day rollover", href: "/docs/guides/features/live-updates" },
-      { title: "Ticket linking (Jira + GitHub)", href: "/docs/guides/features/ticket-linking" },
-      {
-        title: "Sub-project rollup filter",
-        href: "/docs/guides/features/sub-project-rollup-filter",
-      },
-      { title: "Imports (Harvest)", href: "/docs/guides/features/imports" },
-    ],
-  },
-  {
-    name: "Integrations",
-    blurb: "Let Claude and other apps track time for you.",
-    icon: Plug,
-    primary: {
-      title: "Setup: tokens & the team switch",
-      href: "/docs/guides/features/integration-tokens",
-    },
-    more: [
-      { title: "API reference (REST + MCP)", href: "/docs/guides/features/integrations-api" },
-      { title: "Claude Code hooks kit", href: "/docs/guides/features/claude-code-hooks-kit" },
-      { title: "Agent attribution", href: "/docs/guides/features/agent-attribution" },
-      { title: "Reviewing agent time on invoices", href: "/docs/guides/features/agent-time-review" },
-    ],
-  },
-  {
-    name: "Customers",
-    blurb: "The people and companies you bill. Shared across modules.",
-    icon: Users,
-    primary: { title: "Customers", href: "/docs/guides/features/customers" },
-    more: [
-      {
-        title: "Customer lifecycle (Active / Inactive / Archived)",
-        href: "/docs/guides/features/customer-lifecycle",
-      },
-      { title: "Projects", href: "/docs/guides/features/projects" },
-      { title: "Internal projects", href: "/docs/guides/features/internal-projects" },
-      { title: "Customer sharing", href: "/docs/guides/agency/customer-sharing" },
-    ],
-  },
-  {
-    name: "Business",
-    blurb: "Your company's legal identity, people, and expenses.",
-    icon: Briefcase,
-    primary: { title: "Business identity", href: "/docs/guides/features/business-identity" },
-    more: [
-      { title: "People", href: "/docs/guides/features/business-people" },
-      { title: "State registrations", href: "/docs/guides/features/state-registrations" },
-      { title: "Expenses", href: "/docs/guides/features/expenses" },
-      { title: "Expense categories", href: "/docs/guides/features/expense-categories" },
-      { title: "Expense CSV import", href: "/docs/guides/features/expense-csv-import" },
-    ],
-  },
-  {
-    name: "Invoicing",
-    blurb: "Bill your customers from tracked time and expenses.",
-    icon: FileText,
-    primary: { title: "Invoicing", href: "/docs/guides/features/invoicing" },
-    more: [
-      { title: "Period locks", href: "/docs/guides/features/period-locks" },
-      { title: "Exports for bookkeeping", href: "/docs/guides/bookkeeper/exports" },
-    ],
-  },
-  {
-    name: "Proposals",
-    blurb: "Quote fixed-price work, get it signed, convert it into billable projects.",
-    icon: FileSignature,
-    primary: { title: "Proposals", href: "/docs/guides/features/proposals" },
-    more: [],
-  },
-  {
-    name: "Reports",
-    blurb: "Hours, billability, estimated revenue, and collected cash — sliceable by period, project, and source.",
-    icon: BarChart3,
-    primary: { title: "Reports", href: "/docs/guides/features/reports" },
-    more: [],
-  },
-];
+import { LinkPendingSpinner } from "@/components/LinkPendingSpinner";
+import { DOC_TOPICS } from "@/lib/docs/topics";
 
 const REFERENCE = [
   { title: "Architecture", href: "/docs/reference/architecture" },
@@ -236,7 +138,11 @@ const ROLE_BROWSE = [
 export const metadata: Metadata = { title: "Docs" };
 
 export default async function DocsIndexPage(): Promise<React.JSX.Element> {
-  const [teams, sysadmin] = await Promise.all([getUserTeams(), isSystemAdmin()]);
+  const [teams, sysadmin, t] = await Promise.all([
+    getUserTeams(),
+    isSystemAdmin(),
+    getTranslations("docs"),
+  ]);
 
   const isOwnerOrAdminOfAnyOrg = teams.some(
     (o) => o.role === "owner" || o.role === "admin",
@@ -283,41 +189,48 @@ export default async function DocsIndexPage(): Promise<React.JSX.Element> {
           </h2>
         </div>
         <div className="grid gap-4 md:grid-cols-2">
-          {MODULES.map((mod) => (
-            <article
-              key={mod.name}
-              className="rounded-lg border border-edge bg-surface-raised p-5 space-y-3"
-            >
-              <div className="flex items-center gap-3">
-                <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-accent-soft">
-                  <mod.icon size={18} className="text-accent" />
-                </div>
-                <h3 className="text-title font-semibold text-content">{mod.name}</h3>
-              </div>
-              <p className="text-body-lg text-content-secondary">{mod.blurb}</p>
-              <Link
-                href={mod.primary.href}
-                className="inline-flex items-center gap-1 text-body-lg font-medium text-accent hover:underline"
+          {DOC_TOPICS.map((topic) => {
+            const quickGuide = topic.articles.find((a) => a.quick);
+            const topicHref = `/docs/topics/${topic.slug}`;
+            return (
+              <article
+                key={topic.slug}
+                className="rounded-lg border border-edge bg-surface-raised p-5 space-y-3"
               >
-                {mod.primary.title}
-                <ArrowRight size={14} />
-              </Link>
-              {mod.more.length > 0 && (
-                <ul className="pt-1 space-y-1">
-                  {mod.more.map((m) => (
-                    <li key={m.href}>
-                      <Link
-                        href={m.href}
-                        className="text-caption text-content-muted hover:text-accent hover:underline"
-                      >
-                        · {m.title}
-                      </Link>
-                    </li>
-                  ))}
-                </ul>
-              )}
-            </article>
-          ))}
+                <div className="flex items-center gap-3">
+                  <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-accent-soft">
+                    <topic.icon size={18} className="text-accent" />
+                  </div>
+                  <Link href={topicHref} className="inline-flex items-center gap-1.5">
+                    <h3 className="text-title font-semibold text-content hover:underline">
+                      {topic.name}
+                    </h3>
+                    <LinkPendingSpinner />
+                  </Link>
+                </div>
+                <p className="text-body-lg text-content-secondary">{topic.blurb}</p>
+                {quickGuide && (
+                  <Link
+                    href={quickGuide.href}
+                    className="inline-flex items-center gap-2 rounded-md border border-edge-muted bg-accent-soft/50 px-3 py-2 text-body-lg font-medium text-accent hover:bg-accent-soft transition-colors"
+                  >
+                    <Sparkles size={14} />
+                    {t("quickGuide.label")}
+                    <ArrowRight size={14} />
+                    <LinkPendingSpinner />
+                  </Link>
+                )}
+                <Link
+                  href={topicHref}
+                  className="inline-flex items-center gap-1 text-caption text-content-muted hover:text-accent hover:underline"
+                >
+                  {t("hub.seeAllArticles", { count: topic.articles.length })}
+                  <ArrowRight size={12} />
+                  <LinkPendingSpinner />
+                </Link>
+              </article>
+            );
+          })}
         </div>
       </section>
 

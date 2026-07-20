@@ -4,6 +4,7 @@ How each Shyre feature works. Apply to every user regardless of role; role-speci
 
 ## Time tracking
 
+- [Quick guide](stint-quickstart.md)
 - [Time tracking](time-tracking.md)
 - [Live updates & day rollover](live-updates.md)
 - [Categories](categories.md)
@@ -13,6 +14,7 @@ How each Shyre feature works. Apply to every user regardless of role; role-speci
 
 ## Customers & projects
 
+- [Quick guide](customers-quickstart.md)
 - [Customers](customers.md)
 - [Customer lifecycle (Active / Inactive / Archived)](customer-lifecycle.md)
 - [Projects](projects.md)
@@ -20,6 +22,7 @@ How each Shyre feature works. Apply to every user regardless of role; role-speci
 
 ## Business
 
+- [Quick guide](business-quickstart.md)
 - [Business identity](business-identity.md)
 - [People](business-people.md)
 - [State registrations](state-registrations.md)
@@ -29,13 +32,17 @@ How each Shyre feature works. Apply to every user regardless of role; role-speci
 
 ## Billing & reporting
 
+- [Invoicing quick guide](invoicing-quickstart.md)
 - [Invoicing](invoicing.md)
+- [Proposals quick guide](proposals-quickstart.md)
 - [Proposals](proposals.md)
+- [Reports quick guide](reports-quickstart.md)
 - [Reports](reports.md)
 - [Period locks](period-locks.md)
 
 ## Agents & integrations
 
+- [Quick guide](integrations-quickstart.md)
 - [Integration tokens](integration-tokens.md)
 - [Integrations API (REST + MCP)](integrations-api.md)
 - [Agent attribution on time entries](agent-attribution.md)
