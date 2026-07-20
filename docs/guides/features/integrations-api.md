@@ -151,10 +151,12 @@ Or the equivalent project-scoped `.mcp.json`:
 Both snippets above reference `${SHYRE_API_KEY}` rather than the raw token on purpose — the secret should live in an environment variable, never inline. The recommended setup:
 
 1. **Durable copy → password manager.** The token is shown [exactly once](integration-tokens.md#the-token-is-shown-once). Save it to 1Password / Bitwarden / your keychain so you can retrieve it later without revoking and reissuing.
-2. **Runtime copy → the `SHYRE_API_KEY` env var.** This is what the `${SHYRE_API_KEY}` reference resolves to. Set it however your setup already handles secrets — a shell profile export, `direnv`, or a secret manager. If the project you're wiring this into **doesn't already have a `.env` convention**, adopt the standard one:
+2. **Runtime copy → the `SHYRE_API_KEY` env var.** This is what the `${SHYRE_API_KEY}` reference resolves to. Set it however your setup already handles secrets — a shell profile export, `direnv`, or a secret manager. If **your own project** — the repo where Claude Code or your tooling *calls* Shyre — **doesn't already have a `.env` convention**, adopt the standard one:
    - Commit a **`.env.example`** with a placeholder — `SHYRE_API_KEY=` — so anyone on the repo knows the variable is needed (it documents the requirement without holding a secret).
    - Put the real value in **`.env.local`** (or `.env`) and make sure it's in **`.gitignore`** — this is the git-ignored file that actually holds your token.
    - Ensure that value reaches the process environment the tool runs in. Frameworks like Next.js load `.env.local` automatically; a bare shell or Claude Code does not, so `source .env.local` (or use `direnv`) before launching, so `${SHYRE_API_KEY}` can expand.
+
+   > This is **your consuming project's** `.env.example`, not Shyre's. `SHYRE_API_KEY` is a token *you present to* Shyre — Shyre's own server issues and validates these tokens and never reads a `SHYRE_API_KEY` env var, so it does not belong in Shyre's `.env.example`.
 
 Two forms, one nuance worth knowing:
 
