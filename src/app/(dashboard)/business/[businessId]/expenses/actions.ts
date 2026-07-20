@@ -13,6 +13,7 @@
 import { runSafeAction } from "@/lib/safe-action";
 import { assertSupabaseOk } from "@/lib/errors";
 import { validateTeamAccess } from "@/lib/team-context";
+import type { TeamRole } from "@/lib/team-roles";
 import { revalidatePath } from "next/cache";
 import { ALLOWED_EXPENSE_CATEGORIES } from "@/lib/expenses/allow-lists";
 import { filterAuthorizedExpenseIds } from "./bulk-auth";
@@ -143,7 +144,7 @@ async function authorizeExpenseBulk(
   // Role per team — owner/admin can mutate any row in their team;
   // members can only mutate rows they authored. Cache via map so
   // multi-row in the same team only validates once.
-  const roleByTeam = new Map<string, string>();
+  const roleByTeam = new Map<string, TeamRole>();
   for (const teamId of teamIds) {
     const { role } = await validateTeamAccess(teamId);
     roleByTeam.set(teamId, role);

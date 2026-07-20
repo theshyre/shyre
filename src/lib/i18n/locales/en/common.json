@@ -199,7 +199,15 @@
     "deleteConfirm": "Type \"{name}\" to confirm deletion",
     "cannotDeletePersonal": "Your personal team cannot be deleted.",
     "cannotLeaveOwner": "Transfer ownership before leaving.",
-    "dangerZone": "Danger Zone"
+    "dangerZone": "Danger Zone",
+    "invite": {
+      "emailNotConfiguredHint": "Email isn't set up for this team yet, so invites won't be sent automatically. Copy the invite link below and share it directly.",
+      "emailNotConfiguredCta": "Set up email",
+      "copyLink": "Copy invite link",
+      "copied": "Invite link copied",
+      "copyFailed": "Couldn't copy the link",
+      "linkUnavailableDetail": "The invite link can't be built right now — NEXT_PUBLIC_APP_URL isn't configured for this deployment."
+    }
   },
   "teamFilter": {
     "dimension": "Team",

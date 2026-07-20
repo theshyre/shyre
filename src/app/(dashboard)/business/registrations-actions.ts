@@ -2,7 +2,7 @@
 
 import { runSafeAction } from "@/lib/safe-action";
 import { assertSupabaseOk } from "@/lib/errors";
-import { validateBusinessAccess } from "@/lib/team-context";
+import { isTeamAdmin, validateBusinessAccess } from "@/lib/team-context";
 import { revalidatePath } from "next/cache";
 import {
   blankToNull,
@@ -19,7 +19,7 @@ import {
  */
 async function assertBusinessAdmin(businessId: string): Promise<void> {
   const { role } = await validateBusinessAccess(businessId);
-  if (role !== "owner" && role !== "admin") {
+  if (!isTeamAdmin(role)) {
     throw new Error(
       "Only owners and admins of a team in this business can edit registrations.",
     );

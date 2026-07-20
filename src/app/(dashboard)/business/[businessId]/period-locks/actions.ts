@@ -2,7 +2,7 @@
 
 import { runSafeAction } from "@/lib/safe-action";
 import { assertSupabaseOk } from "@/lib/errors";
-import { validateTeamAccess } from "@/lib/team-context";
+import { isTeamAdmin, validateTeamAccess } from "@/lib/team-context";
 import { revalidatePath } from "next/cache";
 
 function blankToNull(v: FormDataEntryValue | null): string | null {
@@ -35,7 +35,7 @@ export async function lockPeriodAction(formData: FormData): Promise<
         throw new Error("Period end must be YYYY-MM-DD.");
       }
       const { role } = await validateTeamAccess(teamId);
-      if (role !== "owner" && role !== "admin") {
+      if (!isTeamAdmin(role)) {
         throw new Error("Only owners and admins can lock periods.");
       }
 
@@ -74,7 +74,7 @@ export async function unlockPeriodAction(formData: FormData): Promise<
         throw new Error("Type 'unlock' to confirm.");
       }
       const { role } = await validateTeamAccess(teamId);
-      if (role !== "owner" && role !== "admin") {
+      if (!isTeamAdmin(role)) {
         throw new Error("Only owners and admins can unlock periods.");
       }
 

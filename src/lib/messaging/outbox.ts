@@ -40,7 +40,8 @@ export interface OutboxRow {
     | "invoice_reminder"
     | "payment_thanks"
     | "proposal"
-    | "proposal_otp";
+    | "proposal_otp"
+    | "team_invite";
   related_id: string | null;
   provider: "resend";
   provider_message_id: string | null;

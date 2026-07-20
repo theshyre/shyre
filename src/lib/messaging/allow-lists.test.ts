@@ -30,7 +30,9 @@ describe("messaging allow-lists", () => {
     // Proposals P2 (SAL-036): the sign-link email + the one-time code.
     expect(ALLOWED_RELATED_KINDS.has("proposal")).toBe(true);
     expect(ALLOWED_RELATED_KINDS.has("proposal_otp")).toBe(true);
-    expect(ALLOWED_RELATED_KINDS.size).toBe(5);
+    // Audit batch C: the team-invite accept-link email.
+    expect(ALLOWED_RELATED_KINDS.has("team_invite")).toBe(true);
+    expect(ALLOWED_RELATED_KINDS.size).toBe(6);
   });
 
   it("ALLOWED_DOMAIN_STATUS mirrors Resend's three-state domain machine", () => {

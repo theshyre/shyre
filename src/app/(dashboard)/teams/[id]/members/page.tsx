@@ -90,12 +90,46 @@ export default async function TeamMembersPage({
       return (a.joined_at ?? "").localeCompare(b.joined_at ?? "");
     });
 
-  const { data: invites } = await supabase
+  // The `token` column is readable here under the existing
+  // `team_invites_manage` RLS policy (owner/admin only, same gate as
+  // the invite/revoke actions) — it powers the "Copy invite link"
+  // fallback on each pending-invite row so an admin can always hand
+  // the accept URL to the invitee, whether or not email delivery is
+  // configured for this team (see teams/[id]/team-actions.ts).
+  const { data: rawInvites } = await supabase
     .from("team_invites")
-    .select("id, email, role, created_at, expires_at")
+    .select("id, email, role, created_at, expires_at, token")
     .eq("team_id", id)
     .is("accepted_at", null)
     .order("created_at", { ascending: false });
+
+  // Same base URL the invite email itself uses when building the
+  // accept link (see tryDeliverInviteEmail in team-actions.ts) — kept
+  // consistent so the copied link and the emailed link are identical.
+  const baseUrl = process.env.NEXT_PUBLIC_APP_URL ?? null;
+  const invites = (rawInvites ?? []).map((invite) => ({
+    id: invite.id as string,
+    email: invite.email as string,
+    role: invite.role as string,
+    created_at: invite.created_at as string,
+    expires_at: invite.expires_at as string,
+    acceptUrl: baseUrl
+      ? `${baseUrl}/auth/accept-invite?token=${invite.token as string}`
+      : null,
+  }));
+
+  // Drives the "email isn't set up" hint on the invite form — mirrors
+  // the same apiKeySaved + fromAddressSet gate the /email setup
+  // checklist and tryDeliverInviteEmail both use to decide whether a
+  // send is even attempted.
+  const { data: emailConfig } = await supabase
+    .from("team_email_config")
+    .select("api_key_encrypted, from_email")
+    .eq("team_id", id)
+    .maybeSingle();
+  const hasEmailConfigured = Boolean(
+    emailConfig?.api_key_encrypted && emailConfig?.from_email,
+  );
 
   const t = await getTranslations("common");
 
@@ -118,7 +152,8 @@ export default async function TeamMembersPage({
         currentRole={role}
         currentUserId={userId}
         members={members}
-        invites={invites ?? []}
+        invites={invites}
+        hasEmailConfigured={hasEmailConfigured}
       />
     </div>
   );

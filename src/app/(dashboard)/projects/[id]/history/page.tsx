@@ -2,7 +2,7 @@ import type { Metadata } from "next";
 import { getTranslations } from "next-intl/server";
 import { History as HistoryIcon } from "lucide-react";
 import { createClient } from "@/lib/supabase/server";
-import { validateTeamAccess } from "@/lib/team-context";
+import { isTeamAdmin, validateTeamAccess } from "@/lib/team-context";
 import { getProjectHistoryAction } from "../../actions";
 import { ProjectHistoryTimeline } from "./project-history-timeline";
 
@@ -39,7 +39,7 @@ export default async function ProjectHistoryPage({
   }
 
   const { role } = await validateTeamAccess(project.team_id as string);
-  const isAdmin = role === "owner" || role === "admin";
+  const isAdmin = isTeamAdmin(role);
 
   const { history, hasMore } = isAdmin
     ? await getProjectHistoryAction(id, { limit: 200 })
