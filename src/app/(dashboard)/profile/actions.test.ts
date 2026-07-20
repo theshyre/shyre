@@ -261,23 +261,40 @@ describe("updatePreferencesAction", () => {
     ).rejects.toThrow(/Invalid text_size/);
   });
 
-  it("empty preference fields normalize to null (reset to 'auto')", async () => {
+  it("empty locale/timezone fields normalize to null (reset to 'auto')", async () => {
     await updatePreferencesAction(
       fd({
-        preferred_theme: "",
         timezone: "",
         locale: "",
         week_start: "",
         time_format: "",
-        text_size: "",
       }),
     );
     const row = state.upserts[0]?.rows as Record<string, unknown>;
-    expect(row.preferred_theme).toBeNull();
     expect(row.timezone).toBeNull();
     expect(row.locale).toBeNull();
     expect(row.week_start).toBeNull();
     expect(row.time_format).toBeNull();
-    expect(row.text_size).toBeNull();
+  });
+
+  it("NEVER writes appearance keys it wasn't given (theme-clobber guard, 2026-07-20)", async () => {
+    // The prefs form used to ride hidden preferred_theme/text_size inputs
+    // valued from that tab's client state — a stale tab saving a timezone
+    // silently reverted the theme picked in the sidebar. Absent field ⇒
+    // the upsert payload must not contain the column at all.
+    await updatePreferencesAction(fd({ timezone: "America/Los_Angeles" }));
+    const row = state.upserts[0]?.rows as Record<string, unknown>;
+    expect("preferred_theme" in row).toBe(false);
+    expect("text_size" in row).toBe(false);
+    expect(row.timezone).toBe("America/Los_Angeles");
+  });
+
+  it("still writes appearance keys when explicitly provided", async () => {
+    await updatePreferencesAction(
+      fd({ preferred_theme: "malcom", text_size: "large" }),
+    );
+    const row = state.upserts[0]?.rows as Record<string, unknown>;
+    expect(row.preferred_theme).toBe("malcom");
+    expect(row.text_size).toBe("large");
   });
 });

@@ -3,6 +3,7 @@
 import { useTranslations } from "next-intl";
 import { useTextSize, type TextSize } from "./text-size-provider";
 import { setAppearancePreferenceAction } from "@/app/(dashboard)/profile/actions";
+import { useToast } from "./Toast";
 import { Tooltip } from "./Tooltip";
 
 const SIZES: TextSize[] = ["compact", "regular", "large"];
@@ -29,6 +30,7 @@ interface Props {
  */
 export function TextSizeSwitcher({ dense = false }: Props): React.JSX.Element {
   const t = useTranslations("settings.textSize");
+  const toast = useToast();
   const { textSize, setTextSize } = useTextSize();
 
   const sizeClass = dense ? "h-7 w-7" : "h-8 w-8";
@@ -52,7 +54,9 @@ export function TextSizeSwitcher({ dense = false }: Props): React.JSX.Element {
                 setTextSize(s);
                 const fd = new FormData();
                 fd.set("text_size", s);
-                void setAppearancePreferenceAction(fd);
+                void setAppearancePreferenceAction(fd).catch(() => {
+                  toast.push({ kind: "error", message: t("saveFailed") });
+                });
               }}
               className={`${sizeClass} inline-flex items-center justify-center rounded-md font-semibold transition-colors ${
                 isActive

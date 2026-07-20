@@ -21,6 +21,10 @@ vi.mock("@/app/(dashboard)/profile/actions", () => ({
   setAppearancePreferenceAction: vi.fn().mockResolvedValue(undefined),
 }));
 
+vi.mock("./Toast", () => ({
+  useToast: () => ({ push: vi.fn() }),
+}));
+
 
 beforeEach(() => {
   mockedTextSize = "regular";

@@ -49,6 +49,7 @@ import {
   updateUserSettingsAction,
   updateProfileAction,
   updatePreferencesAction,
+  setAppearancePreferenceAction,
   testGithubTokenAction,
   testJiraCredsAction,
 } from "./actions";
@@ -126,37 +127,33 @@ export function ProfileForm({
   });
   useUnsavedChanges(formDirty && !profileForm.pending && !prefsForm.pending);
 
-  // Apply theme changes optimistically + persist to DB without requiring the
-  // user to click "Save preferences". Saving here re-submits the current
-  // values of the other preference fields so we don't blow them away.
-  const submitPrefs = useCallback(
-    (overrides: Partial<{ theme: Theme; textSize: TextSize }>) => {
-      const fd = new FormData();
-      fd.set("preferred_theme", overrides.theme ?? theme);
-      fd.set("text_size", overrides.textSize ?? textSize);
-      if (timezone) fd.set("timezone", timezone);
-      if (locale) fd.set("locale", locale);
-      if (weekStart) fd.set("week_start", weekStart);
-      if (timeFormat) fd.set("time_format", timeFormat);
-      void prefsForm.handleSubmit(fd);
-    },
-    [prefsForm, theme, textSize, timezone, locale, weekStart, timeFormat],
-  );
+  // Apply theme / text-size changes optimistically + persist via the PATCH
+  // action that writes ONLY the changed key. Never re-submit sibling
+  // preference values from this tab's client state — that was the
+  // 2026-07-20 theme-reset regression (a stale tab's "current" theme
+  // clobbering the one picked in the sidebar).
+  const appearanceForm = useFormAction({
+    action: setAppearancePreferenceAction,
+  });
 
   const handleThemeChange = useCallback(
     (next: Theme) => {
       setTheme(next);
-      submitPrefs({ theme: next });
+      const fd = new FormData();
+      fd.set("preferred_theme", next);
+      void appearanceForm.handleSubmit(fd);
     },
-    [setTheme, submitPrefs],
+    [setTheme, appearanceForm],
   );
 
   const handleTextSizeChange = useCallback(
     (next: TextSize) => {
       setTextSize(next);
-      submitPrefs({ textSize: next });
+      const fd = new FormData();
+      fd.set("text_size", next);
+      void appearanceForm.handleSubmit(fd);
     },
-    [setTextSize, submitPrefs],
+    [setTextSize, appearanceForm],
   );
 
   return (
@@ -262,8 +259,6 @@ export function ProfileForm({
                 );
               })}
             </div>
-            {/* Hidden field so the Save button submits current theme too */}
-            <input type="hidden" name="preferred_theme" value={theme} />
           </fieldset>
 
           {/* Text size — same fieldset/legend treatment as Theme. */}
@@ -306,7 +301,6 @@ export function ProfileForm({
                 {t(`textSize.${textSize}`)}
               </span>
             </div>
-            <input type="hidden" name="text_size" value={textSize} />
           </fieldset>
 
           {/* Timezone */}
