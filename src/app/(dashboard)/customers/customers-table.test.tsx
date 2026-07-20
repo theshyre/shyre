@@ -119,12 +119,12 @@ describe("CustomersTable bulk strip", () => {
       name: "Mark inactive (1)",
     });
     const archive = screen.getByRole("button", { name: "Archive 1" });
+    // Constant equality is the whole assertion: the shared classes ARE
+    // the list-page grammar (neutral chrome, danger-as-red-text, no
+    // soft-fill). Token-substring checks on top of this were fragile
+    // duplicates — the constants' content is owned by form-styles.
     expect(deactivate.className).toBe(bulkStripButtonClass);
     expect(archive.className).toBe(bulkStripDangerButtonClass);
-    // No soft-fill background — intent is carried by the red text.
-    expect(archive.className).toContain("text-error");
-    expect(archive.className).not.toContain("bg-error-soft ");
-    expect(archive.className.startsWith("inline-flex")).toBe(true);
   });
 
   it("shows a visible Clear button that empties the selection", () => {

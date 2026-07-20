@@ -1,7 +1,7 @@
 import type { Metadata } from "next";
 import { getTranslations } from "next-intl/server";
 import { createClient } from "@/lib/supabase/server";
-import { validateBusinessAccess } from "@/lib/team-context";
+import { isTeamAdmin, validateBusinessAccess } from "@/lib/team-context";
 import {
   PeopleSection,
   type PersonRow,
@@ -23,7 +23,7 @@ export default async function BusinessPeoplePage({
   const { businessId } = await params;
   const supabase = await createClient();
   const { role } = await validateBusinessAccess(businessId);
-  const canEdit = role === "owner" || role === "admin";
+  const canEdit = isTeamAdmin(role);
 
   // All teams owned by this business; team_members of any of those teams
   // are eligible candidates for linking a person record to a Shyre user.

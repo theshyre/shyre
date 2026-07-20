@@ -4,7 +4,11 @@ import { notFound } from "next/navigation";
 import { ArrowLeft, Upload } from "lucide-react";
 import { getTranslations } from "next-intl/server";
 import { createClient } from "@/lib/supabase/server";
-import { getUserTeams, validateBusinessAccess } from "@/lib/team-context";
+import {
+  getUserTeams,
+  isTeamAdmin,
+  validateBusinessAccess,
+} from "@/lib/team-context";
 import { LinkPendingSpinner } from "@/components/LinkPendingSpinner";
 import { ImportForm } from "./import-form";
 
@@ -43,7 +47,7 @@ export default async function ExpensesImportPage({
   // ones the caller can actually write to so the dropdown matches
   // what the action will accept.
   const { role } = await validateBusinessAccess(businessId);
-  if (role !== "owner" && role !== "admin") {
+  if (!isTeamAdmin(role)) {
     notFound();
   }
 
@@ -65,9 +69,7 @@ export default async function ExpensesImportPage({
   // Owner|admin only. Filter the user's team list down to teams that
   // are (a) in this business and (b) writable by this caller.
   const writableTeams = userTeams.filter(
-    (tm) =>
-      businessTeamIds.has(tm.id) &&
-      (tm.role === "owner" || tm.role === "admin"),
+    (tm) => businessTeamIds.has(tm.id) && isTeamAdmin(tm.role),
   );
 
   return (

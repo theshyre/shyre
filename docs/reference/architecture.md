@@ -29,7 +29,7 @@ Shyre is a platform host for consulting modules. The first module is **Stint** (
 - `src/components/**` — shared primitives (Avatar wrapper, Tooltip, Toast, Modal, SubmitButton, EntryAuthor, etc.)
 - `src/lib/supabase/**` — server / browser / admin / middleware clients
 - `src/lib/team-context.ts` — `getUserContext`, `getUserTeams`, `validateTeamAccess`, `isTeamAdmin`
-- `src/lib/modules/registry.ts` — module manifests (Stint, Customers, Invoicing, Reports, Business)
+- `src/lib/modules/registry.ts` — module manifests (Stint, Customers, Projects, Invoicing, Proposals, Reports, Business, Integrations)
 - `src/lib/messaging/**` — email outbox / encryption / providers (currently invoice-only consumer)
 
 Each module composes its own server actions, route segments, and tables. See `docs/reference/modules.md` for the per-module map and the naming-rules table.
@@ -54,13 +54,22 @@ src/app/(dashboard)/
 │   └── [id]/
 │       ├── page.tsx         — Invoice detail
 │       └── send/page.tsx    — Send-to-customer modal
+├── proposals/
+│   ├── page.tsx             — Proposal list
+│   ├── new/page.tsx         — Proposal composer
+│   └── [proposalId]/
+│       ├── page.tsx         — Proposal detail
+│       ├── edit/page.tsx    — Edit proposal
+│       └── preview/page.tsx — Preview before send
 ├── reports/page.tsx         — Hours/revenue summary (date filter required)
 ├── categories/page.tsx
 ├── templates/page.tsx
 ├── import/page.tsx          — Harvest CSV import + undo
 ├── docs/[...slug]/page.tsx  — In-app documentation viewer
 ├── profile/page.tsx         — Per-user preferences, MFA, integrations
-├── settings/page.tsx        — Settings hub
+├── settings/
+│   ├── page.tsx             — Settings hub
+│   └── integrations/page.tsx — Agent/API token management
 ├── teams/                   — Team management
 │   ├── page.tsx
 │   └── [id]/
@@ -156,7 +165,13 @@ src/
 
 ## Module registry
 
-`src/lib/modules/registry.ts` is the canonical list of modules + sidebar nav items. Modules: `time-entries` (Stint), `customers`, `projects`, `invoices`, `reports`, `business`. Plus `PLATFORM_TOOLS` for cross-cutting entries (`/import` today; `/system` and trash should follow per architect-persona finding H6).
+`src/lib/modules/registry.ts` is the canonical list of modules + sidebar nav items. Three parallel lists, one per kind (see `docs/reference/modules.md` for the full rationale):
+
+- **`MODULES`** — feature verticals: `time-entries` (Stint), `customers`, `projects`, `invoices`, `proposals`, `reports`, `business`, `integrations` (settings-only — no top-level sidebar route; reached via `/settings/integrations`).
+- **`SHELL_SURFACES`** — always-on platform pages that aren't modules: Dashboard, Teams, Settings, Profile, Docs, and the sysadmin-gated System hub (`requiresSystemAdmin: true`). Not toggleable, own no vertical domain — modeling them as `MODULES` would dilute what "module" means.
+- **`PLATFORM_TOOLS`** — cross-cutting entries that write into several modules' tables (`/import` today).
+
+`Sidebar.tsx` / `GlobalCommandPalette.tsx` derive every nav entry from these three lists via `navItemsForSection()` / `shellSurfacesForPlacement()` rather than hardcoding routes.
 
 ## CI / deploy
 

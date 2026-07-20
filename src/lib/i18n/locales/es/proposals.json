@@ -15,7 +15,8 @@
     "declined": "Rechazada",
     "converted": "Convertida",
     "superseded": "Reemplazada",
-    "expired": "Vencida"
+    "expired": "Vencida",
+    "partiallySigned": "{signed} de {total} firmados"
   },
   "table": {
     "number": "Número",
@@ -233,7 +234,9 @@
       "declined": "Rechazada",
       "countersigned": "Contrafirmada",
       "converted": "Convertida en proyecto(s)",
-      "superseded": "Reemplazada por una versión nueva"
+      "superseded": "Reemplazada por una versión nueva",
+      "signoff_overridden": "Aprobación completada por anulación",
+      "link_resent": "Enlace de aprobación reenviado"
     }
   },
   "detail": {
@@ -270,7 +273,7 @@
     "acceptedTotalLabel": "Total aceptado",
     "acceptedItems": "{count, plural, =1 {1 partida autorizada} other {# partidas autorizadas}}",
     "recordHash": "Hash del registro",
-    "ipLabel": "IP",
+    "ipLabel": "Dirección IP",
     "newVersion": "Nueva versión",
     "newVersionPending": "Creando versión…",
     "newVersionFailed": "Error al crear la versión",
@@ -284,7 +287,7 @@
     "billFailed": "Error al crear la factura",
     "viewProject": "Ver proyecto →",
     "edit": "Editar",
-    "delete": "Eliminar borrador",
+    "delete": "Eliminar",
     "deleteConfirm": "Eliminar para siempre",
     "deleteCancel": "Cancelar",
     "deleteFailed": "Error al eliminar",
@@ -324,7 +327,22 @@
     "resending": "Reenviando…",
     "resendSuccess": "Enlace(s) de firma nuevos enviados. Los enlaces anteriores ya no funcionan.",
     "resendFailed": "Error al reenviar",
-    "billDeposit": "Facturar depósito"
+    "billDeposit": "Facturar depósito",
+    "authorizedItemsLabel": "{count, plural, =1 {Elemento autorizado} other {Elementos autorizados}}",
+    "itemAuthorized": "Autorizado",
+    "override": "Anular aprobación",
+    "overrideConfirmTitle": "¿Completar esta aprobación sin los firmantes restantes?",
+    "overrideWaiving": "Se omite: {names}",
+    "overrideNoteLabel": "Motivo de la anulación",
+    "overrideNotePlaceholder": "¿Por qué la completas sin todas las firmas? (se registra)",
+    "overrideNoteHint": "Añade un motivo breve (al menos 5 caracteres) para continuar.",
+    "overrideConfirm": "Completar aprobación",
+    "overrideCancel": "Cancelar",
+    "overrideFailed": "No se pudo anular la aprobación. Inténtalo de nuevo.",
+    "overriddenCalloutTitle": "Aprobación completada por anulación",
+    "overriddenWaived": "Omitidos: {names}",
+    "signoffBy": "por {name}",
+    "countersignFailed": "Error al contrafirmar. Inténtalo de nuevo."
   },
   "pdf": {
     "documentTitle": "Propuesta",

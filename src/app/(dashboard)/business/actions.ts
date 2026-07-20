@@ -2,11 +2,11 @@
 
 import { runSafeAction } from "@/lib/safe-action";
 import { assertSupabaseOk } from "@/lib/errors";
-import { validateBusinessAccess } from "@/lib/team-context";
+import { isTeamAdmin, validateBusinessAccess } from "@/lib/team-context";
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
-import { ALLOWED_ENTITY_TYPES } from "./allow-lists";
+import { ALLOWED_ENTITY_TYPES } from "@/lib/business/allow-lists";
 import {
   isOwnerOfEveryTeam,
   ownsAnotherBusiness,
@@ -43,7 +43,7 @@ export async function updateBusinessIdentityAction(
     }
 
     const { role } = await validateBusinessAccess(businessId);
-    if (role !== "owner" && role !== "admin") {
+    if (!isTeamAdmin(role)) {
       throw new Error("Only owners and admins can update business identity.");
     }
 

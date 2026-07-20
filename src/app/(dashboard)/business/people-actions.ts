@@ -4,7 +4,7 @@ import { runSafeAction } from "@/lib/safe-action";
 import { AppError, assertSupabaseOk } from "@/lib/errors";
 import { revalidatePath } from "next/cache";
 import { createClient } from "@/lib/supabase/server";
-import { validateBusinessAccess } from "@/lib/team-context";
+import { isTeamAdmin, validateBusinessAccess } from "@/lib/team-context";
 import {
   readPersonFields,
   requiredString,
@@ -30,7 +30,7 @@ export type {
  *  Per platform-architect finding #5. */
 async function assertBusinessAdmin(businessId: string): Promise<void> {
   const { role } = await validateBusinessAccess(businessId);
-  if (role !== "owner" && role !== "admin") {
+  if (!isTeamAdmin(role)) {
     throw new Error(
       "Only owners and admins of a team in this business can manage people.",
     );

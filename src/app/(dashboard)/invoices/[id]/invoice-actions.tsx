@@ -66,7 +66,10 @@ export function InvoiceActions({
   const balanceDue = Math.max(0, invoiceTotal - paymentsTotal);
 
   return (
-    <div className="flex gap-2 flex-wrap">
+    // items-start: an opened inline panel (Record Payment / Void confirm)
+    // must never vertically stretch the sibling buttons — the default
+    // align-items:stretch turned Void/Overdue into tall empty boxes.
+    <div className="flex flex-wrap items-start gap-2">
       {next.map((status) => {
         const meta = ACTION_META[status];
         if (!meta) return null;
@@ -491,29 +494,41 @@ function RecordPaymentButton({
     }
   }
 
-  if (!open) {
-    return (
+  // Anchored dropdown: the trigger button stays in the action row (so the
+  // row layout is identical open or closed), and the form floats below it
+  // as a positioned panel instead of shoving the other buttons around.
+  return (
+    <div className="relative">
       <button
         type="button"
         onClick={() => {
           setError(null);
-          setOpen(true);
+          setOpen((o) => !o);
         }}
+        aria-haspopup="dialog"
+        aria-expanded={open}
         className={buttonSecondaryClass}
       >
         <CheckCircle size={16} />
         {t("recordButton")}
       </button>
-    );
-  }
-
-  return (
-    <div
-      className="flex flex-col gap-2 rounded-md border border-edge bg-surface-raised p-3 min-w-[280px]"
-      onKeyDown={onAnyKey}
-      role="group"
-      aria-label={t("formAriaLabel")}
-    >
+      {open && (
+        <>
+          {/* Click-away layer — closes the panel without stealing the row. */}
+          <div
+            className="fixed inset-0 z-20"
+            aria-hidden="true"
+            onClick={() => setOpen(false)}
+          />
+          <div
+            // rem width (not px) so the panel scales with the user's text-size
+            // preference — at "large" text a fixed 300px cramped the date
+            // field's icon and wrapped the Record-payment button.
+            className="absolute right-0 top-full z-30 mt-1 flex w-[21rem] max-w-[calc(100vw-2rem)] flex-col gap-2 rounded-md border border-edge bg-surface-raised p-3 shadow-lg"
+            onKeyDown={onAnyKey}
+            role="dialog"
+            aria-label={t("formAriaLabel")}
+          >
       <div className="flex items-center justify-between">
         <span className="text-caption font-semibold uppercase tracking-wider text-content-muted">
           {t("title")}
@@ -594,13 +609,15 @@ function RecordPaymentButton({
         />
       </label>
 
-      <div className="flex items-center gap-2 mt-1">
+      {/* flex-wrap + whitespace-nowrap: at large text the label must stay
+          on one line and Cancel wraps below if needed, never "Record\npayment". */}
+      <div className="mt-1 flex flex-wrap items-center gap-2">
         <button
           type="button"
           onClick={() => void fire()}
           disabled={!armed}
           aria-label={t("recordButton")}
-          className={buttonPrimaryClass}
+          className={`${buttonPrimaryClass} whitespace-nowrap`}
         >
           <CheckCircle size={16} />
           {pending ? `${t("recordButton")}…` : t("recordButton")}
@@ -612,13 +629,16 @@ function RecordPaymentButton({
             setError(null);
           }}
           disabled={pending}
-          className={buttonSecondaryClass}
+          className={`${buttonSecondaryClass} whitespace-nowrap`}
         >
           {tc("actions.cancel")}
         </button>
       </div>
 
       {error && <p className="text-caption text-error" role="alert">{error}</p>}
+          </div>
+        </>
+      )}
     </div>
   );
 }

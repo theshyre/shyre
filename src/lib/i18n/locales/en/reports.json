@@ -53,6 +53,7 @@
   "collected": {
     "heading": "Collected (cash basis)",
     "subtitle": "Payments recorded in this period — includes fixed-price and proposal-derived invoices. Each currency stands alone.",
+    "scopeNote": "Team-wide across the selected period — not filtered by the project picker above.",
     "cardLabel": "Collected · {currency}",
     "paymentCount": "{count, plural, =1 {1 payment} other {# payments}}"
   }

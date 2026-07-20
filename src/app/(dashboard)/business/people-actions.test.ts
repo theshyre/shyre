@@ -19,6 +19,7 @@ const mockValidateBusinessAccess = vi.fn();
 vi.mock("@/lib/team-context", () => ({
   validateBusinessAccess: (businessId: string) =>
     mockValidateBusinessAccess(businessId),
+  isTeamAdmin: (role: string) => role === "owner" || role === "admin",
 }));
 
 const mockRevalidatePath = vi.fn();

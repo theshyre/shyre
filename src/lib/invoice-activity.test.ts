@@ -251,6 +251,208 @@ describe("buildInvoiceActivity", () => {
     expect(events.filter((e) => e.type === "sent")).toHaveLength(1);
   });
 
+  describe("paid-date corrections — old→new derivation over history", () => {
+    // History rows use Postgres's "+00:00" offset form on purpose:
+    // string-comparing timestamptz values against "Z"-form dates is a
+    // known incident class here — these tests fail if anyone swaps the
+    // epoch-based walk for string comparison.
+
+    it("uses the current invoice paid_at as newPaidAt when the correction is the latest change", () => {
+      const events = buildInvoiceActivity({
+        invoice: {
+          ...baseInvoice,
+          status: "paid",
+          paid_at: "2026-04-20T00:00:00Z",
+        },
+        history: [
+          {
+            id: "h-corr",
+            changed_at: "2026-05-01T10:00:00+00:00",
+            changed_by_user_id: "user-bret",
+            previous_state: { status: "paid", paid_at: "2026-04-24T09:26:00+00:00" },
+            correction_reason: "Client actually paid on the 20th",
+          },
+        ],
+        payments: [],
+      });
+      const correction = events.find((e) => e.type === "paidDateCorrection");
+      expect(correction).toMatchObject({
+        occurredAt: "2026-05-01T10:00:00+00:00",
+        actorUserId: "user-bret",
+        paidDateCorrection: {
+          oldPaidAt: "2026-04-24T09:26:00+00:00",
+          newPaidAt: "2026-04-20T00:00:00Z",
+          reason: "Client actually paid on the 20th",
+        },
+      });
+      // The correction row must NOT also surface as a generic Updated —
+      // one mutation, one event.
+      expect(events.filter((e) => e.type === "updated")).toHaveLength(0);
+    });
+
+    it("reads newPaidAt from the next history snapshot when a later unrelated edit follows the correction", () => {
+      const events = buildInvoiceActivity({
+        invoice: {
+          ...baseInvoice,
+          status: "paid",
+          // Current paid_at has moved on again since the correction —
+          // the correction's newPaidAt must come from the snapshot
+          // taken right after it, not from the current row.
+          paid_at: "2026-04-28T00:00:00Z",
+          notes: "current notes",
+        } as never,
+        history: [
+          {
+            id: "h-corr",
+            changed_at: "2026-05-01T10:00:00+00:00",
+            changed_by_user_id: "user-bret",
+            previous_state: { status: "paid", paid_at: "2026-04-24T09:26:00+00:00" },
+            correction_reason: "Bank statement shows the 20th",
+          },
+          {
+            id: "h-notes-edit",
+            changed_at: "2026-05-03T09:00:00+00:00",
+            changed_by_user_id: "user-marcus",
+            // The later notes edit snapshots the corrected value.
+            previous_state: {
+              status: "paid",
+              paid_at: "2026-04-20T00:00:00+00:00",
+              notes: "old notes",
+            },
+          },
+        ],
+        payments: [],
+      });
+      const correction = events.find((e) => e.type === "paidDateCorrection");
+      expect(correction?.paidDateCorrection).toEqual({
+        oldPaidAt: "2026-04-24T09:26:00+00:00",
+        newPaidAt: "2026-04-20T00:00:00+00:00",
+        reason: "Bank statement shows the 20th",
+      });
+    });
+
+    it("skips intermediate snapshots that still show the pre-correction value", () => {
+      // Trigger-ordering shape: an edit lands between the correction
+      // and the next differing snapshot but its previous_state still
+      // carries the OLD paid_at. The walk must skip it and keep
+      // scanning until the value actually changes.
+      const events = buildInvoiceActivity({
+        invoice: {
+          ...baseInvoice,
+          status: "paid",
+          paid_at: "2026-04-20T00:00:00Z",
+          notes: "current notes",
+        } as never,
+        history: [
+          {
+            id: "h-corr",
+            changed_at: "2026-05-01T10:00:00+00:00",
+            changed_by_user_id: "user-bret",
+            previous_state: { status: "paid", paid_at: "2026-04-24T09:26:00+00:00" },
+            correction_reason: "Wrong month keyed in",
+          },
+          {
+            id: "h-still-old",
+            changed_at: "2026-05-01T10:00:00.200+00:00",
+            changed_by_user_id: "user-bret",
+            previous_state: {
+              status: "paid",
+              paid_at: "2026-04-24T09:26:00+00:00",
+              notes: "old notes",
+            },
+          },
+          {
+            id: "h-shows-new",
+            changed_at: "2026-05-02T08:00:00+00:00",
+            changed_by_user_id: "user-marcus",
+            previous_state: {
+              status: "paid",
+              paid_at: "2026-04-20T00:00:00+00:00",
+              notes: "older notes",
+            },
+          },
+        ],
+        payments: [],
+      });
+      const correction = events.find((e) => e.type === "paidDateCorrection");
+      expect(correction?.paidDateCorrection?.newPaidAt).toBe(
+        "2026-04-20T00:00:00+00:00",
+      );
+    });
+
+    it("chains two corrections: each gets its own old→new pair, the last one reads the current row", () => {
+      const events = buildInvoiceActivity({
+        invoice: {
+          ...baseInvoice,
+          status: "paid",
+          paid_at: "2026-04-22T00:00:00Z",
+        },
+        history: [
+          // Deliberately supplied newest-first — the builder must sort
+          // by instant, not trust input order.
+          {
+            id: "h-corr-2",
+            changed_at: "2026-05-05T15:00:00+00:00",
+            changed_by_user_id: "user-marcus",
+            previous_state: { status: "paid", paid_at: "2026-04-20T00:00:00+00:00" },
+            correction_reason: "Second look: the 22nd",
+          },
+          {
+            id: "h-corr-1",
+            changed_at: "2026-05-01T10:00:00+00:00",
+            changed_by_user_id: "user-bret",
+            previous_state: { status: "paid", paid_at: "2026-04-24T09:26:00+00:00" },
+            correction_reason: "First fix: the 20th",
+          },
+        ],
+        payments: [],
+      });
+      const corrections = events.filter((e) => e.type === "paidDateCorrection");
+      expect(corrections).toHaveLength(2);
+      // Newest-first in the rendered timeline.
+      expect(corrections[0]?.paidDateCorrection).toEqual({
+        oldPaidAt: "2026-04-20T00:00:00+00:00",
+        newPaidAt: "2026-04-22T00:00:00Z",
+        reason: "Second look: the 22nd",
+      });
+      // The FIRST correction's newPaidAt is the SECOND correction's
+      // old value — the chain reconstructs each step, not just the
+      // final state.
+      expect(corrections[1]?.paidDateCorrection).toEqual({
+        oldPaidAt: "2026-04-24T09:26:00+00:00",
+        newPaidAt: "2026-04-20T00:00:00+00:00",
+        reason: "First fix: the 20th",
+      });
+    });
+
+    it("renders a null oldPaidAt for legacy rows where paid_at was unset before the correction", () => {
+      const events = buildInvoiceActivity({
+        invoice: {
+          ...baseInvoice,
+          status: "paid",
+          paid_at: "2026-04-20T00:00:00Z",
+        },
+        history: [
+          {
+            id: "h-corr-legacy",
+            changed_at: "2026-05-01T10:00:00+00:00",
+            changed_by_user_id: "user-marcus",
+            // No paid_at key at all in the snapshot.
+            previous_state: { status: "sent" },
+            correction_reason: "Backfilling the paid date",
+          },
+        ],
+        payments: [],
+      });
+      const correction = events.find((e) => e.type === "paidDateCorrection");
+      expect(correction?.paidDateCorrection).toEqual({
+        oldPaidAt: null,
+        newPaidAt: "2026-04-20T00:00:00Z",
+        reason: "Backfilling the paid date",
+      });
+    });
+  });
+
   it("orders events newest-first", () => {
     const events = buildInvoiceActivity({
       invoice: {

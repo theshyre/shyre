@@ -32,7 +32,7 @@ export function CounterSignButton({ proposalId }: Props): React.JSX.Element {
               fd.set("id", proposalId);
               await assertActionResult(counterSignProposalAction(fd));
             } catch (err) {
-              setError(err instanceof Error ? err.message : t("sendFailed"));
+              setError(err instanceof Error ? err.message : t("countersignFailed"));
             }
           });
         }}

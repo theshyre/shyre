@@ -98,6 +98,36 @@ export function isProposalExpired(
   return validUntil < todayIso;
 }
 
+export interface SignoffProgress {
+  signed: number;
+  total: number;
+}
+
+/**
+ * Read-time "partially signed" projection for a multi-signer proposal.
+ *
+ * In `all` mode the DB status stays `sent`/`viewed` until EVERY rostered
+ * signer accepts — so a deal with one of two signatures in hand reads as
+ * a bare "Viewed", which understates where it is. This computes the
+ * signed/total pair the badge shows as "N of M signed", the same
+ * read-time-projection pattern as `isProposalExpired` (the stored status
+ * is never touched). Returns null when the projection doesn't apply:
+ * single-signer / `first` mode, an already-decided proposal, or a
+ * roster where nobody — or everybody — has signed.
+ */
+export function partialSignoffProgress(
+  status: string,
+  signingMode: string | null,
+  signedCount: number,
+  signerCount: number,
+): SignoffProgress | null {
+  if (signingMode !== "all") return null;
+  if (!OUTSTANDING_PROPOSAL_STATUSES.has(status)) return null;
+  if (signerCount < 2) return null;
+  if (signedCount < 1 || signedCount >= signerCount) return null;
+  return { signed: signedCount, total: signerCount };
+}
+
 export interface OutstandingSummary {
   count: number;
   total: number;

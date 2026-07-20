@@ -1,4 +1,4 @@
-import { formatValue, type FieldChange } from "./[businessId]/people/history/history-format";
+import { formatValue, type FieldChange } from "@/lib/history/format";
 
 /**
  * Pure helpers for turning audit-history entries into CSV rows.

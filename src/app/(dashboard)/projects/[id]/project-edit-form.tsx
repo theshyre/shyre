@@ -26,7 +26,7 @@ import {
 import {
   SELECTABLE_PROJECT_STATUSES,
   TERMINAL_PROJECT_STATUSES,
-} from "../allow-lists";
+} from "@/lib/projects/allow-lists";
 import { updateProjectAction } from "../actions";
 import { BudgetHoursWithDollars } from "../budget-hours-with-dollars";
 

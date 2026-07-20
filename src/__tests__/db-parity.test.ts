@@ -23,11 +23,11 @@ import {
   ALLOWED_WEEK_STARTS,
   ALLOWED_TEXT_SIZES,
   ALLOWED_TIME_FORMATS,
-} from "@/app/(dashboard)/profile/allow-lists";
+} from "@/lib/profile/allow-lists";
 import {
   ALLOWED_ENTITY_TYPES,
   ALLOWED_AFFILIATION_ROLES,
-} from "@/app/(dashboard)/business/allow-lists";
+} from "@/lib/business/allow-lists";
 import { ALLOWED_EXPENSE_CATEGORIES } from "@/lib/expenses/allow-lists";
 import {
   ALLOWED_REGISTRATION_TYPES,
@@ -37,18 +37,18 @@ import {
   ALLOWED_TAX_TYPES,
   ALLOWED_TAX_REGISTRATION_STATUSES,
   ALLOWED_FILING_FREQUENCIES,
-} from "@/app/(dashboard)/business/registrations-allow-lists";
+} from "@/lib/business/registrations-allow-lists";
 import {
   ALLOWED_EMPLOYMENT_TYPES,
   ALLOWED_COMPENSATION_TYPES,
   ALLOWED_COMPENSATION_SCHEDULES,
-} from "@/app/(dashboard)/business/people-allow-lists";
+} from "@/lib/business/people-allow-lists";
 import { ALLOWED_INVOICE_GROUPING_MODES } from "@/lib/invoices/allow-lists";
 import {
   ALLOWED_BUDGET_PERIODS,
   ALLOWED_BUDGET_CARRYOVER,
   ALLOWED_PROJECT_STATUSES,
-} from "@/app/(dashboard)/projects/allow-lists";
+} from "@/lib/projects/allow-lists";
 import {
   ALLOWED_PROPOSAL_STATUSES,
   ALLOWED_DEPOSIT_TYPES,

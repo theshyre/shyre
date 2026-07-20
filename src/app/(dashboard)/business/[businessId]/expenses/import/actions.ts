@@ -3,7 +3,7 @@
 import { createClient } from "@/lib/supabase/server";
 import { logError } from "@/lib/logger";
 import { toAppError, type SerializedAppError } from "@/lib/errors";
-import { validateTeamAccess } from "@/lib/team-context";
+import { isTeamAdmin, validateTeamAccess } from "@/lib/team-context";
 import { revalidatePath } from "next/cache";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import {
@@ -86,7 +86,7 @@ export async function importExpensesCsvAction(
     if (!csv.trim()) throw new Error("CSV body is required.");
 
     const { role } = await validateTeamAccess(teamId);
-    if (role !== "owner" && role !== "admin") {
+    if (!isTeamAdmin(role)) {
       throw new Error("Only team owners and admins can run imports.");
     }
 

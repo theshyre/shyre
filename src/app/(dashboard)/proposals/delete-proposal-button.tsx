@@ -15,11 +15,12 @@ interface Props {
   proposalId: string;
 }
 
-/** Tier-2 destructive flow (typed-`delete`) for removing a DRAFT proposal.
- *  Drafts are the only deletable state, but they can carry hours of authored
- *  scope prose with no soft-delete layer behind them — so this is a hard
- *  delete gated on typing the word, and failures surface inline (never a
- *  silent no-op). */
+/** Tier-2 destructive flow (typed-`delete`) for removing a deletable
+ *  proposal — a draft (pure staging) or a superseded version (a replaced
+ *  doc; handy for clearing out test proposals). Either can carry hours of
+ *  authored scope prose with no soft-delete layer behind it, so this is a
+ *  hard delete gated on typing the word, and failures surface inline
+ *  (never a silent no-op). The server action re-checks deletability. */
 export function DeleteProposalButton({ proposalId }: Props): React.JSX.Element {
   const t = useTranslations("proposals.detail");
   const [confirming, setConfirming] = useState(false);

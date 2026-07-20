@@ -13,6 +13,7 @@ import { formatCurrency } from "@/lib/invoice-utils";
 import { TeamFilter } from "@/components/TeamFilter";
 import { CustomerChip } from "@theshyre/ui";
 import { summarizeCollectedPayments } from "@/lib/reports/collected-revenue";
+import { resolveRate } from "@/lib/rates/resolve-rate";
 import {
   ProjectFilter,
   type ProjectFilterOption,
@@ -35,6 +36,12 @@ interface ClientSummary {
   billableMinutes: number;
   entryCount: number;
   revenue: number;
+  /** True when at least one billable entry rolled into this bucket
+   *  had no visible rate anywhere in the cascade (masked by
+   *  rate_visibility for this viewer, or genuinely unconfigured).
+   *  `revenue` only sums the KNOWN portion, so a bucket with this set
+   *  must render "—" rather than an understated number. */
+  hasUnknownRate: boolean;
 }
 
 interface ProjectSummary {
@@ -45,8 +52,8 @@ interface ProjectSummary {
   totalMinutes: number;
   billableMinutes: number;
   entryCount: number;
-  rate: number;
   revenue: number;
+  hasUnknownRate: boolean;
 }
 
 interface MemberSummary {
@@ -57,6 +64,15 @@ interface MemberSummary {
   billableMinutes: number;
   entryCount: number;
   revenue: number;
+  hasUnknownRate: boolean;
+}
+
+/** Renders a revenue cell — "—" when the underlying rate couldn't be
+ *  resolved for every billable minute in the bucket, so the report
+ *  never shows a silently-understated dollar figure. */
+function revenueLabel(revenue: number, hasUnknownRate: boolean): string {
+  if (hasUnknownRate) return "—";
+  return formatCurrency(Math.round(revenue * 100) / 100);
 }
 
 export default async function ReportsPage({
@@ -101,6 +117,10 @@ export default async function ReportsPage({
   // status-scoped), so the picker must let you SELECT a closed
   // engagement to isolate it — e.g. "everything we closed in Q2" at
   // tax time. Only `archived` (soft-deleted / trash) is excluded.
+  //
+  // No rate column here — this query only ever feeds the name-based
+  // filter picker, so the base `projects` table is fine (nothing to
+  // mask).
   const projectsQuery = (() => {
     let q = supabase
       .from("projects")
@@ -144,10 +164,17 @@ export default async function ReportsPage({
   // every entry the viewer could see — useless after the first
   // quarter and inconsistent with the documented bookkeeper export
   // contract.
+  //
+  // Rate columns are deliberately NOT embedded here (no
+  // `hourly_rate` / `default_rate` in this select) — this page is
+  // visible to every team member, not just owners/admins, so rates
+  // are resolved separately below via the Phase 2a `_v` views, which
+  // mask a rate to NULL when the viewer isn't allowed to see it. The
+  // embed here only carries names + ids for grouping/display.
   let entriesQuery = supabase
     .from("time_entries")
     .select(
-      "user_id, duration_min, billable, started_by_kind, projects(name, hourly_rate, is_internal, customers(id, name, logo_url, default_rate))",
+      "user_id, team_id, project_id, duration_min, billable, started_by_kind, projects(name, is_internal, customers(id, name, logo_url))",
     )
     .not("end_time", "is", null)
     .not("duration_min", "is", null)
@@ -166,16 +193,94 @@ export default async function ReportsPage({
     entryMatchesSource(entry.started_by_kind as string | null, source),
   );
 
-  // Get org's default rate (use selected org's settings if filtered, otherwise 0)
-  let defaultRate = 0;
-  if (selectedTeamId) {
-    const { data: settings } = await supabase
-      .from("team_settings")
-      .select("default_rate")
-      .eq("team_id", selectedTeamId)
-      .single();
-    defaultRate = settings?.default_rate ? Number(settings.default_rate) : 0;
+  // Resolve the rate cascade (project → customer → member → team
+  // default) for every entry via the masked `_v` views, keyed by id
+  // so each level is a single scoped fetch rather than N+1 queries.
+  interface EntryProject {
+    name: string;
+    is_internal: boolean | null;
+    customers: {
+      id: string;
+      name: string;
+      logo_url: string | null;
+    } | null;
   }
+  const projectIds = Array.from(
+    new Set(
+      entries
+        .map((e) => e.project_id as string | null)
+        .filter((id): id is string => id !== null),
+    ),
+  );
+  const customerIds = Array.from(
+    new Set(
+      entries
+        .map((e) => {
+          const proj = e.projects as unknown as EntryProject | null;
+          return proj?.customers?.id ?? null;
+        })
+        .filter((id): id is string => id !== null),
+    ),
+  );
+  const entryTeamIds = Array.from(
+    new Set(entries.map((e) => e.team_id as string).filter(Boolean)),
+  );
+
+  const [
+    { data: projectRateRows },
+    { data: customerRateRows },
+    { data: memberRateRows },
+    { data: teamDefaultRateRows },
+  ] = await Promise.all([
+    projectIds.length
+      ? supabase.from("projects_v").select("id, hourly_rate").in("id", projectIds)
+      : Promise.resolve({ data: [] as { id: string; hourly_rate: number | null }[] }),
+    customerIds.length
+      ? supabase
+          .from("customers_v")
+          .select("id, default_rate")
+          .in("id", customerIds)
+      : Promise.resolve({ data: [] as { id: string; default_rate: number | null }[] }),
+    entryTeamIds.length
+      ? supabase
+          .from("team_members_v")
+          .select("user_id, team_id, default_rate")
+          .in("team_id", entryTeamIds)
+      : Promise.resolve({
+          data: [] as { user_id: string; team_id: string; default_rate: number | null }[],
+        }),
+    entryTeamIds.length
+      ? supabase
+          .from("team_settings_v")
+          .select("team_id, default_rate")
+          .in("team_id", entryTeamIds)
+      : Promise.resolve({ data: [] as { team_id: string; default_rate: number | null }[] }),
+  ]);
+
+  const projectRateById = new Map<string, number | null>(
+    (projectRateRows ?? []).map((r) => [
+      r.id as string,
+      r.hourly_rate == null ? null : Number(r.hourly_rate),
+    ]),
+  );
+  const customerRateById = new Map<string, number | null>(
+    (customerRateRows ?? []).map((r) => [
+      r.id as string,
+      r.default_rate == null ? null : Number(r.default_rate),
+    ]),
+  );
+  const memberRateByTeamUser = new Map<string, number | null>(
+    (memberRateRows ?? []).map((r) => [
+      `${r.team_id as string}:${r.user_id as string}`,
+      r.default_rate == null ? null : Number(r.default_rate),
+    ]),
+  );
+  const teamDefaultRateByTeam = new Map<string, number | null>(
+    (teamDefaultRateRows ?? []).map((r) => [
+      r.team_id as string,
+      r.default_rate == null ? null : Number(r.default_rate),
+    ]),
+  );
 
   // Aggregate by client / project / member
   const clientMap = new Map<string, ClientSummary>();
@@ -183,17 +288,7 @@ export default async function ReportsPage({
   const memberMap = new Map<string, MemberSummary>();
 
   for (const entry of entries ?? []) {
-    const proj = entry.projects as unknown as {
-      name: string;
-      hourly_rate: number | null;
-      is_internal: boolean | null;
-      customers: {
-        id: string;
-        name: string;
-        logo_url: string | null;
-        default_rate: number | null;
-      } | null;
-    } | null;
+    const proj = entry.projects as unknown as EntryProject | null;
 
     // Distinguish "Internal" (is_internal=true, no customer by
     // construction) from any other null-customer case (legacy
@@ -207,14 +302,29 @@ export default async function ReportsPage({
         : (proj?.customers?.name ?? "—");
     const projectName = proj?.name ?? "Unknown";
     const userId = (entry.user_id as string | null) ?? null;
+    const teamId = entry.team_id as string;
+    const projectId = (entry.project_id as string | null) ?? null;
+    const customerId = proj?.customers?.id ?? null;
     const mins = entry.duration_min ?? 0;
     const isBillable = entry.billable ?? false;
-    const rate =
-      (proj?.hourly_rate ? Number(proj.hourly_rate) : null) ??
-      (proj?.customers?.default_rate ? Number(proj.customers.default_rate) : null) ??
-      defaultRate;
     const hours = mins / 60;
-    const entryRevenue = isBillable ? hours * rate : 0;
+
+    const rate = resolveRate({
+      projectRate: projectId ? (projectRateById.get(projectId) ?? null) : null,
+      customerRate: customerId
+        ? (customerRateById.get(customerId) ?? null)
+        : null,
+      memberRate: userId
+        ? (memberRateByTeamUser.get(`${teamId}:${userId}`) ?? null)
+        : null,
+      teamDefaultRate: teamDefaultRateByTeam.get(teamId) ?? null,
+    });
+    // Billable work with no resolvable rate is "unknown," not "$0" —
+    // rendering it as 0 would silently understate revenue for a
+    // masked or unconfigured rate. Non-billable entries never carry
+    // a dollar value regardless of rate visibility.
+    const rateUnknown = isBillable && rate === null;
+    const entryRevenue = isBillable && rate !== null ? hours * rate : 0;
 
     // Client aggregation
     const existing = clientMap.get(customerName);
@@ -223,6 +333,7 @@ export default async function ReportsPage({
       if (isBillable) existing.billableMinutes += mins;
       existing.entryCount += 1;
       existing.revenue += entryRevenue;
+      existing.hasUnknownRate = existing.hasUnknownRate || rateUnknown;
     } else {
       clientMap.set(customerName, {
         name: customerName,
@@ -232,6 +343,7 @@ export default async function ReportsPage({
         billableMinutes: isBillable ? mins : 0,
         entryCount: 1,
         revenue: entryRevenue,
+        hasUnknownRate: rateUnknown,
       });
     }
 
@@ -243,6 +355,7 @@ export default async function ReportsPage({
       if (isBillable) existingProj.billableMinutes += mins;
       existingProj.entryCount += 1;
       existingProj.revenue += entryRevenue;
+      existingProj.hasUnknownRate = existingProj.hasUnknownRate || rateUnknown;
     } else {
       projectMap.set(projKey, {
         name: projectName,
@@ -252,8 +365,8 @@ export default async function ReportsPage({
         totalMinutes: mins,
         billableMinutes: isBillable ? mins : 0,
         entryCount: 1,
-        rate,
         revenue: entryRevenue,
+        hasUnknownRate: rateUnknown,
       });
     }
 
@@ -265,6 +378,8 @@ export default async function ReportsPage({
         if (isBillable) existingMember.billableMinutes += mins;
         existingMember.entryCount += 1;
         existingMember.revenue += entryRevenue;
+        existingMember.hasUnknownRate =
+          existingMember.hasUnknownRate || rateUnknown;
       } else {
         memberMap.set(userId, {
           userId,
@@ -274,6 +389,7 @@ export default async function ReportsPage({
           billableMinutes: isBillable ? mins : 0,
           entryCount: 1,
           revenue: entryRevenue,
+          hasUnknownRate: rateUnknown,
         });
       }
     }
@@ -309,6 +425,10 @@ export default async function ReportsPage({
   const totalMinutes = clientSummaries.reduce((s, c) => s + c.totalMinutes, 0);
   const totalBillable = clientSummaries.reduce((s, c) => s + c.billableMinutes, 0);
   const totalRevenue = clientSummaries.reduce((s, c) => s + c.revenue, 0);
+  // The grand total is only trustworthy when every contributing
+  // bucket resolved a rate for all its billable minutes — otherwise
+  // it would silently understate revenue by the masked/unknown slice.
+  const totalHasUnknownRate = clientSummaries.some((c) => c.hasUnknownRate);
 
   // Cash-basis collected revenue: recorded payments whose paid_on falls in
   // the period. Per-currency buckets — never summed across currencies.
@@ -373,7 +493,10 @@ export default async function ReportsPage({
       <div className="mt-6 grid gap-4 sm:grid-cols-4">
         <SummaryCard label={t("totals.totalHours")} value={fmtHours(totalMinutes)} />
         <SummaryCard label={t("table.billableHours")} value={fmtHours(totalBillable)} />
-        <SummaryCard label={t("totals.totalRevenue")} value={formatCurrency(Math.round(totalRevenue * 100) / 100)} />
+        <SummaryCard
+          label={t("totals.totalRevenue")}
+          value={revenueLabel(totalRevenue, totalHasUnknownRate)}
+        />
         <SummaryCard label={t("totals.billablePercent")} value={`${billablePercent}%`} />
       </div>
 
@@ -387,6 +510,13 @@ export default async function ReportsPage({
           </h2>
           <p className="mt-1 text-caption text-content-secondary">
             {t("collected.subtitle")}
+          </p>
+          {/* This card is deliberately NOT scoped by the project filter
+              above (payments aren't attributed to a single project) —
+              say so explicitly rather than let the number look filtered
+              when it isn't. */}
+          <p className="mt-0.5 text-caption text-content-muted">
+            {t("collected.scopeNote")}
           </p>
           <div className="mt-3 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
             {collected.map((bucket) => (
@@ -435,19 +565,19 @@ export default async function ReportsPage({
               <table className="w-full text-body">
                 <thead>
                   <tr className="border-b border-edge bg-surface-inset">
-                    <th className="px-4 py-3 text-left text-label font-semibold uppercase tracking-wider text-content-muted">
+                    <th scope="col" className="px-4 py-3 text-left text-label font-semibold uppercase tracking-wider text-content-muted">
                       {t("table.name")}
                     </th>
-                    <th className="px-4 py-3 text-right text-label font-semibold uppercase tracking-wider text-content-muted">
+                    <th scope="col" className="px-4 py-3 text-right text-label font-semibold uppercase tracking-wider text-content-muted">
                       {t("table.hours")}
                     </th>
-                    <th className="px-4 py-3 text-right text-label font-semibold uppercase tracking-wider text-content-muted">
+                    <th scope="col" className="px-4 py-3 text-right text-label font-semibold uppercase tracking-wider text-content-muted">
                       {t("table.billableHours")}
                     </th>
-                    <th className="px-4 py-3 text-right text-label font-semibold uppercase tracking-wider text-content-muted">
+                    <th scope="col" className="px-4 py-3 text-right text-label font-semibold uppercase tracking-wider text-content-muted">
                       {t("table.revenue")}
                     </th>
-                    <th className="px-4 py-3 text-right text-label font-semibold uppercase tracking-wider text-content-muted">
+                    <th scope="col" className="px-4 py-3 text-right text-label font-semibold uppercase tracking-wider text-content-muted">
                       {t("table.entries")}
                     </th>
                   </tr>
@@ -476,7 +606,7 @@ export default async function ReportsPage({
                         {fmtHours(c.billableMinutes)}
                       </td>
                       <td className="px-4 py-3 text-right font-mono text-content">
-                        {formatCurrency(Math.round(c.revenue * 100) / 100)}
+                        {revenueLabel(c.revenue, c.hasUnknownRate)}
                       </td>
                       <td className="px-4 py-3 text-right text-content-secondary">
                         {c.entryCount}
@@ -496,7 +626,7 @@ export default async function ReportsPage({
                       {fmtHours(totalBillable)}
                     </td>
                     <td className="px-4 py-3 text-right font-mono font-semibold text-content">
-                      {formatCurrency(Math.round(totalRevenue * 100) / 100)}
+                      {revenueLabel(totalRevenue, totalHasUnknownRate)}
                     </td>
                     <td className="px-4 py-3 text-right font-semibold text-content">
                       {clientSummaries.reduce((s, c) => s + c.entryCount, 0)}
@@ -516,16 +646,16 @@ export default async function ReportsPage({
               <table className="w-full text-body">
                 <thead>
                   <tr className="border-b border-edge bg-surface-inset">
-                    <th className="px-4 py-3 text-left text-label font-semibold uppercase tracking-wider text-content-muted">
+                    <th scope="col" className="px-4 py-3 text-left text-label font-semibold uppercase tracking-wider text-content-muted">
                       {t("table.name")}
                     </th>
-                    <th className="px-4 py-3 text-left text-label font-semibold uppercase tracking-wider text-content-muted">
+                    <th scope="col" className="px-4 py-3 text-left text-label font-semibold uppercase tracking-wider text-content-muted">
                       {t("table.client")}
                     </th>
-                    <th className="px-4 py-3 text-right text-label font-semibold uppercase tracking-wider text-content-muted">
+                    <th scope="col" className="px-4 py-3 text-right text-label font-semibold uppercase tracking-wider text-content-muted">
                       {t("table.hours")}
                     </th>
-                    <th className="px-4 py-3 text-right text-label font-semibold uppercase tracking-wider text-content-muted">
+                    <th scope="col" className="px-4 py-3 text-right text-label font-semibold uppercase tracking-wider text-content-muted">
                       {t("table.revenue")}
                     </th>
                   </tr>
@@ -554,7 +684,7 @@ export default async function ReportsPage({
                         {fmtHours(p.totalMinutes)}
                       </td>
                       <td className="px-4 py-3 text-right font-mono text-content">
-                        {formatCurrency(Math.round(p.revenue * 100) / 100)}
+                        {revenueLabel(p.revenue, p.hasUnknownRate)}
                       </td>
                     </tr>
                   ))}
@@ -564,76 +694,73 @@ export default async function ReportsPage({
           </div>
 
           {/* Hours by Member — surfaces author-level breakdown for
-              agency owners. Hidden for solo teams (single member,
-              no signal). */}
-          {memberSummaries.length > 1 && (
-            <div className="mt-8">
-              <h2 className="text-title font-semibold text-content">
-                {t("sectionsExtra.byMember")}
-              </h2>
-              <div className="mt-3 overflow-hidden rounded-lg border border-edge bg-surface-raised">
-                <table className="w-full text-body">
-                  <thead>
-                    <tr className="border-b border-edge bg-surface-inset">
-                      <th className="px-4 py-3 text-left text-label font-semibold uppercase tracking-wider text-content-muted">
-                        {t("table.member")}
-                      </th>
-                      <th className="px-4 py-3 text-right text-label font-semibold uppercase tracking-wider text-content-muted">
-                        {t("table.hours")}
-                      </th>
-                      <th className="px-4 py-3 text-right text-label font-semibold uppercase tracking-wider text-content-muted">
-                        {t("table.billableHours")}
-                      </th>
-                      <th className="px-4 py-3 text-right text-label font-semibold uppercase tracking-wider text-content-muted">
-                        {t("table.revenue")}
-                      </th>
-                      <th className="px-4 py-3 text-right text-label font-semibold uppercase tracking-wider text-content-muted">
-                        {t("table.entries")}
-                      </th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {memberSummaries.map((m) => (
-                      <tr
-                        key={m.userId}
-                        className="border-b border-edge last:border-0 hover:bg-hover transition-colors"
-                      >
-                        <td className="px-4 py-3">
-                          <span className="inline-flex items-center gap-2 text-content">
-                            <Avatar
-                              avatarUrl={resolveAvatarUrl(
-                                m.avatarUrl,
-                                m.userId,
-                              )}
-                              displayName={m.displayName}
-                              size={20}
-                            />
-                            <span className="font-medium">
-                              {m.displayName}
-                            </span>
+              agency owners. Rendered unconditionally regardless of
+              member count, per the time-entry-authorship mandate: who
+              did the work is never conditionally hidden. */}
+          <div className="mt-8">
+            <h2 className="text-title font-semibold text-content">
+              {t("sectionsExtra.byMember")}
+            </h2>
+            <div className="mt-3 overflow-hidden rounded-lg border border-edge bg-surface-raised">
+              <table className="w-full text-body">
+                <thead>
+                  <tr className="border-b border-edge bg-surface-inset">
+                    <th scope="col" className="px-4 py-3 text-left text-label font-semibold uppercase tracking-wider text-content-muted">
+                      {t("table.member")}
+                    </th>
+                    <th scope="col" className="px-4 py-3 text-right text-label font-semibold uppercase tracking-wider text-content-muted">
+                      {t("table.hours")}
+                    </th>
+                    <th scope="col" className="px-4 py-3 text-right text-label font-semibold uppercase tracking-wider text-content-muted">
+                      {t("table.billableHours")}
+                    </th>
+                    <th scope="col" className="px-4 py-3 text-right text-label font-semibold uppercase tracking-wider text-content-muted">
+                      {t("table.revenue")}
+                    </th>
+                    <th scope="col" className="px-4 py-3 text-right text-label font-semibold uppercase tracking-wider text-content-muted">
+                      {t("table.entries")}
+                    </th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {memberSummaries.map((m) => (
+                    <tr
+                      key={m.userId}
+                      className="border-b border-edge last:border-0 hover:bg-hover transition-colors"
+                    >
+                      <td className="px-4 py-3">
+                        <span className="inline-flex items-center gap-2 text-content">
+                          <Avatar
+                            avatarUrl={resolveAvatarUrl(
+                              m.avatarUrl,
+                              m.userId,
+                            )}
+                            displayName={m.displayName}
+                            size={20}
+                          />
+                          <span className="font-medium">
+                            {m.displayName}
                           </span>
-                        </td>
-                        <td className="px-4 py-3 text-right font-mono tabular-nums text-content-secondary">
-                          {fmtHours(m.totalMinutes)}
-                        </td>
-                        <td className="px-4 py-3 text-right font-mono tabular-nums text-content-secondary">
-                          {fmtHours(m.billableMinutes)}
-                        </td>
-                        <td className="px-4 py-3 text-right font-mono tabular-nums text-content">
-                          {formatCurrency(
-                            Math.round(m.revenue * 100) / 100,
-                          )}
-                        </td>
-                        <td className="px-4 py-3 text-right text-content-secondary">
-                          {m.entryCount}
-                        </td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
+                        </span>
+                      </td>
+                      <td className="px-4 py-3 text-right font-mono tabular-nums text-content-secondary">
+                        {fmtHours(m.totalMinutes)}
+                      </td>
+                      <td className="px-4 py-3 text-right font-mono tabular-nums text-content-secondary">
+                        {fmtHours(m.billableMinutes)}
+                      </td>
+                      <td className="px-4 py-3 text-right font-mono tabular-nums text-content">
+                        {revenueLabel(m.revenue, m.hasUnknownRate)}
+                      </td>
+                      <td className="px-4 py-3 text-right text-content-secondary">
+                        {m.entryCount}
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
             </div>
-          )}
+          </div>
         </>
       )}
     </div>

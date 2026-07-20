@@ -2,7 +2,7 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { getTranslations } from "next-intl/server";
-import { Pencil, Eye, CheckCircle2, XCircle, Clock } from "lucide-react";
+import { Pencil, Eye, CheckCircle2, XCircle, Clock, UserCheck } from "lucide-react";
 import { createClient } from "@/lib/supabase/server";
 import { buttonSecondaryClass } from "@/lib/form-styles";
 import { formatCurrency } from "@/lib/invoice-utils";
@@ -28,9 +28,15 @@ import { ConvertProposalButton } from "../convert-proposal-button";
 import { CreateInvoiceButton } from "../create-invoice-button";
 import { NewVersionButton } from "../new-version-button";
 import { ResendLinkButton } from "../resend-link-button";
+import { OverrideSignoffButton } from "../override-signoff-button";
 import { ProposalPdfButton, type ProposalPdfBundle } from "./proposal-pdf-button";
-import { isProposalEditable, type DepositType } from "@/lib/proposals/allow-lists";
+import {
+  isProposalEditable,
+  isProposalDeletable,
+  type DepositType,
+} from "@/lib/proposals/allow-lists";
 import { proposalSendReadiness } from "@/lib/proposals/readiness";
+import { partialSignoffProgress } from "@/lib/proposals/list-view";
 
 export async function generateMetadata(): Promise<Metadata> {
   const t = await getTranslations("proposals");
@@ -52,6 +58,7 @@ export default async function ProposalDetailPage({
   const supabase = await createClient();
   const t = await getTranslations("proposals.detail");
   const tActivity = await getTranslations("proposals.activity");
+  const tStatus = await getTranslations("proposals.status");
 
   const { data: proposal } = await supabase
     .from("proposals")
@@ -111,10 +118,23 @@ export default async function ProposalDetailPage({
 
   const { data: eventRows } = await supabase
     .from("proposal_events")
-    .select("id, event_type, actor_label, occurred_at")
+    .select("id, event_type, actor_label, occurred_at, metadata")
     .eq("proposal_id", proposalId)
     .order("occurred_at", { ascending: true });
   const events = eventRows ?? [];
+  // The most recent override, if any — surfaced as a callout in the
+  // Sign-off block (who overrode, why, and which signers were waived).
+  const overrideEvent = [...events]
+    .reverse()
+    .find((e) => e.event_type === "signoff_overridden") as
+    | {
+        occurred_at: string;
+        metadata: {
+          note?: string;
+          waived_signers?: string[];
+        } | null;
+      }
+    | undefined;
 
   // Version chain: the proposal this one replaced, and the one that replaced
   // it (a superseded doc always points forward to its successor).
@@ -175,6 +195,21 @@ export default async function ProposalDetailPage({
   const parents = rows.filter((r) => r.parent_line_item_id === null);
   const items: ProposalPDFItem[] = buildProposalItemTree(rows);
   const total = roundMoney(items.reduce((sum, i) => sum + i.fixedPrice, 0));
+  // Which top-level items the client actually authorized. In `all` mode
+  // every acceptance carries the same bound subset (the primary's), so the
+  // latest acceptance's selection is the record. `parents[i]` is
+  // index-aligned with `items[i]`, so we can stamp the tree by id.
+  const acceptedItemIds = new Set<string>(
+    acceptance?.decision === "accepted"
+      ? ((acceptance.selected_line_item_ids as string[] | null) ?? [])
+      : [],
+  );
+  const acceptedItemTitles = items
+    .filter((_, i) => {
+      const id = parents[i]?.id;
+      return id != null && acceptedItemIds.has(id);
+    })
+    .map((item) => item.title);
   const currency = (proposal.currency as string) ?? "USD";
   const status = (proposal.status as string) ?? "draft";
   const editable = isProposalEditable(status);
@@ -240,7 +275,16 @@ export default async function ProposalDetailPage({
             <h1 className="text-page-title font-bold text-content">
               {proposal.title as string}
             </h1>
-            <ProposalStatusBadge status={status} size="prominent" />
+            <ProposalStatusBadge
+              status={status}
+              size="prominent"
+              signoff={partialSignoffProgress(
+                status,
+                (proposal.signing_mode as string | null) ?? null,
+                signedCount,
+                roster.length,
+              )}
+            />
           </div>
           <p className="mt-1 font-mono text-caption text-content-secondary">
             {proposal.proposal_number as string}
@@ -298,9 +342,28 @@ export default async function ProposalDetailPage({
                 <Pencil size={16} aria-hidden="true" />
                 {t("edit")}
               </Link>
-              <DeleteProposalButton proposalId={proposalId} />
             </>
           )}
+          {/* Delete: draft (staging) or superseded (a replaced version —
+              e.g. cleaning up test proposals). Sent/decided docs are the
+              audit record and are never deletable. */}
+          {isProposalDeletable(status) && (
+            <DeleteProposalButton proposalId={proposalId} />
+          )}
+          {/* Override a stalled multi-signer sign-off: in-flight `all`-mode
+              deal with ≥1 signature but not all in. Lets an owner/admin
+              complete it when a co-signer won't sign. */}
+          {(proposal.signing_mode as string | null) === "all" &&
+            (status === "sent" || status === "viewed") &&
+            signedCount >= 1 &&
+            signedCount < roster.length && (
+              <OverrideSignoffButton
+                proposalId={proposalId}
+                waivedNames={roster
+                  .filter((r) => r.decision !== "accepted")
+                  .map((r) => r.name)}
+              />
+            )}
           {status === "accepted" && acceptance && !acceptance.provider_signed_at && (
             <CounterSignButton proposalId={proposalId} />
           )}
@@ -391,6 +454,12 @@ export default async function ProposalDetailPage({
             <div className="flex items-baseline justify-between gap-3">
               <span className="text-body-lg font-semibold text-content">
                 {item.title}
+                {parents[i]?.id && acceptedItemIds.has(parents[i]!.id) && (
+                  <span className="ml-2 inline-flex items-center gap-1 rounded-full bg-success-soft px-2 py-0.5 align-middle text-label font-medium text-success-text">
+                    <CheckCircle2 size={11} aria-hidden="true" />
+                    {t("itemAuthorized")}
+                  </span>
+                )}
                 {parents[i]?.converted_project_id && (
                   <Link
                     href={`/projects/${parents[i]!.converted_project_id}`}
@@ -531,21 +600,6 @@ export default async function ProposalDetailPage({
                 key={signer.id}
                 className="flex items-center gap-2 rounded-lg border border-edge bg-surface-raised p-3"
               >
-                {signer.decision === "accepted" ? (
-                  <CheckCircle2
-                    size={16}
-                    aria-hidden="true"
-                    className="text-success"
-                  />
-                ) : signer.decision === "declined" ? (
-                  <XCircle size={16} aria-hidden="true" className="text-error" />
-                ) : (
-                  <Clock
-                    size={16}
-                    aria-hidden="true"
-                    className="text-content-muted"
-                  />
-                )}
                 <span className="flex-1 text-body text-content">
                   {signer.name}
                   {signer.roleLabel ? (
@@ -557,13 +611,24 @@ export default async function ProposalDetailPage({
                     </span>
                   ) : null}
                 </span>
-                <span className="text-caption text-content-secondary">
-                  {signer.decision === "accepted"
-                    ? t("signerSigned")
-                    : signer.decision === "declined"
-                      ? t("signerDeclined")
-                      : t("signerPending")}
-                </span>
+                {/* Status pill — same icon+color+text chip idiom as the
+                    sign-off card so the roster reads as one system. */}
+                {signer.decision === "accepted" ? (
+                  <span className="inline-flex items-center gap-1.5 rounded-full bg-success-soft px-2.5 py-0.5 text-caption font-medium text-success-text">
+                    <CheckCircle2 size={13} aria-hidden="true" />
+                    {t("signerSigned")}
+                  </span>
+                ) : signer.decision === "declined" ? (
+                  <span className="inline-flex items-center gap-1.5 rounded-full bg-error-soft px-2.5 py-0.5 text-caption font-medium text-error-text">
+                    <XCircle size={13} aria-hidden="true" />
+                    {t("signerDeclined")}
+                  </span>
+                ) : (
+                  <span className="inline-flex items-center gap-1.5 rounded-full bg-surface-inset px-2.5 py-0.5 text-caption font-medium text-content-muted">
+                    <Clock size={13} aria-hidden="true" />
+                    {t("signerPending")}
+                  </span>
+                )}
               </li>
             ))}
           </ul>
@@ -576,6 +641,37 @@ export default async function ProposalDetailPage({
           <h2 className="mt-[32px] text-title font-semibold text-content">
             {t("signoffHeading")}
           </h2>
+          {overrideEvent && (
+            <div className="mt-2 flex items-start gap-2 rounded-lg border border-warning/40 bg-warning-soft p-3">
+              <UserCheck
+                size={16}
+                aria-hidden="true"
+                className="mt-0.5 shrink-0 text-warning-text"
+              />
+              <div className="text-body">
+                <p className="font-medium text-warning-text">
+                  {t("overriddenCalloutTitle")}
+                  <span className="ml-2 font-normal text-content-secondary">
+                    {formatDisplayDateTime(overrideEvent.occurred_at)}
+                  </span>
+                </p>
+                {overrideEvent.metadata?.note && (
+                  <p className="mt-0.5 text-content">
+                    {overrideEvent.metadata.note}
+                  </p>
+                )}
+                {overrideEvent.metadata?.waived_signers &&
+                  overrideEvent.metadata.waived_signers.length > 0 && (
+                    <p className="mt-0.5 text-caption text-content-secondary">
+                      {t("overriddenWaived", {
+                        names:
+                          overrideEvent.metadata.waived_signers.join(", "),
+                      })}
+                    </p>
+                  )}
+              </div>
+            </div>
+          )}
           {signToken && !acceptance && (
             <div className="mt-2 flex flex-wrap items-center gap-3">
               <p className="text-body text-content-secondary">
@@ -592,13 +688,32 @@ export default async function ProposalDetailPage({
             </div>
           )}
           {acceptance && (
-            <div className="mt-2 rounded-lg border border-edge bg-surface-raised p-4">
-              <p className="text-body-lg font-semibold text-content">
-                {acceptance.decision === "accepted"
-                  ? t("acceptedBy", { name: acceptance.signer_name as string })
-                  : t("declinedBy", { name: acceptance.signer_name as string })}
-              </p>
-              <dl className="mt-2 grid grid-cols-1 gap-x-8 gap-y-1 text-body sm:grid-cols-2">
+            <div
+              className={`mt-2 rounded-lg border bg-surface-raised p-4 ${
+                acceptance.decision === "accepted"
+                  ? "border-success/40"
+                  : "border-error/40"
+              }`}
+            >
+              {/* Status header: icon + colored word + name = three
+                  encoding channels (was a bare white line). */}
+              <div className="flex flex-wrap items-center gap-x-2 gap-y-1">
+                {acceptance.decision === "accepted" ? (
+                  <span className="inline-flex items-center gap-1.5 rounded-full bg-success-soft px-2.5 py-0.5 text-caption font-semibold text-success-text">
+                    <CheckCircle2 size={13} aria-hidden="true" />
+                    {tStatus("accepted")}
+                  </span>
+                ) : (
+                  <span className="inline-flex items-center gap-1.5 rounded-full bg-error-soft px-2.5 py-0.5 text-caption font-semibold text-error-text">
+                    <XCircle size={13} aria-hidden="true" />
+                    {tStatus("declined")}
+                  </span>
+                )}
+                <span className="text-body-lg font-semibold text-content">
+                  {t("signoffBy", { name: acceptance.signer_name as string })}
+                </span>
+              </div>
+              <dl className="mt-3 grid grid-cols-1 gap-x-8 gap-y-1 text-body sm:grid-cols-2">
                 {acceptance.signer_title && (
                   <div className="flex gap-2">
                     <dt className="text-content-secondary">
@@ -632,13 +747,40 @@ export default async function ProposalDetailPage({
                         )}
                       </dd>
                     </div>
-                    <div className="flex gap-2">
+                    <div className="flex flex-col gap-1 sm:col-span-2">
                       <dt className="text-content-secondary">
-                        {t("acceptedItems", {
-                          count: (acceptance.selected_line_item_ids as string[])
-                            .length,
+                        {t("authorizedItemsLabel", {
+                          count: acceptedItemTitles.length,
                         })}
+                        :
                       </dt>
+                      <dd>
+                        {acceptedItemTitles.length > 0 ? (
+                          <ul className="mt-0.5 space-y-0.5">
+                            {acceptedItemTitles.map((title, idx) => (
+                              <li
+                                key={idx}
+                                className="flex items-center gap-1.5 text-body text-content"
+                              >
+                                <CheckCircle2
+                                  size={12}
+                                  aria-hidden="true"
+                                  className="shrink-0 text-success"
+                                />
+                                {title}
+                              </li>
+                            ))}
+                          </ul>
+                        ) : (
+                          <span className="text-content-muted">
+                            {t("acceptedItems", {
+                              count: (
+                                acceptance.selected_line_item_ids as string[]
+                              ).length,
+                            })}
+                          </span>
+                        )}
+                      </dd>
                     </div>
                   </>
                 )}
@@ -652,7 +794,7 @@ export default async function ProposalDetailPage({
                   <dt className="text-content-secondary">
                     {t("recordHash")}:
                   </dt>
-                  <dd className="break-all font-mono text-label text-content-muted">
+                  <dd className="break-all font-mono text-caption text-content-muted">
                     {acceptance.content_sha256 as string}
                   </dd>
                 </div>

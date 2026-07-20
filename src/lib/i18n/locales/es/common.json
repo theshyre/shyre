@@ -126,6 +126,7 @@
     "proposals": "Propuestas",
     "reports": "Informes",
     "business": "Negocio",
+    "integrations": "Integraciones",
     "teams": "Equipos",
     "admin": "Configuración"
   },
@@ -204,7 +205,7 @@
     "membersHeading": "Miembros del Equipo",
     "teamNameLabel": "Nombre del Equipo",
     "rename": "Renombrar",
-    "invite": "Invitar",
+    "inviteButton": "Invitar",
     "emailLabel": "Correo electrónico",
     "emailPlaceholder": "colega@ejemplo.com",
     "roleLabel": "Rol",
@@ -233,7 +234,15 @@
     "couldNotRemoveMember": "No se pudo eliminar al miembro.",
     "roleUpdated": "Rol actualizado.",
     "couldNotUpdateRole": "No se pudo actualizar el rol.",
-    "couldNotTransferOwnership": "No se pudo transferir la propiedad."
+    "couldNotTransferOwnership": "No se pudo transferir la propiedad.",
+    "invite": {
+      "emailNotConfiguredHint": "El correo aún no está configurado para este equipo, así que las invitaciones no se enviarán automáticamente. Copia el enlace de invitación abajo y compártelo directamente.",
+      "emailNotConfiguredCta": "Configurar correo",
+      "copyLink": "Copiar enlace de invitación",
+      "copied": "Enlace de invitación copiado",
+      "copyFailed": "No se pudo copiar el enlace",
+      "linkUnavailableDetail": "El enlace de invitación no se puede generar ahora mismo — NEXT_PUBLIC_APP_URL no está configurado para este despliegue."
+    }
   },
   "teamFilter": {
     "dimension": "Equipo",

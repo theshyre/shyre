@@ -1,3 +1,5 @@
+import { isTeamAdmin, type TeamRole } from "@/lib/team-roles";
+
 /**
  * Pure authorization filter for bulk expense actions. Given the
  * caller's user id, a list of expense rows (id + team_id + user_id),
@@ -10,6 +12,10 @@
  * fail silently — the per-row RLS would block the write anyway,
  * and we don't want to leak existence of rows in other teams via
  * an error message.
+ *
+ * Imports from `@/lib/team-roles` (not `@/lib/team-context`) so this
+ * pure helper stays free of the server-only Supabase client — same
+ * rationale as team-section.tsx's client-side use of isTeamAdmin.
  */
 
 export interface ExpenseAuthRow {
@@ -21,13 +27,13 @@ export interface ExpenseAuthRow {
 export function filterAuthorizedExpenseIds(
   rows: readonly ExpenseAuthRow[],
   callerUserId: string,
-  roleByTeam: ReadonlyMap<string, string>,
+  roleByTeam: ReadonlyMap<string, TeamRole>,
 ): string[] {
   const authorized: string[] = [];
   for (const row of rows) {
     const role = roleByTeam.get(row.team_id) ?? "member";
     const isAuthor = row.user_id === callerUserId;
-    if (isAuthor || role === "owner" || role === "admin") {
+    if (isAuthor || isTeamAdmin(role)) {
       authorized.push(row.id);
     }
   }

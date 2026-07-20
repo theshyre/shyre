@@ -3,7 +3,7 @@ import Link from "next/link";
 import { getTranslations } from "next-intl/server";
 import { Briefcase, ArrowLeft } from "lucide-react";
 import { createClient } from "@/lib/supabase/server";
-import { validateBusinessAccess } from "@/lib/team-context";
+import { isTeamAdmin, validateBusinessAccess } from "@/lib/team-context";
 import { LinkPendingSpinner } from "@/components/LinkPendingSpinner";
 import { BusinessSubNav } from "./business-sub-nav";
 
@@ -47,7 +47,7 @@ export default async function BusinessDetailLayout({
   // role; period-locks 404s for non-admins on the page side, but
   // hiding the tab keeps the UI honest.
   const { role } = await validateBusinessAccess(businessId);
-  const canManagePeriodLocks = role === "owner" || role === "admin";
+  const canManagePeriodLocks = isTeamAdmin(role);
 
   // Header fallback chain: legal_name → name (seeded display name,
   // never null in practice — see businesses migration) → i18n

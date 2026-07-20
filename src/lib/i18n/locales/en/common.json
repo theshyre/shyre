@@ -126,6 +126,7 @@
     "proposals": "Proposals",
     "reports": "Reports",
     "business": "Business",
+    "integrations": "Integrations",
     "teams": "Teams",
     "admin": "Settings"
   },
@@ -204,7 +205,7 @@
     "membersHeading": "Team Members",
     "teamNameLabel": "Team Name",
     "rename": "Rename",
-    "invite": "Invite",
+    "inviteButton": "Invite",
     "emailLabel": "Email",
     "emailPlaceholder": "colleague@example.com",
     "roleLabel": "Role",
@@ -233,7 +234,15 @@
     "couldNotRemoveMember": "Couldn't remove member.",
     "roleUpdated": "Role updated.",
     "couldNotUpdateRole": "Couldn't update role.",
-    "couldNotTransferOwnership": "Couldn't transfer ownership."
+    "couldNotTransferOwnership": "Couldn't transfer ownership.",
+    "invite": {
+      "emailNotConfiguredHint": "Email isn't set up for this team yet, so invites won't be sent automatically. Copy the invite link below and share it directly.",
+      "emailNotConfiguredCta": "Set up email",
+      "copyLink": "Copy invite link",
+      "copied": "Invite link copied",
+      "copyFailed": "Couldn't copy the link",
+      "linkUnavailableDetail": "The invite link can't be built right now — NEXT_PUBLIC_APP_URL isn't configured for this deployment."
+    }
   },
   "teamFilter": {
     "dimension": "Team",
