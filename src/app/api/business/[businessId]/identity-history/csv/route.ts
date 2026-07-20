@@ -1,5 +1,5 @@
 import { createClient } from "@/lib/supabase/server";
-import { escapeCsvField } from "@/lib/time/csv";
+import { escapeCsvField } from "@/lib/csv/escape";
 import { logError } from "@/lib/logger";
 import { getBusinessIdentityHistoryAction } from "@/app/(dashboard)/business/actions";
 import {
@@ -9,7 +9,7 @@ import {
   identityGroupKey,
   type IdentityHistoryEntry,
 } from "@/app/(dashboard)/business/identity-history-types";
-import { expandWithFieldDiffs } from "@/app/(dashboard)/business/[businessId]/people/history/history-format";
+import { expandWithFieldDiffs } from "@/lib/history/format";
 import { expandToCsvRows } from "@/app/(dashboard)/business/history-csv";
 
 /**

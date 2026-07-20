@@ -3,8 +3,9 @@
  *
  * Mirrors the shape of FIELD_LABELS / HIDDEN_KEYS in
  * `business/[businessId]/people/history/history-format.ts` so the
- * shared `expandWithFieldDiffs` helper can run against project rows
- * without modification — it accepts these as pluggable inputs.
+ * shared `expandWithFieldDiffs` helper from `@/lib/history/format`
+ * can run against project rows without modification — it accepts
+ * these as pluggable inputs.
  *
  * Anything not in `PROJECT_FIELD_LABELS` is hidden. Add labels here
  * when surfacing a new column to the audit timeline.

@@ -1,16 +1,10 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { getTranslations } from "next-intl/server";
-import {
-  Settings,
-  Shield,
-  Tags,
-  Bookmark,
-  UserPlus,
-  Plug,
-} from "lucide-react";
+import { Settings, Shield, UserPlus } from "lucide-react";
 import { getUserTeams } from "@/lib/team-context";
 import { isSystemAdmin } from "@/lib/system-admin";
+import { MODULES } from "@/lib/modules/registry";
 import { LinkPendingSpinner } from "@/components/LinkPendingSpinner";
 import type { ComponentType } from "react";
 
@@ -53,6 +47,20 @@ export default async function SettingsHubPage(): Promise<React.JSX.Element> {
   const membersHref =
     teams.length === 1 ? `/teams/${teams[0]!.id}` : "/teams";
 
+  // Module-contributed cards (Stint's Categories/Templates,
+  // Integrations' token management) come from the registry's
+  // `settingsEntries` — see src/lib/modules/registry.ts. A module's
+  // `labelKey` here maps to `admin.hub.cards.<labelKey>.*`.
+  const moduleCards: Card[] = MODULES.flatMap(
+    (m) => m.settingsEntries ?? [],
+  ).map((entry) => ({
+    id: entry.labelKey,
+    title: t(`cards.${entry.labelKey}.title`),
+    description: t(`cards.${entry.labelKey}.description`),
+    href: entry.href,
+    icon: entry.icon,
+  }));
+
   const cards: Card[] = [
     // Members card sits first — agency-owner finding: most-frequent
     // owner task should be most-prominent. Stays here as the
@@ -76,27 +84,11 @@ export default async function SettingsHubPage(): Promise<React.JSX.Element> {
       href: "/security-groups",
       icon: Shield,
     },
-    {
-      id: "categories",
-      title: t("cards.categories.title"),
-      description: t("cards.categories.description"),
-      href: "/categories",
-      icon: Tags,
-    },
-    {
-      id: "templates",
-      title: t("cards.templates.title"),
-      description: t("cards.templates.description"),
-      href: "/templates",
-      icon: Bookmark,
-    },
-    {
-      id: "integrations",
-      title: t("cards.integrations.title"),
-      description: t("cards.integrations.description"),
-      href: "/settings/integrations",
-      icon: Plug,
-    },
+    // Categories, Templates (Stint) and Integrations are registry-
+    // driven — see moduleCards above. Curated ordering (Members,
+    // Security Groups, then module cards) is preserved by appending
+    // here rather than reflowing from MODULES declaration order.
+    ...moduleCards,
     // Import was previously a card here. Promoted to a sidebar entry
     // under the Setup section (see src/lib/modules/registry.ts
     // PLATFORM_TOOLS). Single path to one feature; the hub no longer

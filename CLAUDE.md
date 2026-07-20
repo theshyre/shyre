@@ -15,15 +15,21 @@ src/
 ├── app/
 │   ├── layout.tsx              — root layout
 │   ├── login/page.tsx          — auth
+│   ├── (sign)/                 — public proposal sign flow (no auth)
 │   ├── (dashboard)/            — authenticated route group
 │   │   ├── layout.tsx          — sidebar layout
 │   │   ├── page.tsx            — dashboard
-│   │   ├── clients/            — client list + [id] detail
+│   │   ├── customers/          — customer list + [id] detail
 │   │   ├── projects/           — project list + [id] detail
 │   │   ├── time-entries/       — time entry list + [id] edit
-│   │   ├── timer/              — active timer + quick entry
 │   │   ├── invoices/           — invoice list + new + [id] detail
+│   │   ├── proposals/          — proposal list + new + [id] detail/edit/preview
 │   │   ├── reports/            — reporting dashboard
+│   │   ├── business/           — business identity + people + expenses
+│   │   ├── teams/              — team management
+│   │   ├── profile/            — per-user preferences, MFA
+│   │   ├── import/             — Harvest/CSV import + undo
+│   │   ├── system/             — system-admin only
 │   │   └── settings/           — user/business settings
 │   ├── auth/callback/route.ts  — Supabase auth callback
 │   └── docs/                   — in-app documentation (deployed with app)

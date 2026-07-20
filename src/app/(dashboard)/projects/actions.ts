@@ -12,7 +12,7 @@ import {
   ALLOWED_BUDGET_PERIODS,
   ALLOWED_BUDGET_CARRYOVER,
   TERMINAL_PROJECT_STATUSES,
-} from "./allow-lists";
+} from "@/lib/projects/allow-lists";
 
 /** Atlassian project keys are uppercase 2+ chars, letters/digits.
  *  Normalize for symmetry with the detection regex in

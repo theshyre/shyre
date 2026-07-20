@@ -1,7 +1,7 @@
 import { describe, it, expect } from "vitest";
 import { readFileSync } from "node:fs";
 import { join } from "node:path";
-import { ALLOWED_THEMES } from "@/app/(dashboard)/profile/allow-lists";
+import { ALLOWED_THEMES } from "@/lib/profile/allow-lists";
 
 /**
  * Regression guard for the 2026-07-18 malcom badge bug: the per-theme

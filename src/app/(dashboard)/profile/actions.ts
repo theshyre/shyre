@@ -14,7 +14,7 @@ import {
   ALLOWED_WEEK_STARTS,
   ALLOWED_TEXT_SIZES,
   ALLOWED_TIME_FORMATS,
-} from "./allow-lists";
+} from "@/lib/profile/allow-lists";
 
 export async function updateUserSettingsAction(formData: FormData): Promise<void> {
   return runSafeAction(formData, async (formData, { supabase, userId }) => {
