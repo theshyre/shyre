@@ -138,6 +138,7 @@ import {
   convertProposalAction,
   createInvoiceFromProposalAction,
   createProposalVersionAction,
+  overrideProposalSignoffAction,
 } from "./actions";
 import { sha256Hex } from "@/lib/proposals/tokens";
 
@@ -840,6 +841,111 @@ describe("convertProposalAction", () => {
   });
 });
 
+describe("overrideProposalSignoffAction", () => {
+  /** A stalled all-mode deal: primary (sgn-1) accepted, co-signer (sgn-2)
+   *  hasn't. Wires the queues loadProposalRoster + the acceptance read need. */
+  function seedStalled(overrides: { signingMode?: string; status?: string } = {}): void {
+    queues["proposals"] = [
+      {
+        data: {
+          id: "prop-1",
+          team_id: TEAM,
+          status: overrides.status ?? "viewed",
+          signing_mode: overrides.signingMode ?? "all",
+        },
+        error: null,
+      },
+      { data: null, error: null }, // status update
+    ];
+    queues["proposal_signers"] = [
+      {
+        data: [
+          { id: "sgn-1", sort_order: 0, customer_contacts: { name: "Bret Andre", email: "bret@eyereg.test", role_label: "President" } },
+          { id: "sgn-2", sort_order: 1, customer_contacts: { name: "Mijeong Andre", email: "mij@eyereg.test", role_label: null } },
+        ],
+        error: null,
+      },
+    ];
+    queues["proposal_acceptances"] = [
+      {
+        data: [
+          { signer_id: "sgn-1", decision: "accepted", accepted_total: 7450, signer_name: "Bret Andre" },
+        ],
+        error: null,
+      },
+    ];
+    queues["proposal_access_tokens"] = [{ data: null, error: null }];
+    queues["proposal_events"] = [{ data: null, error: null }];
+  }
+
+  it("completes a stalled multi-signer deal on the primary's total + records an audited event", async () => {
+    seedStalled();
+    await overrideProposalSignoffAction(
+      formWith({ id: "prop-1", note: "Co-signer left the company." }),
+    );
+
+    const update = calls
+      .filter((c) => c.table === "proposals")
+      .flatMap((c) => c.ops.filter((o) => o.method === "update"))
+      .map((o) => o.args[0] as { status?: string; accepted_total?: number })[0];
+    expect(update?.status).toBe("accepted");
+    expect(update?.accepted_total).toBe(7450);
+
+    const event = insertedRows("proposal_events")[0];
+    expect(event?.event_type).toBe("signoff_overridden");
+    expect(event?.actor_user_id).toBe("u-author");
+    const meta = event?.metadata as {
+      note: string;
+      waived_signers: string[];
+    };
+    expect(meta.note).toBe("Co-signer left the company.");
+    expect(meta.waived_signers).toEqual(["Mijeong Andre"]);
+
+    // The holdout's outstanding link is revoked so a late click can't compete.
+    const tokenUpdate = calls
+      .filter((c) => c.table === "proposal_access_tokens")
+      .flatMap((c) => c.ops.filter((o) => o.method === "update"))
+      .map((o) => o.args[0] as { revoked_at?: string })[0];
+    expect(tokenUpdate?.revoked_at).toBeTruthy();
+  });
+
+  it("requires a reason note", async () => {
+    seedStalled();
+    await expect(
+      overrideProposalSignoffAction(formWith({ id: "prop-1", note: "x" })),
+    ).rejects.toThrow(/reason/i);
+  });
+
+  it("refuses when the proposal is not in all-mode", async () => {
+    seedStalled({ signingMode: "first" });
+    await expect(
+      overrideProposalSignoffAction(
+        formWith({ id: "prop-1", note: "changed our mind" }),
+      ),
+    ).rejects.toThrow(/every signer/i);
+  });
+
+  it("refuses once the proposal is already decided", async () => {
+    seedStalled({ status: "accepted" });
+    await expect(
+      overrideProposalSignoffAction(
+        formWith({ id: "prop-1", note: "changed our mind" }),
+      ),
+    ).rejects.toThrow(/in-flight/i);
+  });
+
+  it("refuses when nobody has signed yet (nothing to stand on)", async () => {
+    seedStalled();
+    // No accepted acceptances.
+    queues["proposal_acceptances"] = [{ data: [], error: null }];
+    await expect(
+      overrideProposalSignoffAction(
+        formWith({ id: "prop-1", note: "changed our mind" }),
+      ),
+    ).rejects.toThrow(/nobody|no one/i);
+  });
+});
+
 describe("createInvoiceFromProposalAction", () => {
   const acceptedProposal = {
     id: "prop-1",
@@ -1182,13 +1288,28 @@ describe("deleteProposalAction", () => {
     expect(delCall).toBeDefined();
   });
 
-  it("refuses to delete anything past draft — it's part of the audit record", async () => {
+  it("also deletes a superseded version (e.g. clearing out test proposals)", async () => {
+    queues["proposals"] = [
+      { data: { id: "prop-1", team_id: TEAM, status: "superseded" }, error: null },
+      { data: null, error: null }, // delete
+    ];
+    await expect(
+      deleteProposalAction(formWith({ id: "prop-1" })),
+    ).rejects.toThrow("NEXT_REDIRECT /proposals");
+    const delCall = calls.find(
+      (c) =>
+        c.table === "proposals" && c.ops.some((o) => o.method === "delete"),
+    );
+    expect(delCall).toBeDefined();
+  });
+
+  it("refuses to delete a sent/decided proposal — it's part of the audit record", async () => {
     queues["proposals"] = [
       { data: { id: "prop-1", team_id: TEAM, status: "accepted" }, error: null },
     ];
     await expect(
       deleteProposalAction(formWith({ id: "prop-1" })),
-    ).rejects.toThrow(/Only draft proposals can be deleted/);
+    ).rejects.toThrow(/audit record/);
   });
 });
 

@@ -14,7 +14,7 @@ beforeEach(() => deleteMock.mockReset());
 describe("DeleteProposalButton", () => {
   it("is tier-2: requires typing 'delete', and the armed button stays disabled until then", () => {
     renderWithIntl(<DeleteProposalButton proposalId="p1" />);
-    fireEvent.click(screen.getByRole("button", { name: /Delete draft/ }));
+    fireEvent.click(screen.getByRole("button", { name: /^Delete$/ }));
     const confirm = screen.getByRole("button", { name: /Delete forever/ });
     expect(confirm).toBeDisabled();
     expect(deleteMock).not.toHaveBeenCalled();
@@ -28,7 +28,7 @@ describe("DeleteProposalButton", () => {
   it("deletes with the proposal id once armed", async () => {
     deleteMock.mockResolvedValue({ success: true });
     renderWithIntl(<DeleteProposalButton proposalId="p1" />);
-    fireEvent.click(screen.getByRole("button", { name: /Delete draft/ }));
+    fireEvent.click(screen.getByRole("button", { name: /^Delete$/ }));
     fireEvent.change(screen.getByLabelText(/Type delete to confirm/), {
       target: { value: "delete" },
     });
@@ -40,11 +40,11 @@ describe("DeleteProposalButton", () => {
 
   it("cancel backs out without deleting", () => {
     renderWithIntl(<DeleteProposalButton proposalId="p1" />);
-    fireEvent.click(screen.getByRole("button", { name: /Delete draft/ }));
+    fireEvent.click(screen.getByRole("button", { name: /^Delete$/ }));
     fireEvent.click(screen.getByRole("button", { name: /^Cancel$/ }));
     expect(deleteMock).not.toHaveBeenCalled();
     expect(
-      screen.getByRole("button", { name: /Delete draft/ }),
+      screen.getByRole("button", { name: /^Delete$/ }),
     ).toBeInTheDocument();
   });
 
@@ -54,7 +54,7 @@ describe("DeleteProposalButton", () => {
       error: { message: "Only draft proposals can be deleted." },
     });
     renderWithIntl(<DeleteProposalButton proposalId="p1" />);
-    fireEvent.click(screen.getByRole("button", { name: /Delete draft/ }));
+    fireEvent.click(screen.getByRole("button", { name: /^Delete$/ }));
     fireEvent.change(screen.getByLabelText(/Type delete to confirm/), {
       target: { value: "delete" },
     });

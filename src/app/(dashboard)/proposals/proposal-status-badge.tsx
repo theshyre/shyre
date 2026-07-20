@@ -8,8 +8,10 @@ import {
   XCircle,
   FolderCheck,
   History,
+  PenLine,
   type LucideIcon,
 } from "lucide-react";
+import type { SignoffProgress } from "@/lib/proposals/list-view";
 
 interface Props {
   status: string;
@@ -23,6 +25,14 @@ interface Props {
    *  Sent/Viewed. Ignored for any other status so a stale flag can
    *  never mislabel a decided proposal. */
   expired?: boolean;
+  /** Read-time "partially signed" projection (via
+   *  `partialSignoffProgress`) for a multi-signer proposal with some —
+   *  but not all — signatures in. Renders "N of M signed" instead of
+   *  the bare Sent/Viewed, and takes precedence over `expired`: a deal
+   *  actively being signed is more actionable news than a lapsed date.
+   *  Ignored unless the projection was computed for an in-flight
+   *  status, so it can never mislabel a decided proposal. */
+  signoff?: SignoffProgress | null;
 }
 
 /** Three-channel proposal status indicator (icon + text + color) per the
@@ -32,15 +42,25 @@ export function ProposalStatusBadge({
   status,
   size = "default",
   expired = false,
+  signoff = null,
 }: Props): React.JSX.Element {
   const t = useTranslations("proposals.status");
-  const showExpired =
-    expired && (status === "sent" || status === "viewed");
-  const meta = showExpired
-    ? EXPIRED_META
-    : (STATUS_META[status] ?? STATUS_META.draft!);
+  const inFlight = status === "sent" || status === "viewed";
+  // Partial sign-off wins over expiry: "1 of 2 signed" is the more
+  // useful thing to know about an in-flight multi-signer deal.
+  const showPartial = signoff != null && inFlight;
+  const showExpired = !showPartial && expired && inFlight;
+  const meta = showPartial
+    ? PARTIAL_META
+    : showExpired
+      ? EXPIRED_META
+      : (STATUS_META[status] ?? STATUS_META.draft!);
   const Icon = meta.icon;
-  const label = showExpired ? t("expired") : t(status);
+  const label = showPartial
+    ? t("partiallySigned", { signed: signoff.signed, total: signoff.total })
+    : showExpired
+      ? t("expired")
+      : t(status);
 
   const sizingClasses =
     size === "prominent"
@@ -70,6 +90,14 @@ interface StatusMeta {
 const EXPIRED_META: StatusMeta = {
   icon: Clock,
   classes: "bg-warning-soft text-warning-text",
+};
+
+/** In-progress signing — accent tone (active, distinct from the info
+ *  tone of a bare sent/viewed) with a pen icon. Reads as "being signed
+ *  right now", not "done" (success) or "lapsed" (warning). */
+const PARTIAL_META: StatusMeta = {
+  icon: PenLine,
+  classes: "bg-accent-soft text-accent-text",
 };
 
 const STATUS_META: Record<string, StatusMeta> = {

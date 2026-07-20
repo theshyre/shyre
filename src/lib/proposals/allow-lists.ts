@@ -38,6 +38,20 @@ export function isProposalEditable(status: string | null | undefined): boolean {
   return status === "draft";
 }
 
+/**
+ * A proposal is deletable while `draft` (never sent — pure staging) or
+ * `superseded` (a replaced version; the current version lives on, and the
+ * `supersedes_proposal_id` FK is ON DELETE SET NULL so removing a link in
+ * the chain is safe). Everything else — sent / viewed / accepted / declined
+ * / converted — is part of the audit record and is never deletable; those
+ * are voided or reissued, not erased. Enforced in `deleteProposalAction`.
+ */
+export function isProposalDeletable(
+  status: string | null | undefined,
+): boolean {
+  return status === "draft" || status === "superseded";
+}
+
 /** Terminal statuses — no further transitions. */
 export const TERMINAL_PROPOSAL_STATUSES = new Set<string>([
   "declined",
@@ -75,6 +89,7 @@ export const PROPOSAL_EVENT_TYPES = [
   "converted",
   "superseded",
   "link_resent",
+  "signoff_overridden",
 ] as const;
 
 export type ProposalEventType = (typeof PROPOSAL_EVENT_TYPES)[number];

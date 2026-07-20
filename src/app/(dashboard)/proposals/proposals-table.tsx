@@ -17,6 +17,7 @@ import {
   daysSinceIsoDate,
   displayProposalTotal,
   isProposalExpired,
+  type SignoffProgress,
 } from "@/lib/proposals/list-view";
 import { ProposalStatusBadge } from "./proposal-status-badge";
 
@@ -33,6 +34,9 @@ export interface ProposalRow {
   total: number;
   /** The client-authorized subset total, once accepted. Null until then. */
   accepted_total: number | null;
+  /** Read-time "N of M signed" projection for an in-flight multi-signer
+   *  proposal (via `partialSignoffProgress`); null when it doesn't apply. */
+  signoff: SignoffProgress | null;
 }
 
 interface Props {
@@ -122,7 +126,11 @@ export function ProposalsTable({
                   </span>
                 </td>
                 <td className={tableBodyCellClass}>
-                  <ProposalStatusBadge status={p.status} expired={expired} />
+                  <ProposalStatusBadge
+                    status={p.status}
+                    expired={expired}
+                    signoff={p.signoff}
+                  />
                 </td>
                 <td className={`${tableBodyCellClass} text-right font-mono`}>
                   {formatCurrency(

@@ -4,6 +4,7 @@ import {
   ALLOWED_PROPOSAL_STATUSES,
   TERMINAL_PROPOSAL_STATUSES,
   isProposalEditable,
+  isProposalDeletable,
   DEPOSIT_TYPES,
   ALLOWED_DEPOSIT_TYPES,
 } from "./allow-lists";
@@ -37,6 +38,16 @@ describe("proposal allow-lists", () => {
     }
     expect(isProposalEditable(null)).toBe(false);
     expect(isProposalEditable(undefined)).toBe(false);
+  });
+
+  it("draft and superseded are deletable; audit-record statuses are not", () => {
+    expect(isProposalDeletable("draft")).toBe(true);
+    expect(isProposalDeletable("superseded")).toBe(true);
+    for (const s of ["sent", "viewed", "accepted", "declined", "converted"]) {
+      expect(isProposalDeletable(s)).toBe(false);
+    }
+    expect(isProposalDeletable(null)).toBe(false);
+    expect(isProposalDeletable(undefined)).toBe(false);
   });
 
   it("exposes the deposit types", () => {

@@ -47,4 +47,35 @@ describe("ProposalStatusBadge", () => {
     expect(screen.getByText("Accepted")).toBeInTheDocument();
     expect(screen.queryByText("Expired")).not.toBeInTheDocument();
   });
+
+  it("renders 'N of M signed' for a partially-signed in-flight proposal", () => {
+    renderWithIntl(
+      <ProposalStatusBadge status="viewed" signoff={{ signed: 1, total: 2 }} />,
+    );
+    expect(screen.getByText("1 of 2 signed")).toBeInTheDocument();
+    expect(screen.queryByText("Viewed")).not.toBeInTheDocument();
+  });
+
+  it("prefers partial sign-off over the expired cue (more actionable)", () => {
+    renderWithIntl(
+      <ProposalStatusBadge
+        status="viewed"
+        expired
+        signoff={{ signed: 1, total: 3 }}
+      />,
+    );
+    expect(screen.getByText("1 of 3 signed")).toBeInTheDocument();
+    expect(screen.queryByText("Expired")).not.toBeInTheDocument();
+  });
+
+  it("ignores a signoff projection on a decided status", () => {
+    renderWithIntl(
+      <ProposalStatusBadge
+        status="accepted"
+        signoff={{ signed: 1, total: 2 }}
+      />,
+    );
+    expect(screen.getByText("Accepted")).toBeInTheDocument();
+    expect(screen.queryByText(/of 2 signed/)).not.toBeInTheDocument();
+  });
 });
