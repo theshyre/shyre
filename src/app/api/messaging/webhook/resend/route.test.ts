@@ -12,7 +12,15 @@ vi.mock("@/lib/messaging/outbox", () => ({
 
 const adminUpdateMock = vi.fn();
 const adminSelectMock = vi.fn();
-function buildAdmin(rowToReturn: unknown = null) {
+interface AdminClientStub {
+  from: (table: string) => {
+    select: () => {
+      eq: () => { maybeSingle: () => Promise<{ data: unknown }> };
+    };
+    update: (patch: unknown) => { eq: () => Promise<unknown> };
+  };
+}
+function buildAdmin(rowToReturn: unknown = null): AdminClientStub {
   return {
     from: vi.fn(() => ({
       select: () => ({
@@ -27,13 +35,41 @@ function buildAdmin(rowToReturn: unknown = null) {
     })),
   };
 }
-let adminClient: ReturnType<typeof buildAdmin>;
+/** Records (table, patch) so side-effect tests can assert WHICH table
+ *  an UPDATE landed on, not just that some update happened. */
+const tableUpdateMock = vi.fn();
+function buildAdminTables(rows: {
+  outbox?: unknown;
+  invoice?: unknown;
+}): AdminClientStub {
+  return {
+    from: (table: string) => ({
+      select: () => ({
+        eq: () => ({
+          maybeSingle: async () => ({
+            data:
+              table === "message_outbox"
+                ? (rows.outbox ?? null)
+                : table === "invoices"
+                  ? (rows.invoice ?? null)
+                  : null,
+          }),
+        }),
+      }),
+      update: (patch: unknown) => ({
+        eq: async () => tableUpdateMock(table, patch),
+      }),
+    }),
+  };
+}
+let adminClient: AdminClientStub;
 vi.mock("@/lib/supabase/admin", () => ({
   createAdminClient: () => adminClient,
 }));
 
+const logErrorMock = vi.fn();
 vi.mock("@/lib/logger", () => ({
-  logError: vi.fn(),
+  logError: (...args: unknown[]) => logErrorMock(...args),
 }));
 
 import { POST } from "./route";
@@ -45,6 +81,8 @@ beforeEach(() => {
   recordEventMock.mockReset();
   adminUpdateMock.mockReset();
   adminSelectMock.mockReset();
+  tableUpdateMock.mockReset();
+  logErrorMock.mockReset();
   adminClient = buildAdmin(null);
 });
 
@@ -337,5 +375,148 @@ describe("Resend webhook — signature verification", () => {
     const req = signedRequest(body);
     const res = await POST(req);
     expect(res.status).toBe(400);
+  });
+});
+
+describe("Resend webhook — per-event-type handling", () => {
+  const OUTBOX_ROW = {
+    id: "outbox-1",
+    team_id: "team-1",
+    related_id: "inv-1",
+    related_kind: "invoice",
+  };
+
+  function eventRequest(
+    type: string,
+    data: Record<string, unknown> = {},
+  ): Request {
+    return signedRequest(
+      JSON.stringify({
+        type,
+        created_at: new Date().toISOString(),
+        data: { email_id: "msg-from-resend", ...data },
+      }),
+    );
+  }
+
+  beforeEach(() => {
+    adminClient = buildAdminTables({
+      outbox: OUTBOX_ROW,
+      invoice: { customer_id: "cust-1" },
+    });
+    recordEventMock.mockResolvedValue(true);
+  });
+
+  it("email.delivered records the event and flags no customer", async () => {
+    const res = await POST(eventRequest("email.delivered"));
+    expect(res.status).toBe(200);
+    expect(recordEventMock).toHaveBeenCalledExactlyOnceWith(
+      "outbox-1",
+      "email.delivered",
+      expect.objectContaining({ type: "email.delivered" }),
+      expect.any(String),
+    );
+    expect(tableUpdateMock).not.toHaveBeenCalled();
+  });
+
+  it("email.bounced on an invoice send stamps the customer's bounced_at + bounce reason", async () => {
+    const before = Date.now();
+    const res = await POST(
+      eventRequest("email.bounced", {
+        bounce: { message: "Mailbox full", subType: "General" },
+      }),
+    );
+    expect(res.status).toBe(200);
+    expect(tableUpdateMock).toHaveBeenCalledTimes(1);
+    const [table, patch] = tableUpdateMock.mock.calls[0] as [
+      string,
+      { bounced_at: string; bounce_reason: string },
+    ];
+    expect(table).toBe("customers");
+    expect(patch.bounce_reason).toBe("Mailbox full");
+    // bounced_at is stamped "now", not copied from the payload.
+    const stamped = new Date(patch.bounced_at).getTime();
+    expect(stamped).toBeGreaterThanOrEqual(before);
+    expect(stamped).toBeLessThanOrEqual(Date.now());
+  });
+
+  it("email.bounced falls back to the bounce subType, then to 'Hard bounce', as the reason", async () => {
+    await POST(eventRequest("email.bounced", { bounce: { subType: "Suppressed" } }));
+    await POST(eventRequest("email.bounced", {}));
+    expect(tableUpdateMock).toHaveBeenCalledTimes(2);
+    const patches = tableUpdateMock.mock.calls.map(
+      (c) => (c[1] as { bounce_reason: string }).bounce_reason,
+    );
+    expect(patches).toEqual(["Suppressed", "Hard bounce"]);
+  });
+
+  it("email.bounced on a NON-invoice send records the event but never touches customers", async () => {
+    adminClient = buildAdminTables({
+      outbox: { ...OUTBOX_ROW, related_kind: "proposal" },
+      invoice: { customer_id: "cust-1" },
+    });
+    const res = await POST(
+      eventRequest("email.bounced", { bounce: { message: "Mailbox full" } }),
+    );
+    expect(res.status).toBe(200);
+    expect(recordEventMock).toHaveBeenCalledTimes(1);
+    expect(tableUpdateMock).not.toHaveBeenCalled();
+  });
+
+  it("email.bounced skips the flag quietly when the invoice has no customer", async () => {
+    adminClient = buildAdminTables({
+      outbox: OUTBOX_ROW,
+      invoice: { customer_id: null },
+    });
+    const res = await POST(
+      eventRequest("email.bounced", { bounce: { message: "Mailbox full" } }),
+    );
+    // Still a 200 — the event itself was recorded; only the optional
+    // customer flag is skipped.
+    expect(res.status).toBe(200);
+    expect(recordEventMock).toHaveBeenCalledTimes(1);
+    expect(tableUpdateMock).not.toHaveBeenCalled();
+  });
+
+  it("email.complained on an invoice send stamps the customer's complained_at (no bounce fields)", async () => {
+    const before = Date.now();
+    const res = await POST(eventRequest("email.complained"));
+    expect(res.status).toBe(200);
+    expect(tableUpdateMock).toHaveBeenCalledTimes(1);
+    const [table, patch] = tableUpdateMock.mock.calls[0] as [
+      string,
+      Record<string, unknown>,
+    ];
+    expect(table).toBe("customers");
+    expect(Object.keys(patch)).toEqual(["complained_at"]);
+    const stamped = new Date(patch.complained_at as string).getTime();
+    expect(stamped).toBeGreaterThanOrEqual(before);
+  });
+
+  it("email.opened is recorded for Phase-2 metrics but triggers no side effects", async () => {
+    const res = await POST(eventRequest("email.opened"));
+    expect(res.status).toBe(200);
+    expect(recordEventMock).toHaveBeenCalledExactlyOnceWith(
+      "outbox-1",
+      "email.opened",
+      expect.objectContaining({ type: "email.opened" }),
+      expect.any(String),
+    );
+    expect(tableUpdateMock).not.toHaveBeenCalled();
+  });
+
+  it("returns 500 and logs with team context when event handling throws", async () => {
+    recordEventMock.mockRejectedValue(new Error("outbox insert failed"));
+    const res = await POST(eventRequest("email.bounced"));
+    expect(res.status).toBe(500);
+    expect(logErrorMock).toHaveBeenCalledExactlyOnceWith(
+      expect.any(Error),
+      expect.objectContaining({
+        teamId: "team-1",
+        action: "messaging.webhook.resend",
+      }),
+    );
+    // The failed handler must not have half-applied the customer flag.
+    expect(tableUpdateMock).not.toHaveBeenCalled();
   });
 });

@@ -1,21 +1,62 @@
 # Testing roadmap
 
-## Current state (as of 2026-05-12)
+## Current state (as of 2026-07-20)
 
 ```
-Tests:     2608 passing · 1 skipped (was 2497 pre-push)
-Coverage:  Statements 45.84% · Branches 38.79% · Functions 42.28% · Lines 45.97%
+Tests:     4168 passing · 1 skipped (355 files)
+Coverage:  Statements 65.87% · Branches 53.99% · Functions 60.36% · Lines 66.77%
 Target:    90% across the board (CLAUDE.md mandate)
 Gate:      CI runs `npm run test:coverage` with a ratcheted floor
            (see vitest.config.ts thresholds). PRs that drop below
            the floor fail CI. Every PR that raises coverage must
-           also raise the floor — this is how we get from 45% to 90%
+           also raise the floor — this is how we get to 90%
            without a week-long push.
-Build:     `npm run ci:local` now also runs `next build` to catch
+Build:     `npm run ci:local` also runs `next build` to catch
            Next.js-only checks (`"use server"` async-export, server-
            closure-passed-across-boundary in build trace) that
            lint/typecheck/vitest miss.
 ```
+
+**2026-07-20 push — audit batch F-P0 (security/money glue).** Closed
+the highest-risk untested glue from the 2026-07-19 full audit:
+- `/api/mcp` tool dispatch — every tool driven through the real
+  handler; snake_case→camelCase arg mapping pinned exactly
+  (`idempotency_key`→`idempotencyKey`, `session_ref`, `force`,
+  `billable:false` survival), plus the fail-closed missing-authInfo
+  branch in `runTool`.
+- `auth/callback/route.ts` — was the only untested route in the repo.
+  Open-redirect bypass shapes (protocol-relative, backslash, absolute,
+  encoded) all pinned to land on `/`; exchange-failure and missing-code
+  paths pinned to `/login`.
+- `encryptForTeam` / `decryptForTeam` — DEK round-trip through the
+  PostgREST hex shape, legacy direct-KEK fallback, upgrade-window
+  (DEK exists but secret saved under old path), tamper rejection on
+  both paths, null passthrough.
+- Invoice paid-date-correction derivation (old→new walk over
+  `invoices_history`, the timestamp-comparison incident class) —
+  latest-correction, later-unrelated-edit, skip-equal-snapshot, and
+  two-correction-chain cases, all using `+00:00`-form timestamps.
+- Resend webhook per-event-type branches — delivered / bounced
+  (reason precedence message→subType→"Hard bounce") / complained /
+  opened, non-invoice and no-customer skips, 500-with-teamId logging.
+- Test-quality: token-substring class asserts in StatusBadge and
+  customers-table replaced with behavior / constant-equality asserts.
+
+**Landmarks since 2026-05-12** (recorded so future audits don't
+re-litigate them):
+- **Coverage grinds 1–3** (waves of server actions, API routes, admin
+  error dashboard) took statements 46% → 58.2% → 62.6% (#78); floors
+  ratcheted each time (now maintained in `vitest.config.ts`).
+- **Batch 6a high-risk money/security coverage** (#47) defended the
+  proposals billing conversion + sign-off surfaces.
+- **Integrations / MCP suites** (SAL-051): `/api/v1` REST wrapper,
+  `lib/integrations/{service,api-auth,mcp-auth,tokens}`, and the
+  `/api/mcp` endpoint all have co-located suites (auth gauntlet,
+  no-oracle 401s, scope enforcement; dispatch glue as of this push).
+- **Sign-flow E2E**: `e2e/sign-flow.spec.ts` covers the public
+  proposal sign-off path (public link → typed sign → email OTP)
+  end-to-end, alongside the other Playwright specs (auth, customers,
+  security-groups, sharing, teams, time-home, route-smoke).
 
 **2026-05-12 push — coverage waves 1 + 2 + 3.** +168 new tests across 11
 previously-untested files plus outbox tail-function coverage.

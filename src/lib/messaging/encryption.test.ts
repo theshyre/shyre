@@ -9,6 +9,8 @@ import {
   decryptWithDek,
   bytesForPg,
   getOrCreateTeamDek,
+  encryptForTeam,
+  decryptForTeam,
 } from "./encryption";
 
 beforeAll(() => {
@@ -268,5 +270,131 @@ describe("getOrCreateTeamDek — self-heal regression guard", () => {
     // because the row doesn't exist yet, so "set api_key to
     // null" effectively means "leave unset."
     expect(patch.api_key_encrypted).toBeNull();
+  });
+});
+
+describe("encryptForTeam / decryptForTeam — envelope layer with legacy fallback", () => {
+  beforeEach(() => {
+    adminUpsertMock.mockReset();
+  });
+
+  /** Read-side stub whose SELECT result can change between calls —
+   *  needed because encryptForTeam's upsert (through the admin mock)
+   *  is what makes the DEK visible to a later decryptForTeam. */
+  function makeTeamConfigStore(initialDekRow: unknown) {
+    const store = { dekRow: initialDekRow, selects: 0 };
+    const supabase = {
+      from: () => ({
+        select: () => ({
+          eq: () => ({
+            maybeSingle: async () => {
+              store.selects += 1;
+              return { data: store.dekRow, error: null };
+            },
+          }),
+        }),
+      }),
+    } as unknown as Parameters<typeof encryptForTeam>[0];
+    return { supabase, store };
+  }
+
+  it("round-trips a secret through a freshly-created DEK, persisted in the PostgREST hex shape", async () => {
+    const { supabase, store } = makeTeamConfigStore(null);
+    // The upsert is the only write path — capture what it stores and
+    // make the read side return it, exactly like the DB would.
+    adminUpsertMock.mockImplementation(
+      async (patch: { dek_encrypted: string }) => {
+        store.dekRow = { dek_encrypted: patch.dek_encrypted };
+        return { error: null };
+      },
+    );
+    const cipher = await encryptForTeam(supabase, "team-env-1", "re_key_PLACEHOLDER");
+    expect(adminUpsertMock).toHaveBeenCalledOnce();
+    // The stored DEK ciphertext must survive JSON — the `\x` hex
+    // literal string, never a raw Buffer (the SAL-018 write bug).
+    expect(store.dekRow).toMatchObject({
+      dek_encrypted: expect.stringMatching(/^\\x[0-9a-f]+$/) as unknown,
+    });
+    // Decrypt reads the DEK back through the same hex-string shape.
+    const plain = await decryptForTeam(supabase, "team-env-1", cipher);
+    expect(plain).toBe("re_key_PLACEHOLDER");
+  });
+
+  it("reuses an existing DEK without touching the write path", async () => {
+    const dek = generateDek();
+    const { supabase } = makeTeamConfigStore({ dek_encrypted: wrapDek(dek) });
+    const cipher = await encryptForTeam(supabase, "team-env-2", "stable secret");
+    expect(adminUpsertMock).not.toHaveBeenCalled();
+    // The ciphertext really is under the TEAM's DEK, not the KEK —
+    // per-team isolation is the whole point of the envelope.
+    expect(decryptWithDek(cipher, dek)).toBe("stable secret");
+    expect(() => decryptSecret(cipher)).toThrow();
+    expect(await decryptForTeam(supabase, "team-env-2", cipher)).toBe(
+      "stable secret",
+    );
+  });
+
+  it("decrypts a legacy direct-KEK ciphertext when the team has no DEK row (Phase-1 data)", async () => {
+    const legacyCipher = encryptSecret("re_legacy_key_PLACEHOLDER");
+    expect(legacyCipher).not.toBeNull();
+    const { supabase } = makeTeamConfigStore(null);
+    const plain = await decryptForTeam(supabase, "team-legacy", legacyCipher);
+    expect(plain).toBe("re_legacy_key_PLACEHOLDER");
+  });
+
+  it("falls back to the KEK when a DEK exists but the secret was saved under the old direct path (upgrade window)", async () => {
+    // The row got a DEK (some later save created it) but THIS column's
+    // ciphertext predates the envelope. DEK decrypt fails its auth tag;
+    // the legacy path must still recover the value.
+    const { supabase } = makeTeamConfigStore({
+      dek_encrypted: wrapDek(generateDek()),
+    });
+    const legacyCipher = encryptSecret("saved before the envelope");
+    const plain = await decryptForTeam(supabase, "team-upgrade", legacyCipher);
+    expect(plain).toBe("saved before the envelope");
+  });
+
+  it("throws on a tampered ciphertext — both the DEK path and the KEK fallback must reject it", async () => {
+    const dek = generateDek();
+    const { supabase } = makeTeamConfigStore({ dek_encrypted: wrapDek(dek) });
+    const cipher = encryptWithDek("tamper target", dek);
+    expect(cipher).not.toBeNull();
+    const tampered = Buffer.from(cipher as Buffer);
+    tampered[tampered.length - 1] = (tampered[tampered.length - 1] ?? 0) ^ 0xff;
+    // Neither key authenticates the flipped byte, so the fallback chain
+    // must NOT silently return garbage — it throws.
+    await expect(
+      decryptForTeam(supabase, "team-tamper", tampered),
+    ).rejects.toThrow();
+  });
+
+  it("accepts the PostgREST hex-string ciphertext shape on the DEK path", async () => {
+    const dek = generateDek();
+    const { supabase } = makeTeamConfigStore({ dek_encrypted: wrapDek(dek) });
+    const cipher = encryptWithDek("hex wire shape", dek);
+    expect(cipher).not.toBeNull();
+    const plain = await decryptForTeam(
+      supabase,
+      "team-hex",
+      bytesForPg(cipher as Buffer),
+    );
+    expect(plain).toBe("hex wire shape");
+  });
+
+  it("passes null through without reading team config", async () => {
+    const { supabase, store } = makeTeamConfigStore({
+      dek_encrypted: wrapDek(generateDek()),
+    });
+    expect(await decryptForTeam(supabase, "team-null", null)).toBeNull();
+    expect(store.selects).toBe(0);
+  });
+
+  it("encryptForTeam refuses empty plaintext instead of storing a null-shaped secret", async () => {
+    const { supabase } = makeTeamConfigStore({
+      dek_encrypted: wrapDek(generateDek()),
+    });
+    await expect(encryptForTeam(supabase, "team-empty", "")).rejects.toThrow(
+      /empty plaintext/,
+    );
   });
 });
