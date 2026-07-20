@@ -340,7 +340,8 @@
     "overrideCancel": "Cancel",
     "overrideFailed": "Couldn't override the sign-off. Try again.",
     "overriddenCalloutTitle": "Sign-off completed by override",
-    "overriddenWaived": "Waived: {names}"
+    "overriddenWaived": "Waived: {names}",
+    "signoffBy": "by {name}"
   },
   "pdf": {
     "documentTitle": "Proposal",

@@ -340,7 +340,8 @@
     "overrideCancel": "Cancelar",
     "overrideFailed": "No se pudo anular la aprobación. Inténtalo de nuevo.",
     "overriddenCalloutTitle": "Aprobación completada por anulación",
-    "overriddenWaived": "Omitidos: {names}"
+    "overriddenWaived": "Omitidos: {names}",
+    "signoffBy": "por {name}"
   },
   "pdf": {
     "documentTitle": "Propuesta",
