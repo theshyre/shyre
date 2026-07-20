@@ -146,7 +146,27 @@ Or the equivalent project-scoped `.mcp.json`:
 }
 ```
 
-Keep the token in the `SHYRE_API_KEY` environment variable rather than pasting it into the file — `.mcp.json` is often committed.
+### Storing your key
+
+Both snippets above reference `${SHYRE_API_KEY}` rather than the raw token on purpose — the secret should live in an environment variable, never inline. The recommended setup:
+
+1. **Durable copy → password manager.** The token is shown [exactly once](integration-tokens.md#the-token-is-shown-once). Save it to 1Password / Bitwarden / your keychain so you can retrieve it later without revoking and reissuing.
+2. **Runtime copy → the `SHYRE_API_KEY` env var.** This is what the `${SHYRE_API_KEY}` reference resolves to. Set it however your setup already handles secrets — a shell profile export, `direnv`, or a secret manager. If the project you're wiring this into **doesn't already have a `.env` convention**, adopt the standard one:
+   - Commit a **`.env.example`** with a placeholder — `SHYRE_API_KEY=` — so anyone on the repo knows the variable is needed (it documents the requirement without holding a secret).
+   - Put the real value in **`.env.local`** (or `.env`) and make sure it's in **`.gitignore`** — this is the git-ignored file that actually holds your token.
+   - Ensure that value reaches the process environment the tool runs in. Frameworks like Next.js load `.env.local` automatically; a bare shell or Claude Code does not, so `source .env.local` (or use `direnv`) before launching, so `${SHYRE_API_KEY}` can expand.
+
+Two forms, one nuance worth knowing:
+
+- **`claude mcp add …` (CLI):** your *shell* expands `${SHYRE_API_KEY}` before Claude Code stores the server, so the **resolved token is written into your local `~/.claude.json`**. That file is private to you and never committed, so it's fine — but the literal token does sit at rest there.
+- **`.mcp.json`:** Claude Code expands `${SHYRE_API_KEY}` at *load time*, so the file only ever holds the reference. The token never lands in a config file (or your shell history). Prefer this if you want the secret to stay only in your env var / password manager.
+
+### Why a project-scoped `.mcp.json` is safe for a personal token
+
+`.mcp.json` is **project scope** — it's typically committed and shared with everyone who has the repo. A Shyre token, though, is bound to *one user and team* and is secret, so it might seem wrong to put it in a shared file. The `${SHYRE_API_KEY}` reference is what makes it correct: the committed file describes only the **connection shape** (URL, transport, header format), while each teammate supplies their **own** `SHYRE_API_KEY` in their own environment and so authenticates as themselves. Nothing personal is shared.
+
+- Committing `.mcp.json` with the **literal** token would leak your personal, team-scoped credential to everyone with repo access — don't. Keep it a `${…}` reference.
+- If you're the only one on the repo, you don't need `.mcp.json` at all — the `claude mcp add` **local scope** (private to you) is simpler. Reach for the committed project scope only when you want teammates to get the Shyre connection automatically on clone.
 
 ### Recommended pattern: log on completion
 

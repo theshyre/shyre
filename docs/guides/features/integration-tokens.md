@@ -26,6 +26,11 @@ With integrations enabled, use **New token** (keyboard shortcut: `N`):
 
 After creation the raw token (`shyre_pat_…`) appears **exactly once** in a copy-to-clipboard box. Shyre stores only a hash — once you dismiss the box, nobody (including Shyre) can show it again. If you lose it, revoke it and create a new one.
 
+Before you dismiss the box:
+
+- **Save it to your password manager** (1Password, Bitwarden, your OS keychain, …). This is your one durable copy — the token is a secret, bound to *you* and this team, and grants whatever scopes you selected. Treat it like a password.
+- **Then set it as the `SHYRE_API_KEY` environment variable** for the tool that will use it — never paste the raw token onto a command line or into a file that might be committed. The [Integrations API guide](integrations-api.md#storing-your-key) covers exactly where to put it (shell profile, a git-ignored `.env`, or `.mcp.json` with a `${SHYRE_API_KEY}` reference) and the trade-offs of each.
+
 ## The token list
 
 Each token shows its name, display prefix (`shyre_pat_ab34cd…`), scopes, billable default (the **New entries** column: "Billable" / "Non-billable"), created / expires dates, **last used** ("Never" until its first API call), and a status badge: **Active**, **Expired**, or **Revoked**.
