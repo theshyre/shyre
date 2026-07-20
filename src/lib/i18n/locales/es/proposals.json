@@ -26,6 +26,22 @@
     "total": "Total",
     "issued": "Emitida"
   },
+  "bulk": {
+    "toolbarLabel": "Acciones en lote de propuestas",
+    "selectAll": "Seleccionar todas las eliminables",
+    "deselectAll": "Deseleccionar todas",
+    "rowAria": "Seleccionar propuesta {number}",
+    "rowLockedTooltip": "{number}: forma parte del registro de auditoría — no se puede eliminar",
+    "selectedCount": "{count, plural, one {# seleccionada} other {# seleccionadas}}",
+    "clear": "Borrar",
+    "delete": "Eliminar seleccionadas",
+    "deletePrompt": "Escribe delete para eliminar {count, plural, one {# propuesta} other {# propuestas}}",
+    "deleteInputLabel": "Escribe delete para confirmar",
+    "deleteResult": "{count, plural, one {# propuesta eliminada} other {# propuestas eliminadas}}",
+    "deleteResultWithSkipped": "{deleted, plural, one {# propuesta eliminada} other {# propuestas eliminadas}} · {skipped, plural, one {# omitida (no eliminable)} other {# omitidas (no eliminables)}}",
+    "deleteFailed": "No se pudieron eliminar las propuestas seleccionadas.",
+    "liveSelected": "{count, plural, one {1 propuesta seleccionada} other {# propuestas seleccionadas}}"
+  },
   "filters": {
     "status": {
       "dimension": "Estado",

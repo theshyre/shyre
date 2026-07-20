@@ -133,6 +133,7 @@ import {
   createProposalAction,
   updateProposalAction,
   deleteProposalAction,
+  bulkDeleteProposalsAction,
   sendProposalAction,
   counterSignProposalAction,
   convertProposalAction,
@@ -174,6 +175,13 @@ function payload(overrides: Record<string, unknown> = {}): string {
 function formWith(fields: Record<string, string>): FormData {
   const fd = new FormData();
   for (const [k, v] of Object.entries(fields)) fd.set(k, v);
+  return fd;
+}
+
+/** Bulk actions post repeated `id` fields (FormData.append, not .set). */
+function formWithIds(ids: string[]): FormData {
+  const fd = new FormData();
+  for (const id of ids) fd.append("id", id);
   return fd;
 }
 
@@ -1310,6 +1318,121 @@ describe("deleteProposalAction", () => {
     await expect(
       deleteProposalAction(formWith({ id: "prop-1" })),
     ).rejects.toThrow(/audit record/);
+  });
+});
+
+describe("bulkDeleteProposalsAction", () => {
+  it("deletes only the deletable rows and reports an honest { deleted, skipped } count", async () => {
+    queues["proposals"] = [
+      {
+        data: [
+          { id: "p-draft", team_id: TEAM, status: "draft" },
+          { id: "p-superseded", team_id: TEAM, status: "superseded" },
+          { id: "p-sent", team_id: TEAM, status: "sent" },
+        ],
+        error: null,
+      }, // select
+      { data: null, error: null }, // delete
+    ];
+
+    const result = await bulkDeleteProposalsAction(
+      formWithIds(["p-draft", "p-superseded", "p-sent"]),
+    );
+
+    expect(result).toEqual({ success: true, deleted: 2, skipped: 1 });
+    const delCall = calls.find(
+      (c) =>
+        c.table === "proposals" && c.ops.some((o) => o.method === "delete"),
+    );
+    expect(delCall).toBeDefined();
+    const inOp = delCall!.ops.find((o) => o.method === "in");
+    expect(inOp!.args[1]).toEqual(["p-draft", "p-superseded"]);
+    expect(mockRevalidatePath).toHaveBeenCalledWith("/proposals");
+  });
+
+  it("re-checks status server-side instead of trusting a stale client selection", async () => {
+    // The row was "draft" when the page loaded but was sent in the
+    // meantime — the server must skip it, not delete it, even though the
+    // client believed it was eligible when the checkbox was checked.
+    queues["proposals"] = [
+      { data: [{ id: "p-1", team_id: TEAM, status: "sent" }], error: null },
+    ];
+    const result = await bulkDeleteProposalsAction(formWithIds(["p-1"]));
+    expect(result).toEqual({ success: true, deleted: 0, skipped: 1 });
+    const delCall = calls.find(
+      (c) =>
+        c.table === "proposals" && c.ops.some((o) => o.method === "delete"),
+    );
+    expect(delCall).toBeUndefined();
+  });
+
+  it("skips everything and deletes nothing when no selected row is deletable", async () => {
+    queues["proposals"] = [
+      {
+        data: [
+          { id: "p-1", team_id: TEAM, status: "accepted" },
+          { id: "p-2", team_id: TEAM, status: "converted" },
+        ],
+        error: null,
+      },
+    ];
+    const result = await bulkDeleteProposalsAction(
+      formWithIds(["p-1", "p-2"]),
+    );
+    expect(result).toEqual({ success: true, deleted: 0, skipped: 2 });
+    // Nothing changed, so no need to revalidate.
+    expect(mockRevalidatePath).not.toHaveBeenCalled();
+  });
+
+  it("requires team-admin access on every distinct team represented in the selection", async () => {
+    queues["proposals"] = [
+      {
+        data: [
+          { id: "p-1", team_id: TEAM, status: "draft" },
+          { id: "p-2", team_id: "other-team", status: "draft" },
+        ],
+        error: null,
+      },
+      { data: null, error: null }, // delete
+    ];
+    await bulkDeleteProposalsAction(formWithIds(["p-1", "p-2"]));
+    expect(mockRequireTeamAdmin).toHaveBeenCalledWith(TEAM);
+    expect(mockRequireTeamAdmin).toHaveBeenCalledWith("other-team");
+  });
+
+  it("propagates a denied admin gate without deleting anything", async () => {
+    queues["proposals"] = [
+      { data: [{ id: "p-1", team_id: TEAM, status: "draft" }], error: null },
+    ];
+    mockRequireTeamAdmin.mockRejectedValueOnce(
+      new Error("Only team owners and admins can perform this action."),
+    );
+    await expect(
+      bulkDeleteProposalsAction(formWithIds(["p-1"])),
+    ).rejects.toThrow(/owners and admins/);
+    const delCall = calls.find(
+      (c) =>
+        c.table === "proposals" && c.ops.some((o) => o.method === "delete"),
+    );
+    expect(delCall).toBeUndefined();
+  });
+
+  it("no-ops cleanly on an empty selection without touching the DB", async () => {
+    const result = await bulkDeleteProposalsAction(formWithIds([]));
+    expect(result).toEqual({ success: true, deleted: 0, skipped: 0 });
+    expect(calls).toHaveLength(0);
+  });
+
+  it("de-duplicates repeated ids in the form payload", async () => {
+    queues["proposals"] = [
+      { data: [{ id: "p-1", team_id: TEAM, status: "draft" }], error: null },
+      { data: null, error: null }, // delete
+    ];
+    const fd = new FormData();
+    fd.append("id", "p-1");
+    fd.append("id", "p-1");
+    const result = await bulkDeleteProposalsAction(fd);
+    expect(result).toEqual({ success: true, deleted: 1, skipped: 0 });
   });
 });
 

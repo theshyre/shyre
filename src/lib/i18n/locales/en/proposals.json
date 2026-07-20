@@ -26,6 +26,22 @@
     "total": "Total",
     "issued": "Issued"
   },
+  "bulk": {
+    "toolbarLabel": "Proposal bulk actions",
+    "selectAll": "Select all deletable",
+    "deselectAll": "Deselect all",
+    "rowAria": "Select proposal {number}",
+    "rowLockedTooltip": "{number}: part of the audit record — not deletable",
+    "selectedCount": "{count, plural, one {# selected} other {# selected}}",
+    "clear": "Clear",
+    "delete": "Delete selected",
+    "deletePrompt": "Type delete to delete {count, plural, one {# proposal} other {# proposals}}",
+    "deleteInputLabel": "Type delete to confirm",
+    "deleteResult": "{count, plural, one {Deleted # proposal} other {Deleted # proposals}}",
+    "deleteResultWithSkipped": "{deleted, plural, one {Deleted # proposal} other {Deleted # proposals}} · {skipped, plural, one {# skipped (not deletable)} other {# skipped (not deletable)}}",
+    "deleteFailed": "Couldn't delete the selected proposals.",
+    "liveSelected": "{count, plural, one {1 proposal selected} other {# proposals selected}}"
+  },
   "filters": {
     "status": {
       "dimension": "Status",
