@@ -1,0 +1,16 @@
+{
+  "hub": {
+    "seeAllArticles": "{count, plural, one {Ver el # artículo} other {Ver los # artículos}}"
+  },
+  "quickGuide": {
+    "label": "Guía rápida"
+  },
+  "topicIndex": {
+    "backToDocs": "Volver a Documentación",
+    "articleCount": "{count, plural, one {# artículo} other {# artículos}}"
+  },
+  "prevNext": {
+    "previous": "Anterior",
+    "next": "Siguiente"
+  }
+}

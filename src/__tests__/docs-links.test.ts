@@ -1,6 +1,7 @@
 import { describe, it, expect } from "vitest";
 import { readdir, readFile, stat } from "node:fs/promises";
 import { join, dirname, resolve, relative } from "node:path";
+import { DOC_TOPICS } from "@/lib/docs/topics";
 
 /**
  * Doc-link audit. Walks `docs/`, parses every `.md` file's
@@ -221,6 +222,19 @@ const HUB_PAGE = resolve(process.cwd(), "src/app/(dashboard)/docs/page.tsx");
  */
 const REACHABILITY_ALLOW_LIST: ReadonlySet<string> = new Set<string>([]);
 
+/**
+ * Every /docs/... href reachable from the hub. Two sources, because
+ * the Modules section no longer hardcodes article hrefs as literal
+ * strings in page.tsx (docs/reference/documentation.md's
+ * topic-navigation rules moved that into the shared DOC_TOPICS
+ * manifest, imported by both the hub and the topic-index route):
+ *
+ *   1. Literal `/docs/...` string constants still hand-written in the
+ *      hub page (personal links, role-browse, reference).
+ *   2. Every article href in DOC_TOPICS — reachable in the real app
+ *      via hub card -> `/docs/topics/<slug>` -> article link, none of
+ *      which is a static string this regex scan could find.
+ */
 async function hubHrefs(): Promise<string[]> {
   const src = await readFile(HUB_PAGE, "utf8");
   const re = /["'](\/docs(?:\/[^"'\s#]*)?)(#[^"'\s]*)?["']/g;
@@ -228,6 +242,11 @@ async function hubHrefs(): Promise<string[]> {
   let m: RegExpExecArray | null;
   while ((m = re.exec(src)) !== null) {
     if (m[1]) out.add(m[1]);
+  }
+  for (const topic of DOC_TOPICS) {
+    for (const article of topic.articles) {
+      out.add(article.href);
+    }
   }
   return [...out];
 }
