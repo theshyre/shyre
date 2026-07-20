@@ -8,6 +8,7 @@ interface Result {
   error: unknown;
 }
 let queues: Record<string, Result[]> = {};
+let tablesQueried: string[] = [];
 
 interface Builder extends PromiseLike<Result> {
   select: (cols?: string) => Builder;
@@ -33,7 +34,10 @@ const mockGetUser = vi.fn();
 vi.mock("@/lib/supabase/server", () => ({
   createClient: async () => ({
     auth: { getUser: mockGetUser },
-    from: (table: string) => makeBuilder(table),
+    from: (table: string) => {
+      tablesQueried.push(table);
+      return makeBuilder(table);
+    },
   }),
 }));
 
@@ -46,6 +50,7 @@ import { GET } from "./route";
 
 beforeEach(() => {
   queues = {};
+  tablesQueried = [];
   mockGetUser.mockReset();
   logErrorMock.mockClear();
 });
@@ -60,7 +65,7 @@ describe("GET /api/customers/csv", () => {
 
   it("streams a CSV with quoted fields and resolved team names for an authenticated user", async () => {
     mockGetUser.mockResolvedValue({ data: { user: { id: "u1" } } });
-    queues["customers"] = [
+    queues["customers_v"] = [
       {
         data: [
           {
@@ -107,9 +112,22 @@ describe("GET /api/customers/csv", () => {
     expect(body).toContain("cust-1,");
   });
 
+  it("reads the masked customers_v view, never the base table (SAL-053)", async () => {
+    // The base table carries raw default_rate for every visible row; only
+    // the view applies the can_view_customer_rate() mask. Querying the
+    // base table here would export every customer's billing rate to any
+    // plain team member regardless of the team's rate_visibility setting.
+    mockGetUser.mockResolvedValue({ data: { user: { id: "u1" } } });
+    queues["customers_v"] = [{ data: [], error: null }];
+    const res = await GET(new Request("https://shyre.test/api/customers/csv"));
+    expect(res.status).toBe(200);
+    expect(tablesQueried).toContain("customers_v");
+    expect(tablesQueried).not.toContain("customers");
+  });
+
   it("returns 500 and logs when the customers query fails", async () => {
     mockGetUser.mockResolvedValue({ data: { user: { id: "u1" } } });
-    queues["customers"] = [
+    queues["customers_v"] = [
       { data: null, error: { message: "permission denied" } },
     ];
     const res = await GET(

@@ -67,7 +67,9 @@ export async function scanCredentials(
     // to know whether the Vercel token is about to expire.
     supabase
       .from("instance_deploy_config")
-      .select("api_token, api_token_expires_at")
+      // Presence column, not the secret (SAL-028) — this scan renders on
+      // /system/credentials and must never carry the raw token bytes.
+      .select("has_api_token, api_token_expires_at")
       .eq("id", 1)
       .maybeSingle(),
     // Team-level Resend keys. Owner / admin RLS already scopes
@@ -94,9 +96,9 @@ export async function scanCredentials(
 
   // Vercel
   const vercel = vercelRows.data as
-    | { api_token: string | null; api_token_expires_at: string | null }
+    | { has_api_token: boolean | null; api_token_expires_at: string | null }
     | null;
-  if (vercel?.api_token) {
+  if (vercel?.has_api_token) {
     items.push(
       buildItem({
         kind: "vercel_api_token",

@@ -14,6 +14,10 @@ import { logError } from "@/lib/logger";
  * is used. RLS already filters by team / sharing visibility, so the
  * export is exactly the rows the caller could see in `/customers`.
  *
+ * SAL-053: reads the masked `customers_v` view, NEVER the base table —
+ * `default_rate` must be NULL for callers the team's rate_visibility
+ * setting excludes, exactly as the UI renders it.
+ *
  * Bookkeeper persona requirement: an exported row must be tie-able
  * back to a database record (`id`, `team_id`). Solo persona
  * requirement: every entity has *some* CSV path so the data is not
@@ -35,7 +39,7 @@ export async function GET(request: Request): Promise<Response> {
     url.searchParams.get("includeArchived") === "1";
 
   let query = supabase
-    .from("customers")
+    .from("customers_v")
     .select(
       "id, team_id, name, email, address, notes, default_rate, payment_terms_days, archived, inactive_at, imported_from, imported_at, created_at",
     )
