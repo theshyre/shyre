@@ -2,6 +2,7 @@
 
 import { Fragment, useEffect, useId, useRef, useState } from "react";
 import { CheckCircle, ChevronDown } from "lucide-react";
+import { Tooltip } from "@/components/Tooltip";
 
 /**
  * The one chip-dropdown scaffold for list-page filters
@@ -113,26 +114,44 @@ export function FilterChip<K extends string = string>({
     triggerRef.current?.focus();
   }
 
+  const trigger = (
+    <button
+      ref={triggerRef}
+      type="button"
+      onClick={() => setOpen((o) => !o)}
+      aria-haspopup="listbox"
+      aria-expanded={open}
+      aria-controls={open ? listboxId : undefined}
+      aria-label={`${dimensionLabel}: ${valueLabel}`}
+      className={`inline-flex items-center gap-1.5 rounded-full px-3 py-1 text-caption font-medium border transition-colors ${
+        customized
+          ? "bg-accent-soft text-accent-text border-accent/30"
+          : "bg-surface-inset text-content-secondary border-edge hover:bg-hover"
+      }`}
+    >
+      {icon}
+      <span className={valueClassName}>{valueLabel}</span>
+      <ChevronDown size={12} aria-hidden="true" />
+    </button>
+  );
+
   return (
     <div ref={rootRef} className="relative">
-      <button
-        ref={triggerRef}
-        type="button"
-        onClick={() => setOpen((o) => !o)}
-        aria-haspopup="listbox"
-        aria-expanded={open}
-        aria-controls={open ? listboxId : undefined}
-        aria-label={`${dimensionLabel}: ${valueLabel}`}
-        className={`inline-flex items-center gap-1.5 rounded-full px-3 py-1 text-caption font-medium border transition-colors ${
-          customized
-            ? "bg-accent-soft text-accent-text border-accent/30"
-            : "bg-surface-inset text-content-secondary border-edge hover:bg-hover"
-        }`}
-      >
-        {icon}
-        <span className={valueClassName}>{valueLabel}</span>
-        <ChevronDown size={12} aria-hidden="true" />
-      </button>
+      {/* Tooltip only when the value is customized away from the "Any
+          …" default — the default reads fine untruncated in every
+          caller today, and wrapping it too would just add hover
+          noise. labelMode="describe" supplements the trigger's own
+          aria-label ("{dimension}: {value}") rather than replacing it
+          — the two strings differ (dimension prefix vs. bare value),
+          so screen readers don't double-announce. This is the single
+          fix point for every truncated filter-chip value app-wide. */}
+      {customized ? (
+        <Tooltip label={valueLabel} labelMode="describe">
+          {trigger}
+        </Tooltip>
+      ) : (
+        trigger
+      )}
       {open && (
         <div
           className={`absolute left-0 top-full mt-1 rounded-lg border border-edge bg-surface-raised shadow-lg p-1 z-20 ${

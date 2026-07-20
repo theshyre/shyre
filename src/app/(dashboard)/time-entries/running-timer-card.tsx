@@ -2,10 +2,11 @@
 
 import { useEffect, useState } from "react";
 import { useTranslations } from "next-intl";
-import { Play, Plus, X } from "lucide-react";
+import { Play, Plus } from "lucide-react";
 import { AlertBanner } from "@theshyre/ui";
 import { useFormAction } from "@/hooks/use-form-action";
 import { SubmitButton } from "@/components/SubmitButton";
+import { InlineCancelButton } from "@/components/InlineCancelButton";
 import {
   buttonPrimaryClass,
   buttonGhostClass,
@@ -173,14 +174,11 @@ export function RunningTimerCard({
         <span className="text-label font-semibold uppercase tracking-wider text-content-muted">
           {th("startNewTimer")}
         </span>
-        <button
-          type="button"
+        <InlineCancelButton
           onClick={() => setExpanded(false)}
           className={buttonGhostClass}
-          aria-label="Close"
-        >
-          <X size={14} />
-        </button>
+          label={tc("actions.cancel")}
+        />
       </div>
 
       {startForm.serverError && (

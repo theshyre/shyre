@@ -3,9 +3,9 @@
 import { useEffect } from "react";
 import { createPortal } from "react-dom";
 import { useTranslations } from "next-intl";
-import { X } from "lucide-react";
 import { formatCurrency } from "@/lib/invoice-utils";
 import { paymentTermsLabel } from "@/lib/payment-terms";
+import { InlineCancelButton } from "@/components/InlineCancelButton";
 
 interface LineItem {
   description: string;
@@ -129,14 +129,12 @@ export function InvoicePreviewModal({
               {tNew("preview.fullModalSubtitle")}
             </p>
           </div>
-          <button
-            type="button"
+          <InlineCancelButton
             onClick={onClose}
-            aria-label={tCommon("actions.close")}
+            label={tCommon("actions.close")}
             className="inline-flex items-center rounded-md p-1 text-content-muted hover:bg-hover hover:text-content"
-          >
-            <X size={16} />
-          </button>
+            iconSize={16}
+          />
         </div>
 
         {/* Invoice body. Mirrors the structure of `InvoicePDF` —

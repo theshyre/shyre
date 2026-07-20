@@ -4,8 +4,9 @@ import { useCallback, useEffect, useState } from "react";
 import { useTranslations } from "next-intl";
 import { Spinner } from "@theshyre/ui";
 import { Modal } from "@/components/Modal";
-import { Clock, History, Trash2, X } from "lucide-react";
+import { Clock, History, Trash2 } from "lucide-react";
 import { buttonGhostClass } from "@/lib/form-styles";
+import { InlineCancelButton } from "@/components/InlineCancelButton";
 import {
   getPersonHistoryAction,
   type PersonHistoryEntry,
@@ -75,14 +76,12 @@ export function PersonHistoryDialog({
             {t("title", { name: personDisplayName })}
           </h2>
         </div>
-        <button
-          type="button"
+        <InlineCancelButton
           onClick={onClose}
           className={`${buttonGhostClass} shrink-0`}
-          aria-label={t("close")}
-        >
-          <X size={16} />
-        </button>
+          label={t("close")}
+          iconSize={16}
+        />
       </div>
 
       <div className="max-h-[480px] overflow-y-auto px-5 py-4">

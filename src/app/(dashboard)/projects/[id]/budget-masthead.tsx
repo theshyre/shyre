@@ -2,8 +2,9 @@
 
 import { useState } from "react";
 import { useTranslations } from "next-intl";
-import { AlertTriangle, CalendarClock, Target, X } from "lucide-react";
+import { AlertTriangle, CalendarClock, Target } from "lucide-react";
 import type { BudgetPeriod } from "@/lib/projects/budget-period";
+import { InlineCancelButton } from "@/components/InlineCancelButton";
 
 export interface BudgetMastheadProps {
   projectId: string;
@@ -459,14 +460,11 @@ function DismissibleAlert({
         <strong className="text-content">{alertTitle}</strong>{" "}
         {translateAlertBody(pct, period.alertThresholdPct ?? 0, periodLabel)}
       </div>
-      <button
-        type="button"
+      <InlineCancelButton
         onClick={dismiss}
-        aria-label={dismissLabel}
+        label={dismissLabel}
         className="shrink-0 rounded p-1 text-content-muted hover:bg-hover transition-colors"
-      >
-        <X size={14} />
-      </button>
+      />
     </div>
   );
 }

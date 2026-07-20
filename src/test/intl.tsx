@@ -20,6 +20,7 @@ import paymentTerms from "@/lib/i18n/locales/en/paymentTerms.json";
 import integrations from "@/lib/i18n/locales/en/integrations.json";
 import reports from "@/lib/i18n/locales/en/reports.json";
 import sharing from "@/lib/i18n/locales/en/sharing.json";
+import importNs from "@/lib/i18n/locales/en/import.json";
 
 export const testMessages = {
   common: en,
@@ -41,6 +42,7 @@ export const testMessages = {
   integrations,
   reports,
   sharing,
+  import: importNs,
 } as const;
 
 /**

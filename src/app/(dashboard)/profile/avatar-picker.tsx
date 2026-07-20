@@ -7,6 +7,7 @@ import { AlertBanner } from "@theshyre/ui";
 import { createClient } from "@/lib/supabase/client";
 import { Avatar, AVATAR_PRESETS } from "@/components/Avatar";
 import { buttonSecondaryClass, buttonGhostClass } from "@/lib/form-styles";
+import { Tooltip } from "@/components/Tooltip";
 import { setAvatarAction } from "./actions";
 
 interface Props {
@@ -139,25 +140,26 @@ export function AvatarPicker({
             const key = `preset:${preset.key}`;
             const active = avatarUrl === key;
             const initial = (displayName.trim().charAt(0) || "?").toUpperCase();
+            const colorLabel = t(`presetColors.${preset.key}`);
             return (
-              <button
-                key={preset.key}
-                type="button"
-                aria-label={preset.key}
-                aria-pressed={active}
-                onClick={() => commitAvatar(key)}
-                className={`relative inline-flex items-center justify-center rounded-full transition-transform hover:scale-110 ${
-                  active ? "ring-2 ring-accent ring-offset-2 ring-offset-surface-raised" : ""
-                }`}
-                style={{
-                  width: 36,
-                  height: 36,
-                  backgroundColor: preset.bg,
-                  color: preset.fg,
-                }}
-              >
-                <span className="text-body-lg font-semibold">{initial}</span>
-              </button>
+              <Tooltip key={preset.key} label={colorLabel} labelMode="label">
+                <button
+                  type="button"
+                  aria-pressed={active}
+                  onClick={() => commitAvatar(key)}
+                  className={`relative inline-flex items-center justify-center rounded-full transition-transform hover:scale-110 ${
+                    active ? "ring-2 ring-accent ring-offset-2 ring-offset-surface-raised" : ""
+                  }`}
+                  style={{
+                    width: 36,
+                    height: 36,
+                    backgroundColor: preset.bg,
+                    color: preset.fg,
+                  }}
+                >
+                  <span className="text-body-lg font-semibold">{initial}</span>
+                </button>
+              </Tooltip>
             );
           })}
         </div>

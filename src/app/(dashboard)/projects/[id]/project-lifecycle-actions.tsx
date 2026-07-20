@@ -4,10 +4,11 @@ import type React from "react";
 import { useState, useTransition } from "react";
 import { useTranslations } from "next-intl";
 import Link from "next/link";
-import { Clock, CircleCheck, Receipt, RotateCcw, X } from "lucide-react";
+import { Clock, CircleCheck, Receipt, RotateCcw } from "lucide-react";
 import { formatDate } from "@theshyre/ui";
 import { useToast } from "@/components/Toast";
 import { buttonSecondaryClass, buttonGhostClass } from "@/lib/form-styles";
+import { InlineCancelButton } from "@/components/InlineCancelButton";
 import {
   closeOutProjectAction,
   reopenProjectAction,
@@ -229,14 +230,11 @@ export function ProjectLifecycleActions({
           <CircleCheck size={14} aria-hidden="true" />
           {t("closeOutConfirmButton")}
         </button>
-        <button
-          type="button"
+        <InlineCancelButton
           onClick={() => setConfirming(false)}
           className={buttonGhostClass}
-          aria-label={tc("actions.cancel")}
-        >
-          <X size={14} />
-        </button>
+          label={tc("actions.cancel")}
+        />
       </div>
     </div>
   );

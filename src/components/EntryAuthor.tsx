@@ -116,7 +116,16 @@ export function EntryAuthor({
       {compact ? (
         <span className="sr-only">{name}</span>
       ) : (
-        <span className="truncate">{name}</span>
+        // labelMode="label" (not the default "describe") — the span's
+        // own accessible name would otherwise come from its text
+        // content, which is this same string, and "describe" mode
+        // would add an identical aria-describedby on top of it
+        // (double-announce). Same pattern as expense-row's truncated
+        // team-name cell. Hover-only, matching that precedent — the
+        // span isn't a focus target.
+        <Tooltip label={name} labelMode="label">
+          <span className="truncate">{name}</span>
+        </Tooltip>
       )}
       {compact ? (
         badge

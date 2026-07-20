@@ -4,6 +4,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { Search, ExternalLink, Hash } from "lucide-react";
 import { Spinner } from "@theshyre/ui";
 import { inputClass } from "@/lib/form-styles";
+import { Tooltip } from "@/components/Tooltip";
 
 interface GitHubIssue {
   number: number;
@@ -112,7 +113,9 @@ export function GitHubIssuePicker({
         <div className="flex items-center gap-2">
           <span className="flex items-center gap-1.5 rounded-lg border border-edge bg-surface-raised px-3 py-2 text-body-lg flex-1">
             <Hash size={14} className="text-accent" />
-            <span className="truncate text-content">{selectedTitle}</span>
+            <Tooltip label={selectedTitle} labelMode="label">
+              <span className="truncate text-content">{selectedTitle}</span>
+            </Tooltip>
           </span>
           <button
             type="button"
@@ -195,9 +198,11 @@ export function GitHubIssuePicker({
                   #{issue.number}
                 </span>
                 <div className="flex-1 min-w-0">
-                  <p className="text-body-lg text-content truncate">
-                    {issue.title}
-                  </p>
+                  <Tooltip label={issue.title} labelMode="label">
+                    <p className="text-body-lg text-content truncate">
+                      {issue.title}
+                    </p>
+                  </Tooltip>
                   {issue.labels.length > 0 && (
                     <div className="flex gap-1 mt-1">
                       {issue.labels.slice(0, 3).map((label) => (

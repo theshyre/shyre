@@ -9,6 +9,7 @@ import { AlertBanner, useKeyboardShortcut } from "@theshyre/ui";
 import { useFormAction } from "@/hooks/use-form-action";
 import { SubmitButton } from "@/components/SubmitButton";
 import { TeamSelector } from "@/components/TeamSelector";
+import { Tooltip } from "@/components/Tooltip";
 import {
   buttonPrimaryClass,
   buttonSecondaryClass,
@@ -140,16 +141,20 @@ function TemplateRow({
         <div className="flex-1 min-w-0">
           <div className="flex items-center gap-2">
             <Bookmark size={14} className="text-accent shrink-0" />
-            <p className="text-body-lg font-medium text-content truncate">
-              {template.name}
-            </p>
+            <Tooltip label={template.name} labelMode="label">
+              <p className="text-body-lg font-medium text-content truncate">
+                {template.name}
+              </p>
+            </Tooltip>
           </div>
           <div className="mt-1 flex flex-wrap gap-2 text-caption text-content-secondary">
             <span>{project?.name ?? "—"}</span>
             {template.description && (
               <>
                 <span className="text-content-muted">·</span>
-                <span className="truncate">{template.description}</span>
+                <Tooltip label={template.description} labelMode="label">
+                  <span className="truncate">{template.description}</span>
+                </Tooltip>
               </>
             )}
             {category && (

@@ -3,7 +3,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { createPortal } from "react-dom";
 import { useTranslations } from "next-intl";
-import { Plus, Trash2, X, Wand2 } from "lucide-react";
+import { Plus, Trash2, Wand2 } from "lucide-react";
 import { AlertBanner, Spinner } from "@theshyre/ui";
 import {
   inputClass,
@@ -12,6 +12,7 @@ import {
   buttonPrimaryClass,
   buttonSecondaryClass,
 } from "@/lib/form-styles";
+import { InlineCancelButton } from "@/components/InlineCancelButton";
 import { splitExpenseAction } from "@/lib/expenses/actions";
 import { EXPENSE_CATEGORIES } from "@/lib/expenses/categories";
 import {
@@ -173,15 +174,13 @@ export function SplitExpenseModal({
               {t("split.subtitle", { amount: originalLabel })}
             </p>
           </div>
-          <button
-            type="button"
+          <InlineCancelButton
             onClick={onClose}
             disabled={submitting}
-            aria-label={tc("actions.cancel")}
+            label={tc("actions.cancel")}
             className="inline-flex items-center rounded-md p-1 text-content-muted hover:bg-hover hover:text-content"
-          >
-            <X size={16} />
-          </button>
+            iconSize={16}
+          />
         </div>
 
         {serverError && (

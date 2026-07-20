@@ -78,6 +78,22 @@ describe("EntryAuthor", () => {
     expect(container.querySelector("[title]")).toBeNull();
   });
 
+  it("full (non-compact) mode still shows the full name in a tooltip on hover, for the truncated case", async () => {
+    render(
+      <EntryAuthor
+        author={{
+          user_id: "u1",
+          display_name: "Morgan Lee-Fitzgerald Alvarez",
+          avatar_url: null,
+        }}
+      />,
+    );
+    const nameSpan = screen.getByText("Morgan Lee-Fitzgerald Alvarez");
+    fireEvent.focus(nameSpan);
+    const tooltip = await screen.findByRole("tooltip");
+    expect(tooltip).toHaveTextContent("Morgan Lee-Fitzgerald Alvarez");
+  });
+
   it("passes avatar_url through to the Avatar component when provided", () => {
     render(
       <EntryAuthor

@@ -37,5 +37,9 @@
     },
     "attemptedVsLanded": "{attempted} entradas en Harvest · solo {landed} importadas a Shyre",
     "skippedSummary": "Omitidas {count, plural, =1 {# entrada de tiempo} other {# entradas de tiempo}}"
+  },
+  "reconciliation": {
+    "match": "Coincide",
+    "mismatch": "No coincide"
   }
 }

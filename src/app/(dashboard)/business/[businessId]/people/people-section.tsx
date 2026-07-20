@@ -249,6 +249,7 @@ function PersonRowView({
   onEdit: () => void;
 }): React.JSX.Element {
   const t = useTranslations("business.people");
+  const tc = useTranslations("common.actions");
   const [deleting, setDeleting] = useState(false);
   const [showHistory, setShowHistory] = useState(false);
 
@@ -309,22 +310,30 @@ function PersonRowView({
               <History size={14} aria-hidden="true" />
             </button>
           </Tooltip>
-          <button
-            type="button"
-            onClick={onEdit}
-            className={`${buttonGhostClass} inline-flex items-center gap-1`}
-            aria-label={`Edit ${displayName}`}
-          >
-            <Pencil size={14} />
-          </button>
-          <button
-            type="button"
-            onClick={() => setDeleting(true)}
-            className={`${buttonGhostClass} inline-flex items-center gap-1 text-error-text hover:bg-error-soft`}
-            aria-label={`Delete ${displayName}`}
-          >
-            <X size={14} />
-          </button>
+          {/* labelMode="describe": the per-row aria-label ("Edit
+              {name}") already differentiates the button — the
+              tooltip supplements with the generic action word rather
+              than replacing the differentiated name. */}
+          <Tooltip label={tc("edit")} labelMode="describe">
+            <button
+              type="button"
+              onClick={onEdit}
+              className={`${buttonGhostClass} inline-flex items-center gap-1`}
+              aria-label={`Edit ${displayName}`}
+            >
+              <Pencil size={14} />
+            </button>
+          </Tooltip>
+          <Tooltip label={tc("delete")} labelMode="describe">
+            <button
+              type="button"
+              onClick={() => setDeleting(true)}
+              className={`${buttonGhostClass} inline-flex items-center gap-1 text-error-text hover:bg-error-soft`}
+              aria-label={`Delete ${displayName}`}
+            >
+              <X size={14} />
+            </button>
+          </Tooltip>
         </div>
       ) : null}
 

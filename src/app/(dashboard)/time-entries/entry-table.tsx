@@ -2,9 +2,10 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useTranslations } from "next-intl";
-import { BadgeCheck, Trash2, X, Clock } from "lucide-react";
+import { BadgeCheck, Trash2, Clock } from "lucide-react";
 import { formatDurationHM } from "@/lib/time/week";
 import { checkboxClass } from "@/lib/form-styles";
+import { InlineCancelButton } from "@/components/InlineCancelButton";
 import type { EntryGroup } from "@/lib/time/grouping";
 import { EntryRow } from "./entry-row";
 import { CustomerChip } from "@theshyre/ui";
@@ -598,15 +599,12 @@ function InlineMarkBilledElsewhereButton({
         <BadgeCheck size={12} aria-hidden="true" />
         {t("markBilledElsewhereConfirmCta")}
       </button>
-      <button
-        type="button"
+      <InlineCancelButton
         onClick={() => setOpen(false)}
         disabled={pending}
-        aria-label={t("markBilledElsewhereCancel")}
-        className="rounded p-0.5 text-content-muted hover:bg-hover transition-colors"
-      >
-        <X size={12} />
-      </button>
+        label={t("markBilledElsewhereCancel")}
+        iconSize={12}
+      />
     </div>
   );
 }
@@ -727,18 +725,15 @@ function InlineBulkDeleteButton({
         <Trash2 size={12} aria-hidden="true" />
         {tCommon("delete")}
       </button>
-      <button
-        type="button"
+      <InlineCancelButton
         onClick={() => {
           setOpen(false);
           setTyped("");
         }}
         disabled={pending}
-        aria-label={tCommon("cancel")}
-        className="rounded p-0.5 text-content-muted hover:bg-hover transition-colors"
-      >
-        <X size={12} />
-      </button>
+        label={tCommon("cancel")}
+        iconSize={12}
+      />
     </div>
   );
 }

@@ -38,7 +38,7 @@ describe("AvatarPicker", () => {
     expect(screen.getAllByText("M").length).toBeGreaterThan(0);
   });
 
-  it("renders the color preset buttons", () => {
+  it("renders the color preset buttons with a human-readable, localized color name", () => {
     renderWithIntl(
       <AvatarPicker
         userId="u1"
@@ -46,10 +46,26 @@ describe("AvatarPicker", () => {
         initialAvatarUrl={null}
       />,
     );
-    // Each preset renders as a button with aria-label = color key
-    expect(screen.getByRole("button", { name: "blue" })).toBeInTheDocument();
-    expect(screen.getByRole("button", { name: "violet" })).toBeInTheDocument();
-    expect(screen.getByRole("button", { name: "slate" })).toBeInTheDocument();
+    // Each preset renders as a button named after its color (not the
+    // raw internal preset key) — the accessible name comes from the
+    // Tooltip's labelMode="label", translated via presetColors.*.
+    expect(screen.getByRole("button", { name: "Blue" })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Violet" })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Slate" })).toBeInTheDocument();
+  });
+
+  it("shows the color name in a tooltip on focus", async () => {
+    renderWithIntl(
+      <AvatarPicker
+        userId="u1"
+        displayName="Marcus"
+        initialAvatarUrl={null}
+      />,
+    );
+    const violet = screen.getByRole("button", { name: "Violet" });
+    fireEvent.focus(violet);
+    const tooltip = await screen.findByRole("tooltip");
+    expect(tooltip).toHaveTextContent("Violet");
   });
 
   it("picking a preset submits setAvatarAction with preset:<key>", async () => {
@@ -60,7 +76,7 @@ describe("AvatarPicker", () => {
         initialAvatarUrl={null}
       />,
     );
-    fireEvent.click(screen.getByRole("button", { name: "violet" }));
+    fireEvent.click(screen.getByRole("button", { name: "Violet" }));
     await waitFor(() => expect(setAvatarMock).toHaveBeenCalled());
     const fd = setAvatarMock.mock.calls[0]?.[0];
     expect(fd?.get("avatar_url")).toBe("preset:violet");
@@ -88,9 +104,9 @@ describe("AvatarPicker", () => {
         initialAvatarUrl="preset:pink"
       />,
     );
-    const pink = screen.getByRole("button", { name: "pink" });
+    const pink = screen.getByRole("button", { name: "Pink" });
     expect(pink).toHaveAttribute("aria-pressed", "true");
-    const blue = screen.getByRole("button", { name: "blue" });
+    const blue = screen.getByRole("button", { name: "Blue" });
     expect(blue).toHaveAttribute("aria-pressed", "false");
   });
 });
