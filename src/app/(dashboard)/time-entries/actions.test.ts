@@ -1,19 +1,20 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
 
 /**
- * Action-layer tests for the time-entries surface. The 13 exports
- * range from trivial (stopTimerAction is one UPDATE) to load-bearing
- * (createTimeEntryAction touches projects + tickets + entries with
- * timezone math). We focus on the highest-value coverage gaps:
+ * Action-layer tests for the time-entries surface. Covered here:
  *
  *   - delete / restore / permanently-delete (soft-delete invariants)
  *   - stopTimer (RLS + user_id defense)
- *   - bulk delete / restore (auth scope, no-op on empty input)
+ *   - bulk delete / restore + mark-billed-elsewhere (auth scope,
+ *     no-op on empty input)
+ *   - createTimeEntryAction (team_id derivation, internal-billable
+ *     pinning, duration/timestamp modes, ticket auto-description)
+ *   - updateTimeEntryAction (field-selective patch semantics)
+ *   - upsertTimesheetCellAction (multi-entry cell collapse)
  *
- * Heavyweight paths (createTimeEntryAction, startTimerAction,
- * duplicateTimeEntryAction) are intentionally out of scope — they
- * deserve dedicated test files with full project/ticket fixtures.
- * This file establishes the harness so those can copy the shape.
+ * Still out of scope: startTimerAction and duplicateTimeEntryAction —
+ * they need project/ticket fixtures of their own; copy the harness
+ * shape from the createTimeEntryAction block when picking them up.
  */
 
 const fakeUserId = "u-author";
