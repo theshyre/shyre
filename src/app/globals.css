@@ -1,5 +1,13 @@
 @import "tailwindcss";
 
+/* Scan @theshyre/ui's shipped source for utility classes. The package
+   ships src/*.tsx (consumed via transpilePackages), and Tailwind v4's
+   auto-content-detection skips node_modules — so a class used ONLY by a
+   shared component (the DateField calendar's `grid-cols-7`, its icon's
+   `pr-10`/`rounded-r-lg`) was never generated, silently breaking those
+   components. An explicit @source overrides the node_modules skip. */
+@source "../../node_modules/@theshyre/ui/src/**/*.{ts,tsx}";
+
 /* Shared design tokens — canonical source of truth in @theshyre/core.
    Provides: color tokens + 5 themes (system/light/dark/high-contrast/warm),
    Tailwind @theme mapping, data-text-size root scaling, and the
