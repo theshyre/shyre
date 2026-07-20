@@ -273,7 +273,7 @@
     "acceptedTotalLabel": "Accepted total",
     "acceptedItems": "{count, plural, =1 {1 item authorized} other {# items authorized}}",
     "recordHash": "Record hash",
-    "ipLabel": "IP",
+    "ipLabel": "IP address",
     "newVersion": "New version",
     "newVersionPending": "Creating version…",
     "newVersionFailed": "Version creation failed",
@@ -341,7 +341,8 @@
     "overrideFailed": "Couldn't override the sign-off. Try again.",
     "overriddenCalloutTitle": "Sign-off completed by override",
     "overriddenWaived": "Waived: {names}",
-    "signoffBy": "by {name}"
+    "signoffBy": "by {name}",
+    "countersignFailed": "Counter-sign failed. Try again."
   },
   "pdf": {
     "documentTitle": "Proposal",

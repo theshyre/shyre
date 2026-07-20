@@ -273,7 +273,7 @@
     "acceptedTotalLabel": "Total aceptado",
     "acceptedItems": "{count, plural, =1 {1 partida autorizada} other {# partidas autorizadas}}",
     "recordHash": "Hash del registro",
-    "ipLabel": "IP",
+    "ipLabel": "Dirección IP",
     "newVersion": "Nueva versión",
     "newVersionPending": "Creando versión…",
     "newVersionFailed": "Error al crear la versión",
@@ -341,7 +341,8 @@
     "overrideFailed": "No se pudo anular la aprobación. Inténtalo de nuevo.",
     "overriddenCalloutTitle": "Aprobación completada por anulación",
     "overriddenWaived": "Omitidos: {names}",
-    "signoffBy": "por {name}"
+    "signoffBy": "por {name}",
+    "countersignFailed": "Error al contrafirmar. Inténtalo de nuevo."
   },
   "pdf": {
     "documentTitle": "Propuesta",
