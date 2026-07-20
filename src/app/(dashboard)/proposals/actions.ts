@@ -3,7 +3,7 @@
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import type { SupabaseClient } from "@supabase/supabase-js";
-import { runSafeAction } from "@/lib/safe-action";
+import { runSafeAction, type ActionResult } from "@/lib/safe-action";
 import { requireTeamAdmin } from "@/lib/team-context";
 import { AppError, assertSupabaseOk } from "@/lib/errors";
 import { generateInvoiceNumber, calculateInvoiceTotals } from "@/lib/invoice-utils";
@@ -1475,6 +1475,93 @@ export async function deleteProposalAction(formData: FormData): Promise<void> {
     },
     "deleteProposalAction",
   ) as unknown as void;
+}
+
+export interface BulkDeleteProposalsCounts {
+  deleted: number;
+  skipped: number;
+}
+
+/**
+ * `runSafeAction` only ever resolves `{success:true}` or
+ * `{success:false,error}` — no generic data channel — so this widens the
+ * success branch locally with the honest delete/skip counts instead of
+ * changing the shared helper (every other proposals action stays on the
+ * plain `ActionResult` shape).
+ */
+export type BulkDeleteProposalsResult =
+  | (Extract<ActionResult, { success: true }> & BulkDeleteProposalsCounts)
+  | Extract<ActionResult, { success: false }>;
+
+/**
+ * Bulk hard-delete for the proposals list's multi-select strip — the
+ * primary need is clearing out test/junk drafts in one pass. Mirrors
+ * `deleteProposalAction`'s gating (requireTeamAdmin + isProposalDeletable),
+ * but instead of refusing the whole batch on one ineligible row, it deletes
+ * what it can and reports an honest `{ deleted, skipped }` count: a
+ * sent/viewed/accepted/declined/converted proposal in the selection is part
+ * of the audit record and is silently excluded, never force-deleted. Every
+ * id is re-checked server-side against the DB — the table's disabled
+ * checkboxes on non-deletable rows are a UX nicety, not the authority.
+ */
+export async function bulkDeleteProposalsAction(
+  formData: FormData,
+): Promise<BulkDeleteProposalsResult> {
+  const counts: BulkDeleteProposalsCounts = { deleted: 0, skipped: 0 };
+  const outcome = await runSafeAction(
+    formData,
+    async (formData, { supabase }) => {
+      const ids = [
+        ...new Set(formData.getAll("id").map(String).filter(Boolean)),
+      ];
+      if (ids.length === 0) return;
+
+      const { data: rows, error } = await supabase
+        .from("proposals")
+        .select("id, team_id, status")
+        .in("id", ids);
+      if (error) throw AppError.fromSupabase(error);
+      const found = (rows ?? []) as Array<{
+        id: string;
+        team_id: string;
+        status: string;
+      }>;
+
+      // Defense-in-depth: confirm admin on every distinct team represented
+      // in the selection. RLS already scopes visible proposals to teams the
+      // viewer administers, so this should never actually deny a
+      // legitimately-selected row — it exists so a tampered id list can't
+      // slip a foreign team's proposal past the client-side gate.
+      const teamIds = [...new Set(found.map((r) => r.team_id))];
+      for (const teamId of teamIds) {
+        await requireTeamAdmin(teamId);
+      }
+
+      const deletable = found.filter((r) => isProposalDeletable(r.status));
+      if (deletable.length > 0) {
+        assertSupabaseOk(
+          await supabase
+            .from("proposals")
+            .delete()
+            .in(
+              "id",
+              deletable.map((r) => r.id),
+            ),
+        );
+        revalidatePath("/proposals");
+      }
+
+      // Honest accounting: anything requested that didn't come back
+      // deleted — wrong status, not found, or outside the caller's teams —
+      // is a skip, never a silent success.
+      counts.deleted = deletable.length;
+      counts.skipped = ids.length - deletable.length;
+    },
+    "bulkDeleteProposalsAction",
+  );
+
+  if (!outcome.success) return outcome;
+  return { success: true, ...counts };
 }
 
 /** Minimum characters for the override justification — an override waives a
