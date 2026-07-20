@@ -9,15 +9,21 @@ and the rest of the Integrations topic.
 `/settings/integrations`. If you belong to more than one team, pick the
 team you want this token to act on with the team pills at the top.
 
-## 2. Create a token
+## 2. Create a token — and save it
 
 **New token** → name it something you'll recognize later ("Claude Code —
-laptop") → copy it immediately. It's shown once.
+laptop") → copy it immediately. It's shown **once**. Save it to your
+**password manager** now, then put it in a `SHYRE_API_KEY` environment
+variable for the tool that will use it — don't paste the raw token onto a
+command line or into a committed file. See
+[Storing your key](integrations-api.md#storing-your-key) for exactly where
+to put it (env var, git-ignored `.env.local`, or `.mcp.json` reference).
 
 ## 3. Wire it into Claude Code
 
-Paste the token where your MCP client or REST caller expects a bearer
-token. See the [API reference](integrations-api.md) for exact endpoints, or
+Point your MCP client at the endpoint with the `SHYRE_API_KEY` reference —
+`claude mcp add …` or a project `.mcp.json`, both shown in the
+[API reference](integrations-api.md#mcp-server-claude-code-and-friends). Or
 install the [Claude Code hooks kit](claude-code-hooks-kit.md) for
 deterministic tracking that doesn't depend on the model remembering.
 
