@@ -7,6 +7,7 @@ import {
   twoTeamSharingScenario,
   TwoTeamSharingScenario,
 } from "../helpers/fixtures";
+import { createTestProject } from "../helpers/customers";
 
 /**
  * Period-lock guards on time_entries / expenses / invoices /
@@ -356,6 +357,151 @@ describe("period locks", () => {
         period_end: "2026-02-28",
       });
       expect(error).not.toBeNull();
+    });
+  });
+
+  // ============================================================
+  // invoice_payments (guard + history added 20260720100000)
+  // ============================================================
+
+  describe("invoice_payments", () => {
+    /** Seed an invoice (issued INSIDE) + optionally a payment, all
+     *  BEFORE any lock exists, and return their ids. */
+    async function seedInvoice(label: string): Promise<string> {
+      const { data: inv, error } = await adminClient()
+        .from("invoices")
+        .insert({
+          team_id: scenario.primaryTeam.id,
+          customer_id: scenario.client.id,
+          invoice_number: `${prefix}INV-pay-${label}`,
+          status: "sent",
+          issued_date: INSIDE,
+          subtotal: 500,
+          tax_rate: 0,
+          tax_amount: 0,
+          total: 500,
+          currency: "USD",
+        })
+        .select("id")
+        .single();
+      if (error || !inv) throw new Error(`seed invoice: ${error?.message}`);
+      return inv.id as string;
+    }
+
+    async function seedPayment(
+      invoiceId: string,
+      paidOn: string,
+    ): Promise<string> {
+      const { data, error } = await adminClient()
+        .from("invoice_payments")
+        .insert({ invoice_id: invoiceId, amount: 100, paid_on: paidOn })
+        .select("id")
+        .single();
+      if (error || !data) throw new Error(`seed payment: ${error?.message}`);
+      return data.id as string;
+    }
+
+    it("blocks INSERT whose paid_on falls inside the lock", async () => {
+      const invoiceId = await seedInvoice("ins");
+      await lockPrimary();
+      const { error } = await adminClient()
+        .from("invoice_payments")
+        .insert({ invoice_id: invoiceId, amount: 100, paid_on: INSIDE });
+      expect(error?.message ?? "").toMatch(/Period closed/i);
+    });
+
+    it("allows INSERT whose paid_on falls after the lock", async () => {
+      const invoiceId = await seedInvoice("ins-ok");
+      await lockPrimary();
+      const { error } = await adminClient()
+        .from("invoice_payments")
+        .insert({ invoice_id: invoiceId, amount: 100, paid_on: OUTSIDE });
+      expect(error).toBeNull();
+    });
+
+    it("blocks UPDATE and DELETE of a payment dated inside the lock", async () => {
+      const invoiceId = await seedInvoice("upd");
+      const paymentId = await seedPayment(invoiceId, INSIDE);
+      await lockPrimary();
+
+      const { error: updErr } = await adminClient()
+        .from("invoice_payments")
+        .update({ amount: 250 })
+        .eq("id", paymentId);
+      expect(updErr?.message ?? "").toMatch(/Period closed/i);
+
+      const { error: delErr } = await adminClient()
+        .from("invoice_payments")
+        .delete()
+        .eq("id", paymentId);
+      expect(delErr?.message ?? "").toMatch(/Period closed/i);
+    });
+
+    it("blocks backdating an unlocked payment INTO the lock", async () => {
+      const invoiceId = await seedInvoice("backdate");
+      const paymentId = await seedPayment(invoiceId, OUTSIDE);
+      await lockPrimary();
+      const { error } = await adminClient()
+        .from("invoice_payments")
+        .update({ paid_on: INSIDE })
+        .eq("id", paymentId);
+      expect(error?.message ?? "").toMatch(/Period closed/i);
+    });
+
+    it("UPDATE and DELETE write append-only history rows with the previous state", async () => {
+      const invoiceId = await seedInvoice("hist");
+      const paymentId = await seedPayment(invoiceId, OUTSIDE);
+
+      await adminClient()
+        .from("invoice_payments")
+        .update({ amount: 175 })
+        .eq("id", paymentId);
+      await adminClient()
+        .from("invoice_payments")
+        .delete()
+        .eq("id", paymentId);
+
+      const { data: history, error } = await adminClient()
+        .from("invoice_payments_history")
+        .select("operation, previous_state")
+        .eq("payment_id", paymentId)
+        .order("changed_at", { ascending: true });
+      expect(error).toBeNull();
+      const ops = (history ?? []).map((h) => h.operation);
+      expect(ops).toEqual(["UPDATE", "DELETE"]);
+      const first = (history ?? [])[0]?.previous_state as {
+        amount: string | number;
+      };
+      // The UPDATE's snapshot carries the pre-change amount.
+      expect(Number(first?.amount)).toBe(100);
+    });
+  });
+
+  // ============================================================
+  // internal projects (customer_id NULL) — bypass fixed 20260720100000
+  // ============================================================
+
+  describe("time_entries on internal projects", () => {
+    it("blocks INSERT inside the lock even when the project has no customer", async () => {
+      const internal = await createTestProject(
+        prefix,
+        scenario.primaryTeam.id,
+        null,
+        scenario.alice.id,
+        "internal-lock-probe",
+      );
+      await lockPrimary();
+      const { error } = await adminClient().from("time_entries").insert({
+        team_id: scenario.primaryTeam.id,
+        user_id: scenario.alice.id,
+        project_id: internal.id,
+        description: `${prefix}internal-locked-entry`,
+        start_time: `${INSIDE}T09:00:00Z`,
+        end_time: `${INSIDE}T10:00:00Z`,
+      });
+      // Pre-fix, the guard resolved the team via projects → customers and
+      // silently skipped customer-less projects entirely.
+      expect(error?.message ?? "").toMatch(/Period closed/i);
     });
   });
 });
