@@ -190,6 +190,7 @@
   },
   "team": {
     "create": "Crear Equipo",
+    "createSubmit": "Crear",
     "leave": "Abandonar Equipo",
     "delete": "Eliminar Equipo",
     "personal": "Personal",
@@ -198,7 +199,41 @@
     "deleteConfirm": "Escribe \"{name}\" para confirmar la eliminación",
     "cannotDeletePersonal": "Tu equipo personal no puede ser eliminada.",
     "cannotLeaveOwner": "Transfiere la propiedad antes de abandonar.",
-    "dangerZone": "Zona de Peligro"
+    "dangerZone": "Zona de Peligro",
+    "sectionHeading": "Equipo",
+    "membersHeading": "Miembros del Equipo",
+    "teamNameLabel": "Nombre del Equipo",
+    "rename": "Renombrar",
+    "invite": "Invitar",
+    "emailLabel": "Correo electrónico",
+    "emailPlaceholder": "colega@ejemplo.com",
+    "roleLabel": "Rol",
+    "send": "Enviar",
+    "noOwnerWarning": "Este equipo no tiene dueño. Contacta a soporte — la transferencia de propiedad está bloqueada hasta resolver esto.",
+    "you": "(tú)",
+    "teamOwnerBadge": "Dueño del equipo",
+    "importedNoLogin": "Importado · sin inicio de sesión",
+    "changeRoleForAria": "Cambiar rol de {name}",
+    "roleAria": "Rol: {role}",
+    "removeMemberAria": "Eliminar a {name}",
+    "pendingInvites": "Invitaciones Pendientes",
+    "inviteExpiresLabel": "{role} · expira el {date}",
+    "revoke": "Revocar",
+    "leaveWarning": "Perderás el acceso a todos los datos de este equipo.",
+    "transferTitle": "Transferir propiedad",
+    "transferHint": "Cede el equipo a otro miembro. Te convertirás en administrador.",
+    "transferTrigger": "Transferir",
+    "transferConfirmIntro": "Elige quién será el nuevo dueño y luego escribe su nombre para confirmar. Serás degradado a administrador en el mismo paso.",
+    "newOwnerLabel": "Nuevo dueño",
+    "pickMember": "Elige un miembro…",
+    "typeToConfirm": "Escribe {name} para confirmar",
+    "transferSubmit": "Transferir propiedad",
+    "deleteWarning": "Esto eliminará permanentemente todos los datos, miembros y configuraciones.",
+    "deleteSubmit": "Eliminar Permanentemente",
+    "couldNotRemoveMember": "No se pudo eliminar al miembro.",
+    "roleUpdated": "Rol actualizado.",
+    "couldNotUpdateRole": "No se pudo actualizar el rol.",
+    "couldNotTransferOwnership": "No se pudo transferir la propiedad."
   },
   "teamFilter": {
     "dimension": "Equipo",
@@ -210,6 +245,12 @@
     "loadedOf": "Mostrando {loaded, number} de {total, number}",
     "loadNMore": "Cargar {count, number} más",
     "loadAll": "Cargar las {count, number}"
+  },
+  "tableDensity": {
+    "ariaLabel": "Densidad de tabla",
+    "compact": "Compacta",
+    "regular": "Regular",
+    "comfortable": "Cómoda"
   },
   "viewAll": "Ver todo",
   "viewAllSection": "Ver todo — {section}",
@@ -244,12 +285,14 @@
     }
   },
   "projectFilter": {
+    "dimension": "Proyecto",
     "all": "Todos los proyectos",
     "listboxLabel": "Filtrar por proyecto",
     "internal": "Interno",
     "includesSub": "(+{count, plural, =1 {# subproyecto} other {# subproyectos}})"
   },
   "customerFilter": {
+    "dimension": "Cliente",
     "all": "Todos los clientes",
     "listboxLabel": "Filtrar por cliente"
   },
@@ -282,7 +325,8 @@
     "member": "Miembro"
   },
   "teamsPage": {
-    "empty": "Aún no hay equipos. Crea uno para empezar."
+    "emptyTitle": "Aún no hay equipos",
+    "emptyDescription": "Crea un equipo para invitar colegas, compartir clientes y proyectos, y registrar tiempo juntos."
   },
   "a11y": {
     "skipToContent": "Saltar al contenido principal"

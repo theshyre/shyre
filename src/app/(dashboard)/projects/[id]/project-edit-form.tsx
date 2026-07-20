@@ -17,6 +17,7 @@ import {
   selectClass,
   buttonGhostClass,
   buttonSecondaryClass,
+  checkboxToggleClass,
 } from "@/lib/form-styles";
 import {
   applyParentDefaults,
@@ -476,7 +477,7 @@ export function ProjectEditForm({
                   type="checkbox"
                   checked={defaultBillable}
                   onChange={(e) => setDefaultBillable(e.target.checked)}
-                  className="mt-0.5 h-4 w-4 rounded border-edge text-accent focus:ring-focus-ring"
+                  className={`mt-0.5 ${checkboxToggleClass}`}
                 />
                 <span>
                   {t("fields.defaultBillable")}

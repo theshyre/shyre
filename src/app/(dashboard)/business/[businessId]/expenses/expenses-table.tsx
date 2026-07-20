@@ -13,6 +13,7 @@ import { useToast } from "@/components/Toast";
 import { Tooltip } from "@/components/Tooltip";
 import { InlineDeleteRowConfirm } from "@/components/InlineDeleteRowConfirm";
 import { assertActionResult } from "@/lib/action-result";
+import { checkboxClass } from "@/lib/form-styles";
 import {
   bulkDeleteExpensesAction,
   bulkRestoreExpensesAction,
@@ -596,7 +597,7 @@ export function ExpensesTable({
                   }}
                   onChange={toggleAll}
                   aria-label={t("bulk.selectAll")}
-                  className="h-4 w-4 rounded border-edge text-accent focus:ring-focus-ring"
+                  className={checkboxClass}
                 />
               </span>
             </th>

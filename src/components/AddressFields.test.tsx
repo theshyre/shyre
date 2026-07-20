@@ -120,6 +120,53 @@ describe("AddressFields", () => {
     expect(screen.queryByText(/Street is required/)).toBeNull();
   });
 
+  it("associates each field's FieldError via aria-describedby (id match) so AT announces it on focus", () => {
+    const { container } = render(
+      <AddressFields
+        prefix="business_address"
+        value={blank()}
+        errors={{
+          "business_address.street": "Street is required",
+          "business_address.city": "City is required",
+        }}
+      />,
+    );
+    const street = container.querySelector(
+      "input[name='business_address.street']",
+    ) as HTMLInputElement;
+    const streetError = screen.getByText("Street is required");
+    expect(street.getAttribute("aria-describedby")).toBe(streetError.id);
+
+    const city = container.querySelector(
+      "input[name='business_address.city']",
+    ) as HTMLInputElement;
+    const cityError = screen.getByText("City is required");
+    expect(city.getAttribute("aria-describedby")).toBe(cityError.id);
+  });
+
+  it("a field with no error carries no aria-describedby", () => {
+    const { container } = render(
+      <AddressFields prefix="a" value={blank()} errors={{}} />,
+    );
+    const street = container.querySelector(
+      "input[name='a.street']",
+    ) as HTMLInputElement;
+    expect(street.hasAttribute("aria-describedby")).toBe(false);
+  });
+
+  it("field ids stay unique across two AddressFields instances on one page (different prefixes)", () => {
+    const { container } = render(
+      <>
+        <AddressFields prefix="address" value={blank()} />
+        <AddressFields prefix="business_address" value={blank()} />
+      </>,
+    );
+    const ids = Array.from(container.querySelectorAll("input, select"))
+      .map((el) => el.id)
+      .filter(Boolean);
+    expect(new Set(ids).size).toBe(ids.length);
+  });
+
   it("renders the country select with a blank '' first option + a sizeable list of countries", () => {
     const { container } = render(
       <AddressFields prefix="a" value={blank()} />,

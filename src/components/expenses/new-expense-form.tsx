@@ -17,6 +17,7 @@ import {
   formSpanFull,
   formSpanThird,
   formSpanQuarter,
+  checkboxToggleClass,
 } from "@/lib/form-styles";
 import { SubmitButton } from "@/components/SubmitButton";
 import { DateField } from "@/components/DateField";
@@ -299,7 +300,7 @@ export function NewExpenseForm({
             id="billable"
             type="checkbox"
             name="billable"
-            className="h-4 w-4"
+            className={checkboxToggleClass}
           />
           <label
             htmlFor="billable"

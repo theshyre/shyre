@@ -89,5 +89,32 @@
     "fieldDetails": "Detalles",
     "fieldStackTrace": "Traza de pila",
     "empty": "No se encontraron errores."
+  },
+  "credentialsPage": {
+    "title": "Credenciales",
+    "description": "Cada token y clave de API que Shyre rastrea en esta instancia. Ordenados por urgencia — primero los expirados. Haz clic en una fila para ir al formulario que la rota.",
+    "emptyBefore": "Aún no hay credenciales configuradas. Visita",
+    "emptyAfter": "para conectar Vercel y aprovisionar la clave de cifrado.",
+    "groups": {
+      "expired": "Expiradas",
+      "critical": "Expiran en 7 días",
+      "warning": "Expiran en 30 días",
+      "ok": "Saludables"
+    },
+    "sectionHeading": "{label} ({count})",
+    "noRotateDate": "No se estableció fecha de rotación — elige una para activar recordatorios",
+    "expiresLabel": "expira el {date}",
+    "update": "Actualizar →",
+    "scope": {
+      "instance": "Instancia",
+      "team": "Equipo",
+      "user": "Tu cuenta"
+    },
+    "expiry": {
+      "noExpiration": "sin fecha de expiración",
+      "expiredAgo": "{count, plural, one {expiró hace # día} other {expiró hace # días}}",
+      "expiresToday": "expira hoy",
+      "untilExpiry": "{count, plural, one {falta # día para expirar} other {faltan # días para expirar}}"
+    }
   }
 }

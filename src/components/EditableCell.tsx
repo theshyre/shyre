@@ -159,6 +159,23 @@ export function EditableCell(props: EditableCellProps): React.JSX.Element {
     }
   }, [mode]);
 
+  // Refocus the idle display button whenever editing ends (successful
+  // commit, no-op commit, or Escape-cancel) — without this, the
+  // <input>/<select> unmounts and the new <button> mounts with focus
+  // nowhere (lost to document.body), stranding keyboard users mid-row.
+  const displayButtonRef = useRef<HTMLButtonElement | null>(null);
+  const wasNonIdleRef = useRef(false);
+  useEffect(() => {
+    if (mode !== "idle") {
+      wasNonIdleRef.current = true;
+      return;
+    }
+    if (wasNonIdleRef.current) {
+      wasNonIdleRef.current = false;
+      displayButtonRef.current?.focus();
+    }
+  }, [mode]);
+
   const startEdit = useCallback(() => {
     if (disabled) return;
     if (mode === "saving") return;
@@ -238,16 +255,19 @@ export function EditableCell(props: EditableCellProps): React.JSX.Element {
 
   // ── Idle / display rendering ────────────────────────────────
   if (mode !== "editing" && mode !== "saving" && mode !== "error") {
-    return renderDisplay({
-      ariaLabel,
-      placeholder,
-      value,
-      displayNode,
-      disabled: disabled ?? false,
-      disabledReason: props.disabledReason,
-      onActivate: startEdit,
-      className: props.className,
-    });
+    return (
+      <DisplayCell
+        ariaLabel={ariaLabel}
+        placeholder={placeholder}
+        value={value}
+        displayNode={displayNode}
+        disabled={disabled ?? false}
+        disabledReason={props.disabledReason}
+        onActivate={startEdit}
+        className={props.className}
+        buttonRef={displayButtonRef}
+      />
+    );
   }
 
   // ── Saving overlay ──────────────────────────────────────────
@@ -406,7 +426,7 @@ export function EditableCell(props: EditableCellProps): React.JSX.Element {
   );
 }
 
-function renderDisplay({
+function DisplayCell({
   ariaLabel,
   placeholder,
   value,
@@ -415,6 +435,7 @@ function renderDisplay({
   disabledReason,
   onActivate,
   className,
+  buttonRef,
 }: {
   ariaLabel: string;
   placeholder: string | undefined;
@@ -424,6 +445,7 @@ function renderDisplay({
   disabledReason: string | undefined;
   onActivate: () => void;
   className: string | undefined;
+  buttonRef: React.RefObject<HTMLButtonElement | null>;
 }): React.JSX.Element {
   const empty = !value || value.trim() === "";
   const content =
@@ -453,8 +475,13 @@ function renderDisplay({
         {content}
       </span>
     );
+    // `showOnDisabled` wraps `inner` in a focusable span forwarding
+    // pointer + focus handlers — without it, `inner` (a plain
+    // non-focusable <span>) can never receive keyboard focus, so a
+    // keyboard-only user could never reveal why the cell is locked
+    // (mouse-hover was the only path in).
     return disabledReason ? (
-      <Tooltip label={disabledReason} labelMode="label">
+      <Tooltip label={disabledReason} labelMode="label" showOnDisabled>
         {inner}
       </Tooltip>
     ) : (
@@ -468,6 +495,7 @@ function renderDisplay({
   // same x-coordinate as the corresponding <th>'s text.
   return (
     <button
+      ref={buttonRef}
       type="button"
       aria-label={ariaLabel}
       onClick={onActivate}

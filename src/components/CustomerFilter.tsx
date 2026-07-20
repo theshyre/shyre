@@ -1,10 +1,10 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
 import { useRouter, usePathname, useSearchParams } from "next/navigation";
 import { useTranslations } from "next-intl";
-import { Check, ChevronDown, Building2 } from "lucide-react";
+import { Building2 } from "lucide-react";
 import { CustomerChip } from "@theshyre/ui";
+import { FilterChip, type FilterChipOption } from "@/components/FilterChip";
 
 export interface CustomerFilterOption {
   id: string;
@@ -23,6 +23,10 @@ interface Props {
   selectedId: string | null;
 }
 
+/** Sentinel key for the "All customers" option — customer ids are
+ *  UUIDs so this can't collide with a real row. */
+const ALL_KEY = "__all__";
+
 /**
  * URL-driven customer picker for `/time-entries`. Composes with the
  * existing project filter — if both are set, the server intersects
@@ -38,6 +42,11 @@ interface Props {
  * "Internal" bucket which is NOT in this picker — the only way to
  * filter to Internal-only is via the project filter today. Adding a
  * synthetic "Internal" customer here is on the Phase 2 list.
+ *
+ * Built on the shared `<FilterChip>` scaffold (list-pages.md rule 1 +
+ * a11y invariants) instead of a hand-rolled dropdown — the previous
+ * implementation only closed on outside click, so Escape did nothing
+ * and focus never returned to the trigger.
  */
 export function CustomerFilter({
   customers,
@@ -46,20 +55,7 @@ export function CustomerFilter({
   const router = useRouter();
   const pathname = usePathname();
   const searchParams = useSearchParams();
-  const [open, setOpen] = useState(false);
-  const ref = useRef<HTMLDivElement>(null);
   const t = useTranslations("common.customerFilter");
-
-  useEffect(() => {
-    if (!open) return;
-    function handleClick(e: MouseEvent): void {
-      if (ref.current && !ref.current.contains(e.target as Node)) {
-        setOpen(false);
-      }
-    }
-    document.addEventListener("mousedown", handleClick);
-    return () => document.removeEventListener("mousedown", handleClick);
-  }, [open]);
 
   if (customers.length === 0) return null;
 
@@ -68,31 +64,47 @@ export function CustomerFilter({
       ? customers.find((c) => c.id === selectedId) ?? null
       : null;
 
-  function pick(id: string | null): void {
+  function pick(key: string): void {
     const params = new URLSearchParams(searchParams.toString());
-    if (id === null) {
+    if (key === ALL_KEY) {
       params.delete("customer");
     } else {
-      params.set("customer", id);
+      params.set("customer", key);
     }
     router.push(`${pathname}?${params.toString()}`);
-    setOpen(false);
   }
 
+  const options: FilterChipOption[] = [
+    {
+      key: ALL_KEY,
+      label: t("all"),
+      icon: (
+        <Building2 size={12} className="text-content-muted" aria-hidden="true" />
+      ),
+      selected: selected === null,
+      labelClassName: "font-medium text-content",
+      separatorAfter: true,
+    },
+    ...customers.map((c) => ({
+      key: c.id,
+      label: c.name,
+      icon: (
+        <CustomerChip
+          customerId={c.id}
+          customerName={c.name}
+          logoUrl={c.logo_url ?? null}
+          size={14}
+        />
+      ),
+      selected: selected?.id === c.id,
+      labelClassName: "font-medium text-content truncate",
+    })),
+  ];
+
   return (
-    <div ref={ref} className="relative">
-      <button
-        type="button"
-        onClick={() => setOpen((o) => !o)}
-        aria-haspopup="listbox"
-        aria-expanded={open}
-        className={`inline-flex items-center gap-1.5 rounded-full px-3 py-1 text-caption font-medium transition-colors border ${
-          selected
-            ? "bg-accent-soft text-accent-text border-accent/30"
-            : "bg-surface-inset text-content-secondary border-edge hover:bg-hover"
-        }`}
-      >
-        {selected ? (
+    <FilterChip
+      icon={
+        selected ? (
           <CustomerChip
             customerId={selected.id}
             customerName={selected.name}
@@ -101,61 +113,16 @@ export function CustomerFilter({
           />
         ) : (
           <Building2 size={12} aria-hidden="true" />
-        )}
-        <span className="truncate max-w-[180px]">
-          {selected ? selected.name : t("all")}
-        </span>
-        <ChevronDown size={12} aria-hidden="true" />
-      </button>
-
-      {open && (
-        <div
-          role="listbox"
-          aria-label={t("listboxLabel")}
-          className="absolute z-20 mt-1 w-[260px] max-h-[360px] overflow-auto rounded-lg border border-edge bg-surface-raised shadow-lg p-1"
-        >
-          <button
-            type="button"
-            role="option"
-            aria-selected={selected === null}
-            onClick={() => pick(null)}
-            className="flex w-full items-center gap-2 rounded-md px-2 py-1.5 text-left text-caption hover:bg-hover"
-          >
-            <span className="w-3 shrink-0">
-              {selected === null && <Check size={12} aria-hidden="true" />}
-            </span>
-            <span className="font-medium text-content">{t("all")}</span>
-          </button>
-
-          <div className="my-1 border-t border-edge-muted" />
-
-          {customers.map((c) => (
-            <button
-              key={c.id}
-              type="button"
-              role="option"
-              aria-selected={selected?.id === c.id}
-              onClick={() => pick(c.id)}
-              className="flex w-full items-center gap-2 rounded-md px-2 py-1.5 text-left text-caption hover:bg-hover"
-            >
-              <span className="w-3 shrink-0">
-                {selected?.id === c.id && (
-                  <Check size={12} aria-hidden="true" />
-                )}
-              </span>
-              <CustomerChip
-                customerId={c.id}
-                customerName={c.name}
-                logoUrl={c.logo_url ?? null}
-                size={14}
-              />
-              <span className="flex-1 min-w-0 truncate text-content">
-                {c.name}
-              </span>
-            </button>
-          ))}
-        </div>
-      )}
-    </div>
+        )
+      }
+      dimensionLabel={t("dimension")}
+      valueLabel={selected ? selected.name : t("all")}
+      valueClassName="truncate max-w-[180px]"
+      listboxLabel={t("listboxLabel")}
+      customized={selected !== null}
+      panelClassName="w-[260px] max-h-[360px] overflow-auto"
+      options={options}
+      onPick={pick}
+    />
   );
 }

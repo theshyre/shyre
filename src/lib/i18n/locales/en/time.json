@@ -102,6 +102,7 @@
     "date": "Date",
     "duration": "Duration",
     "billable": "Billable",
+    "notBillable": "Not billable",
     "billableInternalLocked": "Internal projects are non-billable by definition.",
     "category": "Category",
     "categoryUnavailable": "This project has no category set — configure one in project settings.",

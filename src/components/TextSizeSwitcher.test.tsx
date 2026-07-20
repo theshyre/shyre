@@ -80,4 +80,20 @@ describe("TextSizeSwitcher", () => {
     expect((buttons[1] as HTMLElement).style.fontSize).toBe("13px");
     expect((buttons[2] as HTMLElement).style.fontSize).toBe("15px");
   });
+
+  it("each button's accessible name comes from the Tooltip (labelMode='label'), not a duplicated manual aria-label", () => {
+    renderWithIntl(<TextSizeSwitcher />);
+    const compact = screen.getByRole("radio", { name: "Compact" });
+    // Exactly one aria-label source — the button itself carries no
+    // separate manual aria-label alongside Tooltip's.
+    expect(compact.getAttributeNames().filter((n) => n === "aria-label")).toHaveLength(1);
+  });
+
+  it("focusing a button still shows the visible tooltip bubble (labelMode='label' does not hide it)", async () => {
+    renderWithIntl(<TextSizeSwitcher />);
+    const compact = screen.getByRole("radio", { name: "Compact" });
+    fireEvent.focus(compact);
+    const tooltip = await screen.findByRole("tooltip");
+    expect(tooltip).toHaveTextContent("Compact");
+  });
 });

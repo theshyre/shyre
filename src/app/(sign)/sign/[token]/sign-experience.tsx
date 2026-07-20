@@ -20,6 +20,7 @@ import {
   buttonPrimaryClass,
   buttonSecondaryClass,
   buttonDangerClass,
+  checkboxToggleClass,
 } from "@/lib/form-styles";
 import { formatCurrency } from "@/lib/invoice-utils";
 import { formatDisplayDate } from "@/lib/format-date";
@@ -336,7 +337,7 @@ export function SignExperience({ token, bundle }: Props): React.JSX.Element {
                   <input
                     type="checkbox"
                     id={`sign-item-${item.id}`}
-                    className="mt-1"
+                    className={`mt-1 ${checkboxToggleClass}`}
                     // Name = title + price only. The card body (scope prose a
                     // signer must be able to select/copy) stays OUTSIDE the
                     // label so reading it never toggles a selection.

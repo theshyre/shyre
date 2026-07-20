@@ -89,5 +89,32 @@
     "fieldDetails": "Details",
     "fieldStackTrace": "Stack trace",
     "empty": "No errors found."
+  },
+  "credentialsPage": {
+    "title": "Credentials",
+    "description": "Every API token and key Shyre tracks across this instance. Sorted by urgency — expired first. Click any row to jump to the form that rotates it.",
+    "emptyBefore": "No credentials configured yet. Visit",
+    "emptyAfter": "to connect Vercel and provision the encryption key.",
+    "groups": {
+      "expired": "Expired",
+      "critical": "Expiring within 7 days",
+      "warning": "Expiring within 30 days",
+      "ok": "Healthy"
+    },
+    "sectionHeading": "{label} ({count})",
+    "noRotateDate": "No rotate-by date set — pick one to enable reminders",
+    "expiresLabel": "expires {date}",
+    "update": "Update →",
+    "scope": {
+      "instance": "Instance",
+      "team": "Team",
+      "user": "Your account"
+    },
+    "expiry": {
+      "noExpiration": "no expiration set",
+      "expiredAgo": "{count, plural, one {expired # day ago} other {expired # days ago}}",
+      "expiresToday": "expires today",
+      "untilExpiry": "{count, plural, one {# day until expiry} other {# days until expiry}}"
+    }
   }
 }

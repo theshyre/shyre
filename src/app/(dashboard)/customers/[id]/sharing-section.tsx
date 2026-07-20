@@ -13,6 +13,7 @@ import {
   buttonSecondaryClass,
   selectClass,
   labelClass,
+  checkboxToggleClass,
 } from "@/lib/form-styles";
 import {
   addCustomerShareAction,
@@ -161,7 +162,7 @@ export function SharingSection({
                 <input
                   type="checkbox"
                   name="can_see_others"
-                  className="rounded border-edge"
+                  className={checkboxToggleClass}
                   disabled={addPending}
                 />
                 {t("canSeeOtherEntries")}
@@ -278,7 +279,7 @@ function ShareRow({
               onChange={(e) => {
                 e.currentTarget.form?.requestSubmit();
               }}
-              className="rounded border-edge"
+              className={checkboxToggleClass}
             />
             {t("canSeeOtherEntries")}
           </label>

@@ -27,6 +27,7 @@ import {
 } from "@/lib/expenses/actions";
 import { INVOICED_EDITABLE_EXPENSE_FIELDS } from "@/lib/expenses/expense-lock-helpers";
 import { EXPENSE_CATEGORIES } from "@/lib/expenses/categories";
+import { checkboxClass } from "@/lib/form-styles";
 import {
   formatExpenseAmount,
   formatExpenseDateDisplay,
@@ -324,7 +325,7 @@ export function ExpenseRow({
               checked={selected}
               onChange={() => onToggleSelect(expense.id)}
               aria-label={t("bulk.selectRow", { vendor: ariaIdent })}
-              className="h-4 w-4 rounded border-edge text-accent focus:ring-focus-ring"
+              className={checkboxClass}
             />
           </span>
         </td>

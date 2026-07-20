@@ -136,14 +136,14 @@ export default function SidebarTimer({
   return (
     <div className="border-t border-success/30">
       <div className="px-4 py-2 border-b border-success/30 bg-success-soft">
-        <span className="text-label font-semibold uppercase tracking-wider text-success">
+        <span className="text-label font-semibold uppercase tracking-wider text-success-text">
           {t("title")}
         </span>
       </div>
       <div className="px-4 py-3 space-y-2 bg-success-soft">
         <div className="flex items-center gap-2">
           <span className="h-2 w-2 rounded-full bg-success animate-pulse" />
-          <span className="text-label font-semibold uppercase text-success">
+          <span className="text-label font-semibold uppercase text-success-text">
             {t("running")}
           </span>
           <kbd className={kbdClass}>Space</kbd>
@@ -166,7 +166,12 @@ export default function SidebarTimer({
           </p>
         )}
         <Tooltip label={new Date(running.start_time).toLocaleString()}>
-          <p className="text-caption text-content-muted">{startedCaption}</p>
+          <p
+            tabIndex={0}
+            className="text-caption text-content-muted focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus-ring rounded"
+          >
+            {startedCaption}
+          </p>
         </Tooltip>
         <div className="flex items-center justify-between gap-2">
           {/* Agent-started running timers surface the Bot badge +

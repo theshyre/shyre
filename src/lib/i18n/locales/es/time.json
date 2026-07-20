@@ -102,6 +102,7 @@
     "date": "Fecha",
     "duration": "Duración",
     "billable": "Facturable",
+    "notBillable": "No facturable",
     "billableInternalLocked": "Los proyectos internos son no facturables por definición.",
     "category": "Categoría",
     "categoryUnavailable": "Este proyecto no tiene un conjunto de categorías — configúralo en los ajustes del proyecto.",

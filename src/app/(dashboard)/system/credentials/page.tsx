@@ -1,8 +1,10 @@
 import type { Metadata } from "next";
 import Link from "next/link";
+import { getTranslations } from "next-intl/server";
 import { KeyRound, Check, AlertCircle, Clock } from "lucide-react";
 import { createClient } from "@/lib/supabase/server";
 import { requireSystemAdmin } from "@/lib/system-admin";
+import { formatDisplayDate } from "@/lib/format-date";
 import {
   scanCredentials,
   type CredentialItem,
@@ -10,7 +12,8 @@ import {
 } from "@/lib/credentials/scan";
 
 export async function generateMetadata(): Promise<Metadata> {
-  return { title: "Credentials" };
+  const t = await getTranslations("admin.credentialsPage");
+  return { title: t("title") };
 }
 
 /**
@@ -26,6 +29,7 @@ export default async function SystemCredentialsPage(): Promise<React.JSX.Element
   await requireSystemAdmin();
   const supabase = await createClient();
   const items = await scanCredentials(supabase);
+  const t = await getTranslations("admin.credentialsPage");
 
   const expired = items.filter((i) => i.severity === "expired");
   const critical = items.filter((i) => i.severity === "critical");
@@ -36,50 +40,52 @@ export default async function SystemCredentialsPage(): Promise<React.JSX.Element
     <div className="space-y-6">
       <div className="flex items-center gap-3">
         <KeyRound size={24} className="text-accent" />
-        <h1 className="text-page-title font-bold text-content">Credentials</h1>
+        <h1 className="text-page-title font-bold text-content">{t("title")}</h1>
       </div>
       <p className="text-body text-content-secondary max-w-2xl">
-        Every API token and key Shyre tracks across this instance. Sorted by
-        urgency — expired first. Click any row to jump to the form that
-        rotates it.
+        {t("description")}
       </p>
 
       {items.length === 0 ? (
         <p className="rounded-lg border border-edge bg-surface-raised p-4 text-body text-content-muted">
-          No credentials configured yet. Visit{" "}
+          {t("emptyBefore")}{" "}
           <Link href="/system/deploy" className="text-accent hover:underline">
             /system/deploy
           </Link>{" "}
-          to connect Vercel and provision the encryption key.
+          {t("emptyAfter")}
         </p>
       ) : (
         <div className="space-y-4">
           {expired.length > 0 && (
             <CredentialGroup
-              title="Expired"
+              title={t("groups.expired")}
               items={expired}
               severity="expired"
+              t={t}
             />
           )}
           {critical.length > 0 && (
             <CredentialGroup
-              title="Expiring within 7 days"
+              title={t("groups.critical")}
               items={critical}
               severity="critical"
+              t={t}
             />
           )}
           {warning.length > 0 && (
             <CredentialGroup
-              title="Expiring within 30 days"
+              title={t("groups.warning")}
               items={warning}
               severity="warning"
+              t={t}
             />
           )}
           {ok.length > 0 && (
             <CredentialGroup
-              title="Healthy"
+              title={t("groups.ok")}
               items={ok}
               severity="ok"
+              t={t}
             />
           )}
         </div>
@@ -88,21 +94,25 @@ export default async function SystemCredentialsPage(): Promise<React.JSX.Element
   );
 }
 
+type PageTranslator = Awaited<ReturnType<typeof getTranslations>>;
+
 function CredentialGroup({
   title,
   items,
   severity,
+  t,
 }: {
   title: string;
   items: CredentialItem[];
   severity: Severity;
+  t: PageTranslator;
 }): React.JSX.Element {
   return (
     <section
       className={`rounded-lg border p-4 space-y-2 ${groupBorder(severity)}`}
     >
       <h2 className="text-label font-semibold uppercase tracking-wider text-content-muted">
-        {title} ({items.length})
+        {t("sectionHeading", { label: title, count: items.length })}
       </h2>
       <ul className="divide-y divide-edge-muted">
         {items.map((item) => (
@@ -118,21 +128,22 @@ function CredentialGroup({
               <p className="text-caption text-content-muted">
                 {item.expiresAt ? (
                   <>
-                    {expiryPhrase(item)} · expires {item.expiresAt}
+                    {expiryPhrase(item, t)} ·{" "}
+                    {t("expiresLabel", { date: formatDisplayDate(item.expiresAt) })}
                   </>
                 ) : (
-                  <>No rotate-by date set — pick one to enable reminders</>
+                  <>{t("noRotateDate")}</>
                 )}
               </p>
             </div>
             <span className="text-caption text-content-muted hidden sm:inline">
-              {scopeLabel(item)}
+              {scopeLabel(item, t)}
             </span>
             <Link
               href={item.editUrl}
               className="text-caption text-accent hover:underline shrink-0"
             >
-              Update →
+              {t("update")}
             </Link>
           </li>
         ))}
@@ -149,20 +160,20 @@ function SeverityIcon({
   if (severity === "ok") {
     return (
       <span className="inline-flex h-6 w-6 items-center justify-center rounded-full bg-success-soft text-success-text shrink-0">
-        <Check size={12} aria-hidden />
+        <Check size={12} aria-hidden="true" />
       </span>
     );
   }
   if (severity === "warning") {
     return (
       <span className="inline-flex h-6 w-6 items-center justify-center rounded-full bg-warning-soft text-warning-text shrink-0">
-        <Clock size={12} aria-hidden />
+        <Clock size={12} aria-hidden="true" />
       </span>
     );
   }
   return (
     <span className="inline-flex h-6 w-6 items-center justify-center rounded-full bg-error-soft text-error-text shrink-0">
-      <AlertCircle size={12} aria-hidden />
+      <AlertCircle size={12} aria-hidden="true" />
     </span>
   );
 }
@@ -179,24 +190,20 @@ function groupBorder(severity: Severity): string {
   }
 }
 
-function expiryPhrase(item: CredentialItem): string {
+/** Exported for testing — the ICU plural rules live in the message
+ *  catalog (admin.credentialsPage.expiry.*), this just picks the
+ *  right key + count. */
+export function expiryPhrase(
+  item: Pick<CredentialItem, "daysUntilExpiry">,
+  t: PageTranslator,
+): string {
   const d = item.daysUntilExpiry;
-  if (d == null) return "no expiration set";
-  if (d < 0) {
-    const abs = Math.abs(d);
-    return `expired ${abs} day${abs === 1 ? "" : "s"} ago`;
-  }
-  if (d === 0) return "expires today";
-  return `${d} day${d === 1 ? "" : "s"} until expiry`;
+  if (d == null) return t("expiry.noExpiration");
+  if (d < 0) return t("expiry.expiredAgo", { count: Math.abs(d) });
+  if (d === 0) return t("expiry.expiresToday");
+  return t("expiry.untilExpiry", { count: d });
 }
 
-function scopeLabel(item: CredentialItem): string {
-  switch (item.scope) {
-    case "instance":
-      return "Instance";
-    case "team":
-      return "Team";
-    case "user":
-      return "Your account";
-  }
+function scopeLabel(item: Pick<CredentialItem, "scope">, t: PageTranslator): string {
+  return t(`scope.${item.scope}`);
 }

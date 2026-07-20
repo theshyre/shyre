@@ -572,7 +572,7 @@ function StatusBadge({
     // reconciliation. Three-channel encoding (icon + text + color)
     // so AT users + non-color users get the signal too.
     return (
-      <span className="inline-flex items-center gap-1 rounded-full bg-warning-soft px-2 py-0.5 text-caption font-medium text-warning">
+      <span className="inline-flex items-center gap-1 rounded-full bg-warning-soft px-2 py-0.5 text-caption font-medium text-warning-text">
         <AlertTriangle size={10} />
         {t("statuses.partial")}
       </span>

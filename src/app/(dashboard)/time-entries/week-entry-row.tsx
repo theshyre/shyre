@@ -369,11 +369,10 @@ export function EntrySummaryRow({
       <td className="px-2 py-1.5 align-middle">
         <div className="flex items-center justify-end gap-1">
           {locked ? (
-            <Tooltip label={tLock("locked")}>
+            <Tooltip label={tLock("locked")} labelMode="label">
               <Link
                 href={`/invoices/${entry.invoice_id}`}
-                aria-label={tLock("locked")}
-                className="rounded p-1 text-warning hover:bg-warning-soft transition-colors"
+                className="rounded p-1 text-warning-text hover:bg-warning-soft transition-colors"
               >
                 <Lock size={14} aria-hidden="true" />
               </Link>
@@ -389,24 +388,22 @@ export function EntrySummaryRow({
                   resumes it (backdates start_time when it's on
                   today; clones forward to today otherwise). */}
               {isRunning ? (
-                <Tooltip label={t("stopEntry", { entry: entryLabel })}>
+                <Tooltip label={t("stopEntry", { entry: entryLabel })} labelMode="label">
                   <button
                     type="button"
                     onClick={handleStop}
                     disabled={stop.pending}
-                    aria-label={t("stopEntry", { entry: entryLabel })}
                     className="rounded p-1 text-error-text hover:bg-error-soft transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-error disabled:opacity-50"
                   >
                     <Square size={14} className="fill-current" />
                   </button>
                 </Tooltip>
               ) : (
-                <Tooltip label={t("startEntry", { entry: entryLabel })}>
+                <Tooltip label={t("startEntry", { entry: entryLabel })} labelMode="label">
                   <button
                     type="button"
                     onClick={handleStart}
                     disabled={start.pending}
-                    aria-label={t("startEntry", { entry: entryLabel })}
                     className="rounded p-1 text-content-muted hover:bg-hover hover:text-accent transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent disabled:opacity-50"
                   >
                     <Play size={14} />
@@ -415,13 +412,13 @@ export function EntrySummaryRow({
               )}
               <Tooltip
                 label={editing ? t("collapseEdit") : t("editEntry")}
+                labelMode="label"
               >
                 <button
                   type="button"
                   onClick={onEditToggle}
                   aria-expanded={editing}
                   aria-controls={`entry-edit-${entry.id}`}
-                  aria-label={t("editEntry")}
                   className={`rounded p-1 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent ${
                     editing
                       ? "bg-accent-soft text-accent"
@@ -431,7 +428,7 @@ export function EntrySummaryRow({
                   <Pencil size={14} />
                 </button>
               </Tooltip>
-              <Tooltip label={t("deleteEntry")}>
+              <Tooltip label={t("deleteEntry")} labelMode="label">
                 <button
                   type="button"
                   onClick={() => {
@@ -440,7 +437,6 @@ export function EntrySummaryRow({
                     void del.handleSubmit(fd);
                   }}
                   disabled={del.pending}
-                  aria-label={t("deleteEntry")}
                   className="rounded p-1 text-content-muted hover:bg-error-soft hover:text-error transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-error disabled:opacity-50"
                 >
                   <Trash2 size={14} />
@@ -1012,7 +1008,7 @@ function DrawerEntryItem({
                       duration: durationDisplay,
                     })
               }
-              className="inline-flex items-center gap-1 rounded px-1.5 py-1 text-caption font-medium text-warning hover:bg-warning-soft hover:underline transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent"
+              className="inline-flex items-center gap-1 rounded px-1.5 py-1 text-caption font-medium text-warning-text hover:bg-warning-soft hover:underline transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent"
             >
               <Lock size={12} aria-hidden="true" className="shrink-0" />
               {tLock("locked")}

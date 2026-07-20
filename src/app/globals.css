@@ -215,17 +215,37 @@ html[data-density="comfortable"] {
  * Tailwind's arbitrary-value extractor doesn't reliably pick up
  * data URLs from template literals. A static CSS class is simpler.
  *
- * Stroke color #9ca3af (gray-400) matches text-content-muted across
- * every theme well enough to read as the trigger affordance without
- * competing with the selected option's text.
+ * The stroke color used to be a single hardcoded #9ca3af (gray-400) —
+ * fine on light, but ~1.6:1 against dark/malcom's own darker muted
+ * tone and washed-out on high-contrast. CSS custom properties can't
+ * be interpolated into a `url("data:...")` string, so each theme
+ * below pins its own complete data-URI (stroke color = that theme's
+ * `--content-muted`) instead of just swapping a color value.
  * ============================================================ */
+:root,
+[data-theme="light"] {
+  --select-chevron: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%235b6573' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'><path d='m6 9 6 6 6-6'/></svg>");
+}
+[data-theme="dark"] {
+  --select-chevron: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%2394a3b8' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'><path d='m6 9 6 6 6-6'/></svg>");
+}
+[data-theme="malcom"] {
+  --select-chevron: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%238a94a0' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'><path d='m6 9 6 6 6-6'/></svg>");
+}
+[data-theme="warm"] {
+  --select-chevron: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%2378716c' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'><path d='m6 9 6 6 6-6'/></svg>");
+}
+[data-theme="high-contrast"] {
+  --select-chevron: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%23374151' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'><path d='m6 9 6 6 6-6'/></svg>");
+}
+
 .shyre-select {
   -webkit-appearance: none;
   appearance: none;
   background-repeat: no-repeat;
   background-position: right 0.75rem center;
   background-size: 16px;
-  background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%239ca3af' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'><path d='m6 9 6 6 6-6'/></svg>");
+  background-image: var(--select-chevron);
   padding-right: 2.25rem;
 }
 
@@ -270,5 +290,16 @@ html[data-density="comfortable"] {
     --error-soft: #fecaca;
     --info: #1d4ed8;
     --info-soft: #bfdbfe;
+    /* The remap above covers surfaces/accent/status fills but missed
+     * the `--*-text` pairing tokens (added later for the soft-bg
+     * contrast fix) — sign banners pinned to dark/malcom fell through
+     * to those themes' light `--*-text` shades on their now-WHITE
+     * `--*-soft` remap here, ~1.1:1 for HC users. Mirror high-contrast's
+     * own approach: alias to the just-remapped solid tone, which is
+     * already tuned to pass AA against this block's white surfaces. */
+    --success-text: var(--success);
+    --warning-text: var(--warning);
+    --error-text: var(--error);
+    --info-text: var(--info);
   }
 }

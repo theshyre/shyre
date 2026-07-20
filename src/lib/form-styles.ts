@@ -116,3 +116,17 @@ export const formSpanCompact = "col-span-6 sm:col-span-2";
  */
 export const checkboxClass =
   "h-4 w-4 rounded border-edge text-accent focus:ring-focus-ring cursor-pointer";
+
+/**
+ * Standalone form-field checkbox — a single yes/no toggle inside a
+ * form (billable, default_billable, can_see_others, send-invoices-to,
+ * sign-off line-item picks, …), as distinct from `checkboxClass`
+ * which is reserved for list-page ROW SELECTION (list-pages.md rule
+ * 4). Six call sites had each hand-rolled a slightly different
+ * variant — bare `h-4 w-4`, bare `rounded border-edge`, margin-only —
+ * this is the one shape. Callers compose their own margin utility
+ * (`mt-0.5`, `mt-1`) at the call site since that depends on the
+ * label's line-height, not the checkbox itself.
+ */
+export const checkboxToggleClass =
+  "h-4 w-4 rounded border-edge text-accent focus:ring-focus-ring cursor-pointer";

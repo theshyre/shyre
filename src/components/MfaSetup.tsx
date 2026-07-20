@@ -12,6 +12,7 @@ import {
   Download,
   Copy,
   KeyRound,
+  Loader2,
 } from "lucide-react";
 import { Spinner } from "@theshyre/ui";
 import {
@@ -47,6 +48,7 @@ export function MfaSetup(): React.JSX.Element {
   const [backupCodesRemaining, setBackupCodesRemaining] = useState<number>(0);
   const [copied, setCopied] = useState(false);
   const t = useTranslations("settings.mfa");
+  const tc = useTranslations("common");
   const router = useRouter();
   const supabase = createClient();
 
@@ -175,11 +177,7 @@ export function MfaSetup(): React.JSX.Element {
 
   async function handleDisable(): Promise<void> {
     if (!factorId) return;
-    if (
-      !confirm(
-        "Disable MFA? This will remove the second factor and all backup codes."
-      )
-    ) {
+    if (!confirm(t("confirmDisable"))) {
       return;
     }
 
@@ -219,11 +217,7 @@ export function MfaSetup(): React.JSX.Element {
   }
 
   async function handleRegenerateBackupCodes(): Promise<void> {
-    if (
-      !confirm(
-        "Regenerate backup codes? This will invalidate all existing codes."
-      )
-    ) {
+    if (!confirm(t("confirmRegenerate"))) {
       return;
     }
 
@@ -274,7 +268,7 @@ export function MfaSetup(): React.JSX.Element {
     return (
       <div className="flex items-center gap-2 text-body-lg text-content-muted">
         <Spinner size="h-3.5 w-3.5" />
-        Loading...
+        {t("loading")}
       </div>
     );
   }
@@ -292,15 +286,13 @@ export function MfaSetup(): React.JSX.Element {
 
         <div className="rounded-lg border border-warning/30 bg-warning-soft p-4">
           <div className="flex items-center gap-2 mb-2">
-            <KeyRound size={16} className="text-warning" />
-            <h3 className="text-body-lg font-semibold text-warning">
-              Save your backup codes
+            <KeyRound size={16} className="text-warning-text" />
+            <h3 className="text-body-lg font-semibold text-warning-text">
+              {t("saveBackupCodesTitle")}
             </h3>
           </div>
           <p className="text-body-lg text-content-secondary mb-3">
-            Store these codes somewhere safe. Each code can only be used once.
-            If you lose access to your authenticator app, use a backup code to
-            sign in.
+            {t("backupCodesHelp")}
           </p>
           <div className="grid grid-cols-2 gap-2 rounded-lg border border-edge bg-surface p-3 font-mono text-body-lg">
             {backupCodes.map((c, i) => (
@@ -331,7 +323,7 @@ export function MfaSetup(): React.JSX.Element {
               }}
               className={buttonSecondaryClass}
             >
-              Done
+              {t("done")}
             </button>
           </div>
         </div>
@@ -350,7 +342,7 @@ export function MfaSetup(): React.JSX.Element {
           </span>
           {backupCodesRemaining > 0 && (
             <span className="text-caption text-content-muted">
-              {backupCodesRemaining} backup codes remaining
+              {t("backupCodesRemaining", { count: backupCodesRemaining })}
             </span>
           )}
         </div>
@@ -360,19 +352,31 @@ export function MfaSetup(): React.JSX.Element {
             disabled={loading}
             className={buttonSecondaryClass}
           >
-            <KeyRound size={16} />
-            {loading ? "..." : "Regenerate Backup Codes"}
+            {loading ? (
+              <Loader2 size={16} className="animate-spin" />
+            ) : (
+              <KeyRound size={16} />
+            )}
+            {loading ? t("regenerating") : t("regenerateBackupCodes")}
           </button>
           <button
             onClick={handleDisable}
             disabled={loading}
             className={buttonDangerClass}
           >
-            <XCircle size={16} />
-            {loading ? "..." : t("disable")}
+            {loading ? (
+              <Loader2 size={16} className="animate-spin" />
+            ) : (
+              <XCircle size={16} />
+            )}
+            {loading ? t("disabling") : t("disable")}
           </button>
         </div>
-        {error && <p className="mt-2 text-body-lg text-error">{error}</p>}
+        {error && (
+          <p role="alert" aria-live="assertive" className="mt-2 text-body-lg text-error">
+            {error}
+          </p>
+        )}
       </div>
     );
   }
@@ -387,7 +391,11 @@ export function MfaSetup(): React.JSX.Element {
           <p className="text-body-lg text-content-secondary text-center">
             {t("scanQR")}
           </p>
-          <div className="rounded-lg bg-white p-3">
+          {/* The QR code is a visual-only enrollment shortcut — blind and
+              low-vision users rely on the "can't scan?" secret text below
+              instead (WCAG 1.1.1). Hidden from AT so it doesn't announce
+              as unlabeled graphic noise. */}
+          <div className="rounded-lg bg-white p-3" aria-hidden="true">
             <QRCodeSVG value={qrUri} size={200} />
           </div>
           {totpSecret && (
@@ -431,7 +439,11 @@ export function MfaSetup(): React.JSX.Element {
           />
         </div>
 
-        {error && <p className="text-body-lg text-error">{error}</p>}
+        {error && (
+          <p role="alert" aria-live="assertive" className="text-body-lg text-error">
+            {error}
+          </p>
+        )}
 
         <div className="flex gap-2">
           <button
@@ -439,8 +451,12 @@ export function MfaSetup(): React.JSX.Element {
             disabled={loading || code.length !== 6}
             className={buttonPrimaryClass}
           >
-            <Shield size={16} />
-            {loading ? "..." : t("verify")}
+            {loading ? (
+              <Loader2 size={16} className="animate-spin" />
+            ) : (
+              <Shield size={16} />
+            )}
+            {loading ? t("verifying") : t("verify")}
           </button>
           <button
             onClick={async () => {
@@ -455,7 +471,7 @@ export function MfaSetup(): React.JSX.Element {
             }}
             className={buttonSecondaryClass}
           >
-            Cancel
+            {tc("actions.cancel")}
           </button>
         </div>
       </div>
@@ -479,10 +495,18 @@ export function MfaSetup(): React.JSX.Element {
         disabled={loading}
         className={buttonSecondaryClass}
       >
-        <Shield size={16} />
-        {loading ? "..." : t("enable")}
+        {loading ? (
+          <Loader2 size={16} className="animate-spin" />
+        ) : (
+          <Shield size={16} />
+        )}
+        {loading ? t("enrolling") : t("enable")}
       </button>
-      {error && <p className="mt-2 text-body-lg text-error">{error}</p>}
+      {error && (
+        <p role="alert" aria-live="assertive" className="mt-2 text-body-lg text-error">
+          {error}
+        </p>
+      )}
     </div>
   );
 }

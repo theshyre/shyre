@@ -13,7 +13,8 @@
     "addMember": "Agregar Miembro",
     "removeMember": "Eliminar",
     "noMembers": "Aún no hay miembros. Agrega usuarios de esta equipo.",
-    "confirmDelete": "¿Eliminar este grupo? Se revocarán los permisos otorgados a través de este grupo."
+    "deleteGroupAria": "Eliminar {name}",
+    "deleteGroupSummaryWithMembers": "{name} · {count, plural, =1 {1 miembro} other {# miembros}}"
   },
   "clientSharing": {
     "title": "Compartir",

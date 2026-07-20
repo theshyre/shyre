@@ -103,6 +103,16 @@ describe("SidebarTimer — running", () => {
     expect(screen.getByText("hacking")).toBeInTheDocument();
   });
 
+  it("the started-time caption is keyboard-focusable so its tooltip is reachable without a mouse", async () => {
+    renderWithIntl(<SidebarTimer {...author} />);
+    // startedCaption renders relative text like "Started Xm ago" —
+    // find the <p> by its focusability rather than exact text.
+    const caption = document.querySelector("p[tabindex='0']");
+    expect(caption).not.toBeNull();
+    fireEvent.focus(caption as HTMLElement);
+    expect(await screen.findByRole("tooltip")).toBeInTheDocument();
+  });
+
   it("adds today's baseline minutes on top of the live session", () => {
     runningHolder.current = runningEntry({ today_baseline_min: 60 });
     renderWithIntl(<SidebarTimer {...author} />);

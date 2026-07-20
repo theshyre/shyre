@@ -4,6 +4,7 @@ import { createAdminClient } from "@/lib/supabase/admin";
 import { Users, Crown } from "lucide-react";
 import { formatDate } from "@theshyre/ui";
 import { tableClass } from "@/lib/table-styles";
+import { formatDisplayDateTime } from "@/lib/format-date";
 
 export const metadata: Metadata = { title: "Admin · Users" };
 
@@ -116,7 +117,7 @@ export default async function AdminUsersPage(): Promise<React.JSX.Element> {
                   </td>
                   <td className="px-4 py-3 text-content-muted text-caption">
                     {u.last_sign_in_at
-                      ? new Date(u.last_sign_in_at).toLocaleString()
+                      ? formatDisplayDateTime(u.last_sign_in_at)
                       : "Never"}
                   </td>
                 </tr>
