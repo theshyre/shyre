@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { createClient } from "@/lib/supabase/server";
+import { requireSystemAdmin } from "@/lib/system-admin";
 import { getTranslations } from "next-intl/server";
 import { Cloud, Check, AlertCircle, ExternalLink } from "lucide-react";
 import { DeployConnectionForm } from "./connection-form";
@@ -24,18 +25,21 @@ export async function generateMetadata(): Promise<Metadata> {
  *      env (detected via process.env at request time).
  */
 export default async function SystemDeployPage(): Promise<React.JSX.Element> {
+  await requireSystemAdmin();
   const supabase = await createClient();
   const t = await getTranslations("messaging.deploy");
 
+  // Presence column, not the secret (SAL-028 pattern) — this render query
+  // must never carry the raw Vercel token bytes.
   const { data: cfg } = await supabase
     .from("instance_deploy_config")
     .select(
-      "provider, api_token, project_id, vercel_team_id, deploy_hook_url, api_token_expires_at, last_synced_at",
+      "provider, has_api_token, project_id, vercel_team_id, deploy_hook_url, api_token_expires_at, last_synced_at",
     )
     .eq("id", 1)
     .maybeSingle();
 
-  const connected = Boolean(cfg?.api_token && cfg?.project_id);
+  const connected = Boolean(cfg?.has_api_token && cfg?.project_id);
   const encryptionKeyConfigured = Boolean(process.env.EMAIL_KEY_ENCRYPTION_KEY);
   const webhookSecretConfigured = Boolean(process.env.RESEND_WEBHOOK_SECRET);
 
@@ -87,7 +91,7 @@ export default async function SystemDeployPage(): Promise<React.JSX.Element> {
 
       <DeployConnectionForm
         initial={{
-          apiTokenSet: Boolean(cfg?.api_token),
+          apiTokenSet: Boolean(cfg?.has_api_token),
           projectId: (cfg?.project_id as string | null) ?? "",
           apiTokenExpiresAt:
             (cfg?.api_token_expires_at as string | null) ?? "",

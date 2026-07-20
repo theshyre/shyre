@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { KeyRound, Check, AlertCircle, Clock } from "lucide-react";
 import { createClient } from "@/lib/supabase/server";
+import { requireSystemAdmin } from "@/lib/system-admin";
 import {
   scanCredentials,
   type CredentialItem,
@@ -22,6 +23,7 @@ export async function generateMetadata(): Promise<Metadata> {
  * notice "wait, my Vercel token has no rotate date" and fix it.
  */
 export default async function SystemCredentialsPage(): Promise<React.JSX.Element> {
+  await requireSystemAdmin();
   const supabase = await createClient();
   const items = await scanCredentials(supabase);
 

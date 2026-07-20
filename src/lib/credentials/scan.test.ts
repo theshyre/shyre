@@ -56,7 +56,7 @@ describe("scanCredentials", () => {
       {
         table: "instance_deploy_config",
         data: {
-          api_token: "vt_present",
+          has_api_token: true,
           api_token_expires_at: isoOffset(3), // critical (≤7d)
         },
       },
@@ -106,7 +106,7 @@ describe("scanCredentials", () => {
       {
         table: "instance_deploy_config",
         data: {
-          api_token: "vt",
+          has_api_token: true,
           api_token_expires_at: isoOffset(30), // warning
         },
       },
@@ -152,7 +152,7 @@ describe("scanCredentials", () => {
     const supabase = mockSupabase([
       {
         table: "instance_deploy_config",
-        data: { api_token: null, api_token_expires_at: null },
+        data: { has_api_token: null, api_token_expires_at: null },
       },
       {
         table: "team_email_config",
@@ -175,7 +175,7 @@ describe("scanCredentials", () => {
     const supabase = mockSupabase([
       {
         table: "instance_deploy_config",
-        data: { api_token: "vt", api_token_expires_at: null },
+        data: { has_api_token: true, api_token_expires_at: null },
       },
       { table: "team_email_config", data: [] },
       { table: "user_settings", data: [] },
@@ -191,7 +191,7 @@ describe("scanCredentials", () => {
     const supabase = mockSupabase([
       {
         table: "instance_deploy_config",
-        data: { api_token: "vt", api_token_expires_at: isoOffset(10) },
+        data: { has_api_token: true, api_token_expires_at: isoOffset(10) },
       },
       {
         table: "team_email_config",

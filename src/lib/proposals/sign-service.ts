@@ -677,6 +677,11 @@ export async function verifySignOtp(
       otp_verified_at: new Date().toISOString(),
       view_session_hash: viewSession.hash,
       view_session_expires_at: viewExpiresAt.toISOString(),
+      // One-shot codes (2026-07-19 audit): a verified code is cleared so it
+      // can't mint further view sessions during its TTL. Re-viewing later
+      // re-issues a fresh code via issueSignOtp.
+      otp_code_hash: null,
+      otp_expires_at: null,
     })
     .eq("id", token.id);
   if (persistError) {

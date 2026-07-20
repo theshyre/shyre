@@ -330,6 +330,12 @@ describe("verifySignOtp", () => {
         ),
     );
     expect(verifiedUpdate).toBeDefined();
+    // One-shot codes (2026-07-19 audit): the same UPDATE must clear the
+    // code so a verified OTP can't mint more view sessions within its TTL.
+    const payload = verifiedUpdate?.ops.find((o) => o.method === "update")
+      ?.args[0] as Record<string, unknown>;
+    expect(payload.otp_code_hash).toBeNull();
+    expect(payload.otp_expires_at).toBeNull();
   });
 
   it("fails closed (session_failed) if the view-session persist errors", async () => {
