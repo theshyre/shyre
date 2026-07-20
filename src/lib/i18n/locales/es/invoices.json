@@ -2,6 +2,12 @@
   "title": "Facturas",
   "newInvoice": "Nueva Factura",
   "createInvoice": "Crear Factura",
+  "newInvoiceRefusal": {
+    "title": "Crear Factura",
+    "headline": "No tienes permiso para crear facturas",
+    "body": "Solo los propietarios y administradores del equipo pueden crear facturas — implican tarifas de facturación y trabajo sin facturar de todo el equipo. Pide a un propietario o administrador que facture en tu nombre, o que cambie tu rol.",
+    "backCta": "Volver al panel"
+  },
   "servicePeriod": "Servicios prestados",
   "new": {
     "billableHours": {

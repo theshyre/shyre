@@ -2,6 +2,12 @@
   "title": "Invoices",
   "newInvoice": "New Invoice",
   "createInvoice": "Create Invoice",
+  "newInvoiceRefusal": {
+    "title": "Create Invoice",
+    "headline": "You don't have permission to create invoices",
+    "body": "Only team owners and admins can create invoices — they touch billing rates and unbilled work across the team. Ask an owner or admin to invoice on your behalf, or to change your role.",
+    "backCta": "Back to dashboard"
+  },
   "servicePeriod": "Services rendered",
   "new": {
     "billableHours": {

@@ -15,7 +15,11 @@ import {
   AlertTriangle,
   LogOut,
   Trash2,
+  Copy,
+  Check,
+  Info,
 } from "lucide-react";
+import Link from "next/link";
 import { AlertBanner, formatDate } from "@theshyre/ui";
 import {
   inputClass,
@@ -29,6 +33,7 @@ import { isTeamAdmin, type TeamRole } from "@/lib/team-roles";
 import { useFormAction } from "@/hooks/use-form-action";
 import { SubmitButton } from "@/components/SubmitButton";
 import { InlineDeleteRowConfirm } from "@/components/InlineDeleteRowConfirm";
+import { Tooltip } from "@/components/Tooltip";
 import { useToast } from "@/components/Toast";
 import {
   inviteMemberAction,
@@ -59,6 +64,9 @@ interface Invite {
   role: string;
   created_at: string;
   expires_at: string;
+  /** Absolute accept-invite URL, or null when NEXT_PUBLIC_APP_URL
+   *  isn't configured server-side (see members/page.tsx). */
+  acceptUrl: string | null;
 }
 
 interface TeamSectionProps {
@@ -69,6 +77,10 @@ interface TeamSectionProps {
   currentUserId: string;
   members: Member[];
   invites: Invite[];
+  /** Whether this team has a usable email send config (API key +
+   *  from address). Drives the "email isn't set up" hint next to the
+   *  invite form — copy-link is always available regardless. */
+  hasEmailConfigured: boolean;
 }
 
 const ROLE_ICONS: Record<string, typeof Crown> = {
@@ -91,9 +103,11 @@ export function TeamSection({
   currentUserId,
   members,
   invites,
+  hasEmailConfigured,
 }: TeamSectionProps): React.JSX.Element {
   const [inviteOpen, setInviteOpen] = useState(false);
   const tc = useTranslations("common");
+  const t = useTranslations("common.team.invite");
   const toast = useToast();
   const [, startTransition] = useTransition();
   const isAdmin = isTeamAdmin(currentRole);
@@ -206,6 +220,20 @@ export function TeamSection({
             }}
             className="flex gap-3 items-end border-b border-edge pb-4 mb-4 flex-wrap"
           >
+            {!hasEmailConfigured && (
+              <div className="flex w-full items-start gap-2 rounded-lg border border-warning/30 bg-warning-soft/20 px-3 py-2 text-body text-content">
+                <Info size={16} className="shrink-0 mt-0.5 text-warning" />
+                <span>
+                  {t("emailNotConfiguredHint")}{" "}
+                  <Link
+                    href={`/teams/${teamId}/email`}
+                    className="text-accent hover:underline"
+                  >
+                    {t("emailNotConfiguredCta")}
+                  </Link>
+                </span>
+              </div>
+            )}
             <input type="hidden" name="team_id" value={teamId} />
             <div className="flex-1">
               <label className={labelClass}>Email</label>
@@ -379,18 +407,21 @@ export function TeamSection({
                     </div>
                   </div>
                   {isAdmin && (
-                    <form action={revokeInviteAction}>
-                      <input type="hidden" name="team_id" value={teamId} />
-                      <input
-                        type="hidden"
-                        name="invite_id"
-                        value={invite.id}
-                      />
-                      <button type="submit" className={buttonDangerClass}>
-                        <X size={14} />
-                        Revoke
-                      </button>
-                    </form>
+                    <div className="flex items-center gap-2">
+                      <CopyInviteLinkButton acceptUrl={invite.acceptUrl} />
+                      <form action={revokeInviteAction}>
+                        <input type="hidden" name="team_id" value={teamId} />
+                        <input
+                          type="hidden"
+                          name="invite_id"
+                          value={invite.id}
+                        />
+                        <button type="submit" className={buttonDangerClass}>
+                          <X size={14} />
+                          Revoke
+                        </button>
+                      </form>
+                    </div>
                   )}
                 </li>
               ))}
@@ -431,6 +462,65 @@ export function TeamSection({
         </section>
       )}
     </div>
+  );
+}
+
+/**
+ * Copies the absolute accept-invite URL to the clipboard — the
+ * durable way to hand an invite to someone, whether or not the team
+ * has email configured (invites created before email was set up, a
+ * bounced/lost email, or a team that intentionally shares links out
+ * of band all land here). `acceptUrl` is built server-side in
+ * members/page.tsx from the same `token` + `NEXT_PUBLIC_APP_URL` the
+ * accept-invite email uses, so the copied link and the emailed link
+ * are always identical.
+ */
+function CopyInviteLinkButton({
+  acceptUrl,
+}: {
+  acceptUrl: string | null;
+}): React.JSX.Element {
+  const t = useTranslations("common.team.invite");
+  const toast = useToast();
+  const [copied, setCopied] = useState(false);
+
+  if (!acceptUrl) {
+    return (
+      <Tooltip label={t("linkUnavailableDetail")}>
+        <span
+          className={`${buttonSecondaryClass} opacity-50 cursor-not-allowed`}
+          aria-disabled="true"
+        >
+          <Copy size={14} aria-hidden="true" />
+          {t("copyLink")}
+        </span>
+      </Tooltip>
+    );
+  }
+
+  return (
+    <button
+      type="button"
+      className={buttonSecondaryClass}
+      onClick={() => {
+        void (async () => {
+          try {
+            await navigator.clipboard.writeText(acceptUrl);
+            setCopied(true);
+            toast.push({ kind: "success", message: t("copied") });
+          } catch {
+            toast.push({ kind: "error", message: t("copyFailed") });
+          }
+        })();
+      }}
+    >
+      {copied ? (
+        <Check size={14} aria-hidden="true" />
+      ) : (
+        <Copy size={14} aria-hidden="true" />
+      )}
+      {t("copyLink")}
+    </button>
   );
 }
 

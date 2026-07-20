@@ -4,7 +4,7 @@ import Link from "next/link";
 import { ArrowLeft, Download, History as HistoryIcon } from "lucide-react";
 import { LinkPendingSpinner } from "@/components/LinkPendingSpinner";
 import { buttonSecondaryClass } from "@/lib/form-styles";
-import { validateBusinessAccess } from "@/lib/team-context";
+import { isTeamAdmin, validateBusinessAccess } from "@/lib/team-context";
 
 export async function generateMetadata(): Promise<Metadata> {
   const t = await getTranslations("business.info.history");
@@ -26,7 +26,7 @@ export default async function BusinessIdentityHistoryPage({
   // enforces this; the explicit check produces a friendlier "you
   // don't have access" rather than an empty page for plain members.
   const { role } = await validateBusinessAccess(businessId);
-  const isAdmin = role === "owner" || role === "admin";
+  const isAdmin = isTeamAdmin(role);
 
   const { history, hasMore } = isAdmin
     ? await getBusinessIdentityHistoryAction(businessId, { limit: 200 })

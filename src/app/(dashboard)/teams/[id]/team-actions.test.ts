@@ -1,4 +1,4 @@
-import { describe, it, expect, vi, beforeEach } from "vitest";
+import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 
 const fakeUserId = "u-author";
 
@@ -27,6 +27,28 @@ vi.mock("next/cache", () => ({
   revalidatePath: (p: string) => mockRevalidatePath(p),
 }));
 
+// inviteMemberAction's best-effort email delivery is fully mocked here —
+// its own orchestration (config gate, header sanitation, outbox enqueue)
+// has a dedicated suite in src/lib/messaging/send-team-invite.test.ts.
+// These tests only pin: does inviteMemberAction call it with the right
+// accept URL when a team is configured, and does it stay silent
+// (never throw, never block the insert) when it isn't.
+const mockLoadTeamConfig = vi.fn();
+vi.mock("@/lib/messaging/outbox", () => ({
+  loadTeamConfig: (...args: unknown[]) => mockLoadTeamConfig(...args),
+}));
+
+const mockSendTeamInviteEmail = vi.fn();
+vi.mock("@/lib/messaging/send-team-invite", () => ({
+  sendTeamInviteEmail: (...args: unknown[]) =>
+    mockSendTeamInviteEmail(...args),
+}));
+
+const mockLogError = vi.fn();
+vi.mock("@/lib/logger", () => ({
+  logError: (...args: unknown[]) => mockLogError(...args),
+}));
+
 const state: {
   rpcCalls: { name: string; args: unknown }[];
   rpcError: { message: string; code?: string } | null;
@@ -41,6 +63,12 @@ const state: {
   membershipRow: { team_id: string } | null;
   /** can_set_member_rate RPC answer. */
   canSetMemberRate: boolean;
+  /** `.from("teams").select("name").eq("id", …).single()` result —
+   *  read by tryDeliverInviteEmail for the email body. */
+  teamRow: { name: string } | null;
+  /** Row returned by `.from("team_invites").insert(…).select(…).single()`. */
+  insertedInvite: { id: string; token: string; expires_at: string } | null;
+  insertError: { message: string; code?: string } | null;
   inserts: { table: string; rows: unknown }[];
   updates: {
     table: string;
@@ -56,6 +84,13 @@ const state: {
   memberError: null,
   membershipRow: null,
   canSetMemberRate: true,
+  teamRow: { name: "Acme Co" },
+  insertedInvite: {
+    id: "invite-1",
+    token: "tok_abc123",
+    expires_at: "2026-08-01T00:00:00Z",
+  },
+  insertError: null,
   inserts: [],
   updates: [],
   deletes: [],
@@ -87,13 +122,24 @@ function mockSupabase() {
                 error: null,
               });
             }
+            if (table === "teams" && cols === "name") {
+              return Promise.resolve({ data: state.teamRow, error: null });
+            }
             return Promise.resolve({ data: null, error: null });
           },
         }),
       }),
       insert: (rows: unknown) => {
         state.inserts.push({ table, rows });
-        return Promise.resolve({ data: null, error: null });
+        return {
+          select: () => ({
+            single: () =>
+              Promise.resolve({
+                data: state.insertError ? null : state.insertedInvite,
+                error: state.insertError,
+              }),
+          }),
+        };
       },
       update: (patch: Record<string, unknown>) => ({
         eq: (col: string, val: unknown) => {
@@ -101,12 +147,22 @@ function mockSupabase() {
           return Promise.resolve({ data: null, error: null });
         },
       }),
-      delete: () => ({
-        eq: (col: string, val: unknown) => {
-          state.deletes.push({ table, where: [[col, val]] });
-          return Promise.resolve({ data: null, error: null });
-        },
-      }),
+      delete: () => {
+        const where: [string, unknown][] = [];
+        const chain = {
+          eq: (col: string, val: unknown) => {
+            where.push([col, val]);
+            return chain;
+          },
+          then: (
+            resolve: (v: { data: null; error: null }) => void,
+          ) => {
+            state.deletes.push({ table, where: [...where] });
+            resolve({ data: null, error: null });
+          },
+        };
+        return chain;
+      },
     }),
   };
 }
@@ -133,12 +189,32 @@ function reset(): void {
   state.memberError = null;
   state.membershipRow = { team_id: "team-1" };
   state.canSetMemberRate = true;
+  state.teamRow = { name: "Acme Co" };
+  state.insertedInvite = {
+    id: "invite-1",
+    token: "tok_abc123",
+    expires_at: "2026-08-01T00:00:00Z",
+  };
+  state.insertError = null;
   state.inserts = [];
   state.updates = [];
   state.deletes = [];
   mockValidateTeamAccess.mockReset();
   mockRevalidatePath.mockReset();
+  mockLoadTeamConfig.mockReset();
+  mockLoadTeamConfig.mockResolvedValue(null);
+  mockSendTeamInviteEmail.mockReset();
+  mockSendTeamInviteEmail.mockResolvedValue({
+    outboxId: "outbox-1",
+    providerMessageId: "rmsg-1",
+  });
+  mockLogError.mockReset();
+  vi.unstubAllEnvs();
 }
+
+afterEach(() => {
+  vi.unstubAllEnvs();
+});
 
 function fd(entries: Record<string, string>): FormData {
   const f = new FormData();
@@ -487,6 +563,121 @@ describe("inviteMemberAction", () => {
     ).rejects.toThrow(/Only owners and admins/);
     expect(state.inserts).toHaveLength(0);
   });
+
+  it("never attempts an email when NEXT_PUBLIC_APP_URL is unset — invite still succeeds", async () => {
+    mockValidateTeamAccess.mockResolvedValue({
+      userId: fakeUserId,
+      role: "owner",
+    });
+    await inviteMemberAction(
+      fd({ team_id: "team-1", email: "new@acme.test" }),
+    );
+    expect(mockLoadTeamConfig).not.toHaveBeenCalled();
+    expect(mockSendTeamInviteEmail).not.toHaveBeenCalled();
+    expect(state.inserts).toHaveLength(1);
+  });
+
+  it("skips the email silently when the team has no email configured", async () => {
+    vi.stubEnv("NEXT_PUBLIC_APP_URL", "https://app.shyre.test");
+    mockValidateTeamAccess.mockResolvedValue({
+      userId: fakeUserId,
+      role: "owner",
+    });
+    mockLoadTeamConfig.mockResolvedValue(null);
+    await inviteMemberAction(
+      fd({ team_id: "team-1", email: "new@acme.test" }),
+    );
+    expect(mockLoadTeamConfig).toHaveBeenCalledWith(
+      expect.anything(),
+      "team-1",
+    );
+    expect(mockSendTeamInviteEmail).not.toHaveBeenCalled();
+    // The invite row is still created — email is best-effort, never
+    // a precondition for the invite itself.
+    expect(state.inserts).toHaveLength(1);
+  });
+
+  it("skips the email silently when the config row exists but has no API key / from address", async () => {
+    vi.stubEnv("NEXT_PUBLIC_APP_URL", "https://app.shyre.test");
+    mockValidateTeamAccess.mockResolvedValue({
+      userId: fakeUserId,
+      role: "owner",
+    });
+    mockLoadTeamConfig.mockResolvedValue({
+      apiKeyCipher: null,
+      fromEmail: null,
+    });
+    await inviteMemberAction(
+      fd({ team_id: "team-1", email: "new@acme.test" }),
+    );
+    expect(mockSendTeamInviteEmail).not.toHaveBeenCalled();
+  });
+
+  it("sends the invite email with the accept link when the team has email configured", async () => {
+    vi.stubEnv("NEXT_PUBLIC_APP_URL", "https://app.shyre.test");
+    mockValidateTeamAccess.mockResolvedValue({
+      userId: fakeUserId,
+      role: "owner",
+    });
+    mockLoadTeamConfig.mockResolvedValue({
+      apiKeyCipher: "<cipher>",
+      fromEmail: "billing@acme.test",
+    });
+    state.teamRow = { name: "Acme Co" };
+    state.insertedInvite = {
+      id: "invite-9",
+      token: "tok_xyz789",
+      expires_at: "2026-08-05T00:00:00Z",
+    };
+
+    await inviteMemberAction(
+      fd({ team_id: "team-1", email: "new@acme.test", role: "admin" }),
+    );
+
+    expect(mockSendTeamInviteEmail).toHaveBeenCalledTimes(1);
+    const call = mockSendTeamInviteEmail.mock.calls[0]?.[1] as {
+      teamId: string;
+      inviteId: string;
+      toEmail: string;
+      subject: string;
+      bodyHtml: string;
+      bodyText: string;
+    };
+    expect(call.teamId).toBe("team-1");
+    expect(call.inviteId).toBe("invite-9");
+    expect(call.toEmail).toBe("new@acme.test");
+    expect(call.subject).toContain("Acme Co");
+    expect(call.bodyHtml).toContain(
+      "https://app.shyre.test/auth/accept-invite?token=tok_xyz789",
+    );
+    expect(call.bodyText).toContain(
+      "https://app.shyre.test/auth/accept-invite?token=tok_xyz789",
+    );
+    expect(call.bodyText).toContain("2026-08-05");
+  });
+
+  it("still creates the invite and does not throw when the email send fails", async () => {
+    vi.stubEnv("NEXT_PUBLIC_APP_URL", "https://app.shyre.test");
+    mockValidateTeamAccess.mockResolvedValue({
+      userId: fakeUserId,
+      role: "owner",
+    });
+    mockLoadTeamConfig.mockResolvedValue({
+      apiKeyCipher: "<cipher>",
+      fromEmail: "billing@acme.test",
+    });
+    mockSendTeamInviteEmail.mockRejectedValue(
+      new Error("Daily send cap reached (100/day)."),
+    );
+
+    await inviteMemberAction(
+      fd({ team_id: "team-1", email: "new@acme.test" }),
+    );
+
+    expect(state.inserts).toHaveLength(1);
+    expect(mockRevalidatePath).toHaveBeenCalledWith("/teams/team-1");
+    expect(mockLogError).toHaveBeenCalledTimes(1);
+  });
 });
 
 describe("removeMemberAction", () => {
@@ -566,7 +757,13 @@ describe("revokeInviteAction", () => {
     });
     await revokeInviteAction(fd({ team_id: "team-1", invite_id: "i-3" }));
     expect(state.deletes).toEqual([
-      { table: "team_invites", where: [["id", "i-3"]] },
+      {
+        table: "team_invites",
+        where: [
+          ["id", "i-3"],
+          ["team_id", "team-1"],
+        ],
+      },
     ]);
     expect(mockRevalidatePath).toHaveBeenCalledWith("/teams/team-1");
   });

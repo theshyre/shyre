@@ -10,6 +10,7 @@ import { describe, it, expect, vi, beforeEach } from "vitest";
 const mockValidateTeamAccess = vi.fn();
 vi.mock("@/lib/team-context", () => ({
   validateTeamAccess: (...args: unknown[]) => mockValidateTeamAccess(...args),
+  isTeamAdmin: (role: string) => role === "owner" || role === "admin",
 }));
 
 const mockRevalidatePath = vi.fn();

@@ -4,6 +4,11 @@ import { runSafeAction } from "@/lib/safe-action";
 import { AppError, assertSupabaseOk } from "@/lib/errors";
 import { isTeamAdmin, validateTeamAccess } from "@/lib/team-context";
 import { revalidatePath } from "next/cache";
+import { logError } from "@/lib/logger";
+import { loadTeamConfig } from "@/lib/messaging/outbox";
+import { sendTeamInviteEmail } from "@/lib/messaging/send-team-invite";
+import { escapeHtml } from "@/lib/messaging/escape-html";
+import type { SupabaseClient } from "@supabase/supabase-js";
 
 export async function inviteMemberAction(formData: FormData): Promise<void> {
   return runSafeAction(formData, async (formData, { supabase }) => {
@@ -21,17 +26,95 @@ export async function inviteMemberAction(formData: FormData): Promise<void> {
       throw new Error("Invalid role. Must be admin or member.");
     }
 
-    assertSupabaseOk(
-      await supabase.from("team_invites").insert({
-        team_id: teamId,
-        email,
-        role: inviteRole,
-        invited_by: userId,
-      })
+    // Select the generated token + expiry back so a configured team
+    // can email the accept link immediately, and so the members page
+    // can always render a "Copy invite link" fallback regardless of
+    // whether that email goes out (see tryDeliverInviteEmail below).
+    const invite = assertSupabaseOk(
+      await supabase
+        .from("team_invites")
+        .insert({
+          team_id: teamId,
+          email,
+          role: inviteRole,
+          invited_by: userId,
+        })
+        .select("id, token, expires_at")
+        .single()
     );
+    if (!invite) {
+      throw new Error("Invite insert returned no row.");
+    }
+
+    await tryDeliverInviteEmail(supabase, {
+      teamId,
+      userId,
+      email,
+      inviteRole,
+      inviteId: invite.id as string,
+      token: invite.token as string,
+      expiresAt: invite.expires_at as string,
+    });
 
     revalidatePath(`/teams/${teamId}`);
   }, "inviteMemberAction") as unknown as void;
+}
+
+/**
+ * Best-effort invite email, sent through the same outbox pipeline
+ * invoices and proposals use. A team without email configured (no
+ * `NEXT_PUBLIC_APP_URL`, no `team_email_config` row, missing API key,
+ * unverified domain, daily cap reached, …) must NEVER block invite
+ * creation — the invite row + the "Copy invite link" button on the
+ * members page are the durable path either way. Every failure here
+ * is logged, never re-thrown.
+ */
+async function tryDeliverInviteEmail(
+  supabase: SupabaseClient,
+  input: {
+    teamId: string;
+    userId: string;
+    email: string;
+    inviteRole: string;
+    inviteId: string;
+    token: string;
+    expiresAt: string;
+  },
+): Promise<void> {
+  const baseUrl = process.env.NEXT_PUBLIC_APP_URL;
+  if (!baseUrl) return;
+
+  try {
+    const cfg = await loadTeamConfig(supabase, input.teamId);
+    if (!cfg?.apiKeyCipher || !cfg.fromEmail) return;
+
+    const { data: team } = await supabase
+      .from("teams")
+      .select("name")
+      .eq("id", input.teamId)
+      .single();
+    const teamName = (team?.name as string | undefined) ?? "Shyre";
+    const safeTeamName = escapeHtml(teamName);
+    const acceptUrl = `${baseUrl}/auth/accept-invite?token=${input.token}`;
+    const expiresLabel = input.expiresAt.slice(0, 10);
+    const article = input.inviteRole === "admin" ? "an" : "a";
+
+    await sendTeamInviteEmail(supabase, {
+      teamId: input.teamId,
+      userId: input.userId,
+      inviteId: input.inviteId,
+      toEmail: input.email,
+      subject: `You're invited to join ${teamName} on Shyre`,
+      bodyHtml: `<p>You've been invited to join <strong>${safeTeamName}</strong> on Shyre as ${article} ${input.inviteRole}.</p><p><a href="${acceptUrl}">Accept the invite</a></p><p>This link expires on ${expiresLabel}.</p>`,
+      bodyText: `You've been invited to join ${teamName} on Shyre as ${article} ${input.inviteRole}.\n\nAccept the invite: ${acceptUrl}\n\nThis link expires on ${expiresLabel}.`,
+    });
+  } catch (err) {
+    logError(err, {
+      userId: input.userId,
+      teamId: input.teamId,
+      action: "inviteMemberAction.sendEmail",
+    });
+  }
 }
 
 export async function removeMemberAction(formData: FormData): Promise<void> {
@@ -86,11 +169,17 @@ export async function revokeInviteAction(formData: FormData): Promise<void> {
 
     const inviteId = formData.get("invite_id") as string;
 
+    // Defense in depth: the RLS policy already scopes the delete to
+    // this team via `team_invites_manage`, but scoping the query
+    // itself means a bug in that policy fails closed (0 rows deleted)
+    // instead of deleting an invite in a team the caller doesn't
+    // admin.
     assertSupabaseOk(
       await supabase
         .from("team_invites")
         .delete()
         .eq("id", inviteId)
+        .eq("team_id", teamId)
     );
 
     revalidatePath(`/teams/${teamId}`);

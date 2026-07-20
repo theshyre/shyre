@@ -2,7 +2,7 @@ import type { Metadata } from "next";
 import { getTranslations } from "next-intl/server";
 import { Upload } from "lucide-react";
 import { createClient } from "@/lib/supabase/server";
-import { getUserTeams } from "@/lib/team-context";
+import { getUserTeams, isTeamAdmin } from "@/lib/team-context";
 import { HarvestImport } from "./harvest-import";
 import { ImportHistory, type ImportRunRow } from "./import-history";
 
@@ -51,7 +51,7 @@ async function fetchImportHistory(
 
   const runs = rawRuns ?? [];
   const adminTeamIds = teams
-    .filter((team) => team.role === "owner" || team.role === "admin")
+    .filter((team) => isTeamAdmin(team.role))
     .map((team) => team.id);
 
   if (runs.length === 0) return [[], adminTeamIds];

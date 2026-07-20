@@ -3,7 +3,7 @@ import Link from "next/link";
 import { History as HistoryIcon } from "lucide-react";
 import { getTranslations } from "next-intl/server";
 import { createClient } from "@/lib/supabase/server";
-import { validateBusinessAccess } from "@/lib/team-context";
+import { isTeamAdmin, validateBusinessAccess } from "@/lib/team-context";
 
 export async function generateMetadata(): Promise<Metadata> {
   // Sensitive surface — generic title so business legal name doesn't
@@ -31,7 +31,7 @@ export default async function BusinessIdentityPage({
   const t = await getTranslations("business.info");
   const supabase = await createClient();
   const { role } = await validateBusinessAccess(businessId);
-  const canEdit = role === "owner" || role === "admin";
+  const canEdit = isTeamAdmin(role);
 
   // Sensitive identity (tax_id, date_incorporated, fiscal_year_start)
   // lives on business_identity_private — RLS gates SELECT to

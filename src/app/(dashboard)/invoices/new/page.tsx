@@ -1,8 +1,10 @@
 import type { Metadata } from "next";
+import Link from "next/link";
 import { createClient } from "@/lib/supabase/server";
 import { getUserTeams } from "@/lib/team-context";
+import { isTeamAdmin } from "@/lib/team-roles";
 import { getTranslations } from "next-intl/server";
-import { FileText } from "lucide-react";
+import { FileText, ShieldAlert } from "lucide-react";
 import { NewInvoiceForm } from "./new-invoice-form";
 
 export async function generateMetadata(): Promise<Metadata> {
@@ -52,8 +54,24 @@ interface RawExpenseRow {
 
 export default async function NewInvoicePage(): Promise<React.JSX.Element> {
   const supabase = await createClient();
-  const teams = await getUserTeams();
+  const allTeams = await getUserTeams();
   const t = await getTranslations("invoices");
+
+  // Owner/admin-only page: invoice creation reads project/customer
+  // rates across every team in scope, and generateLineItems bills at
+  // those rates. Gate the PAGE, not just the create action — a plain
+  // member must never see another team's rates or unbilled-time
+  // candidates in the preview rail, even though createInvoiceAction
+  // separately re-validates the role on the team actually submitted.
+  // Filtering to admin teams (rather than a hard refusal for anyone
+  // who is a member of ANY non-admin team) keeps the page usable for
+  // an agency owner who is admin on some teams and a plain member on
+  // others — they just don't see the teams they can't invoice for.
+  const teams = allTeams.filter((team) => isTeamAdmin(team.role));
+
+  if (teams.length === 0) {
+    return <NewInvoiceRefusal />;
+  }
 
   const { data: customers } = await supabase
     .from("customers_v")
@@ -289,6 +307,42 @@ export default async function NewInvoicePage(): Promise<React.JSX.Element> {
         businessName={(settings?.business_name as string | null) ?? null}
         teams={teams}
       />
+    </div>
+  );
+}
+
+/**
+ * Rendered instead of the whole page when the caller isn't owner/admin
+ * on any team — invoicing touches billing rates and unbilled-time
+ * candidates, neither of which a plain member should see, so this
+ * replaces the fetch-and-render path entirely rather than disabling
+ * fields after the fact.
+ */
+async function NewInvoiceRefusal(): Promise<React.JSX.Element> {
+  const t = await getTranslations("invoices.newInvoiceRefusal");
+
+  return (
+    <div>
+      <div className="flex items-center gap-3">
+        <FileText size={24} className="text-accent" />
+        <h1 className="text-page-title font-bold text-content">{t("title")}</h1>
+      </div>
+
+      <div className="mt-6 rounded-lg border border-edge bg-surface-raised p-8 text-center max-w-[576px]">
+        <div className="inline-flex h-12 w-12 items-center justify-center rounded-full bg-warning-soft text-warning-text mb-4">
+          <ShieldAlert size={24} aria-hidden="true" />
+        </div>
+        <h2 className="text-title font-semibold text-content mb-2">
+          {t("headline")}
+        </h2>
+        <p className="text-body text-content-secondary mb-6">{t("body")}</p>
+        <Link
+          href="/"
+          className="inline-flex items-center gap-2 rounded-lg bg-accent px-4 py-2 text-body-lg font-medium text-content-inverse hover:bg-accent-hover transition-colors"
+        >
+          {t("backCta")}
+        </Link>
+      </div>
     </div>
   );
 }

@@ -8,7 +8,11 @@ export async function generateMetadata(): Promise<Metadata> {
   return { title: t("title") };
 }
 import { createClient } from "@/lib/supabase/server";
-import { validateBusinessAccess, getUserTeams } from "@/lib/team-context";
+import {
+  validateBusinessAccess,
+  getUserTeams,
+  isTeamAdmin,
+} from "@/lib/team-context";
 import { LockPeriodForm } from "./lock-period-form";
 import { LockRow } from "./lock-row";
 
@@ -36,7 +40,7 @@ export default async function PeriodLocksPage({
   const t = await getTranslations("business.periodLocks");
   const supabase = await createClient();
   const { role } = await validateBusinessAccess(businessId);
-  if (role !== "owner" && role !== "admin") {
+  if (!isTeamAdmin(role)) {
     notFound();
   }
 
@@ -50,7 +54,7 @@ export default async function PeriodLocksPage({
   // in-depth gap.
   const userTeams = await getUserTeams();
   const adminTeamIds = userTeams
-    .filter((tm) => tm.role === "owner" || tm.role === "admin")
+    .filter((tm) => isTeamAdmin(tm.role))
     .map((tm) => tm.id);
   const { data: businessTeams } =
     adminTeamIds.length > 0

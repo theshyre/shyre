@@ -14,7 +14,7 @@ From the org detail page:
 
 1. **Members** → **Invite**
 2. Enter an email address and a role (see below).
-3. Shyre creates an invite; the invitee gets an email / accept-invite link.
+3. Shyre creates an invite. If the team has [email configured](../team-admin/email-setup.md), the invitee is emailed an accept-invite link automatically. If not — or if the email doesn't arrive — any owner/admin can click **Copy invite link** next to the pending invite and share it directly (Slack, chat, in person).
 4. On accept, they become a member at the chosen role.
 
 ## Roles
