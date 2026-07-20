@@ -75,7 +75,9 @@
     "noActivity": "No activity in this period",
     "mixedCurrencies": "Mixed currencies — open the business to see breakdown",
     "adminOnly": "Sign-in required",
-    "memberView": "Financial details require admin or owner access on this business."
+    "memberView": "Financial details require admin or owner access on this business.",
+    "showFinancials": "Show financials",
+    "hideFinancials": "Hide financials"
   },
   "tiles": {
     "expenses": {

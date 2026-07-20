@@ -291,16 +291,26 @@ export async function updatePreferencesAction(
       throw new Error(`Invalid text_size: ${text_size}`);
     }
 
+    // Appearance keys are PATCH-only: preferred_theme / text_size are
+    // owned by the dedicated pickers (sidebar popover, profile buttons)
+    // and are only written when the submit actually carries them. The
+    // 2026-07-20 theme-reset regression: the prefs form used to ride a
+    // hidden preferred_theme input valued from that tab's client state,
+    // so saving a timezone from a stale tab silently reverted the theme
+    // picked elsewhere. Absent field ⇒ column untouched.
+    const patch: Record<string, string | null> = {
+      user_id: userId,
+      timezone,
+      locale,
+      week_start,
+      time_format,
+    };
+    if (theme) patch.preferred_theme = theme;
+    if (text_size) patch.text_size = text_size;
     assertSupabaseOk(
-      await supabase.from("user_settings").upsert({
-        user_id: userId,
-        preferred_theme: theme,
-        timezone,
-        locale,
-        week_start,
-        time_format,
-        text_size,
-      }),
+      await supabase
+        .from("user_settings")
+        .upsert(patch, { onConflict: "user_id" }),
     );
 
     revalidatePath("/profile");

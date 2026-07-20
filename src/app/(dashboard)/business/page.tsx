@@ -12,6 +12,7 @@ import {
 import { createClient } from "@/lib/supabase/server";
 import { getUserTeams, type TeamListItem } from "@/lib/team-context";
 import { LinkPendingSpinner } from "@/components/LinkPendingSpinner";
+import { FinancialDisclosure } from "./financial-disclosure";
 import { buttonSecondaryClass } from "@/lib/form-styles";
 import {
   formatCurrency,
@@ -244,12 +245,16 @@ function BusinessCard({
     count: biz.customerCount,
   });
 
+  // The card is a plain container; only the identity header is the nav
+  // link. Financials sit OUTSIDE the anchor so the disclosure button is
+  // real interactive content, not a button-inside-a-link.
   return (
-    <Link
-      href={`/business/${biz.id}`}
-      aria-label={cardAriaLabel(biz, customersLabel, isAdmin, t)}
-      className="rounded-lg border border-edge bg-surface-raised p-5 hover:bg-hover transition-colors space-y-4 block"
-    >
+    <div className="rounded-lg border border-edge bg-surface-raised p-5 space-y-4">
+      <Link
+        href={`/business/${biz.id}`}
+        aria-label={cardAriaLabel(biz, customersLabel, isAdmin, t)}
+        className="block -m-2 rounded-md p-2 hover:bg-hover transition-colors"
+      >
       <div className="flex items-start gap-3">
         <div
           className="flex h-11 w-11 items-center justify-center rounded-lg bg-accent-soft shrink-0"
@@ -285,13 +290,17 @@ function BusinessCard({
         </div>
         <LinkPendingSpinner size={14} className="" />
       </div>
+      </Link>
 
       {isAdmin ? (
-        <FinancialPanel
-          biz={biz}
-          periodLabel={periodLabel}
-          t={t}
-        />
+        // Collapsed by default, every visit: the index must be safe to
+        // open while screen-sharing. Money renders only on explicit click.
+        <FinancialDisclosure
+          showLabel={t("stats.showFinancials")}
+          hideLabel={t("stats.hideFinancials")}
+        >
+          <FinancialPanel biz={biz} periodLabel={periodLabel} t={t} />
+        </FinancialDisclosure>
       ) : (
         <p
           className="text-caption text-content-muted italic"
@@ -303,7 +312,7 @@ function BusinessCard({
           {t("stats.memberView")}
         </p>
       )}
-    </Link>
+    </div>
   );
 }
 

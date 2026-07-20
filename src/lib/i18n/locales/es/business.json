@@ -75,7 +75,9 @@
     "noActivity": "Sin actividad en este periodo",
     "mixedCurrencies": "Monedas mixtas — abre el negocio para ver el desglose",
     "adminOnly": "Requiere autenticación",
-    "memberView": "Los detalles financieros requieren rol de administrador o propietario en este negocio."
+    "memberView": "Los detalles financieros requieren rol de administrador o propietario en este negocio.",
+    "showFinancials": "Mostrar finanzas",
+    "hideFinancials": "Ocultar finanzas"
   },
   "tiles": {
     "expenses": {

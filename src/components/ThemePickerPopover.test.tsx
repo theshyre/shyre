@@ -20,6 +20,10 @@ vi.mock("@/app/(dashboard)/profile/actions", () => ({
   setAppearancePreferenceAction: vi.fn().mockResolvedValue(undefined),
 }));
 
+vi.mock("./Toast", () => ({
+  useToast: () => ({ push: vi.fn() }),
+}));
+
 
 describe("ThemePickerPopover", () => {
   beforeEach(() => setThemeSpy.mockClear());

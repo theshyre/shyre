@@ -110,13 +110,15 @@
     "dark": "Oscuro",
     "highContrast": "Alto Contraste",
     "reading": "Lectura",
-    "malcom": "Malcom IO"
+    "malcom": "Malcom IO",
+    "saveFailed": "No se pudo guardar el tema; puede restablecerse al recargar. Inténtalo de nuevo."
   },
   "textSize": {
     "title": "Tamaño de Texto",
     "compact": "Compacto",
     "regular": "Regular",
-    "large": "Grande"
+    "large": "Grande",
+    "saveFailed": "No se pudo guardar el tamaño del texto; puede restablecerse al recargar. Inténtalo de nuevo."
   },
   "mfa": {
     "title": "Autenticación Multifactor",

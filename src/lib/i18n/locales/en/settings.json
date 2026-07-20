@@ -110,13 +110,15 @@
     "dark": "Dark",
     "highContrast": "High Contrast",
     "reading": "Reading",
-    "malcom": "Malcom IO"
+    "malcom": "Malcom IO",
+    "saveFailed": "Couldn't save your theme — it may reset on reload. Try again."
   },
   "textSize": {
     "title": "Text Size",
     "compact": "Compact",
     "regular": "Regular",
-    "large": "Large"
+    "large": "Large",
+    "saveFailed": "Couldn't save your text size — it may reset on reload. Try again."
   },
   "mfa": {
     "title": "Multi-Factor Authentication",

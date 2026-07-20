@@ -13,6 +13,7 @@ import {
   Check,
 } from "lucide-react";
 import { useTheme } from "./theme-provider";
+import { useToast } from "./Toast";
 import { Tooltip } from "./Tooltip";
 
 import { THEME_OPTIONS } from "./theme-options";
@@ -40,6 +41,7 @@ const PANEL_GAP = 8;
  */
 export function ThemePickerPopover(): React.JSX.Element {
   const t = useTranslations("settings.theme");
+  const toast = useToast();
   const tCommon = useTranslations("common");
   const { theme, setTheme } = useTheme();
   const [open, setOpen] = useState(false);
@@ -153,9 +155,14 @@ export function ThemePickerPopover(): React.JSX.Element {
               setTheme(opt.key);
               // Persist — the sidebar picker previously wrote localStorage
               // only, so a refresh snapped back to the stale DB value.
+              // Surface failures (autosave mandate): a silently-failed save
+              // resurfaces as "theme reset on reload", which reads as data
+              // loss to the user.
               const fd = new FormData();
               fd.set("preferred_theme", opt.key);
-              void setAppearancePreferenceAction(fd);
+              void setAppearancePreferenceAction(fd).catch(() => {
+                toast.push({ kind: "error", message: t("saveFailed") });
+              });
               close();
             }}
             className={`flex w-full items-center gap-2 px-3 py-2 text-body text-left transition-colors ${

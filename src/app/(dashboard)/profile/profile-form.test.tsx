@@ -6,6 +6,7 @@ vi.mock("./actions", () => ({
   updateProfileAction: vi.fn(),
   updateUserSettingsAction: vi.fn(),
   updatePreferencesAction: vi.fn(),
+  setAppearancePreferenceAction: vi.fn().mockResolvedValue(undefined),
   setAvatarAction: vi.fn(),
 }));
 
@@ -130,13 +131,29 @@ describe("ProfileForm", () => {
     ).not.toBeInTheDocument();
   });
 
-  it("clicking a theme button calls updatePreferencesAction via the form", async () => {
-    const { updatePreferencesAction } = await import("./actions");
-    const mock = vi.mocked(updatePreferencesAction);
+  it("clicking a theme button PATCHes only the theme via setAppearancePreferenceAction", async () => {
+    const { setAppearancePreferenceAction, updatePreferencesAction } =
+      await import("./actions");
+    const mock = vi.mocked(setAppearancePreferenceAction);
     renderWithIntl(<ProfileForm {...defaultProps} />);
     fireEvent.click(screen.getByRole("button", { name: /^dark$/i }));
-    // The hook calls the action asynchronously via a transition; just verify
-    // it fired eventually
     await vi.waitFor(() => expect(mock).toHaveBeenCalled());
+    // Theme-clobber guard (2026-07-20): the picker submits ONLY the key it
+    // changed — never sibling prefs from this tab's client state.
+    const fd = mock.mock.calls[0]?.[0] as FormData;
+    expect(fd.get("preferred_theme")).toBe("dark");
+    expect(fd.has("text_size")).toBe(false);
+    expect(fd.has("timezone")).toBe(false);
+    expect(vi.mocked(updatePreferencesAction)).not.toHaveBeenCalled();
+  });
+
+  it("the prefs form does NOT carry hidden appearance inputs", () => {
+    const { container } = renderWithIntl(<ProfileForm {...defaultProps} />);
+    // The 2026-07-20 regression vector: hidden preferred_theme/text_size
+    // inputs riding the Save-preferences submit from stale client state.
+    expect(
+      container.querySelector('input[name="preferred_theme"]'),
+    ).toBeNull();
+    expect(container.querySelector('input[name="text_size"]')).toBeNull();
   });
 });
