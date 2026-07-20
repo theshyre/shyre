@@ -83,7 +83,8 @@ A handful of tables are **business-scoped** (a Business owns 1+ Teams) — see "
 | `invoices_history` | Append-only event log; SAL-006/010/011 hardened the audit chain. |
 | `invoice_line_items` | Per-line breakdown of a single invoice. Source FKs (ON DELETE SET NULL): `time_entry_id` (1:1 when a line collapses one entry; null for grouped lines), `expense_id` (1:1 to `expenses` when the line came from a billable expense — phase 2), `proposal_line_item_id` (1:1 to `proposal_line_items` when the line bills a signed fixed-price item — billing-correctness pass). CHECK `invoice_line_items_source_mutex` enforces at most **one** of the three FKs is non-null (all null = manual/ad-hoc line). Deleting a line clears the linked proposal item's `invoiced_at` via `trg_ili_release_proposal_lock`. |
 | `invoice_line_items_history` | Append-only |
-| `invoice_payments` | Recorded payments (manual or imported). `amount` + `currency` + `paid_on` + `paid_at` + `method` + `reference`. Currency-aware aggregation in batch-3 (bookkeeper #13). |
+| `invoice_payments` | Recorded payments (manual or imported). `amount` + `currency` + `paid_on` + `paid_at` + `method` + `reference`. Currency-aware aggregation in batch-3 (bookkeeper #13). Period-lock guarded (`20260720100000`): INSERT/UPDATE/DELETE refuse when the old **or** new `paid_on` is on or before the team's lock — closed-quarter cash totals are immutable outside an explicit unlock. |
+| `invoice_payments_history` | Append-only (`20260720100000`, 2026-07-19 bookkeeper audit) — the cash ledger was the only money table without one. UPDATE/DELETE snapshot `to_jsonb(OLD)` with actor; owner/admin SELECT; only the definer trigger writes. |
 
 ## Proposals
 

@@ -856,7 +856,7 @@ export async function recordInvoicePaymentAction(
 
       const { data: invoice, error: fetchError } = await supabase
         .from("invoices")
-        .select("team_id, status, total, currency")
+        .select("team_id, status, total, currency, issued_date")
         .eq("id", id)
         .maybeSingle();
       if (fetchError) throw AppError.fromSupabase(fetchError);
@@ -866,6 +866,16 @@ export async function recordInvoicePaymentAction(
       const status = (invoice.status as string | null) ?? "draft";
       const total = Number(invoice.total ?? 0);
       const currency = (invoice.currency as string | null) ?? null;
+      const issuedDate = (invoice.issued_date as string | null) ?? null;
+
+      // Bookkeeper rule (mirrors the edit_invoice_paid_date RPC): cash
+      // can't arrive before the bill existed. Date-only strings compare
+      // lexicographically.
+      if (issuedDate && paidOn < issuedDate) {
+        throw new Error(
+          `Paid date ${paidOn} is before the invoice's issued date ${issuedDate}.`,
+        );
+      }
 
       const { role } = await validateTeamAccess(teamId);
       if (role !== "owner" && role !== "admin") {

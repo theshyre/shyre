@@ -90,6 +90,7 @@ interface FetchedInvoice {
   status: string;
   total?: number;
   currency?: string | null;
+  issued_date?: string | null;
 }
 
 const state: {
@@ -1843,6 +1844,41 @@ describe("recordInvoicePaymentAction", () => {
       ),
     ).rejects.toThrow(/draft/);
     expect(state.inserts.find((i) => i.table === "invoice_payments")).toBeUndefined();
+  });
+
+  it("rejects a paid_on before the invoice's issued date (cash-basis sanity, mirrors the RPC)", async () => {
+    state.fetchedInvoice = {
+      team_id: "team-1",
+      status: "sent",
+      total: 1000,
+      currency: "USD",
+      issued_date: "2026-05-01",
+    };
+    mockValidateTeamAccess.mockResolvedValue({ userId: fakeUserId, role: "owner" });
+
+    await expect(
+      recordInvoicePaymentAction(
+        fd({ invoice_id: "inv-1", amount: "100", paid_on: "2026-04-30" }),
+      ),
+    ).rejects.toThrow(/before the invoice's issued date/);
+    expect(state.inserts.find((i) => i.table === "invoice_payments")).toBeUndefined();
+  });
+
+  it("accepts paid_on on the issued date itself", async () => {
+    state.fetchedInvoice = {
+      team_id: "team-1",
+      status: "sent",
+      total: 1000,
+      currency: "USD",
+      issued_date: "2026-04-30",
+    };
+    state.paymentRows = [{ amount: 100 }];
+    mockValidateTeamAccess.mockResolvedValue({ userId: fakeUserId, role: "owner" });
+
+    await recordInvoicePaymentAction(
+      fd({ invoice_id: "inv-1", amount: "100", paid_on: "2026-04-30" }),
+    );
+    expect(findPaymentInsert()).toMatchObject({ paid_on: "2026-04-30" });
   });
 
   it("rejects payment on a void invoice", async () => {
