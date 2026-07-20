@@ -319,7 +319,15 @@
     "empty": "No changes recorded yet — this project hasn't been edited since the audit trail came online.",
     "notAdmin": "Project history is visible to owner / admin only.",
     "notFound": "Project not found.",
-    "loadMore": "Load more"
+    "loadMore": "Load more",
+    "error": "Couldn't load history: {message}",
+    "unknownActor": "unknown user",
+    "byOn": "by {actor} · {when}",
+    "noFieldChanges": "Edit recorded; no tracked fields changed.",
+    "operation": {
+      "UPDATE": "Updated",
+      "DELETE": "Deleted"
+    }
   },
   "fromProposal": "From proposal"
 }

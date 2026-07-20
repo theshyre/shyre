@@ -1,6 +1,6 @@
 import { describe, it, expect } from "vitest";
 import { expandToCsvRows } from "./history-csv";
-import type { FieldChange } from "./[businessId]/people/history/history-format";
+import type { FieldChange } from "@/lib/history/format";
 
 interface Entry {
   id: string;

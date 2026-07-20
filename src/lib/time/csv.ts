@@ -1,5 +1,8 @@
 /**
- * Tiny, dependency-free CSV helpers for exporting time entries.
+ * Stint-specific CSV row shape + serializer for exporting time
+ * entries. The generic field-escaping primitive lives in
+ * `@/lib/csv/escape` and is shared by every export surface in the
+ * app; this file owns only the time-entry column layout.
  *
  * All clock-times are UTC. The `Date`, `Start`, and `End` columns
  * use UTC accessors so the export is identical no matter what
@@ -13,6 +16,8 @@
  * tie each row back to a database record — without them, an
  * exported CSV is opaque at audit time.
  */
+
+import { escapeCsvField } from "@/lib/csv/escape";
 
 export interface CsvEntryRow {
   date: string;
@@ -69,32 +74,6 @@ export interface CsvEntryRow {
    *  label when one is stored, e.g. "agent (Claude Code)". Lets a
    *  bookkeeper separate agent-logged hours in any export (SAL-051). */
   source: string;
-}
-
-/**
- * RFC 4180 CSV field escaping + spreadsheet formula-injection defense:
- * - Wrap in double quotes if the field contains a comma, quote, or newline
- * - Escape embedded quotes by doubling them
- * - Prefix a leading `=` `+` `-` `@` (and their tab/CR-prefixed variants)
- *   with a single quote: Excel/Sheets execute such cells as FORMULAS, so a
- *   customer named `=HYPERLINK(...)` in an export would run in the
- *   bookkeeper's spreadsheet (CSV-injection, SAL-048). The apostrophe is
- *   the standard "treat as text" marker and round-trips visibly rather
- *   than silently altering data.
- */
-export function escapeCsvField(value: string | number | boolean | null): string {
-  if (value === null || value === undefined) return "";
-  let s = String(value);
-  if (s === "") return "";
-  // Numbers/booleans can't start with a formula trigger after String();
-  // only guard genuine strings so exported amounts stay numeric cells.
-  if (typeof value === "string" && /^[=+\-@\t\r]/.test(s)) {
-    s = `'${s}`;
-  }
-  if (/[",\n\r]/.test(s)) {
-    return `"${s.replace(/"/g, '""')}"`;
-  }
-  return s;
 }
 
 const HEADERS: Array<keyof CsvEntryRow> = [

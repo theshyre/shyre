@@ -33,6 +33,48 @@ describe("module registry", () => {
     expect(new Set(ids).size).toBe(ids.length);
   });
 
+  describe("settingsEntries", () => {
+    it("every settingsEntries item is a well-formed nav item", () => {
+      for (const m of MODULES) {
+        for (const item of m.settingsEntries ?? []) {
+          expect(item.labelKey).toBeTruthy();
+          expect(item.href.startsWith("/")).toBe(true);
+          expect(item.icon).toBeTruthy();
+        }
+      }
+    });
+
+    it("Stint contributes Categories and Templates to the settings hub", () => {
+      const stint = getModule("stint");
+      const hrefs = (stint?.settingsEntries ?? []).map((i) => i.href);
+      expect(hrefs).toEqual(["/categories", "/templates"]);
+    });
+
+    it("Integrations contributes /settings/integrations to the settings hub with no sidebar presence", () => {
+      const integrations = getModule("integrations");
+      expect(integrations).toBeDefined();
+      // No top-level sidebar entry — reached only via the settings hub.
+      expect(integrations?.navItems).toEqual([]);
+      expect(
+        (integrations?.settingsEntries ?? []).map((i) => i.href),
+      ).toEqual(["/settings/integrations"]);
+    });
+
+    it("settingsEntries hrefs are unique across all modules", () => {
+      const hrefs = MODULES.flatMap((m) =>
+        (m.settingsEntries ?? []).map((i) => i.href),
+      );
+      expect(new Set(hrefs).size).toBe(hrefs.length);
+    });
+
+    it("a module with no settingsEntries has no sidebar-nav coupling requirement (navItems can be non-empty independently)", () => {
+      // Sanity: modules without settingsEntries (e.g. customers) are
+      // untouched by this feature — settingsEntries is purely additive.
+      const customers = getModule("customers");
+      expect(customers?.settingsEntries).toBeUndefined();
+    });
+  });
+
   it("getModule looks up by id", () => {
     expect(getModule("stint")?.section).toBe("track");
     expect(getModule("business")?.section).toBe("setup");

@@ -13,10 +13,9 @@ import {
   expandWithFieldDiffs,
   formatValue,
   formatTimestamp,
-  FIELD_LABELS,
-  HIDDEN_KEYS,
   type FieldChange,
-} from "./history-format";
+} from "@/lib/history/format";
+import { FIELD_LABELS, HIDDEN_KEYS } from "./history-format";
 
 const PAGE_SIZE = 200;
 

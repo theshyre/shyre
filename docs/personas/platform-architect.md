@@ -29,7 +29,7 @@ When reviewing a change, flag:
 - [ ] **New concept added to shell that should have been a module?** Or vice versa.
 - [ ] **RLS / function name clashes with existing helpers?** Or silently shadows one from an earlier migration.
 - [ ] **`team_id` / `user_id` column present on every user-data table?** Partitioning and ownership must remain explicit.
-- [ ] **Migration introduces a trigger / function that modules will depend on?** Document the contract in `docs/DATABASE_SCHEMA.md`.
+- [ ] **Migration introduces a trigger / function that modules will depend on?** Document the contract in `docs/reference/database-schema.md`.
 - [ ] **Back-compat needed?** Redirect stubs at old URLs when routes move. Renames shouldn't break bookmarks.
 - [ ] **Cross-cutting change (auth, tz, theme) touches only shell?** Modules shouldn't invent their own.
 - [ ] **Documentation updated?** `docs/README.md` index, relevant `docs/*.md`, and `SECURITY_AUDIT_LOG.md` if applicable.

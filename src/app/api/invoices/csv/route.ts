@@ -1,5 +1,5 @@
 import { createClient } from "@/lib/supabase/server";
-import { escapeCsvField } from "@/lib/time/csv";
+import { escapeCsvField } from "@/lib/csv/escape";
 import { logError } from "@/lib/logger";
 import {
   buildInvoiceCsvRow,

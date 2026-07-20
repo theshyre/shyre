@@ -1,4 +1,4 @@
-import { escapeCsvField } from "@/lib/time/csv";
+import { escapeCsvField } from "@/lib/csv/escape";
 import { describe, it, expect, vi, beforeEach } from "vitest";
 
 // Queue-per-table thenable builder (same style as the proposals/action

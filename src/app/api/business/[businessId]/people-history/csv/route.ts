@@ -1,8 +1,8 @@
 import { createClient } from "@/lib/supabase/server";
-import { escapeCsvField } from "@/lib/time/csv";
+import { escapeCsvField } from "@/lib/csv/escape";
 import { logError } from "@/lib/logger";
+import { expandWithFieldDiffs } from "@/lib/history/format";
 import {
-  expandWithFieldDiffs,
   FIELD_LABELS,
   HIDDEN_KEYS,
 } from "@/app/(dashboard)/business/[businessId]/people/history/history-format";

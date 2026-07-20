@@ -11,7 +11,7 @@ import {
   ALLOWED_EMPLOYMENT_TYPES,
   ALLOWED_COMPENSATION_TYPES,
   ALLOWED_COMPENSATION_SCHEDULES,
-} from "./people-allow-lists";
+} from "@/lib/business/people-allow-lists";
 
 export function blankToNull(v: FormDataEntryValue | null): string | null {
   if (v == null) return null;

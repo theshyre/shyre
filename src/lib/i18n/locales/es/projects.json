@@ -319,7 +319,15 @@
     "empty": "Sin cambios registrados aún — este proyecto no ha sido editado desde que el registro de auditoría entró en funcionamiento.",
     "notAdmin": "El historial del proyecto solo es visible para propietario / administrador.",
     "notFound": "Proyecto no encontrado.",
-    "loadMore": "Cargar más"
+    "loadMore": "Cargar más",
+    "error": "No se pudo cargar el historial: {message}",
+    "unknownActor": "usuario desconocido",
+    "byOn": "por {actor} · {when}",
+    "noFieldChanges": "Edición registrada; sin cambios en campos rastreados.",
+    "operation": {
+      "UPDATE": "Actualizado",
+      "DELETE": "Eliminado"
+    }
   },
   "fromProposal": "De la propuesta"
 }

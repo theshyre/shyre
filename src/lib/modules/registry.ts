@@ -27,14 +27,17 @@ import type { ComponentType } from "react";
 import {
   BarChart3,
   BookOpen,
+  Bookmark,
   Briefcase,
   Clock,
   FileSignature,
   FileText,
   FolderKanban,
   LayoutDashboard,
+  Plug,
   Settings,
   ShieldAlert,
+  Tags,
   Upload,
   User,
   Users,
@@ -70,6 +73,18 @@ export interface ModuleManifest {
   /** Nav entries contributed by this module */
   navItems: ModuleNavItem[];
   /**
+   * Settings-hub-only entries contributed by this module — rendered as
+   * cards on `/settings` (see `SettingsHubPage`), never in the main
+   * sidebar nav. Distinct from `navItems`: a module can have
+   * settings-only surfaces (Stint's Categories/Templates config) or,
+   * conversely, own settings surfaces without any top-level sidebar
+   * presence at all (`navItems: []`) — see the "integrations" entry
+   * below. `labelKey` here is looked up under `admin.hub.cards.*`
+   * (title + description) by the settings hub, not `nav.*` like a
+   * regular navItem.
+   */
+  settingsEntries?: ModuleNavItem[];
+  /**
    * Team-scoped tables this module owns that emit a live "changed" Broadcast
    * (see the `realtime_team_broadcast` migration + SAL-035). The shell's
    * `<RealtimeTeamSignal>` subscribes to the union of these across modules so
@@ -99,6 +114,10 @@ export const MODULES: ModuleManifest[] = [
     section: "track",
     navItems: [
       { labelKey: "time", href: "/time-entries", icon: Clock },
+    ],
+    settingsEntries: [
+      { labelKey: "categories", href: "/categories", icon: Tags },
+      { labelKey: "templates", href: "/templates", icon: Bookmark },
     ],
     realtimeTables: ["time_entries"],
   },
@@ -158,6 +177,23 @@ export const MODULES: ModuleManifest[] = [
       { labelKey: "business", href: "/business", icon: Briefcase },
     ],
     realtimeTables: ["expenses"],
+  },
+  {
+    // Integrations owns its own tables (integration_tokens, etc. —
+    // see src/lib/integrations/) and routes, but has no top-level
+    // sidebar presence: it's reached only through the Settings hub
+    // card, exactly as before this module existed in the registry.
+    // `navItems: []` is deliberate — it contributes nothing to
+    // `navItemsForSection`/the sidebar/the command palette, only a
+    // `settingsEntries` card.
+    id: "integrations",
+    labelKey: "modules.integrations",
+    icon: Plug,
+    section: "setup",
+    navItems: [],
+    settingsEntries: [
+      { labelKey: "integrations", href: "/settings/integrations", icon: Plug },
+    ],
   },
 ];
 

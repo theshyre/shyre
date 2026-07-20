@@ -11,7 +11,7 @@ import {
   ALLOWED_TAX_TYPES,
   ALLOWED_TAX_REGISTRATION_STATUSES,
   ALLOWED_FILING_FREQUENCIES,
-} from "./registrations-allow-lists";
+} from "@/lib/business/registrations-allow-lists";
 
 export function blankToNull(v: FormDataEntryValue | null): string | null {
   if (v == null) return null;

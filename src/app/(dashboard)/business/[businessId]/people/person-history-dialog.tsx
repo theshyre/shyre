@@ -15,7 +15,8 @@ import {
   formatValue,
   formatTimestamp,
   type FieldChange,
-} from "./history/history-format";
+} from "@/lib/history/format";
+import { FIELD_LABELS, HIDDEN_KEYS } from "./history/history-format";
 
 interface Props {
   open: boolean;
@@ -132,6 +133,7 @@ function HistoryEntryItem({
   const changedFields: FieldChange[] = computeFieldDiff(
     entry.previousState,
     next?.previousState ?? null,
+    { labels: FIELD_LABELS, hiddenKeys: HIDDEN_KEYS },
   );
 
   return (

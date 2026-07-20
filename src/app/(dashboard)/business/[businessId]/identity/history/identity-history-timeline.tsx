@@ -24,7 +24,7 @@ import {
   formatTimestamp,
   formatValue,
   type FieldChange,
-} from "../../people/history/history-format";
+} from "@/lib/history/format";
 
 const PAGE_SIZE = 200;
 

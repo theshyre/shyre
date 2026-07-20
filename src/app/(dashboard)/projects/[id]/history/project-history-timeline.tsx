@@ -16,7 +16,7 @@ import {
   formatTimestamp,
   formatValue,
   type FieldChange,
-} from "../../../business/[businessId]/people/history/history-format";
+} from "@/lib/history/format";
 
 const PAGE_SIZE = 200;
 
@@ -37,7 +37,6 @@ export function ProjectHistoryTimeline({
   hasMore: initialHasMore,
 }: Props): React.JSX.Element {
   const t = useTranslations("projects.history");
-  const tPeople = useTranslations("business.people.history");
   const [entries, setEntries] = useState(initialEntries);
   const [hasMore, setHasMore] = useState(initialHasMore);
   const [loading, setLoading] = useState(false);
@@ -102,7 +101,7 @@ export function ProjectHistoryTimeline({
 
       {error && (
         <p className="text-caption text-error">
-          {tPeople("error", { message: error })}
+          {t("error", { message: error })}
         </p>
       )}
     </div>
@@ -116,9 +115,9 @@ function ProjectHistoryRow({
   entry: ProjectHistoryEntry;
   changedFields: FieldChange[];
 }): React.JSX.Element {
-  const tPeople = useTranslations("business.people.history");
+  const t = useTranslations("projects.history");
   const actor =
-    entry.changedBy.displayName ?? tPeople("unknownActor");
+    entry.changedBy.displayName ?? t("unknownActor");
   const when = formatTimestamp(entry.changedAt);
   const isDelete = entry.operation === "DELETE";
 
@@ -135,15 +134,15 @@ function ProjectHistoryRow({
             isDelete ? "text-error" : "text-content-secondary"
           }`}
         >
-          {tPeople(`operation.${entry.operation}`)}
+          {t(`operation.${entry.operation}`)}
         </span>
         <span className="text-caption text-content-muted">
-          {tPeople("byOn", { actor, when })}
+          {t("byOn", { actor, when })}
         </span>
       </div>
       {changedFields.length === 0 ? (
         <p className="text-caption text-content-muted italic">
-          {tPeople("noFieldChanges")}
+          {t("noFieldChanges")}
         </p>
       ) : (
         <dl className="space-y-1 text-caption">
