@@ -163,8 +163,13 @@ export function InvoiceIssuedDateFilter({
   const t = useTranslations("invoices.filters");
   const patchUrl = usePatchInvoiceUrl();
 
+  // Constrain each date field to just enough for MM/DD/YYYY + the icon.
+  // Without a width the shared DateField is w-full and balloons across
+  // the filter row (crowding the chips). rem so it tracks text-size.
+  const dateFieldWidth = "w-[9.5rem]";
+
   return (
-    <div className="flex items-center gap-1.5">
+    <div className="flex flex-wrap items-center gap-x-2 gap-y-1.5">
       <label
         htmlFor="invoice-filter-from"
         className="text-caption text-content-muted whitespace-nowrap"
@@ -173,6 +178,7 @@ export function InvoiceIssuedDateFilter({
       </label>
       <DateField
         id="invoice-filter-from"
+        className={dateFieldWidth}
         value={from ?? ""}
         onChange={(next) => patchUrl({ from: next })}
       />
@@ -184,6 +190,7 @@ export function InvoiceIssuedDateFilter({
       </label>
       <DateField
         id="invoice-filter-to"
+        className={dateFieldWidth}
         value={to ?? ""}
         onChange={(next) => patchUrl({ to: next })}
       />
