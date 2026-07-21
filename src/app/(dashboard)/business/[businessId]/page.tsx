@@ -1,16 +1,14 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { getTranslations } from "next-intl/server";
-import {
-  Users,
-  DollarSign,
-  Receipt,
-  UserCog,
-  FileBadge,
-  Lock,
-} from "lucide-react";
+import { Users, Clock3, UserCog, FileBadge, Banknote } from "lucide-react";
 import { createClient } from "@/lib/supabase/server";
-import { getUserTeams, validateBusinessAccess } from "@/lib/team-context";
+import {
+  getUserTeams,
+  isTeamAdmin,
+  validateBusinessAccess,
+} from "@/lib/team-context";
+import { LinkPendingSpinner } from "@/components/LinkPendingSpinner";
 
 export async function generateMetadata({
   params,
@@ -47,9 +45,11 @@ export default async function BusinessOverviewPage({
   const t = await getTranslations("business");
   const supabase = await createClient();
 
-  // Stats are scoped to every team under this business that the
-  // viewer is a member of. Single-team businesses match exactly one
-  // team here; multi-team agencies sum across the group.
+  // Stats are scoped to every team under this business that the viewer
+  // is a member of. Single-team businesses match exactly one team here;
+  // multi-team agencies sum across the group. NOTE: the Overview shows
+  // NO money — dollars live behind the owner/admin-only Financials tab so
+  // the always-first tab stays safe to open while screen-sharing.
   const userTeams = await getUserTeams();
   const userTeamIds = userTeams.map((tm) => tm.id);
   const { data: businessTeams } =
@@ -62,154 +62,106 @@ export default async function BusinessOverviewPage({
       : { data: [] };
   const teamIds = (businessTeams ?? []).map((row) => row.id as string);
 
-  const { count: customerCount } =
-    teamIds.length > 0
-      ? await supabase
-          .from("customers")
-          .select("id", { count: "exact", head: true })
-          .in("team_id", teamIds)
-          .eq("archived", false)
-      : { count: 0 };
-
   const monthStart = new Date();
   monthStart.setDate(1);
   monthStart.setHours(0, 0, 0, 0);
-  const { data: entries } =
-    teamIds.length > 0
-      ? await supabase
-          .from("time_entries")
-          .select("duration_min")
-          .in("team_id", teamIds)
-          .eq("billable", true)
-          .not("end_time", "is", null)
-          .is("deleted_at", null)
-          .gte("start_time", monthStart.toISOString())
-      : { data: [] };
-  const totalMin = (entries ?? []).reduce(
-    (s, e) => s + (e.duration_min ?? 0),
+
+  const [customerRes, entriesRes, peopleRes, identityRes, access] =
+    await Promise.all([
+      teamIds.length > 0
+        ? supabase
+            .from("customers")
+            .select("id", { count: "exact", head: true })
+            .in("team_id", teamIds)
+            .eq("archived", false)
+        : Promise.resolve({ count: 0 }),
+      teamIds.length > 0
+        ? supabase
+            .from("time_entries")
+            .select("duration_min")
+            .in("team_id", teamIds)
+            .eq("billable", true)
+            .not("end_time", "is", null)
+            .is("deleted_at", null)
+            .gte("start_time", monthStart.toISOString())
+        : Promise.resolve({ data: [] }),
+      supabase
+        .from("business_people")
+        .select("id", { count: "exact", head: true })
+        .eq("business_id", businessId)
+        .is("deleted_at", null),
+      supabase
+        .from("businesses")
+        .select("legal_name")
+        .eq("id", businessId)
+        .maybeSingle(),
+      validateBusinessAccess(businessId),
+    ]);
+
+  const customerCount = customerRes.count ?? 0;
+  const peopleCount = peopleRes.count ?? 0;
+  const totalMin = (entriesRes.data ?? []).reduce(
+    (s, e) => s + ((e.duration_min as number | null) ?? 0),
     0,
   );
   const billableHours = Math.round((totalMin / 60) * 10) / 10;
-
-  const monthStartStr = `${monthStart.getFullYear()}-${String(monthStart.getMonth() + 1).padStart(2, "0")}-01`;
-  const { data: expenseRows } =
-    teamIds.length > 0
-      ? await supabase
-          .from("expenses")
-          .select("amount, currency")
-          .in("team_id", teamIds)
-          .is("deleted_at", null)
-          .gte("incurred_on", monthStartStr)
-      : { data: [] };
-  const expensesCount = expenseRows?.length ?? 0;
-  // Expenses can be in different currencies; group by code so we
-  // never silently sum across them.
-  const expensesByCurrency = new Map<string, number>();
-  for (const row of expenseRows ?? []) {
-    const code = ((row.currency as string | null) ?? "USD").toUpperCase();
-    expensesByCurrency.set(
-      code,
-      (expensesByCurrency.get(code) ?? 0) + Number(row.amount ?? 0),
-    );
-  }
-
-  // People living on this business — owners/employees/contractors
-  // collectively. Live count powers the People tile (replacing the
-  // old "Coming soon" placeholder now that /people is shipped).
-  const { count: peopleCount } = await supabase
-    .from("business_people")
-    .select("id", { count: "exact", head: true })
-    .eq("business_id", businessId)
-    .is("deleted_at", null);
-
-  // Identity row → drives the Identity tile. Just legal_name +
-  // entity_type — no sensitive fields. Falls through to NULLs
-  // when the user hasn't filled identity yet.
-  const { data: identity } = await supabase
-    .from("businesses")
-    .select("legal_name, entity_type")
-    .eq("id", businessId)
-    .maybeSingle();
-
-  // Period locks (admin only) — surface the latest lock on the
-  // overview so the bookkeeper / owner can see at a glance "is
-  // March closed yet?" without navigating to the period-locks tab.
-  const { role: businessRole } = await validateBusinessAccess(businessId);
-  const canManagePeriodLocks =
-    businessRole === "owner" || businessRole === "admin";
-  let latestLockEnd: string | null = null;
-  if (canManagePeriodLocks && teamIds.length > 0) {
-    const { data: locks } = await supabase
-      .from("team_period_locks")
-      .select("period_end")
-      .in("team_id", teamIds)
-      .order("period_end", { ascending: false })
-      .limit(1);
-    latestLockEnd = (locks?.[0]?.period_end as string | undefined) ?? null;
-  }
-
-  function fmtMoney(amount: number, currency: string): string {
-    try {
-      return new Intl.NumberFormat("en-US", {
-        style: "currency",
-        currency,
-      }).format(amount);
-    } catch {
-      return `${currency} ${amount.toFixed(2)}`;
-    }
-  }
-  const expensesTotalLabel =
-    expensesByCurrency.size === 0
-      ? fmtMoney(0, "USD")
-      : Array.from(expensesByCurrency.entries())
-          .sort((a, b) => a[0].localeCompare(b[0]))
-          .map(([code, amt]) => fmtMoney(amt, code))
-          .join(" · ");
-
-  // The Customers stat used to link to /customers (global) which
-  // listed customers from EVERY team the user belonged to, not
-  // just teams in this business — so the count on the card and
-  // the page contents disagreed. Drop the link until /customers
-  // accepts a business filter; render as a stat card. (Persona
-  // finding: agency-owner #1.)
-  const entityLabel = identity?.entity_type
-    ? String(identity.entity_type).replace(/_/g, " ")
-    : null;
-  // Empty-state CTA: when legal_name is null the business is a
-  // bare shell. Setting up identity is the next obvious step
-  // (without it invoices can't render the legal entity, fiscal
-  // year is unknown, tax IDs are empty). Promote the Identity
-  // tile to a full-width call-to-action above the grid so it's
-  // the first thing the eye lands on. UX-designer review
-  // tradeoff: Overview's layout shifts shape based on this state,
-  // which is a small consistency cost in exchange for one click
-  // instead of two on the most-common new-shell flow.
-  const identityNeedsSetup = !identity?.legal_name;
+  const identityNeedsSetup = !identityRes.data?.legal_name;
+  const canViewFinancials = isTeamAdmin(access.role);
 
   return (
     <div className="space-y-6">
-      {/* Quick stats */}
-      <section className="grid gap-4 sm:grid-cols-2">
+      {/* Non-sensitive operational vitals — no money. */}
+      <section className="grid gap-4 sm:grid-cols-3">
         <StatCard
           icon={Users}
           label={t("stats.customers")}
-          value={String(customerCount ?? 0)}
+          value={String(customerCount)}
           href={null}
         />
         <StatCard
-          icon={DollarSign}
+          icon={Clock3}
           label={t("stats.billableHours")}
+          caption={t("overview.thisMonth")}
           value={`${billableHours}h`}
           href="/time-entries"
         />
+        <StatCard
+          icon={UserCog}
+          label={t("overview.people")}
+          value={String(peopleCount)}
+          href={`/business/${businessId}/people`}
+        />
       </section>
+
+      {/* Money lives behind the Financials tab (owner/admin only). Point
+          to it rather than rendering any figure here. */}
+      {canViewFinancials && (
+        <Link
+          href={`/business/${businessId}/financials`}
+          className="group flex items-center gap-4 rounded-lg border border-edge bg-surface-raised p-5 hover:bg-hover transition-colors"
+        >
+          <Banknote size={22} className="text-accent shrink-0" aria-hidden="true" />
+          <div className="min-w-0 flex-1">
+            <p className="text-body-lg font-semibold text-content">
+              {t("overview.financials.title")}
+            </p>
+            <p className="mt-0.5 text-caption text-content-secondary">
+              {t("overview.financials.summary")}
+            </p>
+          </div>
+          <span className="text-accent-text group-hover:translate-x-0.5 transition-transform" aria-hidden="true">
+            →
+          </span>
+          <LinkPendingSpinner size={14} className="" />
+        </Link>
+      )}
 
       {identityNeedsSetup && (
         <Link
           href={`/business/${businessId}/identity`}
           className="group flex items-center gap-4 rounded-lg border border-accent/40 bg-accent-soft/40 p-5 hover:bg-accent-soft transition-colors"
         >
-          <FileBadge size={24} className="text-accent shrink-0" />
+          <FileBadge size={24} className="text-accent shrink-0" aria-hidden="true" />
           <div className="min-w-0 flex-1">
             <p className="text-body-lg font-semibold text-content">
               {t("identityCta.title")}
@@ -221,78 +173,10 @@ export default async function BusinessOverviewPage({
           <span className="inline-flex items-center rounded-md bg-accent px-3 py-1.5 text-body font-medium text-content-inverse group-hover:opacity-90 transition-opacity">
             {t("identityCta.action")}
           </span>
+          <LinkPendingSpinner size={14} className="" />
         </Link>
       )}
-
-      {/* Module tiles — every shipped sub-tab gets a tile so the
-          overview is a real summary, not a v0 placeholder grid. */}
-      <section className="grid gap-4 sm:grid-cols-2">
-        {!identityNeedsSetup && (
-          <TileLink
-            href={`/business/${businessId}/identity`}
-            icon={FileBadge}
-            title={t("tiles.identity.title")}
-            summary={
-              entityLabel
-                ? `${identity?.legal_name as string} · ${entityLabel}`
-                : (identity?.legal_name as string)
-            }
-          />
-        )}
-        <TileLink
-          href={`/business/${businessId}/expenses`}
-          icon={Receipt}
-          title={t("tiles.expenses.title")}
-          summary={t("tiles.expenses.summary", {
-            count: expensesCount,
-            amount: expensesTotalLabel,
-          })}
-        />
-        <TileLink
-          href={`/business/${businessId}/people`}
-          icon={UserCog}
-          title={t("tiles.people.title")}
-          summary={t("tiles.people.summary", { count: peopleCount ?? 0 })}
-        />
-        {canManagePeriodLocks && (
-          <TileLink
-            href={`/business/${businessId}/period-locks`}
-            icon={Lock}
-            title={t("tiles.periodLocks.title")}
-            summary={
-              latestLockEnd
-                ? t("tiles.periodLocks.lockedThrough", { date: latestLockEnd })
-                : t("tiles.periodLocks.empty")
-            }
-          />
-        )}
-      </section>
     </div>
-  );
-}
-
-function TileLink({
-  href,
-  icon: Icon,
-  title,
-  summary,
-}: {
-  href: string;
-  icon: typeof Users;
-  title: string;
-  summary: string;
-}): React.JSX.Element {
-  return (
-    <Link
-      href={href}
-      className="flex items-start gap-4 rounded-lg border border-edge bg-surface-raised p-4 hover:bg-hover transition-colors"
-    >
-      <Icon size={20} className="text-accent shrink-0 mt-1" />
-      <div className="min-w-0">
-        <p className="text-body-lg font-medium text-content">{title}</p>
-        <p className="mt-0.5 text-caption text-content-muted">{summary}</p>
-      </div>
-    </Link>
   );
 }
 
@@ -300,21 +184,28 @@ function StatCard({
   icon: Icon,
   label,
   value,
+  caption,
   href,
 }: {
   icon: typeof Users;
   label: string;
   value: string;
+  caption?: string;
   /** When null, renders a non-interactive card. Used for stats whose
    *  natural drill-down doesn't yet support a business filter. */
   href: string | null;
 }): React.JSX.Element {
   const inner = (
     <>
-      <Icon size={20} className="text-accent shrink-0" />
+      <Icon size={20} className="text-accent shrink-0" aria-hidden="true" />
       <div>
         <p className="text-label font-semibold uppercase tracking-wider text-content-muted">
           {label}
+          {caption && (
+            <span className="ml-1 normal-case font-normal tracking-normal text-content-muted">
+              · {caption}
+            </span>
+          )}
         </p>
         <p className="text-page-title font-semibold text-content font-mono tabular-nums">
           {value}

@@ -59,6 +59,14 @@
     "taxCollected": "Tax collected",
     "taxCollectedHint": "Sales tax collected — a remittable liability, not income."
   },
+  "overview": {
+    "thisMonth": "This month",
+    "people": "People",
+    "financials": {
+      "title": "Financials",
+      "summary": "Collected, outstanding, unbilled, and profit & loss."
+    }
+  },
   "sections": {
     "identity": "Business identity"
   },
