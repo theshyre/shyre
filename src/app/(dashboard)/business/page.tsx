@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import Link from "next/link";
+import { redirect } from "next/navigation";
 import { getTranslations } from "next-intl/server";
 import {
   Briefcase,
@@ -14,6 +15,7 @@ import { getUserTeams, type TeamListItem } from "@/lib/team-context";
 import { LinkPendingSpinner } from "@/components/LinkPendingSpinner";
 import { Tooltip } from "@/components/Tooltip";
 import { FinancialDisclosure } from "./financial-disclosure";
+import { entityTypeLabelKey } from "./entity-label";
 import { buttonSecondaryClass } from "@/lib/form-styles";
 import {
   financialTeamIds,
@@ -34,16 +36,6 @@ export async function generateMetadata(): Promise<Metadata> {
   const t = await getTranslations("business");
   return { title: t("listTitle") };
 }
-
-const ENTITY_LABEL: Record<string, string> = {
-  sole_prop: "Sole Proprietorship",
-  llc: "LLC",
-  s_corp: "S-Corp",
-  c_corp: "C-Corp",
-  partnership: "Partnership",
-  nonprofit: "Nonprofit",
-  other: "Other",
-};
 
 interface BusinessSummary {
   /** business_id — anchor for /business/[businessId]. */
@@ -112,6 +104,20 @@ export default async function BusinessListPage({
     const list = teamsByBusiness.get(bid) ?? [];
     list.push(team);
     teamsByBusiness.set(bid, list);
+  }
+
+  // A "Businesses" list of one is friction for the common single-business
+  // owner — every visit is land-on-list → click the one card → wait for a
+  // second load. When the viewer has exactly one business, skip the list
+  // and land them straight on its hub. The comparison list only earns its
+  // keep at 2+. Redirect BEFORE the per-business financial fetches below
+  // so the single-business path does zero wasted work. (The hub header
+  // switcher keeps every business one click away for multi-business
+  // owners; "Back to all businesses" is hidden at count 1 so it can't
+  // loop back here.)
+  if (teamsByBusiness.size === 1) {
+    const soleBusinessId = teamsByBusiness.keys().next().value as string;
+    redirect(`/business/${soleBusinessId}`);
   }
 
   const now = new Date();
@@ -247,6 +253,8 @@ function BusinessCard({
   t: (key: string, values?: Record<string, string | number>) => string;
 }): React.JSX.Element {
   const isAdmin = biz.viewerRole === "owner" || biz.viewerRole === "admin";
+  const entityLabelKey = entityTypeLabelKey(biz.entityType);
+  const entityLabel = entityLabelKey ? t(entityLabelKey) : null;
   const customersLabel = t("stats.customersWithCount", {
     count: biz.customerCount,
   });
@@ -280,9 +288,9 @@ function BusinessCard({
             </Tooltip>
           )}
           <div className="mt-1 flex items-center gap-1.5 flex-wrap">
-            {biz.entityType && (
+            {entityLabel && (
               <span className="inline-flex items-center rounded-full bg-surface-inset px-2 py-0.5 text-label font-medium text-content-secondary">
-                {ENTITY_LABEL[biz.entityType] ?? biz.entityType}
+                {entityLabel}
               </span>
             )}
             <span className="inline-flex items-center gap-1 rounded-full bg-surface-inset px-2 py-0.5 text-label font-medium text-content-secondary">

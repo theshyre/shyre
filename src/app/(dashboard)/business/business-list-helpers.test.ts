@@ -3,6 +3,7 @@ import {
   classifyNet,
   DEFAULT_PERIOD,
   financialTeamIds,
+  groupViewerBusinesses,
   formatCurrency,
   formatSignedCurrency,
   groupByCurrency,
@@ -114,6 +115,70 @@ describe("financialTeamIds", () => {
 
   it("returns an empty list for no teams", () => {
     expect(financialTeamIds([])).toEqual([]);
+  });
+});
+
+describe("groupViewerBusinesses", () => {
+  it("groups teams into distinct businesses, sorted by display name", () => {
+    const result = groupViewerBusinesses(
+      [
+        { id: "t-z", name: "Zephyr Team" },
+        { id: "t-a", name: "Acme Team" },
+        { id: "t-b", name: "Beta Team" },
+      ],
+      [
+        { id: "t-z", business_id: "biz-2" },
+        { id: "t-a", business_id: "biz-1" },
+        { id: "t-b", business_id: "biz-1" },
+      ],
+      [
+        { id: "biz-1", legal_name: "Acme LLC" },
+        { id: "biz-2", legal_name: null },
+      ],
+    );
+    // biz-1 "Acme LLC" sorts before biz-2 (fallback name "Zephyr Team").
+    expect(result).toEqual([
+      { id: "biz-1", name: "Acme Team", legalName: "Acme LLC" },
+      { id: "biz-2", name: "Zephyr Team", legalName: null },
+    ]);
+  });
+
+  it("uses the alphabetically-first team name as the fallback display name", () => {
+    const result = groupViewerBusinesses(
+      [
+        { id: "t-2", name: "West Team" },
+        { id: "t-1", name: "East Team" },
+      ],
+      [
+        { id: "t-2", business_id: "biz-1" },
+        { id: "t-1", business_id: "biz-1" },
+      ],
+      [{ id: "biz-1", legal_name: null }],
+    );
+    expect(result).toEqual([
+      { id: "biz-1", name: "East Team", legalName: null },
+    ]);
+  });
+
+  it("skips teams with no business_id", () => {
+    const result = groupViewerBusinesses(
+      [
+        { id: "t-1", name: "Real Team" },
+        { id: "t-orphan", name: "Orphan Team" },
+      ],
+      [
+        { id: "t-1", business_id: "biz-1" },
+        { id: "t-orphan", business_id: null },
+      ],
+      [{ id: "biz-1", legal_name: "Real Co" }],
+    );
+    expect(result).toEqual([
+      { id: "biz-1", name: "Real Team", legalName: "Real Co" },
+    ]);
+  });
+
+  it("returns an empty list when the viewer has no teams", () => {
+    expect(groupViewerBusinesses([], [], [])).toEqual([]);
   });
 });
 
