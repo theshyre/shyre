@@ -151,12 +151,26 @@ Or the equivalent project-scoped `.mcp.json`:
 Both snippets above reference `${SHYRE_API_KEY}` rather than the raw token on purpose — the secret should live in an environment variable, never inline. The recommended setup:
 
 1. **Durable copy → password manager.** The token is shown [exactly once](integration-tokens.md#the-token-is-shown-once). Save it to 1Password / Bitwarden / your keychain so you can retrieve it later without revoking and reissuing.
-2. **Runtime copy → the `SHYRE_API_KEY` env var.** This is what the `${SHYRE_API_KEY}` reference resolves to. Set it however your setup already handles secrets — a shell profile export, `direnv`, or a secret manager. If **your own project** — the repo where Claude Code or your tooling *calls* Shyre — **doesn't already have a `.env` convention**, adopt the standard one:
-   - Commit a **`.env.example`** with a placeholder — `SHYRE_API_KEY=` — so anyone on the repo knows the variable is needed (it documents the requirement without holding a secret).
-   - Put the real value in **`.env.local`** (or `.env`) and make sure it's in **`.gitignore`** — this is the git-ignored file that actually holds your token.
-   - Ensure that value reaches the process environment the tool runs in. Frameworks like Next.js load `.env.local` automatically; a bare shell or Claude Code does not, so `source .env.local` (or use `direnv`) before launching, so `${SHYRE_API_KEY}` can expand.
+2. **Runtime copy → the `SHYRE_API_KEY` env var.** `${SHYRE_API_KEY}` resolves from the **environment of the process that reads it**, so the key has to actually be in that process's environment. How you put it there depends on the tool — and for the main case, Claude Code, `.env.local` is *not* it.
 
-   > This is **your consuming project's** `.env.example`, not Shyre's. `SHYRE_API_KEY` is a token *you present to* Shyre — Shyre's own server issues and validates these tokens and never reads a `SHYRE_API_KEY` env var, so it does not belong in Shyre's `.env.example`.
+   **Claude Code (the primary case).** Both the session hooks and the MCP server read `${SHYRE_API_KEY}` from the environment Claude Code was **launched with**. Claude Code does **not** read a `.env.local` file — so the key must be exported into your shell *before* you start `claude`:
+
+   - **`direnv` + a git-ignored `.envrc` (recommended, per-repo).** Put `export SHYRE_API_KEY=shyre_pat_…` in a `.envrc` at the repo root and run `direnv allow`. It loads automatically whenever you `cd` into the repo, and `claude` launched from there inherits it. A minimal `.envrc`:
+
+     ```bash
+     export SHYRE_API_KEY="shyre_pat_…"      # from Settings → Integrations
+     export SHYRE_PROJECT_ID="…"             # if you use the hooks kit
+     ```
+
+     (`.envrc` is git-ignored; commit a `.envrc.example` with placeholders so teammates know what to set.)
+
+   - **Shell profile (global).** `export SHYRE_API_KEY=…` in `~/.zshrc` / `~/.bashrc` if you'd rather have it available in every shell.
+
+   A bare `.env.local` won't work for Claude Code — nothing loads it into Claude Code's environment, so `${SHYRE_API_KEY}` stays unresolved and every call 401s.
+
+   **Your own app or scripts.** If instead you're calling the REST API from a framework that loads `.env.local` into its own process (Next.js, etc.), *then* the `.env` convention fits: commit a **`.env.example`** with `SHYRE_API_KEY=` (placeholder — documents the requirement, holds no secret), keep the real value in a git-ignored **`.env.local`**. For a bare `curl`, `source .env.local` first.
+
+   > `SHYRE_API_KEY` lives in **your consuming project's** environment, never Shyre's. Shyre issues and validates these tokens and never reads a `SHYRE_API_KEY` env var, so it does not belong in Shyre's own `.env.example`.
 
 Two forms, one nuance worth knowing:
 
