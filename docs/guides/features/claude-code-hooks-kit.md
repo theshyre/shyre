@@ -15,7 +15,7 @@ entry via `POST /api/v1/entries` with the session's actual active window.
 No orphaned timers, no idle inflation — a dead session simply never logs
 (and the next one does).
 
-> **Platform note.** The logger below is a **POSIX shell script** (bash) — it runs on macOS, Linux, WSL, and Git Bash. On native Windows, run Claude Code under **WSL** or **Git Bash** so the hook can execute (a PowerShell port is a follow-up). The env-var and paths below assume the same POSIX shell.
+> **Platform note.** The logger below is a **POSIX shell script** (bash) — it runs on macOS, Linux, WSL, and Git Bash. On **native Windows**, use the PowerShell port in [Windows (native PowerShell)](#windows-native-powershell) instead (same behavior, same map). The env-var and paths in this section assume a POSIX shell.
 
 Set this up **once, globally** — not per repo. Three pieces:
 
@@ -120,6 +120,98 @@ Notes:
 - `SessionEnd` does not fire on hard kills (SIGKILL, power loss). With
   log-on-completion that costs you one session's entry, nothing else — no
   zombie timer to clean up.
+
+## Windows (native PowerShell)
+
+On native Windows (no WSL / Git Bash) the bash logger can't run — use this PowerShell port instead. Same behavior, and it reads the **same** `~/.claude/shyre-projects.json` map (`$HOME` resolves to your user profile on Windows, so the same `owner/repo → project id` entries apply).
+
+Set the token once with `setx` — it persists as a user environment variable; **open a new terminal afterward** so it's loaded:
+
+```powershell
+setx SHYRE_API_KEY "shyre_pat_…"
+```
+
+Hooks in `%USERPROFILE%\.claude\settings.json`, invoking the script with `pwsh`:
+
+```json
+{
+  "hooks": {
+    "SessionStart": [{ "hooks": [{ "type": "command", "command": "pwsh -NoProfile -File \"%USERPROFILE%\\.claude\\hooks\\shyre-session.ps1\" start" }] }],
+    "Stop":         [{ "hooks": [{ "type": "command", "command": "pwsh -NoProfile -File \"%USERPROFILE%\\.claude\\hooks\\shyre-session.ps1\" beat" }] }],
+    "SessionEnd":   [{ "hooks": [{ "type": "command", "command": "pwsh -NoProfile -File \"%USERPROFILE%\\.claude\\hooks\\shyre-session.ps1\" end" }] }]
+  }
+}
+```
+
+PowerShell 7 is `pwsh`; for Windows PowerShell 5.1 use `powershell.exe`. If `%USERPROFILE%` isn't expanded in your setup, use the absolute path to the script.
+
+`%USERPROFILE%\.claude\hooks\shyre-session.ps1`:
+
+```powershell
+# Shyre deterministic session logger — Windows PowerShell port.
+# Mirrors ~/.claude/hooks/shyre-session.sh. Set SHYRE_API_KEY once (setx);
+# the project is resolved per-repo from ~/.claude/shyre-projects.json by the
+# repo's git remote. Unmapped repos are skipped. Never breaks a session:
+# any missing dependency / credential / mapping is a clean no-op.
+param([string]$Action)
+$ErrorActionPreference = 'SilentlyContinue'
+
+try {
+  $apiUrl = if ($env:SHYRE_API_URL) { $env:SHYRE_API_URL } else { 'https://shyre.malcom.io' }
+  $map = Join-Path $HOME '.claude/shyre-projects.json'
+
+  $raw = [Console]::In.ReadToEnd()
+  if (-not $raw) { exit 0 }
+  $payload = $raw | ConvertFrom-Json
+  $sessionId = $payload.session_id
+  if (-not $sessionId) { exit 0 }
+  $cwd = if ($payload.cwd) { $payload.cwd } else { (Get-Location).Path }
+
+  $stateDir = Join-Path ([System.IO.Path]::GetTempPath()) 'shyre-sessions'
+  New-Item -ItemType Directory -Force -Path $stateDir | Out-Null
+  $state = Join-Path $stateDir $sessionId
+  $now = [DateTime]::UtcNow.ToString('yyyy-MM-ddTHH:mm:ss') + 'Z'
+
+  function Resolve-Project {
+    try {
+      if (-not (Test-Path $map)) { return '' }
+      $remote = & git -C $cwd remote get-url origin 2>$null
+      if (-not $remote) { return '' }
+      $key = ([string]$remote).Trim() -replace '^git@[^:]+:', '' -replace '^https?://[^/]+/', '' -replace '\.git$', ''
+      $m = Get-Content -Raw $map | ConvertFrom-Json
+      $val = $m.$key
+      if (-not $val) { $val = $m.'_default' }
+      if ($val) { return [string]$val } else { return '' }
+    } catch { return '' }
+  }
+
+  switch ($Action) {
+    'start' { Set-Content -Path $state -Value @((Resolve-Project), $now) }   # line 1 = project id (or blank)
+    'beat'  {
+      if (Test-Path $state) { Add-Content -Path $state -Value $now }
+      else { Set-Content -Path $state -Value @((Resolve-Project), $now) }
+    }
+    'end' {
+      if (-not (Test-Path $state)) { exit 0 }
+      $lines = @(Get-Content $state)
+      Remove-Item -Force $state
+      $project = $lines[0]; $startTs = $lines[1]; $endTs = $lines[-1]
+      if (-not $project) { exit 0 }                          # repo not mapped: skip
+      if ((-not $startTs) -or ($startTs -eq $endTs)) { exit 0 }
+      if (-not $env:SHYRE_API_KEY) { exit 0 }                # no token: no-op
+      $body = @{
+        project_id = $project; start_time = $startTs; end_time = $endTs
+        description = 'Claude Code session (see transcript for detail)'
+        agent_label = 'Claude Code'; session_ref = $sessionId; idempotency_key = $sessionId
+      } | ConvertTo-Json -Compress
+      Invoke-RestMethod -Method Post -Uri "$apiUrl/api/v1/entries" -TimeoutSec 10 `
+        -Headers @{ Authorization = "Bearer $($env:SHYRE_API_KEY)" } `
+        -ContentType 'application/json' -Body $body | Out-Null   # 409 overlap / errors swallowed
+    }
+  }
+} catch { }
+exit 0
+```
 
 ## Alternative: live timer via start/stop
 
