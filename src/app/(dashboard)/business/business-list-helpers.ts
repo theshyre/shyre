@@ -5,7 +5,26 @@
  * are deterministic and worth pinning behaviorally.
  */
 
+import { isTeamAdmin } from "@/lib/team-roles";
+
 export type Role = "owner" | "admin" | "member";
+
+/**
+ * Team ids a viewer may see FINANCIALS for within a business: only the
+ * teams where they hold owner/admin. Financial confidentiality is a
+ * PER-TEAM decision, never the business-aggregate role — a viewer who
+ * is admin on one team and a plain member on another under the same
+ * business must not see the member-team's revenue/expenses. Summing
+ * financials over the aggregate-max-role team set was the leak fixed
+ * in SAL-057; this helper is the gate. (Membership scoping still
+ * applies upstream — the caller only ever passes teams the viewer
+ * belongs to.)
+ */
+export function financialTeamIds(
+  teams: Array<{ id: string; role: Role }>,
+): string[] {
+  return teams.filter((t) => isTeamAdmin(t.role)).map((t) => t.id);
+}
 
 /**
  * Period the business landing page summarizes over.

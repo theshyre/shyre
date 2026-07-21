@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import {
   classifyNet,
   DEFAULT_PERIOD,
+  financialTeamIds,
   formatCurrency,
   formatSignedCurrency,
   groupByCurrency,
@@ -77,6 +78,42 @@ describe("maxRole", () => {
 
   it("returns 'member' if every role is member", () => {
     expect(maxRole(["member", "member"])).toBe("member");
+  });
+});
+
+describe("financialTeamIds", () => {
+  it("includes only teams where the viewer is owner or admin", () => {
+    expect(
+      financialTeamIds([
+        { id: "t-owner", role: "owner" },
+        { id: "t-admin", role: "admin" },
+        { id: "t-member", role: "member" },
+      ]),
+    ).toEqual(["t-owner", "t-admin"]);
+  });
+
+  it("excludes a member-team even when the viewer is admin elsewhere (SAL-057)", () => {
+    // The leak: aggregate-max-role treated this viewer as admin and
+    // summed BOTH teams. Financials must cover only the admin team.
+    expect(
+      financialTeamIds([
+        { id: "t-admin", role: "admin" },
+        { id: "t-member", role: "member" },
+      ]),
+    ).toEqual(["t-admin"]);
+  });
+
+  it("returns an empty list for a member-only viewer", () => {
+    expect(
+      financialTeamIds([
+        { id: "t-1", role: "member" },
+        { id: "t-2", role: "member" },
+      ]),
+    ).toEqual([]);
+  });
+
+  it("returns an empty list for no teams", () => {
+    expect(financialTeamIds([])).toEqual([]);
   });
 });
 
