@@ -249,6 +249,20 @@ export const BREADCRUMB_ROUTES: BreadcrumbRouteSpec[] = [
     ],
   },
   {
+    pattern: "/business/[businessId]/financials",
+    trail: [
+      { id: "setup", labelKey: "setup", href: null },
+      { id: "business", labelKey: "business", href: "/business" },
+      {
+        id: "businessName",
+        resolver: "businessName",
+        resolverParam: "businessId",
+        href: "/business/[businessId]",
+      },
+      { id: "financials", labelKey: "businessFinancials", href: "/business/[businessId]/financials" },
+    ],
+  },
+  {
     pattern: "/business/[businessId]/identity",
     trail: [
       { id: "setup", labelKey: "setup", href: null },

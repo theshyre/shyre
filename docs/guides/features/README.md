@@ -23,6 +23,7 @@ How each Shyre feature works. Apply to every user regardless of role; role-speci
 ## Business
 
 - [Quick guide](business-quickstart.md)
+- [Financials](business-financials.md)
 - [Business identity](business-identity.md)
 - [People](business-people.md)
 - [State registrations](state-registrations.md)

@@ -24,12 +24,48 @@
     "current": "Negocio actual",
     "allBusinesses": "Todos los negocios"
   },
+  "financials": {
+    "basis": "Ingresos al cobrar · gastos al incurrir · por moneda",
+    "revealAmounts": "Mostrar importes",
+    "hideAmounts": "Ocultar importes",
+    "hidden": "Oculto — muestra para ver",
+    "lockedThrough": "Este negocio tiene períodos bloqueados hasta {date}.",
+    "cashHeading": "Efectivo",
+    "collected": "Cobrado",
+    "collectedHint": "Efectivo bruto recibido en el período (incluye impuestos).",
+    "outstanding": "Pendiente",
+    "outstandingHint": "Facturas impagas, neto de pagos recibidos.",
+    "unbilled": "Sin facturar",
+    "unbilledHint": "Tiempo facturable registrado pero aún no facturado (todo el tiempo).",
+    "hours": "{hours} h",
+    "aging": "Pendiente por antigüedad",
+    "agingBuckets": {
+      "current": "Al día",
+      "d1_30": "1–30d",
+      "d31_60": "31–60d",
+      "d61_90": "61–90d",
+      "d90_plus": "90d+"
+    },
+    "plHeading": "Ganancias y pérdidas",
+    "revenue": "Ingresos",
+    "revenueHint": "Ingresos reconocidos al cobrar, sin impuestos sobre ventas.",
+    "expenses": "Gastos",
+    "expensesHint": "Todos los gastos operativos incurridos en el período.",
+    "net": "Neto",
+    "netProfit": "Ganancia",
+    "netLoss": "Pérdida",
+    "netBreakEven": "Punto de equilibrio",
+    "mixedCurrencies": "Monedas mixtas — consulta las cifras por moneda arriba.",
+    "taxCollected": "Impuestos cobrados",
+    "taxCollectedHint": "Impuesto sobre ventas cobrado — un pasivo a remitir, no ingreso."
+  },
   "sections": {
     "identity": "Identidad del negocio"
   },
   "subNav": {
     "sectionsLabel": "Secciones del negocio",
     "overview": "Resumen",
+    "financials": "Finanzas",
     "identity": "Identidad",
     "expenses": "Gastos",
     "people": "Personas",

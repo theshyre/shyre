@@ -24,12 +24,48 @@
     "current": "Current business",
     "allBusinesses": "All businesses"
   },
+  "financials": {
+    "basis": "Revenue when paid · expenses when incurred · per currency",
+    "revealAmounts": "Reveal amounts",
+    "hideAmounts": "Hide amounts",
+    "hidden": "Hidden — reveal to view",
+    "lockedThrough": "This business has periods locked through {date}.",
+    "cashHeading": "Cash",
+    "collected": "Collected",
+    "collectedHint": "Gross cash received in the period (includes tax).",
+    "outstanding": "Outstanding",
+    "outstandingHint": "Unpaid invoices, net of payments received.",
+    "unbilled": "Unbilled",
+    "unbilledHint": "Billable time tracked but not yet invoiced (all time).",
+    "hours": "{hours}h",
+    "aging": "Outstanding by age",
+    "agingBuckets": {
+      "current": "Current",
+      "d1_30": "1–30d",
+      "d31_60": "31–60d",
+      "d61_90": "61–90d",
+      "d90_plus": "90d+"
+    },
+    "plHeading": "Profit & Loss",
+    "revenue": "Revenue",
+    "revenueHint": "Income recognized when paid, excluding sales tax.",
+    "expenses": "Expenses",
+    "expensesHint": "All operating expenses incurred in the period.",
+    "net": "Net",
+    "netProfit": "Profit",
+    "netLoss": "Loss",
+    "netBreakEven": "Break-even",
+    "mixedCurrencies": "Mixed currencies — see the per-currency figures above.",
+    "taxCollected": "Tax collected",
+    "taxCollectedHint": "Sales tax collected — a remittable liability, not income."
+  },
   "sections": {
     "identity": "Business identity"
   },
   "subNav": {
     "sectionsLabel": "Business sections",
     "overview": "Overview",
+    "financials": "Financials",
     "identity": "Identity",
     "expenses": "Expenses",
     "people": "People",
