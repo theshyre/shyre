@@ -155,18 +155,11 @@ Both snippets above reference `${SHYRE_API_KEY}` rather than the raw token on pu
 
    **Claude Code (the primary case).** Both the session hooks and the MCP server read `${SHYRE_API_KEY}` from the environment Claude Code was **launched with**. Claude Code does **not** read a `.env.local` file — so the key must be exported into your shell *before* you start `claude`:
 
-   - **`direnv` + a git-ignored `.envrc` (recommended, per-repo).** Put `export SHYRE_API_KEY=shyre_pat_…` in a `.envrc` at the repo root and run `direnv allow`. It loads automatically whenever you `cd` into the repo, and `claude` launched from there inherits it. A minimal `.envrc`:
+   - **Shell profile (recommended — set it once).** `export SHYRE_API_KEY=shyre_pat_…` in `~/.zshrc` / `~/.bashrc`. The token is *your identity* — the same for every project — so it belongs in your global environment, not a file in each repo. One line, once, and every `claude` session everywhere can authenticate. (Which Shyre *project* a session logs to is a separate, per-repo concern the [hooks kit](claude-code-hooks-kit.md) resolves from a central map — you don't set that per repo either.)
 
-     ```bash
-     export SHYRE_API_KEY="shyre_pat_…"      # from Settings → Integrations
-     export SHYRE_PROJECT_ID="…"             # if you use the hooks kit
-     ```
+   - **`direnv` + a git-ignored `.envrc` (only if you need per-repo isolation).** If a particular repo must use a *different* token (a separate account or team), put `export SHYRE_API_KEY=…` in a `.envrc` there and `direnv allow`; it overrides the global one whenever you're in that repo. Commit a `.envrc.example` with a placeholder so teammates know what to set. For a single account, you don't need this.
 
-     (`.envrc` is git-ignored; commit a `.envrc.example` with placeholders so teammates know what to set.)
-
-   - **Shell profile (global).** `export SHYRE_API_KEY=…` in `~/.zshrc` / `~/.bashrc` if you'd rather have it available in every shell.
-
-   A bare `.env.local` won't work for Claude Code — nothing loads it into Claude Code's environment, so `${SHYRE_API_KEY}` stays unresolved and every call 401s.
+   A bare `.env.local` won't work for Claude Code either way — nothing loads it into Claude Code's environment, so `${SHYRE_API_KEY}` stays unresolved and every call 401s.
 
    **Your own app or scripts.** If instead you're calling the REST API from a framework that loads `.env.local` into its own process (Next.js, etc.), *then* the `.env` convention fits: commit a **`.env.example`** with `SHYRE_API_KEY=` (placeholder — documents the requirement, holds no secret), keep the real value in a git-ignored **`.env.local`**. For a bare `curl`, `source .env.local` first.
 

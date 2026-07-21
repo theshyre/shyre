@@ -15,7 +15,11 @@ entry via `POST /api/v1/entries` with the session's actual active window.
 No orphaned timers, no idle inflation — a dead session simply never logs
 (and the next one does).
 
-`~/.claude/settings.json` (or project `.claude/settings.json`):
+Set this up **once, globally** — not per repo. Three pieces:
+
+**1. The token, once, in your shell.** `export SHYRE_API_KEY=shyre_pat_…` in `~/.zshrc` / `~/.bashrc`. It's your identity — the same for every project — so it belongs in your global environment, and Claude Code reads it from the environment it's launched with. (See [Storing your key](integrations-api.md#storing-your-key); a per-repo `.env.local` won't reach Claude Code.)
+
+**2. The hooks, once, in `~/.claude/settings.json`.** Installed here (not a project `.claude/settings.json`) they fire for every session in every repo:
 
 ```json
 {
@@ -33,46 +37,67 @@ No orphaned timers, no idle inflation — a dead session simply never logs
 }
 ```
 
+**3. A central repo → project map**, so you never set a project id per repo. The logger resolves the target project from the current repo's git remote. `~/.claude/shyre-projects.json`:
+
+```json
+{
+  "_note": "Map <owner/repo> (the git remote) to a Shyre project id.",
+  "_default": null,
+  "your-org/your-repo": "PROJECT_ID_FROM_THE_PROJECT_URL"
+}
+```
+
+Add a line when you want a repo tracked. **Unmapped repos are skipped** — so personal or throwaway repos never log unless you opt them in. Set `_default` to a project id if you'd rather send unmapped repos to a catch-all instead.
+
 `~/.claude/hooks/shyre-session.sh`:
 
 ```bash
 #!/usr/bin/env bash
-# Shyre deterministic session logger.
-# Requires: SHYRE_API_KEY (a shyre_pat_… token) and SHYRE_PROJECT_ID in the
-# environment (set SHYRE_PROJECT_ID per-repo via direnv/.envrc so each
-# checkout maps to its Shyre project).
-set -euo pipefail
-INPUT=$(cat)                                  # hook payload on stdin
-SESSION_ID=$(printf '%s' "$INPUT" | jq -r .session_id)
-STATE_DIR="${TMPDIR:-/tmp}/shyre-sessions"
-STATE="$STATE_DIR/$SESSION_ID"
-mkdir -p "$STATE_DIR"
+# Shyre deterministic session logger (global install). Set SHYRE_API_KEY
+# once in your shell; the project is resolved per-repo from
+# ~/.claude/shyre-projects.json. Unmapped repos are skipped. Never blocks
+# or fails a session — any missing dep/credential/mapping is a clean no-op.
+SHYRE_API_URL="${SHYRE_API_URL:-https://shyre.malcom.io}"
+MAP="$HOME/.claude/shyre-projects.json"
+command -v jq >/dev/null 2>&1 || exit 0
+
+INPUT="$(cat 2>/dev/null || true)"
+SESSION_ID="$(printf '%s' "$INPUT" | jq -r '.session_id // empty' 2>/dev/null || true)"
+[ -n "$SESSION_ID" ] || exit 0
+CWD="$(printf '%s' "$INPUT" | jq -r '.cwd // empty' 2>/dev/null || true)"; [ -n "$CWD" ] || CWD="$PWD"
+STATE_DIR="${TMPDIR:-/tmp}/shyre-sessions"; STATE="$STATE_DIR/$SESSION_ID"
+mkdir -p "$STATE_DIR" 2>/dev/null || exit 0
+NOW="$(date -u +%Y-%m-%dT%H:%M:%SZ)"
+
+resolve_project() {  # repo git remote -> project id from the map (blank if unmapped)
+  [ -f "$MAP" ] || return 0
+  local remote key
+  remote="$(git -C "$CWD" remote get-url origin 2>/dev/null || true)"
+  [ -n "$remote" ] || return 0
+  key="$(printf '%s' "$remote" | sed -E 's#^git@[^:]+:##; s#^https?://[^/]+/##; s#\.git$##')"
+  jq -r --arg k "$key" '.[$k] // ._default // empty' "$MAP" 2>/dev/null
+}
 
 case "${1:-}" in
-  start)
-    date -u +%Y-%m-%dT%H:%M:%SZ > "$STATE"    # first-activity stamp
-    ;;
-  beat)
-    # Every completed turn refreshes the last-activity stamp. The entry
-    # covers first→last activity, so waiting-on-you gaps at the tail
-    # never inflate the entry.
-    [ -f "$STATE" ] || date -u +%Y-%m-%dT%H:%M:%SZ > "$STATE"
-    date -u +%Y-%m-%dT%H:%M:%SZ >> "$STATE"
-    ;;
+  start) printf '%s\n' "$(resolve_project)" > "$STATE"; printf '%s\n' "$NOW" >> "$STATE" ;;  # line 1 = project id
+  beat)  [ -f "$STATE" ] || { printf '%s\n' "$(resolve_project)" > "$STATE"; printf '%s\n' "$NOW" >> "$STATE"; }
+         printf '%s\n' "$NOW" >> "$STATE" ;;                    # refresh last-activity
   end)
     [ -f "$STATE" ] || exit 0
-    START=$(head -1 "$STATE"); END=$(tail -1 "$STATE"); rm -f "$STATE"
-    [ "$START" = "$END" ] && exit 0           # zero-length session: skip
-    curl -sf -X POST "https://shyre.malcom.io/api/v1/entries" \
-      -H "Authorization: Bearer $SHYRE_API_KEY" \
-      -H "Content-Type: application/json" \
-      -d "$(jq -n --arg p "$SHYRE_PROJECT_ID" --arg s "$START" --arg e "$END" --arg r "$SESSION_ID" \
+    PROJECT="$(head -1 "$STATE")"; START="$(sed -n '2p' "$STATE")"; END="$(tail -1 "$STATE")"; rm -f "$STATE"
+    [ -n "$PROJECT" ] || exit 0                                 # repo not mapped: skip
+    [ -n "$START" ] && [ "$START" != "$END" ] || exit 0         # zero-length: skip
+    [ -n "${SHYRE_API_KEY:-}" ] || exit 0                       # no token: no-op
+    curl -sf -m 10 -X POST "$SHYRE_API_URL/api/v1/entries" \
+      -H "Authorization: Bearer $SHYRE_API_KEY" -H "Content-Type: application/json" \
+      -d "$(jq -n --arg p "$PROJECT" --arg s "$START" --arg e "$END" --arg r "$SESSION_ID" \
         '{project_id:$p, start_time:$s, end_time:$e,
           description:"Claude Code session (see transcript for detail)",
           agent_label:"Claude Code", session_ref:$r, idempotency_key:$r}')" \
-      > /dev/null || true                     # never block session teardown
+      > /dev/null 2>&1 || true                                  # never block teardown
     ;;
 esac
+exit 0
 ```
 
 Notes:

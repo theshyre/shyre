@@ -13,12 +13,12 @@ team you want this token to act on with the team pills at the top.
 
 **New token** → name it something you'll recognize later ("Claude Code —
 laptop") → copy it immediately. It's shown **once**. Save it to your
-**password manager** now, then export it as `SHYRE_API_KEY` in the
-environment you launch Claude Code from — a `direnv` `.envrc` (recommended)
-or your shell profile. Claude Code does **not** read `.env.local`, so a key
-that only lives there won't reach it. See
-[Storing your key](integrations-api.md#storing-your-key) for the details and
-the `.env`-for-your-own-app case.
+**password manager**, then export it **once, globally** —
+`export SHYRE_API_KEY=shyre_pat_…` in `~/.zshrc` / `~/.bashrc`. The token is
+your identity, the same for every project, so set it once and every
+`claude` session can use it. (Claude Code does **not** read `.env.local`;
+see [Storing your key](integrations-api.md#storing-your-key) for why, and
+the per-repo and own-app cases.)
 
 ## 3. Wire it into Claude Code
 
