@@ -54,7 +54,7 @@ export function BusinessSubNav({
 
   return (
     <nav
-      aria-label="Business sections"
+      aria-label={t("sectionsLabel")}
       className="flex flex-wrap gap-1 border-b border-edge"
     >
       {tabs.map((tab) => {
@@ -85,7 +85,7 @@ export function BusinessSubNav({
             key={tab.href}
             href={tab.href}
             aria-current={isActive ? "page" : undefined}
-            className={`inline-flex items-center gap-2 px-3 py-2 text-body-lg font-medium border-b-2 -mb-px transition-colors ${
+            className={`inline-flex items-center gap-2 px-3 py-2 text-body-lg font-medium border-b-2 -mb-px transition-colors rounded-t-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus-ring focus-visible:ring-offset-1 focus-visible:ring-offset-surface ${
               isActive
                 ? "border-accent text-accent"
                 : "border-transparent text-content-secondary hover:text-content hover:border-edge"

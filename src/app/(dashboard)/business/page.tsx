@@ -16,6 +16,7 @@ import { Tooltip } from "@/components/Tooltip";
 import { FinancialDisclosure } from "./financial-disclosure";
 import { buttonSecondaryClass } from "@/lib/form-styles";
 import {
+  financialTeamIds,
   formatCurrency,
   formatSignedCurrency,
   groupByCurrency,
@@ -202,8 +203,12 @@ function PeriodToggle({
           <Link
             key={p}
             href={href}
-            aria-pressed={active}
-            className={`px-2.5 py-1 rounded text-label font-medium transition-colors ${
+            // `aria-current`, not `aria-pressed`: these are navigation
+            // links (each is a real `?period=` URL), and aria-pressed
+            // is only valid on role=button — SRs announce it as a
+            // conflicting toggle over a link.
+            aria-current={active ? "true" : undefined}
+            className={`px-2.5 py-1 rounded text-label font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus-ring focus-visible:ring-offset-1 focus-visible:ring-offset-surface-raised ${
               active
                 ? "bg-accent text-content-inverse"
                 : "text-content-secondary hover:bg-hover"
@@ -504,10 +509,13 @@ function NetTile({
     : isLoss
       ? labels.loss
       : labels.breakEven;
+  // Use the AA-tuned `-text` variants: plain `text-success` misses
+  // 4.5:1 on light/warm surfaces, and `text-danger` is not a real
+  // token at all (losses silently rendered in the default color).
   const color = isProfit
-    ? "text-success"
+    ? "text-success-text"
     : isLoss
-      ? "text-danger"
+      ? "text-error-text"
       : "text-content-secondary";
   const Icon = isProfit ? TrendingUp : isLoss ? TrendingDown : null;
   const signed = formatSignedCurrency(amount, currency);
@@ -566,6 +574,17 @@ async function fetchSummary(
   // owner > admin > member. Drives whether financial tiles render.
   const viewerRole: Role = maxRole(sortedTeams.map((t) => t.role));
 
+  // Financial confidentiality is a PER-TEAM decision: sum revenue and
+  // expenses ONLY over teams the viewer administers, never the whole
+  // business. A viewer who is admin on one team and a member on
+  // another under the same business must not see the member-team's
+  // money. Scoping on the aggregate `viewerRole` + all `teamIds` was
+  // the SAL-057 leak. `financialTeamIds` is empty exactly when
+  // `viewerRole === "member"`, so the show/hide gate is unchanged —
+  // only which teams the totals cover.
+  const financeTeamIds = financialTeamIds(sortedTeams);
+  const canSeeFinancials = financeTeamIds.length > 0;
+
   const [business, customerCount, paidInvoices, expenseRows] =
     await Promise.all([
       supabase
@@ -582,24 +601,24 @@ async function fetchSummary(
       // Filter on `paid_at` (not `issued_date`) so the period anchor
       // is the cash event, and ignore voided rows defensively even
       // though `status='paid'` should preclude voided.
-      viewerRole === "member"
+      !canSeeFinancials
         ? Promise.resolve({ data: [] })
         : supabase
             .from("invoices")
             .select("total, currency")
-            .in("team_id", teamIds)
+            .in("team_id", financeTeamIds)
             .eq("status", "paid")
             .is("voided_at", null)
             .gte("paid_at", sinceIso),
       // Exclude billable-to-customer expenses by default — they
       // rebill on the income side and including them double-deflates
       // the net figure.
-      viewerRole === "member"
+      !canSeeFinancials
         ? Promise.resolve({ data: [] })
         : supabase
             .from("expenses")
             .select("amount, currency")
-            .in("team_id", teamIds)
+            .in("team_id", financeTeamIds)
             .is("deleted_at", null)
             .eq("billable", false)
             .gte("incurred_on", sinceIso.slice(0, 10)),
