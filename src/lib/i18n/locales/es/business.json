@@ -59,6 +59,14 @@
     "taxCollected": "Impuestos cobrados",
     "taxCollectedHint": "Impuesto sobre ventas cobrado — un pasivo a remitir, no ingreso."
   },
+  "overview": {
+    "thisMonth": "Este mes",
+    "people": "Personas",
+    "financials": {
+      "title": "Finanzas",
+      "summary": "Cobrado, pendiente, sin facturar y ganancias y pérdidas."
+    }
+  },
   "sections": {
     "identity": "Identidad del negocio"
   },
