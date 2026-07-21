@@ -155,7 +155,17 @@ Both snippets above reference `${SHYRE_API_KEY}` rather than the raw token on pu
 
    **Claude Code (the primary case).** Both the session hooks and the MCP server read `${SHYRE_API_KEY}` from the environment Claude Code was **launched with**. Claude Code does **not** read a `.env.local` file — so the key must be exported into your shell *before* you start `claude`:
 
-   - **Shell profile (recommended — set it once).** `export SHYRE_API_KEY=shyre_pat_…` in `~/.zshrc` / `~/.bashrc`. The token is *your identity* — the same for every project — so it belongs in your global environment, not a file in each repo. One line, once, and every `claude` session everywhere can authenticate. (Which Shyre *project* a session logs to is a separate, per-repo concern the [hooks kit](claude-code-hooks-kit.md) resolves from a central map — you don't set that per repo either.)
+   - **Shell profile (recommended — set it once).** Export `SHYRE_API_KEY` from the startup file of whatever shell launches `claude`, so every session inherits it. The token is *your identity* — the same for every project — so it belongs in your global environment, not a file in each repo. Add it to the file your interactive shell actually reads:
+
+     | Shell / OS | Where | Line |
+     | --- | --- | --- |
+     | **zsh** (macOS default) | `~/.zshrc` | `export SHYRE_API_KEY="shyre_pat_…"` |
+     | **bash** | `~/.bashrc` | `export SHYRE_API_KEY="shyre_pat_…"` |
+     | **bash on macOS** | login shells read `~/.bash_profile`, not `~/.bashrc` — put it there (or `source ~/.bashrc` from it) | `export SHYRE_API_KEY="shyre_pat_…"` |
+     | **Windows — PowerShell** | `setx` (persists as a user env var; reopen the terminal) | `setx SHYRE_API_KEY "shyre_pat_…"` |
+     | **Windows — Git Bash / WSL** | follow the **bash** row | `export SHYRE_API_KEY="shyre_pat_…"` |
+
+     Open a new terminal after editing so the value is loaded, then launch `claude` from it. (Which Shyre *project* a session logs to is a separate, per-repo concern the [hooks kit](claude-code-hooks-kit.md) resolves from a central map — you don't set that per repo either.)
 
    - **`direnv` + a git-ignored `.envrc` (only if you need per-repo isolation).** If a particular repo must use a *different* token (a separate account or team), put `export SHYRE_API_KEY=…` in a `.envrc` there and `direnv allow`; it overrides the global one whenever you're in that repo. Commit a `.envrc.example` with a placeholder so teammates know what to set. For a single account, you don't need this.
 
