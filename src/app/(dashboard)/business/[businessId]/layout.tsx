@@ -41,6 +41,10 @@ export default async function BusinessDetailLayout({
   // hiding the tab keeps the UI honest.
   const { role } = await validateBusinessAccess(businessId);
   const canManagePeriodLocks = isTeamAdmin(role);
+  // Financials is owner/admin-only (the page scopes to the viewer's admin
+  // teams and 404s for members); hide the tab for members so they don't
+  // get a dead click.
+  const canViewFinancials = isTeamAdmin(role);
 
   // Every business the viewer can access — powers the header switcher
   // and decides whether "Back to all businesses" is meaningful. With a
@@ -109,6 +113,7 @@ export default async function BusinessDetailLayout({
 
       <BusinessSubNav
         businessId={businessId}
+        canViewFinancials={canViewFinancials}
         canManagePeriodLocks={canManagePeriodLocks}
       />
 

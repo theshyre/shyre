@@ -3,12 +3,22 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useTranslations } from "next-intl";
-import { LayoutDashboard, FileBadge, Receipt, Users, Lock } from "lucide-react";
+import {
+  LayoutDashboard,
+  FileBadge,
+  Receipt,
+  Users,
+  Lock,
+  Banknote,
+} from "lucide-react";
 import { LinkPendingSpinner } from "@/components/LinkPendingSpinner";
 import { Tooltip } from "@/components/Tooltip";
 
 interface Props {
   businessId: string;
+  /** Whether the viewer can see financials (owner|admin only). The tab —
+   *  and the page — are hidden/404 for plain members. */
+  canViewFinancials?: boolean;
   /** Whether the viewer can manage period locks (owner|admin only).
    *  Tab is hidden for plain members so they don't get a 404 click. */
   canManagePeriodLocks?: boolean;
@@ -28,6 +38,7 @@ interface Props {
  */
 export function BusinessSubNav({
   businessId,
+  canViewFinancials = false,
   canManagePeriodLocks = false,
 }: Props): React.JSX.Element {
   const pathname = usePathname();
@@ -40,10 +51,19 @@ export function BusinessSubNav({
     disabled?: boolean;
   }> = [
     { href: `/business/${businessId}`, labelKey: "overview", icon: LayoutDashboard },
+  ];
+  if (canViewFinancials) {
+    tabs.push({
+      href: `/business/${businessId}/financials`,
+      labelKey: "financials",
+      icon: Banknote,
+    });
+  }
+  tabs.push(
     { href: `/business/${businessId}/identity`, labelKey: "identity", icon: FileBadge },
     { href: `/business/${businessId}/expenses`, labelKey: "expenses", icon: Receipt },
     { href: `/business/${businessId}/people`, labelKey: "people", icon: Users },
-  ];
+  );
   if (canManagePeriodLocks) {
     tabs.push({
       href: `/business/${businessId}/period-locks`,

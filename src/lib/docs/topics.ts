@@ -187,6 +187,11 @@ export const DOC_TOPICS: DocTopic[] = [
         quick: true,
       },
       {
+        href: "/docs/guides/features/business-financials",
+        title: "Financials",
+        blurb: "Cash and profit-and-loss at a glance — collected, outstanding, unbilled, revenue, expenses, and net.",
+      },
+      {
         href: "/docs/guides/features/business-identity",
         title: "Business identity",
         blurb: "Legal name, EIN, and fiscal year — used on invoices and tax forms.",
