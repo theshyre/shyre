@@ -1319,6 +1319,30 @@ describe("deleteProposalAction", () => {
       deleteProposalAction(formWith({ id: "prop-1" })),
     ).rejects.toThrow(/audit record/);
   });
+
+  it("refuses to delete a superseded proposal that carries a recorded signature", async () => {
+    // A multi-signer proposal can hold a partial signature and then be
+    // superseded on revision. proposal_acceptances CASCADEs on delete, so the
+    // signature must not be erased through the parent — even though the status
+    // alone (superseded) would otherwise be deletable.
+    queues["proposals"] = [
+      {
+        data: { id: "prop-1", team_id: TEAM, status: "superseded" },
+        error: null,
+      },
+    ];
+    queues["proposal_acceptances"] = [
+      { data: [{ proposal_id: "prop-1" }], error: null },
+    ];
+    await expect(
+      deleteProposalAction(formWith({ id: "prop-1" })),
+    ).rejects.toThrow(/recorded signature/);
+    const delCall = calls.find(
+      (c) =>
+        c.table === "proposals" && c.ops.some((o) => o.method === "delete"),
+    );
+    expect(delCall).toBeUndefined();
+  });
 });
 
 describe("bulkDeleteProposalsAction", () => {
@@ -1364,6 +1388,34 @@ describe("bulkDeleteProposalsAction", () => {
         c.table === "proposals" && c.ops.some((o) => o.method === "delete"),
     );
     expect(delCall).toBeUndefined();
+  });
+
+  it("excludes a superseded proposal that still carries a signature, skipping it", async () => {
+    queues["proposals"] = [
+      {
+        data: [
+          { id: "p-clean", team_id: TEAM, status: "superseded" },
+          { id: "p-signed", team_id: TEAM, status: "superseded" },
+        ],
+        error: null,
+      }, // select
+      { data: null, error: null }, // delete
+    ];
+    queues["proposal_acceptances"] = [
+      { data: [{ proposal_id: "p-signed" }], error: null },
+    ];
+
+    const result = await bulkDeleteProposalsAction(
+      formWithIds(["p-clean", "p-signed"]),
+    );
+
+    expect(result).toEqual({ success: true, deleted: 1, skipped: 1 });
+    const delCall = calls.find(
+      (c) =>
+        c.table === "proposals" && c.ops.some((o) => o.method === "delete"),
+    );
+    const inOp = delCall!.ops.find((o) => o.method === "in");
+    expect(inOp!.args[1]).toEqual(["p-clean"]);
   });
 
   it("skips everything and deletes nothing when no selected row is deletable", async () => {
