@@ -15,9 +15,11 @@ entry via `POST /api/v1/entries` with the session's actual active window.
 No orphaned timers, no idle inflation — a dead session simply never logs
 (and the next one does).
 
+> **Platform note.** The logger below is a **POSIX shell script** (bash) — it runs on macOS, Linux, WSL, and Git Bash. On native Windows, run Claude Code under **WSL** or **Git Bash** so the hook can execute (a PowerShell port is a follow-up). The env-var and paths below assume the same POSIX shell.
+
 Set this up **once, globally** — not per repo. Three pieces:
 
-**1. The token, once, in your shell.** `export SHYRE_API_KEY=shyre_pat_…` in `~/.zshrc` / `~/.bashrc`. It's your identity — the same for every project — so it belongs in your global environment, and Claude Code reads it from the environment it's launched with. (See [Storing your key](integrations-api.md#storing-your-key); a per-repo `.env.local` won't reach Claude Code.)
+**1. The token, once, in your shell.** Export `SHYRE_API_KEY=shyre_pat_…` from your shell's startup file — `~/.bashrc` for bash, `~/.zshrc` for zsh (`~/.bash_profile` for bash *login* shells on macOS), or `setx` on Windows PowerShell. It's your identity, the same for every project, and Claude Code reads it from the environment it's launched with. The [Storing your key](integrations-api.md#storing-your-key) table lists the exact file per shell/OS; a per-repo `.env.local` won't reach Claude Code.
 
 **2. The hooks, once, in `~/.claude/settings.json`.** Installed here (not a project `.claude/settings.json`) they fire for every session in every repo:
 
