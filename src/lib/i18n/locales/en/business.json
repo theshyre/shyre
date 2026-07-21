@@ -10,6 +10,20 @@
   "createBusiness": "Create team",
   "backToList": "Back to all businesses",
   "noTeam": "Pick a team to see business identity.",
+  "entityTypes": {
+    "sole_prop": "Sole Proprietorship",
+    "llc": "LLC",
+    "s_corp": "S-Corp",
+    "c_corp": "C-Corp",
+    "partnership": "Partnership",
+    "nonprofit": "Nonprofit",
+    "other": "Other"
+  },
+  "switcher": {
+    "label": "Switch business",
+    "current": "Current business",
+    "allBusinesses": "All businesses"
+  },
   "sections": {
     "identity": "Business identity"
   },

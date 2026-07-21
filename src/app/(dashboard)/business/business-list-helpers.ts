@@ -96,6 +96,61 @@ export function maxRole(roles: Role[]): Role {
   }, "member");
 }
 
+/** A distinct business the viewer can access, for the landing redirect
+ *  and the hub header switcher. */
+export interface ViewerBusiness {
+  /** business_id — anchor for /business/[id]. */
+  id: string;
+  /** Fallback display name (the alphabetically-first team's name) when
+   *  the business has no legal_name set. */
+  name: string;
+  legalName: string | null;
+}
+
+/**
+ * Group the viewer's teams into the distinct businesses they belong to,
+ * sorted by display name (legal name if set, else the representative
+ * team name). Pure so it's unit-testable; the async fetch wrapper lives
+ * in `get-viewer-businesses.ts`.
+ *
+ * Teams whose `business_id` is null (legacy shells, shouldn't exist
+ * post-migration) are skipped — without a business_id they can't anchor
+ * a `/business/[id]` link.
+ */
+export function groupViewerBusinesses(
+  teams: Array<{ id: string; name: string }>,
+  teamBusiness: Array<{ id: string; business_id: string | null }>,
+  businesses: Array<{ id: string; legal_name: string | null }>,
+): ViewerBusiness[] {
+  const businessIdByTeam = new Map(
+    teamBusiness.map((r) => [r.id, r.business_id]),
+  );
+  const legalById = new Map(businesses.map((b) => [b.id, b.legal_name]));
+
+  const teamNamesByBusiness = new Map<string, string[]>();
+  for (const team of teams) {
+    const bid = businessIdByTeam.get(team.id) ?? null;
+    if (!bid) continue;
+    const names = teamNamesByBusiness.get(bid) ?? [];
+    names.push(team.name);
+    teamNamesByBusiness.set(bid, names);
+  }
+
+  const out: ViewerBusiness[] = [];
+  for (const [bid, names] of teamNamesByBusiness) {
+    const representative =
+      [...names].sort((a, b) => a.localeCompare(b))[0] ?? "";
+    out.push({
+      id: bid,
+      name: representative,
+      legalName: legalById.get(bid) ?? null,
+    });
+  }
+  return out.sort((a, b) =>
+    (a.legalName ?? a.name).localeCompare(b.legalName ?? b.name),
+  );
+}
+
 /**
  * Sum amounts grouped by ISO 4217 currency code. Currency codes are
  * uppercased; a missing or null currency falls back to "USD" so

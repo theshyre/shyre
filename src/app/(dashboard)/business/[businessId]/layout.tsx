@@ -6,21 +6,14 @@ import { createClient } from "@/lib/supabase/server";
 import { isTeamAdmin, validateBusinessAccess } from "@/lib/team-context";
 import { LinkPendingSpinner } from "@/components/LinkPendingSpinner";
 import { BusinessSubNav } from "./business-sub-nav";
+import { BusinessSwitcher } from "./business-switcher";
+import { getViewerBusinesses } from "../get-viewer-businesses";
+import { entityTypeLabelKey } from "../entity-label";
 
 interface LayoutProps {
   children: React.ReactNode;
   params: Promise<{ businessId: string }>;
 }
-
-const ENTITY_LABEL: Record<string, string> = {
-  sole_prop: "Sole Proprietorship",
-  llc: "LLC",
-  s_corp: "S-Corp",
-  c_corp: "C-Corp",
-  partnership: "Partnership",
-  nonprofit: "Nonprofit",
-  other: "Other",
-};
 
 export default async function BusinessDetailLayout({
   children,
@@ -49,6 +42,14 @@ export default async function BusinessDetailLayout({
   const { role } = await validateBusinessAccess(businessId);
   const canManagePeriodLocks = isTeamAdmin(role);
 
+  // Every business the viewer can access — powers the header switcher
+  // and decides whether "Back to all businesses" is meaningful. With a
+  // single business the switcher is a plain title and the back-link is
+  // hidden (it would just redirect straight back — /business redirects
+  // to the sole hub).
+  const viewerBusinesses = await getViewerBusinesses();
+  const hasMultipleBusinesses = viewerBusinesses.length > 1;
+
   // Header fallback chain: legal_name → name (seeded display name,
   // never null in practice — see businesses migration) → i18n
   // "Untitled business". Two unconfigured shells in the user's
@@ -57,12 +58,17 @@ export default async function BusinessDetailLayout({
   const legalName = (business.legal_name as string | null) ?? null;
   const seededName = (business.name as string | null) ?? null;
   const displayName = legalName ?? seededName ?? t("untitled");
-  const entityKey = business.entity_type
-    ? String(business.entity_type)
-    : null;
-  const entityLabel = entityKey
-    ? (ENTITY_LABEL[entityKey] ?? entityKey)
-    : null;
+  const entityLabelKey = entityTypeLabelKey(
+    business.entity_type as string | null,
+  );
+  const entityLabel = entityLabelKey ? t(entityLabelKey) : null;
+
+  // Resolve a display label for every switcher entry with the same
+  // fallback chain used for the header title.
+  const switcherBusinesses = viewerBusinesses.map((b) => ({
+    id: b.id,
+    label: b.legalName ?? b.name ?? t("untitled"),
+  }));
   // When legal_name is null, the entity-type pill is also empty
   // (you can't pick an entity type without committing to identity).
   // Surface a muted "Not yet configured" pill in the same slot so
@@ -72,19 +78,22 @@ export default async function BusinessDetailLayout({
   return (
     <div className="space-y-6">
       <div>
-        <Link
-          href="/business"
-          className="inline-flex items-center gap-1 text-caption text-content-muted hover:text-content"
-        >
-          <ArrowLeft size={12} />
-          {t("backToList")}
-          <LinkPendingSpinner size={10} className="" />
-        </Link>
+        {hasMultipleBusinesses && (
+          <Link
+            href="/business"
+            className="inline-flex items-center gap-1 text-caption text-content-muted hover:text-content"
+          >
+            <ArrowLeft size={12} />
+            {t("backToList")}
+            <LinkPendingSpinner size={10} className="" />
+          </Link>
+        )}
         <div className="mt-1 flex items-center gap-3 flex-wrap">
-          <Briefcase size={24} className="text-accent" />
-          <h1 className="text-page-title font-bold text-content break-words">
-            {displayName}
-          </h1>
+          <Briefcase size={24} className="text-accent shrink-0" />
+          <BusinessSwitcher
+            current={{ id: businessId, label: displayName }}
+            businesses={switcherBusinesses}
+          />
           {entityLabel && (
             <span className="inline-flex items-center rounded-full bg-surface-inset px-2 py-0.5 text-caption font-medium text-content-secondary">
               {entityLabel}

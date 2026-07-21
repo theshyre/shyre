@@ -10,6 +10,20 @@
   "createBusiness": "Crear equipo",
   "backToList": "Volver a todos los negocios",
   "noTeam": "Elige un equipo para ver la identidad del negocio.",
+  "entityTypes": {
+    "sole_prop": "Empresa individual",
+    "llc": "LLC",
+    "s_corp": "S-Corp",
+    "c_corp": "C-Corp",
+    "partnership": "Sociedad",
+    "nonprofit": "Sin fines de lucro",
+    "other": "Otro"
+  },
+  "switcher": {
+    "label": "Cambiar de negocio",
+    "current": "Negocio actual",
+    "allBusinesses": "Todos los negocios"
+  },
   "sections": {
     "identity": "Identidad del negocio"
   },
