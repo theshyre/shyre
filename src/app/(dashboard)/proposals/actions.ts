@@ -1446,6 +1446,30 @@ export async function createProposalVersionAction(
   ) as unknown as void;
 }
 
+/**
+ * Of the given proposal ids, the subset with at least one recorded acceptance
+ * (signature). `superseded` is only reachable from draft/sent/viewed, but a
+ * multi-signer proposal can carry a partial (e.g. 1-of-2) signature into the
+ * superseded state; proposal_acceptances is immutable and CASCADEs on delete,
+ * so such a proposal must never be hard-deleted through its parent. This gates
+ * deletion at the action layer so the caller sees a clean refusal / honest skip
+ * instead of the DB guard's raw CONFLICT. Empty input short-circuits.
+ */
+async function proposalIdsWithAcceptances(
+  supabase: SupabaseClient,
+  ids: string[],
+): Promise<Set<string>> {
+  if (ids.length === 0) return new Set();
+  const { data, error } = await supabase
+    .from("proposal_acceptances")
+    .select("proposal_id")
+    .in("proposal_id", ids);
+  if (error) throw AppError.fromSupabase(error);
+  return new Set(
+    ((data ?? []) as Array<{ proposal_id: string }>).map((r) => r.proposal_id),
+  );
+}
+
 export async function deleteProposalAction(formData: FormData): Promise<void> {
   return runSafeAction(
     formData,
@@ -1464,6 +1488,16 @@ export async function deleteProposalAction(formData: FormData): Promise<void> {
         throw AppError.refusal(
           "Only draft or superseded proposals can be deleted. Sent and signed proposals are part of the audit record.",
         );
+      }
+      if (existing.status === "superseded") {
+        const withSignature = await proposalIdsWithAcceptances(supabase, [
+          proposalId,
+        ]);
+        if (withSignature.has(proposalId)) {
+          throw AppError.refusal(
+            "This proposal has a recorded signature and is part of the audit record — it can't be deleted.",
+          );
+        }
       }
 
       assertSupabaseOk(
@@ -1495,14 +1529,16 @@ export type BulkDeleteProposalsResult =
 
 /**
  * Bulk hard-delete for the proposals list's multi-select strip — the
- * primary need is clearing out test/junk drafts in one pass. Mirrors
- * `deleteProposalAction`'s gating (requireTeamAdmin + isProposalDeletable),
- * but instead of refusing the whole batch on one ineligible row, it deletes
- * what it can and reports an honest `{ deleted, skipped }` count: a
- * sent/viewed/accepted/declined/converted proposal in the selection is part
- * of the audit record and is silently excluded, never force-deleted. Every
- * id is re-checked server-side against the DB — the table's disabled
- * checkboxes on non-deletable rows are a UX nicety, not the authority.
+ * primary need is clearing out test/junk drafts and superseded versions in
+ * one pass. Mirrors `deleteProposalAction`'s gating (requireTeamAdmin +
+ * isProposalDeletable + the signed-superseded exclusion), but instead of
+ * refusing the whole batch on one ineligible row, it deletes what it can and
+ * reports an honest `{ deleted, skipped }` count: a
+ * sent/viewed/accepted/declined/converted proposal — or a superseded one that
+ * still carries a recorded signature — is part of the audit record and is
+ * silently excluded, never force-deleted. Every id is re-checked server-side
+ * against the DB — the table's disabled checkboxes on non-deletable rows are a
+ * UX nicety, not the authority.
  */
 export async function bulkDeleteProposalsAction(
   formData: FormData,
@@ -1537,7 +1573,17 @@ export async function bulkDeleteProposalsAction(
         await requireTeamAdmin(teamId);
       }
 
-      const deletable = found.filter((r) => isProposalDeletable(r.status));
+      // Status gate first, then exclude any superseded row that carries a real
+      // signature — its immutable acceptance would CASCADE-delete with the
+      // parent. Those become honest skips, never a force-delete.
+      const statusDeletable = found.filter((r) =>
+        isProposalDeletable(r.status),
+      );
+      const withSignature = await proposalIdsWithAcceptances(
+        supabase,
+        statusDeletable.map((r) => r.id),
+      );
+      const deletable = statusDeletable.filter((r) => !withSignature.has(r.id));
       if (deletable.length > 0) {
         assertSupabaseOk(
           await supabase
