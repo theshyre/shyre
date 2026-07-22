@@ -10,12 +10,19 @@ project with a real description").
 ## Recommended setup: log-on-completion via the Stop hook
 
 The most robust pattern does NOT run a live timer at all. Each turn's
-`Stop` hook appends a heartbeat locally; `SessionEnd` logs one completed
-entry via `POST /api/v1/entries` for the session's **active** time — the sum
-of the gaps between heartbeats, dropping any gap longer than the idle cap
-(`SHYRE_IDLE_CAP_SECONDS`, default 15 min). So a session left open over lunch
-(or overnight) bills only the minutes actually worked, not the wall-clock
-span. No orphaned timers; a dead session simply never logs.
+Every tool call, prompt, subagent completion, and turn appends a heartbeat
+locally (`PostToolUse` / `UserPromptSubmit` / `SubagentStop` / `Stop`);
+`SessionEnd` logs one completed entry via `POST /api/v1/entries` for the
+session's **active** time — the sum of the gaps between heartbeats, dropping
+any gap longer than the idle cap (`SHYRE_IDLE_CAP_SECONDS`, default 15 min).
+Beating on `PostToolUse` is what makes **autonomous** agent work count: a long
+run grinding through tool calls emits a dense stream of heartbeats (small gaps
+that sum in), while a genuinely idle stretch — no tools, no prompts — stays one
+big gap and is dropped. So the entry reflects the minutes actually worked
+whether or not you were at the keyboard. (Residual: a single tool call longer
+than the idle cap emits no intermediate beat, so it's dropped — raise
+`SHYRE_IDLE_CAP_SECONDS` if you routinely run very long single builds.) No
+orphaned timers; a dead session simply never logs.
 
 > **Platform note.** The logger below is a **POSIX shell script** (bash) — it runs on macOS, Linux, WSL, and Git Bash. On **native Windows**, use the PowerShell port in [Windows (native PowerShell)](#windows-native-powershell) instead (same behavior, same map). The env-var and paths in this section assume a POSIX shell.
 
@@ -34,11 +41,22 @@ Set this up **once, globally** — not per repo. Three pieces:
     "Stop": [
       { "hooks": [{ "type": "command", "command": "~/.claude/hooks/shyre-session.sh beat" }] }
     ],
+    "PostToolUse": [
+      { "matcher": "*", "hooks": [{ "type": "command", "command": "~/.claude/hooks/shyre-session.sh beat" }] }
+    ],
+    "UserPromptSubmit": [
+      { "hooks": [{ "type": "command", "command": "~/.claude/hooks/shyre-session.sh beat" }] }
+    ],
+    "SubagentStop": [
+      { "hooks": [{ "type": "command", "command": "~/.claude/hooks/shyre-session.sh beat" }] }
+    ],
     "SessionEnd": [
       { "hooks": [{ "type": "command", "command": "~/.claude/hooks/shyre-session.sh end" }] }
     ]
   }
 }
+
+(Changed the hooks? Restart Claude Code — hooks load at session start.)
 ```
 
 **3. A central repo → project map**, so you never set a project id per repo. The logger resolves the target project from the current repo's git remote. `~/.claude/shyre-projects.json`:
