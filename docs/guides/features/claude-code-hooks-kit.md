@@ -11,9 +11,11 @@ project with a real description").
 
 The most robust pattern does NOT run a live timer at all. Each turn's
 `Stop` hook appends a heartbeat locally; `SessionEnd` logs one completed
-entry via `POST /api/v1/entries` with the session's actual active window.
-No orphaned timers, no idle inflation — a dead session simply never logs
-(and the next one does).
+entry via `POST /api/v1/entries` for the session's **active** time — the sum
+of the gaps between heartbeats, dropping any gap longer than the idle cap
+(`SHYRE_IDLE_CAP_SECONDS`, default 15 min). So a session left open over lunch
+(or overnight) bills only the minutes actually worked, not the wall-clock
+span. No orphaned timers; a dead session simply never logs.
 
 > **Platform note.** The logger below is a **POSIX shell script** (bash) — it runs on macOS, Linux, WSL, and Git Bash. On **native Windows**, use the PowerShell port in [Windows (native PowerShell)](#windows-native-powershell) instead (same behavior, same map). The env-var and paths in this section assume a POSIX shell.
 
@@ -63,6 +65,8 @@ Add a line when you want a repo tracked. **Unmapped repos are skipped** — so p
 # or fails a session — any missing dep/credential/mapping is a clean no-op.
 SHYRE_API_URL="${SHYRE_API_URL:-https://shyre.malcom.io}"
 MAP="$HOME/.claude/shyre-projects.json"
+# Gaps between activity beats longer than this count as idle and are NOT billed.
+IDLE_CAP_SECONDS="${SHYRE_IDLE_CAP_SECONDS:-900}"
 command -v jq >/dev/null 2>&1 || exit 0
 
 INPUT="$(cat 2>/dev/null || true)"
@@ -88,15 +92,28 @@ case "${1:-}" in
          printf '%s\n' "$NOW" >> "$STATE" ;;                    # refresh last-activity
   end)
     [ -f "$STATE" ] || exit 0
-    PROJECT="$(head -1 "$STATE")"; START="$(sed -n '2p' "$STATE")"; END="$(tail -1 "$STATE")"; rm -f "$STATE"
+    PROJECT="$(head -1 "$STATE")"
+    # ACTIVE time, not wall-clock: sum the gaps between activity beats, dropping
+    # any longer than IDLE_CAP_SECONDS (session left idle). start = session
+    # start, end = start + active — a session left open for hours bills only the
+    # time actually worked.
+    SPAN="$(sed -n '2,$p' "$STATE" | jq -Rrn --argjson cap "$IDLE_CAP_SECONDS" '
+      [inputs | fromdateiso8601] as $t | ($t | length) as $n
+      | if $n < 2 then empty
+        else ([range(1; $n) | ($t[.] - $t[.-1]) | select(. <= $cap)] | add // 0) as $active
+          | if $active < 60 then empty
+            else "\($t[0]|todateiso8601) \($t[0] + $active|todateiso8601)" end
+        end' 2>/dev/null)"
+    rm -f "$STATE"
     [ -n "$PROJECT" ] || exit 0                                 # repo not mapped: skip
-    [ -n "$START" ] && [ "$START" != "$END" ] || exit 0         # zero-length: skip
+    [ -n "$SPAN" ] || exit 0                                    # <60s active: skip
+    START="${SPAN%% *}"; END="${SPAN##* }"
     [ -n "${SHYRE_API_KEY:-}" ] || exit 0                       # no token: no-op
     curl -sf -m 10 -X POST "$SHYRE_API_URL/api/v1/entries" \
       -H "Authorization: Bearer $SHYRE_API_KEY" -H "Content-Type: application/json" \
       -d "$(jq -n --arg p "$PROJECT" --arg s "$START" --arg e "$END" --arg r "$SESSION_ID" \
         '{project_id:$p, start_time:$s, end_time:$e,
-          description:"Claude Code session (see transcript for detail)",
+          description:"Claude Code session — active time (idle gaps excluded); see transcript",
           agent_label:"Claude Code", session_ref:$r, idempotency_key:$r}')" \
       > /dev/null 2>&1 || true                                  # never block teardown
     ;;
@@ -197,13 +214,25 @@ try {
       if (-not (Test-Path $state)) { exit 0 }
       $lines = @(Get-Content $state)
       Remove-Item -Force $state
-      $project = $lines[0]; $startTs = $lines[1]; $endTs = $lines[-1]
+      $project = $lines[0]
       if (-not $project) { exit 0 }                          # repo not mapped: skip
-      if ((-not $startTs) -or ($startTs -eq $endTs)) { exit 0 }
+      if ($lines.Count -lt 2) { exit 0 }
+      # ACTIVE time, not wall-clock: sum gaps between beats, drop any > idle cap.
+      $cap = if ($env:SHYRE_IDLE_CAP_SECONDS) { [int]$env:SHYRE_IDLE_CAP_SECONDS } else { 900 }
+      $ts = @($lines[1..($lines.Count - 1)] | Where-Object { $_ } | ForEach-Object { [datetimeoffset]::Parse($_) })
+      if ($ts.Count -lt 2) { exit 0 }                        # zero-length: skip
+      $active = 0.0
+      for ($i = 1; $i -lt $ts.Count; $i++) {
+        $g = ($ts[$i] - $ts[$i - 1]).TotalSeconds
+        if ($g -le $cap) { $active += $g }
+      }
+      if ($active -lt 60) { exit 0 }                         # <60s active: skip
+      $startTs = $ts[0].UtcDateTime.ToString('yyyy-MM-ddTHH:mm:ss') + 'Z'
+      $endTs   = $ts[0].UtcDateTime.AddSeconds($active).ToString('yyyy-MM-ddTHH:mm:ss') + 'Z'
       if (-not $env:SHYRE_API_KEY) { exit 0 }                # no token: no-op
       $body = @{
         project_id = $project; start_time = $startTs; end_time = $endTs
-        description = 'Claude Code session (see transcript for detail)'
+        description = 'Claude Code session — active time (idle gaps excluded); see transcript'
         agent_label = 'Claude Code'; session_ref = $sessionId; idempotency_key = $sessionId
       } | ConvertTo-Json -Compress
       Invoke-RestMethod -Method Post -Uri "$apiUrl/api/v1/entries" -TimeoutSec 10 `
