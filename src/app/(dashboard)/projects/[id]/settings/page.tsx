@@ -6,6 +6,7 @@ import { loadProject } from "../load-project";
 import { ProjectEditForm, type Project } from "../project-edit-form";
 import { ProjectClassification } from "../project-classification";
 import { ProjectCategoriesEditor } from "../project-categories-editor";
+import { MapLineHelper } from "../map-line-helper";
 import { ProjectSettingsNav } from "./project-settings-nav";
 
 export async function generateMetadata({
@@ -268,6 +269,22 @@ export default async function ProjectSettingsPage({
             initialDefaultCategoryId={
               (project.row.default_category_id as string | null) ?? null
             }
+          />
+        </section>
+
+        <section
+          id="settings-tracking"
+          aria-labelledby="settings-tracking-heading"
+        >
+          <h2
+            id="settings-tracking-heading"
+            className="text-title font-semibold text-content mb-3"
+          >
+            {tSet("tracking.heading")}
+          </h2>
+          <MapLineHelper
+            githubRepo={(project.row.github_repo as string | null) ?? null}
+            projectId={id}
           />
         </section>
       </div>

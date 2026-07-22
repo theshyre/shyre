@@ -214,7 +214,19 @@
     },
     "categories": {
       "heading": "Categorías"
+    },
+    "tracking": {
+      "heading": "Seguimiento de tiempo de Claude"
     }
+  },
+  "mapLine": {
+    "intro": "Añade esta línea a tu ~/.claude/shyre-projects.json para que Claude Code registre el tiempo de este proyecto:",
+    "copy": "Copiar",
+    "copied": "Línea copiada al portapapeles.",
+    "copyFailed": "No se pudo copiar — selecciona la línea y cópiala manualmente.",
+    "noRepoHint": "Configura el repo de GitHub de este proyecto arriba y la clave owner/repo se completará automáticamente.",
+    "docsIntro": "¿Nuevo en esto? Consulta",
+    "docsLink": "el kit de hooks de Claude Code"
   },
   "expenses": {
     "title": "Gastos",
