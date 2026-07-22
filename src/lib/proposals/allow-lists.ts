@@ -145,3 +145,37 @@ export function resolveSignTheme(value: unknown): SignTheme {
     ? (value as SignTheme)
     : DEFAULT_SIGN_THEME;
 }
+
+/**
+ * `proposal_line_items.pricing_type` — WHAT KIND of pricing a line item is:
+ *   fixed_bid       — firm price, client pays it regardless of hours
+ *   estimate_nte    — hourly, capped at a not-to-exceed amount ("up to $X")
+ *   estimate_range  — hourly, a communicated low–high band (guidance)
+ *   estimate_tm     — hourly, no cap (time & materials); estimate is guidance
+ *
+ * The dollar figure stays in `fixed_price` (the anchor amount, meaning shifts
+ * by type). Mirrored by the CHECK in
+ * `20260722130000_proposal_line_item_pricing_type.sql`; every existing row is
+ * `fixed_bid` (the NOT NULL DEFAULT backfill).
+ */
+export const PRICING_TYPES = [
+  "fixed_bid",
+  "estimate_nte",
+  "estimate_range",
+  "estimate_tm",
+] as const;
+
+export type PricingType = (typeof PRICING_TYPES)[number];
+
+export const ALLOWED_PRICING_TYPES = new Set<string>(PRICING_TYPES);
+
+/** Fallback when the column is absent (pre-migration) or holds a stale value. */
+export const DEFAULT_PRICING_TYPE: PricingType = "fixed_bid";
+
+/** Coerce a stored/loaded `pricing_type` to a known value, defaulting to
+ *  fixed_bid — a bad or absent value must never break a proposal render. */
+export function resolvePricingType(value: unknown): PricingType {
+  return typeof value === "string" && ALLOWED_PRICING_TYPES.has(value)
+    ? (value as PricingType)
+    : DEFAULT_PRICING_TYPE;
+}

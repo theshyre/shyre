@@ -1,11 +1,14 @@
 "use client";
 
 import { useTranslations } from "next-intl";
+import { ShieldCheck } from "lucide-react";
 import { formatCurrency } from "@/lib/invoice-utils";
 import { formatDisplayDate } from "@/lib/format-date";
 import { MarkdownView } from "@/components/MarkdownView";
 import { ProposalItemBody } from "@/components/ProposalItemBody";
 import { ProposalSummaryTable } from "@/components/ProposalSummaryTable";
+import { PricingTypeBadge } from "@/components/PricingTypeBadge";
+import type { PricingType } from "@/lib/proposals/allow-lists";
 
 /**
  * Read-only render of a proposal AS THE CLIENT SEES IT on the sign page —
@@ -35,6 +38,10 @@ export interface ProposalDocumentItem {
   definitionOfDone: string | null;
   fixedPrice: number;
   isCapped: boolean;
+  /** Pricing type for the per-line badge (mixed proposals). Absent ⇒ fixed_bid
+   *  (backfill default) — a homogeneous fixed-bid deal shows one assurance line
+   *  near the total instead of per-line badges. */
+  pricingType?: PricingType;
   phases: ProposalDocumentPhase[];
 }
 export interface ProposalDocumentViewProps {
@@ -79,7 +86,13 @@ export function ProposalDocumentView({
   signers,
 }: ProposalDocumentViewProps): React.JSX.Element {
   const t = useTranslations("proposals.sign");
+  const tp = useTranslations("proposals.pricing");
   const currency = proposal.currency;
+  // A homogeneous fixed-bid deal shows ONE assurance line near the total; a
+  // mixed proposal shows a per-line badge instead. Absent type ⇒ fixed_bid.
+  const allFixedBid = items.every(
+    (i) => (i.pricingType ?? "fixed_bid") === "fixed_bid",
+  );
   const hasTerms =
     !!proposal.paymentTermsLabel ||
     proposal.depositType !== "none" ||
@@ -190,8 +203,11 @@ export function ProposalDocumentView({
           {items.map((item) => (
             <div key={item.id} className="rounded-lg border border-edge p-4">
               <div className="flex items-baseline justify-between gap-3">
-                <span className="text-body-lg font-semibold text-content">
+                <span className="flex items-center gap-2 text-body-lg font-semibold text-content">
                   {item.title}
+                  {!allFixedBid && (
+                    <PricingTypeBadge type={item.pricingType ?? "fixed_bid"} />
+                  )}
                 </span>
                 <span className="font-mono text-body-lg text-content">
                   {formatCurrency(item.fixedPrice, currency)}
@@ -248,6 +264,16 @@ export function ProposalDocumentView({
             {formatCurrency(total, currency)}
           </span>
         </div>
+        {allFixedBid && items.length > 0 && (
+          <p className="mt-2 flex items-center gap-1.5 text-caption text-content-muted">
+            <ShieldCheck
+              size={14}
+              aria-hidden="true"
+              className="text-success-text"
+            />
+            {tp("fixedPriceAssurance")}
+          </p>
+        )}
       </section>
 
       {hasTerms && (

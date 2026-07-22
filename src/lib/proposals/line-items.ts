@@ -14,6 +14,13 @@
  * independently, then sum.
  */
 
+import { resolvePricingType, type PricingType } from "./allow-lists";
+
+/** Coerce a NUMERIC column (string over PostgREST, or null) to number | null. */
+function numOrNull(v: number | string | null | undefined): number | null {
+  return v === null || v === undefined ? null : Number(v);
+}
+
 export interface ProposalPhaseInput {
   title: string;
   description?: string | null;
@@ -42,7 +49,7 @@ export interface ProposalItemInput {
  * them: `` `${PROPOSAL_ITEM_COLUMNS}, converted_project_id` ``.
  */
 export const PROPOSAL_ITEM_COLUMNS =
-  "id, parent_line_item_id, sort_order, title, summary, body_markdown, description, why_it_matters, out_of_scope, definition_of_done, fixed_price, is_capped";
+  "id, parent_line_item_id, sort_order, title, summary, body_markdown, description, why_it_matters, out_of_scope, definition_of_done, fixed_price, is_capped, pricing_type, hourly_rate, estimate_low, estimate_high, estimated_hours";
 
 /** Flat `proposal_line_items` row as returned by a `PROPOSAL_ITEM_COLUMNS`
  *  select (NUMERIC comes back as a string over PostgREST). */
@@ -59,6 +66,11 @@ export interface ProposalItemDbRow {
   definition_of_done: string | null;
   fixed_price: number | string;
   is_capped: boolean;
+  pricing_type: string;
+  hourly_rate: number | string | null;
+  estimate_low: number | string | null;
+  estimate_high: number | string | null;
+  estimated_hours: number | string | null;
 }
 
 export interface ProposalItemTreePhase {
@@ -78,6 +90,14 @@ export interface ProposalItemTreeNode {
   definitionOfDone: string | null;
   fixedPrice: number;
   isCapped: boolean;
+  /** WHAT KIND of pricing (fixed_bid | estimate_nte | estimate_range |
+   *  estimate_tm). `fixedPrice` is the anchor amount whose meaning shifts by
+   *  type; the sidecars below carry the extra hourly-type inputs. */
+  pricingType: PricingType;
+  hourlyRate: number | null;
+  estimateLow: number | null;
+  estimateHigh: number | null;
+  estimatedHours: number | null;
   phases: ProposalItemTreePhase[];
 }
 
@@ -104,6 +124,11 @@ export function buildProposalItemTree(
       definitionOfDone: parent.definition_of_done,
       fixedPrice: Number(parent.fixed_price),
       isCapped: parent.is_capped,
+      pricingType: resolvePricingType(parent.pricing_type),
+      hourlyRate: numOrNull(parent.hourly_rate),
+      estimateLow: numOrNull(parent.estimate_low),
+      estimateHigh: numOrNull(parent.estimate_high),
+      estimatedHours: numOrNull(parent.estimated_hours),
       phases: rows
         .filter((r) => r.parent_line_item_id === parent.id)
         .map((phase) => ({
@@ -210,4 +235,17 @@ export function validateProposalItems(
     }
   });
   return issues;
+}
+
+/**
+ * A proposal is a homogeneous fixed-bid deal when EVERY top-level item is a
+ * fixed bid. On such a proposal we suppress the per-line pricing badges (they'd
+ * all say the same thing) and show one document-level assurance instead
+ * ("Fixed-price engagement — the total won't change"); a mixed proposal gets
+ * per-line badges. An empty item list is not an assurance-worthy deal.
+ */
+export function isHomogeneousFixedBid(
+  items: readonly Pick<ProposalItemTreeNode, "pricingType">[],
+): boolean {
+  return items.length > 0 && items.every((i) => i.pricingType === "fixed_bid");
 }

@@ -6,6 +6,7 @@ import {
   selectedTotal,
   validateProposalItems,
   buildProposalItemTree,
+  isHomogeneousFixedBid,
   PROPOSAL_ITEM_COLUMNS,
   MAX_MONEY,
   type ProposalItemInput,
@@ -153,6 +154,11 @@ describe("buildProposalItemTree", () => {
       definition_of_done: null,
       fixed_price: 0,
       is_capped: false,
+      pricing_type: "fixed_bid",
+      hourly_rate: null,
+      estimate_low: null,
+      estimate_high: null,
+      estimated_hours: null,
       ...overrides,
     };
   }
@@ -244,6 +250,63 @@ describe("buildProposalItemTree", () => {
       "definition_of_done",
       "fixed_price",
       "is_capped",
+      "pricing_type",
+      "hourly_rate",
+      "estimate_low",
+      "estimate_high",
+      "estimated_hours",
     ]);
+  });
+
+  it("maps pricing_type + hourly sidecars onto the node (default fixed_bid)", () => {
+    const tree = buildProposalItemTree([
+      dbRow({ id: "p1" }),
+      dbRow({
+        id: "p2",
+        pricing_type: "estimate_range",
+        hourly_rate: "200.00",
+        estimate_low: "3000",
+        estimate_high: "5000",
+        estimated_hours: "20",
+      }),
+    ]);
+    expect(tree[0]?.pricingType).toBe("fixed_bid");
+    expect(tree[0]?.hourlyRate).toBeNull();
+    expect(tree[1]?.pricingType).toBe("estimate_range");
+    expect(tree[1]?.hourlyRate).toBe(200);
+    expect(tree[1]?.estimateLow).toBe(3000);
+    expect(tree[1]?.estimateHigh).toBe(5000);
+    expect(tree[1]?.estimatedHours).toBe(20);
+  });
+
+  it("coerces an unknown pricing_type to fixed_bid (never breaks a render)", () => {
+    const tree = buildProposalItemTree([
+      dbRow({ id: "p1", pricing_type: "bogus" }),
+    ]);
+    expect(tree[0]?.pricingType).toBe("fixed_bid");
+  });
+});
+
+describe("isHomogeneousFixedBid", () => {
+  it("is true when every item is a fixed bid", () => {
+    expect(
+      isHomogeneousFixedBid([
+        { pricingType: "fixed_bid" },
+        { pricingType: "fixed_bid" },
+      ]),
+    ).toBe(true);
+  });
+
+  it("is false when any item is an estimate/NTE/T&M line", () => {
+    expect(
+      isHomogeneousFixedBid([
+        { pricingType: "fixed_bid" },
+        { pricingType: "estimate_nte" },
+      ]),
+    ).toBe(false);
+  });
+
+  it("is false for an empty proposal (nothing to assure)", () => {
+    expect(isHomogeneousFixedBid([])).toBe(false);
   });
 });

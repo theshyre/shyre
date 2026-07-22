@@ -400,5 +400,12 @@
     "colWhat": "Qué te aporta",
     "colPrice": "Precio",
     "totalLabel": "Todo"
+  },
+  "pricing": {
+    "fixedBid": "Precio fijo",
+    "nte": "Tope máximo",
+    "range": "Estimación (rango)",
+    "tm": "Por tiempo y materiales",
+    "fixedPriceAssurance": "Proyecto a precio fijo — el total no cambiará."
   }
 }
