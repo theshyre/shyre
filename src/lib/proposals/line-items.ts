@@ -218,6 +218,42 @@ export function deriveAnchorAmount(
 }
 
 /**
+ * How a line item's price READS to the client, by pricing type — a firm amount,
+ * an "up to" cap, a low–high band, or an hourly rate. The rendering component
+ * (`<ItemPrice>`) turns this into a localized string; keeping the branching pure
+ * here means every surface (detail, document, summary, sign, PDF) agrees.
+ */
+export type ItemPriceDisplay =
+  | { kind: "fixed"; amount: number }
+  | { kind: "nte"; cap: number }
+  | { kind: "range"; low: number; high: number }
+  | { kind: "tm"; rate: number | null };
+
+export function itemPriceDisplay(node: {
+  pricingType: PricingType;
+  fixedPrice: number;
+  hourlyRate: number | null;
+  estimateLow: number | null;
+  estimateHigh: number | null;
+}): ItemPriceDisplay {
+  switch (node.pricingType) {
+    case "estimate_nte":
+      return { kind: "nte", cap: node.fixedPrice };
+    case "estimate_range":
+      return {
+        kind: "range",
+        low: node.estimateLow ?? 0,
+        high: node.estimateHigh ?? node.fixedPrice,
+      };
+    case "estimate_tm":
+      return { kind: "tm", rate: node.hourlyRate };
+    case "fixed_bid":
+    default:
+      return { kind: "fixed", amount: node.fixedPrice };
+  }
+}
+
+/**
  * A validation finding. `key` is an i18n key under `proposals.validation.*`
  * so the form can render translated FieldErrors; `path` addresses the field
  * (`items.0.title`, `items.2.phases`); `params` feeds ICU placeholders.

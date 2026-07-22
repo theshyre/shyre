@@ -46,6 +46,10 @@ function bundle(overrides: Partial<SignBundle> = {}): SignBundle {
         definitionOfDone: null,
         fixedPrice: 950,
         isCapped: false,
+        pricingType: "fixed_bid",
+        hourlyRate: null,
+        estimateLow: null,
+        estimateHigh: null,
         phases: [],
       },
       {
@@ -58,6 +62,10 @@ function bundle(overrides: Partial<SignBundle> = {}): SignBundle {
         definitionOfDone: null,
         fixedPrice: 4000,
         isCapped: true,
+        pricingType: "fixed_bid",
+        hourlyRate: null,
+        estimateLow: null,
+        estimateHigh: null,
         phases: [
           { title: "Update the visual framework", description: null, fixedPrice: 2200 },
           { title: "Retire older libraries", description: null, fixedPrice: 1200 },

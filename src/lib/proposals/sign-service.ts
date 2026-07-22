@@ -25,6 +25,7 @@ import { unwrapEmbed } from "@/lib/supabase/embed";
 import {
   resolveSignTheme,
   type SignTheme,
+  type PricingType,
 } from "@/lib/proposals/allow-lists";
 
 /**
@@ -52,6 +53,10 @@ export interface SignBundleItem {
   definitionOfDone: string | null;
   fixedPrice: number;
   isCapped: boolean;
+  pricingType: PricingType;
+  hourlyRate: number | null;
+  estimateLow: number | null;
+  estimateHigh: number | null;
   phases: SignBundleItemPhase[];
 }
 

@@ -30,6 +30,7 @@ import { CustomerChip } from "@theshyre/ui";
 import { MarkdownView } from "@/components/MarkdownView";
 import { ProposalItemBody } from "@/components/ProposalItemBody";
 import { ProposalSummaryTable } from "@/components/ProposalSummaryTable";
+import { ItemPrice } from "@/components/ItemPrice";
 import { ProposalStatusBadge } from "../proposal-status-badge";
 import { DeleteProposalButton } from "../delete-proposal-button";
 import { SendProposalButton } from "../send-proposal-button";
@@ -451,9 +452,14 @@ export default async function ProposalDetailPage({
           title: item.title,
           summary: item.summary,
           fixedPrice: item.fixedPrice,
+          pricingType: item.pricingType,
+          hourlyRate: item.hourlyRate,
+          estimateLow: item.estimateLow,
+          estimateHigh: item.estimateHigh,
         }))}
         total={total}
         currency={currency}
+        allFixedBid={allFixedBid}
       />
 
       {/* items */}
@@ -485,7 +491,14 @@ export default async function ProposalDetailPage({
                 )}
               </span>
               <span className="font-mono text-body-lg text-content">
-                {formatCurrency(item.fixedPrice, currency)}
+                <ItemPrice
+                  pricingType={item.pricingType}
+                  fixedPrice={item.fixedPrice}
+                  hourlyRate={item.hourlyRate}
+                  estimateLow={item.estimateLow}
+                  estimateHigh={item.estimateHigh}
+                  currency={currency}
+                />
               </span>
             </div>
             <ProposalItemBody
