@@ -24,6 +24,7 @@ import {
   bulkStripButtonClass,
 } from "@/lib/table-styles";
 import { formatDisplayDate, formatDisplayDateTime } from "@/lib/format-date";
+import { formatDurationHMZero } from "@/lib/time/week";
 
 interface TrashEntry {
   id: string;
@@ -40,10 +41,9 @@ interface TrashEntry {
 
 interface Props {
   entries: TrashEntry[];
-  formatDuration: (min: number | null) => string;
 }
 
-export function TrashList({ entries, formatDuration }: Props): React.JSX.Element {
+export function TrashList({ entries }: Props): React.JSX.Element {
   const t = useTranslations("time.trash");
   const toast = useToast();
   const [pending, startTransition] = useTransition();
@@ -335,7 +335,7 @@ export function TrashList({ entries, formatDuration }: Props): React.JSX.Element
                 {formatDisplayDate(e.start_time)}
               </td>
               <td className="px-4 py-3 text-right font-mono text-caption tabular-nums text-content">
-                {formatDuration(e.duration_min)}
+                {formatDurationHMZero(e.duration_min ?? 0)}
               </td>
               <td className="px-4 py-3 text-right">
                 <div className="inline-flex items-center gap-2">
