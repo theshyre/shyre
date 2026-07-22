@@ -167,6 +167,12 @@ const handler = createMcpHandler(
           .boolean()
           .optional()
           .describe("Override the token's default billable flag."),
+        category_id: z
+          .uuid()
+          .optional()
+          .describe(
+            "Category id (from list_projects' `categories`). Omit to use the project's default category.",
+          ),
       },
       (args, extra) =>
         runTool(extra, "api.mcp.log_time_entry", (tokenHash) =>
@@ -179,6 +185,7 @@ const handler = createMcpHandler(
             sessionRef: args.session_ref,
             idempotencyKey: args.idempotency_key,
             billable: args.billable,
+            categoryId: args.category_id,
           }),
         ),
     );

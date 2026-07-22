@@ -574,6 +574,42 @@ export async function upsertProjectCategoriesAction(
     // `category_sets.project_id = project.id`. Time-entry pickers union
     // the two at read time.
 
+    // Default category (agent-logged entries inherit it via api_log_entry).
+    // Empty string clears it. Validated AGAINST THE POST-UPDATE effective set
+    // (base set + this project's extension set) so a just-added category can
+    // be chosen as the default in the same save.
+    const defaultCategoryRaw = formData.get("default_category_id");
+    if (defaultCategoryRaw !== null) {
+      const defaultCategoryId =
+        typeof defaultCategoryRaw === "string" && defaultCategoryRaw.length > 0
+          ? defaultCategoryRaw
+          : null;
+      if (defaultCategoryId) {
+        const currentBaseId = baseSetUpdateRequested
+          ? baseSetId
+          : (project.category_set_id as string | null);
+        const { data: match } = await supabase
+          .from("categories")
+          .select("category_set_id")
+          .eq("id", defaultCategoryId)
+          .maybeSingle();
+        const matchSetId = (match?.category_set_id as string | null) ?? null;
+        const inBase = matchSetId !== null && matchSetId === currentBaseId;
+        const inExtension = !!setId && matchSetId === setId;
+        if (!inBase && !inExtension) {
+          throw new Error(
+            "The selected default category isn't one of this project's categories.",
+          );
+        }
+      }
+      assertSupabaseOk(
+        await supabase
+          .from("projects")
+          .update({ default_category_id: defaultCategoryId })
+          .eq("id", project_id),
+      );
+    }
+
     revalidatePath(`/projects/${project_id}`);
     revalidatePath("/time-entries");
   }, "upsertProjectCategoriesAction") as unknown as void;

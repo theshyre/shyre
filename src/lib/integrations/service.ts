@@ -143,6 +143,9 @@ export interface LogEntryInput {
   sessionRef?: string;
   idempotencyKey?: string;
   billable?: boolean;
+  /** Optional category (id from `list_projects` → `categories[]`). When
+   *  omitted the RPC falls back to the project's `default_category_id`. */
+  categoryId?: string;
 }
 
 export function whoami(tokenHash: string): Promise<ServiceResult> {
@@ -196,5 +199,6 @@ export function logEntry(
     p_session_ref: input.sessionRef,
     p_idem_key: input.idempotencyKey,
     p_billable: input.billable,
+    p_category_id: input.categoryId,
   });
 }

@@ -366,6 +366,79 @@ describe("upsertProjectCategoriesAction", () => {
       upsertProjectCategoriesAction(fd({ project_id: "p-x", categories: "[]" })),
     ).rejects.toThrow(/Project not found/);
   });
+
+  it("sets the default category when it belongs to the base set", async () => {
+    state.rowQueues["projects"] = [{ data: project, error: null }];
+    state.rowQueues["category_sets"] = [{ data: null, error: null }];
+    state.listQueues["categories"] = [{ data: [], error: null }]; // currentRows
+    // membership lookup: cat-eng lives in the project's base set.
+    state.rowQueues["categories"] = [
+      { data: { category_set_id: "base-1" }, error: null },
+    ];
+    await upsertProjectCategoriesAction(
+      fd({
+        project_id: "p-1",
+        categories: "[]",
+        default_category_id: "cat-eng",
+      }),
+    );
+    expect(
+      state.updates.find(
+        (u) => u.table === "projects" && "default_category_id" in u.patch,
+      )?.patch,
+    ).toEqual({ default_category_id: "cat-eng" });
+  });
+
+  it("rejects a default category outside the project's effective set", async () => {
+    state.rowQueues["projects"] = [{ data: project, error: null }];
+    state.rowQueues["category_sets"] = [{ data: { id: "ext-1" }, error: null }];
+    state.listQueues["categories"] = [{ data: [], error: null }];
+    state.rowQueues["categories"] = [
+      { data: { category_set_id: "some-other-set" }, error: null },
+    ];
+    await expect(
+      upsertProjectCategoriesAction(
+        fd({
+          project_id: "p-1",
+          categories: "[]",
+          default_category_id: "cat-x",
+        }),
+      ),
+    ).rejects.toThrow(/isn't one of this project's categories/);
+    expect(
+      state.updates.find(
+        (u) => u.table === "projects" && "default_category_id" in u.patch,
+      ),
+    ).toBeUndefined();
+  });
+
+  it("clears the default category on an empty value", async () => {
+    state.rowQueues["projects"] = [{ data: project, error: null }];
+    state.rowQueues["category_sets"] = [{ data: { id: "ext-1" }, error: null }];
+    state.listQueues["categories"] = [{ data: [], error: null }];
+    await upsertProjectCategoriesAction(
+      fd({ project_id: "p-1", categories: "[]", default_category_id: "" }),
+    );
+    expect(
+      state.updates.find(
+        (u) => u.table === "projects" && "default_category_id" in u.patch,
+      )?.patch,
+    ).toEqual({ default_category_id: null });
+  });
+
+  it("leaves the default category untouched when the field is absent", async () => {
+    state.rowQueues["projects"] = [{ data: project, error: null }];
+    state.rowQueues["category_sets"] = [{ data: { id: "ext-1" }, error: null }];
+    state.listQueues["categories"] = [{ data: [], error: null }];
+    await upsertProjectCategoriesAction(
+      fd({ project_id: "p-1", categories: "[]" }),
+    );
+    expect(
+      state.updates.find(
+        (u) => u.table === "projects" && "default_category_id" in u.patch,
+      ),
+    ).toBeUndefined();
+  });
 });
 
 describe("deleteProjectCategoriesAction", () => {

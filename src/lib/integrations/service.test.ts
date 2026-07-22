@@ -120,6 +120,35 @@ describe("service functions — RPC wiring", () => {
       p_billable: false,
     });
   });
+
+  it("logEntry forwards an explicit category id as p_category_id", async () => {
+    await logEntry(HASH, {
+      projectId: "proj-1",
+      startTime: "2026-07-18T14:00:00Z",
+      endTime: "2026-07-18T15:30:00Z",
+      description: "shipped the integration docs",
+      categoryId: "cat-9",
+    });
+    expect(rpcMock).toHaveBeenCalledWith("api_log_entry", {
+      p_token_hash: HASH,
+      p_project_id: "proj-1",
+      p_start_time: "2026-07-18T14:00:00Z",
+      p_end_time: "2026-07-18T15:30:00Z",
+      p_description: "shipped the integration docs",
+      p_category_id: "cat-9",
+    });
+  });
+
+  it("logEntry omits p_category_id when no category is given (project default applies)", async () => {
+    await logEntry(HASH, {
+      projectId: "proj-1",
+      startTime: "2026-07-18T14:00:00Z",
+      endTime: "2026-07-18T15:30:00Z",
+      description: "shipped the integration docs",
+    });
+    const call = rpcMock.mock.calls.at(-1);
+    expect(call?.[1]).not.toHaveProperty("p_category_id");
+  });
 });
 
 describe("service functions — ERRCODE mapping", () => {

@@ -54,6 +54,9 @@ interface Props {
   /** All category sets available as a base (system + team), excluding
    *  project-scoped ones. Feeds the base-set dropdown. */
   availableSets: AvailableSet[];
+  /** The project's current default category (agent-logged entries inherit
+   *  it). Null when none is set; must be one of the effective categories. */
+  initialDefaultCategoryId: string | null;
 }
 
 // Curated palette — same hues the system seed sets use so project and
@@ -78,6 +81,7 @@ export function ProjectCategoriesEditor({
   baseSetName,
   baseCategories,
   availableSets,
+  initialDefaultCategoryId,
 }: Props): React.JSX.Element {
   const t = useTranslations("projects.projectCategories");
   const tc = useTranslations("common");
@@ -89,6 +93,9 @@ export function ProjectCategoriesEditor({
     initialSetName || t("defaultSetName"),
   );
   const [categories, setCategories] = useState<Category[]>(initialCategories);
+  const [defaultCategoryId, setDefaultCategoryId] = useState<string>(
+    initialDefaultCategoryId ?? "",
+  );
 
   // When the user changes the base set mid-edit, the preview below it
   // should reflect the newly-chosen set's categories. We derive the
@@ -107,6 +114,16 @@ export function ProjectCategoriesEditor({
     previewCategories.map((c) => c.name.toLowerCase()),
   );
 
+  // Effective categories a default may be picked from: the base set (only
+  // reliable client-side while the base is unchanged — previewCategories) plus
+  // the project's own SAVED extension categories. Unsaved rows (no id) can't
+  // be a default until saved.
+  const savedExtensionCats = categories.filter(
+    (c): c is Category & { id: string } => typeof c.id === "string",
+  );
+  const hasDefaultOptions =
+    previewCategories.length > 0 || savedExtensionCats.length > 0;
+
   const upsert = useFormAction({ action: upsertProjectCategoriesAction });
   const removeForm = useFormAction({ action: deleteProjectCategoriesAction });
 
@@ -124,6 +141,12 @@ export function ProjectCategoriesEditor({
   }
 
   function removeRow(i: number): void {
+    // If the row being removed is the current default, clear the default so
+    // we never submit a dangling id.
+    const removed = categories[i];
+    if (removed?.id && removed.id === defaultCategoryId) {
+      setDefaultCategoryId("");
+    }
     setCategories((prev) => prev.filter((_, idx) => idx !== i));
   }
 
@@ -142,6 +165,9 @@ export function ProjectCategoriesEditor({
           .map((c, i) => ({ ...c, sort_order: (i + 1) * 10 })),
       ),
     );
+    // Empty string = clear the default. The action validates the id belongs
+    // to the project's effective set after any base/extension changes land.
+    fd.set("default_category_id", defaultCategoryId);
     await upsert.handleSubmit(fd);
   }
 
@@ -183,7 +209,13 @@ export function ProjectCategoriesEditor({
         <label htmlFor="[id]-project-categories-editor-baseSetLabel" className={labelClass}>{t("baseSetLabel")}</label>
         <select id="[id]-project-categories-editor-baseSetLabel"
           value={baseSetId}
-          onChange={(e) => setBaseSetId(e.target.value)}
+          onChange={(e) => {
+            const next = e.target.value;
+            setBaseSetId(next);
+            // A default from the old base set is invalid under a new one —
+            // clear it rather than submit a mismatched id.
+            if (next !== (initialBaseSetId ?? "")) setDefaultCategoryId("");
+          }}
           className={selectClass}
         >
           <option value="">{t("baseSetNone")}</option>
@@ -208,6 +240,50 @@ export function ProjectCategoriesEditor({
           )
         )}
       </div>
+
+      {/* Default category — auto-applied to entries logged for this project by
+          integrations (e.g. Claude Code) when none is specified. */}
+      {hasDefaultOptions && (
+        <div>
+          <label
+            htmlFor="[id]-project-categories-editor-defaultCategory"
+            className={labelClass}
+          >
+            {t("defaultCategoryLabel")}
+          </label>
+          <select
+            id="[id]-project-categories-editor-defaultCategory"
+            value={defaultCategoryId}
+            onChange={(e) => setDefaultCategoryId(e.target.value)}
+            className={selectClass}
+          >
+            <option value="">{t("defaultCategoryNone")}</option>
+            {previewCategories.length > 0 && (
+              <optgroup
+                label={displayBaseSetName ?? t("defaultCategoryBaseGroup")}
+              >
+                {previewCategories.map((c) => (
+                  <option key={c.id} value={c.id}>
+                    {c.name}
+                  </option>
+                ))}
+              </optgroup>
+            )}
+            {savedExtensionCats.length > 0 && (
+              <optgroup label={setName || t("defaultSetName")}>
+                {savedExtensionCats.map((c) => (
+                  <option key={c.id} value={c.id}>
+                    {c.name}
+                  </option>
+                ))}
+              </optgroup>
+            )}
+          </select>
+          <p className="mt-2 text-caption text-content-muted">
+            {t("defaultCategoryHint")}
+          </p>
+        </div>
+      )}
 
       {/* Collapsed state for project-specific additions: a single button
           that keeps this as one cohesive card. */}
@@ -300,6 +376,7 @@ export function ProjectCategoriesEditor({
             onClick={() => {
               setExpanded(false);
               setCategories(initialCategories);
+              setDefaultCategoryId(initialDefaultCategoryId ?? "");
             }}
             disabled={upsert.pending}
             className={buttonSecondaryClass}
