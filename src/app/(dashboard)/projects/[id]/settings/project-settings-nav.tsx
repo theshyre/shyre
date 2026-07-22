@@ -11,6 +11,7 @@ const SECTIONS: SectionLink[] = [
   { id: "settings-details", i18nKey: "details.heading" },
   { id: "settings-classification", i18nKey: "classification.heading" },
   { id: "settings-categories", i18nKey: "categories.heading" },
+  { id: "settings-tracking", i18nKey: "tracking.heading" },
 ];
 
 /**
