@@ -106,3 +106,14 @@ describe("list_projects exposes github_repo (20260722100000)", () => {
     expect(sql).toMatch(/'github_repo', p\.github_repo/);
   });
 });
+
+describe("agent log — overlap guard is project-scoped (20260722110000)", () => {
+  const sql = readMigration("agent_log_overlap_same_project");
+
+  it("scopes the overlap check to the same project (cross-project parallel work coexists)", () => {
+    expect(sql).toMatch(/CREATE OR REPLACE FUNCTION api_log_entry/);
+    expect(sql).toMatch(
+      /FROM time_entries te\s*\n\s*WHERE te\.user_id = tok\.user_id\s*\n\s*AND te\.project_id = p_project_id/,
+    );
+  });
+});
