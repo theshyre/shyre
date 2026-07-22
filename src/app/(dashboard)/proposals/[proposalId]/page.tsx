@@ -466,11 +466,9 @@ export default async function ProposalDetailPage({
             <div className="flex items-baseline justify-between gap-3">
               <span className="text-body-lg font-semibold text-content">
                 {item.title}
-                {!allFixedBid && (
-                  <span className="ml-2 align-middle">
-                    <PricingTypeBadge type={item.pricingType} />
-                  </span>
-                )}
+                <span className="ml-2 align-middle">
+                  <PricingTypeBadge type={item.pricingType} />
+                </span>
                 {parents[i]?.id && acceptedItemIds.has(parents[i]!.id) && (
                   <span className="ml-2 inline-flex items-center gap-1 rounded-full bg-success-soft px-2 py-0.5 align-middle text-label font-medium text-success-text">
                     <CheckCircle2 size={11} aria-hidden="true" />
@@ -546,14 +544,16 @@ export default async function ProposalDetailPage({
         </span>
       </div>
       {allFixedBid && items.length > 0 && (
-        <p className="mt-2 flex items-center gap-1.5 text-caption text-content-muted">
+        <div className="mt-3 inline-flex items-center gap-2 rounded-lg border border-success/30 bg-success-soft px-3 py-2">
           <ShieldCheck
-            size={14}
+            size={18}
             aria-hidden="true"
-            className="text-success-text"
+            className="shrink-0 text-success-text"
           />
-          {tPricing("fixedPriceAssurance")}
-        </p>
+          <span className="text-body font-medium text-success-text">
+            {tPricing("fixedPriceAssurance")}
+          </span>
+        </div>
       )}
 
       {/* terms */}
