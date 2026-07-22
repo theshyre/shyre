@@ -71,3 +71,14 @@ describe("project default category + API categories migration", () => {
     expect(sql).toMatch(/p\.default_category_id\s+FROM public\.projects p;/);
   });
 });
+
+describe("list_projects is_default boolean coercion (20260721150000)", () => {
+  const sql = readMigration("list_projects_is_default_boolean");
+
+  it("coerces is_default to a boolean so it is never null", () => {
+    expect(sql).toMatch(/CREATE OR REPLACE FUNCTION api_list_projects/);
+    expect(sql).toMatch(
+      /'is_default', COALESCE\(cat\.id = p\.default_category_id, false\)/,
+    );
+  });
+});
