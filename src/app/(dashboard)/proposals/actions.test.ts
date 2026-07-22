@@ -775,7 +775,11 @@ describe("convertProposalAction", () => {
       customer_id: CUSTOMER,
       team_id: TEAM,
       is_internal: false,
-      default_billable: true,
+      // Converted fixed-bid project: tracked, not hourly-billed, and it
+      // carries the line item's fixed price.
+      default_billable: false,
+      billing_mode: "fixed_bid",
+      fixed_price: 950,
     });
     // The three phases hang under li-2's project.
     const subs = projectInserts.filter((p) => p.parent_project_id === "p-2");

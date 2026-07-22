@@ -48,6 +48,7 @@ import {
   ALLOWED_BUDGET_PERIODS,
   ALLOWED_BUDGET_CARRYOVER,
   ALLOWED_PROJECT_STATUSES,
+  ALLOWED_BILLING_MODES,
 } from "@/lib/projects/allow-lists";
 import {
   ALLOWED_PROPOSAL_STATUSES,
@@ -270,6 +271,12 @@ const PAIRS: Pair[] = [
     name: "budgetCarryover",
     appSet: ALLOWED_BUDGET_CARRYOVER,
     column: "budget_carryover",
+  },
+  {
+    name: "billingModes",
+    appSet: ALLOWED_BILLING_MODES,
+    column: "billing_mode",
+    table: "projects",
   },
   // `status` is shared across projects/invoices/import_runs/etc., so
   // table-scope to the projects CREATE TABLE body. Catches drift on the

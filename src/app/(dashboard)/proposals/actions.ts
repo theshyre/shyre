@@ -857,7 +857,12 @@ export async function convertProposalAction(formData: FormData): Promise<void> {
             user_id: userId,
             customer_id: proposal.customer_id,
             is_internal: false,
-            default_billable: true,
+            // Fixed-bid: the client pays the quoted price (billed via the
+            // proposal), so this project's time is tracked for profitability,
+            // never hourly-billed — hence default_billable=false + billing_mode.
+            default_billable: false,
+            billing_mode: "fixed_bid",
+            fixed_price: item.fixed_price,
             name: item.title,
             description: item.description,
           })
@@ -887,7 +892,9 @@ export async function convertProposalAction(formData: FormData): Promise<void> {
               user_id: userId,
               customer_id: proposal.customer_id,
               is_internal: false,
-              default_billable: true,
+              default_billable: false,
+              billing_mode: "fixed_bid",
+              fixed_price: phase.fixed_price,
               name: phase.title,
               description: phase.description,
               parent_project_id: projectId,

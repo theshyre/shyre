@@ -117,3 +117,25 @@ describe("agent log — overlap guard is project-scoped (20260722110000)", () =>
     );
   });
 });
+
+describe("project billing mode / fixed-bid (20260722120000)", () => {
+  const sql = readMigration("project_billing_mode");
+
+  it("adds billing_mode (default hourly) + fixed_price with CHECKs", () => {
+    expect(sql).toMatch(
+      /ADD COLUMN IF NOT EXISTS billing_mode TEXT NOT NULL DEFAULT 'hourly'/,
+    );
+    expect(sql).toMatch(/ADD COLUMN IF NOT EXISTS fixed_price NUMERIC\(10,2\)/);
+    expect(sql).toMatch(/CHECK \(billing_mode IN \('hourly', 'fixed_bid'\)\)/);
+    // fixed-bid implies a paying customer (never internal)
+    expect(sql).toMatch(
+      /CHECK \(billing_mode = 'hourly' OR is_internal = false\)/,
+    );
+  });
+
+  it("re-projects billing_mode + fixed_price on projects_v (frozen-column rule)", () => {
+    expect(sql).toMatch(/CREATE OR REPLACE VIEW public\.projects_v/);
+    expect(sql).toMatch(/p\.billing_mode,/);
+    expect(sql).toMatch(/THEN p\.fixed_price/);
+  });
+});
