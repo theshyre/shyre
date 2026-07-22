@@ -173,7 +173,7 @@ export async function createInvoiceAction(formData: FormData): Promise<void> {
     let query = supabase
       .from("time_entries")
       .select(
-        "id, description, duration_min, project_id, user_id, start_time, projects(name, hourly_rate, invoice_code, customer_id, is_internal, customers(default_rate)), categories(name)",
+        "id, description, duration_min, project_id, user_id, start_time, projects(name, hourly_rate, invoice_code, customer_id, is_internal, billing_mode, customers(default_rate)), categories(name)",
       )
       .eq("team_id", teamId)
       .eq("invoiced", false)
@@ -234,8 +234,11 @@ export async function createInvoiceAction(formData: FormData): Promise<void> {
         const p = proj as {
           customer_id: string | null;
           is_internal?: boolean;
+          billing_mode?: string;
         };
         if (p.is_internal === true) return false;
+        // Fixed-bid time bills via its proposal (fixed price), not hourly.
+        if (p.billing_mode === "fixed_bid") return false;
         if (p.customer_id !== customer_id) return false;
         if (projectIdSet && !projectIdSet.has(e.project_id as string)) {
           return false;
@@ -248,9 +251,10 @@ export async function createInvoiceAction(formData: FormData): Promise<void> {
         const proj = e.projects;
         const p =
           proj && typeof proj === "object"
-            ? (proj as { is_internal?: boolean })
+            ? (proj as { is_internal?: boolean; billing_mode?: string })
             : null;
         if (p?.is_internal === true) return false;
+        if (p?.billing_mode === "fixed_bid") return false;
         if (projectIdSet && !projectIdSet.has(e.project_id as string)) {
           return false;
         }
@@ -298,7 +302,7 @@ export async function createInvoiceAction(formData: FormData): Promise<void> {
       let expenseQuery = supabase
         .from("expenses")
         .select(
-          "id, project_id, vendor, category, incurred_on, amount, currency, description, notes, projects(name, invoice_code, customer_id, is_internal)",
+          "id, project_id, vendor, category, incurred_on, amount, currency, description, notes, projects(name, invoice_code, customer_id, is_internal, billing_mode)",
         )
         .eq("team_id", teamId)
         .eq("billable", true)
@@ -322,6 +326,7 @@ export async function createInvoiceAction(formData: FormData): Promise<void> {
                   invoice_code: string | null;
                   customer_id: string | null;
                   is_internal: boolean | null;
+                  billing_mode: string | null;
                 })
               : null;
           return {
@@ -338,6 +343,7 @@ export async function createInvoiceAction(formData: FormData): Promise<void> {
             projectInvoiceCode: proj?.invoice_code ?? null,
             _customerId: proj?.customer_id ?? null,
             _isInternal: proj?.is_internal === true,
+            _billingMode: proj?.billing_mode ?? null,
           };
         })
         // Customer scope: the expense's linked project must belong
@@ -346,6 +352,7 @@ export async function createInvoiceAction(formData: FormData): Promise<void> {
         // excluded — phase 2 only invoices project-bound expenses.
         .filter((e) => {
           if (e._isInternal) return false;
+          if (e._billingMode === "fixed_bid") return false;
           if (!e.project_id) return false;
           if (e._customerId !== customer_id) return false;
           if (projectIdSet && !projectIdSet.has(e.project_id)) return false;

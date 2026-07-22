@@ -145,6 +145,10 @@ export default async function NewInvoicePage(): Promise<React.JSX.Element> {
         // on the new-invoice page. Server action enforces too, but
         // suppressing them here keeps the preview honest.
         .eq("projects.is_internal", false)
+        // Fixed-bid projects bill via their proposal (a fixed price), not
+        // hourly — exclude their time so it's never double-billed on top of
+        // the fixed-price invoice. Server action enforces this too.
+        .eq("projects.billing_mode", "hourly")
         .not("end_time", "is", null)
         .not("duration_min", "is", null)
         .is("deleted_at", null)
@@ -257,6 +261,7 @@ export default async function NewInvoicePage(): Promise<React.JSX.Element> {
         .eq("invoiced", false)
         .eq("currency", "USD")
         .eq("projects.is_internal", false)
+        .eq("projects.billing_mode", "hourly")
         .is("deleted_at", null)
         .order("incurred_on", { ascending: true })
         .limit(5000)

@@ -22,6 +22,18 @@ export const ALLOWED_BUDGET_PERIODS = new Set([
 ]);
 
 /**
+ * Billing mode for `projects.billing_mode`. Added 2026-07-22 for fixed-bid
+ * projects. A `'fixed_bid'` project tracks time for profitability but bills via
+ * its proposal (a fixed price), never hourly — so its time is excluded from the
+ * hourly invoice builder (mirrors `is_internal`). Default `'hourly'` covers
+ * every existing + ad-hoc project. Widening this set requires widening the
+ * `projects_billing_mode_chk` CHECK in the same PR.
+ */
+export const BILLING_MODES = ["hourly", "fixed_bid"] as const;
+export type BillingMode = (typeof BILLING_MODES)[number];
+export const ALLOWED_BILLING_MODES = new Set<string>(BILLING_MODES);
+
+/**
  * Allow-list for `projects.budget_carryover`. Default is `'none'`
  * (use it or lose it) and v1 implements only `'none'` behavior. The
  * other values exist to make the eventual rollover/pool support a
