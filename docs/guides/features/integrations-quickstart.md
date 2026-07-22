@@ -29,6 +29,12 @@ Point your MCP client at the endpoint with the `SHYRE_API_KEY` reference —
 install the [Claude Code hooks kit](claude-code-hooks-kit.md) for
 deterministic tracking that doesn't depend on the model remembering.
 
+If you use the hooks kit, add each repo you want tracked to
+`~/.claude/shyre-projects.json` (one line: `"owner/repo": "project-id"`) —
+**an unmapped repo logs nothing, silently.** And to have Claude write
+categorized, invoice-ready entries instead of just the raw session window,
+see [Let Claude log its own time](claude-self-logging.md).
+
 ## 4. Track something
 
 Ask Claude to start a timer, or let a hook fire on session start. The entry
@@ -46,5 +52,6 @@ looks like at billing time.
 - [Setup: tokens & the team switch](integration-tokens.md)
 - [API reference (REST + MCP)](integrations-api.md)
 - [Claude Code hooks kit](claude-code-hooks-kit.md)
+- [Let Claude log its own time](claude-self-logging.md)
 - [Agent attribution](agent-attribution.md)
 - [Reviewing agent time on invoices](agent-time-review.md)

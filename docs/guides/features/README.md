@@ -49,6 +49,7 @@ How each Shyre feature works. Apply to every user regardless of role; role-speci
 - [Agent attribution on time entries](agent-attribution.md)
 - [Reviewing agent-tracked time](agent-time-review.md)
 - [Claude Code hooks kit](claude-code-hooks-kit.md)
+- [Let Claude log its own time](claude-self-logging.md)
 
 ## Workspace
 
