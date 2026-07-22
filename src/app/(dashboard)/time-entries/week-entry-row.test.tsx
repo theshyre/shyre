@@ -347,6 +347,7 @@ describe("EntryEditRow", () => {
           project={project}
           projects={[project]}
           dayDateLong="Tuesday, May 5"
+          categories={[]}
           onClose={() => {}}
         />,
       ),
@@ -355,6 +356,43 @@ describe("EntryEditRow", () => {
       name: /^save$/i,
     }) as HTMLButtonElement;
     expect(save.disabled).toBe(true);
+  });
+
+  it("edit form has the category picker + an auto-growing description textarea", () => {
+    const catProject: ProjectOption = { ...project, category_set_id: "cs1" };
+    const { container } = renderWithIntl(
+      wrapInTable(
+        <EntryEditRow
+          entry={makeEntry("e1")}
+          project={catProject}
+          projects={[catProject]}
+          categories={[
+            {
+              id: "c1",
+              category_set_id: "cs1",
+              name: "Engineering",
+              color: "#3b82f6",
+              sort_order: 0,
+            },
+          ]}
+          dayDateLong="Tuesday, May 5"
+          onClose={() => {}}
+        />,
+      ),
+    );
+    // Category picker: a select[name=category_id] offering the set's option
+    // (the week form was missing this entirely).
+    expect(
+      container.querySelector("select[name='category_id']"),
+    ).toBeTruthy();
+    expect(
+      screen.getByRole("option", { name: "Engineering" }),
+    ).toBeInTheDocument();
+    // Description is a textarea now (auto-grow), not a single-line input.
+    expect(
+      container.querySelector("textarea[name='description']"),
+    ).toBeTruthy();
+    expect(container.querySelector("input[name='description']")).toBeNull();
   });
 
   it("project picker reflects the user's selection (regression: bug where pick reverted to original)", () => {
@@ -374,6 +412,7 @@ describe("EntryEditRow", () => {
           project={project}
           projects={[project, p2]}
           dayDateLong="Tuesday, May 5"
+          categories={[]}
           onClose={() => {}}
         />,
       ),
@@ -396,6 +435,7 @@ describe("EntryEditRow", () => {
           project={project}
           projects={[project]}
           dayDateLong="Tuesday, May 5"
+          categories={[]}
           onClose={onClose}
         />,
       ),

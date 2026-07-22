@@ -1499,6 +1499,7 @@ function TimesheetRow({
             entry={entry}
             project={project}
             projects={projects}
+            categories={categories}
             tzOffsetMin={tzOffsetMin}
             dayDateLong={dayLong}
             onClose={() => setEditingEntryId(null)}
@@ -2065,6 +2066,7 @@ function TimesheetRow({
                 entry={editedRow.entry}
                 project={project}
                 projects={projects}
+                categories={categories}
                 tzOffsetMin={tzOffsetMin}
                 dayDateLong={dayDatesLong[editedRow.dayIndex] ?? ""}
                 onClose={() => setEditingEntryId(null)}
