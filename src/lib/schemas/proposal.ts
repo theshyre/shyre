@@ -6,6 +6,7 @@ import {
 import {
   DEPOSIT_TYPES,
   SIGN_THEMES,
+  PRICING_TYPES,
 } from "@/lib/proposals/allow-lists";
 
 const ymd = /^\d{4}-\d{2}-\d{2}$/;
@@ -29,6 +30,13 @@ const itemSchema = z.object({
   outOfScope: z.string().max(5000).optional().nullable(),
   definitionOfDone: z.string().max(5000).optional().nullable(),
   fixedPrice: z.number(),
+  // Pricing type + the hourly-variant sidecars. Corruption bounds only; per-type
+  // completeness (rate present, low ≤ high) is layered in validateProposalItems.
+  pricingType: z.enum(PRICING_TYPES).optional(),
+  hourlyRate: z.number().min(0).max(MAX_MONEY).optional().nullable(),
+  estimateLow: z.number().min(0).max(MAX_MONEY).optional().nullable(),
+  estimateHigh: z.number().min(0).max(MAX_MONEY).optional().nullable(),
+  estimatedHours: z.number().min(0).max(100000).optional().nullable(),
   isCapped: z.boolean().optional(),
   phases: z.array(phaseSchema).max(20).optional(),
 });

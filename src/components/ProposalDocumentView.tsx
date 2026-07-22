@@ -205,9 +205,7 @@ export function ProposalDocumentView({
               <div className="flex items-baseline justify-between gap-3">
                 <span className="flex items-center gap-2 text-body-lg font-semibold text-content">
                   {item.title}
-                  {!allFixedBid && (
-                    <PricingTypeBadge type={item.pricingType ?? "fixed_bid"} />
-                  )}
+                  <PricingTypeBadge type={item.pricingType ?? "fixed_bid"} />
                 </span>
                 <span className="font-mono text-body-lg text-content">
                   {formatCurrency(item.fixedPrice, currency)}
@@ -265,14 +263,16 @@ export function ProposalDocumentView({
           </span>
         </div>
         {allFixedBid && items.length > 0 && (
-          <p className="mt-2 flex items-center gap-1.5 text-caption text-content-muted">
+          <div className="mt-3 inline-flex items-center gap-2 rounded-lg border border-success/30 bg-success-soft px-3 py-2">
             <ShieldCheck
-              size={14}
+              size={18}
               aria-hidden="true"
-              className="text-success-text"
+              className="shrink-0 text-success-text"
             />
-            {tp("fixedPriceAssurance")}
-          </p>
+            <span className="text-body font-medium text-success-text">
+              {tp("fixedPriceAssurance")}
+            </span>
+          </div>
         )}
       </section>
 

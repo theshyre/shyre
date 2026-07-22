@@ -25,11 +25,17 @@ import {
   phaseSum,
   proposalTotal,
   selectedTotal,
+  deriveAnchorAmount,
   type ProposalItemInput,
 } from "@/lib/proposals/line-items";
 import { proposalDraftSchema } from "@/lib/schemas/proposal";
 import { MarkdownView } from "@/components/MarkdownView";
-import { SIGN_THEMES, type DepositType, type SignTheme } from "@/lib/proposals/allow-lists";
+import {
+  SIGN_THEMES,
+  type DepositType,
+  type SignTheme,
+  type PricingType,
+} from "@/lib/proposals/allow-lists";
 import { createProposalAction, updateProposalAction } from "./actions";
 
 export interface TeamOption {
@@ -63,11 +69,32 @@ interface ItemState {
   key: string;
   title: string;
   fixedPrice: string;
+  pricingType: PricingType;
+  hourlyRate: string;
+  estimateLow: string;
+  estimateHigh: string;
+  estimatedHours: string;
   summary: string;
   bodyMarkdown: string;
   isCapped: boolean;
   phases: PhaseState[];
 }
+
+/** Pricing types the author can pick today. estimate_nte (not-to-exceed) is
+ *  deferred until its invoice-time cap enforcement ships. */
+const AUTHORABLE_PRICING_TYPES: PricingType[] = [
+  "fixed_bid",
+  "estimate_range",
+  "estimate_tm",
+];
+
+/** pricing_type → i18n key under `proposals.pricing`. */
+const PRICING_TYPE_LABEL_KEY: Record<PricingType, string> = {
+  fixed_bid: "fixedBid",
+  estimate_nte: "nte",
+  estimate_range: "range",
+  estimate_tm: "tm",
+};
 
 export interface ProposalFormInitial {
   proposalId: string;
@@ -95,6 +122,11 @@ export interface ProposalFormInitial {
     outOfScope: string | null;
     definitionOfDone: string | null;
     fixedPrice: number;
+    pricingType?: PricingType;
+    hourlyRate?: number | null;
+    estimateLow?: number | null;
+    estimateHigh?: number | null;
+    estimatedHours?: number | null;
     isCapped: boolean;
     phases: Array<{
       title: string;
@@ -183,6 +215,11 @@ function buildInitialItems(
     key: `init-${i}`,
     title: item.title,
     fixedPrice: item.fixedPrice ? String(item.fixedPrice) : "",
+    pricingType: item.pricingType ?? "fixed_bid",
+    hourlyRate: item.hourlyRate ? String(item.hourlyRate) : "",
+    estimateLow: item.estimateLow ? String(item.estimateLow) : "",
+    estimateHigh: item.estimateHigh ? String(item.estimateHigh) : "",
+    estimatedHours: item.estimatedHours ? String(item.estimatedHours) : "",
     summary: item.summary ?? "",
     bodyMarkdown: composeLegacyBody(item),
     isCapped: item.isCapped,
@@ -204,6 +241,7 @@ export function ProposalForm({
 }: Props): React.JSX.Element {
   const t = useTranslations("proposals.form");
   const tv = useTranslations("proposals.validation");
+  const tPricing = useTranslations("proposals.pricing");
   const tCustomers = useTranslations("customers");
 
   // Keys for rows added AFTER mount — only ever touched inside event
@@ -301,21 +339,43 @@ export function ProposalForm({
 
   const domainItems: ProposalItemInput[] = useMemo(
     () =>
-      items.map((it) => ({
-        title: it.title.trim(),
-        summary: emptyToNull(it.summary),
-        bodyMarkdown: emptyToNull(it.bodyMarkdown),
-        fixedPrice: parseMoney(it.fixedPrice),
-        isCapped: it.phases.length > 0 ? it.isCapped : undefined,
-        phases:
-          it.phases.length > 0
+      items.map((it) => {
+        const strOrNull = (v: string): number | null =>
+          v.trim() === "" ? null : parseMoney(v);
+        const hourlyRate = strOrNull(it.hourlyRate);
+        const estimateLow = strOrNull(it.estimateLow);
+        const estimateHigh = strOrNull(it.estimateHigh);
+        const estimatedHours =
+          it.estimatedHours.trim() === "" ? null : Number(it.estimatedHours);
+        // Phases are a fixed-bid breakdown only.
+        const hasPhases = it.pricingType === "fixed_bid" && it.phases.length > 0;
+        return {
+          title: it.title.trim(),
+          summary: emptyToNull(it.summary),
+          bodyMarkdown: emptyToNull(it.bodyMarkdown),
+          // The anchor amount driving totals + the phase-sum guard, per type.
+          fixedPrice: deriveAnchorAmount(it.pricingType, {
+            fixedPrice: parseMoney(it.fixedPrice),
+            hourlyRate,
+            estimateLow,
+            estimateHigh,
+            estimatedHours,
+          }),
+          pricingType: it.pricingType,
+          hourlyRate,
+          estimateLow,
+          estimateHigh,
+          estimatedHours,
+          isCapped: hasPhases ? it.isCapped : undefined,
+          phases: hasPhases
             ? it.phases.map((ph) => ({
                 title: ph.title.trim(),
                 description: emptyToNull(ph.description),
                 fixedPrice: parseMoney(ph.fixedPrice),
               }))
             : undefined,
-      })),
+        };
+      }),
     [items],
   );
 
@@ -722,34 +782,33 @@ export function ProposalForm({
                       error={errorFor(`items.${i}.title`)}
                     />
                   </div>
-                  <div className="w-[140px]">
+                  <div className="w-[170px]">
                     <label
-                      htmlFor={`pf-item-price-${item.key}`}
+                      htmlFor={`pf-item-ptype-${item.key}`}
                       className={labelClass}
                     >
-                      {t("itemPrice")}
+                      {t("itemPricingType")}
                     </label>
-                    <input
-                      id={`pf-item-price-${item.key}`}
-                      className={inputClass}
-                      type="number"
-                      min="0"
-                      step="0.01"
-                      inputMode="decimal"
-                      value={item.fixedPrice}
+                    <select
+                      id={`pf-item-ptype-${item.key}`}
+                      className={selectClass}
+                      value={item.pricingType}
                       onChange={(e) =>
-                        patchItem(item.key, { fixedPrice: e.target.value })
+                        patchItem(item.key, {
+                          pricingType: e.target.value as PricingType,
+                          // Switching to an hourly type drops fixed-bid phases.
+                          ...(e.target.value !== "fixed_bid"
+                            ? { phases: [] }
+                            : {}),
+                        })
                       }
-                      aria-describedby={
-                        errorFor(`items.${i}.fixedPrice`)
-                          ? `pf-item-price-err-${item.key}`
-                          : undefined
-                      }
-                    />
-                    <FieldError
-                      id={`pf-item-price-err-${item.key}`}
-                      error={errorFor(`items.${i}.fixedPrice`)}
-                    />
+                    >
+                      {AUTHORABLE_PRICING_TYPES.map((pt) => (
+                        <option key={pt} value={pt}>
+                          {tPricing(PRICING_TYPE_LABEL_KEY[pt])}
+                        </option>
+                      ))}
+                    </select>
                   </div>
                   {items.length > 1 && (
                     <button
@@ -764,6 +823,150 @@ export function ProposalForm({
                     >
                       <Trash2 size={16} aria-hidden="true" />
                     </button>
+                  )}
+                </div>
+
+                {/* Per-type price fields */}
+                <div className="mt-3 flex flex-wrap items-start gap-3">
+                  {item.pricingType === "fixed_bid" ? (
+                    <div className="w-[140px]">
+                      <label
+                        htmlFor={`pf-item-price-${item.key}`}
+                        className={labelClass}
+                      >
+                        {t("itemPrice")}
+                      </label>
+                      <input
+                        id={`pf-item-price-${item.key}`}
+                        className={inputClass}
+                        type="number"
+                        min="0"
+                        step="0.01"
+                        inputMode="decimal"
+                        value={item.fixedPrice}
+                        onChange={(e) =>
+                          patchItem(item.key, { fixedPrice: e.target.value })
+                        }
+                        aria-describedby={
+                          errorFor(`items.${i}.fixedPrice`)
+                            ? `pf-item-price-err-${item.key}`
+                            : undefined
+                        }
+                      />
+                      <FieldError
+                        id={`pf-item-price-err-${item.key}`}
+                        error={errorFor(`items.${i}.fixedPrice`)}
+                      />
+                    </div>
+                  ) : (
+                    <div className="w-[140px]">
+                      <label
+                        htmlFor={`pf-item-rate-${item.key}`}
+                        className={labelClass}
+                      >
+                        {t("itemRate")}
+                      </label>
+                      <input
+                        id={`pf-item-rate-${item.key}`}
+                        className={inputClass}
+                        type="number"
+                        min="0"
+                        step="0.01"
+                        inputMode="decimal"
+                        value={item.hourlyRate}
+                        onChange={(e) =>
+                          patchItem(item.key, { hourlyRate: e.target.value })
+                        }
+                        aria-describedby={
+                          errorFor(`items.${i}.hourlyRate`)
+                            ? `pf-item-rate-err-${item.key}`
+                            : undefined
+                        }
+                      />
+                      <FieldError
+                        id={`pf-item-rate-err-${item.key}`}
+                        error={errorFor(`items.${i}.hourlyRate`)}
+                      />
+                    </div>
+                  )}
+                  {item.pricingType === "estimate_range" && (
+                    <>
+                      <div className="w-[140px]">
+                        <label
+                          htmlFor={`pf-item-low-${item.key}`}
+                          className={labelClass}
+                        >
+                          {t("itemEstimateLow")}
+                        </label>
+                        <input
+                          id={`pf-item-low-${item.key}`}
+                          className={inputClass}
+                          type="number"
+                          min="0"
+                          step="0.01"
+                          inputMode="decimal"
+                          value={item.estimateLow}
+                          onChange={(e) =>
+                            patchItem(item.key, { estimateLow: e.target.value })
+                          }
+                        />
+                      </div>
+                      <div className="w-[140px]">
+                        <label
+                          htmlFor={`pf-item-high-${item.key}`}
+                          className={labelClass}
+                        >
+                          {t("itemEstimateHigh")}
+                        </label>
+                        <input
+                          id={`pf-item-high-${item.key}`}
+                          className={inputClass}
+                          type="number"
+                          min="0"
+                          step="0.01"
+                          inputMode="decimal"
+                          value={item.estimateHigh}
+                          onChange={(e) =>
+                            patchItem(item.key, {
+                              estimateHigh: e.target.value,
+                            })
+                          }
+                          aria-describedby={
+                            errorFor(`items.${i}.estimateHigh`)
+                              ? `pf-item-high-err-${item.key}`
+                              : undefined
+                          }
+                        />
+                        <FieldError
+                          id={`pf-item-high-err-${item.key}`}
+                          error={errorFor(`items.${i}.estimateHigh`)}
+                        />
+                      </div>
+                    </>
+                  )}
+                  {item.pricingType === "estimate_tm" && (
+                    <div className="w-[140px]">
+                      <label
+                        htmlFor={`pf-item-hours-${item.key}`}
+                        className={labelClass}
+                      >
+                        {t("itemEstimatedHours")}
+                      </label>
+                      <input
+                        id={`pf-item-hours-${item.key}`}
+                        className={inputClass}
+                        type="number"
+                        min="0"
+                        step="0.5"
+                        inputMode="decimal"
+                        value={item.estimatedHours}
+                        onChange={(e) =>
+                          patchItem(item.key, {
+                            estimatedHours: e.target.value,
+                          })
+                        }
+                      />
+                    </div>
                   )}
                 </div>
 
@@ -820,7 +1023,8 @@ export function ProposalForm({
                   )}
                 </div>
 
-                {/* phases */}
+                {/* phases (a fixed-bid breakdown only) */}
+                {item.pricingType === "fixed_bid" && (
                 <div className="mt-3 border-t border-edge pt-3">
                   {item.phases.map((phase, j) => (
                     <div key={phase.key} className="mb-2 flex items-start gap-3">
@@ -961,6 +1165,7 @@ export function ProposalForm({
                   </div>
                   <FieldError error={errorFor(`items.${i}.phases`)} />
                 </div>
+                )}
               </div>
             );
           })}
@@ -977,6 +1182,11 @@ export function ProposalForm({
                 key,
                 title: "",
                 fixedPrice: "",
+                pricingType: "fixed_bid",
+                hourlyRate: "",
+                estimateLow: "",
+                estimateHigh: "",
+                estimatedHours: "",
                 summary: "",
                 bodyMarkdown: "",
                 isCapped: false,

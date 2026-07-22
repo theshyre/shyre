@@ -38,6 +38,14 @@ export interface ProposalItemInput {
   outOfScope?: string | null;
   definitionOfDone?: string | null;
   fixedPrice: number;
+  /** Pricing type — fixed_bid (default) or an hourly variant. `fixedPrice` is
+   *  the ANCHOR amount (compute it with `deriveAnchorAmount`); the sidecars
+   *  below carry the hourly-type inputs. */
+  pricingType?: PricingType;
+  hourlyRate?: number | null;
+  estimateLow?: number | null;
+  estimateHigh?: number | null;
+  estimatedHours?: number | null;
   isCapped?: boolean;
   phases?: ProposalPhaseInput[];
 }
@@ -176,6 +184,40 @@ export function selectedTotal(
 }
 
 /**
+ * The ANCHOR amount stored in `fixed_price` for a line item, derived from its
+ * pricing type — the single headline dollar figure that drives every proposal
+ * total and the phase-sum guard:
+ *   fixed_bid / estimate_nte → the entered price / cap (as-is)
+ *   estimate_range           → the HIGH end (conservative)
+ *   estimate_tm              → rate × estimated hours, or 0 ("billed as incurred")
+ */
+export function deriveAnchorAmount(
+  pricingType: PricingType,
+  fields: {
+    fixedPrice: number;
+    hourlyRate: number | null;
+    estimateLow: number | null;
+    estimateHigh: number | null;
+    estimatedHours: number | null;
+  },
+): number {
+  switch (pricingType) {
+    case "estimate_range":
+      return roundMoney(fields.estimateHigh ?? 0);
+    case "estimate_tm":
+      return roundMoney(
+        fields.estimatedHours != null && fields.hourlyRate != null
+          ? fields.estimatedHours * fields.hourlyRate
+          : 0,
+      );
+    case "fixed_bid":
+    case "estimate_nte":
+    default:
+      return roundMoney(fields.fixedPrice);
+  }
+}
+
+/**
  * A validation finding. `key` is an i18n key under `proposals.validation.*`
  * so the form can render translated FieldErrors; `path` addresses the field
  * (`items.0.title`, `items.2.phases`); `params` feeds ICU placeholders.
@@ -213,7 +255,30 @@ export function validateProposalItems(
     if (!validMoney(item.fixedPrice)) {
       issues.push({ path: `items.${i}.fixedPrice`, key: "priceInvalid" });
     }
+    // Per-type completeness. Hourly variants (nte/range/tm) need an agreed rate
+    // to bill against; a range needs both ends, in order.
+    const pt = item.pricingType ?? "fixed_bid";
+    if (pt !== "fixed_bid") {
+      if (item.hourlyRate == null || !(item.hourlyRate > 0)) {
+        issues.push({ path: `items.${i}.hourlyRate`, key: "rateRequired" });
+      }
+    }
+    if (pt === "estimate_range") {
+      const lo = item.estimateLow;
+      const hi = item.estimateHigh;
+      if (lo == null || hi == null) {
+        issues.push({ path: `items.${i}.estimateHigh`, key: "rangeRequired" });
+      } else if (!validMoney(lo) || !validMoney(hi)) {
+        issues.push({ path: `items.${i}.estimateHigh`, key: "priceInvalid" });
+      } else if (lo > hi) {
+        issues.push({ path: `items.${i}.estimateHigh`, key: "rangeOrder" });
+      }
+    }
     const phases = item.phases ?? [];
+    // Phases are a fixed-bid breakdown; an hourly line can't carry them.
+    if (pt !== "fixed_bid" && phases.length > 0) {
+      issues.push({ path: `items.${i}.phases`, key: "phasesFixedBidOnly" });
+    }
     phases.forEach((phase, j) => {
       if (phase.title.trim() === "") {
         issues.push({ path: `items.${i}.phases.${j}.title`, key: "titleRequired" });

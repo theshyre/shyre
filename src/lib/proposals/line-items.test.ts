@@ -5,6 +5,7 @@ import {
   proposalTotal,
   selectedTotal,
   validateProposalItems,
+  deriveAnchorAmount,
   buildProposalItemTree,
   isHomogeneousFixedBid,
   PROPOSAL_ITEM_COLUMNS,
@@ -284,6 +285,93 @@ describe("buildProposalItemTree", () => {
       dbRow({ id: "p1", pricing_type: "bogus" }),
     ]);
     expect(tree[0]?.pricingType).toBe("fixed_bid");
+  });
+});
+
+describe("deriveAnchorAmount", () => {
+  const base = {
+    fixedPrice: 0,
+    hourlyRate: null,
+    estimateLow: null,
+    estimateHigh: null,
+    estimatedHours: null,
+  };
+  it("fixed_bid → the entered price", () => {
+    expect(deriveAnchorAmount("fixed_bid", { ...base, fixedPrice: 950 })).toBe(
+      950,
+    );
+  });
+  it("estimate_range → the conservative HIGH end", () => {
+    expect(
+      deriveAnchorAmount("estimate_range", {
+        ...base,
+        estimateLow: 3000,
+        estimateHigh: 5000,
+      }),
+    ).toBe(5000);
+  });
+  it("estimate_tm → rate × hours, or 0 when hours unknown", () => {
+    expect(
+      deriveAnchorAmount("estimate_tm", {
+        ...base,
+        hourlyRate: 200,
+        estimatedHours: 18,
+      }),
+    ).toBe(3600);
+    expect(
+      deriveAnchorAmount("estimate_tm", { ...base, hourlyRate: 200 }),
+    ).toBe(0);
+  });
+  it("estimate_nte → the entered cap", () => {
+    expect(
+      deriveAnchorAmount("estimate_nte", { ...base, fixedPrice: 10000 }),
+    ).toBe(10000);
+  });
+});
+
+describe("validateProposalItems — pricing types", () => {
+  const item = (o: Partial<ProposalItemInput>): ProposalItemInput => ({
+    title: "X",
+    fixedPrice: 100,
+    ...o,
+  });
+  it("an hourly type needs a rate", () => {
+    const issues = validateProposalItems([
+      item({ pricingType: "estimate_tm", hourlyRate: null }),
+    ]);
+    expect(issues.some((i) => i.key === "rateRequired")).toBe(true);
+  });
+  it("a range needs low ≤ high", () => {
+    const issues = validateProposalItems([
+      item({
+        pricingType: "estimate_range",
+        hourlyRate: 200,
+        estimateLow: 5000,
+        estimateHigh: 3000,
+      }),
+    ]);
+    expect(issues.some((i) => i.key === "rangeOrder")).toBe(true);
+  });
+  it("a range needs both ends", () => {
+    const issues = validateProposalItems([
+      item({ pricingType: "estimate_range", hourlyRate: 200 }),
+    ]);
+    expect(issues.some((i) => i.key === "rangeRequired")).toBe(true);
+  });
+  it("phases are a fixed-bid breakdown only", () => {
+    const issues = validateProposalItems([
+      item({
+        pricingType: "estimate_tm",
+        hourlyRate: 200,
+        phases: [{ title: "P", fixedPrice: 50 }],
+      }),
+    ]);
+    expect(issues.some((i) => i.key === "phasesFixedBidOnly")).toBe(true);
+  });
+  it("a complete fixed_bid item is clean", () => {
+    expect(validateProposalItems([item({ pricingType: "fixed_bid" })])).toEqual(
+      [],
+    );
   });
 });
 

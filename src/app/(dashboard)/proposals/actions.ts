@@ -8,7 +8,11 @@ import { requireTeamAdmin } from "@/lib/team-context";
 import { AppError, assertSupabaseOk } from "@/lib/errors";
 import { generateInvoiceNumber, calculateInvoiceTotals } from "@/lib/invoice-utils";
 import { paymentTermsLabel, computeDueDate } from "@/lib/payment-terms";
-import { roundMoney } from "@/lib/proposals/line-items";
+import {
+  roundMoney,
+  PROPOSAL_ITEM_COLUMNS,
+  type ProposalItemInput,
+} from "@/lib/proposals/line-items";
 import {
   proposalDraftSchema,
   type ProposalDraftInput,
@@ -28,6 +32,7 @@ import { pickVersionCopyColumns } from "@/lib/proposals/version-copy";
 import {
   isProposalEditable,
   isProposalDeletable,
+  resolvePricingType,
 } from "@/lib/proposals/allow-lists";
 
 /**
@@ -171,6 +176,11 @@ async function insertLineItems(
     definition_of_done: item.definitionOfDone ?? null,
     fixed_price: item.fixedPrice,
     is_capped: item.isCapped ?? false,
+    pricing_type: item.pricingType ?? "fixed_bid",
+    hourly_rate: item.hourlyRate ?? null,
+    estimate_low: item.estimateLow ?? null,
+    estimate_high: item.estimateHigh ?? null,
+    estimated_hours: item.estimatedHours ?? null,
   }));
   const { data: inserted, error } = await supabase
     .from("proposal_line_items")
@@ -359,17 +369,25 @@ function buildReadinessItems(
     parent_line_item_id: string | null;
     title: string | null;
     fixed_price: number | string;
+    pricing_type?: string | null;
+    hourly_rate?: number | string | null;
+    estimate_low?: number | string | null;
+    estimate_high?: number | string | null;
+    estimated_hours?: number | string | null;
   }>,
-): Array<{
-  title: string;
-  fixedPrice: number;
-  phases: Array<{ title: string; fixedPrice: number }>;
-}> {
+): ProposalItemInput[] {
+  const num = (v: number | string | null | undefined): number | null =>
+    v == null ? null : Number(v);
   return rows
     .filter((r) => r.parent_line_item_id === null)
     .map((parent) => ({
       title: parent.title ?? "",
       fixedPrice: Number(parent.fixed_price),
+      pricingType: resolvePricingType(parent.pricing_type),
+      hourlyRate: num(parent.hourly_rate),
+      estimateLow: num(parent.estimate_low),
+      estimateHigh: num(parent.estimate_high),
+      estimatedHours: num(parent.estimated_hours),
       phases: rows
         .filter((r) => r.parent_line_item_id === parent.id)
         .map((phase) => ({
@@ -417,7 +435,7 @@ export async function sendProposalAction(formData: FormData): Promise<void> {
       // it's named, has items whose phases sum exactly, and names a signer.
       const { data: readinessRows } = await supabase
         .from("proposal_line_items")
-        .select("id, parent_line_item_id, sort_order, title, fixed_price")
+        .select(PROPOSAL_ITEM_COLUMNS)
         .eq("proposal_id", proposalId)
         .order("sort_order");
       const blockers: ReadinessIssue[] = proposalSendReadiness({
@@ -756,6 +774,9 @@ interface AcceptedItemRow {
   title: string;
   description: string | null;
   fixed_price: number | string;
+  pricing_type: string;
+  hourly_rate: number | string | null;
+  estimated_hours: number | string | null;
   converted_project_id: string | null;
   invoiced_at: string | null;
 }
@@ -784,7 +805,7 @@ async function loadAcceptedSelection(
   const { data: itemRows } = await supabase
     .from("proposal_line_items")
     .select(
-      "id, parent_line_item_id, sort_order, title, description, fixed_price, converted_project_id, invoiced_at",
+      "id, parent_line_item_id, sort_order, title, description, fixed_price, pricing_type, hourly_rate, estimated_hours, converted_project_id, invoiced_at",
     )
     .eq("proposal_id", proposalId)
     .order("sort_order");
@@ -850,6 +871,25 @@ export async function convertProposalAction(formData: FormData): Promise<void> {
       let createdCount = 0;
       for (const item of accepted) {
         // Parent project = the accepted line item.
+        // Map the pricing type onto the project's billing:
+        //  - fixed_bid → the client pays the quoted price (billed via the
+        //    proposal); time is tracked for profitability, never hourly-billed
+        //    (default_billable=false).
+        //  - estimate/NTE/T&M → an HOURLY project billed from time entries at
+        //    the agreed rate; the estimate rides along as a soft budget.
+        const isFixed = (item.pricing_type ?? "fixed_bid") === "fixed_bid";
+        const billingFields = isFixed
+          ? {
+              default_billable: false,
+              billing_mode: "fixed_bid",
+              fixed_price: item.fixed_price,
+            }
+          : {
+              default_billable: true,
+              billing_mode: "hourly",
+              hourly_rate: item.hourly_rate,
+              budget_hours: item.estimated_hours,
+            };
         const { data: project, error } = await supabase
           .from("projects")
           .insert({
@@ -857,12 +897,7 @@ export async function convertProposalAction(formData: FormData): Promise<void> {
             user_id: userId,
             customer_id: proposal.customer_id,
             is_internal: false,
-            // Fixed-bid: the client pays the quoted price (billed via the
-            // proposal), so this project's time is tracked for profitability,
-            // never hourly-billed — hence default_billable=false + billing_mode.
-            default_billable: false,
-            billing_mode: "fixed_bid",
-            fixed_price: item.fixed_price,
+            ...billingFields,
             name: item.title,
             description: item.description,
           })
@@ -1094,6 +1129,10 @@ export async function createInvoiceFromProposalAction(
         .filter(
           (item) =>
             item.parent_line_item_id === null &&
+            // Only FIXED-BID items bill as a lump-sum line here; estimate/NTE/
+            // T&M items are hourly-billed from time entries by the invoice
+            // builder, so they never flow through the proposal invoice path.
+            (item.pricing_type ?? "fixed_bid") === "fixed_bid" &&
             selectedIds.has(item.id) &&
             item.invoiced_at === null,
         )
@@ -1340,9 +1379,7 @@ export async function createProposalVersionAction(
       // Copy the item tree (parents first, then phases remapped).
       const { data: itemRows } = await supabase
         .from("proposal_line_items")
-        .select(
-          "id, parent_line_item_id, sort_order, title, summary, body_markdown, description, why_it_matters, out_of_scope, definition_of_done, fixed_price, is_capped",
-        )
+        .select(PROPOSAL_ITEM_COLUMNS)
         .eq("proposal_id", proposalId)
         .order("sort_order");
       const rows = (itemRows ?? []) as Array<Record<string, unknown>>;
@@ -1365,6 +1402,11 @@ export async function createProposalVersionAction(
               definition_of_done: r.definition_of_done,
               fixed_price: r.fixed_price,
               is_capped: r.is_capped,
+              pricing_type: r.pricing_type,
+              hourly_rate: r.hourly_rate,
+              estimate_low: r.estimate_low,
+              estimate_high: r.estimate_high,
+              estimated_hours: r.estimated_hours,
             })),
           )
           .select("id");

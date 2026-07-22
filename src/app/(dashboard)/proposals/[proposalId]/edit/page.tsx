@@ -6,8 +6,10 @@ import { getUserTeams, isTeamAdmin } from "@/lib/team-context";
 import {
   isProposalEditable,
   resolveSignTheme,
+  resolvePricingType,
   type DepositType,
 } from "@/lib/proposals/allow-lists";
+import { PROPOSAL_ITEM_COLUMNS } from "@/lib/proposals/line-items";
 import {
   ProposalForm,
   type ProposalFormInitial,
@@ -33,6 +35,11 @@ interface LineItemRow {
   definition_of_done: string | null;
   fixed_price: number | string;
   is_capped: boolean;
+  pricing_type: string;
+  hourly_rate: number | string | null;
+  estimate_low: number | string | null;
+  estimate_high: number | string | null;
+  estimated_hours: number | string | null;
 }
 
 export default async function EditProposalPage({
@@ -65,9 +72,7 @@ export default async function EditProposalPage({
 
   const { data: itemRows } = await supabase
     .from("proposal_line_items")
-    .select(
-      "id, parent_line_item_id, sort_order, title, summary, body_markdown, description, why_it_matters, out_of_scope, definition_of_done, fixed_price, is_capped",
-    )
+    .select(PROPOSAL_ITEM_COLUMNS)
     .eq("proposal_id", proposalId)
     .order("sort_order");
 
@@ -142,6 +147,15 @@ export default async function EditProposalPage({
       outOfScope: parent.out_of_scope,
       definitionOfDone: parent.definition_of_done,
       fixedPrice: Number(parent.fixed_price),
+      pricingType: resolvePricingType(parent.pricing_type),
+      hourlyRate:
+        parent.hourly_rate == null ? null : Number(parent.hourly_rate),
+      estimateLow:
+        parent.estimate_low == null ? null : Number(parent.estimate_low),
+      estimateHigh:
+        parent.estimate_high == null ? null : Number(parent.estimate_high),
+      estimatedHours:
+        parent.estimated_hours == null ? null : Number(parent.estimated_hours),
       isCapped: parent.is_capped,
       phases: rows
         .filter((r) => r.parent_line_item_id === parent.id)
