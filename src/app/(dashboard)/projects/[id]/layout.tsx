@@ -1,7 +1,7 @@
 import type { ReactNode } from "react";
 import Link from "next/link";
 import { getTranslations } from "next-intl/server";
-import { FolderKanban, FileSignature } from "lucide-react";
+import { FolderKanban, FileSignature, Coins } from "lucide-react";
 import { formatDate } from "@theshyre/ui";
 import { createClient } from "@/lib/supabase/server";
 import { CustomerChip } from "@theshyre/ui";
@@ -122,6 +122,12 @@ export default async function ProjectDetailLayout({
       <div className="mt-3 flex items-start gap-3 flex-wrap">
         <div className="flex items-center gap-2 flex-wrap">
           <StatusBadge status={status} label={tc(`status.${status}`)} />
+          {(project.row.billing_mode as string | null) === "fixed_bid" && (
+            <span className="inline-flex items-center gap-1.5 rounded-full border border-accent/30 bg-accent-soft px-2.5 py-1 text-caption font-medium text-accent">
+              <Coins size={12} aria-hidden="true" />
+              {t("fixedBid.badge")}
+            </span>
+          )}
           {overdue && projectedEndDate && (
             <OverdueBadge
               label={t("overdue")}

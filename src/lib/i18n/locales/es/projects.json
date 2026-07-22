@@ -228,6 +228,18 @@
     "docsIntro": "¿Nuevo en esto? Consulta",
     "docsLink": "el kit de hooks de Claude Code"
   },
+  "fixedBid": {
+    "badge": "Precio fijo",
+    "heading": "Precio fijo — ¿acertamos el número?",
+    "quoted": "Cotizado",
+    "spent": "Invertido",
+    "hours": "{hours}h",
+    "effectiveRate": "Tarifa efectiva",
+    "perHour": "{rate}/h",
+    "noHours": "— aún sin horas",
+    "overEstimate": "{pct}% por encima de la estimación de {budget}h",
+    "underEstimate": "{pct}% por debajo de la estimación de {budget}h"
+  },
   "expenses": {
     "title": "Gastos",
     "count": "{count, plural, one {1 gasto} other {# gastos}}",
