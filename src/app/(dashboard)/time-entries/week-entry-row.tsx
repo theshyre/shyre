@@ -54,6 +54,7 @@ import { Tooltip } from "@/components/Tooltip";
 import {
   inputClass,
   selectClass,
+  textareaClass,
   buttonGhostClass,
   labelClass,
 } from "@/lib/form-styles";
@@ -69,12 +70,14 @@ import {
   updateTimeEntryDurationAction,
 } from "./actions";
 import { DurationInput } from "./duration-input";
+import { CategoryPicker } from "./category-picker";
+import { AutoTextarea } from "@/components/AutoTextarea";
 import {
   displayDescription,
   deriveAgentAttribution,
   type TitleLine,
 } from "./group-entries-by-title";
-import type { ProjectOption, TimeEntry } from "./types";
+import type { CategoryOption, ProjectOption, TimeEntry } from "./types";
 
 const DAYS_IN_WEEK = 7;
 
@@ -1089,6 +1092,9 @@ interface EntryEditRowProps {
    *  projects, so the caller passes the page's already-fetched
    *  list rather than re-fetching here. */
   projects: ProjectOption[];
+  /** All categories across sets — the picker filters to the selected
+   *  project's base + extension set. */
+  categories: CategoryOption[];
   tzOffsetMin?: number;
   /** Locale-formatted long-form date string for the edit form's
    *  metadata strip header. */
@@ -1100,6 +1106,7 @@ export function EntryEditRow({
   entry,
   project,
   projects,
+  categories,
   tzOffsetMin,
   dayDateLong,
   onClose,
@@ -1124,6 +1131,13 @@ export function EntryEditRow({
   // Disable the picker so the UI doesn't accept input it can't honor.
   const locked = entry.invoiced && entry.invoice_id != null;
 
+  // Description is controlled so the AutoTextarea can grow to fit — a long
+  // agent-logged summary shouldn't sit cramped in a single line.
+  const [description, setDescription] = useState(entry.description ?? "");
+  // The picked project drives which category set the picker offers.
+  const selectedProject =
+    sameTeamProjects.find((p) => p.id === selectedProjectId) ?? project;
+
   const update = useFormAction({
     action: updateTimeEntryAction,
     onSuccess: () => onClose(),
@@ -1137,7 +1151,7 @@ export function EntryEditRow({
   // multiple entries are editing at once).
   useEffect(() => {
     formRef.current
-      ?.querySelector<HTMLInputElement>("input[name='description']")
+      ?.querySelector<HTMLTextAreaElement>("textarea[name='description']")
       ?.focus();
   }, []);
 
@@ -1240,6 +1254,23 @@ export function EntryEditRow({
                 </p>
               )}
             </div>
+            {/* Category — re-keyed on the picked project so it resets to
+                that project's allowed set. Renders nothing when the project
+                has no category set (hideWhenEmpty). */}
+            <CategoryPicker
+              key={selectedProjectId}
+              categories={categories}
+              categorySetIds={[
+                selectedProject?.category_set_id,
+                selectedProject?.extension_category_set_id,
+              ]}
+              defaultValue={
+                selectedProjectId === entry.project_id
+                  ? entry.category_id
+                  : null
+              }
+              currentCategoryId={entry.category_id}
+            />
             <div>
               <label
                 htmlFor={`entry-edit-desc-${entry.id}`}
@@ -1247,11 +1278,15 @@ export function EntryEditRow({
               >
                 {t("fields.description")}
               </label>
-              <input
+              {/* Auto-growing textarea — a single-line input truncated long
+                  descriptions (e.g. agent-logged session summaries). */}
+              <AutoTextarea
                 id={`entry-edit-desc-${entry.id}`}
                 name="description"
-                defaultValue={entry.description ?? ""}
-                className={inputClass}
+                value={description}
+                onChange={(e) => setDescription(e.target.value)}
+                minRows={2}
+                className={textareaClass}
               />
             </div>
             <div>
