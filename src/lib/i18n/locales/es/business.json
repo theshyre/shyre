@@ -111,6 +111,7 @@
   },
   "stats": {
     "customers": "Clientes",
+    "billableHours": "Horas facturables",
     "customersWithCount": "{count, plural, one {# cliente} other {# clientes}}",
     "teamCount": "{count, plural, one {# equipo} other {# equipos}}",
     "periodLast12": "Últimos 12 meses · al {date}",
