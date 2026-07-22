@@ -47,6 +47,7 @@
       "description": "Description",
       "descriptionPlaceholder": "What did you work on?",
       "billable": "Billable",
+      "billableInternalLocked": "Internal projects are non-billable by definition.",
       "duration": "Duration",
       "day": "Day"
     }

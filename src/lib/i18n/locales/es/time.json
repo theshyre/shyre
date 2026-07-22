@@ -47,6 +47,7 @@
       "description": "Descripción",
       "descriptionPlaceholder": "¿En qué trabajaste?",
       "billable": "Facturable",
+      "billableInternalLocked": "Los proyectos internos no son facturables por definición.",
       "duration": "Duración",
       "day": "Día"
     }

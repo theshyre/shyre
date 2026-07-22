@@ -9,6 +9,7 @@ import { useFormDirty } from "@/hooks/use-form-dirty";
 import { SubmitButton } from "@/components/SubmitButton";
 import { FieldError } from "@/components/FieldError";
 import { DateField } from "@/components/DateField";
+import { AutoTextarea } from "@/components/AutoTextarea";
 import {
   inputClass,
   labelClass,
@@ -251,14 +252,14 @@ export function InlineEditForm({
               updated but the open form's textarea kept the pre-edit
               text. Local typing is preserved since the key only
               changes on remote mutations of entry.description. */}
-          <textarea
+          <AutoTextarea
             id={`ie-description-${entry.id}`}
             key={entry.description ?? ""}
             ref={descRef}
             name="description"
             defaultValue={entry.description ?? ""}
             placeholder={t("fields.descriptionPlaceholder")}
-            rows={3}
+            minRows={3}
             className={textareaClass}
           />
         </div>
