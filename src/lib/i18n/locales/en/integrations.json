@@ -88,12 +88,14 @@
   },
   "setup": {
     "heading": "Connect a tool",
-    "docsIntro": "Full setup steps live in the feature guide:",
-    "docsLink": "Integration tokens guide",
+    "docsIntro": "New here? The quick guide walks through minting a token, exporting it, and wiring Claude Code:",
+    "docsLink": "Quick guide",
     "mcpIntro": "To connect Claude Code, add Shyre as an MCP server with your token:",
     "copyCommand": "Copy command",
     "copiedCommand": "Command copied to clipboard.",
-    "copyFailed": "Couldn't copy — select the command text and copy it manually."
+    "copyFailed": "Couldn't copy — select the command text and copy it manually.",
+    "hooksIntro": "Prefer deterministic tracking that doesn't depend on the model remembering?",
+    "hooksLink": "Claude Code hooks kit"
   },
   "errors": {
     "disabled": "Integrations are disabled for this team. An owner or admin has to enable them before tokens can be created.",

@@ -57,7 +57,7 @@ export function SetupHelp(): React.JSX.Element {
       <p className="text-body text-content-secondary">
         {t("docsIntro")}{" "}
         <Link
-          href="/docs/guides/features/integration-tokens"
+          href="/docs/guides/features/integrations-quickstart"
           className="inline-flex items-center gap-1 font-medium text-accent hover:underline"
         >
           <BookOpen size={14} aria-hidden="true" />
@@ -87,6 +87,18 @@ export function SetupHelp(): React.JSX.Element {
           {t("copyCommand")}
         </button>
       </div>
+
+      <p className="text-body text-content-secondary">
+        {t("hooksIntro")}{" "}
+        <Link
+          href="/docs/guides/features/claude-code-hooks-kit"
+          className="inline-flex items-center gap-1 font-medium text-accent hover:underline"
+        >
+          <BookOpen size={14} aria-hidden="true" />
+          {t("hooksLink")}
+          <LinkPendingSpinner />
+        </Link>
+      </p>
     </section>
   );
 }

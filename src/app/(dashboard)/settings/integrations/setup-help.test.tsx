@@ -11,14 +11,17 @@ function render(ui: ReactElement): RenderResult {
 }
 
 describe("SetupHelp", () => {
-  it("links to the in-app feature guide", () => {
+  it("links to the quick-start guide and the hooks kit (the real onboarding flow)", () => {
     render(<SetupHelp />);
-    const link = screen.getByRole("link", {
-      name: /Integration tokens guide/,
-    });
-    expect(link).toHaveAttribute(
+    const quick = screen.getByRole("link", { name: /Quick guide/ });
+    expect(quick).toHaveAttribute(
       "href",
-      "/docs/guides/features/integration-tokens",
+      "/docs/guides/features/integrations-quickstart",
+    );
+    const hooks = screen.getByRole("link", { name: /hooks kit/i });
+    expect(hooks).toHaveAttribute(
+      "href",
+      "/docs/guides/features/claude-code-hooks-kit",
     );
   });
 

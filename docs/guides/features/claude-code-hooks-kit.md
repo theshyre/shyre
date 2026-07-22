@@ -51,6 +51,8 @@ Set this up **once, globally** — not per repo. Three pieces:
 
 Add a line when you want a repo tracked. **Unmapped repos are skipped** — so personal or throwaway repos never log unless you opt them in. Set `_default` to a project id if you'd rather send unmapped repos to a catch-all instead.
 
+> **What isn't built yet — one project per repo.** The map is a single `project_id` per `owner/repo`, and the hook logs the whole session to it; there is no sub-path or per-directory routing. If one repo (e.g. a monorepo) spans several Shyre projects, the hook can't split a session across them — use [Let Claude log its own time](claude-self-logging.md) with a repo-local `AGENTS.md` to route each unit of work to the right project.
+
 `~/.claude/hooks/shyre-session.sh`:
 
 ```bash

@@ -124,6 +124,11 @@ export const DOC_TOPICS: DocTopic[] = [
         blurb: "Deterministic time tracking via Claude Code session-lifecycle hooks.",
       },
       {
+        href: "/docs/guides/features/claude-self-logging",
+        title: "Let Claude log its own time",
+        blurb: "The intent layer: Claude writes categorized, invoice-ready entries — plus routing a repo with multiple projects.",
+      },
+      {
         href: "/docs/guides/features/agent-attribution",
         title: "Agent attribution",
         blurb: "How Shyre records and displays which agent started a time entry.",
