@@ -88,12 +88,14 @@
   },
   "setup": {
     "heading": "Conectar una herramienta",
-    "docsIntro": "Los pasos completos de configuración están en la guía:",
-    "docsLink": "Guía de tokens de integración",
+    "docsIntro": "¿Empezando? La guía rápida te lleva por crear un token, exportarlo y conectar Claude Code:",
+    "docsLink": "Guía rápida",
     "mcpIntro": "Para conectar Claude Code, añade Shyre como servidor MCP con tu token:",
     "copyCommand": "Copiar comando",
     "copiedCommand": "Comando copiado al portapapeles.",
-    "copyFailed": "No se pudo copiar — selecciona el texto del comando y cópialo manualmente."
+    "copyFailed": "No se pudo copiar — selecciona el texto del comando y cópialo manualmente.",
+    "hooksIntro": "¿Prefieres un seguimiento determinista que no dependa de que el modelo lo recuerde?",
+    "hooksLink": "Kit de hooks de Claude Code"
   },
   "errors": {
     "disabled": "Las integraciones están desactivadas para este equipo. Un propietario o administrador debe activarlas antes de poder crear tokens.",
