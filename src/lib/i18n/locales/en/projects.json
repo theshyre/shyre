@@ -228,6 +228,18 @@
     "docsIntro": "New to this? See",
     "docsLink": "the Claude Code hooks kit"
   },
+  "fixedBid": {
+    "badge": "Fixed-bid",
+    "heading": "Fixed bid — did we hit the number?",
+    "quoted": "Quoted",
+    "spent": "Spent",
+    "hours": "{hours}h",
+    "effectiveRate": "Effective rate",
+    "perHour": "{rate}/hr",
+    "noHours": "— no hours yet",
+    "overEstimate": "{pct}% over the {budget}h estimate",
+    "underEstimate": "{pct}% under the {budget}h estimate"
+  },
   "expenses": {
     "title": "Expenses",
     "count": "{count, plural, one {1 expense} other {# expenses}}",

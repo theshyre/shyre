@@ -24,6 +24,7 @@ import {
 } from "@/lib/expenses/format-helpers";
 import { loadProject } from "./load-project";
 import { BudgetMasthead } from "./budget-masthead";
+import { FixedBidCard } from "./fixed-bid-card";
 import { SubProjectsSection } from "./sub-projects-section";
 
 export async function generateMetadata({
@@ -77,6 +78,18 @@ export default async function ProjectOverviewPage({
     (s, e) => s + ((e.duration_min as number | null) ?? 0),
     0,
   );
+
+  // Fixed-bid profitability headline. fixed_price is rate-gated on projects_v,
+  // so a masked reader gets null → no card. Roll up sub-project hours so a
+  // parent-with-phases reflects the real effort against its quoted price.
+  const fixedBidPrice =
+    (project.row.billing_mode as string | null) === "fixed_bid"
+      ? ((project.row.fixed_price as number | null) ?? null)
+      : null;
+  const fixedBidSpentMinutes =
+    fixedBidPrice != null
+      ? totalMinutes + (await loadDescendantMinutes(children.map((c) => c.id)))
+      : 0;
 
   // Authors for the activity strip — one bulk query for both time
   // entries and expenses keeps the page to ≤5 round-trips total.
@@ -167,6 +180,13 @@ export default async function ProjectOverviewPage({
 
   return (
     <div className="space-y-6">
+      {fixedBidPrice != null && (
+        <FixedBidCard
+          fixedPrice={fixedBidPrice}
+          spentMinutes={fixedBidSpentMinutes}
+          budgetHours={(project.row.budget_hours as number | null) ?? null}
+        />
+      )}
       <BudgetMasthead
         projectId={id}
         lifetimeMinutes={totalMinutes}
@@ -388,6 +408,22 @@ async function loadTimeEntries(projectId: string): Promise<
     .is("deleted_at", null)
     .order("start_time", { ascending: false });
   return (data ?? []) as Array<Record<string, unknown>>;
+}
+
+/** Sum duration_min for a project's direct sub-projects — so a fixed-bid
+ *  parent's profitability rolls up the hours logged on its phases. */
+async function loadDescendantMinutes(childIds: string[]): Promise<number> {
+  if (childIds.length === 0) return 0;
+  const supabase = await createClient();
+  const { data } = await supabase
+    .from("time_entries")
+    .select("duration_min")
+    .in("project_id", childIds)
+    .is("deleted_at", null);
+  return (data ?? []).reduce(
+    (sum, e) => sum + ((e.duration_min as number | null) ?? 0),
+    0,
+  );
 }
 
 async function loadExpenses(projectId: string): Promise<
