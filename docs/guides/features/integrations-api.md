@@ -58,7 +58,7 @@ curl -H "Authorization: Bearer $SHYRE_API_KEY" https://shyre.malcom.io/api/v1/me
 curl -H "Authorization: Bearer $SHYRE_API_KEY" https://shyre.malcom.io/api/v1/projects
 ```
 
-Returns an array of projects, each `{ id, name, status, is_internal, customer_id, customer_name, default_category_id, categories }`. `categories` is the project's **effective** set (its base category set plus any project-scoped extensions) as `{ id, name, color, is_default }` — pass one of those ids as `category_id` on `POST /api/v1/entries`, or omit it to inherit the project's `default_category_id`. Rates are structurally unreachable on this surface.
+Returns an array of projects, each `{ id, name, status, is_internal, customer_id, customer_name, github_repo, default_category_id, categories }`. `github_repo` (e.g. `owner/repo`) lets an agent match projects to the repo it's working in — filter the list to `github_repo == your git remote origin` to find this repo's project(s), which is how a monorepo mapped to several projects narrows the candidate set. `categories` is the project's **effective** set (its base category set plus any project-scoped extensions) as `{ id, name, color, is_default }` — pass one of those ids as `category_id` on `POST /api/v1/entries`, or omit it to inherit the project's `default_category_id`. Rates are structurally unreachable on this surface.
 
 ### GET /api/v1/timer
 
