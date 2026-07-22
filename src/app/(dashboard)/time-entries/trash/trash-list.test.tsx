@@ -35,18 +35,22 @@ describe("TrashList", () => {
   it("renders a row per entry with project, customer, duration", () => {
     renderWithIntl(
       <ToastProvider>
-        <TrashList entries={[makeEntry("e1")]} formatDuration={(m) => `${m}m`} />
+        <TrashList entries={[makeEntry("e1")]} />
       </ToastProvider>,
     );
     expect(screen.getByText("Alpha")).toBeInTheDocument();
     expect(screen.getByText(/acme/i)).toBeInTheDocument();
     expect(screen.getByText(/build/i)).toBeInTheDocument();
+    // Duration is formatted by the component itself (formatDurationHMZero),
+    // not passed in as a function prop — a Server Component can't hand a
+    // function to this Client Component (the /trash render crash).
+    expect(screen.getByText("1:30")).toBeInTheDocument();
   });
 
   it("Restore calls restoreTimeEntryAction with id + toasts on success", async () => {
     renderWithIntl(
       <ToastProvider>
-        <TrashList entries={[makeEntry("e1")]} formatDuration={(m) => `${m}m`} />
+        <TrashList entries={[makeEntry("e1")]} />
       </ToastProvider>,
     );
     const user = userEvent.setup();
@@ -60,7 +64,7 @@ describe("TrashList", () => {
   it("Permanently delete is a two-click inline confirm", async () => {
     renderWithIntl(
       <ToastProvider>
-        <TrashList entries={[makeEntry("e1")]} formatDuration={(m) => `${m}m`} />
+        <TrashList entries={[makeEntry("e1")]} />
       </ToastProvider>,
     );
     const user = userEvent.setup();

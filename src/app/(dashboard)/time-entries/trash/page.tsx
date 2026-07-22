@@ -3,7 +3,6 @@ import Link from "next/link";
 import { getTranslations } from "next-intl/server";
 import { Trash2, ArrowLeft } from "lucide-react";
 import { createClient } from "@/lib/supabase/server";
-import { formatDurationHMZero } from "@/lib/time/week";
 import { TrashList } from "./trash-list";
 import { parseListPagination } from "@/lib/pagination/list-pagination";
 import { PaginationFooter } from "@/components/PaginationFooter";
@@ -75,10 +74,7 @@ export default async function TimeEntriesTrashPage({
         </div>
       ) : (
         <>
-          <TrashList
-            entries={entries}
-            formatDuration={(m) => formatDurationHMZero(m ?? 0)}
-          />
+          <TrashList entries={entries} />
           <PaginationFooter
             loaded={entries.length}
             total={matchingCount ?? entries.length}
