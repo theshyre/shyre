@@ -2,7 +2,15 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { getTranslations } from "next-intl/server";
-import { Pencil, Eye, CheckCircle2, XCircle, Clock, UserCheck } from "lucide-react";
+import {
+  Pencil,
+  Eye,
+  CheckCircle2,
+  XCircle,
+  Clock,
+  UserCheck,
+  ShieldCheck,
+} from "lucide-react";
 import { createClient } from "@/lib/supabase/server";
 import { buttonSecondaryClass } from "@/lib/form-styles";
 import { formatCurrency } from "@/lib/invoice-utils";
@@ -10,12 +18,14 @@ import { formatDisplayDate, formatDisplayDateTime } from "@/lib/format-date";
 import {
   roundMoney,
   buildProposalItemTree,
+  isHomogeneousFixedBid,
   PROPOSAL_ITEM_COLUMNS,
   type ProposalItemDbRow,
+  type ProposalItemTreeNode,
 } from "@/lib/proposals/line-items";
 import { loadProposalRoster } from "@/lib/proposals/roster";
 import { unwrapEmbed } from "@/lib/supabase/embed";
-import type { ProposalPDFItem } from "@/components/ProposalPDF";
+import { PricingTypeBadge } from "@/components/PricingTypeBadge";
 import { CustomerChip } from "@theshyre/ui";
 import { MarkdownView } from "@/components/MarkdownView";
 import { ProposalItemBody } from "@/components/ProposalItemBody";
@@ -59,6 +69,7 @@ export default async function ProposalDetailPage({
   const t = await getTranslations("proposals.detail");
   const tActivity = await getTranslations("proposals.activity");
   const tStatus = await getTranslations("proposals.status");
+  const tPricing = await getTranslations("proposals.pricing");
 
   const { data: proposal } = await supabase
     .from("proposals")
@@ -193,7 +204,7 @@ export default async function ProposalDetailPage({
   // for the converted-project / invoiced-state lookups below.
   const rows = (itemRows ?? []) as LineItemRow[];
   const parents = rows.filter((r) => r.parent_line_item_id === null);
-  const items: ProposalPDFItem[] = buildProposalItemTree(rows);
+  const items: ProposalItemTreeNode[] = buildProposalItemTree(rows);
   const total = roundMoney(items.reduce((sum, i) => sum + i.fixedPrice, 0));
   // Which top-level items the client actually authorized. In `all` mode
   // every acceptance carries the same bound subset (the primary's), so the
@@ -211,6 +222,7 @@ export default async function ProposalDetailPage({
     })
     .map((item) => item.title);
   const currency = (proposal.currency as string) ?? "USD";
+  const allFixedBid = isHomogeneousFixedBid(items);
   const status = (proposal.status as string) ?? "draft";
   const editable = isProposalEditable(status);
 
@@ -454,6 +466,11 @@ export default async function ProposalDetailPage({
             <div className="flex items-baseline justify-between gap-3">
               <span className="text-body-lg font-semibold text-content">
                 {item.title}
+                {!allFixedBid && (
+                  <span className="ml-2 align-middle">
+                    <PricingTypeBadge type={item.pricingType} />
+                  </span>
+                )}
                 {parents[i]?.id && acceptedItemIds.has(parents[i]!.id) && (
                   <span className="ml-2 inline-flex items-center gap-1 rounded-full bg-success-soft px-2 py-0.5 align-middle text-label font-medium text-success-text">
                     <CheckCircle2 size={11} aria-hidden="true" />
@@ -528,6 +545,16 @@ export default async function ProposalDetailPage({
           {formatCurrency(total, currency)}
         </span>
       </div>
+      {allFixedBid && items.length > 0 && (
+        <p className="mt-2 flex items-center gap-1.5 text-caption text-content-muted">
+          <ShieldCheck
+            size={14}
+            aria-hidden="true"
+            className="text-success-text"
+          />
+          {tPricing("fixedPriceAssurance")}
+        </p>
+      )}
 
       {/* terms */}
       <h2 className="mt-[32px] text-title font-semibold text-content">

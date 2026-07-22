@@ -400,5 +400,12 @@
     "colWhat": "What it does for you",
     "colPrice": "Price",
     "totalLabel": "All items"
+  },
+  "pricing": {
+    "fixedBid": "Fixed price",
+    "nte": "Not to exceed",
+    "range": "Estimate (range)",
+    "tm": "Time & materials",
+    "fixedPriceAssurance": "Fixed-price engagement — the total won't change."
   }
 }

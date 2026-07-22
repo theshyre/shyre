@@ -55,6 +55,7 @@ import {
   ALLOWED_DEPOSIT_TYPES,
   ALLOWED_SIGNING_MODES,
   ALLOWED_SIGN_THEMES,
+  ALLOWED_PRICING_TYPES,
   ALLOWED_PROPOSAL_EVENT_TYPES,
   ALLOWED_ACCEPTANCE_DECISIONS,
 } from "@/lib/proposals/allow-lists";
@@ -318,6 +319,14 @@ const PAIRS: Pair[] = [
     appSet: ALLOWED_SIGN_THEMES,
     column: "sign_theme",
     table: "proposals",
+  },
+  {
+    // Added by a later ALTER TABLE (DROP-then-ADD) as its own pure enum CHECK —
+    // the extractor appends it to the proposal_line_items CREATE TABLE body.
+    name: "pricingTypes",
+    appSet: ALLOWED_PRICING_TYPES,
+    column: "pricing_type",
+    table: "proposal_line_items",
   },
   {
     // ALTER TABLE ADD COLUMN inline CHECK — whole-SQL scan (no table scope).
