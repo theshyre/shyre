@@ -82,3 +82,18 @@ describe("list_projects is_default boolean coercion (20260721150000)", () => {
     );
   });
 });
+
+describe("agent log — internal projects are non-billable (20260721160000)", () => {
+  const sql = readMigration("agent_log_internal_nonbillable");
+
+  it("captures the project's is_internal classification", () => {
+    expect(sql).toMatch(/CREATE OR REPLACE FUNCTION api_log_entry/);
+    expect(sql).toMatch(/SELECT p\.is_internal INTO v_is_internal/);
+  });
+
+  it("forces billable=false for internal projects, else explicit-or-token-default", () => {
+    expect(sql).toMatch(
+      /CASE WHEN v_is_internal THEN false\s*\n?\s*ELSE COALESCE\(p_billable, tok\.default_billable\) END/,
+    );
+  });
+});
