@@ -1,7 +1,15 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { getTranslations } from "next-intl/server";
-import { Plug, KeyRound, Building2, Check } from "lucide-react";
+import {
+  Plug,
+  KeyRound,
+  Building2,
+  Check,
+  Activity,
+  CheckCircle2,
+  AlertTriangle,
+} from "lucide-react";
 import { createClient } from "@/lib/supabase/server";
 import { getUserContext, getUserTeams } from "@/lib/team-context";
 import { isTeamAdmin } from "@/lib/team-roles";
@@ -13,6 +21,7 @@ import { NewTokenForm } from "./new-token-form";
 import { TokenList } from "./token-list";
 import { ActivityList } from "./activity-list";
 import { SetupHelp } from "./setup-help";
+import { agentHeartbeat } from "./agent-heartbeat";
 import type {
   IntegrationEventRow,
   IntegrationTokenRow,
@@ -79,7 +88,7 @@ export default async function IntegrationsSettingsPage({
 
   const supabase = await createClient();
 
-  const [settingsRes, tokensRes, eventsRes] = await Promise.all([
+  const [settingsRes, tokensRes, eventsRes, heartbeatRes] = await Promise.all([
     supabase
       .from("team_settings_v")
       .select("integrations_enabled")
@@ -98,6 +107,19 @@ export default async function IntegrationsSettingsPage({
       .eq("team_id", activeTeam.id)
       .order("occurred_at", { ascending: false })
       .limit(20),
+    // "Last agent entry" heartbeat — the viewer's most recent agent-logged
+    // entry on this team. A long silence is the absence-detector the API
+    // activity log can't give (failed calls that never reach the server).
+    supabase
+      .from("time_entries")
+      .select("created_at")
+      .eq("team_id", activeTeam.id)
+      .eq("user_id", userId)
+      .in("started_by_kind", ["agent", "integration"])
+      .is("deleted_at", null)
+      .order("created_at", { ascending: false })
+      .limit(1)
+      .maybeSingle(),
   ]);
 
   // PostgREST fails silently on malformed queries — always destructure
@@ -105,7 +127,7 @@ export default async function IntegrationsSettingsPage({
   const loadFailed = Boolean(
     settingsRes.error || tokensRes.error || eventsRes.error,
   );
-  for (const res of [settingsRes, tokensRes, eventsRes]) {
+  for (const res of [settingsRes, tokensRes, eventsRes, heartbeatRes]) {
     if (res.error) {
       logError(res.error, {
         userId,
@@ -123,6 +145,40 @@ export default async function IntegrationsSettingsPage({
   );
   const tokens = (tokensRes.data ?? []) as IntegrationTokenRow[];
   const events = (eventsRes.data ?? []) as IntegrationEventRow[];
+
+  // Agent-tracking heartbeat (see agent-heartbeat.ts). A heartbeat-query
+  // failure just falls back to "none" — it must never break the page.
+  const lastAgentEntryIso = heartbeatRes.error
+    ? null
+    : ((heartbeatRes.data as { created_at: string } | null)?.created_at ?? null);
+  const nowMs = new Date().getTime();
+  const heartbeat = agentHeartbeat(lastAgentEntryIso, nowMs);
+  const heartbeatAgo =
+    heartbeat.unit === "minutes"
+      ? t("heartbeat.agoMinutes", { value: heartbeat.value })
+      : heartbeat.unit === "hours"
+        ? t("heartbeat.agoHours", { value: heartbeat.value })
+        : heartbeat.unit === "days"
+          ? t("heartbeat.agoDays", { value: heartbeat.value })
+          : "";
+  const heartbeatMessage =
+    heartbeat.state === "none"
+      ? t("heartbeat.none")
+      : heartbeat.state === "active"
+        ? t("heartbeat.active", { ago: heartbeatAgo })
+        : t("heartbeat.stale", { ago: heartbeatAgo });
+  const HeartbeatIcon =
+    heartbeat.tone === "success"
+      ? CheckCircle2
+      : heartbeat.tone === "warning"
+        ? AlertTriangle
+        : Activity;
+  const heartbeatToneClass =
+    heartbeat.tone === "success"
+      ? "border-success/30 bg-success-soft text-success-text"
+      : heartbeat.tone === "warning"
+        ? "border-warning/30 bg-warning-soft text-warning-text"
+        : "border-edge bg-surface-raised text-content-secondary";
 
   // Authorship: fetch display names + avatars for everyone whose
   // tokens/events are visible (viewer included).
@@ -208,6 +264,30 @@ export default async function IntegrationsSettingsPage({
         isAdmin={admin}
       />
 
+      {/* Agent-tracking heartbeat — the absence-detector: icon + text +
+          color = 3-channel status encoding (UX mandate). */}
+      <div
+        className={`flex items-start gap-2 rounded-lg border p-3 text-body ${heartbeatToneClass}`}
+      >
+        <HeartbeatIcon
+          size={16}
+          aria-hidden="true"
+          className="mt-0.5 shrink-0"
+        />
+        <div className="space-y-1">
+          <p>{heartbeatMessage}</p>
+          {heartbeat.state !== "active" && (
+            <Link
+              href="/docs/guides/features/integrations-quickstart"
+              className="inline-flex items-center gap-1 text-caption font-medium underline"
+            >
+              {t("heartbeat.verifyLink")}
+              <LinkPendingSpinner />
+            </Link>
+          )}
+        </div>
+      </div>
+
       <section className="space-y-3">
         <div className="flex items-center gap-2">
           <KeyRound size={16} className="text-accent" aria-hidden="true" />
@@ -225,7 +305,7 @@ export default async function IntegrationsSettingsPage({
           tokens={tokens}
           profiles={profiles}
           currentUserId={userId}
-          now={new Date().getTime()}
+          now={nowMs}
         />
       </section>
 

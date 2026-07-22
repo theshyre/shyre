@@ -97,6 +97,15 @@
     "hooksIntro": "¿Prefieres un seguimiento determinista que no dependa de que el modelo lo recuerde?",
     "hooksLink": "Kit de hooks de Claude Code"
   },
+  "heartbeat": {
+    "none": "Aún no hay entradas de agente. Si configuraste el seguimiento de Claude, usa la guía rápida para confirmar que llega a Shyre.",
+    "active": "El seguimiento de agente está activo — última entrada {ago}.",
+    "stale": "La última entrada de agente fue {ago} — el seguimiento pudo haberse detenido.",
+    "agoMinutes": "{value, plural, =0 {hace un momento} one {hace # minuto} other {hace # minutos}}",
+    "agoHours": "{value, plural, one {hace # hora} other {hace # horas}}",
+    "agoDays": "{value, plural, one {hace # día} other {hace # días}}",
+    "verifyLink": "Cómo verificar tu configuración"
+  },
   "errors": {
     "disabled": "Las integraciones están desactivadas para este equipo. Un propietario o administrador debe activarlas antes de poder crear tokens.",
     "adminOnly": "Solo los propietarios y administradores del equipo pueden cambiar las integraciones.",
