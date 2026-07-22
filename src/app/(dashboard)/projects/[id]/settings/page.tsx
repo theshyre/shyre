@@ -265,6 +265,9 @@ export default async function ProjectSettingsPage({
               name: s.name,
               is_system: s.is_system,
             }))}
+            initialDefaultCategoryId={
+              (project.row.default_category_id as string | null) ?? null
+            }
           />
         </section>
       </div>

@@ -27,7 +27,7 @@ All endpoints require `Authorization: Bearer shyre_pat_…`. Responses are JSON.
 | Method | Path | Scope | Purpose |
 | --- | --- | --- | --- |
 | GET | `/api/v1/me` | `context:read` | Token introspection: user, team, scopes, expiry |
-| GET | `/api/v1/projects` | `context:read` | Active + paused projects (id, name, status, customer) — no rates, structurally |
+| GET | `/api/v1/projects` | `context:read` | Active + paused projects (id, name, status, customer, categories + default) — no rates, structurally |
 | GET | `/api/v1/timer` | `timer:read` | Currently running entry, or `null` |
 | POST | `/api/v1/timer/start` | `timer:write` | Start a timer; `409` if ANY timer is already running |
 | POST | `/api/v1/timer/stop` | `timer:write` | Stop the running timer (agent-started only, unless `force`) |
@@ -58,7 +58,7 @@ curl -H "Authorization: Bearer $SHYRE_API_KEY" https://shyre.malcom.io/api/v1/me
 curl -H "Authorization: Bearer $SHYRE_API_KEY" https://shyre.malcom.io/api/v1/projects
 ```
 
-Returns an array of `{ id, name, status, is_internal, customer_id, customer_name }`. Rates are structurally unreachable on this surface.
+Returns an array of projects, each `{ id, name, status, is_internal, customer_id, customer_name, default_category_id, categories }`. `categories` is the project's **effective** set (its base category set plus any project-scoped extensions) as `{ id, name, color, is_default }` — pass one of those ids as `category_id` on `POST /api/v1/entries`, or omit it to inherit the project's `default_category_id`. Rates are structurally unreachable on this surface.
 
 ### GET /api/v1/timer
 
@@ -111,7 +111,7 @@ curl -X POST https://shyre.malcom.io/api/v1/entries \
   }'
 ```
 
-Required: `project_id`, `start_time`/`end_time` (ISO 8601 **with timezone**), `description` (≥ 8 meaningful characters). Optional: `agent_label`, `session_ref`, `idempotency_key`, `billable` (overrides the token default). Refused with `400` when the range is inverted, longer than 24h, more than 7 days back, or ends more than 5 minutes in the future (small clock skew is tolerated); `409` when it overlaps any of the user's existing entries.
+Required: `project_id`, `start_time`/`end_time` (ISO 8601 **with timezone**), `description` (≥ 8 meaningful characters). Optional: `agent_label`, `session_ref`, `idempotency_key`, `billable` (overrides the token default), `category_id` (a category from the project's `categories` in `list_projects`; when omitted the project's default category is applied, so agent-logged time still lands categorized). Refused with `400` when the range is inverted, longer than 24h, more than 7 days back, ends more than 5 minutes in the future (small clock skew is tolerated), or when `category_id` doesn't belong to the project; `409` when it overlaps any of the user's existing entries.
 
 ### Idempotency
 

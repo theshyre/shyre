@@ -20,6 +20,7 @@ const bodySchema = z
     session_ref: z.string().min(1).max(256).optional(),
     idempotency_key: z.string().min(1).max(128).optional(),
     billable: z.boolean().optional(),
+    category_id: z.uuid().optional(),
   })
   .strict();
 
@@ -37,6 +38,7 @@ export async function POST(request: Request): Promise<Response> {
         sessionRef: body.session_ref,
         idempotencyKey: body.idempotency_key,
         billable: body.billable,
+        categoryId: body.category_id,
       }),
   });
 }
