@@ -97,6 +97,15 @@
     "hooksIntro": "Prefer deterministic tracking that doesn't depend on the model remembering?",
     "hooksLink": "Claude Code hooks kit"
   },
+  "heartbeat": {
+    "none": "No agent time entries yet. If you've set up Claude tracking, use the quick guide to confirm it's reaching Shyre.",
+    "active": "Agent tracking is live — last entry {ago}.",
+    "stale": "Last agent entry was {ago} — tracking may have stopped.",
+    "agoMinutes": "{value, plural, =0 {moments ago} one {# minute ago} other {# minutes ago}}",
+    "agoHours": "{value, plural, one {# hour ago} other {# hours ago}}",
+    "agoDays": "{value, plural, one {# day ago} other {# days ago}}",
+    "verifyLink": "How to verify your setup"
+  },
   "errors": {
     "disabled": "Integrations are disabled for this team. An owner or admin has to enable them before tokens can be created.",
     "adminOnly": "Only team owners and admins can change integrations.",
