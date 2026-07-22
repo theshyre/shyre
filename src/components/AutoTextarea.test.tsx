@@ -66,4 +66,19 @@ describe("AutoTextarea", () => {
     expect(el.placeholder).toBe("type…");
     expect(el.rows).toBe(4);
   });
+
+  it("grows an UNCONTROLLED field (defaultValue) on mount and on input", () => {
+    render(<AutoTextarea aria-label="u" defaultValue="hi" />);
+    const el = screen.getByLabelText("u") as HTMLTextAreaElement;
+    expect(el.style.height).toBe("44px"); // 40 + 2*2 ("hi")
+
+    fireEvent.input(el, { target: { value: "a".repeat(20) } });
+    expect(el.style.height).toBe("80px"); // 40 + 20*2
+  });
+
+  it("forwards a ref to the underlying textarea", () => {
+    const ref = { current: null as HTMLTextAreaElement | null };
+    render(<AutoTextarea aria-label="r" ref={ref} defaultValue="" />);
+    expect(ref.current).toBe(screen.getByLabelText("r"));
+  });
 });

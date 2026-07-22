@@ -1134,9 +1134,11 @@ export function EntryEditRow({
   // Description is controlled so the AutoTextarea can grow to fit — a long
   // agent-logged summary shouldn't sit cramped in a single line.
   const [description, setDescription] = useState(entry.description ?? "");
-  // The picked project drives which category set the picker offers.
+  // The picked project drives which category set the picker offers and the
+  // internal -> non-billable rule (mirrors InlineEditForm).
   const selectedProject =
     sameTeamProjects.find((p) => p.id === selectedProjectId) ?? project;
+  const projectIsInternal = selectedProject?.is_internal === true;
 
   const update = useFormAction({
     action: updateTimeEntryAction,
@@ -1301,15 +1303,29 @@ export function EntryEditRow({
           </div>
 
           <div className="flex items-center justify-between gap-2">
-            <label className="flex items-center gap-2 text-body text-content cursor-pointer">
-              <input
-                type="checkbox"
-                name="billable"
-                defaultChecked={entry.billable}
-                className="h-4 w-4 rounded border-edge text-accent focus:ring-focus-ring"
-              />
-              {t("fields.billable")}
-            </label>
+            {(() => {
+              const billableLabel = (
+                <label
+                  className={`flex items-center gap-2 text-body ${projectIsInternal ? "text-content-muted cursor-not-allowed" : "text-content cursor-pointer"}`}
+                >
+                  <input
+                    type="checkbox"
+                    name="billable"
+                    defaultChecked={entry.billable && !projectIsInternal}
+                    disabled={projectIsInternal || locked}
+                    className="h-4 w-4 rounded border-edge text-accent focus:ring-focus-ring disabled:opacity-50"
+                  />
+                  {t("fields.billable")}
+                </label>
+              );
+              return projectIsInternal ? (
+                <Tooltip label={t("fields.billableInternalLocked")}>
+                  {billableLabel}
+                </Tooltip>
+              ) : (
+                billableLabel
+              );
+            })()}
             <div className="flex items-center gap-2">
               <SubmitButton
                 label={t("save")}
