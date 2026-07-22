@@ -97,3 +97,12 @@ describe("agent log — internal projects are non-billable (20260721160000)", ()
     );
   });
 });
+
+describe("list_projects exposes github_repo (20260722100000)", () => {
+  const sql = readMigration("list_projects_github_repo");
+
+  it("embeds github_repo in each project object", () => {
+    expect(sql).toMatch(/CREATE OR REPLACE FUNCTION api_list_projects/);
+    expect(sql).toMatch(/'github_repo', p\.github_repo/);
+  });
+});
