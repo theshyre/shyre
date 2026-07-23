@@ -69,6 +69,13 @@ export function resolveProjectInheritance<T extends InheritableProjectFields>(
     // applies regardless.
     if (!p.category_set_id && parent.category_set_id) {
       next.category_set_id = parent.category_set_id;
+      // Single-slot limitation: the app models a project's extension set
+      // as ONE column, so an inheriting child that ALSO has its own
+      // extension surfaces only its own (own ?? parent), never the union.
+      // The DB (validate_time_entry_category / api_log_entry) unions both,
+      // so this only ever UNDER-offers in the picker — a category the DB
+      // would accept may not be surfaced. Safe direction (no rejected
+      // write); the union case is rare (inheriting child + own extension).
       next.extension_category_set_id =
         p.extension_category_set_id ?? parent.extension_category_set_id;
       if ("default_category_id" in p) {

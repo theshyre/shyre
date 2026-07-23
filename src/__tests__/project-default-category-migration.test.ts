@@ -213,7 +213,7 @@ describe("project setting inheritance (20260723100000, EFFECTIVE definitions)", 
   it("api_log_entry resolves the category vocabulary via the parent when the child has no base set", () => {
     const sql = latestCreateFunction("api_log_entry");
     expect(sql).toMatch(
-      /LEFT JOIN projects par ON par\.id = p\.parent_project_id/,
+      /LEFT JOIN projects par\s*\n?\s*ON par\.id = p\.parent_project_id AND par\.team_id = p\.team_id/,
     );
     expect(sql).toMatch(/COALESCE\(p\.category_set_id, par\.category_set_id\)/);
     // Parent-owned extension sets join the vocabulary ONLY while inheriting.
@@ -235,6 +235,22 @@ describe("project setting inheritance (20260723100000, EFFECTIVE definitions)", 
     expect(sql).toMatch(
       /project_set_id IS NULL\s*\n?\s*AND cat_set_project_id = project_parent_id/,
     );
+  });
+
+  it("SAL-061: every parent JOIN is same-team-scoped so inheritance can't resolve a cross-team parent", () => {
+    for (const fn of [
+      "api_log_entry",
+      "api_list_projects",
+      "public\\.validate_time_entry_category",
+    ]) {
+      const sql = latestCreateFunction(fn);
+      // No parent join without the team scope.
+      const joins = sql.match(/LEFT JOIN projects par[\s\S]*?(?=\n\s{2}\w|\n\s*WHERE|\n\s*CROSS)/g) ?? [];
+      expect(joins.length).toBeGreaterThan(0);
+      for (const j of joins) {
+        expect(j).toMatch(/par\.team_id = p\.team_id/);
+      }
+    }
   });
 });
 

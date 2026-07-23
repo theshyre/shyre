@@ -19,7 +19,10 @@
 -- never linked (2026-07-23). Convert deliberately keeps copying nothing.
 --
 -- Three definer redefinitions, same signatures -> CREATE OR REPLACE,
--- ACLs preserved (api_log_entry stays anon-only per SAL-054).
+-- ACLs preserved (api_log_entry stays anon-only per SAL-054; restated at
+-- the tail belt-and-suspenders). SAL-061: every parent JOIN is
+-- same-team-scoped in the JOIN condition so inheritance can never resolve
+-- a cross-team parent's vocabulary (latent until a project-move feature).
 
 -- 1. validate_time_entry_category — the app-write gate on
 --    time_entries.category_id learns the inherited vocabulary.
@@ -39,11 +42,20 @@ BEGIN
     RETURN NEW;
   END IF;
 
-  SELECT p.category_set_id, p.parent_project_id,
+  -- SAL-061: the parent JOIN is same-team-scoped in the JOIN condition
+  -- itself, not left to the parent-invariant trigger. A cross-team parent
+  -- (only reachable if a future "move project" feature relocates one)
+  -- resolves to NULL here — the child keeps its own vocabulary and no
+  -- foreign team's category names leak through inheritance.
+  -- project_parent_id := the SAME-TEAM parent id (par.id is NULL when the
+  -- parent is cross-team via the scoped LEFT JOIN), so the extension-set
+  -- branch below can never match a foreign parent's set.
+  SELECT p.category_set_id, par.id,
          COALESCE(p.category_set_id, par.category_set_id)
     INTO project_set_id, project_parent_id, effective_set_id
     FROM projects p
-    LEFT JOIN projects par ON par.id = p.parent_project_id
+    LEFT JOIN projects par
+      ON par.id = p.parent_project_id AND par.team_id = p.team_id
     WHERE p.id = NEW.project_id;
 
   SELECT cs.id, cs.project_id
@@ -60,8 +72,8 @@ BEGIN
 
   -- Category in a project-scoped extension set owned by this project —
   -- or, when the child is inheriting (no own base set), owned by its
-  -- parent (the parent's extensions are part of the inherited
-  -- vocabulary): OK.
+  -- SAME-TEAM parent (project_parent_id is NULL above when the parent is
+  -- cross-team, so this branch can't reach a foreign parent's extension).
   IF cat_set_project_id IS NOT NULL
      AND (cat_set_project_id = NEW.project_id
           OR (project_set_id IS NULL
@@ -109,15 +121,19 @@ BEGIN
            OR cat.category_set_id IN (
                 SELECT cs.id FROM category_sets cs
                 WHERE cs.project_id = p.id
+                   -- Parent extension sets only when inheriting, and only
+                   -- from the SAME-TEAM parent (par.id is NULL cross-team).
                    OR (p.category_set_id IS NULL
-                       AND cs.project_id = p.parent_project_id)
+                       AND cs.project_id = par.id)
               )
       ), '[]'::jsonb)
     ) ORDER BY p.name), '[]'::jsonb)
     INTO result
     FROM projects p
     LEFT JOIN customers c ON c.id = p.customer_id
-    LEFT JOIN projects par ON par.id = p.parent_project_id
+    -- SAL-061: same-team-scoped parent JOIN (see validate function).
+    LEFT JOIN projects par
+      ON par.id = p.parent_project_id AND par.team_id = p.team_id
     CROSS JOIN LATERAL (
       SELECT
         COALESCE(p.category_set_id, par.category_set_id) AS effective_set_id,
@@ -222,7 +238,10 @@ BEGIN
   -- billable classification AND the effective category vocabulary
   -- (own, or inherited LIVE from the parent when the child has no base
   -- set of its own — inherit.ts model).
-  SELECT p.is_internal, p.category_set_id, p.parent_project_id,
+  -- SAL-061: v_parent_id := the SAME-TEAM parent id (par.id is NULL when
+  -- the parent is cross-team via the scoped LEFT JOIN), so a token can
+  -- never inherit/log against a foreign team's category vocabulary.
+  SELECT p.is_internal, p.category_set_id, par.id,
          COALESCE(p.category_set_id, par.category_set_id),
          CASE WHEN p.category_set_id IS NOT NULL
               THEN p.default_category_id
@@ -230,7 +249,8 @@ BEGIN
          END
     INTO v_is_internal, v_own_set, v_parent_id, v_eff_set, v_eff_default
     FROM projects p
-    LEFT JOIN projects par ON par.id = p.parent_project_id
+    LEFT JOIN projects par
+      ON par.id = p.parent_project_id AND par.team_id = p.team_id
     WHERE p.id = p_project_id AND p.team_id = tok.team_id;
   IF NOT FOUND THEN
     PERFORM api_log_event(tok, 'entries.log', 'denied', p_project_id,
@@ -324,3 +344,10 @@ BEGIN
   RETURN to_jsonb(new_row);
 END;
 $$;
+
+-- Belt-and-suspenders: CREATE OR REPLACE preserves the ACL, but restate
+-- the SAL-054 anon-only grant in the migration that touches the function
+-- so the posture is explicit rather than implied by CREATE OR REPLACE
+-- semantics.
+REVOKE ALL ON FUNCTION api_log_entry(TEXT, UUID, TIMESTAMPTZ, TIMESTAMPTZ, TEXT, TEXT, TEXT, TEXT, BOOLEAN, UUID) FROM PUBLIC, authenticated;
+GRANT EXECUTE ON FUNCTION api_log_entry(TEXT, UUID, TIMESTAMPTZ, TIMESTAMPTZ, TEXT, TEXT, TEXT, TEXT, BOOLEAN, UUID) TO anon;

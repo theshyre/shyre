@@ -176,6 +176,12 @@ export function NewProjectForm({
   // parent — drives the "Filled from parent" hint. Cleared when
   // parent goes back to "(none)" or when the form closes.
   const [parentDefaultsApplied, setParentDefaultsApplied] = useState(false);
+  // Name of the category set this sub-project will inherit LIVE from
+  // its parent (when it has no set of its own) — drives the "inherited"
+  // caption under the category-set select. Null when not inheriting.
+  const [parentInheritedSetName, setParentInheritedSetName] = useState<
+    string | null
+  >(null);
 
   const t = useTranslations("projects");
   const tCustomers = useTranslations("customers");
@@ -242,9 +248,20 @@ export function NewProjectForm({
     setHourlyRate(values.hourly_rate);
     setGithubRepo(values.github_repo);
     setInvoiceCode(values.invoice_code);
-    setCategorySetId(values.category_set_id);
+    // category_set_id is deliberately NOT applied from the parent: a
+    // sub-project inherits the category vocabulary LIVE (a NULL own set
+    // resolves the parent's — inherit.ts). Pre-filling it would freeze a
+    // snapshot and opt the child out of inheritance. The select stays
+    // empty (→ inherit); an inherited-hint renders below it. The user
+    // can still pick a set here to override.
     setDefaultBillable(values.default_billable);
     setRequireTimestamps(values.require_timestamps);
+    setParentInheritedSetName(
+      !categorySetId && parent?.category_set_id
+        ? (categorySets.find((s) => s.id === parent.category_set_id)?.name ??
+            null)
+        : null,
+    );
     setParentDefaultsApplied(appliedAny);
   }
 
@@ -466,6 +483,9 @@ export function NewProjectForm({
             onChange={(e) => {
               setCategorySetId(e.target.value);
               setCategorySetIdTouched(true);
+              // Picking a set overrides inheritance; the caption only
+              // applies while the field is empty.
+              if (e.target.value) setParentInheritedSetName(null);
             }}
             className={selectClass}
           >
@@ -476,6 +496,13 @@ export function NewProjectForm({
               </option>
             ))}
           </select>
+          {!categorySetId && parentInheritedSetName && (
+            <p className="mt-1 text-caption text-content-muted">
+              {t("fields.categorySetInherited", {
+                set: parentInheritedSetName,
+              })}
+            </p>
+          )}
         </div>
         {!isInternal && (
           <div className="sm:col-span-2">

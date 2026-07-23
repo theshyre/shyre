@@ -100,7 +100,8 @@
     "budgetAlertThreshold": "Alertar al (%)",
     "budgetAlertThresholdPlaceholder": "p. ej. 80",
     "budgetAlertThresholdHint": "Mostrar un aviso cuando el consumo del período alcance este porcentaje. Déjalo en blanco para no mostrar aviso.",
-    "burnPctColumn": "Presupuesto"
+    "burnPctColumn": "Presupuesto",
+    "categorySetInherited": "Déjalo vacío para heredar “{set}” del proyecto padre. Elige un conjunto para anularlo."
   },
   "budget": {
     "lifetimeLabel": "Total",
