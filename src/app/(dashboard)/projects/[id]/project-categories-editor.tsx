@@ -57,6 +57,10 @@ interface Props {
   /** The project's current default category (agent-logged entries inherit
    *  it). Null when none is set; must be one of the effective categories. */
   initialDefaultCategoryId: string | null;
+  /** When this nested project has NO base set of its own but its parent
+   *  does, the parent's vocabulary applies LIVE (inherit.ts). Names for
+   *  the "Inheriting …" caption; null when not applicable. */
+  inheritedBase?: { parentName: string; setName: string } | null;
 }
 
 // Curated palette — same hues the system seed sets use so project and
@@ -82,6 +86,7 @@ export function ProjectCategoriesEditor({
   baseCategories,
   availableSets,
   initialDefaultCategoryId,
+  inheritedBase = null,
 }: Props): React.JSX.Element {
   const t = useTranslations("projects.projectCategories");
   const tc = useTranslations("common");
@@ -225,6 +230,17 @@ export function ProjectCategoriesEditor({
             </option>
           ))}
         </select>
+        {/* Live-inheritance caption: with no base set of its own, a
+            nested project uses the parent's vocabulary. Picking a set
+            here overrides; clearing back to "None" re-inherits. */}
+        {!baseSetId && inheritedBase && (
+          <p className="mt-2 text-caption text-content-muted">
+            {t("baseSetInherited", {
+              set: inheritedBase.setName,
+              parent: inheritedBase.parentName,
+            })}
+          </p>
+        )}
         {previewCategories.length > 0 ? (
           <div className="mt-2">
             <BaseCategoriesPreview

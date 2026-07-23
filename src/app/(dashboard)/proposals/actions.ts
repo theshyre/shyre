@@ -890,6 +890,12 @@ export async function convertProposalAction(formData: FormData): Promise<void> {
           );
         }
       }
+      // Category set / default / jira key are deliberately NOT copied
+      // onto the created projects: nested projects inherit them LIVE
+      // from the parent while their own columns stay NULL (see
+      // src/lib/projects/inherit.ts) — the umbrella remains the source
+      // of truth and a later umbrella change propagates. Setting a
+      // child's own value overrides the inheritance.
 
       let createdCount = 0;
       for (const item of accepted) {

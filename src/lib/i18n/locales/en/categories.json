@@ -30,6 +30,7 @@
     "label": "Category",
     "none": "No category",
     "notConfigured": "This project has no category set — configure one in project settings.",
-    "retiredOption": "{name} (retired)"
+    "retiredOption": "{name} (retired)",
+    "notConfiguredLinked": "This project has no category set — <link>configure one in project settings</link>."
   }
 }

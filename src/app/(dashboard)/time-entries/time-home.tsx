@@ -331,6 +331,7 @@ export function TimeHome({
           projects={projects}
           categories={categories}
           viewerUserId={currentUserId}
+          tzOffsetMin={tzOffsetMin}
         />
       ) : view === "log" ? (
         <LogView

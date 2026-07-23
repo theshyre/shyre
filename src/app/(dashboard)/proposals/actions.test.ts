@@ -835,6 +835,37 @@ describe("convertProposalAction", () => {
     });
   });
 
+  it("leaves category/jira columns NULL on nested projects — inheritance is LIVE from the parent (inherit.ts), never a frozen copy", async () => {
+    queues["proposals"] = [
+      { data: acceptedProposal, error: null },
+      { data: null, error: null }, // status → converted
+    ];
+    queues["proposal_acceptances"] = [
+      { data: [{ selected_line_item_ids: ["li-1"], decision: "accepted" }], error: null },
+    ];
+    queues["proposal_line_items"] = [{ data: CONVERT_ITEMS, error: null }];
+    queues["projects"] = [
+      {
+        data: { id: "umbrella", customer_id: CUSTOMER, parent_project_id: null },
+        error: null,
+      },
+      { data: { id: "p-1" }, error: null },
+    ];
+    queues["proposal_events"] = [{ data: null, error: null }];
+
+    await convertProposalAction(
+      formWith({ id: "prop-1", parent_project_id: "umbrella" }),
+    );
+
+    const inserted = insertedRows("projects")[0] as Record<string, unknown>;
+    expect(inserted.parent_project_id).toBe("umbrella");
+    // No frozen copies: a later umbrella category/jira change must
+    // propagate, so the child columns stay unset (= inherit).
+    expect("category_set_id" in inserted).toBe(false);
+    expect("default_category_id" in inserted).toBe(false);
+    expect("jira_project_key" in inserted).toBe(false);
+  });
+
   it("refuses a parent that belongs to a different customer", async () => {
     queues["proposals"] = [{ data: acceptedProposal, error: null }];
     queues["proposal_acceptances"] = [

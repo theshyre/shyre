@@ -1257,8 +1257,10 @@ export function EntryEditRow({
               )}
             </div>
             {/* Category — re-keyed on the picked project so it resets to
-                that project's allowed set. Renders nothing when the project
-                has no category set (hideWhenEmpty). */}
+                that project's allowed set. When the project has no
+                category set, an actionable notice (link to the project's
+                settings) renders instead of nothing — a hidden picker
+                read as "can't categorize this entry" (2026-07-23). */}
             <CategoryPicker
               key={selectedProjectId}
               categories={categories}
@@ -1272,6 +1274,8 @@ export function EntryEditRow({
                   : null
               }
               currentCategoryId={entry.category_id}
+              hideWhenEmpty={false}
+              configureHref={`/projects/${selectedProjectId}/settings`}
             />
             <div>
               <label

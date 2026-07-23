@@ -71,6 +71,7 @@ function renderTable(
         projects={[]}
         categories={[]}
         viewerUserId="u1"
+        tzOffsetMin={0}
         {...props}
       />
     </ToastProvider>,
@@ -283,5 +284,34 @@ describe("TableView", () => {
       return /\b26\b/.test(text) && /4\b/.test(text);
     });
     expect(hits.length).toBeGreaterThan(0);
+  });
+
+  it("expands a row into the inline edit form on click — the edit affordance was a () => {} stub that made row-click and kebab-Edit silent no-ops", () => {
+    renderTable({
+      projects: [
+        {
+          id: "p1",
+          name: "Alpha",
+          github_repo: null,
+          jira_project_key: null,
+          team_id: "o1",
+          category_set_id: null,
+          extension_category_set_id: null,
+        } as React.ComponentProps<typeof TableView>["projects"][number],
+      ],
+    });
+    // No edit form initially.
+    expect(screen.queryByText(/save changes/i)).not.toBeInTheDocument();
+    fireEvent.click(screen.getByText("Programming"));
+    // The InlineEditForm renders with its Save affordance.
+    expect(screen.getByText(/save changes/i)).toBeInTheDocument();
+    // Clicking the same row again collapses it. (getAllByText: the open
+    // edit form's description textarea also carries the text.)
+    const rowCell = screen
+      .getAllByText("Programming")
+      .find((el) => el.tagName === "DIV");
+    expect(rowCell).toBeDefined();
+    if (rowCell) fireEvent.click(rowCell);
+    expect(screen.queryByText(/save changes/i)).not.toBeInTheDocument();
   });
 });

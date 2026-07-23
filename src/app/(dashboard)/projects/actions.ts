@@ -91,7 +91,7 @@ export async function createProjectAction(formData: FormData): Promise<void> {
     const budgetStr = formData.get("budget_hours") as string;
     const budget_hours = budgetStr ? parseFloat(budgetStr) : null;
     const github_repo = normalizeGithubRepo(formData.get("github_repo"));
-    let jira_project_key = normalizeJiraKey(formData.get("jira_project_key"));
+    const jira_project_key = normalizeJiraKey(formData.get("jira_project_key"));
     const invoice_code = normalizeInvoiceCode(formData.get("invoice_code"));
     const category_set_id = (formData.get("category_set_id") as string) || null;
     const require_timestamps = formData.get("require_timestamps") === "on";
@@ -102,29 +102,16 @@ export async function createProjectAction(formData: FormData): Promise<void> {
     const parent_project_id =
       (formData.get("parent_project_id") as string) || null;
 
-    // Sub-project inheritance: silently fill in fields the form
-    // doesn't expose (today: jira_project_key) from the parent so
-    // sub-projects auto-link to the same Jira project / repo /
-    // invoice code without the user re-typing them. Visible form
-    // fields are pre-filled on the client (NewProjectForm) so the
-    // user sees + can override what they're inheriting; this server
-    // path is for fields with no UI.
-    //
-    // Form values still WIN — we only fill from parent when the
-    // resolved value is null. Future additions to this block belong
-    // alongside the visible-field list in
-    // `src/lib/projects/parent-defaults.ts`.
-    if (parent_project_id && jira_project_key === null) {
-      const { data: parent } = await supabase
-        .from("projects")
-        .select("jira_project_key")
-        .eq("id", parent_project_id)
-        .maybeSingle();
-      const parentKey =
-        (parent as { jira_project_key?: string | null } | null)
-          ?.jira_project_key ?? null;
-      if (parentKey) jira_project_key = parentKey;
-    }
+    // jira_project_key and category_set_id are NOT copied from the
+    // parent here: a sub-project inherits them LIVE (a NULL own column
+    // resolves the parent's value at read/validate time — see
+    // `src/lib/projects/inherit.ts`). Copying would freeze a snapshot
+    // and opt the child OUT of inheritance, so a later parent change
+    // wouldn't propagate — the exact incoherence the live model
+    // exists to avoid. The form shows an "inherited from parent" hint
+    // for these instead of a pre-filled writable value. The genuinely
+    // per-child billing fields (rate / invoice_code / require_timestamps)
+    // are still visibly pre-filled + written (parent-defaults.ts).
 
     assertSupabaseOk(
       await supabase.from("projects").insert({

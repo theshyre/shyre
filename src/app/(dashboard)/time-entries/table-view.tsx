@@ -55,6 +55,9 @@ interface Props {
   /** auth.uid() of the viewer — forwarded to EntryRow for the ticket
    *  refresh affordance. */
   viewerUserId: string;
+  /** Viewer timezone offset — forwarded to the inline edit form so
+   *  date math matches the other views. */
+  tzOffsetMin: number;
 }
 
 /**
@@ -78,6 +81,7 @@ export function TableView({
   projects,
   categories,
   viewerUserId,
+  tzOffsetMin,
 }: Props): React.JSX.Element {
   const t = useTranslations("time.table");
   const router = useRouter();
@@ -111,6 +115,17 @@ export function TableView({
   // Selection count reported up by EntryTable — folded into the
   // page's single polite live region below.
   const [selectedCount, setSelectedCount] = useState(0);
+
+  // Row expansion → InlineEditForm, same client-state pattern as the
+  // Log view (feedback: expandable rows, not drawers). This was a
+  // `() => {}` stub when the Table view shipped — row click and
+  // kebab-Edit silently did nothing.
+  const [expandedEntryId, setExpandedEntryId] = useState<string | null>(null);
+  const toggleExpanded = useCallback(
+    (id: string) =>
+      setExpandedEntryId((current) => (current === id ? null : id)),
+    [],
+  );
 
   // Single synthetic group — EntryTable wants groups, but here we
   // want a flat list. `hideGroupHeaders` keeps the group's label /
@@ -291,10 +306,11 @@ export function TableView({
         groups={groups}
         projects={projects}
         categories={categories}
-        expandedEntryId={null}
-        onToggleExpand={() => {}}
+        expandedEntryId={expandedEntryId}
+        onToggleExpand={toggleExpanded}
         hideGroupHeaders
         viewerUserId={viewerUserId}
+        tzOffsetMin={tzOffsetMin}
         showDate
         onSelectionCountChange={setSelectedCount}
       />
