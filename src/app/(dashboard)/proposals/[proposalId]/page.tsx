@@ -81,6 +81,18 @@ export default async function ProposalDetailPage({
     .single();
   if (!proposal) notFound();
 
+  // Top-level projects for this customer — the "Nest under" options on convert
+  // (e.g. an account umbrella). A project that is itself a parent is a valid
+  // umbrella; the DB trigger enforces same-customer + one-level on insert.
+  const { data: eligibleParents } = await supabase
+    .from("projects_v")
+    .select("id, name")
+    .eq("customer_id", proposal.customer_id as string)
+    .eq("team_id", proposal.team_id as string)
+    .neq("status", "archived")
+    .is("parent_project_id", null)
+    .order("name");
+
   const { data: itemRows } = await supabase
     .from("proposal_line_items")
     .select(`${PROPOSAL_ITEM_COLUMNS}, converted_project_id, invoiced_at`)
@@ -381,7 +393,13 @@ export default async function ProposalDetailPage({
             <CounterSignButton proposalId={proposalId} />
           )}
           {status === "accepted" && (
-            <ConvertProposalButton proposalId={proposalId} />
+            <ConvertProposalButton
+              proposalId={proposalId}
+              eligibleParents={(eligibleParents ?? []).map((p) => ({
+                id: p.id as string,
+                name: p.name as string,
+              }))}
+            />
           )}
           {(status === "accepted" || status === "converted") &&
             hasUnbilledAccepted && (

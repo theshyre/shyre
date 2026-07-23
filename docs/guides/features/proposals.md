@@ -224,9 +224,18 @@ deletable.
 
 ## Converting accepted work into projects
 
-On an accepted proposal, **Convert to projects** creates one project per
-accepted line item — a phased item becomes a project with its phases as
-**sub-projects** — owned by the proposal's customer, ready for time tracking.
+On an accepted proposal, **Convert to projects** creates **one project per
+accepted line item**, owned by the proposal's customer, ready for time
+tracking. A phased line item stays a **single project** — its phases remain on
+the proposal as the item's scoping/pricing breakdown (they never bill
+separately), so the deliverable is one project you can organize freely.
+
+Use the **Nest under** picker on the convert action to place all the created
+projects beneath an existing top-level project of the same customer — an
+account/application umbrella like "AVDR eClinical" — so everything for that
+client rolls up in one place. Leave it on "None (top-level)" to create them at
+the top level.
+
 Each line item links to its created project ("View project"), and the
 proposal moves to `converted`. Items the client didn't select are not
 converted.

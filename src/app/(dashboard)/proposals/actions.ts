@@ -868,6 +868,29 @@ export async function convertProposalAction(formData: FormData): Promise<void> {
         );
       }
 
+      // Optional "Nest under" picker: place every created project under an
+      // existing TOP-LEVEL project of the same customer (e.g. an account
+      // umbrella). The DB trigger also enforces same-customer + 1-level; this
+      // pre-check gives a clean error instead of a raw constraint violation.
+      const parentProjectId =
+        (formData.get("parent_project_id") as string) || null;
+      if (parentProjectId) {
+        const { data: parent } = await supabase
+          .from("projects")
+          .select("id, customer_id, parent_project_id")
+          .eq("id", parentProjectId)
+          .maybeSingle();
+        if (
+          !parent ||
+          parent.customer_id !== proposal.customer_id ||
+          parent.parent_project_id !== null
+        ) {
+          throw AppError.refusal(
+            "The chosen parent must be a top-level project for this customer.",
+          );
+        }
+      }
+
       let createdCount = 0;
       for (const item of accepted) {
         // Parent project = the accepted line item.
@@ -906,6 +929,9 @@ export async function convertProposalAction(formData: FormData): Promise<void> {
             ...billingFields,
             name: item.title,
             description: item.description,
+            ...(parentProjectId
+              ? { parent_project_id: parentProjectId }
+              : {}),
           })
           .select("id")
           .single();
@@ -920,39 +946,11 @@ export async function convertProposalAction(formData: FormData): Promise<void> {
             .eq("id", item.id),
         );
 
-        // Phases → sub-projects under the parent (one level, same customer —
-        // the projects triggers enforce both).
-        const phases = items.filter(
-          (row) => row.parent_line_item_id === item.id,
-        );
-        for (const phase of phases) {
-          const { data: sub, error: subError } = await supabase
-            .from("projects")
-            .insert({
-              team_id: proposal.team_id,
-              user_id: userId,
-              customer_id: proposal.customer_id,
-              is_internal: false,
-              default_billable: false,
-              billing_mode: "fixed_bid",
-              fixed_price: phase.fixed_price,
-              name: phase.title,
-              description: phase.description,
-              parent_project_id: projectId,
-            })
-            .select("id")
-            .single();
-          assertSupabaseOk({ data: sub, error: subError });
-          createdCount += 1;
-          assertSupabaseOk(
-            await supabase
-              .from("proposal_line_items")
-              .update({
-                converted_project_id: (sub as { id: string }).id,
-              })
-              .eq("id", phase.id),
-          );
-        }
+        // Phases are NOT expanded into sub-projects — they stay on the proposal
+        // as the line item's scoping/billing breakdown. That keeps a phased
+        // deliverable a SINGLE project, so it can itself be nested under a
+        // parent umbrella (a project that is also a parent can't be nested —
+        // one level deep). The phase prices already sum to the item price.
       }
 
       assertSupabaseOk(
