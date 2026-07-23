@@ -30,6 +30,7 @@ import {
   Bookmark,
   Briefcase,
   Clock,
+  FileCheck2,
   FileSignature,
   FileText,
   FolderKanban,
@@ -157,6 +158,15 @@ export const MODULES: ModuleManifest[] = [
     section: "manage",
     navItems: [
       { labelKey: "proposals", href: "/proposals", icon: FileSignature },
+    ],
+  },
+  {
+    id: "signoff",
+    labelKey: "modules.signoff",
+    icon: FileCheck2,
+    section: "manage",
+    navItems: [
+      { labelKey: "signoffs", href: "/signoffs", icon: FileCheck2 },
     ],
   },
   {

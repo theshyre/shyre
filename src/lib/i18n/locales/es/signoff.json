@@ -1,0 +1,80 @@
+{
+  "title": "Firmas",
+  "newPageTitle": "Nueva firma",
+  "editPageTitle": "Editar firma",
+  "newSignoff": "Nueva firma",
+  "newIntro": "Envía un documento — notas de versión, un SOW, un protocolo de validación — a un conjunto de firmantes para una firma electrónica escrita y verificada por correo. Cada firmante recibe un enlace privado; el registro firmado es inmutable y con hash de contenido.",
+  "listIntro": "Documentos enviados para firma electrónica y su estado de firma.",
+  "empty": "Aún no hay firmas. Crea una para enviar un documento a firmar.",
+  "untitled": "Firma sin título",
+  "edit": "Editar",
+  "delete": "Eliminar",
+  "confirmDelete": "Eliminar",
+  "cancel": "Cancelar",
+  "deleteFailed": "No se pudo eliminar la firma.",
+  "signersHeading": "Firmantes",
+  "noSigners": "Aún no se han añadido firmantes.",
+  "recordsHeading": "Registros firmados",
+  "documentHeading": "Documento",
+  "col": {
+    "title": "Título",
+    "customer": "Cliente",
+    "signers": "Firmantes",
+    "status": "Estado"
+  },
+  "status": {
+    "draft": "Borrador",
+    "sent": "Enviado",
+    "viewed": "Visto",
+    "completed": "Completado",
+    "declined": "Rechazado",
+    "superseded": "Reemplazado",
+    "canceled": "Cancelado"
+  },
+  "readiness": {
+    "heading": "Antes de enviar esta firma:",
+    "titleMissing": "Añade un título.",
+    "bodyEmpty": "Añade el cuerpo del documento.",
+    "noSigners": "Añade al menos un firmante."
+  },
+  "signedAs": {
+    "signed": "Firmado",
+    "declined": "Rechazado"
+  },
+  "meaning": {
+    "author": "Autor",
+    "reviewer": "Revisor",
+    "approver": "Aprobador"
+  },
+  "form": {
+    "team": "Equipo",
+    "customer": "Cliente",
+    "noCustomer": "Sin cliente",
+    "titleLabel": "Título",
+    "titlePlaceholder": "AVDR eClinical — Notas de versión v2.0.2",
+    "version": "Versión",
+    "versionPlaceholder": "v2.0.2",
+    "body": "Documento (Markdown)",
+    "bodyPlaceholder": "Pega aquí el markdown de las notas de versión…",
+    "bodyHint": "Se muestra como Markdown en la página del firmante. El HTML sin procesar no se renderiza (seguridad).",
+    "signingMode": "Modo de firma",
+    "modeAll": "Todos los firmantes deben firmar",
+    "modeFirst": "Cualquier firmante vincula",
+    "theme": "Tema de la página de firma",
+    "themeLight": "Claro",
+    "themeDark": "Oscuro",
+    "themeWarm": "Cálido",
+    "signers": "Firmantes",
+    "signersHint": "Cada firmante recibe un enlace privado y firma con un nombre escrito + un código de un solo uso enviado por correo.",
+    "signerName": "Nombre",
+    "signerEmail": "Correo",
+    "signerRole": "Rol (p. ej. Consultor principal)",
+    "signerOrg": "Organización",
+    "removeSigner": "Quitar",
+    "addSigner": "Añadir firmante",
+    "saveChanges": "Guardar cambios",
+    "createDraft": "Crear borrador",
+    "externalRef": "Referencia (opcional)",
+    "externalRefPlaceholder": "docs/release/v2.0.2 · AE-711"
+  }
+}

@@ -1,0 +1,80 @@
+{
+  "title": "Sign-offs",
+  "newPageTitle": "New sign-off",
+  "editPageTitle": "Edit sign-off",
+  "newSignoff": "New sign-off",
+  "newIntro": "Send a document — release notes, an SOW, a validation protocol — to a set of signatories for a typed, email-verified electronic signature. Each signer gets a private link; the signed record is immutable and content-hashed.",
+  "listIntro": "Documents sent for electronic sign-off, and their signature status.",
+  "empty": "No sign-offs yet. Create one to send a document for signature.",
+  "untitled": "Untitled sign-off",
+  "edit": "Edit",
+  "delete": "Delete",
+  "confirmDelete": "Delete",
+  "cancel": "Cancel",
+  "deleteFailed": "Couldn't delete the sign-off.",
+  "signersHeading": "Signatories",
+  "noSigners": "No signatories added yet.",
+  "recordsHeading": "Signed records",
+  "documentHeading": "Document",
+  "col": {
+    "title": "Title",
+    "customer": "Customer",
+    "signers": "Signatories",
+    "status": "Status"
+  },
+  "status": {
+    "draft": "Draft",
+    "sent": "Sent",
+    "viewed": "Viewed",
+    "completed": "Completed",
+    "declined": "Declined",
+    "superseded": "Superseded",
+    "canceled": "Canceled"
+  },
+  "readiness": {
+    "heading": "Before you can send this sign-off:",
+    "titleMissing": "Add a title.",
+    "bodyEmpty": "Add the document body.",
+    "noSigners": "Add at least one signatory."
+  },
+  "signedAs": {
+    "signed": "Signed",
+    "declined": "Declined"
+  },
+  "meaning": {
+    "author": "Author",
+    "reviewer": "Reviewer",
+    "approver": "Approver"
+  },
+  "form": {
+    "team": "Team",
+    "customer": "Customer",
+    "noCustomer": "No customer",
+    "titleLabel": "Title",
+    "titlePlaceholder": "AVDR eClinical — Release Notes v2.0.2",
+    "version": "Version",
+    "versionPlaceholder": "v2.0.2",
+    "body": "Document (Markdown)",
+    "bodyPlaceholder": "Paste the release notes markdown here…",
+    "bodyHint": "Rendered as Markdown on the signer's page. Raw HTML is not rendered (security).",
+    "signingMode": "Signing mode",
+    "modeAll": "Every signatory must sign",
+    "modeFirst": "Any one signatory binds",
+    "theme": "Sign-page theme",
+    "themeLight": "Light",
+    "themeDark": "Dark",
+    "themeWarm": "Warm",
+    "signers": "Signatories",
+    "signersHint": "Each signatory gets a private link and signs with a typed name + emailed one-time code.",
+    "signerName": "Name",
+    "signerEmail": "Email",
+    "signerRole": "Role (e.g. Principal Consultant)",
+    "signerOrg": "Organization",
+    "removeSigner": "Remove",
+    "addSigner": "Add signatory",
+    "saveChanges": "Save changes",
+    "createDraft": "Create draft",
+    "externalRef": "Reference (optional)",
+    "externalRefPlaceholder": "docs/release/v2.0.2 · AE-711"
+  }
+}
