@@ -309,6 +309,8 @@
     "convert": "Convertir en proyectos",
     "converting": "Convirtiendo…",
     "convertFailed": "Error al convertir",
+    "convertNestUnder": "Anidar bajo",
+    "convertNestNone": "Ninguno (nivel superior)",
     "bill": "Crear factura",
     "billing": "Creando factura…",
     "billFailed": "Error al crear la factura",

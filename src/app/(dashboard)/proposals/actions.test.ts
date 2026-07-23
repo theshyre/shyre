@@ -748,7 +748,7 @@ describe("convertProposalAction", () => {
     proposal_number: "PROP-2026-007",
   };
 
-  it("creates a project per accepted item, phases as sub-projects, links them back, flips to converted", async () => {
+  it("creates one project per accepted top-level item (phases stay on the proposal), links them back, flips to converted", async () => {
     queues["proposals"] = [
       { data: acceptedProposal, error: null },
       { data: null, error: null }, // status → converted
@@ -759,48 +759,37 @@ describe("convertProposalAction", () => {
     queues["proposal_line_items"] = [{ data: CONVERT_ITEMS, error: null }];
     queues["projects"] = [
       { data: { id: "p-1" }, error: null }, // li-1
-      { data: { id: "p-2" }, error: null }, // li-2 parent
-      { data: { id: "p-3" }, error: null }, // phase 1
-      { data: { id: "p-4" }, error: null }, // phase 2
-      { data: { id: "p-5" }, error: null }, // phase 3
+      { data: { id: "p-2" }, error: null }, // li-2 (phases NOT expanded)
     ];
     queues["proposal_events"] = [{ data: null, error: null }];
 
     await convertProposalAction(formWith({ id: "prop-1" }));
 
     const projectInserts = insertedRows("projects");
-    expect(projectInserts).toHaveLength(5);
+    // Two top-level items → two projects; the phased deliverable stays ONE
+    // project (its 3 phases are NOT expanded into sub-projects).
+    expect(projectInserts).toHaveLength(2);
     expect(projectInserts[0]).toMatchObject({
       name: "Basic dependency upgrades",
       customer_id: CUSTOMER,
       team_id: TEAM,
       is_internal: false,
-      // Converted fixed-bid project: tracked, not hourly-billed, and it
-      // carries the line item's fixed price.
       default_billable: false,
       billing_mode: "fixed_bid",
       fixed_price: 950,
     });
-    // The three phases hang under li-2's project.
-    const subs = projectInserts.filter((p) => p.parent_project_id === "p-2");
-    expect(subs.map((s) => s.name)).toEqual([
-      "Update the visual framework",
-      "Retire older libraries",
-      "Refresh code-quality checks",
-    ]);
+    expect(projectInserts[1]).toMatchObject({
+      name: "Modernize underlying components",
+      fixed_price: 4000,
+    });
+    expect(projectInserts.some((p) => p.parent_project_id != null)).toBe(false);
 
-    // Line items linked back to their created projects.
+    // Only the two top-level line items are linked back to their projects.
     const liUpdates = calls
       .filter((c) => c.table === "proposal_line_items")
       .flatMap((c) => c.ops.filter((o) => o.method === "update"))
       .map((o) => o.args[0] as { converted_project_id?: string });
-    expect(liUpdates.map((u) => u.converted_project_id)).toEqual([
-      "p-1",
-      "p-2",
-      "p-3",
-      "p-4",
-      "p-5",
-    ]);
+    expect(liUpdates.map((u) => u.converted_project_id)).toEqual(["p-1", "p-2"]);
 
     const statusUpdate = calls.find(
       (c) =>
@@ -814,8 +803,52 @@ describe("convertProposalAction", () => {
     expect(statusUpdate).toBeDefined();
     expect(insertedRows("proposal_events")[0]).toMatchObject({
       event_type: "converted",
-      metadata: { projects_created: 5 },
+      metadata: { projects_created: 2 },
     });
+  });
+
+  it("nests the created projects under a chosen parent (validated same-customer, top-level)", async () => {
+    queues["proposals"] = [
+      { data: acceptedProposal, error: null },
+      { data: null, error: null }, // status → converted
+    ];
+    queues["proposal_acceptances"] = [
+      { data: [{ selected_line_item_ids: ["li-1"], decision: "accepted" }], error: null },
+    ];
+    queues["proposal_line_items"] = [{ data: CONVERT_ITEMS, error: null }];
+    queues["projects"] = [
+      // parent validation lookup
+      { data: { id: "umbrella", customer_id: CUSTOMER, parent_project_id: null }, error: null },
+      { data: { id: "p-1" }, error: null }, // li-1 created under the umbrella
+    ];
+    queues["proposal_events"] = [{ data: null, error: null }];
+
+    await convertProposalAction(
+      formWith({ id: "prop-1", parent_project_id: "umbrella" }),
+    );
+
+    const projectInserts = insertedRows("projects");
+    expect(projectInserts).toHaveLength(1);
+    expect(projectInserts[0]).toMatchObject({
+      name: "Basic dependency upgrades",
+      parent_project_id: "umbrella",
+    });
+  });
+
+  it("refuses a parent that belongs to a different customer", async () => {
+    queues["proposals"] = [{ data: acceptedProposal, error: null }];
+    queues["proposal_acceptances"] = [
+      { data: [{ selected_line_item_ids: ["li-1"], decision: "accepted" }], error: null },
+    ];
+    queues["proposal_line_items"] = [{ data: CONVERT_ITEMS, error: null }];
+    queues["projects"] = [
+      { data: { id: "other", customer_id: "different-customer", parent_project_id: null }, error: null },
+    ];
+    await expect(
+      convertProposalAction(
+        formWith({ id: "prop-1", parent_project_id: "other" }),
+      ),
+    ).rejects.toThrow(/top-level project for this customer/);
   });
 
   it("refuses when the proposal isn't accepted", async () => {

@@ -309,6 +309,8 @@
     "convert": "Convert to projects",
     "converting": "Converting…",
     "convertFailed": "Convert failed",
+    "convertNestUnder": "Nest under",
+    "convertNestNone": "None (top-level)",
     "bill": "Create invoice",
     "billing": "Creating invoice…",
     "billFailed": "Invoice creation failed",

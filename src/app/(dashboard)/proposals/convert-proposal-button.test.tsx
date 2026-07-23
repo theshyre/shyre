@@ -14,7 +14,9 @@ beforeEach(() => convertMock.mockReset());
 describe("ConvertProposalButton", () => {
   it("converts with the proposal id", async () => {
     convertMock.mockResolvedValue({ success: true });
-    renderWithIntl(<ConvertProposalButton proposalId="prop-1" />);
+    renderWithIntl(
+      <ConvertProposalButton proposalId="prop-1" eligibleParents={[]} />,
+    );
     fireEvent.click(
       screen.getByRole("button", { name: /Convert to projects/ }),
     );
@@ -24,12 +26,34 @@ describe("ConvertProposalButton", () => {
     );
   });
 
+  it("sends the chosen parent when nesting under an umbrella", async () => {
+    convertMock.mockResolvedValue({ success: true });
+    renderWithIntl(
+      <ConvertProposalButton
+        proposalId="prop-1"
+        eligibleParents={[{ id: "umbrella", name: "AVDR eClinical" }]}
+      />,
+    );
+    fireEvent.change(screen.getByRole("combobox"), {
+      target: { value: "umbrella" },
+    });
+    fireEvent.click(
+      screen.getByRole("button", { name: /Convert to projects/ }),
+    );
+    await waitFor(() => expect(convertMock).toHaveBeenCalledTimes(1));
+    expect(
+      (convertMock.mock.calls[0]![0] as FormData).get("parent_project_id"),
+    ).toBe("umbrella");
+  });
+
   it("surfaces failure inline", async () => {
     convertMock.mockResolvedValue({
       success: false,
       error: { message: "Every accepted line item has already been converted." },
     });
-    renderWithIntl(<ConvertProposalButton proposalId="prop-1" />);
+    renderWithIntl(
+      <ConvertProposalButton proposalId="prop-1" eligibleParents={[]} />,
+    );
     fireEvent.click(
       screen.getByRole("button", { name: /Convert to projects/ }),
     );
