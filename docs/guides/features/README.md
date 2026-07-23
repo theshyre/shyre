@@ -44,6 +44,7 @@ How each Shyre feature works. Apply to every user regardless of role; role-speci
 ## Agents & integrations
 
 - [Quick guide](integrations-quickstart.md)
+- [Day-to-day: what to tell Claude](tracking-time-day-to-day.md)
 - [Integration tokens](integration-tokens.md)
 - [Integrations API (REST + MCP)](integrations-api.md)
 - [Agent attribution on time entries](agent-attribution.md)

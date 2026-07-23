@@ -109,6 +109,11 @@ export const DOC_TOPICS: DocTopic[] = [
         quick: true,
       },
       {
+        href: "/docs/guides/features/tracking-time-day-to-day",
+        title: "Day-to-day: what to tell Claude",
+        blurb: "The daily loop and the exact prompts — log now, target a project, check totals, fix an entry.",
+      },
+      {
         href: "/docs/guides/features/integration-tokens",
         title: "Setup: tokens & the team switch",
         blurb: "Manage the personal access tokens that let external tools act on your behalf.",
