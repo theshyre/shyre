@@ -80,12 +80,24 @@ ALTER TABLE public.signoff_documents ENABLE ROW LEVEL SECURITY;
 DROP POLICY IF EXISTS "signoff_docs_select" ON public.signoff_documents;
 CREATE POLICY "signoff_docs_select" ON public.signoff_documents FOR SELECT
   USING (public.user_has_team_access(team_id));
+-- customer_id (when set) must belong to the SAME team — the SAL-033 cross-team
+-- defense proposals carries, closed now before the service-role /signoff public
+-- page can ever surface a mislabeled foreign-team customer (SAL-041 lineage).
 DROP POLICY IF EXISTS "signoff_docs_insert" ON public.signoff_documents;
 CREATE POLICY "signoff_docs_insert" ON public.signoff_documents FOR INSERT
-  WITH CHECK (public.user_team_role(team_id) IN ('owner','admin'));
+  WITH CHECK (
+    public.user_team_role(team_id) IN ('owner','admin')
+    AND (customer_id IS NULL OR EXISTS (
+      SELECT 1 FROM public.customers c WHERE c.id = customer_id AND c.team_id = team_id))
+  );
 DROP POLICY IF EXISTS "signoff_docs_update" ON public.signoff_documents;
 CREATE POLICY "signoff_docs_update" ON public.signoff_documents FOR UPDATE
-  USING (public.user_team_role(team_id) IN ('owner','admin'));
+  USING (public.user_team_role(team_id) IN ('owner','admin'))
+  WITH CHECK (
+    public.user_team_role(team_id) IN ('owner','admin')
+    AND (customer_id IS NULL OR EXISTS (
+      SELECT 1 FROM public.customers c WHERE c.id = customer_id AND c.team_id = team_id))
+  );
 DROP POLICY IF EXISTS "signoff_docs_delete" ON public.signoff_documents;
 CREATE POLICY "signoff_docs_delete" ON public.signoff_documents FOR DELETE
   USING (public.user_team_role(team_id) IN ('owner','admin'));
@@ -177,12 +189,17 @@ CREATE OR REPLACE FUNCTION public.tg_signoff_docs_send_lock_guard()
 RETURNS TRIGGER AS $$
 DECLARE
   -- Columns that MAY change after a sign-off leaves draft: lifecycle status +
-  -- its stamped timestamps, actor stamp, and deleted_at. Everything else —
-  -- title, body_markdown, signers-implied content — is frozen; a revision is a
-  -- new sign-off. DEFAULT-DENY: future columns are locked until added here.
+  -- its stamped timestamps, actor stamp, deleted_at, and the FK columns that
+  -- referential actions (ON DELETE SET NULL) must be able to clear without
+  -- tripping the lock (customer_id / created_by_user_id — else a customer or
+  -- user hard-delete that touches a non-draft sign-off fails, reintroducing the
+  -- SAL-050 hard-delete blocker). Everything else — title, body_markdown — is
+  -- frozen; a revision is a new sign-off. DEFAULT-DENY: future columns are
+  -- locked until added here (SAL-034).
   mutable CONSTANT text[] := ARRAY[
     'status', 'sent_at', 'viewed_at', 'completed_at', 'declined_at',
-    'superseded_at', 'canceled_at', 'updated_by_user_id', 'deleted_at'
+    'superseded_at', 'canceled_at', 'updated_by_user_id', 'deleted_at',
+    'customer_id', 'created_by_user_id'
   ];
 BEGIN
   IF TG_OP = 'DELETE' THEN

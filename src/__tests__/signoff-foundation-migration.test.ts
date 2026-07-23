@@ -80,6 +80,20 @@ describe("signoff foundation — security posture (mirrors proposals)", () => {
     expect(sql).toMatch(/tg_signoff_signers_send_lock_guard/);
   });
 
+  it("SET-NULL FK columns stay strippable through the send-lock (SAL-050): customer/user hard-delete can't trip the freeze", () => {
+    const m = sql.match(/mutable CONSTANT text\[\] := ARRAY\[([\s\S]*?)\];/);
+    expect(m).not.toBeNull();
+    expect(m![1]).toMatch(/'customer_id'/);
+    expect(m![1]).toMatch(/'created_by_user_id'/);
+  });
+
+  it("customer_id carries the same-team parity check (SAL-033) on insert + update", () => {
+    // Both write policies constrain customer_id to the same team.
+    const parity = /customer_id IS NULL OR EXISTS \(\s*\n?\s*SELECT 1 FROM public\.customers c WHERE c\.id = customer_id AND c\.team_id = team_id\)/g;
+    expect([...sql.matchAll(parity)].length).toBeGreaterThanOrEqual(2);
+    expect(sql).toMatch(/"signoff_docs_update"[\s\S]*?WITH CHECK/);
+  });
+
   it("history twin is append-only via a SECURITY DEFINER trigger", () => {
     expect(sql).toMatch(/FUNCTION public\.tg_signoff_docs_log_change[\s\S]*?SECURITY DEFINER/);
     expect(sql).toMatch(/CREATE POLICY "signoff_docs_hist_select"[\s\S]*?FOR SELECT/);
