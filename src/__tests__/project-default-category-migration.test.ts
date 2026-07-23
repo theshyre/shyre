@@ -254,6 +254,36 @@ describe("project setting inheritance (20260723100000, EFFECTIVE definitions)", 
   });
 });
 
+describe("agent ticket linking + jira exposure (20260723110000, EFFECTIVE definitions)", () => {
+  it("api_list_projects emits the EFFECTIVE jira_project_key (own or inherited)", () => {
+    const sql = latestCreateFunction("api_list_projects");
+    expect(sql).toMatch(
+      /'jira_project_key', COALESCE\(p\.jira_project_key, par\.jira_project_key\)/,
+    );
+  });
+
+  it("api_log_entry auto-links tickets and sets linked_ticket_* on insert", () => {
+    const sql = latestCreateFunction("api_log_entry");
+    // Captures effective jira key + own github_repo in the project lookup.
+    expect(sql).toMatch(
+      /COALESCE\(p\.jira_project_key, par\.jira_project_key\),\s*\n\s*p\.github_repo/,
+    );
+    // GitHub long-form + short-form + Jira detection blocks.
+    expect(sql).toMatch(/v_link_provider := 'github'/);
+    expect(sql).toMatch(/v_link_provider := 'jira'/);
+    // Jira is scoped to the EFFECTIVE key (stricter than the app), and the
+    // URL comes from the token owner's user_settings.jira_base_url.
+    expect(sql).toMatch(/regexp_match\(clean_desc, '\\m' \|\| v_eff_jira_key \|\| '-\(\[0-9\]\+\)\\M'\)/);
+    expect(sql).toMatch(/FROM user_settings WHERE user_id = tok\.user_id/);
+    // The link actually lands on the row (provider/key/url only — title is
+    // NOT inserted; the refresh chip fills it lazily).
+    expect(sql).toMatch(
+      /linked_ticket_provider, linked_ticket_key, linked_ticket_url,/,
+    );
+    expect(sql).toMatch(/v_link_provider, v_link_key, v_link_url,/);
+  });
+});
+
 describe("project lifetime dollar cap / NTE (20260722140000)", () => {
   const sql = readMigration("project_budget_dollars");
 
