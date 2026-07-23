@@ -36,9 +36,11 @@ describe("requestSignoffOtpAction", () => {
     expect(await requestSignoffOtpAction("")).toEqual({ ok: false, reason: "error" });
     expect(issueMock).not.toHaveBeenCalled();
   });
-  it("forwards success with the masked destination", async () => {
+  it("returns success WITHOUT leaking the destination email (SAL-065)", async () => {
     issueMock.mockResolvedValue({ ok: true, value: { sentTo: "x@y.com" } });
-    expect(await requestSignoffOtpAction(TOKEN)).toEqual({ ok: true, sentTo: "x@y.com" });
+    const r = await requestSignoffOtpAction(TOKEN);
+    expect(r).toEqual({ ok: true });
+    expect(JSON.stringify(r)).not.toContain("x@y.com");
   });
 });
 
@@ -73,15 +75,18 @@ describe("submitSignoffDecisionAction", () => {
     expect(recordMock).not.toHaveBeenCalled();
   });
 
-  it("rejects an unknown signature meaning", async () => {
-    const r = await submitSignoffDecisionAction(TOKEN, {
-      decision: "signed",
-      signerName: "Bret",
-      signerTitle: "",
-      signatureTyped: "Bret",
-      signatureMeaning: "supreme-overlord",
-    });
-    expect(r).toEqual({ ok: false, reason: "error" });
+  it("rejects an unknown OR empty signature meaning on a signed decision (Part-11 server enforcement)", async () => {
+    for (const meaning of ["supreme-overlord", ""]) {
+      const r = await submitSignoffDecisionAction(TOKEN, {
+        decision: "signed",
+        signerName: "Bret",
+        signerTitle: "",
+        signatureTyped: "Bret",
+        signatureMeaning: meaning,
+      });
+      expect(r).toEqual({ ok: false, reason: "error" });
+    }
+    expect(recordMock).not.toHaveBeenCalled();
   });
 
   it("passes IP/UA + the view-session cookie through to the service", async () => {

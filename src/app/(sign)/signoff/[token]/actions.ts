@@ -22,7 +22,6 @@ const MEANINGS = new Set(["author", "reviewer", "approver"]);
 export interface PublicActionResult {
   ok: boolean;
   reason?: SignFailReason | "error";
-  sentTo?: string;
 }
 
 function invalidInput(): PublicActionResult {
@@ -33,7 +32,10 @@ export async function requestSignoffOtpAction(token: unknown): Promise<PublicAct
   if (typeof token !== "string" || token.length === 0 || token.length > 128) return invalidInput();
   try {
     const result = await issueSignOtp(token);
-    return result.ok ? { ok: true, sentTo: result.value.sentTo } : { ok: false, reason: result.reason };
+    // Deliberately do NOT return the destination email: the masked gate
+    // (SAL-045/046) exists so an unverified link holder can't read the full
+    // recipient — forwarding it in this response would defeat that. SAL-065.
+    return result.ok ? { ok: true } : { ok: false, reason: result.reason };
   } catch (err) {
     logError(err, { action: "requestSignoffOtpAction" });
     return { ok: false, reason: "error" };
@@ -93,8 +95,13 @@ export async function submitSignoffDecisionAction(
   ) {
     return invalidInput();
   }
-  // Signing requires a typed signature; declining doesn't.
-  if (p.decision === "signed" && p.signatureTyped.trim().length === 0) return invalidInput();
+  // Signing requires a typed signature AND an explicit signature meaning
+  // (author/reviewer/approver) — the Part-11 manifestation is server-enforced,
+  // not just the client attestation gate. Declining requires neither.
+  if (p.decision === "signed") {
+    if (p.signatureTyped.trim().length === 0) return invalidInput();
+    if (!MEANINGS.has(p.signatureMeaning)) return invalidInput();
+  }
 
   try {
     const headerList = await headers();

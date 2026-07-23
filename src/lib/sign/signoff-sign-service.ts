@@ -188,11 +188,12 @@ export async function loadSignGate(
   const token = tokenResult.value;
 
   const branding = await loadBranding(admin, token.team_id);
-  const { data: doc } = await admin
+  const { data: doc, error: themeError } = await admin
     .from("signoff_documents")
     .select("sign_theme")
     .eq("id", token.document_id)
     .single();
+  logReadError(themeError, "signoffSign.loadSignGate", token.team_id);
 
   return {
     ok: true,
