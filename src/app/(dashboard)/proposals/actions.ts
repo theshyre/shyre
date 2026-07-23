@@ -874,10 +874,21 @@ export async function convertProposalAction(formData: FormData): Promise<void> {
       // pre-check gives a clean error instead of a raw constraint violation.
       const parentProjectId =
         (formData.get("parent_project_id") as string) || null;
+      // Deliverables under an umbrella share its category vocabulary:
+      // inherit the parent's base category set + default category so time
+      // logged on the new projects is categorizable from day one. Without
+      // this, converted projects had NO set and every category picker on
+      // their entries rendered a dead end (2026-07-23 incident).
+      let inheritedCategoryFields: {
+        category_set_id?: string | null;
+        default_category_id?: string | null;
+      } = {};
       if (parentProjectId) {
         const { data: parent } = await supabase
           .from("projects")
-          .select("id, customer_id, parent_project_id")
+          .select(
+            "id, customer_id, parent_project_id, category_set_id, default_category_id",
+          )
           .eq("id", parentProjectId)
           .maybeSingle();
         if (
@@ -889,6 +900,23 @@ export async function convertProposalAction(formData: FormData): Promise<void> {
             "The chosen parent must be a top-level project for this customer.",
           );
         }
+        // Only inherit the default when it lives in the inherited BASE
+        // set — a parent default from its project-scoped extension set
+        // wouldn't validate on the child.
+        let inheritableDefault: string | null = null;
+        if (parent.category_set_id && parent.default_category_id) {
+          const { data: defaultCat } = await supabase
+            .from("categories")
+            .select("id")
+            .eq("id", parent.default_category_id)
+            .eq("category_set_id", parent.category_set_id)
+            .maybeSingle();
+          inheritableDefault = defaultCat ? parent.default_category_id : null;
+        }
+        inheritedCategoryFields = {
+          category_set_id: parent.category_set_id,
+          default_category_id: inheritableDefault,
+        };
       }
 
       let createdCount = 0;
@@ -930,7 +958,7 @@ export async function convertProposalAction(formData: FormData): Promise<void> {
             name: item.title,
             description: item.description,
             ...(parentProjectId
-              ? { parent_project_id: parentProjectId }
+              ? { parent_project_id: parentProjectId, ...inheritedCategoryFields }
               : {}),
           })
           .select("id")

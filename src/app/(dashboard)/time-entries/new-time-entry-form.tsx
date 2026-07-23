@@ -171,6 +171,10 @@ export function NewTimeEntryForm({
               selectedProject?.category_set_id,
               selectedProject?.extension_category_set_id,
             ]}
+            hideWhenEmpty={false}
+            configureHref={
+              selectedProject ? `/projects/${selectedProject.id}/settings` : null
+            }
           />
         </div>
 

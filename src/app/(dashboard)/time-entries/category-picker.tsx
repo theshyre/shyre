@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { useTranslations } from "next-intl";
 import { selectClass, labelClass } from "@/lib/form-styles";
 import type { CategoryOption } from "./types";
@@ -23,6 +24,14 @@ interface Props {
   onChange?: (id: string) => void;
   /** Hidden when the project has no set — nothing is rendered */
   hideWhenEmpty?: boolean;
+  /**
+   * Where "configure one in project settings" should link when the
+   * project has no category set (`/projects/<id>/settings`). Only
+   * meaningful with `hideWhenEmpty={false}` — without it the notice
+   * renders as plain text. Editing an entry on a set-less project was
+   * a silent dead end when the picker rendered nothing (2026-07-23).
+   */
+  configureHref?: string | null;
   /**
    * Optional id of the entry's CURRENT category, used by the edit
    * paths so a category whose set is no longer linked to the project
@@ -54,8 +63,29 @@ export function CategoryPicker({
   onChange,
   hideWhenEmpty = true,
   currentCategoryId,
+  configureHref,
 }: Props): React.JSX.Element | null {
   const t = useTranslations("categories.entry");
+
+  const notConfiguredNotice = (
+    <div>
+      <label className={labelClass}>{t("label")}</label>
+      <p className="text-caption text-content-muted italic">
+        {configureHref
+          ? t.rich("notConfiguredLinked", {
+              link: (chunks) => (
+                <Link
+                  href={configureHref}
+                  className="text-accent underline underline-offset-2 not-italic hover:text-accent-strong"
+                >
+                  {chunks}
+                </Link>
+              ),
+            })
+          : t("notConfigured")}
+      </p>
+    </div>
+  );
 
   // Build the effective set-id list from either the new array prop or
   // the legacy single id, stripping nullish.
@@ -80,24 +110,12 @@ export function CategoryPicker({
       ? categories.find((c) => c.id === currentCategoryId)
       : null;
 
-  if (effectiveSetIds.length === 0 && !orphanedCategory) {
+  if (
+    (effectiveSetIds.length === 0 || filtered.length === 0) &&
+    !orphanedCategory
+  ) {
     if (hideWhenEmpty) return null;
-    return (
-      <div>
-        <label className={labelClass}>{t("label")}</label>
-        <p className="text-caption text-content-muted italic">{t("notConfigured")}</p>
-      </div>
-    );
-  }
-
-  if (filtered.length === 0 && !orphanedCategory) {
-    if (hideWhenEmpty) return null;
-    return (
-      <div>
-        <label className={labelClass}>{t("label")}</label>
-        <p className="text-caption text-content-muted italic">{t("notConfigured")}</p>
-      </div>
-    );
+    return notConfiguredNotice;
   }
 
   return (

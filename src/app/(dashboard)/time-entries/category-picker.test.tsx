@@ -104,6 +104,47 @@ describe("CategoryPicker", () => {
     expect(optionTexts).toContain("Feature");
   });
 
+  it("hides entirely when the project has no set and hideWhenEmpty is default — non-edit contexts stay uncluttered", () => {
+    const { container } = renderWithIntl(
+      <CategoryPicker categories={categories} categorySetIds={[]} />,
+    );
+    expect(container).toBeEmptyDOMElement();
+  });
+
+  it("renders an actionable notice with a project-settings link when the project has no set and hideWhenEmpty={false} — a silently absent picker read as 'can't categorize this entry' (2026-07-23)", () => {
+    renderWithIntl(
+      <CategoryPicker
+        categories={categories}
+        categorySetIds={[]}
+        hideWhenEmpty={false}
+        configureHref="/projects/p1/settings"
+      />,
+    );
+    expect(screen.queryByRole("combobox")).not.toBeInTheDocument();
+    const link = screen.getByRole("link", {
+      name: /configure one in project settings/i,
+    });
+    expect(link).toHaveAttribute("href", "/projects/p1/settings");
+    // The surrounding sentence still explains WHY there is no picker.
+    expect(
+      screen.getByText(/this project has no category set/i),
+    ).toBeInTheDocument();
+  });
+
+  it("renders the plain-text notice when hideWhenEmpty={false} without a configureHref", () => {
+    renderWithIntl(
+      <CategoryPicker
+        categories={categories}
+        categorySetIds={[]}
+        hideWhenEmpty={false}
+      />,
+    );
+    expect(screen.queryByRole("link")).not.toBeInTheDocument();
+    expect(
+      screen.getByText(/configure one in project settings/i),
+    ).toBeInTheDocument();
+  });
+
   it("renders the picker (with just the retired option) when the project has no active set but the entry has an orphaned category — preserves the user's chance to keep their original classification", () => {
     renderWithIntl(
       <CategoryPicker

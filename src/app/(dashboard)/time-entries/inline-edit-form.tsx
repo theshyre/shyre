@@ -233,6 +233,8 @@ export function InlineEditForm({
                 : null
             }
             currentCategoryId={entry.category_id}
+            hideWhenEmpty={false}
+            configureHref={`/projects/${selectedProjectId}/settings`}
           />
         </div>
 
