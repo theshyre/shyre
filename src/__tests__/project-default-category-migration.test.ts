@@ -320,6 +320,24 @@ describe("agent entry mutation API (20260723120000)", () => {
     expect(sql).not.toMatch(/DELETE FROM time_entries/);
   });
 
+  it("api_update_entry writes ONLY real time_entries columns — no phantom updated_at (SAL-058-class 42703 → 500)", () => {
+    // time_entries has created_at + updated_by_user_id (trigger-stamped) but NO
+    // updated_at; duration_min is GENERATED. The mutating UPDATE must set only
+    // the five editable columns.
+    const m = sql.match(/UPDATE time_entries SET\s*([\s\S]*?)\s*WHERE id = p_entry_id\s*\n\s*RETURNING/);
+    expect(m).not.toBeNull();
+    const setClause = m![1]!;
+    expect(setClause).not.toMatch(/\bupdated_at\b/);
+    for (const col of ["start_time", "end_time", "description", "category_id", "billable"]) {
+      expect(setClause).toContain(col);
+    }
+  });
+
+  it("api_update_entry rejects an empty patch (no fields) with TK400", () => {
+    expect(sql).toMatch(/'reason', 'no_fields'/);
+    expect(sql).toMatch(/no fields to update' USING ERRCODE = 'TK400'/);
+  });
+
   it("keeps every new RPC anon-only (SAL-054)", () => {
     for (const fn of ["api_get_entry", "api_list_entries", "api_update_entry", "api_delete_entry"]) {
       expect(sql).toMatch(

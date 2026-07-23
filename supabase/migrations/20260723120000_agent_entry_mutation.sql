@@ -169,6 +169,14 @@ BEGIN
   tok := api_resolve_token(p_token_hash, 'entries:write');
   PERFORM pg_advisory_xact_lock(hashtext('timer:' || tok.user_id::text));
 
+  -- Reject an empty patch outright (no-op UPDATE + misleading 'ok' event).
+  IF p_start_time IS NULL AND p_end_time IS NULL AND p_description IS NULL
+     AND p_category_id IS NULL AND p_billable IS NULL THEN
+    PERFORM api_log_event(tok, 'entries.update', 'denied', p_entry_id,
+      jsonb_build_object('reason', 'no_fields'));
+    RAISE EXCEPTION 'no fields to update' USING ERRCODE = 'TK400';
+  END IF;
+
   SELECT * INTO entry FROM time_entries te
     WHERE te.id = p_entry_id
       AND te.user_id = tok.user_id
@@ -300,13 +308,15 @@ BEGIN
     END IF;
   END IF;
 
+  -- No updated_at column on time_entries: the stamp-actor trigger records the
+  -- mutator (updated_by_user_id), and duration_min is GENERATED (recomputes
+  -- from the new start/end). Setting a phantom column would 42703 → 500.
   UPDATE time_entries SET
     start_time = v_start,
     end_time = v_end,
     description = v_desc,
     category_id = v_category,
-    billable = v_billable,
-    updated_at = now()
+    billable = v_billable
     WHERE id = p_entry_id
     RETURNING * INTO new_row;
 
