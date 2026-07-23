@@ -28,7 +28,8 @@
     "docs": "Documentación",
     "unresolvedBadge": "{count, plural, one {# ítem pendiente} other {# ítems pendientes}}",
     "openMenu": "Abrir menú",
-    "closeMenu": "Cerrar menú"
+    "closeMenu": "Cerrar menú",
+    "signoffs": "Firmas"
   },
   "authorship": {
     "unknownUser": "Usuario desconocido",
@@ -117,7 +118,11 @@
     "systemErrors": "Registro de errores",
     "systemUsers": "Todas las cuentas",
     "systemTeams": "Equipos de la instancia",
-    "systemSampleData": "Datos de ejemplo"
+    "systemSampleData": "Datos de ejemplo",
+    "signoffs": "Firmas",
+    "signoffNew": "Nueva firma",
+    "signoffDetail": "Firma",
+    "signoffEdit": "Editar"
   },
   "modules": {
     "stint": "Stint (Tiempo)",
@@ -129,7 +134,8 @@
     "business": "Negocio",
     "integrations": "Integraciones",
     "teams": "Equipos",
-    "admin": "Configuración"
+    "admin": "Configuración",
+    "signoff": "Firmas"
   },
   "actions": {
     "save": "Guardar",
