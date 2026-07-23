@@ -415,6 +415,10 @@
     "nte": "Tope máximo",
     "range": "Estimación (rango)",
     "tm": "Por tiempo y materiales",
-    "fixedPriceAssurance": "Proyecto a precio fijo — el total no cambiará."
+    "fixedPriceAssurance": "Proyecto a precio fijo — el total no cambiará.",
+    "upTo": "Hasta {amount}",
+    "rangeValue": "{low} – {high}",
+    "perHourValue": "{rate}/h",
+    "mixedTotalNote": "Las partidas en firme son fijas; las estimaciones se facturan por tiempo."
   }
 }

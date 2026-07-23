@@ -15,6 +15,40 @@ import {
   formatPdfDate,
   addressLinesForBlock,
 } from "@/lib/pdf/format";
+import { itemPriceDisplay } from "@/lib/proposals/line-items";
+import type { PricingType } from "@/lib/proposals/allow-lists";
+
+/** The per-type price string for the (English-only) client PDF — "Up to $X",
+ *  "$low – $high", "$rate/hr", or a firm amount. Mirrors <ItemPrice>. */
+function pdfItemPriceText(
+  item: {
+    pricingType?: PricingType;
+    fixedPrice: number;
+    hourlyRate?: number | null;
+    estimateLow?: number | null;
+    estimateHigh?: number | null;
+  },
+  fmt: (n: number) => string,
+): string {
+  const d = itemPriceDisplay({
+    pricingType: item.pricingType ?? "fixed_bid",
+    fixedPrice: item.fixedPrice,
+    hourlyRate: item.hourlyRate ?? null,
+    estimateLow: item.estimateLow ?? null,
+    estimateHigh: item.estimateHigh ?? null,
+  });
+  switch (d.kind) {
+    case "nte":
+      return `Up to ${fmt(d.cap)}`;
+    case "range":
+      return `${fmt(d.low)} – ${fmt(d.high)}`;
+    case "tm":
+      return d.rate != null ? `${fmt(d.rate)}/hr` : "—";
+    case "fixed":
+    default:
+      return fmt(d.amount);
+  }
+}
 
 // Same neutral palette as InvoicePDF — hex, not CSS vars, because the
 // renderer runs in a worker. Labels are deliberately English/locale-agnostic,
@@ -357,6 +391,10 @@ export interface ProposalPDFItem {
   definitionOfDone: string | null;
   fixedPrice: number;
   isCapped: boolean;
+  pricingType?: PricingType;
+  hourlyRate?: number | null;
+  estimateLow?: number | null;
+  estimateHigh?: number | null;
   phases: Array<{ title: string; description: string | null; fixedPrice: number }>;
 }
 
@@ -574,7 +612,9 @@ export function ProposalPDF(props: ProposalPDFProps): React.JSX.Element {
                 {summaryHasWhat ? (
                   <Text style={styles.sumWhat}>{item.summary ?? ""}</Text>
                 ) : null}
-                <Text style={styles.sumPrice}>{fmt(item.fixedPrice)}</Text>
+                <Text style={styles.sumPrice}>
+                  {pdfItemPriceText(item, fmt)}
+                </Text>
               </View>
             ))}
             <View style={styles.sumTotalRow}>
@@ -591,7 +631,9 @@ export function ProposalPDF(props: ProposalPDFProps): React.JSX.Element {
             <View style={styles.itemHeadRow}>
               <View style={styles.checkbox} />
               <Text style={styles.itemTitle}>{item.title}</Text>
-              <Text style={styles.itemPrice}>{fmt(item.fixedPrice)}</Text>
+              <Text style={styles.itemPrice}>
+                {pdfItemPriceText(item, fmt)}
+              </Text>
             </View>
             <View style={styles.itemBody}>
               {item.bodyMarkdown && item.bodyMarkdown.trim() !== "" ? (

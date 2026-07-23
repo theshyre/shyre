@@ -2,12 +2,18 @@
 
 import { useTranslations } from "next-intl";
 import { formatCurrency } from "@/lib/invoice-utils";
+import { ItemPrice } from "@/components/ItemPrice";
+import type { PricingType } from "@/lib/proposals/allow-lists";
 
 interface SummaryItem {
   id?: string;
   title: string;
   summary: string | null;
   fixedPrice: number;
+  pricingType?: PricingType;
+  hourlyRate?: number | null;
+  estimateLow?: number | null;
+  estimateHigh?: number | null;
 }
 
 /**
@@ -20,12 +26,17 @@ export function ProposalSummaryTable({
   items,
   total,
   currency,
+  allFixedBid = true,
 }: {
   items: SummaryItem[];
   total: number;
   currency: string;
+  /** When false (a mixed proposal), the total carries a "billed by time" note —
+   *  the sum is a conservative anchor, not one firm number. */
+  allFixedBid?: boolean;
 }): React.JSX.Element | null {
   const t = useTranslations("proposals.summaryTable");
+  const tp = useTranslations("proposals.pricing");
   if (items.length < 2) return null;
   const hasWhat = items.some((i) => i.summary && i.summary.trim() !== "");
 
@@ -67,7 +78,14 @@ export function ProposalSummaryTable({
                   </td>
                 )}
                 <td className="py-2 pl-4 align-top text-right font-mono text-content">
-                  {formatCurrency(item.fixedPrice, currency)}
+                  <ItemPrice
+                    pricingType={item.pricingType ?? "fixed_bid"}
+                    fixedPrice={item.fixedPrice}
+                    hourlyRate={item.hourlyRate}
+                    estimateLow={item.estimateLow}
+                    estimateHigh={item.estimateHigh}
+                    currency={currency}
+                  />
                 </td>
               </tr>
             ))}
@@ -82,6 +100,16 @@ export function ProposalSummaryTable({
                 {formatCurrency(total, currency)}
               </td>
             </tr>
+            {!allFixedBid && (
+              <tr>
+                <td
+                  colSpan={hasWhat ? 4 : 3}
+                  className="pt-1 text-right text-caption text-content-muted"
+                >
+                  {tp("mixedTotalNote")}
+                </td>
+              </tr>
+            )}
           </tbody>
         </table>
       </div>

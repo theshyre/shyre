@@ -6,6 +6,7 @@ import {
   selectedTotal,
   validateProposalItems,
   deriveAnchorAmount,
+  itemPriceDisplay,
   buildProposalItemTree,
   isHomogeneousFixedBid,
   PROPOSAL_ITEM_COLUMNS,
@@ -326,6 +327,44 @@ describe("deriveAnchorAmount", () => {
     expect(
       deriveAnchorAmount("estimate_nte", { ...base, fixedPrice: 10000 }),
     ).toBe(10000);
+  });
+});
+
+describe("itemPriceDisplay", () => {
+  const base = {
+    fixedPrice: 0,
+    hourlyRate: null,
+    estimateLow: null,
+    estimateHigh: null,
+  };
+  it("fixed_bid → a fixed amount", () => {
+    expect(
+      itemPriceDisplay({ ...base, pricingType: "fixed_bid", fixedPrice: 4000 }),
+    ).toEqual({ kind: "fixed", amount: 4000 });
+  });
+  it("estimate_nte → the cap (from fixedPrice)", () => {
+    expect(
+      itemPriceDisplay({
+        ...base,
+        pricingType: "estimate_nte",
+        fixedPrice: 10000,
+      }),
+    ).toEqual({ kind: "nte", cap: 10000 });
+  });
+  it("estimate_range → the low/high band", () => {
+    expect(
+      itemPriceDisplay({
+        ...base,
+        pricingType: "estimate_range",
+        estimateLow: 3000,
+        estimateHigh: 5000,
+      }),
+    ).toEqual({ kind: "range", low: 3000, high: 5000 });
+  });
+  it("estimate_tm → the rate", () => {
+    expect(
+      itemPriceDisplay({ ...base, pricingType: "estimate_tm", hourlyRate: 200 }),
+    ).toEqual({ kind: "tm", rate: 200 });
   });
 });
 

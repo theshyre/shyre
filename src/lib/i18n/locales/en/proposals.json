@@ -415,6 +415,10 @@
     "nte": "Not to exceed",
     "range": "Estimate (range)",
     "tm": "Time & materials",
-    "fixedPriceAssurance": "Fixed-price engagement — the total won't change."
+    "fixedPriceAssurance": "Fixed-price engagement — the total won't change.",
+    "upTo": "Up to {amount}",
+    "rangeValue": "{low} – {high}",
+    "perHourValue": "{rate}/hr",
+    "mixedTotalNote": "Firm items are fixed; estimates are billed by time."
   }
 }

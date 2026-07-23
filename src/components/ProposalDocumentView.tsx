@@ -8,6 +8,7 @@ import { MarkdownView } from "@/components/MarkdownView";
 import { ProposalItemBody } from "@/components/ProposalItemBody";
 import { ProposalSummaryTable } from "@/components/ProposalSummaryTable";
 import { PricingTypeBadge } from "@/components/PricingTypeBadge";
+import { ItemPrice } from "@/components/ItemPrice";
 import type { PricingType } from "@/lib/proposals/allow-lists";
 
 /**
@@ -42,6 +43,9 @@ export interface ProposalDocumentItem {
    *  (backfill default) — a homogeneous fixed-bid deal shows one assurance line
    *  near the total instead of per-line badges. */
   pricingType?: PricingType;
+  hourlyRate?: number | null;
+  estimateLow?: number | null;
+  estimateHigh?: number | null;
   phases: ProposalDocumentPhase[];
 }
 export interface ProposalDocumentViewProps {
@@ -189,9 +193,14 @@ export function ProposalDocumentView({
           title: item.title,
           summary: item.summary,
           fixedPrice: item.fixedPrice,
+          pricingType: item.pricingType,
+          hourlyRate: item.hourlyRate,
+          estimateLow: item.estimateLow,
+          estimateHigh: item.estimateHigh,
         }))}
         total={total}
         currency={currency}
+        allFixedBid={allFixedBid}
       />
 
       {/* Line items */}
@@ -208,7 +217,14 @@ export function ProposalDocumentView({
                   <PricingTypeBadge type={item.pricingType ?? "fixed_bid"} />
                 </span>
                 <span className="font-mono text-body-lg text-content">
-                  {formatCurrency(item.fixedPrice, currency)}
+                  <ItemPrice
+                    pricingType={item.pricingType ?? "fixed_bid"}
+                    fixedPrice={item.fixedPrice}
+                    hourlyRate={item.hourlyRate}
+                    estimateLow={item.estimateLow}
+                    estimateHigh={item.estimateHigh}
+                    currency={currency}
+                  />
                 </span>
               </div>
               <ProposalItemBody
@@ -273,6 +289,11 @@ export function ProposalDocumentView({
               {tp("fixedPriceAssurance")}
             </span>
           </div>
+        )}
+        {!allFixedBid && items.length > 0 && (
+          <p className="mt-2 text-caption text-content-muted">
+            {tp("mixedTotalNote")}
+          </p>
         )}
       </section>
 

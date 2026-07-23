@@ -6,6 +6,8 @@ import { useTranslations } from "next-intl";
 import { MarkdownView } from "@/components/MarkdownView";
 import { ProposalItemBody } from "@/components/ProposalItemBody";
 import { ProposalSummaryTable } from "@/components/ProposalSummaryTable";
+import { PricingTypeBadge } from "@/components/PricingTypeBadge";
+import { ItemPrice } from "@/components/ItemPrice";
 import {
   CheckCircle2,
   XCircle,
@@ -24,7 +26,10 @@ import {
 } from "@/lib/form-styles";
 import { formatCurrency } from "@/lib/invoice-utils";
 import { formatDisplayDate } from "@/lib/format-date";
-import { roundMoney } from "@/lib/proposals/line-items";
+import {
+  roundMoney,
+  isHomogeneousFixedBid,
+} from "@/lib/proposals/line-items";
 import type { SignBundle } from "@/lib/proposals/sign-service";
 import {
   submitSignDecisionAction,
@@ -287,9 +292,14 @@ export function SignExperience({ token, bundle }: Props): React.JSX.Element {
           title: item.title,
           summary: item.summary,
           fixedPrice: item.fixedPrice,
+          pricingType: item.pricingType,
+          hourlyRate: item.hourlyRate,
+          estimateLow: item.estimateLow,
+          estimateHigh: item.estimateHigh,
         }))}
         total={fullTotal}
         currency={currency}
+        allFixedBid={isHomogeneousFixedBid(bundle.items)}
       />
 
       {/* Multi-signer notices: a co-signer either waits for the primary to set
@@ -355,27 +365,37 @@ export function SignExperience({ token, bundle }: Props): React.JSX.Element {
                 )}
                 <div className="flex-1">
                   <div className="flex items-baseline justify-between gap-3">
-                    {selectable ? (
-                      <label
-                        id={`sit-${item.id}`}
-                        htmlFor={`sign-item-${item.id}`}
-                        className="cursor-pointer text-body-lg font-semibold text-content"
-                      >
-                        {item.title}
-                      </label>
-                    ) : (
-                      <span
-                        id={`sit-${item.id}`}
-                        className="text-body-lg font-semibold text-content"
-                      >
-                        {item.title}
-                      </span>
-                    )}
+                    <span className="flex items-center gap-2">
+                      {selectable ? (
+                        <label
+                          id={`sit-${item.id}`}
+                          htmlFor={`sign-item-${item.id}`}
+                          className="cursor-pointer text-body-lg font-semibold text-content"
+                        >
+                          {item.title}
+                        </label>
+                      ) : (
+                        <span
+                          id={`sit-${item.id}`}
+                          className="text-body-lg font-semibold text-content"
+                        >
+                          {item.title}
+                        </span>
+                      )}
+                      <PricingTypeBadge type={item.pricingType} />
+                    </span>
                     <span
                       id={`sip-${item.id}`}
                       className="font-mono text-body-lg text-content"
                     >
-                      {formatCurrency(item.fixedPrice, currency)}
+                      <ItemPrice
+                        pricingType={item.pricingType}
+                        fixedPrice={item.fixedPrice}
+                        hourlyRate={item.hourlyRate}
+                        estimateLow={item.estimateLow}
+                        estimateHigh={item.estimateHigh}
+                        currency={currency}
+                      />
                     </span>
                   </div>
                   <ProposalItemBody
