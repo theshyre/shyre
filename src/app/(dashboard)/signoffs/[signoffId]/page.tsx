@@ -18,6 +18,7 @@ import {
 } from "@/lib/sign/readiness";
 import { SignoffStatusBadge } from "../signoff-status-badge";
 import { SignoffDeleteButton } from "../signoff-delete-button";
+import { SignoffSendButton, SignoffCancelButton } from "../signoff-send-buttons";
 
 export async function generateMetadata({
   params,
@@ -108,14 +109,20 @@ export default async function SignoffDetailPage({
             </div>
           </div>
         </div>
-        {canManage && isSignoffEditable(status) && (
-          <div className="flex items-center gap-2">
-            <Link href={`/signoffs/${signoffId}/edit`} className={buttonSecondaryClass}>
-              <Pencil size={15} />
-              {t("edit")}
-            </Link>
-            {isSignoffDeletable(status) && (
-              <SignoffDeleteButton documentId={signoffId} />
+        {canManage && (
+          <div className="flex flex-wrap items-center justify-end gap-2">
+            {isSignoffEditable(status) && (
+              <>
+                <Link href={`/signoffs/${signoffId}/edit`} className={buttonSecondaryClass}>
+                  <Pencil size={15} />
+                  {t("edit")}
+                </Link>
+                <SignoffSendButton documentId={signoffId} ready={readiness.length === 0} />
+                {isSignoffDeletable(status) && <SignoffDeleteButton documentId={signoffId} />}
+              </>
+            )}
+            {(status === "sent" || status === "viewed") && (
+              <SignoffCancelButton documentId={signoffId} />
             )}
           </div>
         )}

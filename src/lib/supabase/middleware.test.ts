@@ -33,6 +33,17 @@ describe("updateSession auth gate", () => {
   it("does NOT redirect the public sign-off surface", async () => {
     expect(await redirectsToLogin("/sign")).toBe(false);
     expect(await redirectsToLogin("/sign/some-token")).toBe(false);
+    // The generic document sign-off public route.
+    expect(await redirectsToLogin("/signoff")).toBe(false);
+    expect(await redirectsToLogin("/signoff/some-token")).toBe(false);
+  });
+
+  it("STILL redirects the /signoffs dashboard + near-misses (exact-segment discipline)", async () => {
+    // The authenticated dashboard list is NOT the public sign route.
+    expect(await redirectsToLogin("/signoffs")).toBe(true);
+    expect(await redirectsToLogin("/signoffs/abc")).toBe(true);
+    // Near-miss of the public route.
+    expect(await redirectsToLogin("/signoffx")).toBe(true);
   });
 
   it("does NOT redirect the Resend delivery webhook (it self-authenticates via HMAC)", async () => {

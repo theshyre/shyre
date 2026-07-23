@@ -2,6 +2,7 @@ import {
   BarChart3,
   Briefcase,
   Clock,
+  FileCheck2,
   FileSignature,
   FileText,
   Plug,
@@ -278,6 +279,27 @@ export const DOC_TOPICS: DocTopic[] = [
         href: "/docs/guides/features/proposals",
         title: "Proposals",
         blurb: "Quote fixed-price work, get it signed, and convert it into billable projects.",
+      },
+    ],
+  },
+  {
+    slug: "signoffs",
+    name: "Sign-offs",
+    blurb:
+      "Send any document — release notes, an SOW — for a typed, email-verified electronic signature with an immutable signed record.",
+    icon: FileCheck2,
+    articles: [
+      {
+        href: "/docs/guides/features/document-signoff-quickstart",
+        title: "Quick guide",
+        blurb: "Send a document for an email-verified electronic signature, in five steps.",
+        quick: true,
+      },
+      {
+        href: "/docs/guides/features/document-signoff",
+        title: "Document sign-off",
+        blurb:
+          "Send a document to a set of signatories for an email-verified electronic signature; the signed record is immutable and content-hashed.",
       },
     ],
   },

@@ -37,6 +37,8 @@ How each Shyre feature works. Apply to every user regardless of role; role-speci
 - [Invoicing](invoicing.md)
 - [Proposals quick guide](proposals-quickstart.md)
 - [Proposals](proposals.md)
+- [Document sign-off quick guide](document-signoff-quickstart.md)
+- [Document sign-off](document-signoff.md)
 - [Reports quick guide](reports-quickstart.md)
 - [Reports](reports.md)
 - [Period locks](period-locks.md)

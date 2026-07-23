@@ -48,6 +48,12 @@ export async function updateSession(request: NextRequest) {
     // future /sign* route (/signup, /signals, …) from auth. SAL-036/037.
     request.nextUrl.pathname !== "/sign" &&
     !request.nextUrl.pathname.startsWith("/sign/") &&
+    // The generic document sign-off public surface (same posture as /sign).
+    // Exact-segment discipline: `/signoff/<token>` does NOT match the `/sign/`
+    // prefix above (the char after "/sign" is "o", not "/"), so it needs its
+    // own exemption; `/signoffs` (the dashboard) and near-misses still redirect.
+    request.nextUrl.pathname !== "/signoff" &&
+    !request.nextUrl.pathname.startsWith("/signoff/") &&
     // Exact path — the webhook verifies its own HMAC; no other /api route is
     // public (the rest are session-gated user exports/imports).
     request.nextUrl.pathname !== "/api/messaging/webhook/resend" &&

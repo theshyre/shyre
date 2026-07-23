@@ -8,7 +8,15 @@ import { runSafeAction, type ActionResult } from "@/lib/safe-action";
 import { requireTeamAdmin } from "@/lib/team-context";
 import { AppError, assertSupabaseOk } from "@/lib/errors";
 import { unwrapEmbed } from "@/lib/supabase/embed";
-import { isSignoffDeletable, isSignoffEditable } from "@/lib/sign/readiness";
+import { createAdminClient } from "@/lib/supabase/admin";
+import { escapeHtml } from "@/lib/messaging/escape-html";
+import { sendSignoffEmail } from "@/lib/messaging/send-signoff";
+import { generateSignToken, TOKEN_TTL_DAYS } from "@/lib/sign/tokens";
+import {
+  isSignoffDeletable,
+  isSignoffEditable,
+  signoffSendReadiness,
+} from "@/lib/sign/readiness";
 import {
   signoffDraftSchema,
   type SignoffDraftInput,
@@ -218,6 +226,147 @@ export async function deleteSignoffAction(
       revalidatePath("/signoffs");
     },
     { actionName: "deleteSignoff" },
+  );
+}
+
+/**
+ * Send a draft sign-off: mint a per-signer token, email each signatory the
+ * private sign link, flip draft → sent. Refuses an incomplete draft. The
+ * signer roster is send-locked by the DB trigger once this lands, so a later
+ * roster edit is blocked (a change is a new sign-off).
+ */
+export async function sendSignoffAction(
+  formData: FormData,
+): Promise<ActionResult> {
+  return runSafeAction(
+    formData,
+    async (fd, { supabase, userId }) => {
+      const documentId = fd.get("document_id");
+      if (typeof documentId !== "string" || documentId === "") {
+        throw new Error("Missing document id.");
+      }
+      const { data: doc } = await supabase
+        .from("signoff_documents")
+        .select("id, team_id, title, version_label, status, body_markdown, signoff_signers(id, name, email)")
+        .eq("id", documentId)
+        .maybeSingle();
+      if (!doc) throw AppError.notFound("Sign-off");
+      const teamId = doc.team_id as string;
+      await requireTeamAdmin(teamId);
+      if ((doc.status as string) !== "draft") {
+        throw AppError.refusal("This sign-off has already been sent.");
+      }
+      const signers = (Array.isArray(doc.signoff_signers) ? doc.signoff_signers : []) as Array<{
+        id: string;
+        name: string;
+        email: string;
+      }>;
+      const readiness = signoffSendReadiness({
+        title: doc.title as string,
+        bodyMarkdown: doc.body_markdown as string,
+        signerCount: signers.length,
+      });
+      if (readiness.length > 0) {
+        throw AppError.refusal(
+          "This sign-off isn't ready to send — add a title, a document body, and at least one signatory.",
+        );
+      }
+
+      // Mint tokens + email via the service-role admin client (tokens/events
+      // have no client write policies). The raw token rides ONLY in the URL.
+      const admin = createAdminClient();
+      const base = process.env.NEXT_PUBLIC_APP_URL ?? "";
+      const expiresAt = new Date(Date.now() + TOKEN_TTL_DAYS * 86_400_000).toISOString();
+      const title = doc.title as string;
+
+      for (const signer of signers) {
+        const { raw, hash } = generateSignToken();
+        assertSupabaseOk(
+          await admin.from("signoff_tokens").insert({
+            document_id: documentId,
+            team_id: teamId,
+            signer_id: signer.id,
+            token_hash: hash,
+            signer_email: signer.email,
+            signer_name: signer.name,
+            expires_at: expiresAt,
+            created_by_user_id: userId,
+          }),
+        );
+        const url = `${base}/signoff/${raw}`;
+        await sendSignoffEmail(admin, {
+          teamId,
+          userId,
+          documentId,
+          kind: "signoff",
+          toEmail: signer.email,
+          subject: `Signature requested: ${title}`,
+          bodyHtml: `<p>You've been asked to review and sign off on <strong>${escapeHtml(title)}</strong>.</p><p><a href="${url}">Open the document to sign</a></p><p>You'll confirm your identity with a one-time code emailed to you.</p>`,
+          bodyText: `You've been asked to review and sign off on ${title}.\n\n${url}\n\nYou'll confirm your identity with a one-time code emailed to you.`,
+        });
+      }
+
+      // Flip to sent (RLS client) AFTER the emails leave; log the event (admin).
+      assertSupabaseOk(
+        await supabase.from("signoff_documents").update({ status: "sent" }).eq("id", documentId),
+      );
+      await admin.from("signoff_events").insert({
+        document_id: documentId,
+        team_id: teamId,
+        event_type: "sent",
+        actor_user_id: userId,
+        metadata: { signer_count: signers.length },
+      });
+      revalidatePath("/signoffs");
+      revalidatePath(`/signoffs/${documentId}`);
+    },
+    { actionName: "sendSignoff" },
+  );
+}
+
+/** Cancel a sent (in-flight) sign-off — revokes outstanding links, flips to
+ *  canceled. A completed/declined sign-off is terminal and can't be canceled. */
+export async function cancelSignoffAction(
+  formData: FormData,
+): Promise<ActionResult> {
+  return runSafeAction(
+    formData,
+    async (fd, { supabase, userId }) => {
+      const documentId = fd.get("document_id");
+      if (typeof documentId !== "string" || documentId === "") {
+        throw new Error("Missing document id.");
+      }
+      const { data: doc } = await supabase
+        .from("signoff_documents")
+        .select("id, team_id, status")
+        .eq("id", documentId)
+        .maybeSingle();
+      if (!doc) throw AppError.notFound("Sign-off");
+      const teamId = doc.team_id as string;
+      await requireTeamAdmin(teamId);
+      if (!["sent", "viewed"].includes(doc.status as string)) {
+        throw AppError.refusal("Only an in-flight sign-off can be canceled.");
+      }
+      const admin = createAdminClient();
+      await admin
+        .from("signoff_tokens")
+        .update({ revoked_at: new Date().toISOString() })
+        .eq("document_id", documentId)
+        .is("consumed_at", null)
+        .is("revoked_at", null);
+      assertSupabaseOk(
+        await supabase.from("signoff_documents").update({ status: "canceled" }).eq("id", documentId),
+      );
+      await admin.from("signoff_events").insert({
+        document_id: documentId,
+        team_id: teamId,
+        event_type: "canceled",
+        actor_user_id: userId,
+      });
+      revalidatePath("/signoffs");
+      revalidatePath(`/signoffs/${documentId}`);
+    },
+    { actionName: "cancelSignoff" },
   );
 }
 
