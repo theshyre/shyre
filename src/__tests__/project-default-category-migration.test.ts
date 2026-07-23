@@ -38,8 +38,11 @@ function readMigration(substr: string): string {
  * migration file go stale on the next redefinition; these never do.
  */
 function latestCreateFunction(name: string): string {
+  // Terminator: the first line STARTING with `$$` (the dollar-quote
+  // closer) — covers both `$$;` and `$$ LANGUAGE plpgsql …;` styles.
+  // Body lines never start with `$$`.
   const re = new RegExp(
-    `CREATE OR REPLACE FUNCTION ${name}\\s*\\([\\s\\S]*?\\$\\$;`,
+    `CREATE OR REPLACE FUNCTION ${name}\\s*\\([\\s\\S]*?\\n\\$\\$[^\\n]*;`,
     "g",
   );
   let last = "";
@@ -199,6 +202,39 @@ describe("agent log — backdating policy (EFFECTIVE api_log_entry definition)",
     expect(sql).toMatch(/p_end_time > now\(\) \+ interval '5 minutes'/);
     expect(sql).toMatch(/AND te\.project_id = p_project_id/);
     expect(sql).toMatch(/CASE WHEN v_is_internal THEN false/);
+  });
+});
+
+describe("project setting inheritance (20260723100000, EFFECTIVE definitions)", () => {
+  // Latest-definition-wins: nested projects with NULL category columns
+  // resolve the parent's vocabulary LIVE (inherit.ts model). These pin
+  // the DB half so a future redefinition can't silently drop it.
+
+  it("api_log_entry resolves the category vocabulary via the parent when the child has no base set", () => {
+    const sql = latestCreateFunction("api_log_entry");
+    expect(sql).toMatch(
+      /LEFT JOIN projects par ON par\.id = p\.parent_project_id/,
+    );
+    expect(sql).toMatch(/COALESCE\(p\.category_set_id, par\.category_set_id\)/);
+    // Parent-owned extension sets join the vocabulary ONLY while inheriting.
+    expect(sql).toMatch(/v_own_set IS NULL AND cs\.project_id = v_parent_id/);
+  });
+
+  it("api_list_projects returns the child's EFFECTIVE categories + default — but NEVER inherits github_repo (repo→project mapping stays unambiguous)", () => {
+    const sql = latestCreateFunction("api_list_projects");
+    expect(sql).toMatch(
+      /COALESCE\(p\.category_set_id, par\.category_set_id\) AS effective_set_id/,
+    );
+    expect(sql).toMatch(/'default_category_id', eff\.effective_default_id/);
+    expect(sql).toMatch(/'github_repo', p\.github_repo/);
+  });
+
+  it("validate_time_entry_category accepts the inherited vocabulary on app-side writes", () => {
+    const sql = latestCreateFunction("public\\.validate_time_entry_category");
+    expect(sql).toMatch(/COALESCE\(p\.category_set_id, par\.category_set_id\)/);
+    expect(sql).toMatch(
+      /project_set_id IS NULL\s*\n?\s*AND cat_set_project_id = project_parent_id/,
+    );
   });
 });
 

@@ -294,7 +294,8 @@
     "deleteSummary": "categorías extra del proyecto",
     "duplicateWarning": "\"{name}\" ya existe en el conjunto base. Renómbrala para evitar confusión.",
     "pickColor": "Elegir color",
-    "colorSwatch": "Color {hex}"
+    "colorSwatch": "Color {hex}",
+    "baseSetInherited": "Heredando “{set}” de {parent}. Elige un conjunto aquí para anularlo; vuelve a “Sin conjunto base” para heredar de nuevo."
   },
   "bulkToolbarAriaLabel": "Acciones masivas de proyectos",
   "bulkClear": "Quitar selección",

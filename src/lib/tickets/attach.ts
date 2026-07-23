@@ -1,6 +1,7 @@
 import "server-only";
 
 import type { SupabaseClient } from "@supabase/supabase-js";
+import { logError } from "@/lib/logger";
 import { resolveTicketReference, type DetectedTicket } from "./detect";
 import { lookupTicket } from "./lookup";
 import { parseTicketInput } from "./parse-input";
@@ -49,18 +50,40 @@ export async function buildTicketAttachment(
   if (!ticketRef && !description) return EMPTY;
 
   // Load the project's default repo / Jira key for short-ref
-  // resolution. Cheap query — single row by primary key.
+  // resolution. Cheap query — single row by primary key, with the
+  // parent embedded: a nested project whose own key/repo is NULL
+  // inherits the parent's LIVE (inherit.ts model) so ticket detection
+  // works on converted deliverables under an umbrella.
   let defaultGithubRepo: string | null = null;
   let defaultJiraProjectKey: string | null = null;
   if (projectId) {
-    const { data: project } = await supabase
+    // Explicit FK-hint embed (silent-400 rule: a bad embedded join
+    // returns { data: null, error } without throwing).
+    const { data: project, error: projectError } = await supabase
       .from("projects")
-      .select("github_repo, jira_project_key")
+      .select(
+        "github_repo, jira_project_key, parent:parent_project_id(github_repo, jira_project_key)",
+      )
       .eq("id", projectId)
       .maybeSingle();
-    defaultGithubRepo = (project?.github_repo as string | null) ?? null;
+    if (projectError) {
+      logError(projectError, {
+        action: "tickets.attach.project_lookup",
+        userId,
+      });
+    }
+    const parentRaw = project?.parent as
+      | { github_repo?: string | null; jira_project_key?: string | null }
+      | Array<{ github_repo?: string | null; jira_project_key?: string | null }>
+      | null
+      | undefined;
+    const parent = Array.isArray(parentRaw) ? (parentRaw[0] ?? null) : (parentRaw ?? null);
+    defaultGithubRepo =
+      (project?.github_repo as string | null) ?? parent?.github_repo ?? null;
     defaultJiraProjectKey =
-      (project?.jira_project_key as string | null) ?? null;
+      (project?.jira_project_key as string | null) ??
+      parent?.jira_project_key ??
+      null;
   }
 
   let detected: DetectedTicket | null = null;

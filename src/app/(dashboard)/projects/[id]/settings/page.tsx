@@ -269,6 +269,22 @@ export default async function ProjectSettingsPage({
             initialDefaultCategoryId={
               (project.row.default_category_id as string | null) ?? null
             }
+            inheritedBase={
+              // No base set of its own + a parent that has one → the
+              // parent's vocabulary applies LIVE (inherit.ts); name the
+              // inherited set in the caption. categorySets holds all
+              // system + team sets, so the parent's base is resolvable.
+              !project.row.category_set_id &&
+              parentRef?.category_set_id
+                ? {
+                    parentName: parentRef.name,
+                    setName:
+                      categorySets.find(
+                        (s) => s.id === parentRef?.category_set_id,
+                      )?.name ?? "",
+                  }
+                : null
+            }
           />
         </section>
 

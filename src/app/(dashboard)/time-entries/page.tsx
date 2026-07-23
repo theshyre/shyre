@@ -27,6 +27,7 @@ import type { TimeView } from "./view-toggle";
 import type { CategoryOption, TimeEntry } from "./types";
 import type { ProjectFilterOption } from "@/components/ProjectFilter";
 import { expandProjectFilter } from "@/lib/projects/expand-filter";
+import { resolveProjectInheritance } from "@/lib/projects/inherit";
 
 // Supabase returns `projects(..., customers(...))` with `customers` as a
 // 1-element array even though it's a single FK row. Unwrap so downstream
@@ -712,10 +713,21 @@ export default async function TimeEntriesPage({
   // newly-promoted parent rendered as "No project," and the user
   // was confused by their parent project disappearing from the
   // picker. Dropped 2026-05-06.
-  const projects = projectsRaw.map((p) => ({
-    ...p,
-    extension_category_set_id: extensionByProject.get(p.id) ?? null,
-  }));
+  // LIVE parent→child inheritance (inherit.ts): a nested project with
+  // no category set of its own resolves the parent's vocabulary (base
+  // set + extension + default), and a NULL jira key resolves the
+  // parent's — so pickers and ticket detection on a converted
+  // deliverable work from day one. Own values override.
+  const projects = resolveProjectInheritance(
+    projectsRaw.map((p) => ({
+      ...p,
+      id: p.id as string,
+      parent_project_id: (p.parent_project_id as string | null) ?? null,
+      category_set_id: (p.category_set_id as string | null) ?? null,
+      jira_project_key: (p.jira_project_key as string | null) ?? null,
+      extension_category_set_id: extensionByProject.get(p.id) ?? null,
+    })),
+  );
 
   // Picker source for the toolbar's project FILTER (not the entry-
   // creation picker). Includes BOTH parent and leaf projects — picking

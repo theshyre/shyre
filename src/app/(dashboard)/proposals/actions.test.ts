@@ -835,7 +835,7 @@ describe("convertProposalAction", () => {
     });
   });
 
-  it("inherits the parent's category set + in-set default when nesting — set-less converted projects made every category picker a dead end (2026-07-23)", async () => {
+  it("leaves category/jira columns NULL on nested projects — inheritance is LIVE from the parent (inherit.ts), never a frozen copy", async () => {
     queues["proposals"] = [
       { data: acceptedProposal, error: null },
       { data: null, error: null }, // status → converted
@@ -846,66 +846,24 @@ describe("convertProposalAction", () => {
     queues["proposal_line_items"] = [{ data: CONVERT_ITEMS, error: null }];
     queues["projects"] = [
       {
-        data: {
-          id: "umbrella",
-          customer_id: CUSTOMER,
-          parent_project_id: null,
-          category_set_id: "cs-1",
-          default_category_id: "cat-eng",
-        },
+        data: { id: "umbrella", customer_id: CUSTOMER, parent_project_id: null },
         error: null,
       },
       { data: { id: "p-1" }, error: null },
     ];
-    // The parent's default belongs to its BASE set → inheritable.
-    queues["categories"] = [{ data: { id: "cat-eng" }, error: null }];
     queues["proposal_events"] = [{ data: null, error: null }];
 
     await convertProposalAction(
       formWith({ id: "prop-1", parent_project_id: "umbrella" }),
     );
 
-    expect(insertedRows("projects")[0]).toMatchObject({
-      parent_project_id: "umbrella",
-      category_set_id: "cs-1",
-      default_category_id: "cat-eng",
-    });
-  });
-
-  it("does not inherit a parent default that lives in the parent's extension set — it would not validate on the child", async () => {
-    queues["proposals"] = [
-      { data: acceptedProposal, error: null },
-      { data: null, error: null },
-    ];
-    queues["proposal_acceptances"] = [
-      { data: [{ selected_line_item_ids: ["li-1"], decision: "accepted" }], error: null },
-    ];
-    queues["proposal_line_items"] = [{ data: CONVERT_ITEMS, error: null }];
-    queues["projects"] = [
-      {
-        data: {
-          id: "umbrella",
-          customer_id: CUSTOMER,
-          parent_project_id: null,
-          category_set_id: "cs-1",
-          default_category_id: "cat-ext",
-        },
-        error: null,
-      },
-      { data: { id: "p-1" }, error: null },
-    ];
-    // Membership check: cat-ext is NOT in cs-1 (it's extension-set-scoped).
-    queues["categories"] = [{ data: null, error: null }];
-    queues["proposal_events"] = [{ data: null, error: null }];
-
-    await convertProposalAction(
-      formWith({ id: "prop-1", parent_project_id: "umbrella" }),
-    );
-
-    expect(insertedRows("projects")[0]).toMatchObject({
-      category_set_id: "cs-1",
-      default_category_id: null,
-    });
+    const inserted = insertedRows("projects")[0] as Record<string, unknown>;
+    expect(inserted.parent_project_id).toBe("umbrella");
+    // No frozen copies: a later umbrella category/jira change must
+    // propagate, so the child columns stay unset (= inherit).
+    expect("category_set_id" in inserted).toBe(false);
+    expect("default_category_id" in inserted).toBe(false);
+    expect("jira_project_key" in inserted).toBe(false);
   });
 
   it("refuses a parent that belongs to a different customer", async () => {

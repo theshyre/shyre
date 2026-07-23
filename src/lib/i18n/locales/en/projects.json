@@ -294,7 +294,8 @@
     "deleteSummary": "project's extra categories",
     "duplicateWarning": "\"{name}\" already exists in the base set. Rename it to avoid confusion in the picker.",
     "pickColor": "Pick color",
-    "colorSwatch": "Color {hex}"
+    "colorSwatch": "Color {hex}",
+    "baseSetInherited": "Inheriting “{set}” from {parent}. Pick a set here to override; switch back to “No base set” to re-inherit."
   },
   "bulkToolbarAriaLabel": "Project bulk actions",
   "bulkClear": "Clear selection",
