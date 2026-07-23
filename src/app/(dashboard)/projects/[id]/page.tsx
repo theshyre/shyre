@@ -194,7 +194,9 @@ export default async function ProjectOverviewPage({
           (project.row.budget_hours as number | null) ?? null
         }
         lifetimeRate={projectRate}
-        lifetimeBudgetDollars={null}
+        lifetimeBudgetDollars={
+          (project.row.budget_dollars as number | null) ?? null
+        }
         period={
           periodBurn && projectBudgetPeriod
             ? {

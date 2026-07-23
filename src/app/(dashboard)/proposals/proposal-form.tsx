@@ -80,10 +80,10 @@ interface ItemState {
   phases: PhaseState[];
 }
 
-/** Pricing types the author can pick today. estimate_nte (not-to-exceed) is
- *  deferred until its invoice-time cap enforcement ships. */
+/** Pricing types the author can pick, in menu order. */
 const AUTHORABLE_PRICING_TYPES: PricingType[] = [
   "fixed_bid",
+  "estimate_nte",
   "estimate_range",
   "estimate_tm",
 ];
@@ -886,6 +886,37 @@ export function ProposalForm({
                       <FieldError
                         id={`pf-item-rate-err-${item.key}`}
                         error={errorFor(`items.${i}.hourlyRate`)}
+                      />
+                    </div>
+                  )}
+                  {item.pricingType === "estimate_nte" && (
+                    <div className="w-[140px]">
+                      <label
+                        htmlFor={`pf-item-cap-${item.key}`}
+                        className={labelClass}
+                      >
+                        {t("itemCap")}
+                      </label>
+                      <input
+                        id={`pf-item-cap-${item.key}`}
+                        className={inputClass}
+                        type="number"
+                        min="0"
+                        step="0.01"
+                        inputMode="decimal"
+                        value={item.fixedPrice}
+                        onChange={(e) =>
+                          patchItem(item.key, { fixedPrice: e.target.value })
+                        }
+                        aria-describedby={
+                          errorFor(`items.${i}.fixedPrice`)
+                            ? `pf-item-cap-err-${item.key}`
+                            : undefined
+                        }
+                      />
+                      <FieldError
+                        id={`pf-item-cap-err-${item.key}`}
+                        error={errorFor(`items.${i}.fixedPrice`)}
                       />
                     </div>
                   )}

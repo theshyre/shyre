@@ -397,6 +397,12 @@ describe("validateProposalItems — pricing types", () => {
     ]);
     expect(issues.some((i) => i.key === "rangeRequired")).toBe(true);
   });
+  it("an NTE line needs a positive cap", () => {
+    const issues = validateProposalItems([
+      item({ pricingType: "estimate_nte", hourlyRate: 200, fixedPrice: 0 }),
+    ]);
+    expect(issues.some((i) => i.key === "capRequired")).toBe(true);
+  });
   it("phases are a fixed-bid breakdown only", () => {
     const issues = validateProposalItems([
       item({

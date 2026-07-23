@@ -299,6 +299,9 @@ export function validateProposalItems(
         issues.push({ path: `items.${i}.hourlyRate`, key: "rateRequired" });
       }
     }
+    if (pt === "estimate_nte" && !(item.fixedPrice > 0)) {
+      issues.push({ path: `items.${i}.fixedPrice`, key: "capRequired" });
+    }
     if (pt === "estimate_range") {
       const lo = item.estimateLow;
       const hi = item.estimateHigh;
