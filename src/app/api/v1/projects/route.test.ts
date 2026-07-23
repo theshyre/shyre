@@ -55,7 +55,10 @@ describe("GET /api/v1/projects", () => {
     });
     const res = await GET(makeRequest(`Bearer ${RAW_PAT}`));
     expect(res.status).toBe(403);
-    expect(await res.json()).toEqual({ error: "forbidden" });
+    expect(await res.json()).toEqual({
+      error: "forbidden",
+      message: "missing scope context:read",
+    });
     expect(logErrorMock).toHaveBeenCalled();
   });
 });

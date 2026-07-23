@@ -140,6 +140,38 @@ describe("project billing mode / fixed-bid (20260722120000)", () => {
   });
 });
 
+describe("agent log — backdating policy (20260722150000)", () => {
+  const sql = readMigration("agent_log_backfill_policy");
+
+  it("drops the 7-day cap for a 1-year wrong-year sanity bound", () => {
+    expect(sql).toMatch(/CREATE OR REPLACE FUNCTION api_log_entry/);
+    expect(sql).not.toMatch(/interval '7 days'/);
+    expect(sql).toMatch(/p_start_time < now\(\) - interval '365 days'/);
+  });
+
+  it("refuses entries dated in a locked period as a policy 403, not the trigger's 500", () => {
+    expect(sql).toMatch(/team_period_lock_at\(tok\.team_id\)/);
+    expect(sql).toMatch(/'reason', 'period_locked'/);
+    expect(sql).toMatch(
+      /period locked: the books are closed through %[\s\S]*?USING ERRCODE = 'TK403'/,
+    );
+  });
+
+  it("names each time-range refusal instead of one collapsed 'invalid time range'", () => {
+    expect(sql).toMatch(/'reason', 'end_time_in_future'/);
+    expect(sql).toMatch(/'reason', 'entry_exceeds_24h'/);
+    expect(sql).toMatch(/'reason', 'start_time_too_old'/);
+    expect(sql).toMatch(/end_time must be after start_time/);
+  });
+
+  it("keeps the unchanged guards (24h cap, 5-min skew, same-project overlap, internal non-billable)", () => {
+    expect(sql).toMatch(/p_end_time - p_start_time > interval '24 hours'/);
+    expect(sql).toMatch(/p_end_time > now\(\) \+ interval '5 minutes'/);
+    expect(sql).toMatch(/AND te\.project_id = p_project_id/);
+    expect(sql).toMatch(/CASE WHEN v_is_internal THEN false/);
+  });
+});
+
 describe("project lifetime dollar cap / NTE (20260722140000)", () => {
   const sql = readMigration("project_budget_dollars");
 

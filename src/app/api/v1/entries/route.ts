@@ -6,9 +6,11 @@ import { logEntry } from "@/lib/integrations/service";
 /**
  * POST /api/v1/entries — log a completed block of work (SAL-051).
  * THE RECOMMENDED PATH for agents: no orphaned timers, no idle
- * inflation, outcome-quality descriptions. The RPC refuses overlap
- * with any existing entry (409), bounds the range (≤24h, ≤7 days
- * back, ≤5min future) and requires a meaningful description.
+ * inflation, outcome-quality descriptions. The RPC refuses same-project
+ * overlap (409), bounds the range (≤24h per entry, ≤5min future skew,
+ * ≤1y back as a wrong-year sanity bound), refuses entries dated in a
+ * locked accounting period (403 — there is NO fixed backdating window;
+ * closed books are the control) and requires a meaningful description.
  */
 const bodySchema = z
   .object({

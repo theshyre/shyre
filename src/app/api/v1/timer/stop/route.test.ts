@@ -100,7 +100,10 @@ describe("POST /api/v1/timer/stop", () => {
     });
     const res = await POST(makeRequest({}, `Bearer ${RAW_PAT}`));
     expect(res.status).toBe(404);
-    expect(await res.json()).toEqual({ error: "not_found" });
+    expect(await res.json()).toEqual({
+      error: "not_found",
+      message: "no running timer",
+    });
     expect(logErrorMock).toHaveBeenCalled();
   });
 });

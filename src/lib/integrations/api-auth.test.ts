@@ -113,14 +113,31 @@ describe("runIntegrationRoute — responses", () => {
     [403, "forbidden"],
     [404, "not_found"],
     [429, "rate_limited"],
-    [500, "internal"],
-  ] as const)("maps a %s service failure to { error: %s } and logs it", async (status, error) => {
+  ] as const)(
+    "maps a %s service failure to { error: %s, message } and logs it — refusals are self-explanatory",
+    async (status, error) => {
+      const res = await runIntegrationRoute(makeRequest({ auth: `Bearer ${RAW_PAT}`, method: "GET" }), {
+        action: "api.v1.test",
+        invoke: async () => ({ ok: false, status, error, message: "boom" }),
+      });
+      expect(res.status).toBe(status);
+      expect(await res.json()).toEqual({ error, message: "boom" });
+      expect(logErrorMock).toHaveBeenCalledTimes(1);
+    },
+  );
+
+  it("keeps the 500 body bare — internals never surface to the caller", async () => {
     const res = await runIntegrationRoute(makeRequest({ auth: `Bearer ${RAW_PAT}`, method: "GET" }), {
       action: "api.v1.test",
-      invoke: async () => ({ ok: false, status, error, message: "boom" }),
+      invoke: async () => ({
+        ok: false,
+        status: 500,
+        error: "internal",
+        message: "query failed: relation time_entries deadlocked",
+      }),
     });
-    expect(res.status).toBe(status);
-    expect(await res.json()).toEqual({ error });
+    expect(res.status).toBe(500);
+    expect(await res.json()).toEqual({ error: "internal" });
     expect(logErrorMock).toHaveBeenCalledTimes(1);
   });
 

@@ -114,15 +114,41 @@ describe("POST /api/v1/entries", () => {
     expect(logErrorMock).toHaveBeenCalled();
   });
 
-  it("returns 400 when the RPC refuses the time range (TK400)", async () => {
+  it("returns 400 with the named rule when the RPC refuses the time range (TK400)", async () => {
     logEntryMock.mockResolvedValue({
       ok: false,
       status: 400,
       error: "invalid_request",
-      message: "invalid time range",
+      message:
+        "entry exceeds the 24-hour per-entry maximum; split the work into smaller entries",
     });
     const res = await POST(makeRequest(VALID_BODY, `Bearer ${RAW_PAT}`));
     expect(res.status).toBe(400);
-    expect(await res.json()).toEqual({ error: "invalid_request" });
+    // The refusal names its rule — a bare { error: "invalid_request" }
+    // once made a policy refusal look like a malformed request (the
+    // 22-entry backfill incident).
+    expect(await res.json()).toEqual({
+      error: "invalid_request",
+      message:
+        "entry exceeds the 24-hour per-entry maximum; split the work into smaller entries",
+    });
+  });
+
+  it("returns 403 with the lock detail when the entry is dated in a locked period (TK403)", async () => {
+    logEntryMock.mockResolvedValue({
+      ok: false,
+      status: 403,
+      error: "forbidden",
+      message:
+        "period locked: the books are closed through 2026-06-30; entries on or before that date are refused",
+    });
+    const res = await POST(makeRequest(VALID_BODY, `Bearer ${RAW_PAT}`));
+    expect(res.status).toBe(403);
+    expect(await res.json()).toEqual({
+      error: "forbidden",
+      message:
+        "period locked: the books are closed through 2026-06-30; entries on or before that date are refused",
+    });
+    expect(logErrorMock).toHaveBeenCalled();
   });
 });
