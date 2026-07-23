@@ -39,7 +39,9 @@ see [Let Claude log its own time](claude-self-logging.md).
 
 Ask Claude to start a timer, or let a hook fire on session start. The entry
 shows up in Time like any other — with [agent attribution](agent-attribution.md)
-so you always know it was the agent, not you, that logged it.
+so you always know it was the agent, not you, that logged it. For the daily
+loop and the exact prompts to steer it, see
+[Day-to-day: what to tell Claude](tracking-time-day-to-day.md).
 
 ## 5. Review before you invoice
 
@@ -49,6 +51,7 @@ looks like at billing time.
 
 ## Go deeper
 
+- [Day-to-day: what to tell Claude](tracking-time-day-to-day.md)
 - [Setup: tokens & the team switch](integration-tokens.md)
 - [API reference (REST + MCP)](integrations-api.md)
 - [Claude Code hooks kit](claude-code-hooks-kit.md)
