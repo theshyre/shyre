@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import { FileCheck2, Plus } from "lucide-react";
 import { useTranslations } from "next-intl";
 
 import {
@@ -11,6 +12,7 @@ import {
   tableBodyRowClass,
   tableBodyCellClass,
 } from "@/lib/table-styles";
+import { buttonPrimaryClass } from "@/lib/form-styles";
 import { SignoffStatusBadge } from "./signoff-status-badge";
 
 export interface SignoffRow {
@@ -23,13 +25,29 @@ export interface SignoffRow {
   createdAt: string;
 }
 
-export function SignoffsTable({ rows }: { rows: SignoffRow[] }): React.JSX.Element {
+export function SignoffsTable({
+  rows,
+  canCreate = false,
+}: {
+  rows: SignoffRow[];
+  canCreate?: boolean;
+}): React.JSX.Element {
   const t = useTranslations("signoff");
 
   if (rows.length === 0) {
     return (
-      <div className="rounded-lg border border-edge bg-surface-raised px-4 py-10 text-center">
-        <p className="text-body text-content-secondary">{t("empty")}</p>
+      <div className="rounded-lg border border-edge bg-surface-raised px-4 py-12 text-center">
+        <div className="mx-auto mb-3 flex h-10 w-10 items-center justify-center rounded-full bg-accent-soft">
+          <FileCheck2 size={20} className="text-accent" aria-hidden="true" />
+        </div>
+        <p className="text-body-lg font-medium text-content">{t("emptyHeading")}</p>
+        <p className="mx-auto mt-1 max-w-[420px] text-body text-content-secondary">{t("empty")}</p>
+        {canCreate && (
+          <Link href="/signoffs/new" className={`${buttonPrimaryClass} mt-4 inline-flex`}>
+            <Plus size={16} />
+            {t("newSignoff")}
+          </Link>
+        )}
       </div>
     );
   }

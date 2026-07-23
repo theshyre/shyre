@@ -1,12 +1,12 @@
 import type { Metadata } from "next";
-import Link from "next/link";
-import { FileCheck2, Plus } from "lucide-react";
+import { FileCheck2 } from "lucide-react";
 import { getTranslations } from "next-intl/server";
 
 import { createClient } from "@/lib/supabase/server";
 import { getUserTeams, isTeamAdmin } from "@/lib/team-context";
-import { buttonPrimaryClass } from "@/lib/form-styles";
+import { TeamFilter } from "@/components/TeamFilter";
 import { unwrapEmbed } from "@/lib/supabase/embed";
+import { NewSignoffLink } from "./new-signoff-link";
 import { SignoffsTable, type SignoffRow } from "./signoffs-table";
 
 export async function generateMetadata(): Promise<Metadata> {
@@ -14,12 +14,20 @@ export async function generateMetadata(): Promise<Metadata> {
   return { title: t("title") };
 }
 
-export default async function SignoffsPage(): Promise<React.JSX.Element> {
+export default async function SignoffsPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ team?: string }>;
+}): Promise<React.JSX.Element> {
   const supabase = await createClient();
   const teams = await getUserTeams();
   const t = await getTranslations("signoff");
+  const sp = await searchParams;
 
-  const teamIds = teams.map((tm) => tm.id);
+  const allTeamIds = teams.map((tm) => tm.id);
+  const selectedTeamId =
+    sp.team && allTeamIds.includes(sp.team) ? sp.team : null;
+  const scopeTeamIds = selectedTeamId ? [selectedTeamId] : allTeamIds;
   const canCreate = teams.some((tm) => isTeamAdmin(tm.role));
 
   const { data: rows } = await supabase
@@ -27,7 +35,7 @@ export default async function SignoffsPage(): Promise<React.JSX.Element> {
     .select(
       "id, title, version_label, status, document_type, created_at, customers(name), signoff_signers(id)",
     )
-    .in("team_id", teamIds.length ? teamIds : ["00000000-0000-0000-0000-000000000000"])
+    .in("team_id", scopeTeamIds.length ? scopeTeamIds : ["00000000-0000-0000-0000-000000000000"])
     .is("deleted_at", null)
     .order("created_at", { ascending: false })
     .limit(200);
@@ -53,15 +61,12 @@ export default async function SignoffsPage(): Promise<React.JSX.Element> {
           <FileCheck2 size={24} className="text-accent" aria-hidden="true" />
           <h1 className="text-page-title font-bold text-content">{t("title")}</h1>
         </div>
-        {canCreate && (
-          <Link href="/signoffs/new" className={buttonPrimaryClass}>
-            <Plus size={16} />
-            {t("newSignoff")}
-          </Link>
-        )}
+        {canCreate && <NewSignoffLink label={t("newSignoff")} />}
       </div>
-      <p className="mb-6 max-w-[680px] text-body text-content-secondary">{t("listIntro")}</p>
-      <SignoffsTable rows={signoffs} />
+      <div className="mb-[16px] flex flex-wrap items-center gap-2">
+        <TeamFilter teams={teams} selectedTeamId={selectedTeamId} />
+      </div>
+      <SignoffsTable rows={signoffs} canCreate={canCreate} />
     </div>
   );
 }

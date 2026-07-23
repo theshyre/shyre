@@ -8,7 +8,7 @@ vi.mock("next/navigation", () => ({
   useRouter: () => ({ push: pushMock, refresh: refreshMock }),
 }));
 
-const deleteMock = vi.fn();
+const deleteMock = vi.fn(async (..._a: unknown[]) => ({ success: true as const }));
 vi.mock("./actions", () => ({
   deleteSignoffAction: (...a: unknown[]) => deleteMock(...a),
 }));
@@ -18,39 +18,55 @@ import { SignoffDeleteButton } from "./signoff-delete-button";
 beforeEach(() => {
   pushMock.mockClear();
   refreshMock.mockClear();
-  deleteMock.mockReset();
+  deleteMock.mockReset().mockResolvedValue({ success: true });
 });
 
-describe("SignoffDeleteButton", () => {
-  it("requires an inline confirm before deleting, then navigates on success", async () => {
-    deleteMock.mockResolvedValue({ success: true });
+function openConfirm(): void {
+  fireEvent.click(screen.getByRole("button", { name: /Delete/ }));
+}
+
+describe("SignoffDeleteButton (tier-2 typed-delete)", () => {
+  it("requires typing 'delete' before the confirm button arms", () => {
     renderWithIntl(<SignoffDeleteButton documentId="s1" />);
+    openConfirm();
+    const confirm = screen.getByRole("button", { name: /^Delete$/ });
+    // Armed only once the word is typed.
+    expect(confirm).toBeDisabled();
+    fireEvent.change(screen.getByLabelText(/Type delete to confirm/i), {
+      target: { value: "delete" },
+    });
+    expect(confirm).toBeEnabled();
+  });
 
-    // First click reveals the confirm; no action yet.
-    fireEvent.click(screen.getByRole("button", { name: /^Delete$/ }));
-    expect(deleteMock).not.toHaveBeenCalled();
-
-    // Confirm fires the action and navigates to the list.
+  it("deletes and navigates to the list once armed", async () => {
+    renderWithIntl(<SignoffDeleteButton documentId="s1" />);
+    openConfirm();
+    fireEvent.change(screen.getByLabelText(/Type delete to confirm/i), {
+      target: { value: "delete" },
+    });
     fireEvent.click(screen.getByRole("button", { name: /^Delete$/ }));
     await waitFor(() => expect(deleteMock).toHaveBeenCalledTimes(1));
     expect(pushMock).toHaveBeenCalledWith("/signoffs");
   });
 
-  it("surfaces a failure message and does not navigate", async () => {
-    deleteMock.mockResolvedValue({ success: false, error: { userMessageKey: "x" } });
+  it("surfaces a failure inline without navigating", async () => {
+    deleteMock.mockRejectedValue(new Error("A sent sign-off is part of the audit record"));
     renderWithIntl(<SignoffDeleteButton documentId="s1" />);
-    fireEvent.click(screen.getByRole("button", { name: /^Delete$/ }));
+    openConfirm();
+    fireEvent.change(screen.getByLabelText(/Type delete to confirm/i), {
+      target: { value: "delete" },
+    });
     fireEvent.click(screen.getByRole("button", { name: /^Delete$/ }));
     await waitFor(() =>
-      expect(screen.getByText(/Couldn't delete/i)).toBeInTheDocument(),
+      expect(screen.getByRole("alert")).toHaveTextContent(/audit record/i),
     );
     expect(pushMock).not.toHaveBeenCalled();
   });
 
-  it("cancel backs out of the confirm", () => {
+  it("cancel backs out", () => {
     renderWithIntl(<SignoffDeleteButton documentId="s1" />);
-    fireEvent.click(screen.getByRole("button", { name: /^Delete$/ }));
+    openConfirm();
     fireEvent.click(screen.getByRole("button", { name: /Cancel/ }));
-    expect(deleteMock).not.toHaveBeenCalled();
+    expect(screen.queryByLabelText(/Type delete to confirm/i)).not.toBeInTheDocument();
   });
 });

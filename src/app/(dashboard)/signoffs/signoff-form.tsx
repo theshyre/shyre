@@ -243,8 +243,9 @@ export function SignoffForm({ teams, customers, initial }: Props): React.JSX.Ele
                   value={s.name}
                   onChange={(e) => updateSigner(i, { name: e.target.value })}
                   placeholder={t("signerName")}
-                  aria-label={t("signerName")}
+                  aria-label={`${t("signerName")} — ${t("signerNumber", { n: i + 1 })}`}
                 />
+                <FieldError error={fieldErrors[`signers.${i}.name`]} id={`signer-${i}-name-error`} />
               </div>
               <div className={formSpanHalf}>
                 <input
@@ -253,8 +254,9 @@ export function SignoffForm({ teams, customers, initial }: Props): React.JSX.Ele
                   value={s.email}
                   onChange={(e) => updateSigner(i, { email: e.target.value })}
                   placeholder={t("signerEmail")}
-                  aria-label={t("signerEmail")}
+                  aria-label={`${t("signerEmail")} — ${t("signerNumber", { n: i + 1 })}`}
                 />
+                <FieldError error={fieldErrors[`signers.${i}.email`]} id={`signer-${i}-email-error`} />
               </div>
               <div className={formSpanHalf}>
                 <input

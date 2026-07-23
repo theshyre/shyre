@@ -75,6 +75,11 @@
     "saveChanges": "Save changes",
     "createDraft": "Create draft",
     "externalRef": "Reference (optional)",
-    "externalRefPlaceholder": "docs/release/v2.0.2 · AE-711"
-  }
+    "externalRefPlaceholder": "docs/release/v2.0.2 · AE-711",
+    "signerNumber": "Signatory {n}"
+  },
+  "deleteTypeLabel": "Type delete to confirm",
+  "deleteTypePlaceholder": "delete",
+  "deleteTypeHint": "Type “delete” to confirm.",
+  "emptyHeading": "No sign-offs yet"
 }

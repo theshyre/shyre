@@ -26,9 +26,18 @@ describe("SignoffsTable", () => {
     expect(screen.getByText("v2.0.2")).toBeInTheDocument();
   });
 
-  it("shows the empty state when there are no sign-offs", () => {
-    renderWithIntl(<SignoffsTable rows={[]} />);
-    expect(screen.getByText(/No sign-offs yet/i)).toBeInTheDocument();
+  it("shows the icon-circle empty state with a CTA when creatable", () => {
+    renderWithIntl(<SignoffsTable rows={[]} canCreate />);
+    expect(screen.getByText("No sign-offs yet")).toBeInTheDocument();
+    expect(screen.getByRole("link", { name: /New sign-off/ })).toHaveAttribute(
+      "href",
+      "/signoffs/new",
+    );
+  });
+
+  it("hides the empty-state CTA when the viewer can't create", () => {
+    renderWithIntl(<SignoffsTable rows={[]} canCreate={false} />);
+    expect(screen.queryByRole("link", { name: /New sign-off/ })).not.toBeInTheDocument();
   });
 
   it("renders an em-dash when a row has no customer", () => {

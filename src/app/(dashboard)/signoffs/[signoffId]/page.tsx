@@ -4,6 +4,8 @@ import { notFound } from "next/navigation";
 import { FileCheck2, Pencil } from "lucide-react";
 import { getTranslations } from "next-intl/server";
 
+import { AlertTriangle, CheckCircle2, XCircle } from "lucide-react";
+
 import { createClient } from "@/lib/supabase/server";
 import { getUserTeams, isTeamAdmin } from "@/lib/team-context";
 import { MarkdownView } from "@/components/MarkdownView";
@@ -17,9 +19,21 @@ import {
 import { SignoffStatusBadge } from "../signoff-status-badge";
 import { SignoffDeleteButton } from "../signoff-delete-button";
 
-export async function generateMetadata(): Promise<Metadata> {
+export async function generateMetadata({
+  params,
+}: {
+  params: Promise<{ signoffId: string }>;
+}): Promise<Metadata> {
+  const { signoffId } = await params;
   const t = await getTranslations("signoff");
-  return { title: t("title") };
+  const supabase = await createClient();
+  const { data } = await supabase
+    .from("signoff_documents")
+    .select("title")
+    .eq("id", signoffId)
+    .maybeSingle();
+  const title = (data?.title as string) || t("untitled");
+  return { title: `${title} · ${t("title")}` };
 }
 
 interface Signer {
@@ -109,7 +123,10 @@ export default async function SignoffDetailPage({
 
       {canManage && status === "draft" && readiness.length > 0 && (
         <div className="rounded-lg border border-warning/40 bg-warning-soft px-4 py-3">
-          <p className="text-body-lg font-medium text-warning-text">{t("readiness.heading")}</p>
+          <p className="flex items-center gap-2 text-body-lg font-medium text-warning-text">
+            <AlertTriangle size={16} aria-hidden="true" />
+            {t("readiness.heading")}
+          </p>
           <ul className="mt-1 list-disc pl-5 text-body text-warning-text">
             {readiness.map((k) => (
               <li key={k}>{t(`readiness.${k}`)}</li>
@@ -135,7 +152,16 @@ export default async function SignoffDetailPage({
                   {s.role_label && <span className="text-content-secondary">· {s.role_label}</span>}
                   {s.org_label && <span className="text-content-muted">· {s.org_label}</span>}
                   {acc && (
-                    <span className="ml-1 text-label text-success-text">
+                    <span
+                      className={`ml-1 inline-flex items-center gap-1 text-label ${
+                        acc.decision === "declined" ? "text-error-text" : "text-success-text"
+                      }`}
+                    >
+                      {acc.decision === "declined" ? (
+                        <XCircle size={13} aria-hidden="true" />
+                      ) : (
+                        <CheckCircle2 size={13} aria-hidden="true" />
+                      )}
                       {t(`signedAs.${acc.decision}`)}
                     </span>
                   )}

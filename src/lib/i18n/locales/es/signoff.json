@@ -75,6 +75,11 @@
     "saveChanges": "Guardar cambios",
     "createDraft": "Crear borrador",
     "externalRef": "Referencia (opcional)",
-    "externalRefPlaceholder": "docs/release/v2.0.2 · AE-711"
-  }
+    "externalRefPlaceholder": "docs/release/v2.0.2 · AE-711",
+    "signerNumber": "Firmante {n}"
+  },
+  "deleteTypeLabel": "Escribe delete para confirmar",
+  "deleteTypePlaceholder": "delete",
+  "deleteTypeHint": "Escribe «delete» para confirmar.",
+  "emptyHeading": "Aún no hay firmas"
 }

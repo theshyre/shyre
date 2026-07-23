@@ -31,10 +31,10 @@ describe("SignoffForm", () => {
     fireEvent.change(screen.getByLabelText("Title"), {
       target: { value: "Release Notes v2.0.2" },
     });
-    fireEvent.change(screen.getByLabelText("Name"), {
+    fireEvent.change(screen.getByLabelText(/Name — Signatory 1/), {
       target: { value: "Bret Andre" },
     });
-    fireEvent.change(screen.getByLabelText("Email"), {
+    fireEvent.change(screen.getByLabelText(/Email — Signatory 1/), {
       target: { value: "bandre@fdapproval.com" },
     });
     fireEvent.click(screen.getByRole("button", { name: /Create draft/ }));
@@ -51,11 +51,11 @@ describe("SignoffForm", () => {
 
   it("adds and removes signer rows", () => {
     renderWithIntl(<SignoffForm teams={[TEAM]} customers={[]} />);
-    expect(screen.getAllByLabelText("Name")).toHaveLength(1);
+    expect(screen.getAllByLabelText(/^Name —/)).toHaveLength(1);
     fireEvent.click(screen.getByRole("button", { name: /Add signatory/ }));
-    expect(screen.getAllByLabelText("Name")).toHaveLength(2);
+    expect(screen.getAllByLabelText(/^Name —/)).toHaveLength(2);
     fireEvent.click(screen.getAllByRole("button", { name: /^Remove$/ })[0]!);
-    expect(screen.getAllByLabelText("Name")).toHaveLength(1);
+    expect(screen.getAllByLabelText(/^Name —/)).toHaveLength(1);
   });
 
   it("in edit mode targets the update action and includes document_id", async () => {
