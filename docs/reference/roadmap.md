@@ -528,6 +528,34 @@ solo-consultant on 2026-05-14):
   view serve both "flat sortable" and "grouped by day / customer /
   member" mental models without forking into a separate route.
 
+## Proposals — pricing-types deferred tail (from the 2026-07-22 four-agent review)
+
+The four line-item pricing types (`fixed_bid` · `estimate_nte` · `estimate_range`
+· `estimate_tm`) shipped end-to-end (PRs #142–#145): authoring, badges, per-type
+price strings, convert-to-projects, and invoicing. Two deliberately-deferred
+pieces from the review remain:
+
+- **Enforcing budgets (platform-wide) — HARD bill-stop + overage write-down.**
+  Today a project's dollar budget (`projects.budget_dollars`, where an NTE cap
+  lands) only *alerts* as it's approached — consistent with Shyre's existing
+  budget model. A true not-to-exceed wants the hourly invoice builder to never
+  bill a project past its cap, and to record the written-down overage so it
+  reconciles (bookkeeper: the identity `Σ hours×rate = billed + written_down`
+  must hold and be *visible* — suggested a `write_off_reason='nte_cap'` marker
+  rather than silently marking the overage hours invoiced). This is a
+  platform-wide capability (it applies to recurring retainer budgets too, not
+  just NTE) and needs a product decision on how a write-down should read in the
+  books. Touches the delicate invoice engine (`src/lib/invoice-grouping.ts`,
+  `src/app/(dashboard)/invoices/actions.ts`) — worth a focused, well-scoped pass.
+- **Mixed-proposal money-honesty tail.** When a proposal mixes firm and estimate
+  lines, bind the signed `accepted_total` (and the deposit computed from it) to
+  the **firm + NTE-ceiling** portion only, never the open range/T&M estimates;
+  and widen the immutable acceptance snapshot (`recordSignDecision` in
+  `sign-service.ts` — hand-built, not `to_jsonb(row)`) to record each line's
+  `pricing_type`, so the signed record proves what was firm vs an estimate. The
+  client-facing total already carries a "billed by time" note (P2b); this is the
+  binding + audit-record half.
+
 ## Other deferred work
 
 Smaller items surfaced by persona reviews but not yet promoted to their
