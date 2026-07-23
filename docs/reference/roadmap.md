@@ -9,6 +9,30 @@
 > entries OUT when shipped (link to the feature guide instead) or when
 > explicitly dropped (note why).
 
+## Project setting inheritance — follow-ups (from 2026-07-23 platform/security review)
+
+Live parent→child inheritance shipped in PR #152 (category vocabulary +
+`jira_project_key` resolve from the parent when a nested child's own
+column is NULL; `src/lib/projects/inherit.ts` mirrored in migration
+`20260723100000`). Deferred, low-priority coherence tails:
+
+- **Move-reproject clears an inheritable category.** `updateTimeEntryAction`
+  (`time-entries/actions.ts`) computes `allowedSetIds = [dest.category_set_id]`
+  on a project move; for an inheriting child that's `[] `, so it clears a
+  category the DB trigger would actually accept under inheritance. Safe
+  (clears, no 500) but incoherent — route it through the effective-set
+  resolver (own ∪ inherited) instead of the raw column.
+- **Extension-set single-slot is lossy vs the DB union.** The app models a
+  project's extension set as one column (`extensionByProject` collapses
+  multiples to the last); `inherit.ts` resolves own-OR-parent extension,
+  never the union the DB (`validate_time_entry_category` / `api_log_entry`)
+  accepts. Under-offers in the picker for the rare inheriting-child-with-
+  own-extension case. A tri-state / multi-extension model would close both.
+- **SAL-061 is latent, not live.** The same-team parent JOIN scoping is in
+  place; when a "move project to another team" / bulk-reassign feature is
+  built, it must re-validate existing children's parents (the invariant
+  trigger only checks at child write) and reckon with orphaned inheritance.
+
 ## Expenses — receipt + email ingestion
 
 Forward a receipt email, drop a receipt PDF/image, or snap a phone photo
