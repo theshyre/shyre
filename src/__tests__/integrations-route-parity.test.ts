@@ -36,6 +36,7 @@ describe("integrations route parity (SAL-051)", () => {
   it("covers the expected /api/v1 surface — a vanished route file means the glob broke, not that the API shrank", () => {
     const rel = routeFiles.map((f) => relative(V1_DIR, f));
     expect(rel).toEqual([
+      "entries/[id]/route.ts",
       "entries/route.ts",
       "me/route.ts",
       "projects/route.ts",

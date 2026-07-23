@@ -148,6 +148,20 @@ export interface LogEntryInput {
   categoryId?: string;
 }
 
+export interface ListEntriesInput {
+  projectId?: string;
+  limit?: number;
+  since?: string;
+}
+
+export interface UpdateEntryInput {
+  startTime?: string;
+  endTime?: string;
+  description?: string;
+  categoryId?: string;
+  billable?: boolean;
+}
+
 export function whoami(tokenHash: string): Promise<ServiceResult> {
   return callRpc("api_whoami", { p_token_hash: tokenHash });
 }
@@ -200,5 +214,53 @@ export function logEntry(
     p_idem_key: input.idempotencyKey,
     p_billable: input.billable,
     p_category_id: input.categoryId,
+  });
+}
+
+export function getEntry(
+  tokenHash: string,
+  entryId: string,
+): Promise<ServiceResult> {
+  return callRpc("api_get_entry", {
+    p_token_hash: tokenHash,
+    p_entry_id: entryId,
+  });
+}
+
+export function listEntries(
+  tokenHash: string,
+  input: ListEntriesInput,
+): Promise<ServiceResult> {
+  return callRpc("api_list_entries", {
+    p_token_hash: tokenHash,
+    p_project_id: input.projectId,
+    p_limit: input.limit,
+    p_since: input.since,
+  });
+}
+
+export function updateEntry(
+  tokenHash: string,
+  entryId: string,
+  input: UpdateEntryInput,
+): Promise<ServiceResult> {
+  return callRpc("api_update_entry", {
+    p_token_hash: tokenHash,
+    p_entry_id: entryId,
+    p_start_time: input.startTime,
+    p_end_time: input.endTime,
+    p_description: input.description,
+    p_category_id: input.categoryId,
+    p_billable: input.billable,
+  });
+}
+
+export function deleteEntry(
+  tokenHash: string,
+  entryId: string,
+): Promise<ServiceResult> {
+  return callRpc("api_delete_entry", {
+    p_token_hash: tokenHash,
+    p_entry_id: entryId,
   });
 }

@@ -17,6 +17,10 @@ const serviceMocks = {
   startTimer: vi.fn(),
   stopTimer: vi.fn(),
   logEntry: vi.fn(),
+  listEntries: vi.fn(),
+  getEntry: vi.fn(),
+  updateEntry: vi.fn(),
+  deleteEntry: vi.fn(),
 };
 vi.mock("@/lib/integrations/service", () => ({
   whoami: (...args: unknown[]) => serviceMocks.whoami(...args),
@@ -25,6 +29,10 @@ vi.mock("@/lib/integrations/service", () => ({
   startTimer: (...args: unknown[]) => serviceMocks.startTimer(...args),
   stopTimer: (...args: unknown[]) => serviceMocks.stopTimer(...args),
   logEntry: (...args: unknown[]) => serviceMocks.logEntry(...args),
+  listEntries: (...args: unknown[]) => serviceMocks.listEntries(...args),
+  getEntry: (...args: unknown[]) => serviceMocks.getEntry(...args),
+  updateEntry: (...args: unknown[]) => serviceMocks.updateEntry(...args),
+  deleteEntry: (...args: unknown[]) => serviceMocks.deleteEntry(...args),
 }));
 
 // Passthrough mock for mcp-auth with ONE seam: `tokenHashFromAuthInfo`
@@ -334,6 +342,69 @@ describe("/api/mcp tool dispatch — snake_case wire args map to camelCase servi
         // anywhere in the chain would flip it back to the token default.
         billable: false,
       },
+    );
+  });
+
+  it("list_time_entries maps project_id/limit/since to the service input", async () => {
+    grantAllScopes();
+    serviceMocks.listEntries.mockResolvedValue({ ok: true, data: [] });
+    await POST(
+      toolCallRequest("list_time_entries", {
+        project_id: PROJECT_ID,
+        limit: 50,
+        since: "2026-07-01T00:00:00Z",
+      }),
+    );
+    expect(serviceMocks.listEntries).toHaveBeenCalledExactlyOnceWith(TOKEN_HASH, {
+      projectId: PROJECT_ID,
+      limit: 50,
+      since: "2026-07-01T00:00:00Z",
+    });
+  });
+
+  it("get_time_entry forwards entry_id", async () => {
+    grantAllScopes();
+    serviceMocks.getEntry.mockResolvedValue({ ok: true, data: { id: "entry-7" } });
+    await POST(toolCallRequest("get_time_entry", { entry_id: PROJECT_ID }));
+    expect(serviceMocks.getEntry).toHaveBeenCalledExactlyOnceWith(
+      TOKEN_HASH,
+      PROJECT_ID,
+    );
+  });
+
+  it("update_time_entry maps only the provided fields (partial patch)", async () => {
+    grantAllScopes();
+    serviceMocks.updateEntry.mockResolvedValue({ ok: true, data: { id: "entry-7" } });
+    await POST(
+      toolCallRequest("update_time_entry", {
+        entry_id: PROJECT_ID,
+        end_time: "2026-07-23T15:00:00Z",
+        billable: false,
+      }),
+    );
+    expect(serviceMocks.updateEntry).toHaveBeenCalledExactlyOnceWith(
+      TOKEN_HASH,
+      PROJECT_ID,
+      {
+        startTime: undefined,
+        endTime: "2026-07-23T15:00:00Z",
+        description: undefined,
+        categoryId: undefined,
+        billable: false,
+      },
+    );
+  });
+
+  it("delete_time_entry forwards entry_id", async () => {
+    grantAllScopes();
+    serviceMocks.deleteEntry.mockResolvedValue({
+      ok: true,
+      data: { id: "entry-7", deleted: true },
+    });
+    await POST(toolCallRequest("delete_time_entry", { entry_id: PROJECT_ID }));
+    expect(serviceMocks.deleteEntry).toHaveBeenCalledExactlyOnceWith(
+      TOKEN_HASH,
+      PROJECT_ID,
     );
   });
 
