@@ -104,6 +104,21 @@ Send-locks: `trg_guard_proposals_send_lock` / `trg_guard_pli_send_lock` freeze c
 
 P4 hardening (`20260716170000_proposals_p4_hardening.sql`): `proposal_otp_attempt(token_id)` — the ATOMIC OTP attempt increment (SAL-037; keep the hardcoded 5 in lockstep with `MAX_OTP_ATTEMPTS`); `uq_proposal_acceptances_proposal` — one decision record per proposal (SAL-038; **replaced in `20260717160000`** by two partial unique indexes keyed on `(proposal_id, signer_id)` for multi-signer — the single-signer guarantee is preserved exactly, see SAL-042); statement-level `trg_z_pli_phase_sums_*` triggers — every phased item's phases must sum exactly to its fixed price (DB backstop over the action-layer rule).
 
+## Document sign-off (generic; release notes = type 1)
+
+A parallel e-signature surface (`20260723130000_signoff_foundation.sql`) that **reuses the proposals sign-off's hardened patterns** for arbitrary documents — the first type is `release_notes` (AVDR). Document-shaped: no line items / pricing / tax / subset-binding. Shared crypto lives in `src/lib/sign/tokens.ts` (`proposals/tokens.ts` re-exports it); enums in `src/lib/sign/allow-lists.ts`.
+
+| Table | Notes |
+|-------|-------|
+| `signoff_documents` | The artifact + lifecycle. `team_id`, optional `customer_id`, `document_type` (`release_notes`), `title`, `version_label`, `body_markdown` (**source of truth — rendered via `MarkdownView`, no raw/pandoc HTML; the SAL-039 lesson**), `signing_mode` (`all`\|`first`), `status` (`draft→sent→viewed→completed`/`declined`/`superseded`/`canceled`, timestamps trigger-stamped on first transition), `sign_theme`, `deleted_at`. Team-read RLS; owner/admin write. Actor-stamped; **send-locked** (default-deny jsonb strip-list) once past draft. |
+| `signoff_documents_history` | Append-only; SECURITY DEFINER trigger writes only. |
+| `signoff_signers` | Free-form cross-org roster (`name`/`email`/`role_label`/`org_label`/`sort_order`) — NOT bound to `customer_contacts` (signers span consultant + client + sponsor). Send-locked after the parent is sent (tokens are per-signer). |
+| `signoff_tokens` | Public sign-link identity (mirrors `proposal_access_tokens`): sha256 `token_hash`, `signer_id`, `expires_at`/`revoked_at`/`consumed_at`, OTP state + view-session (`view_session_hash`/`_expires_at`, SAL-045). Owner/admin SELECT; admin-client writes only. |
+| `signoff_events` | Append-only forward log (`created\|sent\|viewed\|otp_*\|signed\|declined\|completed\|link_resent\|superseded\|canceled`). Owner/admin SELECT. |
+| `signoff_acceptances` | Immutable per-signer record: name/title/email, `signature_typed`, `signature_meaning` (`author\|reviewer\|approver` — the Part-11 manifestation seed), `content_snapshot` + `content_sha256`, IP/UA, `otp_verified_at`, `signed_at`, provider counter-sig columns. **No client write policies.** Partial unique indexes `uq_signoff_acceptances_single/_per_signer` (SAL-042 pattern). |
+
+`signoff_otp_attempt(token_id)` — atomic OTP increment, SECURITY DEFINER, revoked from user roles (SAL-037; keep the hardcoded 5 in lockstep with `MAX_OTP_ATTEMPTS`). The `/signoff/<token>` public route will be middleware-exempt (SAL-036 posture) when the flow lands. Full 21 CFR Part 11 gap-list: `docs/reference/signoff-part11-gaps.md`.
+
 Draft leniency (`20260717130000_proposals_draft_leniency.sql`): save-as-you-go. The `trg_z_pli_phase_sums_*` triggers now **exempt `draft` proposals** (a WIP draft may hold a mismatched breakdown); the phase-sum guarantee is enforced instead at the draft → non-draft transition by `trg_proposals_phase_sums_on_send` (BEFORE UPDATE on `proposals`), which also catches a raw status flip. The author-facing completeness gate (title, ≥1 item, signer) lives in `proposalSendReadiness` at the action layer + the detail-page checklist.
 
 ## Messaging / outbox (per-team email pipeline)
