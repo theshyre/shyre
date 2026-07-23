@@ -877,19 +877,25 @@ export async function convertProposalAction(formData: FormData): Promise<void> {
         //    (default_billable=false).
         //  - estimate/NTE/T&M → an HOURLY project billed from time entries at
         //    the agreed rate; the estimate rides along as a soft budget.
-        const isFixed = (item.pricing_type ?? "fixed_bid") === "fixed_bid";
-        const billingFields = isFixed
-          ? {
-              default_billable: false,
-              billing_mode: "fixed_bid",
-              fixed_price: item.fixed_price,
-            }
-          : {
-              default_billable: true,
-              billing_mode: "hourly",
-              hourly_rate: item.hourly_rate,
-              budget_hours: item.estimated_hours,
-            };
+        const pt = item.pricing_type ?? "fixed_bid";
+        const billingFields =
+          pt === "fixed_bid"
+            ? {
+                default_billable: false,
+                billing_mode: "fixed_bid",
+                fixed_price: item.fixed_price,
+              }
+            : {
+                default_billable: true,
+                billing_mode: "hourly",
+                hourly_rate: item.hourly_rate,
+                budget_hours: item.estimated_hours,
+                // NTE: the cap (anchor = fixed_price) becomes a lifetime dollar
+                // budget the burn-vs-budget tooling alerts against.
+                ...(pt === "estimate_nte"
+                  ? { budget_dollars: item.fixed_price }
+                  : {}),
+              };
         const { data: project, error } = await supabase
           .from("projects")
           .insert({

@@ -139,3 +139,20 @@ describe("project billing mode / fixed-bid (20260722120000)", () => {
     expect(sql).toMatch(/THEN p\.fixed_price/);
   });
 });
+
+describe("project lifetime dollar cap / NTE (20260722140000)", () => {
+  const sql = readMigration("project_budget_dollars");
+
+  it("adds budget_dollars with a non-negative CHECK", () => {
+    expect(sql).toMatch(
+      /ADD COLUMN IF NOT EXISTS budget_dollars NUMERIC\(12, 2\)/,
+    );
+    expect(sql).toMatch(/CHECK \(budget_dollars IS NULL OR budget_dollars >= 0\)/);
+  });
+
+  it("re-projects a rate-gated budget_dollars on projects_v (frozen-column rule)", () => {
+    expect(sql).toMatch(/CREATE OR REPLACE VIEW public\.projects_v/);
+    expect(sql).toMatch(/THEN p\.budget_dollars/);
+    expect(sql).toMatch(/can_view_project_rate/);
+  });
+});
