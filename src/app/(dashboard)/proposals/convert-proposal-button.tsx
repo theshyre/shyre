@@ -28,9 +28,9 @@ export function ConvertProposalButton({
   const [parentId, setParentId] = useState<string>("");
 
   return (
-    <span className="inline-flex flex-col items-start gap-1.5">
+    <span className="inline-flex flex-wrap items-center gap-2">
       {eligibleParents.length > 0 && (
-        <label className="inline-flex items-center gap-2 text-caption text-content-secondary">
+        <label className="inline-flex items-center gap-1.5 whitespace-nowrap text-caption text-content-secondary">
           {t("convertNestUnder")}
           <select
             className={selectClass}
@@ -69,7 +69,7 @@ export function ConvertProposalButton({
         {pending ? t("converting") : t("convert")}
       </button>
       {error && (
-        <span role="alert" className="text-caption text-error">
+        <span role="alert" className="basis-full text-caption text-error">
           {error}
         </span>
       )}
