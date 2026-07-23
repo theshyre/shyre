@@ -392,15 +392,6 @@ export default async function ProposalDetailPage({
           {status === "accepted" && acceptance && !acceptance.provider_signed_at && (
             <CounterSignButton proposalId={proposalId} />
           )}
-          {status === "accepted" && (
-            <ConvertProposalButton
-              proposalId={proposalId}
-              eligibleParents={(eligibleParents ?? []).map((p) => ({
-                id: p.id as string,
-                name: p.name as string,
-              }))}
-            />
-          )}
           {(status === "accepted" || status === "converted") &&
             hasUnbilledAccepted && (
               <CreateInvoiceButton
@@ -416,6 +407,18 @@ export default async function ProposalDetailPage({
             !supersededBy && <NewVersionButton proposalId={proposalId} />}
         </div>
       </div>
+
+      {status === "accepted" && (
+        <div className="mt-3">
+          <ConvertProposalButton
+            proposalId={proposalId}
+            eligibleParents={(eligibleParents ?? []).map((p) => ({
+              id: p.id as string,
+              name: p.name as string,
+            }))}
+          />
+        </div>
+      )}
 
       {/* meta */}
       <dl className="mt-[24px] grid grid-cols-2 gap-x-8 gap-y-2 sm:grid-cols-4">
