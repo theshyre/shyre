@@ -284,6 +284,72 @@ describe("agent ticket linking + jira exposure (20260723110000, EFFECTIVE defini
   });
 });
 
+describe("agent entry mutation API (20260723120000)", () => {
+  const sql = readMigration("agent_entry_mutation");
+
+  it("widens the scopes CHECK + DEFAULT to include entries:read + entries:delete", () => {
+    expect(sql).toMatch(
+      /scopes <@ ARRAY\[[^\]]*'entries:read'[^\]]*'entries:delete'[^\]]*\]::text\[\]/,
+    );
+    expect(sql).toMatch(
+      /ALTER COLUMN scopes SET DEFAULT ARRAY\[[^\]]*'entries:read'[^\]]*'entries:delete'[^\]]*\]/,
+    );
+    // Existing tokens are backfilled so they gain the capability.
+    expect(sql).toMatch(/UPDATE integration_tokens\s*\n\s*SET scopes =/);
+  });
+
+  it("defines all four RPCs resolving the right scope", () => {
+    expect(sql).toMatch(/FUNCTION api_get_entry[\s\S]*?api_resolve_token\(p_token_hash, 'entries:read'\)/);
+    expect(sql).toMatch(/FUNCTION api_list_entries[\s\S]*?api_resolve_token\(p_token_hash, 'entries:read'\)/);
+    expect(sql).toMatch(/FUNCTION api_update_entry[\s\S]*?api_resolve_token\(p_token_hash, 'entries:write'\)/);
+    expect(sql).toMatch(/FUNCTION api_delete_entry[\s\S]*?api_resolve_token\(p_token_hash, 'entries:delete'\)/);
+  });
+
+  it("restricts mutation to agent-created, uninvoiced, unlocked rows", () => {
+    // agent-created guard appears in both update + delete.
+    expect(
+      [...sql.matchAll(/started_by_kind IS DISTINCT FROM 'agent'/g)].length,
+    ).toBeGreaterThanOrEqual(2);
+    // invoiced refusal + period-lock refusal.
+    expect(sql).toMatch(/invoiced IS TRUE OR entry\.invoice_id IS NOT NULL/);
+    expect(sql).toMatch(/team_period_lock_at\(tok\.team_id\)/);
+  });
+
+  it("DELETE is a soft-delete (sets deleted_at), never a hard delete", () => {
+    expect(sql).toMatch(/UPDATE time_entries SET deleted_at = now\(\) WHERE id = p_entry_id/);
+    expect(sql).not.toMatch(/DELETE FROM time_entries/);
+  });
+
+  it("api_update_entry writes ONLY real time_entries columns — no phantom updated_at (SAL-058-class 42703 → 500)", () => {
+    // time_entries has created_at + updated_by_user_id (trigger-stamped) but NO
+    // updated_at; duration_min is GENERATED. The mutating UPDATE must set only
+    // the five editable columns.
+    const m = sql.match(/UPDATE time_entries SET\s*([\s\S]*?)\s*WHERE id = p_entry_id\s*\n\s*RETURNING/);
+    expect(m).not.toBeNull();
+    const setClause = m![1]!;
+    expect(setClause).not.toMatch(/\bupdated_at\b/);
+    for (const col of ["start_time", "end_time", "description", "category_id", "billable"]) {
+      expect(setClause).toContain(col);
+    }
+  });
+
+  it("api_update_entry rejects an empty patch (no fields) with TK400", () => {
+    expect(sql).toMatch(/'reason', 'no_fields'/);
+    expect(sql).toMatch(/no fields to update' USING ERRCODE = 'TK400'/);
+  });
+
+  it("keeps every new RPC anon-only (SAL-054)", () => {
+    for (const fn of ["api_get_entry", "api_list_entries", "api_update_entry", "api_delete_entry"]) {
+      expect(sql).toMatch(
+        new RegExp(`REVOKE ALL ON FUNCTION ${fn}\\([\\s\\S]*?FROM PUBLIC, authenticated`),
+      );
+      expect(sql).toMatch(
+        new RegExp(`GRANT EXECUTE ON FUNCTION ${fn}\\([\\s\\S]*?TO anon`),
+      );
+    }
+  });
+});
+
 describe("project lifetime dollar cap / NTE (20260722140000)", () => {
   const sql = readMigration("project_budget_dollars");
 

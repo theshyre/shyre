@@ -8,11 +8,15 @@ import {
   type McpToolResult,
 } from "@/lib/integrations/mcp-auth";
 import {
+  deleteEntry,
+  getEntry,
   getTimer,
+  listEntries,
   listProjects,
   logEntry,
   startTimer,
   stopTimer,
+  updateEntry,
   type ServiceResult,
 } from "@/lib/integrations/service";
 
@@ -187,6 +191,71 @@ const handler = createMcpHandler(
             billable: args.billable,
             categoryId: args.category_id,
           }),
+        ),
+    );
+
+    server.tool(
+      "list_time_entries",
+      "List the token user's own recent time entries (newest first) so you can find one to edit or delete. Optional: project_id (uuid), limit (1-100, default 20), since (ISO 8601). Each row includes `started_by_kind` — you may only update/delete rows where it is 'agent' (entries you logged), never human-entered time.",
+      {
+        project_id: z.uuid().optional().describe("Filter to one project (from list_projects)."),
+        limit: z.number().int().min(1).max(100).optional().describe("Max rows (1-100, default 20)."),
+        since: z
+          .iso
+          .datetime({ offset: true })
+          .optional()
+          .describe("Only entries starting at/after this ISO 8601 instant."),
+      },
+      (args, extra) =>
+        runTool(extra, "api.mcp.list_time_entries", (tokenHash) =>
+          listEntries(tokenHash, {
+            projectId: args.project_id,
+            limit: args.limit,
+            since: args.since,
+          }),
+        ),
+    );
+
+    server.tool(
+      "get_time_entry",
+      "Fetch one of the token user's time entries by id (full row).",
+      { entry_id: z.uuid().describe("Entry id (from list_time_entries or a log response).") },
+      (args, extra) =>
+        runTool(extra, "api.mcp.get_time_entry", (tokenHash) =>
+          getEntry(tokenHash, args.entry_id),
+        ),
+    );
+
+    server.tool(
+      "update_time_entry",
+      "Edit one of YOUR OWN agent-logged entries (started_by_kind='agent') to fix a mistake — trim the duration, backfill a category, correct the description or billable flag. Only the fields you pass change. Refused (403) for human-entered entries, (409) for invoiced ones, and (403) inside a locked accounting period. Editing the description does NOT re-run ticket auto-linking. Cannot move an entry to a different project.",
+      {
+        entry_id: z.uuid().describe("Entry id (from list_time_entries)."),
+        start_time: z.iso.datetime({ offset: true }).optional().describe("New start, ISO 8601 with timezone."),
+        end_time: z.iso.datetime({ offset: true }).optional().describe("New end, ISO 8601 with timezone."),
+        description: z.string().min(1).max(2000).optional().describe("New description (>= 8 meaningful chars)."),
+        category_id: z.uuid().optional().describe("New category id (must belong to the project's effective set)."),
+        billable: z.boolean().optional().describe("New billable flag (forced false on internal projects)."),
+      },
+      (args, extra) =>
+        runTool(extra, "api.mcp.update_time_entry", (tokenHash) =>
+          updateEntry(tokenHash, args.entry_id, {
+            startTime: args.start_time,
+            endTime: args.end_time,
+            description: args.description,
+            categoryId: args.category_id,
+            billable: args.billable,
+          }),
+        ),
+    );
+
+    server.tool(
+      "delete_time_entry",
+      "Soft-delete one of YOUR OWN agent-logged entries (recoverable from Trash in the app). Use for a stray/duplicate entry you created. Refused (403) for human-entered entries, (409) for invoiced ones, and (403) inside a locked accounting period.",
+      { entry_id: z.uuid().describe("Entry id (from list_time_entries).") },
+      (args, extra) =>
+        runTool(extra, "api.mcp.delete_time_entry", (tokenHash) =>
+          deleteEntry(tokenHash, args.entry_id),
         ),
     );
   },

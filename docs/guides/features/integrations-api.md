@@ -32,6 +32,10 @@ All endpoints require `Authorization: Bearer shyre_pat_…`. Responses are JSON.
 | POST | `/api/v1/timer/start` | `timer:write` | Start a timer; `409` if ANY timer is already running |
 | POST | `/api/v1/timer/stop` | `timer:write` | Stop the running timer (agent-started only, unless `force`) |
 | POST | `/api/v1/entries` | `entries:write` | **Preferred**: log a completed block of work |
+| GET | `/api/v1/entries` | `entries:read` | The token user's own entries (newest first; `project_id`/`limit`/`since` filters) |
+| GET | `/api/v1/entries/<id>` | `entries:read` | One entry, full row |
+| PATCH | `/api/v1/entries/<id>` | `entries:write` | Edit an agent-created entry (partial) |
+| DELETE | `/api/v1/entries/<id>` | `entries:delete` | Soft-delete an agent-created entry (recoverable via Trash) |
 
 Request bodies are strict: unknown keys are rejected with `400`.
 
@@ -127,9 +131,20 @@ Refusals — every non-auth refusal carries a `message` naming the rule it hit:
 
 `idempotency_key` (≤ 128 chars) dedupes retries on the two creating endpoints — `timer/start` and `entries`: replaying the same key on the same token returns the originally created entry instead of double-logging. `timer/stop` takes no idempotency key (stopping an already-stopped timer is a plain `404 not_found`).
 
+### Reading, editing, and deleting entries — cleaning up after yourself
+
+The v1 surface can also read, correct, and remove entries — so an agent can fix its own mistakes (trim a duration, backfill a category, drop a stray entry) instead of leaving them for a human.
+
+- **`GET /api/v1/entries`** (scope `entries:read`) — the token user's own entries, newest first. Optional query: `project_id` (uuid), `limit` (1–100, default 20), `since` (ISO 8601). Each row carries `started_by_kind`; you may only edit/delete rows where it's `agent`.
+- **`GET /api/v1/entries/<id>`** (`entries:read`) — one entry, full row.
+- **`PATCH /api/v1/entries/<id>`** (`entries:write`) — edit an **agent-created** entry. Body (all optional, at least one): `start_time`, `end_time`, `description`, `category_id`, `billable`; only the fields you send change. The new window is re-validated (≤ 24h, same-project overlap, effective category set, internal → non-billable). **Refusals:** `403` for a human-entered entry (`started_by_kind ≠ agent`) or one in a locked period; `409` for an invoiced entry. Project can't be changed, and editing the description does **not** re-run ticket auto-linking.
+- **`DELETE /api/v1/entries/<id>`** (`entries:delete`) — **soft**-delete an agent-created entry (recoverable from **Trash** in the app, or restore via the UI). Same `403`/`409` guards as PATCH.
+
+These never touch human-entered time: a leaked token can only rewrite or remove entries it logged itself. `entries:read` and `entries:delete` are granted to every existing token automatically (no regeneration needed).
+
 ## MCP server (Claude Code and friends)
 
-The MCP endpoint exposes five tools backed by the exact same service layer as REST: `get_current_timer`, `list_projects`, `start_timer`, `stop_timer`, `log_time_entry`.
+The MCP endpoint exposes nine tools backed by the exact same service layer as REST: `get_current_timer`, `list_projects`, `start_timer`, `stop_timer`, `log_time_entry`, `list_time_entries`, `get_time_entry`, `update_time_entry`, `delete_time_entry`.
 
 One-liner setup:
 

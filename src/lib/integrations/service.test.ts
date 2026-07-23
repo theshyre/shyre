@@ -8,11 +8,15 @@ vi.mock("@supabase/supabase-js", () => ({
 
 import {
   createIntegrationClient,
+  deleteEntry,
+  getEntry,
   getTimer,
+  listEntries,
   listProjects,
   logEntry,
   startTimer,
   stopTimer,
+  updateEntry,
   whoami,
 } from "./service";
 
@@ -206,5 +210,40 @@ describe("service functions — ERRCODE mapping", () => {
     vi.stubEnv("NEXT_PUBLIC_SUPABASE_URL", "");
     const result = await whoami(HASH);
     expect(result).toMatchObject({ ok: false, status: 500, error: "internal" });
+  });
+
+  it("getEntry forwards the entry id", async () => {
+    await getEntry(HASH, "entry-1");
+    expect(rpcMock).toHaveBeenCalledWith("api_get_entry", {
+      p_token_hash: HASH,
+      p_entry_id: "entry-1",
+    });
+  });
+
+  it("listEntries forwards the filters, compacting undefined ones", async () => {
+    await listEntries(HASH, { projectId: "proj-1", limit: 50 });
+    expect(rpcMock).toHaveBeenCalledWith("api_list_entries", {
+      p_token_hash: HASH,
+      p_project_id: "proj-1",
+      p_limit: 50,
+    });
+  });
+
+  it("updateEntry forwards only the provided fields (partial patch)", async () => {
+    await updateEntry(HASH, "entry-1", { endTime: "2026-07-23T15:00:00Z", categoryId: "cat-2" });
+    expect(rpcMock).toHaveBeenCalledWith("api_update_entry", {
+      p_token_hash: HASH,
+      p_entry_id: "entry-1",
+      p_end_time: "2026-07-23T15:00:00Z",
+      p_category_id: "cat-2",
+    });
+  });
+
+  it("deleteEntry forwards the entry id", async () => {
+    await deleteEntry(HASH, "entry-1");
+    expect(rpcMock).toHaveBeenCalledWith("api_delete_entry", {
+      p_token_hash: HASH,
+      p_entry_id: "entry-1",
+    });
   });
 });

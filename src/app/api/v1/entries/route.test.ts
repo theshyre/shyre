@@ -6,13 +6,15 @@ vi.mock("@/lib/logger", () => ({
 }));
 
 const logEntryMock = vi.fn();
+const listEntriesMock = vi.fn();
 vi.mock("@/lib/integrations/service", () => ({
   logEntry: (...args: unknown[]) => logEntryMock(...args),
+  listEntries: (...args: unknown[]) => listEntriesMock(...args),
 }));
 
 import { sha256Hex } from "@/lib/integrations/tokens";
 
-import { POST } from "./route";
+import { POST, GET } from "./route";
 
 const RAW_PAT = `shyre_pat_${"i".repeat(43)}`;
 const PROJECT_ID = "3fa85f64-5717-4562-b3fc-2c963f66afa6";
@@ -37,6 +39,44 @@ function makeRequest(body: unknown, auth?: string): Request {
 beforeEach(() => {
   logErrorMock.mockClear();
   logEntryMock.mockReset();
+  listEntriesMock.mockReset();
+});
+
+function getRequest(query: string, auth?: string): Request {
+  const headers = new Headers();
+  if (auth !== undefined) headers.set("authorization", auth);
+  return new Request(`https://shyre.test/api/v1/entries${query}`, {
+    method: "GET",
+    headers,
+  });
+}
+
+describe("GET /api/v1/entries (list)", () => {
+  it("forwards parsed query filters to the service", async () => {
+    listEntriesMock.mockResolvedValue({ ok: true, data: [] });
+    const res = await GET(
+      getRequest(`?project_id=${PROJECT_ID}&limit=50`, `Bearer ${RAW_PAT}`),
+    );
+    expect(res.status).toBe(200);
+    expect(listEntriesMock).toHaveBeenCalledWith(sha256Hex(RAW_PAT), {
+      projectId: PROJECT_ID,
+      limit: 50,
+      since: undefined,
+    });
+  });
+
+  it("rejects a bad limit before touching the service (400)", async () => {
+    const res = await GET(getRequest("?limit=999", `Bearer ${RAW_PAT}`));
+    expect(res.status).toBe(400);
+    expect(((await res.json()) as { error: string }).error).toBe("invalid_request");
+    expect(listEntriesMock).not.toHaveBeenCalled();
+  });
+
+  it("401s without a bearer token", async () => {
+    const res = await GET(getRequest("?limit=5"));
+    expect(res.status).toBe(401);
+    expect(listEntriesMock).not.toHaveBeenCalled();
+  });
 });
 
 describe("POST /api/v1/entries", () => {

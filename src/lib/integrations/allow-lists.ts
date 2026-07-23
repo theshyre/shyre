@@ -4,15 +4,20 @@
  * enforced by `src/__tests__/db-parity.test.ts`.
  */
 
-/** `integration_tokens.scopes` — the four v1 capabilities. Deliberately no
- *  delete scope, no invoice/customer/settings scope: those tables are
- *  unreachable through this surface entirely (security review, blocking
- *  req. 1). */
+/** `integration_tokens.scopes` — the v1 capabilities. `entries:read` +
+ *  `entries:delete` were added 2026-07-23 for the entry-mutation API
+ *  (GET/list, soft-DELETE); `entries:delete` deliberately reverses the
+ *  original SAL-051 "no delete scope" decision, bounded by agent-created-only
+ *  + uninvoiced + soft-delete + audit (see 20260723120000). Still no
+ *  invoice/customer/settings scope: those tables are unreachable through this
+ *  surface entirely (security review). */
 export const ALLOWED_API_SCOPES = new Set([
   "context:read",
   "timer:read",
   "timer:write",
+  "entries:read",
   "entries:write",
+  "entries:delete",
 ]);
 
 /** `time_entries.started_by_kind` — who/what initiated the entry.

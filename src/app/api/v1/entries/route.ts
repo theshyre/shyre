@@ -1,7 +1,7 @@
 import { z } from "zod";
 
 import { runIntegrationRoute } from "@/lib/integrations/api-auth";
-import { logEntry } from "@/lib/integrations/service";
+import { listEntries, logEntry } from "@/lib/integrations/service";
 
 /**
  * POST /api/v1/entries — log a completed block of work (SAL-051).
@@ -41,6 +41,46 @@ export async function POST(request: Request): Promise<Response> {
         idempotencyKey: body.idempotency_key,
         billable: body.billable,
         categoryId: body.category_id,
+      }),
+  });
+}
+
+/**
+ * GET /api/v1/entries — the caller's own entries, newest first. Optional
+ * query: `project_id` (uuid), `limit` (1-100, default 20), `since` (ISO 8601).
+ * `started_by_kind` on each row tells the agent which it may mutate
+ * (agent-created only). Read scope: `entries:read`.
+ */
+const listQuerySchema = z
+  .object({
+    project_id: z.uuid().optional(),
+    limit: z.coerce.number().int().min(1).max(100).optional(),
+    since: z.iso.datetime({ offset: true }).optional(),
+  })
+  .strict();
+
+export async function GET(request: Request): Promise<Response> {
+  const raw = Object.fromEntries(new URL(request.url).searchParams);
+  const parsed = listQuerySchema.safeParse(raw);
+  if (!parsed.success) {
+    return Response.json(
+      {
+        error: "invalid_request",
+        issues: parsed.error.issues.map((i) => ({
+          path: i.path.join("."),
+          message: i.message,
+        })),
+      },
+      { status: 400 },
+    );
+  }
+  return runIntegrationRoute(request, {
+    action: "api.v1.entries.list",
+    invoke: (tokenHash) =>
+      listEntries(tokenHash, {
+        projectId: parsed.data.project_id,
+        limit: parsed.data.limit,
+        since: parsed.data.since,
       }),
   });
 }
