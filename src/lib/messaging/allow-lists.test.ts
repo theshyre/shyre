@@ -32,7 +32,10 @@ describe("messaging allow-lists", () => {
     expect(ALLOWED_RELATED_KINDS.has("proposal_otp")).toBe(true);
     // Audit batch C: the team-invite accept-link email.
     expect(ALLOWED_RELATED_KINDS.has("team_invite")).toBe(true);
-    expect(ALLOWED_RELATED_KINDS.size).toBe(6);
+    // Document sign-off (20260723130000): sign-link + one-time code.
+    expect(ALLOWED_RELATED_KINDS.has("signoff")).toBe(true);
+    expect(ALLOWED_RELATED_KINDS.has("signoff_otp")).toBe(true);
+    expect(ALLOWED_RELATED_KINDS.size).toBe(8);
   });
 
   it("ALLOWED_DOMAIN_STATUS mirrors Resend's three-state domain machine", () => {

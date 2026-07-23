@@ -24,7 +24,9 @@ export const ALLOWED_OUTBOX_STATUS = new Set([
 
 /** message_outbox.related_kind — what the message is about. `proposal` is
  *  the sign-link email; `proposal_otp` the one-time code (SAL-036).
- *  `team_invite` is the team-invite accept-link email (audit batch C). */
+ *  `team_invite` is the team-invite accept-link email (audit batch C).
+ *  `signoff`/`signoff_otp` are the document sign-off equivalents
+ *  (`20260723130000`). */
 export const ALLOWED_RELATED_KINDS = new Set([
   "invoice",
   "invoice_reminder",
@@ -32,6 +34,8 @@ export const ALLOWED_RELATED_KINDS = new Set([
   "proposal",
   "proposal_otp",
   "team_invite",
+  "signoff",
+  "signoff_otp",
 ] as const);
 
 /** verified_email_domains.status — Resend's domain-verification
