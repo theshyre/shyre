@@ -41,7 +41,9 @@ export interface OutboxRow {
     | "payment_thanks"
     | "proposal"
     | "proposal_otp"
-    | "team_invite";
+    | "team_invite"
+    | "signoff"
+    | "signoff_otp";
   related_id: string | null;
   provider: "resend";
   provider_message_id: string | null;
