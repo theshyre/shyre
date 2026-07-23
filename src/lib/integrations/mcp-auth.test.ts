@@ -167,17 +167,36 @@ describe("toToolResult", () => {
     });
   });
 
-  it("redacts PATs from failure messages", () => {
+  it("redacts PATs from forwarded failure messages", () => {
     const result = toToolResult(
       {
         ok: false,
-        status: 500,
-        error: "internal",
-        message: `broke on ${RAW_PAT}`,
+        status: 409,
+        error: "conflict",
+        message: `conflicts with ${RAW_PAT}`,
       },
       { action: "api.mcp.test" },
     );
     expect(result.content[0]?.text).not.toContain(RAW_PAT);
     expect(result.content[0]?.text).toContain("shyre_pat_[REDACTED]");
+  });
+
+  it("suppresses 5xx messages — raw DB internals never reach the tool result (SAL-060)", () => {
+    const result = toToolResult(
+      {
+        ok: false,
+        status: 500,
+        error: "internal",
+        message: 'update on "integration_tokens" violates trigger tg_whatever',
+      },
+      { action: "api.mcp.test" },
+    );
+    expect(result.isError).toBe(true);
+    expect(JSON.parse(result.content[0]?.text ?? "")).toEqual({
+      error: "internal",
+      message: "internal error",
+    });
+    // The real message still lands in error_logs for the admin.
+    expect(logErrorMock).toHaveBeenCalledTimes(1);
   });
 });

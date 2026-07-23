@@ -248,6 +248,21 @@ describe("runIntegrationRoute — redaction (SAL-051 pre-GA checklist)", () => {
     expect(allLoggedText()).not.toContain(RAW_PAT);
   });
 
+  it("redacts a PAT out of a 400 refusal detail (the newly-forwarding branch)", async () => {
+    const res = await runIntegrationRoute(makeRequest({ auth: `Bearer ${RAW_PAT}`, method: "GET" }), {
+      action: "api.v1.test",
+      invoke: async () => ({
+        ok: false,
+        status: 400,
+        error: "invalid_request",
+        message: `bad input near ${RAW_PAT}`,
+      }),
+    });
+    const text = await res.text();
+    expect(text).not.toContain(RAW_PAT);
+    expect(text).toContain("shyre_pat_[REDACTED]");
+  });
+
   it("redacts a PAT out of the 409 response detail", async () => {
     const res = await runIntegrationRoute(makeRequest({ auth: `Bearer ${RAW_PAT}`, method: "GET" }), {
       action: "api.v1.test",

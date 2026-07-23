@@ -24,9 +24,33 @@ const MIGRATIONS_DIR = join(process.cwd(), "supabase", "migrations");
 function readMigration(substr: string): string {
   const file = readdirSync(MIGRATIONS_DIR)
     .filter((f) => f.endsWith(".sql"))
-    .find((f) => f.includes(substr));
-  if (!file) throw new Error(`migration containing "${substr}" not found`);
+    .sort()
+    .find((f) => f.endsWith(`_${substr}.sql`));
+  if (!file) throw new Error(`migration named "_${substr}.sql" not found`);
   return readFileSync(join(MIGRATIONS_DIR, file), "utf8");
+}
+
+/**
+ * The effective (latest-applied) `CREATE OR REPLACE FUNCTION <name> … $$;`
+ * across timestamp-sorted migrations (mirrors `latestCreateTrigger` in
+ * integration-trigger-definer-safe.test.ts). api_log_entry has been
+ * redefined five times in four days — invariants pinned to any single
+ * migration file go stale on the next redefinition; these never do.
+ */
+function latestCreateFunction(name: string): string {
+  const re = new RegExp(
+    `CREATE OR REPLACE FUNCTION ${name}\\s*\\([\\s\\S]*?\\$\\$;`,
+    "g",
+  );
+  let last = "";
+  for (const file of readdirSync(MIGRATIONS_DIR)
+    .filter((f) => f.endsWith(".sql"))
+    .sort()) {
+    const matches = readFileSync(join(MIGRATIONS_DIR, file), "utf8").match(re);
+    if (matches && matches.length > 0) last = matches[matches.length - 1] ?? last;
+  }
+  if (!last) throw new Error(`no CREATE OR REPLACE FUNCTION ${name} found`);
+  return last;
 }
 
 describe("project default category + API categories migration", () => {
@@ -140,18 +164,24 @@ describe("project billing mode / fixed-bid (20260722120000)", () => {
   });
 });
 
-describe("agent log — backdating policy (20260722150000)", () => {
-  const sql = readMigration("agent_log_backfill_policy");
+describe("agent log — backdating policy (EFFECTIVE api_log_entry definition)", () => {
+  // Latest-definition-wins: assert on whatever migration currently owns
+  // api_log_entry, so redefinition #6 cannot silently re-add a day cap or
+  // re-collapse the refusal messages while these stay green.
+  const sql = latestCreateFunction("api_log_entry");
 
-  it("drops the 7-day cap for a 1-year wrong-year sanity bound", () => {
-    expect(sql).toMatch(/CREATE OR REPLACE FUNCTION api_log_entry/);
+  it("has NO fixed backdating window — only the 1-year wrong-year sanity bound", () => {
     expect(sql).not.toMatch(/interval '7 days'/);
     expect(sql).toMatch(/p_start_time < now\(\) - interval '365 days'/);
   });
 
-  it("refuses entries dated in a locked period as a policy 403, not the trigger's 500", () => {
+  it("refuses entries dated in a locked period as a policy 403, not the trigger's opaque 500", () => {
     expect(sql).toMatch(/team_period_lock_at\(tok\.team_id\)/);
     expect(sql).toMatch(/'reason', 'period_locked'/);
+    // Boundary parity with trg_time_entries_period_lock_guard: inclusive <=
+    // on the ::date cast. Drifting to < re-opens the opaque-500 window for
+    // entries dated exactly on period_end.
+    expect(sql).toMatch(/\(p_start_time\)::date <= v_lock_end/);
     expect(sql).toMatch(
       /period locked: the books are closed through %[\s\S]*?USING ERRCODE = 'TK403'/,
     );

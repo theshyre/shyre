@@ -134,7 +134,7 @@ const handler = createMcpHandler(
 
     server.tool(
       "log_time_entry",
-      "PREFERRED way to record work in Shyre: log a completed block of time after the work is done (no orphaned timers, no idle inflation). Requires a meaningful description (>= 8 chars) of what was accomplished. The range must be <= 24h, <= 7 days in the past, not in the future, and must not overlap the user's existing entries (conflict 409 otherwise). Recommended: call this once when a work session completes.",
+      "PREFERRED way to record work in Shyre: log a completed block of time after the work is done (no orphaned timers, no idle inflation). Requires a meaningful description (>= 8 chars) of what was accomplished. The range must be <= 24h, not in the future, not dated in a locked accounting period (403), and must not overlap the user's existing entries on the same project (conflict 409 otherwise). There is no fixed backdating window — backfills are accepted up to 1 year back. Recommended: call this once when a work session completes.",
       {
         project_id: z.uuid().describe("Project id (from list_projects)."),
         start_time: z

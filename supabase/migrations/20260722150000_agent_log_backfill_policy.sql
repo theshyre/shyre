@@ -20,6 +20,9 @@
 -- Also: the four time-range refusals no longer collapse into one generic
 -- 'invalid time range' — each names its rule, in both the exception message
 -- (forwarded to the caller by the route layer) and the audit detail reason.
+-- (SAL-059 caveat: the 'denied' api_log_event rows roll back with the RAISE
+-- and never persist — error_logs is the durable refusal record, not
+-- integration_events. The reasons are kept here for when that's fixed.)
 --
 -- Unchanged guards: <=24h per entry, <=5min future skew, same-project overlap
 -- refusal, internal -> non-billable, idempotency replay, description quality.

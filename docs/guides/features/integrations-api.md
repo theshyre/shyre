@@ -119,7 +119,7 @@ Refusals — every non-auth refusal carries a `message` naming the rule it hit:
 - `403` when the entry is dated in a **locked accounting period** — closed books refuse backdated writes;
 - `409` when it overlaps one of the user's existing entries **on the same project** (cross-project parallel work is allowed).
 
-**There is no fixed backdating window.** Backfills of any age are accepted up to the one-year sanity bound. The controls against history tampering are period locks (lock a period after closing its books and the API refuses writes into it), the immutable agent attribution on every entry, and the agent-time review surface — not an age cap.
+**There is no fixed backdating window.** Backfills of any age are accepted up to the one-year sanity bound. The controls against history tampering are period locks (lock a period after closing its books and the API refuses writes into it), the immutable agent attribution on every entry, and the agent-time review surface — not an age cap. Note that period locks are opt-in: on a team that never locks periods, backdated agent writes are constrained only by attribution and review — lock closed months to make refusal automatic.
 
 ### Idempotency
 
