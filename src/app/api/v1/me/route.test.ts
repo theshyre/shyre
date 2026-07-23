@@ -73,6 +73,9 @@ describe("GET /api/v1/me", () => {
     });
     const res = await GET(makeRequest(`Bearer ${RAW_PAT}`));
     expect(res.status).toBe(429);
-    expect(await res.json()).toEqual({ error: "rate_limited" });
+    expect(await res.json()).toEqual({
+      error: "rate_limited",
+      message: "rate limit exceeded",
+    });
   });
 });

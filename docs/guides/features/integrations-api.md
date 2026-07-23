@@ -111,7 +111,15 @@ curl -X POST https://shyre.malcom.io/api/v1/entries \
   }'
 ```
 
-Required: `project_id`, `start_time`/`end_time` (ISO 8601 **with timezone**), `description` (≥ 8 meaningful characters). Optional: `agent_label`, `session_ref`, `idempotency_key`, `billable` (overrides the token default), `category_id` (a category from the project's `categories` in `list_projects`; when omitted the project's default category is applied, so agent-logged time still lands categorized). Refused with `400` when the range is inverted, longer than 24h, more than 7 days back, ends more than 5 minutes in the future (small clock skew is tolerated), or when `category_id` doesn't belong to the project; `409` when it overlaps any of the user's existing entries.
+Required: `project_id`, `start_time`/`end_time` (ISO 8601 **with timezone**), `description` (≥ 8 meaningful characters). Optional: `agent_label`, `session_ref`, `idempotency_key`, `billable` (overrides the token default), `category_id` (a category from the project's `categories` in `list_projects`; when omitted the project's default category is applied, so agent-logged time still lands categorized).
+
+Refusals — every non-auth refusal carries a `message` naming the rule it hit:
+
+- `400` when the range is inverted, longer than 24h, ends more than 5 minutes in the future (small clock skew is tolerated), starts more than a year in the past (a wrong-year sanity bound, not a policy window), or when `category_id` doesn't belong to the project;
+- `403` when the entry is dated in a **locked accounting period** — closed books refuse backdated writes;
+- `409` when it overlaps one of the user's existing entries **on the same project** (cross-project parallel work is allowed).
+
+**There is no fixed backdating window.** Backfills of any age are accepted up to the one-year sanity bound. The controls against history tampering are period locks (lock a period after closing its books and the API refuses writes into it), the immutable agent attribution on every entry, and the agent-time review surface — not an age cap. Note that period locks are opt-in: on a team that never locks periods, backdated agent writes are constrained only by attribution and review — lock closed months to make refusal automatic.
 
 ### Idempotency
 

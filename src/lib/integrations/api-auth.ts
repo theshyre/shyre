@@ -24,10 +24,12 @@ import { TOKEN_PREFIX, extractBearerPat, redactPat, sha256Hex } from "./tokens";
  * - sha256 the PAT and hand ONLY the hash to the service layer.
  * - Zod-validate POST bodies (schemas are `.strict()` — unknown keys
  *   are rejected, not silently dropped).
- * - Map service failures to the stable `{ error: code }` envelope. All
- *   401 shapes (missing header, malformed token, unknown, revoked,
- *   expired, kill switch, offboarded) return ONE uniform body — no
- *   oracle for probing token state.
+ * - Map service failures to the stable `{ error: code }` envelope,
+ *   forwarding the redacted `message` on non-auth 4xx so a refusal is
+ *   self-explanatory to the agent. All 401 shapes (missing header,
+ *   malformed token, unknown, revoked, expired, kill switch, offboarded)
+ *   return ONE uniform body — no oracle for probing token state — and
+ *   5xx bodies never carry internals.
  * - logError() on EVERY non-2xx, always PAT-redacted, never the
  *   Authorization header. Context carries the display prefix only.
  */
@@ -90,14 +92,19 @@ function failureResponse(failure: ServiceFailure, ctx: FailureContext): Response
     // switch) is in the audit trail, never in the response.
     return NextResponse.json(UNAUTHORIZED_BODY, { status: 401 });
   }
-  if (failure.status === 409) {
-    // Conflicts are actionable for the agent ("timer already running",
-    // "overlaps existing entries") — forward the redacted detail.
+  if (failure.status < 500) {
+    // Non-auth 4xx refusals are actionable for the agent ("overlaps
+    // existing entries", "period locked: the books are closed through
+    // 2026-06-30") — forward the redacted detail. Parity with the MCP
+    // transport, which has always forwarded it; a bare
+    // { error: "invalid_request" } made a policy refusal
+    // indistinguishable from a malformed request.
     return NextResponse.json(
       { error: failure.error, message: redactPat(failure.message) },
-      { status: 409 },
+      { status: failure.status },
     );
   }
+  // 5xx are ours, not the caller's — internals never surface in the body.
   return NextResponse.json({ error: failure.error }, { status: failure.status });
 }
 

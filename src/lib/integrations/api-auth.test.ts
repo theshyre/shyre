@@ -113,14 +113,31 @@ describe("runIntegrationRoute — responses", () => {
     [403, "forbidden"],
     [404, "not_found"],
     [429, "rate_limited"],
-    [500, "internal"],
-  ] as const)("maps a %s service failure to { error: %s } and logs it", async (status, error) => {
+  ] as const)(
+    "maps a %s service failure to { error: %s, message } and logs it — refusals are self-explanatory",
+    async (status, error) => {
+      const res = await runIntegrationRoute(makeRequest({ auth: `Bearer ${RAW_PAT}`, method: "GET" }), {
+        action: "api.v1.test",
+        invoke: async () => ({ ok: false, status, error, message: "boom" }),
+      });
+      expect(res.status).toBe(status);
+      expect(await res.json()).toEqual({ error, message: "boom" });
+      expect(logErrorMock).toHaveBeenCalledTimes(1);
+    },
+  );
+
+  it("keeps the 500 body bare — internals never surface to the caller", async () => {
     const res = await runIntegrationRoute(makeRequest({ auth: `Bearer ${RAW_PAT}`, method: "GET" }), {
       action: "api.v1.test",
-      invoke: async () => ({ ok: false, status, error, message: "boom" }),
+      invoke: async () => ({
+        ok: false,
+        status: 500,
+        error: "internal",
+        message: "query failed: relation time_entries deadlocked",
+      }),
     });
-    expect(res.status).toBe(status);
-    expect(await res.json()).toEqual({ error });
+    expect(res.status).toBe(500);
+    expect(await res.json()).toEqual({ error: "internal" });
     expect(logErrorMock).toHaveBeenCalledTimes(1);
   });
 
@@ -229,6 +246,21 @@ describe("runIntegrationRoute — redaction (SAL-051 pre-GA checklist)", () => {
     });
     expect(logErrorMock.mock.calls.length).toBeGreaterThanOrEqual(2);
     expect(allLoggedText()).not.toContain(RAW_PAT);
+  });
+
+  it("redacts a PAT out of a 400 refusal detail (the newly-forwarding branch)", async () => {
+    const res = await runIntegrationRoute(makeRequest({ auth: `Bearer ${RAW_PAT}`, method: "GET" }), {
+      action: "api.v1.test",
+      invoke: async () => ({
+        ok: false,
+        status: 400,
+        error: "invalid_request",
+        message: `bad input near ${RAW_PAT}`,
+      }),
+    });
+    const text = await res.text();
+    expect(text).not.toContain(RAW_PAT);
+    expect(text).toContain("shyre_pat_[REDACTED]");
   });
 
   it("redacts a PAT out of the 409 response detail", async () => {

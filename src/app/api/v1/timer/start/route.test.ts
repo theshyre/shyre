@@ -111,6 +111,9 @@ describe("POST /api/v1/timer/start", () => {
       makeRequest({ project_id: PROJECT_ID }, `Bearer ${RAW_PAT}`),
     );
     expect(res.status).toBe(404);
-    expect(await res.json()).toEqual({ error: "not_found" });
+    expect(await res.json()).toEqual({
+      error: "not_found",
+      message: "unknown project",
+    });
   });
 });

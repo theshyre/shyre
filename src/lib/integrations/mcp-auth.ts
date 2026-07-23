@@ -109,7 +109,9 @@ export interface McpToolResult {
 /**
  * Shape a service result as an MCP tool result, logging every failure
  * with the same discipline as the REST wrapper. Unauthorized results
- * keep the uniform no-oracle message.
+ * keep the uniform no-oracle message; 5xx keep a generic message —
+ * an unmapped DB failure's raw Postgres text (relation / constraint
+ * names) is ours, never the caller's (SAL-060, REST parity).
  */
 export function toToolResult(
   result: ServiceResult,
@@ -126,7 +128,11 @@ export function toToolResult(
     tokenPrefix: ctx.tokenPrefix,
   });
   const message =
-    result.error === "unauthorized" ? "unauthorized" : redactPat(result.message);
+    result.error === "unauthorized"
+      ? "unauthorized"
+      : result.status >= 500
+        ? "internal error"
+        : redactPat(result.message);
   return {
     isError: true,
     content: [
