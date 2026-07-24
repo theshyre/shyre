@@ -10,8 +10,11 @@ import {
   Clock,
   UserCheck,
   ShieldCheck,
+  PackageCheck,
 } from "lucide-react";
 import { createClient } from "@/lib/supabase/server";
+import { validateTeamAccess, isTeamAdmin } from "@/lib/team-context";
+import { isProjectClosed } from "@/lib/projects/allow-lists";
 import { buttonSecondaryClass } from "@/lib/form-styles";
 import { formatCurrency } from "@/lib/invoice-utils";
 import { formatDisplayDate, formatDisplayDateTime } from "@/lib/format-date";
@@ -47,7 +50,13 @@ import {
   type DepositType,
 } from "@/lib/proposals/allow-lists";
 import { proposalSendReadiness } from "@/lib/proposals/readiness";
-import { partialSignoffProgress } from "@/lib/proposals/list-view";
+import {
+  partialSignoffProgress,
+  proposalDeliveryProgress,
+  isProposalDeliveryReady,
+  type DeliveryProgress,
+} from "@/lib/proposals/list-view";
+import { ProposalLifecycleActions } from "../proposal-lifecycle-actions";
 
 export async function generateMetadata(): Promise<Metadata> {
   const t = await getTranslations("proposals");
@@ -266,6 +275,48 @@ export default async function ProposalDetailPage({
       (row) => acceptedIds.has(row.id) && row.invoiced_at === null,
     );
 
+  // Delivery lifecycle (only meaningful once converted). "Delivered" is a
+  // `delivered_at` stamp on the still-`converted` proposal — never a status
+  // (see 20260723150000). The "N of M phases delivered" readout counts
+  // accepted top-level items whose converted project is closed out
+  // (`completed`), which drives both the progress caption and the
+  // "all phases closed — mark delivered?" nudge. Cross-module read of
+  // project statuses via `converted_project_id` is the sanctioned
+  // proposals → projects direction (same as `eligibleParents` above).
+  const isDelivered = proposal.delivered_at != null;
+  const deliveredAt = (proposal.delivered_at as string | null) ?? null;
+  let deliveryProgress: DeliveryProgress = { delivered: 0, total: 0 };
+  let deliveryReady = false;
+  let callerIsAdmin = false;
+  if (status === "converted") {
+    const { role } = await validateTeamAccess(proposal.team_id as string);
+    callerIsAdmin = isTeamAdmin(role);
+
+    const acceptedParents = parents.filter((row) => acceptedIds.has(row.id));
+    const convertedProjectIds = acceptedParents
+      .map((row) => row.converted_project_id)
+      .filter((id): id is string => id != null);
+    const completedProjectIds = new Set<string>();
+    if (convertedProjectIds.length > 0) {
+      const { data: projectStatuses } = await supabase
+        .from("projects_v")
+        .select("id, status")
+        .in("id", convertedProjectIds);
+      for (const row of projectStatuses ?? []) {
+        if (isProjectClosed(row.status as string)) {
+          completedProjectIds.add(row.id as string);
+        }
+      }
+    }
+    deliveryProgress = proposalDeliveryProgress(
+      acceptedParents.map((row) => ({
+        convertedProjectId: row.converted_project_id,
+      })),
+      completedProjectIds,
+    );
+    deliveryReady = isProposalDeliveryReady(deliveryProgress);
+  }
+
   const pdfBundle: ProposalPdfBundle = {
     proposal: {
       proposal_number: proposal.proposal_number as string,
@@ -303,6 +354,7 @@ export default async function ProposalDetailPage({
             <ProposalStatusBadge
               status={status}
               size="prominent"
+              delivered={isDelivered}
               signoff={partialSignoffProgress(
                 status,
                 (proposal.signing_mode as string | null) ?? null,
@@ -417,6 +469,45 @@ export default async function ProposalDetailPage({
               name: p.name as string,
             }))}
           />
+        </div>
+      )}
+
+      {/* Delivery lifecycle — the engagement-level close-out for a converted
+          proposal. The action (mark delivered / reopen) is admin-gated inside
+          the client component; the readout beside it (progress or the
+          delivered date) is always shown for context. */}
+      {status === "converted" && (
+        <div className="mt-3 flex flex-wrap items-center gap-3">
+          <ProposalLifecycleActions
+            proposalId={proposalId}
+            delivered={isDelivered}
+            deliveryReady={deliveryReady}
+            deliveredCount={deliveryProgress.delivered}
+            deliveredTotal={deliveryProgress.total}
+            isAdmin={callerIsAdmin}
+          />
+          {isDelivered ? (
+            <span className="inline-flex items-center gap-1.5 text-caption text-success-text">
+              <PackageCheck size={14} aria-hidden="true" />
+              {t("deliveredOn", {
+                date: formatDisplayDate(deliveredAt),
+              })}
+            </span>
+          ) : deliveryProgress.total > 0 ? (
+            <span
+              className={`inline-flex items-center gap-1.5 text-caption ${
+                deliveryReady ? "text-success-text" : "text-content-secondary"
+              }`}
+            >
+              {deliveryReady && (
+                <CheckCircle2 size={14} aria-hidden="true" />
+              )}
+              {t("phasesDelivered", {
+                delivered: deliveryProgress.delivered,
+                total: deliveryProgress.total,
+              })}
+            </span>
+          ) : null}
         </div>
       )}
 

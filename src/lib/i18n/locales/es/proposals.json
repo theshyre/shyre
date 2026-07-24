@@ -14,6 +14,7 @@
     "accepted": "Aceptada",
     "declined": "Rechazada",
     "converted": "Convertida",
+    "delivered": "Entregada",
     "superseded": "Reemplazada",
     "expired": "Vencida",
     "partiallySigned": "{signed} de {total} firmados"
@@ -28,13 +29,20 @@
   },
   "bulk": {
     "toolbarLabel": "Acciones en lote de propuestas",
-    "selectAll": "Seleccionar todas las eliminables",
+    "selectAll": "Seleccionar todas",
     "deselectAll": "Deseleccionar todas",
     "rowAria": "Seleccionar propuesta {number}",
-    "rowLockedTooltip": "{number}: forma parte del registro de auditoría — no se puede eliminar",
+    "rowLockedTooltip": "{number}: sin acción en lote disponible",
     "selectedCount": "{count, plural, one {# seleccionada} other {# seleccionadas}}",
     "clear": "Borrar",
     "delete": "Eliminar seleccionadas",
+    "markDelivered": "Marcar entregadas",
+    "markDeliveredConfirm": "Marcar entregadas",
+    "markDeliveredPrompt": "¿Marcar {count, plural, one {# propuesta} other {# propuestas}} como entregada(s)?",
+    "markDeliveredResult": "{count, plural, one {# trabajo marcado} other {# trabajos marcados}} como entregado(s).",
+    "markDeliveredFailed": "No se pudieron marcar las propuestas seleccionadas como entregadas.",
+    "reopenedResult": "{count, plural, one {# trabajo reabierto} other {# trabajos reabiertos}}.",
+    "reopenFailed": "No se pudo reabrir la entrega.",
     "deletePrompt": "Escribe delete para eliminar {count, plural, one {# propuesta} other {# propuestas}}",
     "deleteInputLabel": "Escribe delete para confirmar",
     "deleteResult": "{count, plural, one {# propuesta eliminada} other {# propuestas eliminadas}}",
@@ -51,6 +59,8 @@
         "draft": "Borrador",
         "sent": "Enviadas y vistas",
         "accepted": "Aceptadas",
+        "in_progress": "En curso",
+        "delivered": "Entregadas",
         "declined": "Rechazadas",
         "history": "Historial"
       }
@@ -263,7 +273,9 @@
       "converted": "Convertida en proyecto(s)",
       "superseded": "Reemplazada por una versión nueva",
       "signoff_overridden": "Aprobación completada por anulación",
-      "link_resent": "Enlace de aprobación reenviado"
+      "link_resent": "Enlace de aprobación reenviado",
+      "delivered": "Marcada como entregada",
+      "reopened": "Entrega reabierta"
     }
   },
   "detail": {
@@ -314,6 +326,17 @@
     "bill": "Crear factura",
     "billing": "Creando factura…",
     "billFailed": "Error al crear la factura",
+    "markDelivered": "Marcar entregada",
+    "markDeliveredConfirm": "Marcar este trabajo como entregado",
+    "reopenDelivery": "Reabrir",
+    "deliverReadyPrompt": "Las {total} fases están cerradas — ¿marcar este trabajo como entregado?",
+    "deliverPartialPrompt": "{delivered} de {total} fases cerradas. Aún puedes marcar el trabajo como entregado.",
+    "deliveredToast": "Trabajo marcado como entregado.",
+    "reopenedToast": "Entrega reabierta.",
+    "deliverFailed": "No se pudo marcar como entregado. Inténtalo de nuevo.",
+    "reopenFailed": "No se pudo reabrir la entrega. Inténtalo de nuevo.",
+    "deliveredOn": "Entregado {date}",
+    "phasesDelivered": "{delivered} de {total} fases entregadas",
     "viewProject": "Ver proyecto →",
     "edit": "Editar",
     "delete": "Eliminar",

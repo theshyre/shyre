@@ -3,7 +3,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
 import { useTranslations } from "next-intl";
-import { FileSignature, Trash2, X } from "lucide-react";
+import { FileSignature, Trash2, X, PackageCheck } from "lucide-react";
 import { CustomerChip } from "@theshyre/ui";
 import { PaginationFooter } from "@/components/PaginationFooter";
 import { Tooltip } from "@/components/Tooltip";
@@ -16,6 +16,7 @@ import {
   tableHeaderCellClass,
   tableBodyRowClass,
   tableBodyCellClass,
+  bulkStripButtonClass,
   bulkStripDangerButtonClass,
 } from "@/lib/table-styles";
 import { isTextEditingTarget } from "@/lib/is-text-editing-target";
@@ -27,9 +28,16 @@ import {
   isProposalExpired,
   type SignoffProgress,
 } from "@/lib/proposals/list-view";
-import { isProposalDeletable } from "@/lib/proposals/allow-lists";
+import {
+  isProposalDeletable,
+  isProposalDeliverable,
+} from "@/lib/proposals/allow-lists";
 import { ProposalStatusBadge } from "./proposal-status-badge";
-import { bulkDeleteProposalsAction } from "./actions";
+import {
+  bulkDeleteProposalsAction,
+  bulkMarkProposalsDeliveredAction,
+  bulkReopenProposalsDeliveredAction,
+} from "./actions";
 
 export interface ProposalRow {
   id: string;
@@ -44,6 +52,9 @@ export interface ProposalRow {
   total: number;
   /** The client-authorized subset total, once accepted. Null until then. */
   accepted_total: number | null;
+  /** True when a converted proposal has been marked delivered
+   *  (`delivered_at` stamped) — drives the "Delivered" badge projection. */
+  delivered: boolean;
   /** Read-time "N of M signed" projection for an in-flight multi-signer
    *  proposal (via `partialSignoffProgress`); null when it doesn't apply. */
   signoff: SignoffProgress | null;
@@ -87,16 +98,48 @@ export function ProposalsTable({
 }: Props): React.JSX.Element {
   const t = useTranslations("proposals");
   const tb = useTranslations("proposals.bulk");
+  const tCommon = useTranslations("common.actions");
   const toast = useToast();
 
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
 
-  // Only draft/superseded rows can ever be bulk-deleted — the master
-  // checkbox and Escape/select-all all operate over this subset, not
-  // every visible row.
+  // A row is selectable if EITHER bulk action can touch it: delete
+  // (draft/superseded) OR mark-delivered (converted + not yet delivered).
+  // The two eligibility sets are disjoint, so the strip offers whichever
+  // action(s) the current selection actually contains. The master checkbox
+  // and select-all operate over this union, not every visible row.
   const selectableIds = useMemo(
-    () => proposals.filter((p) => isProposalDeletable(p.status)).map((p) => p.id),
+    () =>
+      proposals
+        .filter(
+          (p) =>
+            isProposalDeletable(p.status) ||
+            isProposalDeliverable(p.status, p.delivered),
+        )
+        .map((p) => p.id),
     [proposals],
+  );
+
+  const proposalById = useMemo(
+    () => new Map(proposals.map((p) => [p.id, p])),
+    [proposals],
+  );
+  // The eligible subset of the current selection, per action. Each bulk
+  // button acts on (and counts) only its own subset; the server re-checks.
+  const selectedDeletableIds = useMemo(
+    () =>
+      Array.from(selectedIds).filter((id) =>
+        isProposalDeletable(proposalById.get(id)?.status),
+      ),
+    [selectedIds, proposalById],
+  );
+  const selectedDeliverableIds = useMemo(
+    () =>
+      Array.from(selectedIds).filter((id) => {
+        const p = proposalById.get(id);
+        return p != null && isProposalDeliverable(p.status, p.delivered);
+      }),
+    [selectedIds, proposalById],
   );
 
   const someSelected = selectedIds.size > 0;
@@ -183,7 +226,7 @@ export function ProposalsTable({
   }, [someSelected]);
 
   const bulkDelete = useCallback(async () => {
-    const ids = Array.from(selectedIds);
+    const ids = selectedDeletableIds;
     if (ids.length === 0) return;
     const fd = new FormData();
     for (const id of ids) fd.append("id", id);
@@ -205,7 +248,39 @@ export function ProposalsTable({
             })
           : tb("deleteResult", { count: result.deleted }),
     });
-  }, [selectedIds, toast, tb]);
+  }, [selectedDeletableIds, toast, tb]);
+
+  const bulkMarkDelivered = useCallback(async () => {
+    const ids = selectedDeliverableIds;
+    if (ids.length === 0) return;
+    const fd = new FormData();
+    for (const id of ids) fd.append("id", id);
+    const result = await bulkMarkProposalsDeliveredAction(fd);
+    if (!result.success) {
+      const message = result.error.message ?? tb("markDeliveredFailed");
+      toast.push({ kind: "error", message });
+      throw new Error(message);
+    }
+    setSelectedIds(new Set());
+    toast.push({
+      kind: "success",
+      message: tb("markDeliveredResult", { count: ids.length }),
+      actionLabel: tCommon("undo"),
+      onAction: async () => {
+        const undoFd = new FormData();
+        for (const id of ids) undoFd.append("id", id);
+        const undo = await bulkReopenProposalsDeliveredAction(undoFd);
+        toast.push(
+          undo.success
+            ? { kind: "success", message: tb("reopenedResult", { count: ids.length }) }
+            : {
+                kind: "error",
+                message: undo.error.message ?? tb("reopenFailed"),
+              },
+        );
+      },
+    });
+  }, [selectedDeliverableIds, toast, tb, tCommon]);
 
   const liveRegion = (
     <div role="status" aria-live="polite" className="sr-only">
@@ -308,14 +383,16 @@ export function ProposalsTable({
               const sentDays = inFlight
                 ? daysSinceIsoDate(p.issued_date, today)
                 : null;
-              const deletable = isProposalDeletable(p.status);
-              const isSelected = deletable && selectedIds.has(p.id);
+              const selectable =
+                isProposalDeletable(p.status) ||
+                isProposalDeliverable(p.status, p.delivered);
+              const isSelected = selectable && selectedIds.has(p.id);
               return (
                 <tr key={p.id} className={tableBodyRowClass}>
                   <td className="px-4 py-3">
                     <ProposalRowCheckbox
                       proposal={p}
-                      deletable={deletable}
+                      selectable={selectable}
                       checked={isSelected}
                       onToggle={toggleOne}
                     />
@@ -359,6 +436,7 @@ export function ProposalsTable({
                     <ProposalStatusBadge
                       status={p.status}
                       expired={expired}
+                      delivered={p.delivered}
                       signoff={p.signoff}
                     />
                   </td>
@@ -423,10 +501,18 @@ export function ProposalsTable({
             {tb("clear")}
           </button>
           <div className="ml-auto flex items-center gap-2">
-            <InlineBulkDeleteButton
-              count={selectedIds.size}
-              onConfirm={bulkDelete}
-            />
+            {selectedDeliverableIds.length > 0 && (
+              <InlineBulkMarkDeliveredButton
+                count={selectedDeliverableIds.length}
+                onConfirm={bulkMarkDelivered}
+              />
+            )}
+            {selectedDeletableIds.length > 0 && (
+              <InlineBulkDeleteButton
+                count={selectedDeletableIds.length}
+                onConfirm={bulkDelete}
+              />
+            )}
           </div>
         </div>
       )}
@@ -436,26 +522,27 @@ export function ProposalsTable({
 }
 
 /**
- * A single row's selection checkbox. Deletable rows render the plain
- * shared checkbox; non-deletable rows (sent/viewed/accepted/declined/
- * converted — the audit record) render a disabled checkbox wrapped in
- * a `showOnDisabled` Tooltip so the reason stays keyboard-discoverable
- * even though the control itself can't receive focus natively.
+ * A single row's selection checkbox. A row is selectable when a bulk action
+ * can touch it — deletable (draft/superseded) or deliverable (converted, not
+ * yet delivered). Non-actionable rows (sent/viewed/accepted, or an already-
+ * delivered converted deal) render a disabled checkbox wrapped in a
+ * `showOnDisabled` Tooltip so the reason stays keyboard-discoverable even
+ * though the control itself can't receive focus natively.
  */
 function ProposalRowCheckbox({
   proposal,
-  deletable,
+  selectable,
   checked,
   onToggle,
 }: {
   proposal: ProposalRow;
-  deletable: boolean;
+  selectable: boolean;
   checked: boolean;
   onToggle: (id: string) => void;
 }): React.JSX.Element {
   const tb = useTranslations("proposals.bulk");
 
-  if (deletable) {
+  if (selectable) {
     return (
       <label className="-m-1 flex h-6 w-6 cursor-pointer items-center justify-center">
         <input
@@ -484,6 +571,95 @@ function ProposalRowCheckbox({
         />
       </label>
     </Tooltip>
+  );
+}
+
+/**
+ * Non-destructive bulk "Mark delivered" — inline arm-then-confirm (NOT a
+ * typed-delete; delivery is reversible via the Undo toast). Mirrors the
+ * projects bulk close-out button. Two-state UI: idle → [Mark delivered];
+ * armed → "Mark N delivered [Mark delivered][X]". Escape collapses the armed
+ * cluster (capture + stopPropagation so it doesn't also clear the table
+ * selection — an open confirm is the more specific overlay).
+ */
+function InlineBulkMarkDeliveredButton({
+  count,
+  onConfirm,
+}: {
+  count: number;
+  onConfirm: () => void | Promise<void>;
+}): React.JSX.Element {
+  const tb = useTranslations("proposals.bulk");
+  const tCommon = useTranslations("common.actions");
+  const [open, setOpen] = useState(false);
+  const [pending, setPending] = useState(false);
+
+  useEffect(() => {
+    if (!open) return;
+    function onKey(e: KeyboardEvent): void {
+      if (e.key !== "Escape") return;
+      e.preventDefault();
+      e.stopPropagation();
+      setOpen(false);
+    }
+    document.addEventListener("keydown", onKey, true);
+    return () => document.removeEventListener("keydown", onKey, true);
+  }, [open]);
+
+  async function fire(): Promise<void> {
+    if (pending) return;
+    setPending(true);
+    try {
+      await onConfirm();
+      setOpen(false);
+    } catch {
+      // onConfirm already pushed the error toast; keep the confirm armed.
+    } finally {
+      setPending(false);
+    }
+  }
+
+  if (!open) {
+    return (
+      <button
+        type="button"
+        onClick={() => setOpen(true)}
+        className={bulkStripButtonClass}
+      >
+        <PackageCheck size={14} aria-hidden="true" />
+        <span>{tb("markDelivered")}</span>
+      </button>
+    );
+  }
+
+  return (
+    <div
+      role="group"
+      aria-label={tb("markDelivered")}
+      className="inline-flex items-center gap-2 rounded-md border border-success/40 bg-success-soft px-2 py-1"
+    >
+      <span className="text-caption text-content whitespace-nowrap">
+        {tb("markDeliveredPrompt", { count })}
+      </span>
+      <button
+        type="button"
+        onClick={() => void fire()}
+        disabled={pending}
+        className="inline-flex items-center gap-1 rounded bg-success px-2.5 py-0.5 text-caption font-semibold text-content-inverse hover:opacity-90 disabled:opacity-40 disabled:cursor-not-allowed transition-opacity"
+      >
+        <PackageCheck size={12} aria-hidden="true" />
+        {tb("markDeliveredConfirm")}
+      </button>
+      <button
+        type="button"
+        onClick={() => setOpen(false)}
+        disabled={pending}
+        aria-label={tCommon("cancel")}
+        className="rounded p-0.5 text-content-muted hover:bg-hover transition-colors"
+      >
+        <X size={12} />
+      </button>
+    </div>
   );
 }
 

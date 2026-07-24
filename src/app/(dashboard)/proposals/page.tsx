@@ -9,6 +9,7 @@ import { roundMoney } from "@/lib/proposals/line-items";
 import {
   parseProposalStatusFilter,
   proposalFilterStatuses,
+  proposalFilterDelivered,
   partialSignoffProgress,
   summarizeOutstandingProposals,
 } from "@/lib/proposals/list-view";
@@ -54,6 +55,7 @@ export default async function ProposalsPage({
   const selectedTeamId = sp.org ?? null;
   const statusFilter = parseProposalStatusFilter(sp.status);
   const filterStatuses = proposalFilterStatuses(statusFilter);
+  const deliveredFilter = proposalFilterDelivered(statusFilter);
   const { limit } = parseListPagination(sp);
 
   // RLS scopes rows to teams where the viewer is owner/admin — members see an
@@ -64,7 +66,7 @@ export default async function ProposalsPage({
   let query = supabase
     .from("proposals")
     .select(
-      "id, proposal_number, title, status, issued_date, valid_until, currency, accepted_total, signing_mode, customers(id, name, logo_url), proposal_line_items(fixed_price, parent_line_item_id), proposal_signers(id), proposal_acceptances(decision, signer_id)",
+      "id, proposal_number, title, status, issued_date, valid_until, currency, accepted_total, delivered_at, signing_mode, customers(id, name, logo_url), proposal_line_items(fixed_price, parent_line_item_id), proposal_signers(id), proposal_acceptances(decision, signer_id)",
       { count: "exact" },
     )
     .order("issued_date", { ascending: false, nullsFirst: false })
@@ -74,6 +76,12 @@ export default async function ProposalsPage({
     .order("created_at", { ascending: false });
   if (selectedTeamId) query = query.eq("team_id", selectedTeamId);
   if (filterStatuses) query = query.in("status", filterStatuses);
+  // In-progress vs delivered both sit on `converted`, split by delivered_at.
+  if (deliveredFilter === "delivered") {
+    query = query.not("delivered_at", "is", null);
+  } else if (deliveredFilter === "undelivered") {
+    query = query.is("delivered_at", null);
+  }
   const { data: rows, count: matchingCount } = await query.range(0, limit - 1);
 
   interface CustomerCell {
@@ -115,6 +123,7 @@ export default async function ProposalsPage({
       total,
       accepted_total:
         row.accepted_total != null ? Number(row.accepted_total) : null,
+      delivered: row.delivered_at != null,
       signoff: partialSignoffProgress(
         status,
         (row.signing_mode as string | null) ?? null,

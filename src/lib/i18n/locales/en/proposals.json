@@ -14,6 +14,7 @@
     "accepted": "Accepted",
     "declined": "Declined",
     "converted": "Converted",
+    "delivered": "Delivered",
     "superseded": "Superseded",
     "expired": "Expired",
     "partiallySigned": "{signed} of {total} signed"
@@ -28,13 +29,20 @@
   },
   "bulk": {
     "toolbarLabel": "Proposal bulk actions",
-    "selectAll": "Select all deletable",
+    "selectAll": "Select all",
     "deselectAll": "Deselect all",
     "rowAria": "Select proposal {number}",
-    "rowLockedTooltip": "{number}: part of the audit record — not deletable",
+    "rowLockedTooltip": "{number}: no bulk action available",
     "selectedCount": "{count, plural, one {# selected} other {# selected}}",
     "clear": "Clear",
     "delete": "Delete selected",
+    "markDelivered": "Mark delivered",
+    "markDeliveredConfirm": "Mark delivered",
+    "markDeliveredPrompt": "Mark {count, plural, one {# proposal} other {# proposals}} delivered?",
+    "markDeliveredResult": "{count, plural, one {# engagement} other {# engagements}} marked delivered.",
+    "markDeliveredFailed": "Couldn't mark the selected proposals delivered.",
+    "reopenedResult": "{count, plural, one {# engagement} other {# engagements}} reopened.",
+    "reopenFailed": "Couldn't reopen the delivery.",
     "deletePrompt": "Type delete to delete {count, plural, one {# proposal} other {# proposals}}",
     "deleteInputLabel": "Type delete to confirm",
     "deleteResult": "{count, plural, one {Deleted # proposal} other {Deleted # proposals}}",
@@ -51,6 +59,8 @@
         "draft": "Draft",
         "sent": "Sent & viewed",
         "accepted": "Accepted",
+        "in_progress": "In progress",
+        "delivered": "Delivered",
         "declined": "Declined",
         "history": "History"
       }
@@ -263,7 +273,9 @@
       "converted": "Converted to project(s)",
       "superseded": "Superseded by a new version",
       "signoff_overridden": "Sign-off completed by override",
-      "link_resent": "Sign-off link re-sent"
+      "link_resent": "Sign-off link re-sent",
+      "delivered": "Marked delivered",
+      "reopened": "Delivery reopened"
     }
   },
   "detail": {
@@ -314,6 +326,17 @@
     "bill": "Create invoice",
     "billing": "Creating invoice…",
     "billFailed": "Invoice creation failed",
+    "markDelivered": "Mark delivered",
+    "markDeliveredConfirm": "Mark this engagement delivered",
+    "reopenDelivery": "Reopen",
+    "deliverReadyPrompt": "All {total} phases are closed out — mark this engagement delivered?",
+    "deliverPartialPrompt": "{delivered} of {total} phases closed out. You can still mark the engagement delivered.",
+    "deliveredToast": "Engagement marked delivered.",
+    "reopenedToast": "Delivery reopened.",
+    "deliverFailed": "Couldn't mark this delivered. Try again.",
+    "reopenFailed": "Couldn't reopen delivery. Try again.",
+    "deliveredOn": "Delivered {date}",
+    "phasesDelivered": "{delivered} of {total} phases delivered",
     "viewProject": "View project →",
     "edit": "Edit",
     "delete": "Delete",

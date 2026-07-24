@@ -4,7 +4,11 @@ import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { runSafeAction, type ActionResult } from "@/lib/safe-action";
-import { requireTeamAdmin } from "@/lib/team-context";
+import {
+  requireTeamAdmin,
+  validateTeamAccess,
+  isTeamAdmin,
+} from "@/lib/team-context";
 import { AppError, assertSupabaseOk } from "@/lib/errors";
 import { generateInvoiceNumber, calculateInvoiceTotals } from "@/lib/invoice-utils";
 import { paymentTermsLabel, computeDueDate } from "@/lib/payment-terms";
@@ -981,6 +985,281 @@ export async function convertProposalAction(formData: FormData): Promise<void> {
     },
     "convertProposalAction",
   ) as unknown as void;
+}
+
+/**
+ * Mark a converted proposal DELIVERED — stamp `delivered_at` +
+ * `delivered_by_user_id`. Delivery is a terminal SUB-STATE of `converted`,
+ * NOT a new status: the proposal stays `converted` (so invoicing, the list
+ * Total, and the filter buckets keep working), and the stamp records that
+ * the engagement's work is done. Owner/admin only, mirroring project
+ * close-out; reversible via `reopenProposalDeliveryAction`. The CHECK
+ * `delivered_at IS NULL OR status = 'converted'` makes a mis-stamped
+ * non-converted proposal unrepresentable.
+ *
+ * Deliberately NON-blocking on partial delivery: an owner may assert
+ * delivery of the phases they sold even if a later accepted item dangles
+ * unconverted. The detail page surfaces "N of M phases delivered" as a
+ * nudge, never a gate (per the 2026-07-23 persona review).
+ *
+ * Returns ActionResult (not void): the caller checks `result.success` and
+ * shows the error envelope's message — the honest close-out contract.
+ */
+export async function markProposalDeliveredAction(
+  formData: FormData,
+): Promise<ActionResult> {
+  return runSafeAction(
+    formData,
+    async (formData, { supabase, userId }) => {
+      const proposalId = formData.get("id") as string;
+      if (!proposalId) throw new Error("Missing proposal id.");
+
+      const { data: proposal } = await supabase
+        .from("proposals")
+        .select("id, team_id, status, delivered_at")
+        .eq("id", proposalId)
+        .single();
+      if (!proposal) throw new Error("Proposal not found.");
+      await requireTeamAdmin(proposal.team_id as string);
+
+      if ((proposal.status as string) !== "converted") {
+        throw AppError.refusal(
+          "Only a converted proposal can be marked delivered.",
+        );
+      }
+      // Already delivered — idempotent no-op (don't re-stamp delivered_at).
+      if (proposal.delivered_at != null) return;
+
+      assertSupabaseOk(
+        await supabase
+          .from("proposals")
+          .update({
+            delivered_at: new Date().toISOString(),
+            delivered_by_user_id: userId,
+          })
+          .eq("id", proposalId),
+      );
+
+      const admin = createAdminClient();
+      await admin.from("proposal_events").insert({
+        proposal_id: proposalId,
+        team_id: proposal.team_id,
+        event_type: "delivered",
+        actor_user_id: userId,
+        actor_label: null,
+        metadata: null,
+      });
+
+      revalidatePath("/proposals");
+      revalidatePath(`/proposals/${proposalId}`);
+    },
+    "markProposalDeliveredAction",
+  );
+}
+
+/**
+ * Reopen a delivered proposal — clear the delivery stamp. The proposal was
+ * (and stays) `converted`; this only undoes the delivered sub-state, so the
+ * status graph is never touched (no reverse transition). Owner/admin only,
+ * symmetric with mark-delivered; idempotent when not delivered. Writes a
+ * `reopened` event for the activity trail.
+ */
+export async function reopenProposalDeliveryAction(
+  formData: FormData,
+): Promise<ActionResult> {
+  return runSafeAction(
+    formData,
+    async (formData, { supabase, userId }) => {
+      const proposalId = formData.get("id") as string;
+      if (!proposalId) throw new Error("Missing proposal id.");
+
+      const { data: proposal } = await supabase
+        .from("proposals")
+        .select("id, team_id, delivered_at")
+        .eq("id", proposalId)
+        .single();
+      if (!proposal) throw new Error("Proposal not found.");
+      await requireTeamAdmin(proposal.team_id as string);
+
+      // Not delivered — idempotent no-op.
+      if (proposal.delivered_at == null) return;
+
+      assertSupabaseOk(
+        await supabase
+          .from("proposals")
+          .update({ delivered_at: null, delivered_by_user_id: null })
+          .eq("id", proposalId),
+      );
+
+      const admin = createAdminClient();
+      await admin.from("proposal_events").insert({
+        proposal_id: proposalId,
+        team_id: proposal.team_id,
+        event_type: "reopened",
+        actor_user_id: userId,
+        actor_label: null,
+        metadata: null,
+      });
+
+      revalidatePath("/proposals");
+      revalidatePath(`/proposals/${proposalId}`);
+    },
+    "reopenProposalDeliveryAction",
+  );
+}
+
+/**
+ * Resolve which of the given teams the caller is an owner/admin of — mirrors
+ * the projects bulk gate (`resolveAdminTeamIds`). A forged id for a team the
+ * caller doesn't administer throws in `validateTeamAccess` and is silently
+ * dropped rather than failing the whole batch.
+ */
+async function resolveAdminTeamIds(teamIds: string[]): Promise<Set<string>> {
+  const adminTeamIds = new Set<string>();
+  for (const tid of [...new Set(teamIds)]) {
+    try {
+      const { role } = await validateTeamAccess(tid);
+      if (isTeamAdmin(role)) adminTeamIds.add(tid);
+    } catch {
+      // Not a member of this team (forged id) → not an admin; skip it.
+      continue;
+    }
+  }
+  return adminTeamIds;
+}
+
+/**
+ * Bulk **Mark delivered** — the Pattern-A selection strip on /proposals.
+ * Stamps `delivered_at` on every eligible selected proposal in one UPDATE.
+ * Mirrors `bulkCloseProjectsAction`. Eligibility is re-checked server-side
+ * (never trust the client): caller is owner/admin of the proposal's team,
+ * status is `converted`, and it isn't already delivered. Ineligible / raced
+ * rows are silently dropped; the list revalidates so the outcome is visible.
+ * One `delivered` event is logged per marked proposal for the activity trail.
+ * Pair with `bulkReopenProposalsDeliveredAction` for the Undo toast.
+ */
+export async function bulkMarkProposalsDeliveredAction(
+  formData: FormData,
+): Promise<ActionResult> {
+  return runSafeAction(
+    formData,
+    async (formData, { supabase, userId }) => {
+      const ids = formData.getAll("id").map(String).filter(Boolean);
+      if (ids.length === 0) return;
+
+      const { data: rows } = await supabase
+        .from("proposals")
+        .select("id, team_id, status, delivered_at")
+        .in("id", ids);
+      const proposals = (rows ?? []) as Array<{
+        id: string;
+        team_id: string;
+        status: string;
+        delivered_at: string | null;
+      }>;
+      if (proposals.length === 0) return;
+
+      const adminTeamIds = await resolveAdminTeamIds(
+        proposals.map((p) => p.team_id),
+      );
+      const markable = proposals.filter(
+        (p) =>
+          adminTeamIds.has(p.team_id) &&
+          p.status === "converted" &&
+          p.delivered_at == null,
+      );
+      if (markable.length === 0) return;
+
+      assertSupabaseOk(
+        await supabase
+          .from("proposals")
+          .update({
+            delivered_at: new Date().toISOString(),
+            delivered_by_user_id: userId,
+          })
+          .in(
+            "id",
+            markable.map((p) => p.id),
+          ),
+      );
+
+      const admin = createAdminClient();
+      await admin.from("proposal_events").insert(
+        markable.map((p) => ({
+          proposal_id: p.id,
+          team_id: p.team_id,
+          event_type: "delivered",
+          actor_user_id: userId,
+          actor_label: null,
+          metadata: { bulk: true },
+        })),
+      );
+
+      revalidatePath("/proposals");
+    },
+    "bulkMarkProposalsDeliveredAction",
+  );
+}
+
+/**
+ * Bulk reopen — Undo from the bulk mark-delivered toast. Clears the delivery
+ * stamp on the given ids (admin + still-delivered only), logging a `reopened`
+ * event each. Symmetric with `bulkMarkProposalsDeliveredAction`.
+ */
+export async function bulkReopenProposalsDeliveredAction(
+  formData: FormData,
+): Promise<ActionResult> {
+  return runSafeAction(
+    formData,
+    async (formData, { supabase, userId }) => {
+      const ids = formData.getAll("id").map(String).filter(Boolean);
+      if (ids.length === 0) return;
+
+      const { data: rows } = await supabase
+        .from("proposals")
+        .select("id, team_id, delivered_at")
+        .in("id", ids);
+      const proposals = (rows ?? []) as Array<{
+        id: string;
+        team_id: string;
+        delivered_at: string | null;
+      }>;
+      if (proposals.length === 0) return;
+
+      const adminTeamIds = await resolveAdminTeamIds(
+        proposals.map((p) => p.team_id),
+      );
+      const reopenable = proposals.filter(
+        (p) => adminTeamIds.has(p.team_id) && p.delivered_at != null,
+      );
+      if (reopenable.length === 0) return;
+
+      assertSupabaseOk(
+        await supabase
+          .from("proposals")
+          .update({ delivered_at: null, delivered_by_user_id: null })
+          .in(
+            "id",
+            reopenable.map((p) => p.id),
+          ),
+      );
+
+      const admin = createAdminClient();
+      await admin.from("proposal_events").insert(
+        reopenable.map((p) => ({
+          proposal_id: p.id,
+          team_id: p.team_id,
+          event_type: "reopened",
+          actor_user_id: userId,
+          actor_label: null,
+          metadata: { bulk: true },
+        })),
+      );
+
+      revalidatePath("/proposals");
+    },
+    "bulkReopenProposalsDeliveredAction",
+  );
 }
 
 /**

@@ -78,4 +78,23 @@ describe("ProposalStatusBadge", () => {
     expect(screen.getByText("Accepted")).toBeInTheDocument();
     expect(screen.queryByText(/of 2 signed/)).not.toBeInTheDocument();
   });
+
+  it("relabels a delivered converted proposal as Delivered", () => {
+    renderWithIntl(<ProposalStatusBadge status="converted" delivered />);
+    expect(screen.getByText("Delivered")).toBeInTheDocument();
+    expect(screen.queryByText("Converted")).not.toBeInTheDocument();
+  });
+
+  it("shows Converted (not Delivered) when the flag is off", () => {
+    renderWithIntl(<ProposalStatusBadge status="converted" />);
+    expect(screen.getByText("Converted")).toBeInTheDocument();
+    expect(screen.queryByText("Delivered")).not.toBeInTheDocument();
+  });
+
+  it("ignores the delivered flag on any non-converted status", () => {
+    // A stale delivered flag can never mislabel a pre-conversion proposal.
+    renderWithIntl(<ProposalStatusBadge status="accepted" delivered />);
+    expect(screen.getByText("Accepted")).toBeInTheDocument();
+    expect(screen.queryByText("Delivered")).not.toBeInTheDocument();
+  });
 });

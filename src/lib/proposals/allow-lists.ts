@@ -52,6 +52,22 @@ export function isProposalDeletable(
   return status === "draft" || status === "superseded";
 }
 
+/**
+ * A converted proposal not yet marked delivered is "in progress" — the state
+ * the bulk **Mark delivered** action targets (and the /proposals "In progress"
+ * filter). `delivered` is the read-time flag (`delivered_at != null`). The
+ * server action re-checks the same rule against `delivered_at`; this predicate
+ * gates the row checkbox + which bulk button is offered. Disjoint from
+ * `isProposalDeletable` (draft/superseded), which is why the two bulk actions
+ * can coexist on the same list.
+ */
+export function isProposalDeliverable(
+  status: string | null | undefined,
+  delivered: boolean,
+): boolean {
+  return status === "converted" && !delivered;
+}
+
 /** Terminal statuses — no further transitions. */
 export const TERMINAL_PROPOSAL_STATUSES = new Set<string>([
   "declined",
@@ -90,6 +106,10 @@ export const PROPOSAL_EVENT_TYPES = [
   "superseded",
   "link_resent",
   "signoff_overridden",
+  // Post-convert delivery lifecycle (20260723150000): the engagement was
+  // marked delivered by an owner/admin, or a delivered engagement reopened.
+  "delivered",
+  "reopened",
 ] as const;
 
 export type ProposalEventType = (typeof PROPOSAL_EVENT_TYPES)[number];

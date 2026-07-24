@@ -11,7 +11,8 @@
     "totalProjects": "Proyectos Activos",
     "outstandingInvoices": "Facturas Pendientes",
     "awaitingSignature": "Pendiente de Firma",
-    "awaitingSignatureCount": "{count, plural, one {# propuesta} other {# propuestas}}"
+    "awaitingSignatureCount": "{count, plural, one {# propuesta} other {# propuestas}}",
+    "inProgress": "En Curso"
   },
   "recentActivity": "Actividad Reciente",
   "noRecentActivity": "No hay registros de tiempo recientes.",
