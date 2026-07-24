@@ -403,6 +403,26 @@ describe("WeekTimesheet", () => {
     expect(screen.getByText(/^you$/i)).toBeInTheDocument();
   });
 
+  it("hides the 'You' member band on a solo team (customers become the top level)", () => {
+    window.localStorage.removeItem("shyre.weekTimesheet.groupBy");
+    renderTimesheet(
+      <WeekTimesheet
+        weekStartStr={weekStartStr}
+        tzOffsetMin={tzOffsetMin}
+        todayStr="2026-01-01"
+        entries={[makeEntry("e1", { day: 0, durationMin: 60 })]}
+        projects={[project]}
+        categories={[]}
+        currentUserId="u1"
+        soloTeam
+      />,
+    );
+    // The one-value "You" member band is suppressed on a solo team…
+    expect(screen.queryByText(/^you$/i)).not.toBeInTheDocument();
+    // …but the rows still render (editable day-cell inputs present).
+    expect(screen.getAllByRole("textbox").length).toBeGreaterThan(0);
+  });
+
   it("collapses a group when its chevron is clicked", async () => {
     window.localStorage.removeItem("shyre.weekTimesheet.groupBy");
     renderTimesheet(
@@ -418,7 +438,7 @@ describe("WeekTimesheet", () => {
     );
     // DurationInput renders as a textbox while the group is expanded.
     expect(screen.getAllByRole("textbox").length).toBeGreaterThan(0);
-    fireEvent.click(screen.getByRole("button", { name: /collapse group/i }));
+    fireEvent.click(screen.getByRole("button", { name: /^collapse you$/i }));
     // When collapsed, no row textboxes are in the DOM — only the header row.
     expect(screen.queryAllByRole("textbox")).toHaveLength(0);
   });
@@ -471,11 +491,10 @@ describe("WeekTimesheet", () => {
     );
     // Own-group expanded → at least one DurationInput renders.
     expect(screen.getAllByRole("textbox").length).toBeGreaterThan(0);
-    // Riley's group is collapsed by default → the "Collapse group" button
-    // (expanded state) only appears for the "You" group. Exactly one
-    // expanded chevron is present.
+    // Riley's group is collapsed by default → the expanded-state "Collapse"
+    // button only appears for the "You" group. Exactly one is present.
     const collapseButtons = screen.getAllByRole("button", {
-      name: /collapse group/i,
+      name: /^collapse you$/i,
     });
     expect(collapseButtons).toHaveLength(1);
   });
@@ -530,13 +549,13 @@ describe("WeekTimesheet", () => {
       screen.getByRole("button", { name: /^expand all/i }),
     );
     expect(
-      screen.getAllByRole("button", { name: /collapse group/i }),
+      screen.getAllByRole("button", { name: /^collapse (you|riley)$/i }),
     ).toHaveLength(2);
     fireEvent.click(
       screen.getByRole("button", { name: /^collapse all/i }),
     );
     expect(
-      screen.queryAllByRole("button", { name: /collapse group/i }),
+      screen.queryAllByRole("button", { name: /^collapse (you|riley)$/i }),
     ).toHaveLength(0);
   });
 

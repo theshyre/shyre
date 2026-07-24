@@ -326,6 +326,8 @@
       "noCategory": "No category",
       "collapse": "Collapse group",
       "expand": "Expand group",
+      "collapseNamed": "Collapse {name}",
+      "expandNamed": "Expand {name}",
       "rowCount": "{count, plural, one {# row} other {# rows}}"
     },
     "row": {

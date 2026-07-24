@@ -36,7 +36,6 @@ import {
   TitleLineRow,
   TitleLineDrawer,
   flattenEntriesByDay,
-  shouldAutoExpand,
 } from "./week-entry-row";
 import {
   groupEntriesByTitle,
@@ -119,6 +118,10 @@ interface Props {
    *  button. Members see only their personal pin and the read-only
    *  team-default chip on rows other admins have already defaulted. */
   currentTeamRole?: "owner" | "admin" | "member";
+  /** True when the active team has a single member (the viewer). Drops the
+   *  redundant "You" member band so the customer sub-headers become the top
+   *  level. Same signal that hides the Member filter in the toolbar. */
+  soloTeam?: boolean;
 }
 
 interface Row {
@@ -261,6 +264,7 @@ export function WeekTimesheet({
   currentUserId,
   activeRows = [],
   currentTeamRole = "member",
+  soloTeam = false,
 }: Props): React.JSX.Element {
   const t = useTranslations("time.timesheet");
   const tWeek = useTranslations("time.week");
@@ -1167,6 +1171,16 @@ export function WeekTimesheet({
         )}
         {groups.map((group, i) => {
           const groupCollapsed = isCollapsedForGroup(group, i);
+          // Solo team: the "Member" band is one row deep with one value
+          // ("You"), so its header is pure overhead — hide it and let the
+          // customer sub-headers (rendered by renderGroupedRows for member
+          // grouping) become the visual top level. Keyed on the team having a
+          // single member (same signal as hiding the Member filter), NOT on a
+          // transient one-group render — a multi-member team filtered to one
+          // person keeps its header (it confirms who you filtered to). Only
+          // member grouping has this redundancy; project/category headers stay.
+          const hideHeader =
+            soloTeam && groupBy === "member" && groups.length === 1;
           return (
             <GroupBlock
               key={`${groupBy}:${group.key}`}
@@ -1174,6 +1188,7 @@ export function WeekTimesheet({
               groupBy={groupBy}
               mergeSameTitle={mergeSameTitle}
               collapsed={groupCollapsed}
+              hideHeader={hideHeader}
               onToggleCollapsed={() => toggleCollapsed(group.key)}
               rowsFlat={rows}
               projects={projects}
@@ -1356,14 +1371,15 @@ function TimesheetRow({
   const editable = row.isOwn;
 
   // Row-level entry expansion — when true, the row's per-entry
-  // sub-rows are visible after the parent <tr>. Smart-defaults to
-  // true on first render when any visible day has more than one
-  // entry (otherwise the click-to-expand is invisible to the user
-  // who hit the multi-entry case). User toggles override the
-  // default until the row's data shape changes.
-  const [expanded, setExpanded] = useState<boolean>(() =>
-    shouldAutoExpand(row.entriesByDay),
-  );
+  // sub-rows are visible after the parent <tr>. Collapsed by default
+  // (persona-converged, 2026-07-24): the grid opens summary-first —
+  // one line per project·category with the week's per-day totals —
+  // and per-entry detail is one click away via the row chevron. The
+  // old "auto-expand any row with 2+ entries on a day" default
+  // exploded the whole week on load AND turned the aggregate speed
+  // cells read-only, breaking fast week-grid typing on the busiest
+  // rows.
+  const [expanded, setExpanded] = useState<boolean>(false);
   // Currently-edited entry id within this row, or null when no
   // entry is in inline-edit mode. Mutually exclusive across the
   // row's entries (only one edit drawer open at a time).
@@ -1718,6 +1734,11 @@ function TimesheetRow({
               EntrySummaryRow leading-cell pattern so the row reads
               the same expanded or collapsed. */}
           {(() => {
+            // Collapsed-state preview only. When the row is expanded, the
+            // per-entry sub-rows below carry the detail — rendering this too
+            // double-printed the identity (single-entry) or literally showed
+            // "N entries — expand for detail" while the detail was expanded.
+            if (expanded) return null;
             const flat = flattenEntriesByDay(row.entriesByDay);
             if (flat.length === 0) return null;
             if (flat.length === 1) {
@@ -2128,6 +2149,7 @@ function GroupBlock({
   group,
   groupBy,
   collapsed,
+  hideHeader,
   onToggleCollapsed,
   rowsFlat,
   projects,
@@ -2152,6 +2174,10 @@ function GroupBlock({
   /** When true, expanded rows fold same-title entries onto one line. */
   mergeSameTitle: boolean;
   collapsed: boolean;
+  /** Suppress this group's header row (the solo "You" member band) and
+   *  always render its rows — the customer sub-headers stand in as the
+   *  top level. See the call site's `hideHeader` computation. */
+  hideHeader: boolean;
   onToggleCollapsed: () => void;
   /** Flat row list — used to derive each row's absolute index for
    *  keyboard navigation through the cell grid. */
@@ -2194,19 +2220,32 @@ function GroupBlock({
 
   return (
     <tbody>
+      {!hideHeader && (
       <tr className="bg-surface-inset border-y border-edge">
         <td className="py-1.5 pl-2 align-middle">
           <button
             type="button"
             onClick={onToggleCollapsed}
             aria-expanded={!collapsed}
-            aria-label={collapsed ? tHeader("expand") : tHeader("collapse")}
+            aria-label={
+              collapsed
+                ? tHeader("expandNamed", { name: group.label })
+                : tHeader("collapseNamed", { name: group.label })
+            }
             className="flex items-center gap-2 w-full text-left hover:text-accent transition-colors"
           >
             {collapsed ? (
-              <ChevronRight size={16} className="shrink-0 text-content-muted" />
+              <ChevronRight
+                size={16}
+                aria-hidden="true"
+                className="shrink-0 text-content-muted"
+              />
             ) : (
-              <ChevronDown size={16} className="shrink-0 text-content-muted" />
+              <ChevronDown
+                size={16}
+                aria-hidden="true"
+                className="shrink-0 text-content-muted"
+              />
             )}
             <GroupLabel group={group} groupBy={groupBy} />
             {/* Row count only — the duration sat next to the
@@ -2250,7 +2289,8 @@ function GroupBlock({
         </td>
         <td className="px-2 py-1.5" />
       </tr>
-      {!collapsed &&
+      )}
+      {(hideHeader || !collapsed) &&
         renderGroupedRows({
           group,
           groupBy,
@@ -2860,7 +2900,7 @@ function PinRowButton({
         className={`mt-1 inline-flex shrink-0 items-center rounded p-0.5 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent disabled:opacity-50 ${
           optimistic
             ? "text-accent hover:bg-hover"
-            : "text-content-muted/60 hover:bg-hover hover:text-content"
+            : "text-content-muted hover:bg-hover hover:text-content"
         }`}
       >
         <Pin
@@ -3005,7 +3045,7 @@ function TeamDefaultRowButton({
         className={`mt-1 inline-flex shrink-0 items-center rounded p-0.5 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent disabled:opacity-50 ${
           optimistic
             ? "text-accent hover:bg-hover"
-            : "text-content-muted/60 hover:bg-hover hover:text-content"
+            : "text-content-muted hover:bg-hover hover:text-content"
         }`}
       >
         <Users

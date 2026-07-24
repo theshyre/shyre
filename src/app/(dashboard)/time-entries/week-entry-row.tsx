@@ -1559,10 +1559,3 @@ export function flattenEntriesByDay(
   return out;
 }
 
-/** True when the row should auto-expand on first paint per the
- *  smart-default rule: any visible day has more than one entry on
- *  this (project, category, user) row. Single-entry rows stay
- *  collapsed so the speed-cell typing model still works. */
-export function shouldAutoExpand(entriesByDay: TimeEntry[][]): boolean {
-  return entriesByDay.some((day) => day.length > 1);
-}
