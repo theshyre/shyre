@@ -321,6 +321,22 @@ export function WeekTimesheet({
     Array<{ projectId: string; categoryId: string | null; key: string }>
   >([]);
 
+  // Row keys the user has dismissed this session. An EMPTY active row
+  // (pinned / recent / team-default with no time this week) has no entries
+  // to delete and isn't in `extraRows`, so `removeEmptyRow` alone can't drop
+  // it — the derivation folds it back in every render, so the delete looked
+  // like a no-op (the reported bug). Dismissing filters it out of the derived
+  // rows (only while still empty) until reload; re-adding it via "+ Add row"
+  // un-dismisses it.
+  const [dismissedRowKeys, setDismissedRowKeys] = useState<Set<string>>(
+    () => new Set(),
+  );
+  const dismissKeyFor = useCallback(
+    (projectId: string, categoryId: string | null): string =>
+      `${projectId}::${categoryId ?? ""}::${currentUserId ?? "self"}`,
+    [currentUserId],
+  );
+
   const rows = useMemo<Row[]>(() => {
     const byKey = new Map<string, Row>();
     // (project, category, user) triple — when multiple authors contribute
@@ -444,18 +460,29 @@ export function WeekTimesheet({
       });
     }
 
-    return Array.from(byKey.values()).sort((a, b) => {
-      // Own rows first so the editable work is always on top.
-      if (a.isOwn !== b.isOwn) return a.isOwn ? -1 : 1;
-      const pa = projects.find((p) => p.id === a.projectId)?.name ?? "";
-      const pb = projects.find((p) => p.id === b.projectId)?.name ?? "";
-      const cmp = pa.localeCompare(pb);
-      if (cmp !== 0) return cmp;
-      const na = a.author?.display_name ?? "";
-      const nb = b.author?.display_name ?? "";
-      return na.localeCompare(nb);
-    });
-  }, [entries, projects, extraRows, weekDays, tzOffsetMin, currentUserId, activeRows]);
+    return Array.from(byKey.values())
+      // Drop rows the user dismissed this session — but only while they're
+      // still empty, so a dismissed key can never hide real logged time
+      // (e.g. after an undo restores a deleted row's entries).
+      .filter(
+        (r) =>
+          !(
+            r.byDay.every((m) => m === 0) &&
+            dismissedRowKeys.has(rowKey(r.projectId, r.categoryId, r.userId))
+          ),
+      )
+      .sort((a, b) => {
+        // Own rows first so the editable work is always on top.
+        if (a.isOwn !== b.isOwn) return a.isOwn ? -1 : 1;
+        const pa = projects.find((p) => p.id === a.projectId)?.name ?? "";
+        const pb = projects.find((p) => p.id === b.projectId)?.name ?? "";
+        const cmp = pa.localeCompare(pb);
+        if (cmp !== 0) return cmp;
+        const na = a.author?.display_name ?? "";
+        const nb = b.author?.display_name ?? "";
+        return na.localeCompare(nb);
+      });
+  }, [entries, projects, extraRows, weekDays, tzOffsetMin, currentUserId, activeRows, dismissedRowKeys]);
 
   // Row-grouping dimension backed by localStorage via `useSyncExternalStore`
   // — SSR renders the default ("member"), client reconciles to the stored
@@ -624,17 +651,38 @@ export function WeekTimesheet({
         ...prev,
         { projectId, categoryId, key: `${Date.now()}-${Math.random()}` },
       ]);
+      // Re-adding a row the user previously dismissed must bring it back.
+      const key = dismissKeyFor(projectId, categoryId);
+      setDismissedRowKeys((prev) => {
+        if (!prev.has(key)) return prev;
+        const next = new Set(prev);
+        next.delete(key);
+        return next;
+      });
     },
-    [],
+    [dismissKeyFor],
   );
 
-  const removeEmptyRow = useCallback((projectId: string, categoryId: string | null) => {
-    setExtraRows((prev) =>
-      prev.filter(
-        (r) => !(r.projectId === projectId && r.categoryId === catId(categoryId)),
-      ),
-    );
-  }, []);
+  const removeEmptyRow = useCallback(
+    (projectId: string, categoryId: string | null) => {
+      setExtraRows((prev) =>
+        prev.filter(
+          (r) =>
+            !(r.projectId === projectId && r.categoryId === catId(categoryId)),
+        ),
+      );
+      // Also dismiss an empty ACTIVE row (pinned / recent / team-default)
+      // that isn't in extraRows — otherwise the derivation re-adds it and the
+      // delete is a visible no-op (the reported bug). The filter only hides
+      // it while empty, so this can never swallow real logged time.
+      setDismissedRowKeys((prev) => {
+        const next = new Set(prev);
+        next.add(dismissKeyFor(projectId, categoryId));
+        return next;
+      });
+    },
+    [dismissKeyFor],
+  );
 
   async function submitCell(
     projectId: string,

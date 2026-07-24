@@ -423,6 +423,34 @@ describe("WeekTimesheet", () => {
     expect(screen.getAllByRole("textbox").length).toBeGreaterThan(0);
   });
 
+  it("discarding an empty active (recent/pinned) row removes it from the grid", () => {
+    // Regression: an empty active row has no entries to delete and isn't a
+    // user-added extra row, so `removeEmptyRow` alone couldn't drop it — the
+    // derivation folded it back in and the delete was a visible no-op.
+    window.localStorage.setItem("shyre.weekTimesheet.groupBy", "project");
+    renderTimesheet(
+      <WeekTimesheet
+        weekStartStr={weekStartStr}
+        tzOffsetMin={tzOffsetMin}
+        todayStr="2026-01-01"
+        entries={[]}
+        projects={[project]}
+        categories={[]}
+        currentUserId="u1"
+        activeRows={[{ projectId: "p1", categoryId: null, source: "recent" }]}
+      />,
+    );
+    // The empty active row renders a discard affordance (arm → confirm).
+    const discard = screen.getByRole("button", { name: /discard row/i });
+    fireEvent.click(discard);
+    fireEvent.click(screen.getByRole("button", { name: /confirm delete/i }));
+    // Now it's actually gone — no discard button, no editable cells left.
+    expect(
+      screen.queryByRole("button", { name: /discard row/i }),
+    ).not.toBeInTheDocument();
+    expect(screen.queryAllByRole("textbox")).toHaveLength(0);
+  });
+
   it("collapses a group when its chevron is clicked", async () => {
     window.localStorage.removeItem("shyre.weekTimesheet.groupBy");
     renderTimesheet(
