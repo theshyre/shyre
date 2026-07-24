@@ -90,6 +90,10 @@ export const PROPOSAL_EVENT_TYPES = [
   "superseded",
   "link_resent",
   "signoff_overridden",
+  // Post-convert delivery lifecycle (20260723150000): the engagement was
+  // marked delivered by an owner/admin, or a delivered engagement reopened.
+  "delivered",
+  "reopened",
 ] as const;
 
 export type ProposalEventType = (typeof PROPOSAL_EVENT_TYPES)[number];

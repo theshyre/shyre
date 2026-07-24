@@ -984,6 +984,127 @@ export async function convertProposalAction(formData: FormData): Promise<void> {
 }
 
 /**
+ * Mark a converted proposal DELIVERED — stamp `delivered_at` +
+ * `delivered_by_user_id`. Delivery is a terminal SUB-STATE of `converted`,
+ * NOT a new status: the proposal stays `converted` (so invoicing, the list
+ * Total, and the filter buckets keep working), and the stamp records that
+ * the engagement's work is done. Owner/admin only, mirroring project
+ * close-out; reversible via `reopenProposalDeliveryAction`. The CHECK
+ * `delivered_at IS NULL OR status = 'converted'` makes a mis-stamped
+ * non-converted proposal unrepresentable.
+ *
+ * Deliberately NON-blocking on partial delivery: an owner may assert
+ * delivery of the phases they sold even if a later accepted item dangles
+ * unconverted. The detail page surfaces "N of M phases delivered" as a
+ * nudge, never a gate (per the 2026-07-23 persona review).
+ *
+ * Returns ActionResult (not void): the caller checks `result.success` and
+ * shows the error envelope's message — the honest close-out contract.
+ */
+export async function markProposalDeliveredAction(
+  formData: FormData,
+): Promise<ActionResult> {
+  return runSafeAction(
+    formData,
+    async (formData, { supabase, userId }) => {
+      const proposalId = formData.get("id") as string;
+      if (!proposalId) throw new Error("Missing proposal id.");
+
+      const { data: proposal } = await supabase
+        .from("proposals")
+        .select("id, team_id, status, delivered_at")
+        .eq("id", proposalId)
+        .single();
+      if (!proposal) throw new Error("Proposal not found.");
+      await requireTeamAdmin(proposal.team_id as string);
+
+      if ((proposal.status as string) !== "converted") {
+        throw AppError.refusal(
+          "Only a converted proposal can be marked delivered.",
+        );
+      }
+      // Already delivered — idempotent no-op (don't re-stamp delivered_at).
+      if (proposal.delivered_at != null) return;
+
+      assertSupabaseOk(
+        await supabase
+          .from("proposals")
+          .update({
+            delivered_at: new Date().toISOString(),
+            delivered_by_user_id: userId,
+          })
+          .eq("id", proposalId),
+      );
+
+      const admin = createAdminClient();
+      await admin.from("proposal_events").insert({
+        proposal_id: proposalId,
+        team_id: proposal.team_id,
+        event_type: "delivered",
+        actor_user_id: userId,
+        actor_label: null,
+        metadata: null,
+      });
+
+      revalidatePath("/proposals");
+      revalidatePath(`/proposals/${proposalId}`);
+    },
+    "markProposalDeliveredAction",
+  );
+}
+
+/**
+ * Reopen a delivered proposal — clear the delivery stamp. The proposal was
+ * (and stays) `converted`; this only undoes the delivered sub-state, so the
+ * status graph is never touched (no reverse transition). Owner/admin only,
+ * symmetric with mark-delivered; idempotent when not delivered. Writes a
+ * `reopened` event for the activity trail.
+ */
+export async function reopenProposalDeliveryAction(
+  formData: FormData,
+): Promise<ActionResult> {
+  return runSafeAction(
+    formData,
+    async (formData, { supabase, userId }) => {
+      const proposalId = formData.get("id") as string;
+      if (!proposalId) throw new Error("Missing proposal id.");
+
+      const { data: proposal } = await supabase
+        .from("proposals")
+        .select("id, team_id, delivered_at")
+        .eq("id", proposalId)
+        .single();
+      if (!proposal) throw new Error("Proposal not found.");
+      await requireTeamAdmin(proposal.team_id as string);
+
+      // Not delivered — idempotent no-op.
+      if (proposal.delivered_at == null) return;
+
+      assertSupabaseOk(
+        await supabase
+          .from("proposals")
+          .update({ delivered_at: null, delivered_by_user_id: null })
+          .eq("id", proposalId),
+      );
+
+      const admin = createAdminClient();
+      await admin.from("proposal_events").insert({
+        proposal_id: proposalId,
+        team_id: proposal.team_id,
+        event_type: "reopened",
+        actor_user_id: userId,
+        actor_label: null,
+        metadata: null,
+      });
+
+      revalidatePath("/proposals");
+      revalidatePath(`/proposals/${proposalId}`);
+    },
+    "reopenProposalDeliveryAction",
+  );
+}
+
+/**
  * Bill the accepted fixed prices: create a draft invoice whose line items are
  * MANUAL lines (no time-entry / expense source — the shape the
  * `invoice_line_items_source_mutex` CHECK reserves for ad-hoc charges), one

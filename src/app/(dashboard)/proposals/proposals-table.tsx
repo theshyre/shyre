@@ -44,6 +44,9 @@ export interface ProposalRow {
   total: number;
   /** The client-authorized subset total, once accepted. Null until then. */
   accepted_total: number | null;
+  /** True when a converted proposal has been marked delivered
+   *  (`delivered_at` stamped) — drives the "Delivered" badge projection. */
+  delivered: boolean;
   /** Read-time "N of M signed" projection for an in-flight multi-signer
    *  proposal (via `partialSignoffProgress`); null when it doesn't apply. */
   signoff: SignoffProgress | null;
@@ -359,6 +362,7 @@ export function ProposalsTable({
                     <ProposalStatusBadge
                       status={p.status}
                       expired={expired}
+                      delivered={p.delivered}
                       signoff={p.signoff}
                     />
                   </td>

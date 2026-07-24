@@ -15,15 +15,22 @@
 /**
  * URL-facing filter buckets, in display order. Buckets are coarser
  * than raw statuses on purpose:
- *   - `sent`    = sent + viewed (both are "in flight, awaiting a decision")
- *   - `history` = superseded + converted (no longer actionable)
- * `all` is the default and stays out of the URL.
+ *   - `sent`        = sent + viewed (both are "in flight, awaiting a decision")
+ *   - `in_progress` = converted, work not yet delivered (`delivered_at IS NULL`)
+ *   - `delivered`   = converted + delivered (`delivered_at IS NOT NULL`)
+ *   - `history`     = superseded (a replaced version — no longer in force)
+ * `in_progress` / `delivered` both sit on the `converted` status and are
+ * split by the `delivered_at` stamp (see `proposalFilterDelivered`), so an
+ * owner can tell running engagements from finished ones. `all` is the default
+ * and stays out of the URL.
  */
 export const PROPOSAL_STATUS_FILTERS = [
   "all",
   "draft",
   "sent",
   "accepted",
+  "in_progress",
+  "delivered",
   "declined",
   "history",
 ] as const;
@@ -42,7 +49,9 @@ export function parseProposalStatusFilter(
 }
 
 /** Statuses a filter bucket matches, for a server-side `.in()`.
- *  `null` = no constraint (the `all` bucket). */
+ *  `null` = no constraint (the `all` bucket). `in_progress` and `delivered`
+ *  both resolve to `converted` — the `delivered_at` split is applied
+ *  separately via `proposalFilterDelivered`. */
 export function proposalFilterStatuses(
   filter: ProposalStatusFilter,
 ): string[] | null {
@@ -51,11 +60,32 @@ export function proposalFilterStatuses(
       return null;
     case "sent":
       return ["sent", "viewed"];
+    case "in_progress":
+    case "delivered":
+      return ["converted"];
     case "history":
-      return ["superseded", "converted"];
+      return ["superseded"];
     default:
       return [filter];
   }
+}
+
+/**
+ * The `delivered_at` predicate a filter bucket adds on top of its status set.
+ * `in_progress` and `delivered` both match `converted` rows and are separated
+ * only by whether the engagement has been marked delivered:
+ *   - `"undelivered"` → `delivered_at IS NULL`      (still running)
+ *   - `"delivered"`   → `delivered_at IS NOT NULL`  (marked delivered)
+ *   - `null`          → no delivery constraint (every other bucket)
+ * Kept pure + separate from `proposalFilterStatuses` so the page can apply
+ * `.is()` / `.not(..., "is", null)` without the helper touching Supabase.
+ */
+export function proposalFilterDelivered(
+  filter: ProposalStatusFilter,
+): "delivered" | "undelivered" | null {
+  if (filter === "delivered") return "delivered";
+  if (filter === "in_progress") return "undelivered";
+  return null;
 }
 
 /** Statuses that count as "outstanding" — sent for sign-off, not
@@ -164,4 +194,59 @@ export function displayProposalTotal(
     return acceptedTotal;
   }
   return total;
+}
+
+export interface DeliveryProgress {
+  /** Accepted top-level items whose converted project is closed out
+   *  (`completed`). */
+  delivered: number;
+  /** Accepted top-level items — the delivery denominator. */
+  total: number;
+}
+
+/**
+ * Read-time "N of M phases delivered" projection for a CONVERTED proposal.
+ *
+ * An item counts as delivered only when it was accepted, was converted into a
+ * project, AND that project is closed out (`completed`). This deliberately
+ * excludes two footguns the persona review flagged:
+ *   - Accepted-but-never-converted items (partial conversion) still count in
+ *     `total` — so a proposal with a dangling unsold-scope phase never reads
+ *     100% delivered.
+ *   - A converted project that was `archived` (soft-deleted / abandoned) is
+ *     NOT `completed`, so it does not count as delivered — abandoning a phase
+ *     never inflates the delivered count.
+ * `completedProjectIds` is the caller-supplied set of converted-project ids
+ * whose project status satisfies `isProjectClosed` (completed, not archived).
+ *
+ * Framework/Supabase-free so the detail page and its tests share one rule.
+ * The stored proposal status is never touched — delivery is a `delivered_at`
+ * stamp, and this is the progress readout layered on top of it.
+ */
+export function proposalDeliveryProgress(
+  acceptedItems: ReadonlyArray<{ convertedProjectId: string | null }>,
+  completedProjectIds: ReadonlySet<string>,
+): DeliveryProgress {
+  let delivered = 0;
+  for (const item of acceptedItems) {
+    if (
+      item.convertedProjectId !== null &&
+      completedProjectIds.has(item.convertedProjectId)
+    ) {
+      delivered += 1;
+    }
+  }
+  return { delivered, total: acceptedItems.length };
+}
+
+/**
+ * Whether a converted proposal is READY to be marked delivered — every
+ * accepted top-level item has a closed-out project. Drives the "all phases
+ * closed — mark delivered?" nudge. Marking delivered is never BLOCKED by this
+ * (an owner may assert delivery of the phases they sold while a later phase
+ * dangles); the nudge only fires when the whole engagement is demonstrably
+ * done. A zero-item proposal is never "ready" (nothing to deliver).
+ */
+export function isProposalDeliveryReady(progress: DeliveryProgress): boolean {
+  return progress.total > 0 && progress.delivered === progress.total;
 }

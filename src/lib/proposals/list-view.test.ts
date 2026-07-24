@@ -3,6 +3,9 @@ import {
   PROPOSAL_STATUS_FILTERS,
   parseProposalStatusFilter,
   proposalFilterStatuses,
+  proposalFilterDelivered,
+  proposalDeliveryProgress,
+  isProposalDeliveryReady,
   daysSinceIsoDate,
   isProposalExpired,
   summarizeOutstandingProposals,
@@ -74,17 +77,90 @@ describe("proposalFilterStatuses", () => {
     expect(proposalFilterStatuses("sent")).toEqual(["sent", "viewed"]);
   });
 
-  it("folds superseded + converted into history", () => {
-    expect(proposalFilterStatuses("history")).toEqual([
-      "superseded",
-      "converted",
-    ]);
+  it("history is superseded only (converted moved to in-progress/delivered)", () => {
+    expect(proposalFilterStatuses("history")).toEqual(["superseded"]);
+  });
+
+  it("resolves both in_progress and delivered onto the converted status", () => {
+    // The delivered_at split is applied separately (proposalFilterDelivered),
+    // so both delivery buckets share the same status set.
+    expect(proposalFilterStatuses("in_progress")).toEqual(["converted"]);
+    expect(proposalFilterStatuses("delivered")).toEqual(["converted"]);
   });
 
   it("maps single-status buckets to themselves", () => {
     expect(proposalFilterStatuses("draft")).toEqual(["draft"]);
     expect(proposalFilterStatuses("accepted")).toEqual(["accepted"]);
     expect(proposalFilterStatuses("declined")).toEqual(["declined"]);
+  });
+});
+
+describe("proposalFilterDelivered", () => {
+  it("splits the two converted buckets by delivered_at", () => {
+    expect(proposalFilterDelivered("delivered")).toBe("delivered");
+    expect(proposalFilterDelivered("in_progress")).toBe("undelivered");
+  });
+
+  it("adds no delivery constraint for every other bucket", () => {
+    for (const f of ["all", "draft", "sent", "accepted", "declined", "history"] as const) {
+      expect(proposalFilterDelivered(f)).toBeNull();
+    }
+  });
+});
+
+describe("proposalDeliveryProgress", () => {
+  it("counts accepted items whose converted project is completed", () => {
+    const completed = new Set(["proj-a", "proj-c"]);
+    const progress = proposalDeliveryProgress(
+      [
+        { convertedProjectId: "proj-a" },
+        { convertedProjectId: "proj-b" }, // converted but not completed
+        { convertedProjectId: "proj-c" },
+      ],
+      completed,
+    );
+    expect(progress).toEqual({ delivered: 2, total: 3 });
+  });
+
+  it("counts an accepted-but-unconverted item in the denominator only", () => {
+    // Partial conversion: a sold phase never started still counts toward
+    // total, so the proposal never reads 100% delivered.
+    const progress = proposalDeliveryProgress(
+      [{ convertedProjectId: "proj-a" }, { convertedProjectId: null }],
+      new Set(["proj-a"]),
+    );
+    expect(progress).toEqual({ delivered: 1, total: 2 });
+  });
+
+  it("excludes an archived (not completed) converted project", () => {
+    // completedProjectIds only holds isProjectClosed (completed) projects —
+    // an abandoned/archived phase is absent, so it never inflates delivered.
+    const progress = proposalDeliveryProgress(
+      [{ convertedProjectId: "proj-archived" }],
+      new Set(),
+    );
+    expect(progress).toEqual({ delivered: 0, total: 1 });
+  });
+
+  it("is zero over an empty accepted set", () => {
+    expect(proposalDeliveryProgress([], new Set())).toEqual({
+      delivered: 0,
+      total: 0,
+    });
+  });
+});
+
+describe("isProposalDeliveryReady", () => {
+  it("is true only when every accepted item is delivered", () => {
+    expect(isProposalDeliveryReady({ delivered: 3, total: 3 })).toBe(true);
+  });
+
+  it("is false while any accepted item is undelivered", () => {
+    expect(isProposalDeliveryReady({ delivered: 2, total: 3 })).toBe(false);
+  });
+
+  it("is false for a zero-item proposal (nothing to deliver)", () => {
+    expect(isProposalDeliveryReady({ delivered: 0, total: 0 })).toBe(false);
   });
 });
 

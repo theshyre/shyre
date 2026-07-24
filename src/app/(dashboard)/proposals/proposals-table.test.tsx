@@ -34,6 +34,7 @@ function row(overrides: Partial<ProposalRow> = {}): ProposalRow {
     customer: { id: "c1", name: "EyeReg Consulting", logo_url: null },
     total: 4950,
     accepted_total: null,
+    delivered: false,
     signoff: null,
     ...overrides,
   };

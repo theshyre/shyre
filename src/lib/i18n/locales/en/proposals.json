@@ -14,6 +14,7 @@
     "accepted": "Accepted",
     "declined": "Declined",
     "converted": "Converted",
+    "delivered": "Delivered",
     "superseded": "Superseded",
     "expired": "Expired",
     "partiallySigned": "{signed} of {total} signed"
@@ -51,6 +52,8 @@
         "draft": "Draft",
         "sent": "Sent & viewed",
         "accepted": "Accepted",
+        "in_progress": "In progress",
+        "delivered": "Delivered",
         "declined": "Declined",
         "history": "History"
       }
@@ -263,7 +266,9 @@
       "converted": "Converted to project(s)",
       "superseded": "Superseded by a new version",
       "signoff_overridden": "Sign-off completed by override",
-      "link_resent": "Sign-off link re-sent"
+      "link_resent": "Sign-off link re-sent",
+      "delivered": "Marked delivered",
+      "reopened": "Delivery reopened"
     }
   },
   "detail": {
@@ -314,6 +319,17 @@
     "bill": "Create invoice",
     "billing": "Creating invoice…",
     "billFailed": "Invoice creation failed",
+    "markDelivered": "Mark delivered",
+    "markDeliveredConfirm": "Mark this engagement delivered",
+    "reopenDelivery": "Reopen",
+    "deliverReadyPrompt": "All {total} phases are closed out — mark this engagement delivered?",
+    "deliverPartialPrompt": "{delivered} of {total} phases closed out. You can still mark the engagement delivered.",
+    "deliveredToast": "Engagement marked delivered.",
+    "reopenedToast": "Delivery reopened.",
+    "deliverFailed": "Couldn't mark this delivered. Try again.",
+    "reopenFailed": "Couldn't reopen delivery. Try again.",
+    "deliveredOn": "Delivered {date}",
+    "phasesDelivered": "{delivered} of {total} phases delivered",
     "viewProject": "View project →",
     "edit": "Edit",
     "delete": "Delete",

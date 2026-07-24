@@ -9,6 +9,7 @@ import {
   FolderCheck,
   History,
   PenLine,
+  PackageCheck,
   type LucideIcon,
 } from "lucide-react";
 import type { SignoffProgress } from "@/lib/proposals/list-view";
@@ -33,6 +34,12 @@ interface Props {
    *  Ignored unless the projection was computed for an in-flight
    *  status, so it can never mislabel a decided proposal. */
   signoff?: SignoffProgress | null;
+  /** Read-time "delivered" projection: a `converted` proposal whose
+   *  engagement has been marked delivered (`delivered_at` is stamped).
+   *  Renders "Delivered" (success tone) instead of the bare "Converted",
+   *  the same read-time-projection idiom as `expired` / `signoff`. Ignored
+   *  for any non-`converted` status, so a stale flag can never mislabel. */
+  delivered?: boolean;
 }
 
 /** Three-channel proposal status indicator (icon + text + color) per the
@@ -43,6 +50,7 @@ export function ProposalStatusBadge({
   size = "default",
   expired = false,
   signoff = null,
+  delivered = false,
 }: Props): React.JSX.Element {
   const t = useTranslations("proposals.status");
   const inFlight = status === "sent" || status === "viewed";
@@ -50,17 +58,25 @@ export function ProposalStatusBadge({
   // useful thing to know about an in-flight multi-signer deal.
   const showPartial = signoff != null && inFlight;
   const showExpired = !showPartial && expired && inFlight;
+  // "Delivered" is a projection on the `converted` status (delivery is a
+  // delivered_at stamp, not a status), so it never collides with the
+  // in-flight projections above.
+  const showDelivered = delivered && status === "converted";
   const meta = showPartial
     ? PARTIAL_META
     : showExpired
       ? EXPIRED_META
-      : (STATUS_META[status] ?? STATUS_META.draft!);
+      : showDelivered
+        ? DELIVERED_META
+        : (STATUS_META[status] ?? STATUS_META.draft!);
   const Icon = meta.icon;
   const label = showPartial
     ? t("partiallySigned", { signed: signoff.signed, total: signoff.total })
     : showExpired
       ? t("expired")
-      : t(status);
+      : showDelivered
+        ? t("delivered")
+        : t(status);
 
   const sizingClasses =
     size === "prominent"
@@ -98,6 +114,14 @@ const EXPIRED_META: StatusMeta = {
 const PARTIAL_META: StatusMeta = {
   icon: PenLine,
   classes: "bg-accent-soft text-accent-text",
+};
+
+/** Delivered — success tone with a "delivered package" icon. Reads as
+ *  "the work is done", distinct from converted's accent "work created"
+ *  tone and from accepted's check (which is about the signature). */
+const DELIVERED_META: StatusMeta = {
+  icon: PackageCheck,
+  classes: "bg-success-soft text-success-text",
 };
 
 const STATUS_META: Record<string, StatusMeta> = {

@@ -140,6 +140,8 @@ import {
   createInvoiceFromProposalAction,
   createProposalVersionAction,
   overrideProposalSignoffAction,
+  markProposalDeliveredAction,
+  reopenProposalDeliveryAction,
 } from "./actions";
 import { sha256Hex } from "@/lib/proposals/tokens";
 
@@ -1795,5 +1797,104 @@ describe("createInvoiceFromProposalAction — deposit netting on the full bill",
     );
     expect(negLine).toMatchObject({ amount: -2475 });
     expect(String(negLine!.description)).toContain("INV-008");
+  });
+});
+
+/** The one update patch sent to a table (the delivery stamp/clear). */
+function updatePatch(table: string): Record<string, unknown> | undefined {
+  return calls
+    .filter((c) => c.table === table)
+    .flatMap((c) => c.ops.filter((o) => o.method === "update"))
+    .map((o) => o.args[0] as Record<string, unknown>)[0];
+}
+
+describe("markProposalDeliveredAction", () => {
+  it("stamps delivered_at + actor on a converted proposal and logs a delivered event", async () => {
+    queues["proposals"] = [
+      {
+        data: { id: "prop-1", team_id: TEAM, status: "converted", delivered_at: null },
+        error: null,
+      },
+      { data: null, error: null }, // update
+    ];
+    queues["proposal_events"] = [{ data: null, error: null }];
+
+    const result = await markProposalDeliveredAction(formWith({ id: "prop-1" }));
+    expect(result).toEqual({ success: true });
+    expect(mockRequireTeamAdmin).toHaveBeenCalledWith(TEAM);
+
+    const patch = updatePatch("proposals")!;
+    expect(typeof patch.delivered_at).toBe("string");
+    expect(patch.delivered_by_user_id).toBe("u-author");
+    expect(insertedRows("proposal_events")[0]).toMatchObject({
+      event_type: "delivered",
+      actor_user_id: "u-author",
+    });
+  });
+
+  it("refuses to deliver a proposal that isn't converted", async () => {
+    queues["proposals"] = [
+      {
+        data: { id: "prop-1", team_id: TEAM, status: "accepted", delivered_at: null },
+        error: null,
+      },
+    ];
+    await expect(
+      markProposalDeliveredAction(formWith({ id: "prop-1" })),
+    ).rejects.toThrow(/converted/i);
+    // No stamp, no event on the refusal path.
+    expect(updatePatch("proposals")).toBeUndefined();
+    expect(insertedRows("proposal_events")).toHaveLength(0);
+  });
+
+  it("is idempotent when already delivered — no re-stamp, no duplicate event", async () => {
+    queues["proposals"] = [
+      {
+        data: {
+          id: "prop-1",
+          team_id: TEAM,
+          status: "converted",
+          delivered_at: "2026-07-23T10:00:00Z",
+        },
+        error: null,
+      },
+    ];
+    const result = await markProposalDeliveredAction(formWith({ id: "prop-1" }));
+    expect(result).toEqual({ success: true });
+    expect(updatePatch("proposals")).toBeUndefined();
+    expect(insertedRows("proposal_events")).toHaveLength(0);
+  });
+});
+
+describe("reopenProposalDeliveryAction", () => {
+  it("clears the delivery stamp and logs a reopened event", async () => {
+    queues["proposals"] = [
+      {
+        data: { id: "prop-1", team_id: TEAM, delivered_at: "2026-07-23T10:00:00Z" },
+        error: null,
+      },
+      { data: null, error: null }, // update
+    ];
+    queues["proposal_events"] = [{ data: null, error: null }];
+
+    const result = await reopenProposalDeliveryAction(formWith({ id: "prop-1" }));
+    expect(result).toEqual({ success: true });
+    expect(updatePatch("proposals")).toMatchObject({
+      delivered_at: null,
+      delivered_by_user_id: null,
+    });
+    expect(insertedRows("proposal_events")[0]).toMatchObject({
+      event_type: "reopened",
+    });
+  });
+
+  it("is idempotent when not delivered — no update, no event", async () => {
+    queues["proposals"] = [
+      { data: { id: "prop-1", team_id: TEAM, delivered_at: null }, error: null },
+    ];
+    const result = await reopenProposalDeliveryAction(formWith({ id: "prop-1" }));
+    expect(result).toEqual({ success: true });
+    expect(updatePatch("proposals")).toBeUndefined();
+    expect(insertedRows("proposal_events")).toHaveLength(0);
   });
 });

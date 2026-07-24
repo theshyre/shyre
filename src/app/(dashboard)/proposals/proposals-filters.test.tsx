@@ -35,6 +35,8 @@ describe("ProposalStatusFilterChip", () => {
       "Draft",
       "Sent & viewed",
       "Accepted",
+      "In progress",
+      "Delivered",
       "Declined",
       "History",
     ]);

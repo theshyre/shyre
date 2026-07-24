@@ -217,9 +217,12 @@ the full activity trail (sent, viewed, code verified, accepted, …).
 ## Lifecycle
 
 `draft → sent → viewed → accepted / declined → converted`, with `superseded`
-for replaced versions. Only drafts can be edited or deleted (a draft delete
-asks for inline confirmation) — sent and signed proposals are part of the
-audit record, are content-frozen at the database level, and are never
+for replaced versions. A `converted` proposal can additionally be marked
+**delivered** once the work is done — that's a `delivered_at` stamp, not a new
+status (the proposal stays `converted` underneath, so billing keeps working);
+see "Marking an engagement delivered". Only drafts can be edited or deleted (a
+draft delete asks for inline confirmation) — sent and signed proposals are part
+of the audit record, are content-frozen at the database level, and are never
 deletable.
 
 ## Converting accepted work into projects
@@ -271,6 +274,30 @@ becomes billable again, so a mistaken bill is fully recoverable (correct it by
 voiding, then re-billing). Nothing stays stranded as "invoiced" against an
 invoice that no longer exists.
 
+## Marking an engagement delivered
+
+Converting a proposal starts the work; **marking it delivered** ends it. On a
+converted proposal, an owner/admin sees a **Mark delivered** action beside a
+running tally — *"N of M phases delivered"* — that counts how many of the
+accepted line items have their project **closed out** (a project you finished
+and closed from its own detail page). When every accepted phase is closed out,
+the tally turns green and the confirm reads *"All N phases are closed out —
+mark this engagement delivered?"* — the natural moment to wrap the whole deal.
+
+You can mark it delivered before then, too: the tally is a nudge, never a gate.
+If you delivered the two phases you sold and a third was never started, mark it
+delivered anyway — the confirm just notes how many phases were closed. (A
+`completed` project counts; one you **archived**/abandoned does not.)
+
+Marking delivered is **internal**: it records a `delivered` event in the
+activity trail (who and when) and flips the badge from **Converted** to
+**Delivered** everywhere the proposal appears — it does **not** notify the
+client. A client-facing acknowledgement that the work is done is a
+**Sign-off**, a separate document. Delivery is reversible: **Reopen** clears
+the delivered state (and logs a `reopened` event) if more work comes in. The
+proposal stays `converted` underneath, so you can still **Create invoice** for
+anything not yet billed.
+
 ## Versions
 
 A sent proposal's content is frozen — revisions go through **New version**
@@ -294,8 +321,11 @@ fresh window.
 The module is surfaced outside its own pages:
 
 - **List filters & aging** — the `/proposals` list has a status filter chip
-  (All / Draft / Sent & viewed / Accepted / Declined / History, where History
-  folds superseded + converted), a "$X awaiting signature" rollup above the
+  (All / Draft / Sent & viewed / Accepted / In progress / Delivered / Declined
+  / History): **In progress** is a converted deal still being delivered,
+  **Delivered** is one marked delivered (its badge reads "Delivered"), and
+  **History** is superseded versions. There's a "$X awaiting signature" rollup
+  above the
   table, and a subtle "sent Nd ago" caption on in-flight rows so a quote
   that's been sitting for two weeks stands out. An in-flight proposal whose
   `Valid until` has passed shows an **Expired** badge (clock icon, warning
