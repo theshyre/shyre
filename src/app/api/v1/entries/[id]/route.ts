@@ -1,6 +1,7 @@
 import { z } from "zod";
 
 import { runIntegrationRoute } from "@/lib/integrations/api-auth";
+import { isoDatetimeOffset } from "@/lib/integrations/iso-datetime";
 import { deleteEntry, getEntry, updateEntry } from "@/lib/integrations/service";
 
 /**
@@ -37,8 +38,8 @@ export async function GET(
 
 const patchSchema = z
   .object({
-    start_time: z.iso.datetime({ offset: true }).optional(),
-    end_time: z.iso.datetime({ offset: true }).optional(),
+    start_time: isoDatetimeOffset.optional(),
+    end_time: isoDatetimeOffset.optional(),
     description: z.string().min(1).max(2000).optional(),
     category_id: z.uuid().optional(),
     billable: z.boolean().optional(),

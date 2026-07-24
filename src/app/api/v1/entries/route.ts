@@ -1,6 +1,7 @@
 import { z } from "zod";
 
 import { runIntegrationRoute } from "@/lib/integrations/api-auth";
+import { isoDatetimeOffset } from "@/lib/integrations/iso-datetime";
 import { listEntries, logEntry } from "@/lib/integrations/service";
 
 /**
@@ -15,8 +16,8 @@ import { listEntries, logEntry } from "@/lib/integrations/service";
 const bodySchema = z
   .object({
     project_id: z.uuid(),
-    start_time: z.iso.datetime({ offset: true }),
-    end_time: z.iso.datetime({ offset: true }),
+    start_time: isoDatetimeOffset,
+    end_time: isoDatetimeOffset,
     description: z.string().min(1).max(2000),
     agent_label: z.string().min(1).max(64).optional(),
     session_ref: z.string().min(1).max(256).optional(),
@@ -55,7 +56,7 @@ const listQuerySchema = z
   .object({
     project_id: z.uuid().optional(),
     limit: z.coerce.number().int().min(1).max(100).optional(),
-    since: z.iso.datetime({ offset: true }).optional(),
+    since: isoDatetimeOffset.optional(),
   })
   .strict();
 
