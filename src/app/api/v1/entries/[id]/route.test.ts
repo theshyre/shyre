@@ -91,6 +91,27 @@ describe("PATCH /api/v1/entries/:id", () => {
     expect(updateEntryMock).not.toHaveBeenCalled();
   });
 
+  it("accepts and normalizes a bare no-colon offset on the patched window", async () => {
+    updateEntryMock.mockResolvedValue({ ok: true, data: { id: ENTRY_ID } });
+    const res = await PATCH(
+      req(
+        "PATCH",
+        { start_time: "2026-07-23T08:00:00-0700", end_time: "2026-07-23T09:00:00-0700" },
+        `Bearer ${RAW_PAT}`,
+      ),
+      params(ENTRY_ID),
+    );
+    expect(res.status).toBe(200);
+    expect(updateEntryMock).toHaveBeenCalledWith(
+      sha256Hex(RAW_PAT),
+      ENTRY_ID,
+      expect.objectContaining({
+        startTime: "2026-07-23T08:00:00-07:00",
+        endTime: "2026-07-23T09:00:00-07:00",
+      }),
+    );
+  });
+
   it("forwards the RPC's 403 for a human-entered entry with its message", async () => {
     updateEntryMock.mockResolvedValue({
       ok: false,

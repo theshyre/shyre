@@ -125,6 +125,29 @@ describe("POST /api/v1/entries", () => {
     expect(res.status).toBe(200);
   });
 
+  it("accepts and normalizes the bare no-colon offset (the `date +%z` form that was 400ing)", async () => {
+    logEntryMock.mockResolvedValue({ ok: true, data: { id: "e2" } });
+    const res = await POST(
+      makeRequest(
+        {
+          ...VALID_BODY,
+          start_time: "2026-07-18T09:00:00-0500",
+          end_time: "2026-07-18T10:00:00-0500",
+        },
+        `Bearer ${RAW_PAT}`,
+      ),
+    );
+    expect(res.status).toBe(200);
+    // The service receives the canonical colon form, not the raw -0500.
+    expect(logEntryMock).toHaveBeenCalledWith(
+      sha256Hex(RAW_PAT),
+      expect.objectContaining({
+        startTime: "2026-07-18T09:00:00-05:00",
+        endTime: "2026-07-18T10:00:00-05:00",
+      }),
+    );
+  });
+
   it.each([
     ["missing description", { ...VALID_BODY, description: undefined }],
     ["naive timestamp without timezone", { ...VALID_BODY, start_time: "2026-07-18T14:00:00" }],
