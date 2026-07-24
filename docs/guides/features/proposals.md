@@ -298,6 +298,17 @@ the delivered state (and logs a `reopened` event) if more work comes in. The
 proposal stays `converted` underneath, so you can still **Create invoice** for
 anything not yet billed.
 
+**In bulk:** on the `/proposals` list (owner/admin), select one or more
+converted-undelivered proposals and use **Mark delivered** in the selection
+strip to close out several engagements at once — handy at period end. It's
+Undo-able from the toast. The strip is action-aware: delete stays available for
+draft/superseded rows, mark-delivered for converted-undelivered rows, and each
+button acts only on the eligible rows in your selection.
+
+**At a glance:** the dashboard's **In Progress** card counts converted
+engagements not yet delivered — the pipeline number that pairs with the list's
+**In progress** filter.
+
 ## Versions
 
 A sent proposal's content is frozen — revisions go through **New version**

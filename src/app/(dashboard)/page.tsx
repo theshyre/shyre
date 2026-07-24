@@ -27,6 +27,7 @@ import {
   FolderKanban,
   FileText,
   FileSignature,
+  PackageOpen,
   ArrowRight,
   Play,
 } from "lucide-react";
@@ -75,6 +76,7 @@ export default async function DashboardPage(): Promise<React.JSX.Element> {
     recentEntries,
     sentInvoices,
     outstandingProposals,
+    inProgressProposals,
   ] = await Promise.all([
       supabase
         .from("time_entries")
@@ -137,6 +139,14 @@ export default async function DashboardPage(): Promise<React.JSX.Element> {
         .from("proposals")
         .select("status, proposal_line_items(fixed_price, parent_line_item_id)")
         .in("status", ["sent", "viewed"]),
+      // "Engagements in progress" — converted proposals whose work isn't yet
+      // marked delivered (delivered_at IS NULL). A head count is enough; we
+      // never render the rows, only the number. RLS-scoped like the rest.
+      supabase
+        .from("proposals")
+        .select("id", { count: "exact", head: true })
+        .eq("status", "converted")
+        .is("delivered_at", null),
     ]);
 
   // Resolve author profiles in one round-trip so the recent-activity
@@ -177,6 +187,7 @@ export default async function DashboardPage(): Promise<React.JSX.Element> {
   const activeCount = activeTimers.data?.length ?? 0;
   const clientCount = customers.data?.length ?? 0;
   const projectCount = projects.data?.length ?? 0;
+  const inProgressCount = inProgressProposals.count ?? 0;
 
   // Invoices are sent in the team's currency; v1 sums the raw
   // totals (matching the task's "just sum" contract) and formats in
@@ -266,6 +277,17 @@ export default async function DashboardPage(): Promise<React.JSX.Element> {
       icon: FileSignature,
       color: "text-info" as const,
       bgColor: "bg-info-soft" as const,
+    },
+    {
+      // Converted engagements still being delivered — the pipeline signal an
+      // owner scans for "what's still running". Reads with the /proposals
+      // "In progress" filter; PackageOpen pairs with the Delivered badge's
+      // PackageCheck (open → in delivery, checked → delivered).
+      label: t("stats.inProgress"),
+      value: String(inProgressCount),
+      icon: PackageOpen,
+      color: "text-accent" as const,
+      bgColor: "bg-accent-soft" as const,
     },
     {
       label: t("stats.totalClients"),

@@ -4,7 +4,11 @@ import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { runSafeAction, type ActionResult } from "@/lib/safe-action";
-import { requireTeamAdmin } from "@/lib/team-context";
+import {
+  requireTeamAdmin,
+  validateTeamAccess,
+  isTeamAdmin,
+} from "@/lib/team-context";
 import { AppError, assertSupabaseOk } from "@/lib/errors";
 import { generateInvoiceNumber, calculateInvoiceTotals } from "@/lib/invoice-utils";
 import { paymentTermsLabel, computeDueDate } from "@/lib/payment-terms";
@@ -1101,6 +1105,160 @@ export async function reopenProposalDeliveryAction(
       revalidatePath(`/proposals/${proposalId}`);
     },
     "reopenProposalDeliveryAction",
+  );
+}
+
+/**
+ * Resolve which of the given teams the caller is an owner/admin of — mirrors
+ * the projects bulk gate (`resolveAdminTeamIds`). A forged id for a team the
+ * caller doesn't administer throws in `validateTeamAccess` and is silently
+ * dropped rather than failing the whole batch.
+ */
+async function resolveAdminTeamIds(teamIds: string[]): Promise<Set<string>> {
+  const adminTeamIds = new Set<string>();
+  for (const tid of [...new Set(teamIds)]) {
+    try {
+      const { role } = await validateTeamAccess(tid);
+      if (isTeamAdmin(role)) adminTeamIds.add(tid);
+    } catch {
+      // Not a member of this team (forged id) → not an admin; skip it.
+      continue;
+    }
+  }
+  return adminTeamIds;
+}
+
+/**
+ * Bulk **Mark delivered** — the Pattern-A selection strip on /proposals.
+ * Stamps `delivered_at` on every eligible selected proposal in one UPDATE.
+ * Mirrors `bulkCloseProjectsAction`. Eligibility is re-checked server-side
+ * (never trust the client): caller is owner/admin of the proposal's team,
+ * status is `converted`, and it isn't already delivered. Ineligible / raced
+ * rows are silently dropped; the list revalidates so the outcome is visible.
+ * One `delivered` event is logged per marked proposal for the activity trail.
+ * Pair with `bulkReopenProposalsDeliveredAction` for the Undo toast.
+ */
+export async function bulkMarkProposalsDeliveredAction(
+  formData: FormData,
+): Promise<ActionResult> {
+  return runSafeAction(
+    formData,
+    async (formData, { supabase, userId }) => {
+      const ids = formData.getAll("id").map(String).filter(Boolean);
+      if (ids.length === 0) return;
+
+      const { data: rows } = await supabase
+        .from("proposals")
+        .select("id, team_id, status, delivered_at")
+        .in("id", ids);
+      const proposals = (rows ?? []) as Array<{
+        id: string;
+        team_id: string;
+        status: string;
+        delivered_at: string | null;
+      }>;
+      if (proposals.length === 0) return;
+
+      const adminTeamIds = await resolveAdminTeamIds(
+        proposals.map((p) => p.team_id),
+      );
+      const markable = proposals.filter(
+        (p) =>
+          adminTeamIds.has(p.team_id) &&
+          p.status === "converted" &&
+          p.delivered_at == null,
+      );
+      if (markable.length === 0) return;
+
+      assertSupabaseOk(
+        await supabase
+          .from("proposals")
+          .update({
+            delivered_at: new Date().toISOString(),
+            delivered_by_user_id: userId,
+          })
+          .in(
+            "id",
+            markable.map((p) => p.id),
+          ),
+      );
+
+      const admin = createAdminClient();
+      await admin.from("proposal_events").insert(
+        markable.map((p) => ({
+          proposal_id: p.id,
+          team_id: p.team_id,
+          event_type: "delivered",
+          actor_user_id: userId,
+          actor_label: null,
+          metadata: { bulk: true },
+        })),
+      );
+
+      revalidatePath("/proposals");
+    },
+    "bulkMarkProposalsDeliveredAction",
+  );
+}
+
+/**
+ * Bulk reopen — Undo from the bulk mark-delivered toast. Clears the delivery
+ * stamp on the given ids (admin + still-delivered only), logging a `reopened`
+ * event each. Symmetric with `bulkMarkProposalsDeliveredAction`.
+ */
+export async function bulkReopenProposalsDeliveredAction(
+  formData: FormData,
+): Promise<ActionResult> {
+  return runSafeAction(
+    formData,
+    async (formData, { supabase, userId }) => {
+      const ids = formData.getAll("id").map(String).filter(Boolean);
+      if (ids.length === 0) return;
+
+      const { data: rows } = await supabase
+        .from("proposals")
+        .select("id, team_id, delivered_at")
+        .in("id", ids);
+      const proposals = (rows ?? []) as Array<{
+        id: string;
+        team_id: string;
+        delivered_at: string | null;
+      }>;
+      if (proposals.length === 0) return;
+
+      const adminTeamIds = await resolveAdminTeamIds(
+        proposals.map((p) => p.team_id),
+      );
+      const reopenable = proposals.filter(
+        (p) => adminTeamIds.has(p.team_id) && p.delivered_at != null,
+      );
+      if (reopenable.length === 0) return;
+
+      assertSupabaseOk(
+        await supabase
+          .from("proposals")
+          .update({ delivered_at: null, delivered_by_user_id: null })
+          .in(
+            "id",
+            reopenable.map((p) => p.id),
+          ),
+      );
+
+      const admin = createAdminClient();
+      await admin.from("proposal_events").insert(
+        reopenable.map((p) => ({
+          proposal_id: p.id,
+          team_id: p.team_id,
+          event_type: "reopened",
+          actor_user_id: userId,
+          actor_label: null,
+          metadata: { bulk: true },
+        })),
+      );
+
+      revalidatePath("/proposals");
+    },
+    "bulkReopenProposalsDeliveredAction",
   );
 }
 

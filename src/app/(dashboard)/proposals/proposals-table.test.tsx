@@ -14,8 +14,12 @@ vi.mock("@/components/Toast", () => ({
 }));
 
 const bulkDeleteMock = vi.fn();
+const bulkMarkMock = vi.fn();
+const bulkReopenMock = vi.fn();
 vi.mock("./actions", () => ({
   bulkDeleteProposalsAction: (fd: FormData) => bulkDeleteMock(fd),
+  bulkMarkProposalsDeliveredAction: (fd: FormData) => bulkMarkMock(fd),
+  bulkReopenProposalsDeliveredAction: (fd: FormData) => bulkReopenMock(fd),
 }));
 
 import { ProposalsTable, type ProposalRow } from "./proposals-table";
@@ -55,6 +59,8 @@ function renderTable(
 beforeEach(() => {
   toastPush.mockReset();
   bulkDeleteMock.mockReset();
+  bulkMarkMock.mockReset();
+  bulkReopenMock.mockReset();
 });
 
 afterEach(() => {
@@ -209,7 +215,7 @@ describe("ProposalsTable selection", () => {
       row({ id: "p3", proposal_number: "PROP-2026-003", status: "accepted" }),
     ]);
     const master = screen.getByRole("checkbox", {
-      name: "Select all deletable",
+      name: "Select all",
     });
     fireEvent.click(master);
     expect(
@@ -229,7 +235,7 @@ describe("ProposalsTable selection", () => {
       screen.getByRole("checkbox", { name: "Select proposal PROP-2026-001" }),
     );
     const partialMaster = screen.getByRole("checkbox", {
-      name: "Select all deletable",
+      name: "Select all",
     }) as HTMLInputElement;
     expect(partialMaster.indeterminate).toBe(true);
   });
@@ -240,7 +246,7 @@ describe("ProposalsTable selection", () => {
       row({ id: "p2", status: "sent" }),
     ]);
     const master = screen.getByRole("checkbox", {
-      name: "Select all deletable",
+      name: "Select all",
     });
     expect(master).toBeDisabled();
   });
@@ -372,7 +378,7 @@ describe("ProposalsTable bulk delete", () => {
       row({ id: "p3", proposal_number: "PROP-2026-003" }),
     ]);
     fireEvent.click(
-      screen.getByRole("checkbox", { name: "Select all deletable" }),
+      screen.getByRole("checkbox", { name: "Select all" }),
     );
     fireEvent.click(screen.getByRole("button", { name: "Delete selected" }));
     fireEvent.change(screen.getByLabelText("Type delete to confirm"), {
@@ -446,5 +452,106 @@ describe("ProposalsTable bulk delete", () => {
     fireEvent.keyDown(document.body, { key: "Escape" });
     expect(screen.queryByText(/Type delete to delete/)).not.toBeInTheDocument();
     expect(box).toBeChecked();
+  });
+});
+
+describe("ProposalsTable bulk mark-delivered", () => {
+  const convertedRow = (over = {}) =>
+    row({ status: "converted", delivered: false, ...over });
+
+  it("makes a converted-undelivered row selectable", () => {
+    renderTable([convertedRow()]);
+    expect(
+      screen.getByRole("checkbox", { name: "Select proposal PROP-2026-001" }),
+    ).toBeInTheDocument();
+  });
+
+  it("does NOT make an already-delivered converted row selectable", () => {
+    renderTable([convertedRow({ delivered: true })]);
+    expect(
+      screen.queryByRole("checkbox", { name: "Select proposal PROP-2026-001" }),
+    ).not.toBeInTheDocument();
+  });
+
+  it("offers Mark delivered (not Delete) for a selected converted-undelivered row", () => {
+    renderTable([convertedRow()]);
+    fireEvent.click(
+      screen.getByRole("checkbox", { name: "Select proposal PROP-2026-001" }),
+    );
+    expect(
+      screen.getByRole("button", { name: "Mark delivered" }),
+    ).toBeInTheDocument();
+    expect(
+      screen.queryByRole("button", { name: "Delete selected" }),
+    ).not.toBeInTheDocument();
+  });
+
+  it("offers Delete (not Mark delivered) for a selected draft row", () => {
+    renderTable([row({ status: "draft" })]);
+    fireEvent.click(
+      screen.getByRole("checkbox", { name: "Select proposal PROP-2026-001" }),
+    );
+    expect(
+      screen.getByRole("button", { name: "Delete selected" }),
+    ).toBeInTheDocument();
+    expect(
+      screen.queryByRole("button", { name: "Mark delivered" }),
+    ).not.toBeInTheDocument();
+  });
+
+  it("arms a confirm instead of firing immediately", () => {
+    renderTable([convertedRow()]);
+    fireEvent.click(
+      screen.getByRole("checkbox", { name: "Select proposal PROP-2026-001" }),
+    );
+    fireEvent.click(screen.getByRole("button", { name: "Mark delivered" }));
+    expect(bulkMarkMock).not.toHaveBeenCalled();
+    expect(
+      screen.getByText("Mark 1 proposal delivered?"),
+    ).toBeInTheDocument();
+  });
+
+  it("fires with the deliverable ids and pushes a success toast with Undo", async () => {
+    bulkMarkMock.mockResolvedValue({ success: true });
+    renderTable([
+      convertedRow({ id: "p1", proposal_number: "PROP-2026-001" }),
+      // A draft in the same selection must NOT be posted to the deliver action.
+      row({ id: "p2", proposal_number: "PROP-2026-002", status: "draft" }),
+    ]);
+    fireEvent.click(screen.getByRole("checkbox", { name: "Select all" }));
+    // Both buttons show (mixed selection); arm + confirm the deliver one.
+    fireEvent.click(screen.getByRole("button", { name: "Mark delivered" }));
+    fireEvent.click(screen.getByRole("button", { name: "Mark delivered" }));
+
+    await waitFor(() => expect(bulkMarkMock).toHaveBeenCalledTimes(1));
+    const fd = bulkMarkMock.mock.calls[0]?.[0] as FormData;
+    expect(fd.getAll("id")).toEqual(["p1"]); // only the deliverable row
+    await waitFor(() =>
+      expect(toastPush).toHaveBeenCalledWith(
+        expect.objectContaining({
+          kind: "success",
+          message: "1 engagement marked delivered.",
+          actionLabel: expect.anything(),
+        }),
+      ),
+    );
+  });
+
+  it("surfaces an error toast when the deliver action fails", async () => {
+    bulkMarkMock.mockResolvedValue({
+      success: false,
+      error: { message: "nope" },
+    });
+    renderTable([convertedRow()]);
+    fireEvent.click(
+      screen.getByRole("checkbox", { name: "Select proposal PROP-2026-001" }),
+    );
+    fireEvent.click(screen.getByRole("button", { name: "Mark delivered" }));
+    fireEvent.click(screen.getByRole("button", { name: "Mark delivered" }));
+    await waitFor(() =>
+      expect(toastPush).toHaveBeenCalledWith(
+        expect.objectContaining({ kind: "error", message: "nope" }),
+      ),
+    );
   });
 });

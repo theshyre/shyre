@@ -5,6 +5,7 @@ import {
   TERMINAL_PROPOSAL_STATUSES,
   isProposalEditable,
   isProposalDeletable,
+  isProposalDeliverable,
   DEPOSIT_TYPES,
   ALLOWED_DEPOSIT_TYPES,
 } from "./allow-lists";
@@ -48,6 +49,24 @@ describe("proposal allow-lists", () => {
     }
     expect(isProposalDeletable(null)).toBe(false);
     expect(isProposalDeletable(undefined)).toBe(false);
+  });
+
+  it("only an undelivered converted proposal is deliverable", () => {
+    expect(isProposalDeliverable("converted", false)).toBe(true);
+    // Already delivered → not deliverable again (bulk skips it).
+    expect(isProposalDeliverable("converted", true)).toBe(false);
+    for (const s of ["draft", "sent", "viewed", "accepted", "declined", "superseded"]) {
+      expect(isProposalDeliverable(s, false)).toBe(false);
+    }
+    expect(isProposalDeliverable(null, false)).toBe(false);
+    expect(isProposalDeliverable(undefined, false)).toBe(false);
+  });
+
+  it("deletable and deliverable are disjoint (no row is both)", () => {
+    // The two bulk actions can coexist because their eligibility never overlaps.
+    for (const s of PROPOSAL_STATUSES) {
+      expect(isProposalDeletable(s) && isProposalDeliverable(s, false)).toBe(false);
+    }
   });
 
   it("exposes the deposit types", () => {

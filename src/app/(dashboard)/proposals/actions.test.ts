@@ -16,8 +16,11 @@ vi.mock("@/lib/safe-action", () => ({
 }));
 
 const mockRequireTeamAdmin = vi.fn();
+const mockValidateTeamAccess = vi.fn();
 vi.mock("@/lib/team-context", () => ({
   requireTeamAdmin: (...args: unknown[]) => mockRequireTeamAdmin(...args),
+  validateTeamAccess: (...args: unknown[]) => mockValidateTeamAccess(...args),
+  isTeamAdmin: (role: string) => role === "owner" || role === "admin",
 }));
 
 const mockRevalidatePath = vi.fn();
@@ -142,6 +145,8 @@ import {
   overrideProposalSignoffAction,
   markProposalDeliveredAction,
   reopenProposalDeliveryAction,
+  bulkMarkProposalsDeliveredAction,
+  bulkReopenProposalsDeliveredAction,
 } from "./actions";
 import { sha256Hex } from "@/lib/proposals/tokens";
 
@@ -205,6 +210,8 @@ beforeEach(() => {
   calls = [];
   mockRequireTeamAdmin.mockReset();
   mockRequireTeamAdmin.mockResolvedValue({ userId: "u-author", role: "owner" });
+  mockValidateTeamAccess.mockReset();
+  mockValidateTeamAccess.mockResolvedValue({ userId: "u-author", role: "owner" });
   mockRevalidatePath.mockReset();
   mockRedirect.mockClear();
   sendProposalEmailMock.mockClear();
@@ -1896,5 +1903,105 @@ describe("reopenProposalDeliveryAction", () => {
     expect(result).toEqual({ success: true });
     expect(updatePatch("proposals")).toBeUndefined();
     expect(insertedRows("proposal_events")).toHaveLength(0);
+  });
+});
+
+/** The `.in("id", [...])` id list from the (single) update on a table. */
+function updateInIds(table: string): unknown {
+  const call = calls.find(
+    (c) => c.table === table && c.ops.some((o) => o.method === "update"),
+  );
+  return call?.ops.find((o) => o.method === "in")?.args[1];
+}
+
+describe("bulkMarkProposalsDeliveredAction", () => {
+  it("marks only eligible converted-undelivered rows, skips the rest, logs one event each", async () => {
+    queues["proposals"] = [
+      {
+        data: [
+          { id: "p-1", team_id: TEAM, status: "converted", delivered_at: null },
+          // already delivered → skip
+          { id: "p-2", team_id: TEAM, status: "converted", delivered_at: "2026-07-23T10:00:00Z" },
+          // wrong status → skip
+          { id: "p-3", team_id: TEAM, status: "accepted", delivered_at: null },
+        ],
+        error: null,
+      },
+      { data: null, error: null }, // update
+    ];
+    queues["proposal_events"] = [{ data: null, error: null }];
+
+    const result = await bulkMarkProposalsDeliveredAction(
+      formWithIds(["p-1", "p-2", "p-3"]),
+    );
+    expect(result).toEqual({ success: true });
+    expect(updateInIds("proposals")).toEqual(["p-1"]);
+    const events = insertedRows("proposal_events");
+    expect(events).toHaveLength(1);
+    expect(events[0]).toMatchObject({ proposal_id: "p-1", event_type: "delivered" });
+  });
+
+  it("no-ops (no update, no events) when nothing selected is eligible", async () => {
+    queues["proposals"] = [
+      {
+        data: [{ id: "p-1", team_id: TEAM, status: "sent", delivered_at: null }],
+        error: null,
+      },
+    ];
+    const result = await bulkMarkProposalsDeliveredAction(formWithIds(["p-1"]));
+    expect(result).toEqual({ success: true });
+    expect(updateInIds("proposals")).toBeUndefined();
+    expect(insertedRows("proposal_events")).toHaveLength(0);
+  });
+
+  it("silently drops rows on teams the caller doesn't administer", async () => {
+    mockValidateTeamAccess.mockImplementation(async (tid: string) => {
+      if (tid === TEAM) return { userId: "u-author", role: "owner" };
+      throw new Error("not a member");
+    });
+    queues["proposals"] = [
+      {
+        data: [
+          { id: "p-1", team_id: TEAM, status: "converted", delivered_at: null },
+          { id: "p-2", team_id: "other-team", status: "converted", delivered_at: null },
+        ],
+        error: null,
+      },
+      { data: null, error: null },
+    ];
+    queues["proposal_events"] = [{ data: null, error: null }];
+
+    await bulkMarkProposalsDeliveredAction(formWithIds(["p-1", "p-2"]));
+    expect(updateInIds("proposals")).toEqual(["p-1"]);
+  });
+});
+
+describe("bulkReopenProposalsDeliveredAction", () => {
+  it("clears the stamp on delivered rows only and logs reopened events", async () => {
+    queues["proposals"] = [
+      {
+        data: [
+          { id: "p-1", team_id: TEAM, delivered_at: "2026-07-23T10:00:00Z" },
+          { id: "p-2", team_id: TEAM, delivered_at: null }, // not delivered → skip
+        ],
+        error: null,
+      },
+      { data: null, error: null }, // update
+    ];
+    queues["proposal_events"] = [{ data: null, error: null }];
+
+    const result = await bulkReopenProposalsDeliveredAction(
+      formWithIds(["p-1", "p-2"]),
+    );
+    expect(result).toEqual({ success: true });
+    expect(updatePatch("proposals")).toMatchObject({
+      delivered_at: null,
+      delivered_by_user_id: null,
+    });
+    expect(updateInIds("proposals")).toEqual(["p-1"]);
+    expect(insertedRows("proposal_events")[0]).toMatchObject({
+      proposal_id: "p-1",
+      event_type: "reopened",
+    });
   });
 });

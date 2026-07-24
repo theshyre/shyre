@@ -11,7 +11,8 @@
     "totalProjects": "Active Projects",
     "outstandingInvoices": "Outstanding Invoices",
     "awaitingSignature": "Awaiting Signature",
-    "awaitingSignatureCount": "{count, plural, one {# proposal} other {# proposals}}"
+    "awaitingSignatureCount": "{count, plural, one {# proposal} other {# proposals}}",
+    "inProgress": "In Progress"
   },
   "recentActivity": "Recent Activity",
   "noRecentActivity": "No recent time entries.",

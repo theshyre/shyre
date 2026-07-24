@@ -52,6 +52,22 @@ export function isProposalDeletable(
   return status === "draft" || status === "superseded";
 }
 
+/**
+ * A converted proposal not yet marked delivered is "in progress" — the state
+ * the bulk **Mark delivered** action targets (and the /proposals "In progress"
+ * filter). `delivered` is the read-time flag (`delivered_at != null`). The
+ * server action re-checks the same rule against `delivered_at`; this predicate
+ * gates the row checkbox + which bulk button is offered. Disjoint from
+ * `isProposalDeletable` (draft/superseded), which is why the two bulk actions
+ * can coexist on the same list.
+ */
+export function isProposalDeliverable(
+  status: string | null | undefined,
+  delivered: boolean,
+): boolean {
+  return status === "converted" && !delivered;
+}
+
 /** Terminal statuses — no further transitions. */
 export const TERMINAL_PROPOSAL_STATUSES = new Set<string>([
   "declined",
