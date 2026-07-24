@@ -266,17 +266,22 @@ export function TimeHome({
           gracefully without pushing the table around. */}
       <div className="flex items-start gap-2 flex-wrap">
         <TeamFilter teams={teams} selectedTeamId={selectedTeamId} />
-        <MemberFilter
-          members={memberOptions}
-          selection={
-            memberSelection === "none"
-              ? []
-              : memberSelection === "me" ||
-                  memberSelection === "all"
-                ? memberSelection
-                : memberSelection
-          }
-        />
+        {/* The member filter is a one-value control on a solo team — hide it
+            when there's nobody else to filter by (matches the week grid
+            dropping the "You" member band for the same case). */}
+        {memberOptions.length > 1 && (
+          <MemberFilter
+            members={memberOptions}
+            selection={
+              memberSelection === "none"
+                ? []
+                : memberSelection === "me" ||
+                    memberSelection === "all"
+                  ? memberSelection
+                  : memberSelection
+            }
+          />
+        )}
         <CustomerFilter
           customers={filterPickerCustomers}
           selectedId={selectedCustomerId}
@@ -371,6 +376,7 @@ export function TimeHome({
           categories={categories}
           defaultTeamId={selectedTeamId ?? undefined}
           currentUserId={currentUserId}
+          soloTeam={memberOptions.length <= 1}
         />
       )}
     </div>

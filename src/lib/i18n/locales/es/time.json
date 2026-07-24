@@ -326,6 +326,8 @@
       "noCategory": "Sin categoría",
       "collapse": "Contraer grupo",
       "expand": "Expandir grupo",
+      "collapseNamed": "Contraer {name}",
+      "expandNamed": "Expandir {name}",
       "rowCount": "{count, plural, one {# fila} other {# filas}}"
     },
     "row": {

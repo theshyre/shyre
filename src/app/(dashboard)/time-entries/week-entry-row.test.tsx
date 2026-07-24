@@ -33,7 +33,6 @@ import {
   TitleLineRow,
   TitleLineDrawer,
   flattenEntriesByDay,
-  shouldAutoExpand,
 } from "./week-entry-row";
 import { groupEntriesByTitle } from "./group-entries-by-title";
 import type { ProjectOption, TimeEntry } from "./types";
@@ -113,30 +112,6 @@ describe("flattenEntriesByDay", () => {
     const flat = flattenEntriesByDay([[], [a, b], [], [], [], [], []]);
     expect(flat[0]?.entry.id).toBe("b"); // earlier start
     expect(flat[1]?.entry.id).toBe("a");
-  });
-});
-
-describe("shouldAutoExpand", () => {
-  it("returns true when any day has >1 entry", () => {
-    expect(
-      shouldAutoExpand([
-        [],
-        [makeEntry("a"), makeEntry("b")],
-        [],
-        [],
-        [],
-        [],
-        [],
-      ]),
-    ).toBe(true);
-  });
-  it("returns false when every day has ≤1 entry", () => {
-    expect(
-      shouldAutoExpand([[makeEntry("a")], [makeEntry("b")], [], [], [], [], []]),
-    ).toBe(false);
-  });
-  it("returns false on an empty grid", () => {
-    expect(shouldAutoExpand([[], [], [], [], [], [], []])).toBe(false);
   });
 });
 

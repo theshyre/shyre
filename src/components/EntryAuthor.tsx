@@ -104,13 +104,23 @@ export function EntryAuthor({
     ) : null;
 
   const content = (
-    // min-w-0 + max-w-full so the inner `truncate` spans can actually
-    // ellipsize when the chip is a flex child (sidebar timer) or sits
-    // in a width-constrained column (week grid) — an inline-flex box's
-    // automatic minimum size is otherwise its max-content width and
-    // long name + "via {label}" combos would overflow, not truncate.
+    // Full mode: min-w-0 + max-w-full so the inner `truncate` spans can
+    // actually ellipsize when the chip is a flex child (sidebar timer) or
+    // sits in a width-constrained column (week grid) — an inline-flex box's
+    // automatic minimum size is otherwise its max-content width and long
+    // name + "via {label}" combos would overflow, not truncate.
+    //
+    // Compact mode has NO visible truncating text (the name is sr-only and
+    // the badge text is sr-only), only the fixed-size Avatar — so it must
+    // instead be `shrink-0`. Without it, a flex parent under width pressure
+    // (dense week sub-row: ↳ + avatar + ticket key + long description)
+    // collapses this box below the avatar's fixed width and the avatar
+    // overflows onto the next sibling (the M▢AE-711 overlap). SAL: week-view
+    // identity-cluster overlap, 2026-07-24.
     <span
-      className={`inline-flex min-w-0 max-w-full items-center gap-1.5 text-caption text-content-secondary ${className}`}
+      className={`inline-flex items-center gap-1.5 text-caption text-content-secondary ${
+        compact ? "shrink-0" : "min-w-0 max-w-full"
+      } ${className}`}
     >
       <Avatar avatarUrl={avatarUrl} displayName={name} size={size} />
       {compact ? (
